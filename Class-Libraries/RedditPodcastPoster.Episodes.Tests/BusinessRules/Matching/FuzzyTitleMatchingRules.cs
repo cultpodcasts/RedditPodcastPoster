@@ -129,8 +129,8 @@ public class FuzzyTitleMatchingRules
 
     // --------------------------------------------------------------------------------------------
     // Matrix: 4 variant strategies × YouTube release authority podcast with negative publishing delay.
-    // Negative delay requires fuzzy title match in BOTH the fuzzy-and-duration path AND the
-    // release-and-duration path (see EpisodePlatformMatcher.MatchesByReleaseAndDuration line 146).
+    // Fuzzy title still contributes score on the release-and-duration path; these cases also pass
+    // via MatchesByFuzzyTitleAndDuration when duration is within band.
     // --------------------------------------------------------------------------------------------
 
     [Theory(DisplayName =

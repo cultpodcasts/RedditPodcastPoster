@@ -640,31 +640,104 @@ public sealed class DomainTestFixture
   }
 
   /// <summary>
-  /// Stored YouTube row and Spotify incoming with aligned release/duration but clearly different titles —
-  /// negative-delay guard must not merge on release alone.
+  /// Stored YouTube row and Spotify incoming with weak catalogue-day release alignment (±5 day band)
+  /// and similar duration, but NOT delay-aligned and with clearly different titles.
+  /// Scoring must not reach the cross-platform match threshold (#869 false-positive shape).
   /// </summary>
   public (Episode Stored, Episode Incoming) CreateNegativeDelayNonMatchingPair(Podcast podcast)
   {
-    const int storedDaysAgo = 34;
-    const int incomingDaysAfterStored = 28;
-    var storedRelease = UtcAtTime(-storedDaysAgo, CreateNonMidnightTimeOfDay());
-    var incomingRelease = UtcDateDaysAgo(storedDaysAgo - incomingDaysAfterStored);
+    var delay = podcast.YouTubePublishingDelay();
+    var youTubeRelease = UtcAtTime(-40, TimeSpan.FromHours(15));
+    var expectedAudioRelease = youTubeRelease - delay;
+    // Three calendar days off expected audio — inside ±5 catalogue day tolerance, outside 1-day delay align.
+    var incomingRelease = expectedAudioRelease.Date.AddDays(3);
     var storedLength = CreateDuration();
     var incomingLength = storedLength - TimeSpan.FromSeconds(5);
 
     var stored = CreateStoredEpisodeWithYouTubeOnly(
       podcast,
-      storedRelease,
+      youTubeRelease,
       storedLength,
-      CreateTitle());
+      "Alpha market briefing on early catalogue drift signals");
     var incoming = CreateSpotifyCatalogueEpisode(b => b
-      .WithTitle(CreateTitle())
+      .WithTitle("Omega wellness interview about unrelated guest journeys")
       .WithRelease(incomingRelease)
       .WithDuration(incomingLength));
 
     return (stored, incoming);
   }
 
+  /// <summary>
+  /// YouTube-only stored + Apple incoming with delay-aligned releases, duration within five minutes,
+  /// and disjoint marketing titles (Hassan-shaped). Scoring should merge without title confidence.
+  /// </summary>
+  public (Episode Stored, Episode Incoming, long AppleId) CreateNegativeDelayAlignedDivergentTitlePair(
+    Podcast podcast)
+  {
+    var delay = podcast.YouTubePublishingDelay();
+    var youTubeRelease = UtcAtTime(-40, TimeSpan.FromHours(14));
+    var appleRelease = youTubeRelease - delay;
+    var storedLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(38);
+    var incomingLength = storedLength - TimeSpan.FromSeconds(1);
+    const string youTubeTitle =
+      "The Neighborhood Scheme: Shocking Truth About Wellness Influencer Networks";
+    const string appleTitle =
+      "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      storedLength,
+      youTubeTitle);
+    var appleInput = CreateAppleCatalogueInput(b => b
+      .WithTitle(appleTitle)
+      .WithRelease(appleRelease)
+      .WithDuration(incomingLength));
+    var incoming = CreateAppleCatalogueEpisode(b => b
+      .WithAppleId(appleInput.AppleId)
+      .WithTitle(appleTitle)
+      .WithRelease(appleRelease)
+      .WithDuration(incomingLength));
+
+    return (stored, incoming, appleInput.AppleId);
+  }
+
+
+  /// <summary>
+  /// YouTube-only stored + Spotify incoming with delay-aligned releases, duration within five minutes,
+  /// and disjoint marketing titles (Hassan-shaped). Scoring should merge without title confidence.
+  /// </summary>
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateNegativeDelayAlignedDivergentTitleSpotifyPair(
+    Podcast podcast)
+  {
+    var delay = podcast.YouTubePublishingDelay();
+    var youTubeRelease = UtcAtTime(-40, TimeSpan.FromHours(14));
+    var spotifyRelease = youTubeRelease - delay;
+    var storedLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(38);
+    var incomingLength = storedLength - TimeSpan.FromSeconds(1);
+    const string youTubeTitle =
+      "The Neighborhood Scheme: Shocking Truth About Wellness Influencer Networks";
+    const string spotifyTitle =
+      "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      storedLength,
+      youTubeTitle);
+    var spotifyInput = CreateSpotifyCatalogueInput(b => b
+      .WithTitle(spotifyTitle)
+      .WithRelease(spotifyRelease)
+      .WithDuration(incomingLength));
+    var incoming = CreateSpotifyCatalogueEpisode(b => b
+      .WithSpotifyId(spotifyInput.SpotifyId)
+      .WithTitle(spotifyTitle)
+      .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+      .WithRelease(spotifyRelease)
+      .WithDuration(incomingLength));
+
+    return (stored, incoming, spotifyInput.SpotifyId);
+  }
   public SpotifyCatalogueInput CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(
     DateTime youTubeRelease,
     int calendarDaysAfter,

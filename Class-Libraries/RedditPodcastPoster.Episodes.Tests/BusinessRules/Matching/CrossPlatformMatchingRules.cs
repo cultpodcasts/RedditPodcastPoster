@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -60,8 +61,273 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "For YouTube release authority podcasts with negative publishing delay, episodes must not merge on " +
-        "release-and-duration alone when titles share no fuzzy or substring relationship.")]
+        "For YouTube release authority podcasts with negative publishing delay, a YouTube-only stored episode " +
+        "and an Apple catalogue episode with delay-aligned releases and duration within five minutes must merge " +
+        "even when marketing titles are wholly disjoint — release+duration scores meet the cross-platform threshold.")]
+    public void Negative_delay_aligned_divergent_titles_merge_on_release_and_duration_score()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, appleId) = _fixture.CreateNegativeDelayAlignedDivergentTitlePair(podcast);
+        var expected = EpisodeExpectation.From(stored)
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Hassan-shaped: after Apple has already merged onto the YouTube row, an incoming Spotify catalogue " +
+        "episode with delay-aligned release and duration within five minutes must still merge onto that " +
+        "YouTube+Apple target despite wholly divergent marketing titles.")]
+    public void Spotify_merges_onto_youtube_plus_apple_when_delay_aligned_despite_divergent_titles()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.YouTubePublicationOffset = TimeSpan.FromHours(-8.5).Ticks;
+        var youTubeRelease = new DateTime(2026, 7, 13, 4, 0, 5, DateTimeKind.Utc);
+        var audioRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+        var youTubeLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(37);
+        var spotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        var appleId = _fixture.CreateAppleId();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle("The Cult Next Door: The Shocking Truth About MLM Schemes and Wellness Influencers")
+            .WithRelease(youTubeRelease)
+            .WithLength(youTubeLength)
+            .WithYouTube("JH_934xaeN0", _fixture.DefaultYouTubeUrl("JH_934xaeN0"))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithTitle(
+                "She Spent $115K in a Wellness MLM with Brandie Hadfield: A new mom, an autistic baby, and a decade lost to a commercial cult")
+            .WithRelease(audioRelease)
+            .WithDuration(spotifyLength));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyInput.SpotifyId)
+            .WithTitle(spotifyInput.Title)
+            .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+            .WithRelease(audioRelease)
+            .WithDuration(spotifyLength));
+        var expected = EpisodeExpectation.From(stored)
+            .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Hassan-shaped: Spotify for this week's MLM episode must not merge onto last week's YouTube episode " +
+        "even when catalogue-day tolerance (±5) and five-minute duration include that row — composite score " +
+        "stays below threshold without delay alignment or title confidence.")]
+    public void Spotify_does_not_merge_onto_wrong_week_youtube_under_weak_catalogue_day_alignment()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.YouTubePublicationOffset = TimeSpan.FromHours(-8.5).Ticks;
+        var lastWeekYouTubeRelease = new DateTime(2026, 7, 10, 19, 0, 46, DateTimeKind.Utc);
+        var mlmSpotifyRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+        var lastWeekLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
+        var mlmSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle("Can Local Elections Stop Authoritarianism? Defending Democracy One Vote at a Time")
+            .WithRelease(lastWeekYouTubeRelease)
+            .WithLength(lastWeekLength)
+            .WithYouTube("yN_wIF8zk4w", _fixture.DefaultYouTubeUrl("yN_wIF8zk4w"))
+            .Create();
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithTitle(
+                "She Spent $115K in a Wellness MLM with Brandie Hadfield: A new mom, an autistic baby, and a decade lost to a commercial cult")
+            .WithRelease(mlmSpotifyRelease)
+            .WithDuration(mlmSpotifyLength));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyInput.SpotifyId)
+            .WithTitle(spotifyInput.Title)
+            .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+            .WithRelease(mlmSpotifyRelease)
+            .WithDuration(mlmSpotifyLength));
+        var expected = EpisodeExpectation.From(stored);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.MergedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    
+    [Fact(DisplayName =
+        "Hassan-shaped: a Spotify catalogue episode with delay-aligned release and duration within five minutes " +
+        "must merge onto a YouTube-only stored episode despite wholly divergent marketing titles.")]
+    public void Spotify_merges_onto_youtube_only_when_delay_aligned_despite_divergent_titles()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, spotifyId) = _fixture.CreateNegativeDelayAlignedDivergentTitleSpotifyPair(podcast);
+        var expected = EpisodeExpectation.From(stored)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "When ExactReleaseMatchStrategy accepts same-calendar-day audio-stored and YouTube-incoming releases " +
+        "(not delay-aligned), duration within five minutes meets the cross-platform score threshold even when " +
+        "titles are disjoint.")]
+    public void Same_calendar_day_release_and_duration_merges_despite_divergent_titles()
+    {
+        // Arrange — positive delay expects YouTube next day; same calendar day is a separate ExactRelease signal.
+        var publishingDelay = TimeSpan.FromDays(3);
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10));
+        // Same calendar day as audio, but far from expected audio+delay (outside 1-day align window).
+        var youTubeRelease = audioRelease.Date.Add(TimeSpan.FromHours(18));
+        var length = TimeSpan.FromMinutes(70);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var spotifyId = _fixture.CreateSpotifyId();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle("Alpha market briefing on early catalogue drift signals")
+            .WithRelease(audioRelease)
+            .WithLength(length)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithTitle("Omega wellness interview about unrelated guest journeys")
+            .WithRelease(youTubeRelease)
+            .WithDuration(length - TimeSpan.FromSeconds(2)));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeInput.YouTubeId)
+            .WithTitle(youTubeInput.Title)
+            .WithRelease(youTubeInput.Release)
+            .WithDuration(youTubeInput.Duration));
+        var expected = EpisodeExpectation.From(stored)
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
+
+        EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+                audioRelease, youTubeRelease, publishingDelay)
+            .Should().BeFalse();
+        EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(audioRelease, youTubeRelease)
+            .Should().BeTrue();
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Weak catalogue-day release alignment plus similar duration can still merge when a substring title " +
+        "relationship supplies enough score to reach the cross-platform threshold.")]
+    public void Weak_catalogue_day_alignment_merges_when_substring_title_pushes_score_over_threshold()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var delay = podcast.YouTubePublishingDelay();
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-40, TimeSpan.FromHours(15));
+        var audioRelease = (youTubeRelease - delay).Date.AddDays(3);
+        var length = TimeSpan.FromMinutes(55);
+        const string core = "Holy Disobedience: Inside Adventist Networks";
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, youTubeRelease, length, core);
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithTitle("Show Prefix - " + core)
+            .WithRelease(audioRelease)
+            .WithDuration(length));
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(spotifyInput.SpotifyId)
+            .WithTitle(spotifyInput.Title)
+            .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+            .WithRelease(audioRelease)
+            .WithDuration(length));
+        var expected = EpisodeExpectation.From(stored)
+            .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.MergedEpisodes.Should().ContainSingle();
+        result.AddedEpisodes.Should().BeEmpty();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "For Spotify-first podcasts with positive YouTube publishing delay, delay-aligned release and duration " +
+        "within five minutes merge YouTube onto stored audio even when marketing titles are wholly disjoint.")]
+    public void Positive_delay_aligned_divergent_titles_merge_on_release_and_duration_score()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var audioRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10));
+        var length = TimeSpan.FromMinutes(70);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var spotifyId = _fixture.CreateSpotifyId();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle("Alpha market briefing on early catalogue drift signals")
+            .WithRelease(audioRelease)
+            .WithLength(length)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
+            .WithTitle("Omega wellness interview about unrelated guest journeys")
+            .WithRelease(audioRelease.Add(publishingDelay))
+            .WithDuration(length - TimeSpan.FromSeconds(2)));
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeInput.YouTubeId)
+            .WithTitle(youTubeInput.Title)
+            .WithRelease(youTubeInput.Release)
+            .WithDuration(youTubeInput.Duration));
+        var expected = EpisodeExpectation.From(stored)
+            .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+[Fact(DisplayName =
+        "For YouTube release authority podcasts with negative publishing delay, weak catalogue-day release " +
+        "alignment (±5 days) plus similar duration must not merge when titles share no fuzzy or substring " +
+        "relationship — composite score stays below the cross-platform threshold.")]
     public void Negative_delay_does_not_merge_on_release_and_duration_when_titles_differ()
     {
         // Arrange

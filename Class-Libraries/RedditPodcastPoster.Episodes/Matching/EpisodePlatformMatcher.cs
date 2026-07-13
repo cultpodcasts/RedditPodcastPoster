@@ -141,41 +141,21 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
+        // YouTube↔audio pairs: compose release/duration/title scores (same model for +/- delay).
+        if (HasCrossPlatformYouTubeAudioPair(existingEpisode, incomingEpisode))
+        {
+            return CrossPlatformMatchScorer.MeetsMatchThreshold(
+                existingEpisode,
+                incomingEpisode,
+                podcast);
+        }
+
         if (podcast.YouTubePublishingDelay().Ticks < 0)
         {
-            if (HasCrossPlatformYouTubeAudioPair(existingEpisode, incomingEpisode))
-            {
-                return HasCrossPlatformTitleConfidence(existingEpisode, incomingEpisode);
-            }
-
             return FuzzyMatcher.IsMatch(existingEpisode.Title, incomingEpisode, e => e.Title, MinFuzzyTitleScore);
         }
 
         return true;
-    }
-
-    private static bool HasCrossPlatformTitleConfidence(Episode existingEpisode, Episode incomingEpisode)
-    {
-        var existingTitle = existingEpisode.Title;
-        var incomingTitle = incomingEpisode.Title;
-
-        if (FuzzyMatcher.IsMatch(existingTitle, incomingEpisode, e => e.Title, MinFuzzyTitleScore))
-        {
-            return true;
-        }
-
-        return TitlesShareSubstringRelationship(existingTitle, incomingTitle);
-    }
-
-    private static bool TitlesShareSubstringRelationship(string left, string right)
-    {
-        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
-        {
-            return false;
-        }
-
-        return left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
-               right.Contains(left, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool EpisodesReleaseMatch(
@@ -218,22 +198,23 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
 
     private static bool HasCrossPlatformYouTubeAudioPair(Episode existingEpisode, Episode incomingEpisode)
     {
-        return IsYouTubeOnlyToAudioOnlyPair(existingEpisode, incomingEpisode) ||
-               IsYouTubeOnlyToAudioOnlyPair(incomingEpisode, existingEpisode);
+        return IsYouTubeToMissingAudioPlatformPair(existingEpisode, incomingEpisode) ||
+               IsYouTubeToMissingAudioPlatformPair(incomingEpisode, existingEpisode);
     }
 
-    private static bool IsYouTubeOnlyToAudioOnlyPair(Episode youTubeSide, Episode audioSide)
+    /// <summary>
+    /// YouTube-authority side paired with an audio-only side that supplies a platform the YouTube
+    /// side still lacks. YouTube may already have Apple when Spotify arrives (or vice versa).
+    /// </summary>
+    private static bool IsYouTubeToMissingAudioPlatformPair(Episode youTubeSide, Episode audioSide)
     {
         if (!youTubeSide.HasYouTubeIdentity() || audioSide.HasYouTubeIdentity())
         {
             return false;
         }
 
-        if (youTubeSide.HasSpotifyIdentity() || youTubeSide.HasAppleIdentity())
-        {
-            return false;
-        }
-
-        return audioSide.HasSpotifyIdentity() || audioSide.HasAppleIdentity();
+        var bringsSpotify = audioSide.HasSpotifyIdentity() && !youTubeSide.HasSpotifyIdentity();
+        var bringsApple = audioSide.HasAppleIdentity() && !youTubeSide.HasAppleIdentity();
+        return bringsSpotify || bringsApple;
     }
 }
