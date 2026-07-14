@@ -72,6 +72,24 @@ public class CrossPlatformMatchScorerRules
     }
 
     [Fact(DisplayName =
+        "Early-within-negative-delay release plus duration plus matching descriptions reaches 70 and " +
+        "meets the threshold even when marketing titles are wholly disjoint.")]
+    public void Early_within_delay_with_matching_descriptions_meets_threshold()
+    {
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (youTube, audio, _) =
+            _fixture.CreateCultsToConsciousnessEarlyAudioPair(podcast, matchingTitles: false);
+
+        var score = CrossPlatformMatchScorer.Score(youTube, audio, podcast);
+
+        score.Should().Be(
+            CrossPlatformMatchScorer.DurationWithinBandPoints +
+            CrossPlatformMatchScorer.WeakCatalogueReleasePoints +
+            CrossPlatformMatchScorer.FuzzyDescriptionPoints);
+        CrossPlatformMatchScorer.MeetsMatchThreshold(youTube, audio, podcast).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "Weak catalogue-day release plus duration plus fuzzy title reaches 70 and meets the match threshold.")]
     public void Weak_catalogue_release_with_fuzzy_title_meets_threshold()
     {

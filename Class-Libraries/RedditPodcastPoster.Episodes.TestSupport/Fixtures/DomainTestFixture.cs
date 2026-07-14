@@ -659,12 +659,58 @@ public sealed class DomainTestFixture
       youTubeRelease,
       storedLength,
       "Alpha market briefing on early catalogue drift signals");
+    stored.Description =
+      "Alpha-only show notes about market briefing mechanics and catalogue drift telemetry.";
     var incoming = CreateSpotifyCatalogueEpisode(b => b
       .WithTitle("Omega wellness interview about unrelated guest journeys")
+      .WithDescription(
+        "Omega-only wellness interview notes about guest journeys with no shared phrasing.")
       .WithRelease(incomingRelease)
       .WithDuration(incomingLength));
 
     return (stored, incoming);
+  }
+
+  /// <summary>
+  /// Cults to Consciousness production shape: configured YouTube delay −31.5d, YouTube-first publish,
+  /// Spotify/Apple arrive ~13 days later (early within delay), durations within five minutes.
+  /// Titles may be divergent (pre-rename) or matched (post-rename); descriptions match either way.
+  /// </summary>
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCultsToConsciousnessEarlyAudioPair(
+    Podcast podcast,
+    bool matchingTitles)
+  {
+    podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
+    var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);
+    var audioRelease = new DateTime(2026, 7, 14, 13, 0, 0, DateTimeKind.Utc);
+    var youTubeLength = TimeSpan.FromMinutes(81) + TimeSpan.FromSeconds(50);
+    var audioLength = TimeSpan.FromMinutes(85) + TimeSpan.FromSeconds(10);
+    const string youTubeTitlePreRename =
+      "When Evil Infiltrates Campus Church (and gets away with it)";
+    const string audioTitle = "I Was Recruited on Campus Into a Cult";
+    const string sharedDescription =
+      "Sarah entered college with almost no religious background, hoping to find community and deepen her newfound Christian faith, only to be drawn into a highly controlling branch of Assemblies of God known as Chi Alpha at Murray State.";
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      youTubeLength,
+      matchingTitles ? audioTitle : youTubeTitlePreRename);
+    stored.Description = sharedDescription;
+    var spotifyInput = CreateSpotifyCatalogueInput(b => b
+      .WithTitle(audioTitle)
+      .WithDescription(sharedDescription)
+      .WithRelease(audioRelease)
+      .WithDuration(audioLength));
+    var incoming = CreateSpotifyCatalogueEpisode(b => b
+      .WithSpotifyId(spotifyInput.SpotifyId)
+      .WithTitle(audioTitle)
+      .WithDescription(sharedDescription)
+      .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+      .WithRelease(audioRelease)
+      .WithDuration(audioLength));
+
+    return (stored, incoming, spotifyInput.SpotifyId);
   }
 
   /// <summary>

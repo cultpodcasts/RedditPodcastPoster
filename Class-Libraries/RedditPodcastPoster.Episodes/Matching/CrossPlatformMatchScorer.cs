@@ -8,7 +8,8 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// Composite confidence score for YouTube↔audio cross-platform merges.
 /// Signals add; match when total ≥ <see cref="MatchThreshold"/>.
 /// Delay-aligned release + duration reaches threshold without title confidence.
-/// Weak catalogue-day release + duration alone does not (#869 protection).
+/// Weak catalogue-day (or early-within-negative-delay) release + duration alone does not
+/// (#869 protection). Matching episode descriptions supply the same confidence as a fuzzy title.
 /// </summary>
 public static class CrossPlatformMatchScorer
 {
@@ -20,8 +21,11 @@ public static class CrossPlatformMatchScorer
     public const int DurationWithinBandPoints = 30;
     public const int FuzzyTitlePoints = 25;
     public const int SubstringTitlePoints = 20;
+    public const int FuzzyDescriptionPoints = FuzzyTitlePoints;
 
     private const int MinFuzzyTitleScore = 70;
+    private const int MinFuzzyDescriptionScore = 70;
+    private const int DescriptionCompareMaxChars = 500;
 
     /// <summary>
     /// Scores a YouTube↔audio pair that already passed a release-strategy match and
@@ -90,7 +94,34 @@ public static class CrossPlatformMatchScorer
             return SubstringTitlePoints;
         }
 
+        if (DescriptionsFuzzyMatch(existingEpisode.Description, incomingEpisode.Description))
+        {
+            // Same weight as fuzzy title: marketing titles often diverge while show notes match
+            // (Cults to Consciousness YouTube teasers renamed later to match Spotify/Apple).
+            return FuzzyDescriptionPoints;
+        }
+
         return 0;
+    }
+
+    private static bool DescriptionsFuzzyMatch(string left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return false;
+        }
+
+        var leftSample = TruncateForFuzzyCompare(left);
+        var rightSample = TruncateForFuzzyCompare(right);
+        return FuzzyMatcher.IsMatch(leftSample, rightSample, s => s, MinFuzzyDescriptionScore);
+    }
+
+    private static string TruncateForFuzzyCompare(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length <= DescriptionCompareMaxChars
+            ? trimmed
+            : trimmed[..DescriptionCompareMaxChars];
     }
 
     private static bool TryGetYouTubeAndAudioSides(
