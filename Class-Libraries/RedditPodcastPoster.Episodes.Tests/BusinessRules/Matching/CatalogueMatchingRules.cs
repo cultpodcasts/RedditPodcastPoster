@@ -604,7 +604,7 @@ public class CatalogueMatchingRules
         "a catalogue row whose title shares no fuzzy or substring relationship with the stored episode.")]
     public void youtube_discovered_enrichment_does_not_duration_snipe_disjoint_titles()
     {
-        // Arrange — Cults to Consciousness shape: release window aligns but titles refer to different interviews
+        // Arrange — YouTube-authority enrichment: release window aligns but titles refer to different interviews
         const string storedTitle = "My Buddhist Guru Convinced Me Her Ab*se Was Enlightenment";
         const string catalogueTitle =
             "Growing Up On SISTER WIVES: The Dark Side of Parenting No One Talks About (ft. Mykelti Brown)";

@@ -97,7 +97,7 @@ public static class CrossPlatformMatchScorer
         if (DescriptionsFuzzyMatch(existingEpisode.Description, incomingEpisode.Description))
         {
             // Same weight as fuzzy title: marketing titles often diverge while show notes match
-            // (Cults to Consciousness YouTube teasers renamed later to match Spotify/Apple).
+            // (YouTube teasers later renamed to match Spotify/Apple catalogue titles).
             return FuzzyDescriptionPoints;
         }
 

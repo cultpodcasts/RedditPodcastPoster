@@ -220,11 +220,12 @@ public class EpisodeReleaseToleranceRules
     }
 
     [Fact(DisplayName =
-        "For Cults to Consciousness-shaped delays (−31.5d configured, audio ~13d after YouTube), " +
-        "SpotifyCatalogueReleaseMatches accepts the early audio date against expected audio = YouTube − delay.")]
+        "For a YouTube-authority podcast with a large negative publication offset (−31.5d) when audio " +
+        "arrives ~13d after YouTube, SpotifyCatalogueReleaseMatches accepts that early date against " +
+        "expected audio = YouTube − delay.")]
     public void spotify_catalogue_accepts_early_audio_within_configured_negative_delay()
     {
-        // Arrange — production C2C offset and the Jul 2026 campus episode pair
+        // Arrange — large negative offset; actual audio early within the configured delay window
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
         var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);

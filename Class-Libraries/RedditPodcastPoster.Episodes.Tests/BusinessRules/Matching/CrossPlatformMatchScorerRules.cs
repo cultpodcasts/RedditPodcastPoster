@@ -78,7 +78,7 @@ public class CrossPlatformMatchScorerRules
     {
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (youTube, audio, _) =
-            _fixture.CreateCultsToConsciousnessEarlyAudioPair(podcast, matchingTitles: false);
+            _fixture.CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(podcast, matchingTitles: false);
 
         var score = CrossPlatformMatchScorer.Score(youTube, audio, podcast);
 

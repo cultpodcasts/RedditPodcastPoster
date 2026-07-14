@@ -672,11 +672,12 @@ public sealed class DomainTestFixture
   }
 
   /// <summary>
-  /// Cults to Consciousness production shape: configured YouTube delay −31.5d, YouTube-first publish,
-  /// Spotify/Apple arrive ~13 days later (early within delay), durations within five minutes.
-  /// Titles may be divergent (pre-rename) or matched (post-rename); descriptions match either way.
+  /// YouTube-authority podcast with a large negative publication offset (~31.5d): YouTube publishes
+  /// first; Spotify/Apple arrive early within that configured delay (~13d later) with durations in
+  /// the cross-platform band. Titles may diverge (pre-rename) or match (post-rename); descriptions
+  /// are shared either way for description-confidence scoring.
   /// </summary>
-  public (Episode Stored, Episode Incoming, string SpotifyId) CreateCultsToConsciousnessEarlyAudioPair(
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(
     Podcast podcast,
     bool matchingTitles)
   {
@@ -686,10 +687,12 @@ public sealed class DomainTestFixture
     var youTubeLength = TimeSpan.FromMinutes(81) + TimeSpan.FromSeconds(50);
     var audioLength = TimeSpan.FromMinutes(85) + TimeSpan.FromSeconds(10);
     const string youTubeTitlePreRename =
-      "When Evil Infiltrates Campus Church (and gets away with it)";
-    const string audioTitle = "I Was Recruited on Campus Into a Cult";
+      "The Neighborhood Scheme: Shocking Truth About Wellness Influencer Networks";
+    const string audioTitle =
+      "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
     const string sharedDescription =
-      "Sarah entered college with almost no religious background, hoping to find community and deepen her newfound Christian faith, only to be drawn into a highly controlling branch of Assemblies of God known as Chi Alpha at Murray State.";
+      "A long-form interview covering recruitment into a high-control group, isolation from family, " +
+      "and the lasting impact of coercive spiritual authority after leaving the community.";
 
     var stored = CreateStoredEpisodeWithYouTubeOnly(
       podcast,

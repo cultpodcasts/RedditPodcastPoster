@@ -561,7 +561,7 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "Cults to Consciousness shape: when audio arrives early within the configured negative delay " +
+        "When audio arrives early within a large negative YouTube publication offset " +
         "(YouTube first, Spotify ~13d later vs −31.5d expectation) and titles still diverge, matching " +
         "descriptions plus duration must merge onto the YouTube row.")]
     public void Early_within_negative_delay_divergent_titles_merge_when_descriptions_match()
@@ -569,7 +569,7 @@ public class CrossPlatformMatchingRules
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (stored, discovered, spotifyId) =
-            _fixture.CreateCultsToConsciousnessEarlyAudioPair(podcast, matchingTitles: false);
+            _fixture.CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(podcast, matchingTitles: false);
         var expected = EpisodeExpectation.From(stored)
             .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
 
@@ -585,14 +585,14 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
-        "Cults to Consciousness shape: when YouTube has already been renamed to match Spotify/Apple, " +
-        "early-within-negative-delay audio must merge even without relying on description confidence.")]
+        "When YouTube has already been renamed to match Spotify/Apple, early-within-negative-delay " +
+        "audio must merge even without relying on description confidence.")]
     public void Early_within_negative_delay_renamed_titles_merge()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (stored, discovered, spotifyId) =
-            _fixture.CreateCultsToConsciousnessEarlyAudioPair(podcast, matchingTitles: true);
+            _fixture.CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(podcast, matchingTitles: true);
         stored.Description = "YouTube teaser copy that no longer matches the Spotify show notes.";
         discovered.Description = "Spotify-only RSS description with wholly different wording.";
         var expected = EpisodeExpectation.From(stored)

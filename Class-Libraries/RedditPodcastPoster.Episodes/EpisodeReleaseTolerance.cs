@@ -228,7 +228,7 @@ public static class EpisodeReleaseTolerance
 
         var expectedAudioRelease = GetAudioReleaseForPlatformLookup(podcast, episode);
         // Start from the YouTube release (not only near expected audio): audio frequently arrives
-        // early within the configured |delay| window (Cults to Consciousness shape).
+        // early within the configured |delay| window on YouTube-authority negative-offset podcasts.
         var windowStart = episode.Release.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
         var windowEnd = expectedAudioRelease.Add(YouTubeReleaseAuthorityEnrichmentLookahead);
         var now = DateTime.UtcNow;
