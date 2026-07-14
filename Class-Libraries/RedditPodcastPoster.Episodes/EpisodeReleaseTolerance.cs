@@ -126,7 +126,50 @@ public static class EpisodeReleaseTolerance
             return true;
         }
 
+        // Negative delay = YouTube first, audio later at ~|delay|. Audio often lands early
+        // (between YouTube publish and the configured expectation). Accept that band so
+        // catalogue/merge do not miss real pairs when |actual delay| < |configured delay|.
+        if (IsAudioWithinNegativeDelayYouTubeToExpectedWindow(
+                spotifyCatalogueRelease,
+                expectedRelease,
+                podcast,
+                dayTolerance))
+        {
+            return true;
+        }
+
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;
+    }
+
+    /// <summary>
+    /// For YouTube-authority podcasts with negative publishing delay, <paramref name="expectedRelease"/>
+    /// is audio ≈ YouTube − delay. Accept catalogue audio from the inferred YouTube day through
+    /// expected audio + day tolerance (early-within-configured-delay).
+    /// </summary>
+    public static bool IsAudioWithinNegativeDelayYouTubeToExpectedWindow(
+        DateTime audioCatalogueRelease,
+        DateTime expectedAudioRelease,
+        Podcast? podcast,
+        int? dayTolerance = null)
+    {
+        if (podcast is not { ReleaseAuthority: Service.YouTube })
+        {
+            return false;
+        }
+
+        var delay = podcast.YouTubePublishingDelay();
+        if (delay.Ticks >= 0)
+        {
+            return false;
+        }
+
+        var tol = dayTolerance ?? GetSpotifyCatalogueDayTolerance(podcast);
+        // expected = youtube - delay ⇒ youtube = expected + delay (delay &lt; 0).
+        var youTubeDate = DateOnly.FromDateTime(expectedAudioRelease.Add(delay));
+        var audioDate = DateOnly.FromDateTime(audioCatalogueRelease);
+        var expectedDate = DateOnly.FromDateTime(expectedAudioRelease);
+        return audioDate >= youTubeDate &&
+               audioDate.DayNumber <= expectedDate.DayNumber + tol;
     }
 
     /// <summary>
@@ -184,7 +227,9 @@ public static class EpisodeReleaseTolerance
         }
 
         var expectedAudioRelease = GetAudioReleaseForPlatformLookup(podcast, episode);
-        var windowStart = expectedAudioRelease.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
+        // Start from the YouTube release (not only near expected audio): audio frequently arrives
+        // early within the configured |delay| window on YouTube-authority negative-offset podcasts.
+        var windowStart = episode.Release.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
         var windowEnd = expectedAudioRelease.Add(YouTubeReleaseAuthorityEnrichmentLookahead);
         var now = DateTime.UtcNow;
         return now >= windowStart && now <= windowEnd;

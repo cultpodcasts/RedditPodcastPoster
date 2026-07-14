@@ -561,6 +561,90 @@ public class CrossPlatformMatchingRules
     }
 
     [Fact(DisplayName =
+        "When audio arrives early within a large negative YouTube publication offset " +
+        "(YouTube first, Spotify ~13d later vs −31.5d expectation) and titles still diverge, matching " +
+        "descriptions plus duration must merge onto the YouTube row.")]
+    public void Early_within_negative_delay_divergent_titles_merge_when_descriptions_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, spotifyId) =
+            _fixture.CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(podcast, matchingTitles: false);
+        var expected = EpisodeExpectation.From(stored)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "When YouTube has already been renamed to match Spotify/Apple, early-within-negative-delay " +
+        "audio must merge even without relying on description confidence.")]
+    public void Early_within_negative_delay_renamed_titles_merge()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, spotifyId) =
+            _fixture.CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(podcast, matchingTitles: true);
+        stored.Description = "YouTube teaser copy that no longer matches the Spotify show notes.";
+        discovered.Description = "Spotify-only RSS description with wholly different wording.";
+        var expected = EpisodeExpectation.From(stored)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId));
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.AddedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().ContainSingle();
+        result.MergedEpisodes.Single().Existing.Id.Should().Be(stored.Id);
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "Early-within-negative-delay release plus similar duration must not merge when titles and " +
+        "descriptions are both divergent — keep #869 protection across the widened delay window.")]
+    public void Early_within_negative_delay_does_not_merge_without_title_or_description_confidence()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
+        var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);
+        var audioRelease = new DateTime(2026, 7, 14, 13, 0, 0, DateTimeKind.Utc);
+        var length = TimeSpan.FromMinutes(80);
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            youTubeRelease,
+            length,
+            "Civic turnout strategies for mid-cycle ballot measures");
+        stored.Description = "Ballot-measure strategy notes with no overlap to the audio episode.";
+        var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithTitle(
+                "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost")
+            .WithDescription("Wellness-scheme interview notes with no shared ballot wording.")
+            .WithRelease(audioRelease)
+            .WithDuration(length));
+        var expected = EpisodeExpectation.From(stored);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.MergedEpisodes.Should().BeEmpty();
+        result.FailedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
         "For cross-platform YouTube-to-audio-stored pairs, duration tolerance is five minutes (strict less-than); " +
         "differences beyond that must not merge on release alignment alone.")]
     public void Cross_platform_duration_beyond_five_minutes_does_not_merge_on_release_alignment()

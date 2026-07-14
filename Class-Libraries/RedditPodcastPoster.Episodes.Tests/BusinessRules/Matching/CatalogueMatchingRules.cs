@@ -204,8 +204,8 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When a catalogue item's release falls outside the Spotify catalogue tolerance window, " +
-        "CatalogueReleaseMatches rejects it for platform lookup filtering.")]
+        "When a catalogue item's release falls before the inferred YouTube day for a negative-delay " +
+        "podcast, CatalogueReleaseMatches rejects it for platform lookup filtering.")]
     public void catalogue_release_filter_rejects_release_outside_tolerance()
     {
         // Arrange
@@ -218,7 +218,7 @@ public class CatalogueMatchingRules
             e.Length = _fixture.CreateDuration();
             e.Release = lookupRelease;
         });
-        var farOffRelease = lookupRelease.AddDays(-30);
+        var farOffRelease = youTubeRelease.AddDays(-5);
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
@@ -604,7 +604,7 @@ public class CatalogueMatchingRules
         "a catalogue row whose title shares no fuzzy or substring relationship with the stored episode.")]
     public void youtube_discovered_enrichment_does_not_duration_snipe_disjoint_titles()
     {
-        // Arrange — Cults to Consciousness shape: release window aligns but titles refer to different interviews
+        // Arrange — YouTube-authority enrichment: release window aligns but titles refer to different interviews
         const string storedTitle = "My Buddhist Guru Convinced Me Her Ab*se Was Enlightenment";
         const string catalogueTitle =
             "Growing Up On SISTER WIVES: The Dark Side of Parenting No One Talks About (ft. Mykelti Brown)";

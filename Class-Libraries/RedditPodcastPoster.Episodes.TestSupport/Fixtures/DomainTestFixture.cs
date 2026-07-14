@@ -659,12 +659,61 @@ public sealed class DomainTestFixture
       youTubeRelease,
       storedLength,
       "Alpha market briefing on early catalogue drift signals");
+    stored.Description =
+      "Alpha-only show notes about market briefing mechanics and catalogue drift telemetry.";
     var incoming = CreateSpotifyCatalogueEpisode(b => b
       .WithTitle("Omega wellness interview about unrelated guest journeys")
+      .WithDescription(
+        "Omega-only wellness interview notes about guest journeys with no shared phrasing.")
       .WithRelease(incomingRelease)
       .WithDuration(incomingLength));
 
     return (stored, incoming);
+  }
+
+  /// <summary>
+  /// YouTube-authority podcast with a large negative publication offset (~31.5d): YouTube publishes
+  /// first; Spotify/Apple arrive early within that configured delay (~13d later) with durations in
+  /// the cross-platform band. Titles may diverge (pre-rename) or match (post-rename); descriptions
+  /// are shared either way for description-confidence scoring.
+  /// </summary>
+  public (Episode Stored, Episode Incoming, string SpotifyId) CreateYouTubeAuthorityNegativeOffsetEarlyAudioPair(
+    Podcast podcast,
+    bool matchingTitles)
+  {
+    podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
+    var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);
+    var audioRelease = new DateTime(2026, 7, 14, 13, 0, 0, DateTimeKind.Utc);
+    var youTubeLength = TimeSpan.FromMinutes(81) + TimeSpan.FromSeconds(50);
+    var audioLength = TimeSpan.FromMinutes(85) + TimeSpan.FromSeconds(10);
+    const string youTubeTitlePreRename =
+      "The Neighborhood Scheme: Shocking Truth About Wellness Influencer Networks";
+    const string audioTitle =
+      "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
+    const string sharedDescription =
+      "A long-form interview covering recruitment into a high-control group, isolation from family, " +
+      "and the lasting impact of coercive spiritual authority after leaving the community.";
+
+    var stored = CreateStoredEpisodeWithYouTubeOnly(
+      podcast,
+      youTubeRelease,
+      youTubeLength,
+      matchingTitles ? audioTitle : youTubeTitlePreRename);
+    stored.Description = sharedDescription;
+    var spotifyInput = CreateSpotifyCatalogueInput(b => b
+      .WithTitle(audioTitle)
+      .WithDescription(sharedDescription)
+      .WithRelease(audioRelease)
+      .WithDuration(audioLength));
+    var incoming = CreateSpotifyCatalogueEpisode(b => b
+      .WithSpotifyId(spotifyInput.SpotifyId)
+      .WithTitle(audioTitle)
+      .WithDescription(sharedDescription)
+      .WithSpotifyUrl(spotifyInput.SpotifyUrl)
+      .WithRelease(audioRelease)
+      .WithDuration(audioLength));
+
+    return (stored, incoming, spotifyInput.SpotifyId);
   }
 
   /// <summary>

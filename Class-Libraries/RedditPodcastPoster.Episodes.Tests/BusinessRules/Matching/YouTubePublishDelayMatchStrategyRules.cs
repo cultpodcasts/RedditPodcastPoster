@@ -82,9 +82,7 @@ public class YouTubePublishDelayMatchStrategyRules
         var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,
             release: youTubeRelease);
-        var delay = podcast.YouTubePublishingDelay();
-        var expectedAudioRelease = youTubeRelease.Subtract(delay);
-        var farOffSpotifyRelease = expectedAudioRelease.AddDays(-30);
+        var farOffSpotifyRelease = youTubeRelease.AddDays(-5);
         var incoming = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(farOffSpotifyRelease));
         var context = new ReleaseMatchContext(podcast, stored, incoming);

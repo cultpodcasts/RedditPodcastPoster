@@ -64,27 +64,37 @@ public class EpisodeReleaseToleranceRules
 
     [Fact(DisplayName =
         "When YouTube is release authority with negative delay, Spotify catalogue day tolerance " +
-        "is five days and SpotifyCatalogueReleaseMatches accepts releases within that window.")]
+        "is five days around expected audio, and audio earlier than that but still after the inferred " +
+        "YouTube day is accepted (early-within-configured-delay). Audio before YouTube is rejected.")]
     public void spotify_catalogue_day_tolerance_for_negative_delay_youtube_authority()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var expectedRelease = DomainTestFixture.UtcAtTime(-10, _fixture.CreateNonMidnightTimeOfDay());
+        var delay = podcast.YouTubePublishingDelay();
+        var youTubeRelease = expectedRelease.Add(delay);
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
         var withinFiveDays = expectedRelease.AddDays(-4);
-        var beyondFiveDays = expectedRelease.AddDays(-6);
+        var earlyWithinDelayWindow = youTubeRelease.AddDays(5);
+        var beforeYouTube = youTubeRelease.AddDays(-2);
 
         // Act
         var dayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
         var withinMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
             withinFiveDays, expectedRelease, toleranceTicks, podcast);
-        var beyondMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-            beyondFiveDays, expectedRelease, toleranceTicks, podcast);
+        var earlyMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            earlyWithinDelayWindow, expectedRelease, toleranceTicks, podcast);
+        var beforeYouTubeMatches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            beforeYouTube, expectedRelease, toleranceTicks, podcast);
 
         // Assert
         dayTolerance.Should().Be(5);
         withinMatches.Should().BeTrue();
-        beyondMatches.Should().BeFalse();
+        earlyMatches.Should().BeTrue();
+        beforeYouTubeMatches.Should().BeFalse();
+        EpisodeReleaseTolerance.IsAudioWithinNegativeDelayYouTubeToExpectedWindow(
+                earlyWithinDelayWindow, expectedRelease, podcast)
+            .Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -187,13 +197,15 @@ public class EpisodeReleaseToleranceRules
     }
 
     [Fact(DisplayName =
-        "SpotifyCatalogueReleaseMatches rejects far-off Spotify catalogue dates.")]
+        "SpotifyCatalogueReleaseMatches rejects Spotify catalogue dates before the inferred YouTube " +
+        "publish day for negative-delay YouTube-authority podcasts.")]
     public void spotify_catalogue_release_matches_outside_tolerance()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var expectedRelease = DomainTestFixture.UtcAtTime(-10, _fixture.CreateNonMidnightTimeOfDay());
-        var farOffSpotifyRelease = expectedRelease.AddDays(-30);
+        var youTubeRelease = expectedRelease.Add(podcast.YouTubePublishingDelay());
+        var farOffSpotifyRelease = youTubeRelease.AddDays(-5);
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
 
         // Act
@@ -205,6 +217,36 @@ public class EpisodeReleaseToleranceRules
 
         // Assert
         matches.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "For a YouTube-authority podcast with a large negative publication offset (−31.5d) when audio " +
+        "arrives ~13d after YouTube, SpotifyCatalogueReleaseMatches accepts that early date against " +
+        "expected audio = YouTube − delay.")]
+    public void spotify_catalogue_accepts_early_audio_within_configured_negative_delay()
+    {
+        // Arrange — large negative offset; actual audio early within the configured delay window
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
+        var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);
+        var audioRelease = new DateTime(2026, 7, 14, 13, 0, 0, DateTimeKind.Utc);
+        var expectedAudioRelease = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
+            podcast,
+            youTubeRelease,
+            episodeHasYouTubeIdentity: true);
+        var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, TimeSpan.FromMinutes(80));
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            audioRelease,
+            expectedAudioRelease,
+            toleranceTicks,
+            podcast);
+
+        // Assert
+        expectedAudioRelease.Date.Should().Be(new DateTime(2026, 8, 2));
+        Math.Abs((audioRelease - youTubeRelease).TotalDays).Should().BeApproximately(12.9, 0.1);
+        matches.Should().BeTrue();
     }
 
     private Podcast CreateSpotifyPrimaryWithPositiveDelay()
