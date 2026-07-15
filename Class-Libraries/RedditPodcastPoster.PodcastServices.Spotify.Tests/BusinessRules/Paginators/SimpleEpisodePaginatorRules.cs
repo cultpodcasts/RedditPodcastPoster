@@ -136,6 +136,44 @@ public class SimpleEpisodePaginatorRules
         results.Should().NotContain(x => x.Id == ep3.Id);
     }
 
+    [Fact(DisplayName =
+        "When catalogue order is reverse-chronological, SimpleEpisodePaginator does not apply maxPages " +
+        "and continues paging while episodes remain within the ReleasedSince window.")]
+    public async Task Does_not_hard_cap_subsequent_pages_when_reverse_chronological()
+    {
+        // Arrange — more subsequent pages than maxPages; reverse-chrono + date window should fetch all
+        const int maxPages = 2;
+        var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
+        var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
+        var page3Url = "https://api.spotify.com/v1/shows/show/episodes?offset=3";
+        var ep0 = CreateEpisode("ep-0", daysAgo: 1);
+        var ep1 = CreateEpisode("ep-1", daysAgo: 2);
+        var ep2 = CreateEpisode("ep-2", daysAgo: 3);
+        var ep3 = CreateEpisode("ep-3", daysAgo: 4);
+        var firstPage = new Paging<SimpleEpisode>
+        {
+            Items = [ep0],
+            Next = page1Url
+        };
+        var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>
+        {
+            [page1Url] = new Paging<SimpleEpisode> { Items = [ep1], Next = page2Url },
+            [page2Url] = new Paging<SimpleEpisode> { Items = [ep2], Next = page3Url },
+            [page3Url] = new Paging<SimpleEpisode> { Items = [ep3], Next = null }
+        });
+        var sut = new SimpleEpisodePaginator(
+            DomainTestFixture.UtcDateDaysAgo(30),
+            isInReverseOrder: true,
+            NullLogger<SimpleEpisodePaginator>.Instance,
+            maxPages);
+
+        // Act
+        var results = await sut.Paginate(firstPage, connector).ToListAsync();
+
+        // Assert — reverse order ignores maxPages; all in-window pages fetched
+        results.Select(x => x.Id).Should().Equal(ep0.Id, ep1.Id, ep2.Id, ep3.Id);
+    }
+
     private SimpleEpisode CreateEpisode(string id, int daysAgo) =>
         new()
         {

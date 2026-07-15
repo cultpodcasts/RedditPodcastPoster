@@ -67,8 +67,9 @@ public class SimpleEpisodePaginator(
         }
 
         // maxPages hard-caps unordered (expensive) date-scoped walks that cannot safely stop on release date.
+        // Reverse-chronological walks omit the page cap and rely on ReleasedSince early-stop instead.
         while (page.Next != null &&
-               pagesFetched < maxPages &&
+               (isInReverseOrder || pagesFetched < maxPages) &&
                (!isInReverseOrder ||
                 !releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||
