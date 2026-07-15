@@ -14,6 +14,12 @@ public class SpotifyQueryPaginator(
 )
     : ISpotifyQueryPaginator
 {
+    /// <summary>
+    /// Cap subsequent page fetches for unordered (expensive) date-scoped catalogue walks.
+    /// Reverse-chronological walks pass <c>null</c> (unlimited) and stop via ReleasedSince instead.
+    /// </summary>
+    private const int UnorderedSpotifyEpisodePageCap = 20;
+
     public async Task<PodcastEpisodesResult> PaginateEpisodes(
         IPaginatable<SimpleEpisode>? pagedEpisodes,
         IndexingContext indexingContext)
@@ -98,7 +104,10 @@ public class SpotifyQueryPaginator(
                     var items = await spotifyClientWrapper.Paginate(
                         pagedEpisodes,
                         indexingContext,
-                        new SimpleEpisodePaginator(releasedSince, isInReverseTimeOrder,
+                        new SimpleEpisodePaginator(
+                            releasedSince,
+                            isInReverseTimeOrder,
+                            maxPages: isInReverseTimeOrder ? null : UnorderedSpotifyEpisodePageCap,
                             simpleEpisodePaginatorLogger)
                     );
                     if (items != null)

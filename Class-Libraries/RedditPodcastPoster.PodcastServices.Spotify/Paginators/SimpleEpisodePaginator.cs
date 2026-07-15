@@ -9,8 +9,8 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 public class SimpleEpisodePaginator(
     DateTime? releasedSince,
     bool isInReverseOrder,
-    ILogger<SimpleEpisodePaginator> logger,
-    int maxPages = 20
+    int? maxPages,
+    ILogger<SimpleEpisodePaginator> logger
 ) : IPaginator
 {
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
@@ -67,9 +67,9 @@ public class SimpleEpisodePaginator(
         }
 
         // maxPages hard-caps unordered (expensive) date-scoped walks that cannot safely stop on release date.
-        // Reverse-chronological walks omit the page cap and rely on ReleasedSince early-stop instead.
+        // Pass null for reverse-chronological walks so they rely on ReleasedSince early-stop instead.
         while (page.Next != null &&
-               (isInReverseOrder || pagesFetched < maxPages) &&
+               (!maxPages.HasValue || pagesFetched < maxPages.Value) &&
                (!isInReverseOrder ||
                 !releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||
