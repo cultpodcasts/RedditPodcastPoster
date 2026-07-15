@@ -9,7 +9,8 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 public class SimpleEpisodePaginator(
     DateTime? releasedSince,
     bool isInReverseOrder,
-    ILogger<SimpleEpisodePaginator> logger
+    ILogger<SimpleEpisodePaginator> logger,
+    int maxPages = 20
 ) : IPaginator
 {
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
@@ -47,6 +48,7 @@ public class SimpleEpisodePaginator(
 
         var page = firstPage;
         SimpleEpisode? lastItem = null;
+        var pagesFetched = 0;
         foreach (var item in page.Items)
         {
             if (item is SimpleEpisode episode)
@@ -64,7 +66,9 @@ public class SimpleEpisodePaginator(
             }
         }
 
+        // maxPages hard-caps unordered (expensive) date-scoped walks that cannot safely stop on release date.
         while (page.Next != null &&
+               pagesFetched < maxPages &&
                (!isInReverseOrder ||
                 !releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||
@@ -74,6 +78,7 @@ public class SimpleEpisodePaginator(
             {
                 page = await connector.Get<Paging<T>>(new Uri(page.Next, UriKind.Absolute), cancel)
                     .ConfigureAwait(false);
+                pagesFetched++;
             }
             catch (Exception e)
             {

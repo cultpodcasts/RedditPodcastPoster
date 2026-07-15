@@ -9,7 +9,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Mapping;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Mapping;
 
 public class SpotifyCatalogueInputMappingRules
 {

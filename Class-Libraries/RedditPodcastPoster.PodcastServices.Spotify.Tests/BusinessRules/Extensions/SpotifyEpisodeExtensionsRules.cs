@@ -3,7 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Extensions;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Extensions;
 
 /// <summary>
 /// Spotify SDK DTOs mark ReleaseDate as non-nullable, but the API sometimes returns null or "0000".
