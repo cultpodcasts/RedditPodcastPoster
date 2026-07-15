@@ -11,7 +11,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Enrichers;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Enrichers;
 
 /// <summary>
 /// Spotify enricher business rules for catalogue release reducer delegation to the domain matcher.

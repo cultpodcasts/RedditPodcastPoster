@@ -4,7 +4,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 using RedditPodcastPoster.PodcastServices.Spotify.Tests.Support;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Paginators;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Paginators;
 
 /// <summary>
 /// Spotify show-episode pages can contain null slots where an episode object failed to deserialize.

@@ -5,7 +5,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Finders;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finders;
 
 /// <summary>
 /// Thin-wrapper rules: Spotify finder delegates catalogue matching to the domain matcher.

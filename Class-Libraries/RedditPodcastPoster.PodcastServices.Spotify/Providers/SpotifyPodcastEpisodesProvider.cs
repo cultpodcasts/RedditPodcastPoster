@@ -46,7 +46,8 @@ public class SpotifyPodcastEpisodesProvider(
                 var showEpisodesRequest = new ShowEpisodesRequest {Market = market};
                 if (indexingContext.ReleasedSince.HasValue)
                 {
-                    showEpisodesRequest.Limit = 1;
+                    // Spotify max page size — Limit=1 forces one HTTP call per episode and can hang for minutes
+                    showEpisodesRequest.Limit = 50;
                 }
 
                 var episodesFetches = matchingPodcasts
@@ -99,7 +100,7 @@ public class SpotifyPodcastEpisodesProvider(
                         .Where(x => x != null && x.Any())
                         .SelectMany(x => x)
                         .GroupBy(x => x.Id)
-                        .FirstOrDefault() ?? Enumerable.Empty<SimpleEpisode>(),
+                        .Select(x => x.First()),
                     expensiveQueryFound);
             }
         }

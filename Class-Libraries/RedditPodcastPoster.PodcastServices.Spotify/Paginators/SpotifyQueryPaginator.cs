@@ -69,7 +69,9 @@ public class SpotifyQueryPaginator(
 
             var episodes = existingPagedEpisodes;
 
-            if (releasedSince == null || isExpensiveQueryFound)
+            // Date-scoped lookups must never PaginateAll (full catalogue) even when expensive/unordered —
+            // that path can run for minutes on high-volume shows and trip discovery HTTP timeouts.
+            if (releasedSince == null)
             {
                 if (pagedEpisodes.Next != null && pagedEpisodes.Next.Contains("/show/"))
                 {
@@ -82,31 +84,30 @@ public class SpotifyQueryPaginator(
                     episodes = fetch.ToList();
                 }
             }
-            else
+            else if (episodes.Any())
             {
-                if (episodes.Any())
+                var seenGrowth = true;
+                while (
+                    seenGrowth &&
+                    // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                    episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
+                    releasedSince
+                )
                 {
-                    var seenGrowth = true;
-                    while (
-                        seenGrowth &&
-                        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-                        episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
-                        releasedSince
-                    )
+                    var preCount = episodes.Count;
+                    var items = await spotifyClientWrapper.Paginate(
+                        pagedEpisodes,
+                        indexingContext,
+                        new SimpleEpisodePaginator(
+                            releasedSince,
+                            isInReverseTimeOrder,
+                            simpleEpisodePaginatorLogger)
+                    );
+                    if (items != null)
                     {
-                        var preCount = episodes.Count;
-                        var items = await spotifyClientWrapper.Paginate(
-                            pagedEpisodes,
-                            indexingContext,
-                            new SimpleEpisodePaginator(releasedSince, isInReverseTimeOrder,
-                                simpleEpisodePaginatorLogger)
-                        );
-                        if (items != null)
-                        {
-                            episodes = items.ToList();
-                            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-                            seenGrowth = items != null && episodes.Count > preCount;
-                        }
+                        episodes = items.ToList();
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                        seenGrowth = items != null && episodes.Count > preCount;
                     }
                 }
             }

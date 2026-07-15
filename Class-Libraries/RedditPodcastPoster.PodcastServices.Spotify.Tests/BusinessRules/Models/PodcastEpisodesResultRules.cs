@@ -3,7 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Models;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Models;
 
 /// <summary>
 /// PodcastEpisodesResult excludes null entries and non-episode item types from the Spotify API.

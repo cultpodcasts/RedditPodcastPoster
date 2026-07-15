@@ -7,7 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using SpotifyAPI.Web;
 
-namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Client;
+namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Client;
 
 /// <summary>
 /// Spotify search responses can contain null show entries despite SDK list typing.
