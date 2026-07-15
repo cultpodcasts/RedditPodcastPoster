@@ -12,33 +12,19 @@ public class SimpleEpisodePaginator : IPaginator
     /// Cap subsequent page fetches for unordered (expensive) date-scoped catalogue walks.
     /// Reverse-chronological walks have no page cap and stop via ReleasedSince instead.
     /// </summary>
-    private const int UnorderedPageCap = 20;
+    public const int MaxPages = 20;
 
     private readonly DateTime? _releasedSince;
     private readonly bool _isInReverseOrder;
-    private readonly int? _maxPages;
     private readonly ILogger<SimpleEpisodePaginator> _logger;
 
     public SimpleEpisodePaginator(
         DateTime? releasedSince,
         bool isInReverseOrder,
         ILogger<SimpleEpisodePaginator> logger)
-        : this(releasedSince, isInReverseOrder, isInReverseOrder ? null : UnorderedPageCap, logger)
-    {
-    }
-
-    /// <summary>
-    /// Test-only overload allowing a custom subsequent-page cap.
-    /// </summary>
-    internal SimpleEpisodePaginator(
-        DateTime? releasedSince,
-        bool isInReverseOrder,
-        int? maxPages,
-        ILogger<SimpleEpisodePaginator> logger)
     {
         _releasedSince = releasedSince;
         _isInReverseOrder = isInReverseOrder;
-        _maxPages = maxPages;
         _logger = logger;
     }
 
@@ -97,7 +83,7 @@ public class SimpleEpisodePaginator : IPaginator
 
         // Unordered walks hard-cap subsequent fetches; reverse-chrono relies on ReleasedSince early-stop.
         while (page.Next != null &&
-               (!_maxPages.HasValue || pagesFetched < _maxPages.Value) &&
+               (_isInReverseOrder || pagesFetched < MaxPages) &&
                (!_isInReverseOrder ||
                 !_releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||

@@ -98,42 +98,47 @@ public class SimpleEpisodePaginatorRules
     }
 
     [Fact(DisplayName =
-        "When catalogue order is not reverse-chronological, SimpleEpisodePaginator stops after maxPages subsequent fetches " +
+        "When catalogue order is not reverse-chronological, SimpleEpisodePaginator stops after MaxPages subsequent fetches " +
         "because unordered date-scoped walks must not pull an entire high-volume show catalogue.")]
     public async Task Hard_caps_subsequent_pages_when_not_reverse_chronological()
     {
-        // Arrange — internal ctor with a small cap to prove the mechanism without fetching 20 pages
-        const int maxPages = 2;
-        var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
-        var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
-        var page3Url = "https://api.spotify.com/v1/shows/show/episodes?offset=3";
-        var ep0 = CreateEpisode("ep-0", daysAgo: 1);
-        var ep1 = CreateEpisode("ep-1", daysAgo: 2);
-        var ep2 = CreateEpisode("ep-2", daysAgo: 3);
-        var ep3 = CreateEpisode("ep-3", daysAgo: 4);
+        // Arrange — register MaxPages+1 subsequent pages; only MaxPages should be fetched
+        var pagesByUrl = new Dictionary<string, object>();
+        var expectedIds = new List<string> { "ep-0" };
+        string? firstNext = null;
+        for (var i = 1; i <= SimpleEpisodePaginator.MaxPages + 1; i++)
+        {
+            var url = $"https://api.spotify.com/v1/shows/show/episodes?offset={i}";
+            firstNext ??= url;
+            var nextUrl = i <= SimpleEpisodePaginator.MaxPages
+                ? $"https://api.spotify.com/v1/shows/show/episodes?offset={i + 1}"
+                : null;
+            var episode = CreateEpisode($"ep-{i}", daysAgo: i + 1);
+            pagesByUrl[url] = new Paging<SimpleEpisode> { Items = [episode], Next = nextUrl };
+            if (i <= SimpleEpisodePaginator.MaxPages)
+            {
+                expectedIds.Add(episode.Id);
+            }
+        }
+
         var firstPage = new Paging<SimpleEpisode>
         {
-            Items = [ep0],
-            Next = page1Url
+            Items = [CreateEpisode("ep-0", daysAgo: 1)],
+            Next = firstNext
         };
-        var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>
-        {
-            [page1Url] = new Paging<SimpleEpisode> { Items = [ep1], Next = page2Url },
-            [page2Url] = new Paging<SimpleEpisode> { Items = [ep2], Next = page3Url },
-            [page3Url] = new Paging<SimpleEpisode> { Items = [ep3], Next = null }
-        });
+        var connector = new FakeSpotifyApiConnector(pagesByUrl);
         var sut = new SimpleEpisodePaginator(
             DomainTestFixture.UtcDateDaysAgo(30),
             isInReverseOrder: false,
-            maxPages: maxPages,
             NullLogger<SimpleEpisodePaginator>.Instance);
 
         // Act
         var results = await sut.Paginate(firstPage, connector).ToListAsync();
 
-        // Assert — first page + maxPages subsequent fetches (page1, page2); page3 never fetched
-        results.Select(x => x.Id).Should().BeEquivalentTo(ep0.Id, ep1.Id, ep2.Id);
-        results.Should().NotContain(x => x.Id == ep3.Id);
+        // Assert — first page + MaxPages subsequent fetches; page MaxPages+1 never fetched
+        results.Select(x => x.Id).Should().Equal(expectedIds);
+        results.Should().HaveCount(SimpleEpisodePaginator.MaxPages + 1);
+        results.Should().NotContain(x => x.Id == $"ep-{SimpleEpisodePaginator.MaxPages + 1}");
     }
 
     [Fact(DisplayName =
