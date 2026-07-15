@@ -29,7 +29,6 @@ public class SimpleEpisodePaginatorRules
         var sut = new SimpleEpisodePaginator(
             releasedSince: null,
             isInReverseOrder: false,
-            maxPages: null,
             NullLogger<SimpleEpisodePaginator>.Instance);
         var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>());
 
@@ -62,7 +61,6 @@ public class SimpleEpisodePaginatorRules
         var sut = new SimpleEpisodePaginator(
             releasedSince: null,
             isInReverseOrder: true,
-            maxPages: null,
             NullLogger<SimpleEpisodePaginator>.Instance);
 
         // Act
@@ -89,7 +87,6 @@ public class SimpleEpisodePaginatorRules
         var sut = new SimpleEpisodePaginator(
             releasedSince,
             isInReverseOrder: false,
-            maxPages: null,
             NullLogger<SimpleEpisodePaginator>.Instance);
         var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>());
 
@@ -105,7 +102,7 @@ public class SimpleEpisodePaginatorRules
         "because unordered date-scoped walks must not pull an entire high-volume show catalogue.")]
     public async Task Hard_caps_subsequent_pages_when_not_reverse_chronological()
     {
-        // Arrange
+        // Arrange — internal ctor with a small cap to prove the mechanism without fetching 20 pages
         const int maxPages = 2;
         var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
         var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
@@ -140,11 +137,11 @@ public class SimpleEpisodePaginatorRules
     }
 
     [Fact(DisplayName =
-        "When catalogue order is reverse-chronological, SimpleEpisodePaginator does not apply maxPages " +
+        "When catalogue order is reverse-chronological, SimpleEpisodePaginator does not apply a page cap " +
         "and continues paging while episodes remain within the ReleasedSince window.")]
     public async Task Does_not_hard_cap_subsequent_pages_when_reverse_chronological()
     {
-        // Arrange — reverse-chrono + null maxPages (unlimited); date window should fetch all pages
+        // Arrange — reverse-chrono uses production ctor (no page cap); date window should fetch all pages
         var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
         var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
         var page3Url = "https://api.spotify.com/v1/shows/show/episodes?offset=3";
@@ -166,13 +163,12 @@ public class SimpleEpisodePaginatorRules
         var sut = new SimpleEpisodePaginator(
             DomainTestFixture.UtcDateDaysAgo(30),
             isInReverseOrder: true,
-            maxPages: null,
             NullLogger<SimpleEpisodePaginator>.Instance);
 
         // Act
         var results = await sut.Paginate(firstPage, connector).ToListAsync();
 
-        // Assert — null maxPages means no cap; all in-window pages fetched
+        // Assert — reverse-chrono has no page cap; all in-window pages fetched
         results.Select(x => x.Id).Should().Equal(ep0.Id, ep1.Id, ep2.Id, ep3.Id);
     }
 
