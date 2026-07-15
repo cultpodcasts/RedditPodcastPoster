@@ -6,27 +6,16 @@ using SpotifyAPI.Web.Http;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
-public class SimpleEpisodePaginator : IPaginator
+public class SimpleEpisodePaginator(
+    DateTime? releasedSince,
+    bool isInReverseOrder,
+    ILogger<SimpleEpisodePaginator> logger) : IPaginator
 {
     /// <summary>
     /// Cap subsequent page fetches for unordered (expensive) date-scoped catalogue walks.
     /// Reverse-chronological walks have no page cap and stop via ReleasedSince instead.
     /// </summary>
     public const int MaxPages = 20;
-
-    private readonly DateTime? _releasedSince;
-    private readonly bool _isInReverseOrder;
-    private readonly ILogger<SimpleEpisodePaginator> _logger;
-
-    public SimpleEpisodePaginator(
-        DateTime? releasedSince,
-        bool isInReverseOrder,
-        ILogger<SimpleEpisodePaginator> logger)
-    {
-        _releasedSince = releasedSince;
-        _isInReverseOrder = isInReverseOrder;
-        _logger = logger;
-    }
 
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
         CancellationToken cancel = new())
@@ -68,7 +57,7 @@ public class SimpleEpisodePaginator : IPaginator
         {
             if (item is SimpleEpisode episode)
             {
-                if (!_releasedSince.HasValue || episode.GetReleaseDate() >= _releasedSince)
+                if (!releasedSince.HasValue || episode.GetReleaseDate() >= releasedSince)
                 {
                     yield return item;
                 }
@@ -83,11 +72,11 @@ public class SimpleEpisodePaginator : IPaginator
 
         // Unordered walks hard-cap subsequent fetches; reverse-chrono relies on ReleasedSince early-stop.
         while (page.Next != null &&
-               (_isInReverseOrder || pagesFetched < MaxPages) &&
-               (!_isInReverseOrder ||
-                !_releasedSince.HasValue ||
+               (isInReverseOrder || pagesFetched < MaxPages) &&
+               (!isInReverseOrder ||
+                !releasedSince.HasValue ||
                 page.Items.All(x => x == null) ||
-                (_isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() >= _releasedSince)))
+                (isInReverseOrder && lastItem != null && lastItem.GetReleaseDate() >= releasedSince)))
         {
             try
             {
@@ -97,7 +86,7 @@ public class SimpleEpisodePaginator : IPaginator
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error paging {pageNext}",
+                logger.LogError(e, "Error paging {pageNext}",
                     firstPage.Next);
                 yield break;
             }
@@ -107,7 +96,7 @@ public class SimpleEpisodePaginator : IPaginator
                 if (item is SimpleEpisode episode)
                 {
                     // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-                    if (episode == null || !_releasedSince.HasValue || episode.GetReleaseDate() >= _releasedSince)
+                    if (episode == null || !releasedSince.HasValue || episode.GetReleaseDate() >= releasedSince)
                     {
                         yield return item;
                     }
