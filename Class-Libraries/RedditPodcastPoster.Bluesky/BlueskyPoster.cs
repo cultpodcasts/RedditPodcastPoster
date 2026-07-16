@@ -21,6 +21,9 @@ public class BlueskyPoster(
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
         BlueskySendStatus sendStatus;
         var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
+        var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)
+            ? "en"
+            : podcastEpisode.Episode.Language.Trim();
         try
         {
             if (embedCardRequest != null)
@@ -28,13 +31,13 @@ public class BlueskyPoster(
                 logger.LogInformation(
                     "Non-Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
                     nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                await blueSkyClient.Post(embedPost.Text, embedCardRequest);
+                await blueSkyClient.Post(embedPost.Text, embedCardRequest, language);
             }
             else
             {
                 logger.LogError("Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
                     nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}");
+                await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}", language);
             }
 
             sendStatus = BlueskySendStatus.Success;

@@ -48,7 +48,17 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         _authorizationClient = new AuthorizationClient(httpClientFactory, identifier, password, reuseSession, uri);
     }
 
-    public async Task Post(string text, EmbedCardRequest embedCard)
+    public Task Post(string text, EmbedCardRequest embedCard)
+    {
+        return Post(text, embedCard, _languages);
+    }
+
+    public Task Post(string text, EmbedCardRequest embedCard, string language)
+    {
+        return Post(text, embedCard, [language]);
+    }
+
+    private async Task Post(string text, EmbedCardRequest embedCard, IEnumerable<string> languages)
     {
         var session = await _authorizationClient.GetSession();
 
@@ -57,7 +67,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
             throw new AuthenticationException();
         }
 
-        var (_, post) = await CreatePostAndFacets(text);
+        var (_, post) = await CreatePostAndFacets(text, languages);
 
         var embedCardBuilder = new EmbedCardBuilder(_httpClientFactory, session, _logger);
 
@@ -69,7 +79,17 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         await Post(session, post);
     }
 
-    public async Task Post(string text)
+    public Task Post(string text)
+    {
+        return Post(text, _languages);
+    }
+
+    public Task Post(string text, string language)
+    {
+        return Post(text, [language]);
+    }
+
+    private async Task Post(string text, IEnumerable<string> languages)
     {
         var session = await _authorizationClient.GetSession();
 
@@ -78,7 +98,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
             throw new AuthenticationException();
         }
 
-        var (_, post) = await CreatePostAndFacets(text);
+        var (_, post) = await CreatePostAndFacets(text, languages);
 
         await Post(session, post);
     }
@@ -103,7 +123,9 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         return _blueskyClient.Post(text, url, images);
     }
 
-    private async Task<(IReadOnlyCollection<Facet> facets, Post post)> CreatePostAndFacets(string text)
+    private async Task<(IReadOnlyCollection<Facet> facets, Post post)> CreatePostAndFacets(
+        string text,
+        IEnumerable<string> languages)
     {
         // Fetch the current time in ISO 8601 format, with "Z" to denote UTC
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -151,7 +173,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
             Type = "app.bsky.feed.post",
             Text = text,
             CreatedAt = now,
-            Langs = _languages.ToList(),
+            Langs = languages.ToList(),
             Facets = facets
         };
         return (facets, post);
