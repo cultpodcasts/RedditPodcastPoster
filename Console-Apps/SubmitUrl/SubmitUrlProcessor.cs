@@ -73,7 +73,7 @@ public class SubmitUrlProcessor(
             }
             catch (Exception e)
             {
-                logger.LogError("Failure indexing changes.");
+                logger.LogError(e, "Failure indexing changes.");
             }
         }
     }

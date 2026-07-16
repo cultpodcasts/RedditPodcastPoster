@@ -2,15 +2,12 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC.DTOs;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.BBC;
 
-public partial class iPlayerPageMetaDataExtractor(
-    ILogger<iPlayerPageMetaDataExtractor> logger
-) : IiPlayerPageMetaDataExtractor
+public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtractor
 {
     private static readonly Regex DurationRegex = CreateDurationRegex();
     private static readonly Regex ReleaseRegex = CreateReleaseRegex();

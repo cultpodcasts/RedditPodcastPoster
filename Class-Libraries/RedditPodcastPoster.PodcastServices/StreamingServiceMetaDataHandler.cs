@@ -9,9 +9,7 @@ namespace RedditPodcastPoster.PodcastServices;
 public class StreamingServiceMetaDataHandler(
     IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<StreamingServiceMetaDataHandler> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : IStreamingServiceMetaDataHandler
 {
     public async Task<ResolvedNonPodcastServiceItem> ResolveServiceItem(
@@ -21,7 +19,6 @@ public class StreamingServiceMetaDataHandler(
     {
         NonPodcastService service;
         NonPodcastServiceItemMetaData metaData;
-        string publisher;
         Episode? matchingEpisode;
 
         if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))

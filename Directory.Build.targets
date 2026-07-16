@@ -3,6 +3,15 @@
     <AzureCosmosDisableNewtonsoftJsonCheck>true</AzureCosmosDisableNewtonsoftJsonCheck>
   </PropertyGroup>
 
+  <!--
+    Vendored Third-Party/sirkris-Reddit.NET-1.5.3 pins these vulnerable package versions.
+    Suppress their fan-out until the vendored library can be upgraded or replaced.
+  -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-9pq7-rcxv-47vq" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-5crp-9r3c-p9vr" />
+  </ItemGroup>
+
   <!-- Ensure low-level dependency-injection projects are built before other projects to avoid CS0006 metadata not found errors. -->
   <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"
           Condition="'$(SkipEnsureDependencyInjectionBuilt)' != 'true' and '$(RuntimeIdentifier)' == '' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection.Abstractions'">

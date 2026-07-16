@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
@@ -18,8 +17,7 @@ public class DiscoveryResultProcessor(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
-    ICategorisedItemProcessor categorisedItemProcessor,
-    ILogger<DiscoveryResultProcessor> logger) : IDiscoveryResultProcessor
+    ICategorisedItemProcessor categorisedItemProcessor) : IDiscoveryResultProcessor
 {
     public async Task<SubmitResult> CreateSubmitResult(DiscoveryResult discoveryResult, IndexingContext indexingContext,
         SubmitOptions submitOptions, Podcast? spotifyPodcast, Podcast? applePodcast, Podcast? youTubePodcast)

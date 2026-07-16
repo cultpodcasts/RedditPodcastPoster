@@ -1,10 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission;
 
-public class DescriptionHelper(ILogger<DescriptionHelper> logger) : IDescriptionHelper
+public class DescriptionHelper : IDescriptionHelper
 {
     public string EnrichMissingDescription(CategorisedItem categorisedItem)
     {

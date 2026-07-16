@@ -7,7 +7,7 @@ public class DiscreteEpisode : Episode
 {
     [JsonPropertyName("podcastName")]
     [JsonPropertyOrder(30)]
-    public string PodcastName { get; set; } = "";
+    public new string PodcastName { get; set; } = "";
 
     [JsonPropertyName("youTubePodcast")]
     [JsonPropertyOrder(200)]

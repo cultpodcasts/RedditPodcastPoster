@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.InternetArchive;
@@ -7,8 +6,7 @@ namespace RedditPodcastPoster.InternetArchive;
 // ReSharper disable once InconsistentNaming
 public class InternetArchivePageMetaDataExtractor(
     IInternetArchiveHttpClient httpClient,
-    IMetaDataExtractor metaDataExtractor,
-    ILogger<InternetArchivePageMetaDataExtractor> logger
+    IMetaDataExtractor metaDataExtractor
 ) : IInternetArchivePageMetaDataExtractor
 {
     public async Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url)
