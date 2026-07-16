@@ -10,11 +10,10 @@ public static class GeneratedDurableTaskExtensions
     private static readonly ITaskOrchestrator SingletonOrchestration = new Orchestration();
 
     [Function(nameof(Orchestration))]
-    public static Task<DiscoveryContext> Orchestration([OrchestrationTrigger] TaskOrchestrationContext context)
+    public static async Task<DiscoveryContext> Orchestration([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        return SingletonOrchestration.RunAsync(context, context.GetInput<object>())
-            .ContinueWith(t => (DiscoveryContext) (t.Result ?? default(DiscoveryContext)!),
-                TaskContinuationOptions.ExecuteSynchronously);
+        var result = await SingletonOrchestration.RunAsync(context, context.GetInput<object>());
+        return (DiscoveryContext) (result ?? default(DiscoveryContext)!);
     }
 
     /// <inheritdoc cref="IOrchestrationSubmitter.ScheduleNewOrchestrationInstanceAsync" />

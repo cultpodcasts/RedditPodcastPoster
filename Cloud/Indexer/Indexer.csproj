@@ -6,6 +6,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
+    <!--
+      AD0001: MatchingInputOutputTypeActivityAnalyzer crashes (ToDictionary duplicate key) because it
+      indexes both each TaskActivity class (e.g. 'Bluesky', 'LoadRecentCandidates') and its same-named
+      [Function] wrapper in GeneratedDurableTaskExtensions. Bug present in durabletask-dotnet main as of Jul 2026.
+    -->
+    <NoWarn>$(NoWarn);AD0001</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Release'">true</PublishReadyToRun>

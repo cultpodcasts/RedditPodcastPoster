@@ -47,10 +47,18 @@ public class SpotifySearcher(
 
             if (recentResults.Any())
             {
+                var episodeIds = recentResults.Select(x => x.Id).ToArray();
                 var fullShows =
                     await spotifyClient.GetSeveral(
-                        new EpisodesRequest(recentResults.Select(x => x.Id).ToArray()) {Market = Market.CountryCode},
+                        new EpisodesRequest(episodeIds) {Market = Market.CountryCode},
                         indexingContext);
+
+                if (fullShows == null)
+                {
+                    logger.LogError(
+                        "{SearchName}: GetSeveral returned no response hydrating {EpisodeIdCount} episode-ids for query '{Query}'; discovery results for this query will be empty. Episode-ids: '{EpisodeIds}'.",
+                        nameof(Search), episodeIds.Length, query, string.Join(",", episodeIds));
+                }
 
                 var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
                 logger.LogInformation(
