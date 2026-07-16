@@ -57,7 +57,7 @@ public class SpotifyCatalogueInputMappingRules
     {
         // Arrange
         var episode = CreateSimpleEpisode();
-        episode.HtmlDescription = null;
+        episode.HtmlDescription = null!;
 
         // Act
         var input = episode.ToCatalogueInput(_htmlSanitiser);
@@ -73,7 +73,7 @@ public class SpotifyCatalogueInputMappingRules
     {
         // Arrange
         var episode = CreateFullEpisode();
-        episode.HtmlDescription = null;
+        episode.HtmlDescription = null!;
 
         // Act
         var input = episode.ToCatalogueInput(_htmlSanitiser);
