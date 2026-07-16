@@ -6,12 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
-    <!--
-      AD0001: MatchingInputOutputTypeActivityAnalyzer crashes (ToDictionary duplicate key) because it
-      indexes both each TaskActivity class (e.g. 'Bluesky', 'LoadRecentCandidates') and its same-named
-      [Function] wrapper in GeneratedDurableTaskExtensions. Bug present in durabletask-dotnet main as of Jul 2026.
-    -->
-    <NoWarn>$(NoWarn);AD0001</NoWarn>
+    <!-- Force Azure Functions wrappers (not standalone Durable Task Worker registration). -->
+    <DurableTaskGeneratorProjectType>Functions</DurableTaskGeneratorProjectType>
   </PropertyGroup>
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Release'">true</PublishReadyToRun>
@@ -21,7 +17,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
     <PackageReference Include="Microsoft.DurableTask.Client" Version="1.24.2" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.DurableTask" Version="1.16.5" />
-    <!--<PackageReference Include="Microsoft.DurableTask.Generators" Version="1.0.0-preview.1" />-->
+    <PackageReference Include="Microsoft.DurableTask.Generators" Version="2.1.0-preview.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />

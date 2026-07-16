@@ -58,7 +58,6 @@ public static class HostFactory
         logging.AddFilter("Indexer", LogLevel.Information);
         logging.AddFilter("Api", LogLevel.Information);
         logging.AddFilter("Discovery", LogLevel.Information);
-        logging.AddFilter("DurableActivityActivator", LogLevel.Error);
     }
 
     private static void ConfigureAzureMonitorExporter(
