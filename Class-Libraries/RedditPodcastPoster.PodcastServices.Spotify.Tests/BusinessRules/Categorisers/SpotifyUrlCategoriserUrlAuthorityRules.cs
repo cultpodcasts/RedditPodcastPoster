@@ -161,7 +161,10 @@ public class SpotifyUrlCategoriserUrlAuthorityRules
                 Id = showId,
                 Name = _fixture.CreateTitle(),
                 Description = _fixture.CreateTitle(),
+                // 'publisher' removed from Spotify show objects (Feb 2026); still exercised for pass-through.
+#pragma warning disable CS0618
                 Publisher = _fixture.CreateTitle()
+#pragma warning restore CS0618
             }
         };
     }

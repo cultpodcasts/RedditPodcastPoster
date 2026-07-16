@@ -31,7 +31,6 @@ public static class DiscoveryOrchestrationHealthChecker
     private static readonly OrchestrationRuntimeStatus[] InProgressStatuses =
     [
         OrchestrationRuntimeStatus.Running,
-        OrchestrationRuntimeStatus.ContinuedAsNew,
         OrchestrationRuntimeStatus.Pending
     ];
 

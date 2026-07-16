@@ -167,8 +167,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             Statuses =
             [
                 OrchestrationRuntimeStatus.Pending,
-                OrchestrationRuntimeStatus.Running,
-                OrchestrationRuntimeStatus.ContinuedAsNew
+                OrchestrationRuntimeStatus.Running
             ]
         };
 

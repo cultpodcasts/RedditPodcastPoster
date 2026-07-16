@@ -96,7 +96,11 @@ public class SpotifyUrlCategoriser(
             findEpisodeResponse.FullEpisode.Id,
             findEpisodeResponse.FullEpisode.Show.Name,
             findEpisodeResponse.FullEpisode.Show.Description,
+            // Spotify removed 'publisher' from show objects (Feb 2026 Web API changes); keep reading it
+            // while responses may still carry it — downstream already tolerates null/empty.
+#pragma warning disable CS0618
             findEpisodeResponse.FullEpisode.Show.Publisher,
+#pragma warning restore CS0618
             findEpisodeResponse.FullEpisode.Name,
             htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
             findEpisodeResponse.FullEpisode.GetReleaseDate(),
@@ -134,7 +138,10 @@ public class SpotifyUrlCategoriser(
                 findEpisodeResponse.FullEpisode.Id,
                 findEpisodeResponse.FullEpisode.Show.Name,
                 findEpisodeResponse.FullEpisode.Show.Description,
+                // See note above re: removed 'publisher' field.
+#pragma warning disable CS0618
                 findEpisodeResponse.FullEpisode.Show.Publisher,
+#pragma warning restore CS0618
                 findEpisodeResponse.FullEpisode.Name,
                 htmlSanitiser.Sanitise(findEpisodeResponse.FullEpisode.HtmlDescription),
                 findEpisodeResponse.FullEpisode.GetReleaseDate(),

@@ -64,7 +64,6 @@ public class HourlyOrchestrationCatchUpEvaluatorTests
 
     [Theory]
     [InlineData(OrchestrationRuntimeStatus.Running)]
-    [InlineData(OrchestrationRuntimeStatus.ContinuedAsNew)]
     public void ShouldNotScheduleCatchUp_when_hourly_orchestration_is_in_progress_this_hour(
         OrchestrationRuntimeStatus status)
     {

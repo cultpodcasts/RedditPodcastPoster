@@ -19,8 +19,7 @@ public static class HourlyOrchestrationCatchUpEvaluator
 {
     private static readonly OrchestrationRuntimeStatus[] InProgressStatuses =
     [
-        OrchestrationRuntimeStatus.Running,
-        OrchestrationRuntimeStatus.ContinuedAsNew
+        OrchestrationRuntimeStatus.Running
     ];
 
     private static readonly OrchestrationRuntimeStatus[] FinishedStatuses =
