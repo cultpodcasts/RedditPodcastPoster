@@ -26,17 +26,17 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public required string Duration { get; set; }
 
-    [SimpleField(IsFilterable = false, IsSortable = false, IsFacetable = false)]
-    public required bool Explicit { get; set; }
+    [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
+    public string? SpotifyId { get; set; }
 
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
-    public required string Spotify { get; set; }
+    public string? AppleId { get; set; }
 
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
-    public required string Apple { get; set; }
+    public string? PodcastAppleId { get; set; }
 
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
-    public required string Youtube { get; set; }
+    public string? YoutubeId { get; set; }
 
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
     public required string BBC { get; set; }
@@ -56,8 +56,11 @@ public class EpisodeSearchRecord
     public required string EpisodeSearchTerms { get; set; }
 
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
-    public required string Image { get; set; }
+    public string? Image { get; set; }
 
-    [SimpleField(IsFilterable = true, IsFacetable = true)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public string? YoutubeImageVariant { get; set; }
+
+    [SimpleField(IsFilterable = true, IsFacetable = true, IsHidden = true)]
     public string? Lang { get; set; }
 }

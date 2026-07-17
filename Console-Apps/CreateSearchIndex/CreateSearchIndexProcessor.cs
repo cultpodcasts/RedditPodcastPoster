@@ -384,17 +384,33 @@ public partial class CreateSearchIndexProcessor(
                             e.podcastName as podcastName,
                             SUBSTRING (e.description, 0, {Constants.DescriptionSize}) as episodeDescription,
                             e.release,
-                            e.duration,
-                            e.explicit,
-                            e.urls.spotify,
-                            e.urls.apple,
-                            e.urls.youtube,
+                            IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
+                            IIF(IS_DEFINED(e.spotifyId) AND e.spotifyId != """", e.spotifyId, null) as spotifyId,
+                            IIF(IS_DEFINED(e.appleId), ToString(e.appleId), null) as appleId,
+                            IIF(IS_DEFINED(e.urls.apple) AND CONTAINS(e.urls.apple, ""/id"") AND CONTAINS(e.urls.apple, ""?i=""),
+                                SUBSTRING(e.urls.apple,
+                                    INDEX_OF(e.urls.apple, ""/id"") + 3,
+                                    INDEX_OF(e.urls.apple, ""?i="") - INDEX_OF(e.urls.apple, ""/id"") - 3),
+                                null) as podcastAppleId,
+                            IIF(IS_DEFINED(e.youTubeId) AND e.youTubeId != """", e.youTubeId, null) as youtubeId,
                             e.urls.bbc,
                             e.urls.internetArchive,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
-                            e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other as image,
+                            IIF(IS_DEFINED(e.images.youtube)
+                                    AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/""))
+                                    AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
+                                        OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
+                                        OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")),
+                                null,
+                                e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) as image,
+                            IIF(IS_DEFINED(e.images.youtube)
+                                    AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/"")),
+                                IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""maxres"",
+                                    IIF(ENDSWITH(e.images.youtube, ""/sddefault.jpg""), ""sd"",
+                                        IIF(ENDSWITH(e.images.youtube, ""/hqdefault.jpg""), ""hq"", null))),
+                                null) as youtubeImageVariant,
                             e.lang ?? e.podcastLanguage as lang,
                             e._ts
                             FROM episodes e

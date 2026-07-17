@@ -1,0 +1,103 @@
+using System.Text.Json;
+using Azure.Core.Serialization;
+using Azure.Search.Documents.Indexes;
+using FluentAssertions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Search;
+using Xunit;
+
+namespace Indexer.Tests;
+
+public class PodcastEpisodeExtensionsTests
+{
+    [Fact]
+    public void Maps_compact_service_ids_language_and_derivable_youtube_image()
+    {
+        var episode = CreateEpisode();
+        episode.Images = new EpisodeImages
+        {
+            YouTube = new Uri($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg"),
+            Spotify = new Uri("https://i.scdn.co/image/opaque")
+        };
+        episode.Language = null;
+        var podcast = new Podcast
+        {
+            Name = " Podcast ",
+            AppleId = 1234567890,
+            Language = "es",
+            SearchTerms = "podcast terms"
+        };
+
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        result.SpotifyId.Should().Be("spotify-episode-id");
+        result.YoutubeId.Should().Be("youtube-id");
+        result.AppleId.Should().Be("987654321");
+        result.PodcastAppleId.Should().Be("1234567890");
+        result.Lang.Should().Be("es");
+        result.Image.Should().BeNull();
+        result.YoutubeImageVariant.Should().Be("maxres");
+        result.Duration.Should().Be("00:02:03");
+    }
+
+    [Fact]
+    public void Keeps_opaque_image_and_omits_empty_ids()
+    {
+        var episode = CreateEpisode();
+        episode.SpotifyId = " ";
+        episode.YouTubeId = string.Empty;
+        episode.AppleId = null;
+        episode.Images = new EpisodeImages
+        {
+            Spotify = new Uri("https://i.scdn.co/image/opaque")
+        };
+
+        var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
+            .ToEpisodeSearchRecord();
+
+        result.SpotifyId.Should().BeNull();
+        result.YoutubeId.Should().BeNull();
+        result.AppleId.Should().BeNull();
+        result.Image.Should().Be("https://i.scdn.co/image/opaque");
+        result.YoutubeImageVariant.Should().BeNull();
+    }
+
+    [Fact]
+    public void Slim_schema_drops_explicit_and_hides_language()
+    {
+        var fields = new FieldBuilder
+        {
+            Serializer = new JsonObjectSerializer(new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            })
+        }.Build(typeof(EpisodeSearchRecord));
+
+        fields.Should().NotContain(field => field.Name == "explicit");
+        fields.Should().Contain(field => field.Name == "spotifyId");
+        fields.Should().Contain(field => field.Name == "youtubeId");
+        fields.Should().Contain(field => field.Name == "appleId");
+        fields.Should().Contain(field => field.Name == "podcastAppleId");
+        fields.Should().Contain(field => field.Name == "youtubeImageVariant");
+
+        var language = fields.Single(field => field.Name == "lang");
+        language.IsFilterable.Should().BeTrue();
+        language.IsFacetable.Should().BeTrue();
+        language.IsHidden.Should().BeTrue();
+    }
+
+    private static Episode CreateEpisode() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = " Episode ",
+        Description = "Description",
+        Release = new DateTime(2026, 7, 17, 12, 0, 0, DateTimeKind.Utc),
+        Length = TimeSpan.FromSeconds(123),
+        SpotifyId = "spotify-episode-id",
+        YouTubeId = "youtube-id",
+        AppleId = 987654321,
+        Subjects = ["subject"],
+        SearchTerms = "episode terms"
+    };
+}
