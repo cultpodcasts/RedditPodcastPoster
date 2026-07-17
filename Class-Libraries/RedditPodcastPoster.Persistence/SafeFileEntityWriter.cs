@@ -1,12 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Persistence;
 
 public class SafeFileEntityWriter(
-    IFileRepository fileRepository,
-    ILogger<SafeFileEntityWriter> logger
+    IFileRepository fileRepository
 ) : ISafeFileEntityWriter
 {
     public async Task Write<T>(T data) where T : CosmosSelector

@@ -19,7 +19,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
         {
             Id = Guid.NewGuid(),
             YouTubeChannelId = "UC_test_channel",
-            YouTubePlaylistId = null
+            YouTubePlaylistId = null!
         };
         var indexingContext = new IndexingContext(
             DateTime.UtcNow.AddDays(-2),

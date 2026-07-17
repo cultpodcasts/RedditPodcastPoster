@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.PodcastServices.Abstractions;
 
 public record PodcastServiceSearchCriteria(
     string ShowName,
@@ -11,4 +13,10 @@ public record PodcastServiceSearchCriteria(
 {
     public string? SpotifyTitle { get; set; }
     public string? AppleTitle { get; set; }
+
+    /// <summary>
+    /// Platform the criteria originated from (the submitted URL's service). When YouTube, audio
+    /// platform lookups must shift <see cref="Release"/> back by the podcast's YouTube publishing delay.
+    /// </summary>
+    public Service? SourceAuthority { get; init; }
 }

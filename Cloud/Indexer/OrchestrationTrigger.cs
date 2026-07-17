@@ -30,6 +30,8 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         var hourlyInstances = await GetHourlyOrchestrationInstancesAsync(client, cancellationToken);
         LogHourlyOrchestrationHealthIssues(HourlyOrchestrationHealthChecker.FindPriorHourIssues(utcNow, hourlyInstances));
 
+        await TerminateStalePendingInstancesAsync(client, nameof(RunHourly), utcNow, hourlyInstances, cancellationToken);
+
         if (HourlyOrchestrationCatchUpEvaluator.HasActiveHourlyOrchestrationInCurrentUtcHour(utcNow, hourlyInstances))
         {
             logger.LogWarning(
@@ -38,7 +40,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             return;
         }
 
-        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), hourUtc, cancellationToken);
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourly), utcNow, cancellationToken);
     }
 
     [Function("HourlyCatchUp")]
@@ -61,6 +63,9 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
         LogHourlyOrchestrationHealthIssues(
             HourlyOrchestrationHealthChecker.FindCurrentHourStuckIssues(utcNow, hourlyInstances));
 
+        await TerminateStalePendingInstancesAsync(client, nameof(RunHourlyCatchUp), utcNow, hourlyInstances,
+            cancellationToken);
+
         if (!HourlyOrchestrationCatchUpEvaluator.ShouldScheduleCatchUp(utcNow, hourlyInstances, out var skipReason))
         {
             logger.LogInformation(
@@ -78,7 +83,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             "{OrchestrationTriggerName} {RunHourlyCatchUpName} scheduling missed hourly orchestration for UTC hour {HourUtc}.",
             nameof(OrchestrationTrigger), nameof(RunHourlyCatchUp), utcNow.Hour);
 
-        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), utcNow.Hour, cancellationToken);
+        await ScheduleHourlyOrchestrationAsync(client, nameof(RunHourlyCatchUp), utcNow, cancellationToken);
     }
 
 
@@ -128,15 +133,18 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
     private async Task ScheduleHourlyOrchestrationAsync(
         DurableTaskClient client,
         string triggerName,
-        int hourUtc,
+        DateTime utcNow,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        var hourUtc = utcNow.Hour;
         string instanceId;
         try
         {
-            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(HourlyOrchestration));
+            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
+                nameof(HourlyOrchestration),
+                new HourlyOrchestrationRunInput(utcNow));
         }
         catch (RpcException ex)
         {
@@ -156,6 +164,37 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             triggerName, hourUtc, instanceId);
     }
 
+    private async Task TerminateStalePendingInstancesAsync(
+        DurableTaskClient client,
+        string triggerName,
+        DateTime utcNow,
+        IReadOnlyList<HourlyOrchestrationInstance> hourlyInstances,
+        CancellationToken cancellationToken)
+    {
+        var staleInstances = HourlyOrchestrationCatchUpEvaluator.GetStalePendingInstances(utcNow, hourlyInstances);
+        foreach (var staleInstance in staleInstances)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                await client.TerminateInstanceAsync(
+                    staleInstance.InstanceId,
+                    $"Stale pending {nameof(HourlyOrchestration)} terminated by {triggerName}.",
+                    cancellationToken);
+                logger.LogWarning(
+                    "OrchestrationTrigger hourly-terminated-stale trigger='{TriggerName}' instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}'.",
+                    triggerName, staleInstance.InstanceId, staleInstance.CreatedAt.UtcDateTime);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failure to terminate stale pending '{HourlyOrchestrationName}' instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}'.",
+                    nameof(HourlyOrchestration), staleInstance.InstanceId, staleInstance.CreatedAt.UtcDateTime);
+            }
+        }
+    }
+
     private static async Task<bool> HasActiveOrchestrationInstanceAsync(
         DurableTaskClient client,
         string orchestrationName,
@@ -167,8 +206,7 @@ public class OrchestrationTrigger(ILogger<OrchestrationTrigger> logger)
             Statuses =
             [
                 OrchestrationRuntimeStatus.Pending,
-                OrchestrationRuntimeStatus.Running,
-                OrchestrationRuntimeStatus.ContinuedAsNew
+                OrchestrationRuntimeStatus.Running
             ]
         };
 

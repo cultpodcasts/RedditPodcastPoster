@@ -163,8 +163,7 @@ internal static class FunctionHostTestSupport
         mockLookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
         mockLookupRepository.Setup(x => x.GetEliminationTerms()).ReturnsAsync((EliminationTerms?)null);
         mockLookupRepository.Setup(x => x.GetHomePageCache()).ReturnsAsync((HomePageCache?)null);
-        mockLookupRepository.Setup(x => x.GetYouTubeQuotaDailyReport(It.IsAny<DateOnly>(), It.IsAny<string>()))
-            .ReturnsAsync((YouTubeQuotaDailyReport?)null);
+        mockLookupRepository.Setup(x => x.GetYouTubeQuotaReport()).ReturnsAsync((YouTubeQuotaReport?)null);
 
         services.AddSingleton(mockLookupRepository.Object);
     }

@@ -9,9 +9,7 @@ namespace RedditPodcastPoster.PodcastServices;
 public class StreamingServiceMetaDataHandler(
     IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
     IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<StreamingServiceMetaDataHandler> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : IStreamingServiceMetaDataHandler
 {
     public async Task<ResolvedNonPodcastServiceItem> ResolveServiceItem(
@@ -21,7 +19,6 @@ public class StreamingServiceMetaDataHandler(
     {
         NonPodcastService service;
         NonPodcastServiceItemMetaData metaData;
-        string publisher;
         Episode? matchingEpisode;
 
         if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
@@ -32,7 +29,7 @@ public class StreamingServiceMetaDataHandler(
             {
                 logger.LogError(
                     "Multiple episodes of podcast with podcast-id {podcastId} with internet-archive url '{url}'.",
-                    podcast.Id, url);
+                    podcast?.Id, url);
             }
 
             matchingEpisode = episodes.FirstOrDefault(x => x.Urls.InternetArchive == url);
@@ -44,7 +41,7 @@ public class StreamingServiceMetaDataHandler(
             if (episodes.Count(x => x.Urls.BBC == url) > 1)
             {
                 logger.LogError("Multiple episodes of podcast with podcast-id {podcastId} with bbc url '{url}'.",
-                    podcast.Id, url);
+                    podcast?.Id, url);
             }
 
             matchingEpisode = episodes.FirstOrDefault(x => x.Urls.BBC == url);

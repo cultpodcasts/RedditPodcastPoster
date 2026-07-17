@@ -31,7 +31,7 @@ public class SpotifyClientWrapperNullDtoRules
         {
             Shows = new Paging<SimpleShow, SearchResponse>
             {
-                Items = [null, validShow]
+                Items = [null!, validShow]
             }
         };
         var spotifyClient = new Mock<ISpotifyClient>();

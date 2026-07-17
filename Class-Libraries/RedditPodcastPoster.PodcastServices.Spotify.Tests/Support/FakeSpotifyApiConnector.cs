@@ -7,7 +7,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.Support;
 /// </summary>
 internal sealed class FakeSpotifyApiConnector(IReadOnlyDictionary<string, object> pagesByUrl) : IAPIConnector
 {
+#pragma warning disable CS0067 // Required by IAPIConnector; never raised by this fake.
     public event EventHandler<IResponse>? ResponseReceived;
+#pragma warning restore CS0067
 
     Task<T> IAPIConnector.Get<T>(Uri uri, CancellationToken cancel)
     {

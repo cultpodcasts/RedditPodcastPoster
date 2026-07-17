@@ -1,7 +1,22 @@
 <Project>
   <PropertyGroup>
     <AzureCosmosDisableNewtonsoftJsonCheck>true</AzureCosmosDisableNewtonsoftJsonCheck>
+    <!--
+      NU1701: iTunesSearch 1.0.44 (net40, unmaintained since 2018) restores via the .NET Framework
+      compatibility shim and warns in every consuming project. Works at runtime; suppressed until
+      it is replaced with a thin HttpClient wrapper around the iTunes lookup/search API.
+    -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
+
+  <!--
+    Vendored Third-Party/sirkris-Reddit.NET-1.5.3 pins these vulnerable package versions.
+    Suppress their fan-out until the vendored library can be upgraded or replaced.
+  -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-9pq7-rcxv-47vq" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-5crp-9r3c-p9vr" />
+  </ItemGroup>
 
   <!-- Ensure low-level dependency-injection projects are built before other projects to avoid CS0006 metadata not found errors. -->
   <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"

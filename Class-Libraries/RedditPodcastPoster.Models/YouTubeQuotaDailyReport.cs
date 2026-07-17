@@ -1,26 +1,12 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json.Serialization;
 
 namespace RedditPodcastPoster.Models;
 
-[CosmosSelector(ModelType.YouTubeQuotaReport)]
-public sealed class YouTubeQuotaDailyReport : CosmosSelector
+/// <summary>
+///     A single day's quota snapshot, embedded in the rolling <see cref="YouTubeQuotaReport" /> document.
+/// </summary>
+public sealed class YouTubeQuotaDailyReport
 {
-    public YouTubeQuotaDailyReport()
-    {
-        ModelType = ModelType.YouTubeQuotaReport;
-    }
-
-    public static Guid CreateId(DateOnly reportDate, string sourceApplication)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{reportDate:yyyyMMdd}:{sourceApplication}"));
-        var guidBytes = hash.AsSpan(0, 16).ToArray();
-        guidBytes[6] = (byte)((guidBytes[6] & 0x0F) | 0x40);
-        guidBytes[8] = (byte)((guidBytes[8] & 0x3F) | 0x80);
-        return new Guid(guidBytes);
-    }
-
     [JsonPropertyName("reportDate")]
     [JsonPropertyOrder(10)]
     public DateOnly ReportDate { get; set; }
@@ -56,8 +42,6 @@ public sealed class YouTubeQuotaDailyReport : CosmosSelector
     [JsonPropertyName("nonQuotaErrorCount")]
     [JsonPropertyOrder(18)]
     public int NonQuotaErrorCount { get; set; }
-
-    public override string FileKey => $"{nameof(YouTubeQuotaDailyReport)}-{ReportDate:yyyy-MM-dd}-{SourceApplication}";
 }
 
 public sealed class YouTubeQuotaKeyStats

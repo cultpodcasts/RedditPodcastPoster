@@ -52,7 +52,8 @@ public class YouTubeQuotaUsageTrackerTests
         spareKey.CapacityHint.Should().Be("spare-capacity-candidate");
         spareKey.DailyLimit.Should().Be(YouTubeQuotaCosts.DailyLimitPerKey);
         spareKey.EstimatedQuotaUsed.Should().Be(0);
-        report.Id.Should().Be(YouTubeQuotaDailyReport.CreateId(SampleReportDate, "Indexer"));
+        report.ReportDate.Should().Be(SampleReportDate);
+        report.SourceApplication.Should().Be("Indexer");
     }
 
     [Fact]

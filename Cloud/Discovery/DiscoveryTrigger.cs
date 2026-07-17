@@ -41,6 +41,15 @@ public class DiscoveryTrigger(
         LogDiscoveryOrchestrationHealthIssues(
             DiscoveryOrchestrationHealthChecker.FindFailedInstances(orchestrationInstances));
 
+        var stalePendingInstances = await TerminateStalePendingInstancesAsync(
+            client, currentSlotStart, orchestrationInstances, cancellationToken);
+        if (stalePendingInstances.Count > 0)
+        {
+            orchestrationInstances = orchestrationInstances
+                .Where(instance => !stalePendingInstances.Contains(instance))
+                .ToList();
+        }
+
         var currentSlotAudit = DiscoverySlotAuditor.AuditSlot(currentSlotStart, orchestrationInstances);
         if (currentSlotAudit.Kind == DiscoverySlotAuditKind.Completed)
         {
@@ -98,7 +107,9 @@ public class DiscoveryTrigger(
         string instanceId;
         try
         {
-            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(Orchestration));
+            instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
+                nameof(Orchestration),
+                new DiscoveryOrchestrationRunInput(utcNow));
         }
         catch (RpcException ex)
         {
@@ -137,6 +148,42 @@ public class DiscoveryTrigger(
             instanceId);
 
         memoryProbe.End();
+    }
+
+    private async Task<IReadOnlyList<DiscoveryOrchestrationInstance>> TerminateStalePendingInstancesAsync(
+        DurableTaskClient client,
+        DateTimeOffset currentSlotStart,
+        IReadOnlyList<DiscoveryOrchestrationInstance> orchestrationInstances,
+        CancellationToken cancellationToken)
+    {
+        var staleInstances = DiscoveryOrchestrationHealthChecker.GetStalePendingInstances(
+            currentSlotStart, orchestrationInstances);
+        foreach (var staleInstance in staleInstances)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                await client.TerminateInstanceAsync(
+                    staleInstance.InstanceId,
+                    $"Stale pending {nameof(Orchestration)} terminated by {nameof(DiscoveryTrigger)}.",
+                    cancellationToken);
+                logger.LogWarning(
+                    "{DiscoveryTriggerName} terminated-stale instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}' slot-utc='{SlotUtc}'.",
+                    nameof(DiscoveryTrigger),
+                    staleInstance.InstanceId,
+                    staleInstance.CreatedAt.UtcDateTime,
+                    DiscoverySlotAuditor.FormatSlot(currentSlotStart));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failure to terminate stale pending '{OrchestrationName}' instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}'.",
+                    nameof(Orchestration), staleInstance.InstanceId, staleInstance.CreatedAt.UtcDateTime);
+            }
+        }
+
+        return staleInstances;
     }
 
     private static async Task<IReadOnlyList<DiscoveryOrchestrationInstance>> GetDiscoveryOrchestrationInstancesAsync(

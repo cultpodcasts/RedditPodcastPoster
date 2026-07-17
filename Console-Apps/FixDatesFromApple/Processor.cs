@@ -22,7 +22,9 @@ public class Processor(
 
         var appleEpisodes = await appleEpisodeProvider.GetEpisodes(
             new ApplePodcastId(podcast.AppleId.Value),
-            new IndexingContext());
+            new IndexingContext())
+            ?? throw new InvalidOperationException(
+                $"Unable to load Apple episodes for podcast '{podcast.Id}'.");
         var updated = false;
 
         var matchingEpisodes = await episodeRepository

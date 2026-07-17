@@ -2,15 +2,12 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.BBC.DTOs;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 
 namespace RedditPodcastPoster.BBC;
 
-public partial class iPlayerPageMetaDataExtractor(
-    ILogger<iPlayerPageMetaDataExtractor> logger
-) : IiPlayerPageMetaDataExtractor
+public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtractor
 {
     private static readonly Regex DurationRegex = CreateDurationRegex();
     private static readonly Regex ReleaseRegex = CreateReleaseRegex();
@@ -31,11 +28,13 @@ public partial class iPlayerPageMetaDataExtractor(
         }
 
         var md = GetMetaData(document);
+        var title = md.Title;
+        var description = md.Description;
 
-        if (string.IsNullOrWhiteSpace(md.Title) || string.IsNullOrWhiteSpace(md.Description))
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description))
         {
             throw new NonPodcastServiceMetaDataExtractionException(url,
-                $"Unable to obtain title and description. Title: '{md.Title}', description: '{md.Description}'.");
+                $"Unable to obtain title and description. Title: '{title}', description: '{description}'.");
         }
 
         if (md.Release == null)
@@ -49,13 +48,13 @@ public partial class iPlayerPageMetaDataExtractor(
         }
 
 
-        return new NonPodcastServiceItemMetaData(md.Title, md.Description, md.Duration, md.Release, md.Image,
+        return new NonPodcastServiceItemMetaData(title, description, md.Duration, md.Release, md.Image,
             md.Explicit, "BBC");
     }
 
     private static TextMetaData GetMetaData(HtmlDocument document)
     {
-        string description;
+        string? description;
 
         var titleNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:title']");
         var title = titleNode?.Attributes["Content"]?.Value;
@@ -69,7 +68,8 @@ public partial class iPlayerPageMetaDataExtractor(
             var start = script.IndexOf(marker) + marker.Length;
             var json = script.Substring(start, script.LastIndexOf(";") - start).Trim().TrimStart('=').TrimStart();
 
-            var metaData = JsonSerializer.Deserialize<BBCiPlayerMetaData>(json);
+            var metaData = JsonSerializer.Deserialize<BBCiPlayerMetaData>(json)
+                ?? throw new InvalidOperationException("Unable to deserialize BBC iPlayer redux state.");
 
             description = metaData.Episode.Synopses.Description;
         }
@@ -161,8 +161,8 @@ public partial class iPlayerPageMetaDataExtractor(
 
 
     private record TextMetaData(
-        string Title,
-        string Description,
+        string? Title,
+        string? Description,
         DateTime? Release,
         TimeSpan? Duration,
         Uri? Image,

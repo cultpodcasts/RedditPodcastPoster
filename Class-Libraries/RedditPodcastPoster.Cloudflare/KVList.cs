@@ -5,6 +5,6 @@ namespace RedditPodcastPoster.Cloudflare;
 public class KVList
 {
     [JsonPropertyName("result")]
-    public IEnumerable<KVListResult> Result { get; set; }
+    public IEnumerable<KVListResult> Result { get; set; } = null!;
 
 }

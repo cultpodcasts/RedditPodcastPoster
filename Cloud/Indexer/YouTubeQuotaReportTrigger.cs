@@ -1,5 +1,6 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
@@ -29,12 +30,20 @@ public class YouTubeQuotaReportTrigger(
             SourceApplication);
 
         var report = await quotaUsageTracker.CreateReportAsync(reportDate, SourceApplication, cancellationToken);
-        await lookupRepository.SaveYouTubeQuotaDailyReport(report);
+
+        var rollingReport = await lookupRepository.GetYouTubeQuotaReport()
+                            ?? new YouTubeQuotaReport {SourceApplication = SourceApplication};
+        rollingReport.UpsertDay(report);
+        rollingReport.UpdatedUtc = DateTime.UtcNow;
+        await lookupRepository.SaveYouTubeQuotaReport(rollingReport);
+
         await quotaUsageTracker.ResetAsync(cancellationToken);
 
         logger.LogInformation(
-            "Saved YouTube quota report {ReportId} with {KeyCount} keys, {UsedIndexerKeyCount} used indexer keys, {UnusedIndexerKeyCount} unused indexer keys, {PodcastsNotIndexedDueToQuota} podcasts not indexed due to quota, {PodcastsNotEnrichedDueToQuota} podcasts not enriched due to quota, {RingExhaustionCount} ring exhaustions, {NonQuotaErrorCount} non-quota errors.",
-            report.Id,
+            "Saved YouTube quota report {ReportId} holding {DayCount} days (latest {ReportDate}) with {KeyCount} keys, {UsedIndexerKeyCount} used indexer keys, {UnusedIndexerKeyCount} unused indexer keys, {PodcastsNotIndexedDueToQuota} podcasts not indexed due to quota, {PodcastsNotEnrichedDueToQuota} podcasts not enriched due to quota, {RingExhaustionCount} ring exhaustions, {NonQuotaErrorCount} non-quota errors.",
+            rollingReport.Id,
+            rollingReport.Days.Count,
+            report.ReportDate,
             report.Keys.Count,
             report.UsedIndexerKeys.Count,
             report.UnusedIndexerKeys.Count,

@@ -1,12 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.Subjects.Factories;
 
 public class SubjectFactory(
-    IPodcastRepository podcastRepository,
-    ILogger<SubjectFactory> logger) : ISubjectFactory
+    IPodcastRepository podcastRepository) : ISubjectFactory
 {
     private static string[]? _fileKeys;
 

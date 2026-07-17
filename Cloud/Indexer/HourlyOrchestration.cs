@@ -4,14 +4,29 @@ using Microsoft.Extensions.Logging;
 namespace Indexer;
 
 [DurableTask(nameof(HourlyOrchestration))]
-public class HourlyOrchestration : TaskOrchestrator<object, IndexerContext>
+public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?, IndexerContext>
 {
-    public override async Task<IndexerContext> RunAsync(TaskOrchestrationContext context, object input)
+    public override async Task<IndexerContext> RunAsync(
+        TaskOrchestrationContext context,
+        HourlyOrchestrationRunInput? input)
     {
         var logger = context.CreateReplaySafeLogger<HourlyOrchestration>();
         logger.LogInformation(
             "{nameofHourlyOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
             nameof(HourlyOrchestration), nameof(RunAsync), context.InstanceId);
+
+        // Stale-run guard: an instance scheduled for an earlier UTC hour (e.g. a Pending backlog
+        // draining after a broken host was fixed) must no-op instead of re-running the pipeline
+        // and duplicating social posts. Deterministic: input is fixed and CurrentUtcDateTime is
+        // replay-safe. Instances scheduled by older code carry no input and run unguarded.
+        if (input is not null &&
+            HourlyOrchestrationCatchUpEvaluator.IsStaleRun(input.ScheduledAtUtc, context.CurrentUtcDateTime))
+        {
+            logger.LogWarning(
+                "HourlyOrchestration stale-run-skipped instance-id='{InstanceId}' scheduled-at-utc='{ScheduledAtUtc:O}' current-utc='{CurrentUtc:O}'.",
+                context.InstanceId, input.ScheduledAtUtc, context.CurrentUtcDateTime);
+            return new IndexerContext(Success: true);
+        }
 
         const int indexPasses = 4;
         var indexPassOperationIs = Enumerable.Range(1, indexPasses).Select(_ => context.NewGuid()).ToArray();

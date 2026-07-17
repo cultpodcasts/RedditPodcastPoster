@@ -1,13 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.CloudflareRedirect;
+﻿using RedditPodcastPoster.CloudflareRedirect;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RenamePodcast;
 
 public class RenamePodcastProcessor(
     IPodcastRepository podcastRepository,
-    IRedirectService redirectService,
-    ILogger<RenamePodcastProcessor> logger)
+    IRedirectService redirectService)
 {
     public async Task Process(RenamePodcastRequest request)
     {

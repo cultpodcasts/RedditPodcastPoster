@@ -19,7 +19,8 @@ public sealed class CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSer
         {
             if (stream is {CanSeek: true, Length: 0})
             {
-                return default;
+                // Cosmos SDK empty-stream contract: return default for T (may be null for reference types).
+                return default!;
             }
 
             if (typeof(Stream).IsAssignableFrom(typeof(T)))
@@ -27,7 +28,8 @@ public sealed class CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSer
                 return (T) (object) stream;
             }
 
-            return (T) systemTextJsonSerializer.Deserialize(stream, typeof(T), default);
+            // JsonObjectSerializer.Deserialize may return null; Cosmos adapter surface is non-nullable T.
+            return (T) systemTextJsonSerializer.Deserialize(stream, typeof(T), default)!;
         }
     }
 
@@ -44,7 +46,8 @@ public sealed class CosmosSystemTextJsonSerializer(JsonSerializerOptions jsonSer
         var jsonExtensionDataAttribute = memberInfo.GetCustomAttribute<JsonExtensionDataAttribute>(true);
         if (jsonExtensionDataAttribute != null)
         {
-            return null;
+            // Cosmos LINQ serializer contract: JsonExtensionData members must report a null member name.
+            return null!;
         }
 
         var jsonPropertyNameAttribute = memberInfo.GetCustomAttribute<JsonPropertyNameAttribute>(true);

@@ -64,7 +64,6 @@ public class HourlyOrchestrationCatchUpEvaluatorTests
 
     [Theory]
     [InlineData(OrchestrationRuntimeStatus.Running)]
-    [InlineData(OrchestrationRuntimeStatus.ContinuedAsNew)]
     public void ShouldNotScheduleCatchUp_when_hourly_orchestration_is_in_progress_this_hour(
         OrchestrationRuntimeStatus status)
     {
@@ -111,6 +110,68 @@ public class HourlyOrchestrationCatchUpEvaluatorTests
                 HourStart.UtcDateTime.AddMinutes(8),
                 instances)
             .Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetStalePendingInstances_returns_pending_instances_from_earlier_hours()
+    {
+        var stalePriorHour = new HourlyOrchestrationInstance(
+            HourStart.AddHours(-2), OrchestrationRuntimeStatus.Pending, "prior-hour");
+        var instances = new[]
+        {
+            stalePriorHour,
+            new HourlyOrchestrationInstance(HourStart.AddHours(-1), OrchestrationRuntimeStatus.Completed, "completed"),
+            new HourlyOrchestrationInstance(HourStart.AddHours(-1), OrchestrationRuntimeStatus.Running, "running")
+        };
+
+        HourlyOrchestrationCatchUpEvaluator.GetStalePendingInstances(
+                HourStart.UtcDateTime.AddMinutes(3),
+                instances)
+            .Should().ContainSingle()
+            .Which.Should().Be(stalePriorHour);
+    }
+
+    [Fact]
+    public void GetStalePendingInstances_returns_current_hour_ghost_pending_older_than_threshold()
+    {
+        var ghost = new HourlyOrchestrationInstance(
+            HourStart.AddSeconds(10), OrchestrationRuntimeStatus.Pending, "ghost");
+
+        HourlyOrchestrationCatchUpEvaluator.GetStalePendingInstances(
+                HourStart.UtcDateTime.AddMinutes(8),
+                [ghost])
+            .Should().ContainSingle()
+            .Which.Should().Be(ghost);
+    }
+
+    [Fact]
+    public void GetStalePendingInstances_keeps_fresh_pending_instance_in_current_hour()
+    {
+        var fresh = new HourlyOrchestrationInstance(
+            HourStart.AddMinutes(3), OrchestrationRuntimeStatus.Pending, "fresh");
+
+        HourlyOrchestrationCatchUpEvaluator.GetStalePendingInstances(
+                HourStart.UtcDateTime.AddMinutes(4),
+                [fresh])
+            .Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("2026-07-17T14:03:05Z", "2026-07-17T15:02:30Z", true)]
+    [InlineData("2026-07-17T10:08:04Z", "2026-07-17T15:02:30Z", true)]
+    [InlineData("2026-07-17T14:59:00Z", "2026-07-17T15:00:00Z", true)]
+    [InlineData("2026-07-17T15:03:05Z", "2026-07-17T15:04:00Z", false)]
+    [InlineData("2026-07-17T15:03:05Z", "2026-07-17T15:59:59Z", false)]
+    [InlineData("2026-07-17T15:00:00Z", "2026-07-17T15:00:00Z", false)]
+    public void IsStaleRun_detects_runs_executing_after_their_scheduled_hour(
+        string scheduledAtText,
+        string currentUtcText,
+        bool expected)
+    {
+        var scheduledAtUtc = DateTime.Parse(scheduledAtText).ToUniversalTime();
+        var currentUtc = DateTime.Parse(currentUtcText).ToUniversalTime();
+
+        HourlyOrchestrationCatchUpEvaluator.IsStaleRun(scheduledAtUtc, currentUtc).Should().Be(expected);
     }
 
     [Fact]

@@ -17,6 +17,7 @@ public abstract class MemoryProbedHttpBaseClass(
     ILogger logger)
     : BaseHttpFunction(clientPrincipalFactory, hostingOptions, logger)
 {
+    private readonly ILogger _logger = logger;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     protected override async Task<HttpResponseData> HandleRequest(
@@ -67,7 +68,7 @@ public abstract class MemoryProbedHttpBaseClass(
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogError(ex, "Unhandled exception in {FunctionName}.",
+            _logger.LogError(ex, "Unhandled exception in {FunctionName}.",
                 req.FunctionContext.FunctionDefinition.Name);
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             return await errorResponse.WithJsonBody(

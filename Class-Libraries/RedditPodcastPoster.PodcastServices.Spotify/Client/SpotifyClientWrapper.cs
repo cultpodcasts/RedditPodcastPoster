@@ -311,7 +311,12 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
+            // Spotify removed GET /episodes (several) in the Feb 2026 Web API changes. Discovery search
+            // relies on this batch hydration; migration path is per-id GET /episodes/{id} (GetFullEpisode).
+            // Failures are already caught below and surface as a null response.
+#pragma warning disable CS0618
             results = await spotifyClient.Episodes.GetSeveral(request, cancel);
+#pragma warning restore CS0618
         }
         catch (APITooManyRequestsException ex)
         {

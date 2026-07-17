@@ -51,7 +51,6 @@ public class NullEpisodesLeadInPaginator(
 
         var yielded = 0;
         var page = firstPage;
-        SimpleEpisode? lastItem = null;
         var currentNullEpisodes = 0;
         foreach (var item in page.Items)
         {

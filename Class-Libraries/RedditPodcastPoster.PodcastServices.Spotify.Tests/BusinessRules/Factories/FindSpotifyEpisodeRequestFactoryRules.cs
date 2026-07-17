@@ -106,6 +106,52 @@ public class FindSpotifyEpisodeRequestFactoryRules
     }
 
     [Fact(DisplayName =
+        "When building a request from YouTube-sourced criteria on an audio-primary podcast with a positive " +
+        "publishing delay, Released is shifted back by the delay and EnrichingYouTubeDiscoveredEpisode is true " +
+        "so the Spotify lookup anchors on the expected audio day, not the YouTube publish day.")]
+    public void Criteria_from_youtube_url_shifts_release_by_delay_and_flags_enrichment()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(7);
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.YouTubePublicationOffset = delay.Ticks;
+        });
+        var criteria = CreateCriteria(showName: podcast.Name) with { SourceAuthority = Service.YouTube };
+
+        // Act
+        var request = FindSpotifyEpisodeRequestFactory.Create(podcast, criteria);
+
+        // Assert
+        request.Released.Should().Be(criteria.Release - delay);
+        request.EnrichingYouTubeDiscoveredEpisode.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When building a request from criteria without a source authority on the same delayed podcast, " +
+        "Released stays unshifted and EnrichingYouTubeDiscoveredEpisode is false " +
+        "because only YouTube-sourced criteria imply a delayed audio counterpart.")]
+    public void Criteria_without_source_authority_does_not_shift_release()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(7);
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.YouTubePublicationOffset = delay.Ticks;
+        });
+        var criteria = CreateCriteria(showName: podcast.Name);
+
+        // Act
+        var request = FindSpotifyEpisodeRequestFactory.Create(podcast, criteria);
+
+        // Assert
+        request.Released.Should().Be(criteria.Release);
+        request.EnrichingYouTubeDiscoveredEpisode.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When creating a direct-id request from a Spotify episode id, EpisodeSpotifyId is set and podcast fields stay empty " +
         "because URL-authority Resolve looks up by episode id without a known show context.")]
     public void Create_from_episode_id_sets_episode_id_with_empty_podcast_fields()

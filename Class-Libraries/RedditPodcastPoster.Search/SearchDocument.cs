@@ -12,13 +12,13 @@ public class SearchDocument
     public string? PodcastName { get; set; }
 
     [JsonPropertyName("episodeTitle")]
-    public string EpisodeTitle { get; set; }
+    public string EpisodeTitle { get; set; } = null!;
 
     [JsonPropertyName("episodeDescription")]
-    public string EpisodeDescription { get; set; }
+    public string EpisodeDescription { get; set; } = null!;
 
     [JsonPropertyName("subjects")]
-    public string[] Subjects { get; set; }
+    public string[] Subjects { get; set; } = null!;
 
     [JsonPropertyName("duration")]
     public string? Duration { get; set; }

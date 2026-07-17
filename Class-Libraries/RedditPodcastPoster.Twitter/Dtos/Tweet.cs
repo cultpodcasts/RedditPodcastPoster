@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Twitter.Dtos;
 public class Tweet
 {
     [JsonPropertyName("edit_history_tweet_ids")]
-    public string[] EditHistoryTweetIds { get; set; }
+    public string[] EditHistoryTweetIds { get; set; } = [];
 
     [JsonPropertyName("id")]
     public string Id { get; set; } = "";

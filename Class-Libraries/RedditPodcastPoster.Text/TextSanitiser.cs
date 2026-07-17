@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -9,8 +8,7 @@ using RedditPodcastPoster.Text.KnownTerms;
 namespace RedditPodcastPoster.Text;
 
 public partial class TextSanitiser(
-    IAsyncInstance<IKnownTermsProvider> knownTermsProviderInstance,
-    ILogger<TextSanitiser> logger)
+    IAsyncInstance<IKnownTermsProvider> knownTermsProviderInstance)
     : ITextSanitiser
 {
     private static readonly Regex OApostrophe = CreateOApostrophe();

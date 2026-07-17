@@ -46,6 +46,26 @@ public class DiscoveryOrchestrationHealthCheckerTests
     }
 
     [Fact]
+    public void GetStalePendingInstances_returns_pending_instances_from_earlier_slots()
+    {
+        var currentSlotStart = new DateTimeOffset(2026, 7, 7, 14, 33, 0, TimeSpan.Zero);
+        var stale = new DiscoveryOrchestrationInstance(
+            currentSlotStart.AddHours(-6).AddSeconds(5), OrchestrationRuntimeStatus.Pending, "stale");
+        var instances = new[]
+        {
+            stale,
+            new DiscoveryOrchestrationInstance(
+                currentSlotStart.AddHours(-6).AddSeconds(5), OrchestrationRuntimeStatus.Completed, "completed"),
+            new DiscoveryOrchestrationInstance(
+                currentSlotStart.AddSeconds(5), OrchestrationRuntimeStatus.Pending, "current-slot")
+        };
+
+        DiscoveryOrchestrationHealthChecker.GetStalePendingInstances(currentSlotStart, instances)
+            .Should().ContainSingle()
+            .Which.Should().Be(stale);
+    }
+
+    [Fact]
     public void CreateBlockedByActiveRunIssue_describes_skipped_trigger()
     {
         var issue = DiscoveryOrchestrationHealthChecker.CreateBlockedByActiveRunIssue(

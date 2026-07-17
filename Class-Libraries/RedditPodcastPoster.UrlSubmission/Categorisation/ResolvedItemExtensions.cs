@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -24,7 +25,10 @@ public static class ResolvedItemExtensions
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
             item.Release,
-            item.Duration);
+            item.Duration)
+        {
+            SourceAuthority = Service.Spotify
+        };
     }
 
     public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this CategorisedAppleItem item)
@@ -36,7 +40,10 @@ public static class ResolvedItemExtensions
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
             item.Release,
-            item.Duration);
+            item.Duration)
+        {
+            SourceAuthority = Service.Apple
+        };
     }
 
     public static PodcastServiceSearchCriteria ToPodcastServiceSearchCriteria(this CategorisedYouTubeItem item)
@@ -48,6 +55,9 @@ public static class ResolvedItemExtensions
             item.EpisodeTitle.Trim(),
             item.EpisodeDescription.Trim(),
             item.Release,
-            item.Duration);
+            item.Duration)
+        {
+            SourceAuthority = Service.YouTube
+        };
     }
 }

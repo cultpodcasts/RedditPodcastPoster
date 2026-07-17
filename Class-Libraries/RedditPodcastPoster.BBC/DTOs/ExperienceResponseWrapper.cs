@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.BBC.DTOs;
 public class ExperienceResponseWrapper
 {
     [JsonPropertyName("data")]
-    public ExperienceResponse[] ExperienceResponse { get; set; }
+    public ExperienceResponse[] ExperienceResponse { get; set; } = null!;
 }

@@ -19,8 +19,7 @@ public static class HourlyOrchestrationCatchUpEvaluator
 {
     private static readonly OrchestrationRuntimeStatus[] InProgressStatuses =
     [
-        OrchestrationRuntimeStatus.Running,
-        OrchestrationRuntimeStatus.ContinuedAsNew
+        OrchestrationRuntimeStatus.Running
     ];
 
     private static readonly OrchestrationRuntimeStatus[] FinishedStatuses =
@@ -109,4 +108,30 @@ public static class HourlyOrchestrationCatchUpEvaluator
         DateTime utcNow,
         IEnumerable<HourlyOrchestrationInstance> instances) =>
         ShouldScheduleCatchUp(utcNow, instances, out _);
+
+    /// <summary>
+    /// Pending instances that should be terminated rather than left runnable: instances created in an
+    /// earlier UTC hour (their slot has passed) or ghost schedules in the current hour older than
+    /// <see cref="StalePendingThreshold" />. Left alone, such instances all execute when a healthy host
+    /// next starts, producing duplicate hourly runs (Jul 2026 duplicate Bluesky posts incident).
+    /// </summary>
+    public static IReadOnlyList<HourlyOrchestrationInstance> GetStalePendingInstances(
+        DateTime utcNow,
+        IEnumerable<HourlyOrchestrationInstance> instances)
+    {
+        var hourStart = GetUtcHourStart(utcNow);
+        return instances
+            .Where(instance => instance.Status == OrchestrationRuntimeStatus.Pending)
+            .Where(instance =>
+                instance.CreatedAt < hourStart ||
+                utcNow - instance.CreatedAt.UtcDateTime >= StalePendingThreshold)
+            .ToList();
+    }
+
+    /// <summary>
+    /// A run is stale when it executes in a later UTC hour than the one it was scheduled for; the
+    /// current hour's trigger owns that hour, so a late-draining instance must no-op.
+    /// </summary>
+    public static bool IsStaleRun(DateTime scheduledAtUtc, DateTime currentUtcDateTime) =>
+        currentUtcDateTime >= GetUtcHourStart(scheduledAtUtc).AddHours(1).UtcDateTime;
 }

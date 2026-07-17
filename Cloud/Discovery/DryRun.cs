@@ -2,5 +2,6 @@
 
 internal static class DryRun
 {
-    public const bool IsDiscoverDryRun = false;
+    // static readonly (not const) so flipping the toggle doesn't leave provably unreachable code (CS0162).
+    public static readonly bool IsDiscoverDryRun = false;
 }
