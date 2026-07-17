@@ -1,0 +1,20 @@
+---
+description: Require a synchronized website build whenever the authoritative backend language list changes
+globs: "Class-Libraries/RedditPodcastPoster.ContentPublisher/LanguagesPublisher.cs"
+alwaysApply: false
+---
+
+# Backend and website language-list sync
+
+`Class-Libraries/RedditPodcastPoster.ContentPublisher/LanguagesPublisher.cs` (`LanguageNames`) is authoritative. `Console-Apps/R2Publisher` publishes it to the R2 object `languages`, which the API Worker exposes to curators at `GET /languages`.
+
+The public website does **not** read that endpoint at runtime. Its language lookup is baked into the webapp at sibling repository `website/cultpodcasts/src/app/languages.ts` and used by `website/cultpodcasts/src/app/subject-language-filter.ts`.
+
+Whenever `LanguageNames` adds, removes, or renames a language:
+
+- [ ] Update `website/cultpodcasts/src/app/languages.ts` with matching codes, English names, and local/endonym names.
+- [ ] Keep `website/cultpodcasts/src/app/subject-language-filter.spec.ts` green.
+- [ ] Bump the webapp version in `website/cultpodcasts/package.json` and `website/cultpodcasts/package-lock.json`.
+- [ ] Merge the website change to its production branch and verify the Cloudflare Pages Git-integration build deploys successfully.
+
+Publishing the R2 object alone is insufficient. Missing the website update leaves new languages displayed as raw ISO-code fallbacks on public subject pages.

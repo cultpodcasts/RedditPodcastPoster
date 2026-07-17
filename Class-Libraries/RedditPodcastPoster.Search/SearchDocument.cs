@@ -26,17 +26,17 @@ public class SearchDocument
     [JsonPropertyName("release")]
     public DateTime? Release { get; set; }
 
-    [JsonPropertyName("explicit")]
-    public bool? Explicit { get; set; }
+    [JsonPropertyName("spotifyId")]
+    public string? SpotifyId { get; set; }
 
-    [JsonPropertyName("apple")]
-    public Uri? Apple { get; set; }
+    [JsonPropertyName("youtubeId")]
+    public string? YoutubeId { get; set; }
 
-    [JsonPropertyName("youtube")]
-    public Uri? YouTube { get; set; }
+    [JsonPropertyName("appleId")]
+    public string? AppleId { get; set; }
 
-    [JsonPropertyName("spotify")]
-    public Uri? Spotify { get; set; }
+    [JsonPropertyName("podcastAppleId")]
+    public string? PodcastAppleId { get; set; }
 
     public Episode ToEpisodeModel()
     {
@@ -49,13 +49,9 @@ public class SearchDocument
             Subjects = Subjects.ToList(),
             Length = length,
             Release = Release ?? DateTime.MinValue,
-            Urls = new ServiceUrls
-            {
-                Apple = Apple,
-                Spotify = Spotify,
-                YouTube = YouTube
-            },
-            Explicit = Explicit ?? false
+            SpotifyId = SpotifyId ?? string.Empty,
+            YouTubeId = YoutubeId ?? string.Empty,
+            AppleId = long.TryParse(AppleId, out var appleId) ? appleId : null
         };
     }
 }
