@@ -15,6 +15,11 @@ public class TweetManager(
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)
         {
+            if (tweetsResponse.Tweets == null)
+            {
+                return RemoveTweetState.Other;
+            }
+
             var matchingTweets = tweetsResponse.Tweets.Where(
                 x => x.Text.Contains(podcastEpisode.Podcast.Name) &&
                      x.Text.Contains(podcastEpisode.Episode.Length.ToString(TweetBuilder.LengthFormat,

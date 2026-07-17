@@ -509,7 +509,8 @@ public class YouTubeEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        episode.Images.YouTube.Should().Be(thumbnailUrl);
+        episode.Images.Should().NotBeNull();
+        episode.Images!.YouTube.Should().Be(thumbnailUrl);
         enrichmentContext.YouTubeUrlUpdated.Should().BeTrue();
     }
 

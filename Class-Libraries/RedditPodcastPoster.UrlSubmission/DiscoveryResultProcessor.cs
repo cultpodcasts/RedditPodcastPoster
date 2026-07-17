@@ -142,11 +142,15 @@ public class DiscoveryResultProcessor(
         if (categorisedItem.ResolvedYouTubeItem == null ||
             categorisedItem.ResolvedYouTubeItem.ShowId != YouTubeIdResolver.Extract(urls.YouTube!))
         {
-            categorisedItem = categorisedItem with
+            var resolvedYouTubeItem =
+                await youTubeUrlCategoriser.Resolve(null, [], urls.YouTube!, indexingContext);
+            if (resolvedYouTubeItem != null)
             {
-                ResolvedYouTubeItem = PlatformResolvedItemMappers.FromPlatform(
-                    await youTubeUrlCategoriser.Resolve(null, [], urls.YouTube!, indexingContext))
-            };
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedYouTubeItem = PlatformResolvedItemMappers.FromPlatform(resolvedYouTubeItem)
+                };
+            }
         }
 
         return categorisedItem;

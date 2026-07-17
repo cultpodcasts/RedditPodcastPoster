@@ -82,7 +82,7 @@ public class MetaDataExtractor(
             duration = item.Duration;
         }
 
-        return new NonPodcastServiceItemMetaData(title, description ?? string.Empty, duration, release, image,
-            Publisher: publisher);
+        return new NonPodcastServiceItemMetaData(title ?? string.Empty, description ?? string.Empty, duration, release,
+            image, Publisher: publisher);
     }
 }

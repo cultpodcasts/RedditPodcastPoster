@@ -55,6 +55,12 @@ public class NonPodcastServiceCategoriser(
 
                 var podcastId = matchingPodcastIds.Single();
                 podcast = await podcastRepository.GetBy(x => x.Id == podcastId);
+                if (podcast == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Podcast '{podcastId}' not found for url '{url}'.");
+                }
+
                 IEnumerable<Episode> episodes;
                 if (service == NonPodcastService.BBC)
                 {

@@ -96,6 +96,12 @@ public class TwitterClient(
         if (response.IsSuccessStatusCode)
         {
             var tweetsResponse = await response.Content.ReadFromJsonAsync<GetTweetsResponse>();
+            if (tweetsResponse?.Tweets == null)
+            {
+                logger.LogError("Twitter GetTweets returned success but response body or tweets was null.");
+                return new GetTweetsResponseWrapper(GetTweetsState.Other);
+            }
+
             return new GetTweetsResponseWrapper(GetTweetsState.Retrieved, tweetsResponse.Tweets);
         }
 

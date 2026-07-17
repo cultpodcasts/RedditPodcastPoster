@@ -18,7 +18,7 @@ public class HashTagProvider(
         var subjects = await Task.WhenAll(subjectRetrieval);
         var hashTags = subjects
             .Where(x => !string.IsNullOrWhiteSpace(x?.HashTag))
-            .Select(x => x.HashTag!)
+            .Select(x => x!.HashTag!)
             .ToHashTags();
         var enrichmentHashTags =
             subjects

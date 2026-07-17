@@ -45,10 +45,12 @@ public class PodcastsUpdater(
                                     !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
             if (performAutoIndex)
             {
+                // performAutoIndex requires podcast != null; capture for catch (flow analysis does not carry in).
+                var podcastToUpdate = podcast!;
                 try
                 {
                     var podcastIndexingContext = indexingContext.ForPodcastUpdate();
-                    var result = await podcastUpdater.Update(podcast!, false, podcastIndexingContext);
+                    var result = await podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
                     batchBypassState = indexingContext.AbsorbPodcastPass(
                         podcastIndexingContext,
                         batchBypassState);
@@ -73,7 +75,7 @@ public class PodcastsUpdater(
 
                         logger.LogWarning(
                             "YouTubeAuthorityPodcastAudit podcast-id='{PodcastId}' podcast-name='{PodcastName}' youtube-enabled='{YouTubeEnabled}' youtube-bypassed='{YouTubeBypassed}' episodes-added='{EpisodesAdded}' youtube-enriched='{YouTubeEnriched}'",
-                            podcast!.Id, podcast.Name, youtubeEnabled, result.YouTubeBypassed,
+                            podcastToUpdate.Id, podcastToUpdate.Name, youtubeEnabled, result.YouTubeBypassed,
                             result.MergeResult.AddedEpisodes.Count, youtubeEnriched);
 
                         if (youtubeEnabled)
@@ -91,7 +93,7 @@ public class PodcastsUpdater(
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failure updating podcast with id '{podcastId}' and name '{podcastName}'.",
-                        podcast.Id, podcast.Name);
+                        podcastToUpdate.Id, podcastToUpdate.Name);
                     success = false;
                 }
                 finally

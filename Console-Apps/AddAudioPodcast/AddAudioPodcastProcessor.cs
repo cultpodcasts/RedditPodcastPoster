@@ -135,6 +135,11 @@ public class AddAudioPodcastProcessor(
         var spotifyPodcast =
             await spotifyClient.GetFullShow(request.PodcastId, new ShowRequest { Market = Market.CountryCode },
                 new IndexingContext());
+        if (spotifyPodcast == null)
+        {
+            throw new InvalidOperationException($"Spotify show '{request.PodcastId}' not found.");
+        }
+
         logger.LogInformation("Retrieved spotify podcast");
         var podcast = await podcastRepository.GetBy(x => x.SpotifyId == request.PodcastId);
         if (podcast == null)

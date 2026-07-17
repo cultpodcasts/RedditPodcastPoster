@@ -114,7 +114,7 @@ public partial class PlaylistItemFinder(
                 {
                     logger.LogInformation(
                         "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{videoLength:g}'.",
-                        episode.Title, episode.Length, matchingPair.PlaylistItem.Snippet.Title,
+                        episode.Title, episode.Length, searchResult.Snippet?.Title,
                         matchingPair.Video?.GetLength());
                     return matchingPair;
                 }
