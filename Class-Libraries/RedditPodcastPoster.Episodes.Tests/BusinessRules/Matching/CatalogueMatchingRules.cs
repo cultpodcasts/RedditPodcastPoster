@@ -949,6 +949,98 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
+        "Incident (Jul 2026): a YouTube-sourced probe whose release is delay-shifted to the expected " +
+        "audio day must select the true 7-day-earlier audio counterpart (5s duration difference) rather " +
+        "than the same-day-as-YouTube decoy (42s difference, released 48 minutes before the video).")]
+    public void delay_shifted_youtube_probe_selects_true_counterpart_not_same_day_decoy()
+    {
+        // Arrange — daily show with a positive 7-day YouTube publishing delay; titles differ per platform.
+        const string youTubeTitle = "The Mormon Church Called Me Chosen... and Cursed";
+        const string decoyTitle = "I Was Groomed to Die for God";
+        const string trueCounterpartTitle =
+            "I Gave an Alien Cult $5 Million and 20 Years (Confessions of a Male Supermodel)";
+        var publishingDelay = TimeSpan.FromDays(7);
+        var videoLength = TimeSpan.FromSeconds(5017);
+        var youTubePublish = DomainTestFixture.UtcAtTime(-1, new TimeSpan(13, 48, 0));
+        var shiftedAnchor = youTubePublish - publishingDelay;
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = videoLength;
+            e.Release = shiftedAnchor;
+        });
+        var trueCounterpart = _fixture.CreateEpisode(e =>
+        {
+            e.Title = trueCounterpartTitle;
+            e.Length = TimeSpan.FromSeconds(5012);
+            e.Release = DomainTestFixture.SameCalendarDateWithTime(shiftedAnchor, new TimeSpan(13, 0, 0));
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var sameDayAsYouTubeDecoy = _fixture.CreateEpisode(e =>
+        {
+            e.Title = decoyTitle;
+            e.Length = TimeSpan.FromSeconds(4975);
+            e.Release = DomainTestFixture.SameCalendarDateWithTime(youTubePublish, new TimeSpan(13, 0, 0));
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.AppleId = _fixture.CreateAppleId();
+            p.YouTubePublicationOffset = publishingDelay.Ticks;
+        });
+
+        // Act — isolates the corrected release anchor. Factory tests separately verify that
+        // YouTube-sourced criteria both produce this anchor and enable YouTube enrichment.
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [sameDayAsYouTubeDecoy, trueCounterpart],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions());
+
+        // Assert
+        result.Should().NotBeSameAs(sameDayAsYouTubeDecoy);
+        result.Should().BeSameAs(trueCounterpart);
+    }
+
+    [Fact(DisplayName =
+        "The last-resort same-release-window fallback must not accept a candidate whose duration " +
+        "differs from the probe beyond the broader threshold on a weak fuzzy-title score alone.")]
+    public void same_release_window_fallback_rejects_duration_mismatch_beyond_broader_threshold()
+    {
+        // Arrange — same-day audio decoy within 3h of the probe release but >90s off in duration;
+        // titles score just above the weak fallback threshold (real incident titles).
+        const string youTubeTitle = "The Mormon Church Called Me Chosen... and Cursed";
+        const string decoyTitle = "I Was Groomed to Die for God";
+        var probeRelease = DomainTestFixture.UtcAtTime(-1, new TimeSpan(13, 48, 0));
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = TimeSpan.FromSeconds(5017);
+            e.Release = probeRelease;
+        });
+        var sameDayDecoy = _fixture.CreateEpisode(e =>
+        {
+            e.Title = decoyTitle;
+            e.Length = TimeSpan.FromSeconds(5017 - 200);
+            e.Release = probeRelease.AddMinutes(-48);
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [sameDayDecoy],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "When the probe episode has no release date, " +
         "FindCatalogueMatchByDate returns no catalogue match.")]
     public void date_match_returns_null_when_probe_has_no_release()

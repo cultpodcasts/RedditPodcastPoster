@@ -29,10 +29,14 @@ public static class FindAppleEpisodeRequestFactory
         iTunesSearch.Library.Models.Podcast applePodcast,
         PodcastServiceSearchCriteria criteria)
     {
+        var criteriaFromYouTube = criteria.SourceAuthority == Service.YouTube;
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
+            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
+                podcast,
+                criteria.Release,
+                criteriaFromYouTube);
         }
 
         return new FindAppleEpisodeRequest(
@@ -43,7 +47,8 @@ public static class FindAppleEpisodeRequestFactory
             release,
             podcast?.ReleaseAuthority,
             criteria.Duration,
-            podcast?.YouTubePublishingDelay() ?? null);
+            podcast?.YouTubePublishingDelay() ?? null,
+            criteriaFromYouTube);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)

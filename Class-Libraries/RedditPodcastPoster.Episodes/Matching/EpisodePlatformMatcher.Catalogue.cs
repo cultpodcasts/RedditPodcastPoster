@@ -97,8 +97,12 @@ public sealed partial class EpisodePlatformMatcher
 
         if (probe.Release != DateTime.MinValue)
         {
+            // Same-release fallback must still respect duration when both sides have one: on daily
+            // shows a different same-day episode otherwise wins on a weak fuzzy-title score alone.
             sameLength = sampleList.Where(x =>
-                Math.Abs((x.Release - probe.Release).Ticks) < CatalogueSameReleaseThreshold.Ticks).ToList();
+                Math.Abs((x.Release - probe.Release).Ticks) < CatalogueSameReleaseThreshold.Ticks &&
+                (x.Length <= TimeSpan.Zero ||
+                 Math.Abs((x.Length - probe.Length).Ticks) < CatalogueBroaderTimeDifferenceThreshold)).ToList();
         }
 
         if (options.ReleaseAuthority == Service.YouTube)

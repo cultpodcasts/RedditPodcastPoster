@@ -9,10 +9,14 @@ public static class FindSpotifyEpisodeRequestFactory
 {
     public static FindSpotifyEpisodeRequest Create(Podcast? podcast, PodcastServiceSearchCriteria criteria)
     {
+        var criteriaFromYouTube = criteria.SourceAuthority == Service.YouTube;
         var release = criteria.Release;
         if (podcast != null)
         {
-            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, criteria.Release, false);
+            release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(
+                podcast,
+                criteria.Release,
+                criteriaFromYouTube);
         }
 
         return new FindSpotifyEpisodeRequest(
@@ -24,7 +28,8 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast?.HasExpensiveSpotifyEpisodesQuery() ?? true,
             podcast?.YouTubePublishingDelay() ?? TimeSpan.Zero,
             podcast?.ReleaseAuthority,
-            criteria.Duration);
+            criteria.Duration,
+            EnrichingYouTubeDiscoveredEpisode: criteriaFromYouTube);
     }
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)

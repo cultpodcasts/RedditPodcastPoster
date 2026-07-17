@@ -19,7 +19,10 @@ public static class PodcastServiceSearchCriteriaExtensions
                 : item.EpisodeDescription,
             criteria.Release > DateTime.MinValue ? criteria.Release : item.Release,
             criteria.Duration > TimeSpan.MinValue ? criteria.Duration : item.Duration
-        );
+        )
+        {
+            SourceAuthority = criteria.SourceAuthority
+        };
     }
 
     public static PodcastServiceSearchCriteria Merge(
@@ -36,7 +39,10 @@ public static class PodcastServiceSearchCriteriaExtensions
                 : item.EpisodeDescription,
             criteria.Release > DateTime.MinValue ? criteria.Release : item.Release,
             criteria.Duration > TimeSpan.MinValue ? criteria.Duration : item.Duration
-        );
+        )
+        {
+            SourceAuthority = criteria.SourceAuthority
+        };
     }
 
     public static PodcastServiceSearchCriteria Merge(
@@ -53,6 +59,9 @@ public static class PodcastServiceSearchCriteriaExtensions
                 : item.EpisodeDescription,
             criteria.Release.TimeOfDay > TimeSpan.Zero ? criteria.Release : item.Release,
             criteria.Duration > TimeSpan.MinValue ? criteria.Duration : item.Duration
-        );
+        )
+        {
+            SourceAuthority = criteria.SourceAuthority
+        };
     }
 }
