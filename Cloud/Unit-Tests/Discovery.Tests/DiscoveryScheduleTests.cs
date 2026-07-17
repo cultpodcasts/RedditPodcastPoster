@@ -17,4 +17,21 @@ public class DiscoveryScheduleTests
 
         DiscoverySchedule.GetSlotStartForTime(utcNow).Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("2026-07-07T08:33:05Z", "2026-07-07T14:35:00Z", true)]
+    [InlineData("2026-07-07T02:33:05Z", "2026-07-07T14:35:00Z", true)]
+    [InlineData("2026-07-07T14:33:05Z", "2026-07-07T14:35:00Z", false)]
+    [InlineData("2026-07-07T14:33:05Z", "2026-07-07T20:32:59Z", false)]
+    [InlineData("2026-07-07T14:33:05Z", "2026-07-07T20:33:00Z", true)]
+    public void IsStaleRun_detects_runs_executing_after_their_scheduled_slot(
+        string scheduledAtText,
+        string currentUtcText,
+        bool expected)
+    {
+        var scheduledAtUtc = DateTime.Parse(scheduledAtText).ToUniversalTime();
+        var currentUtc = DateTime.Parse(currentUtcText).ToUniversalTime();
+
+        DiscoverySchedule.IsStaleRun(scheduledAtUtc, currentUtc).Should().Be(expected);
+    }
 }

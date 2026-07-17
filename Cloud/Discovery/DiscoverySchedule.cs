@@ -24,4 +24,11 @@ public static class DiscoverySchedule
 
     public static DateTimeOffset GetPriorSlotStart(DateTimeOffset currentSlotStart) =>
         currentSlotStart.AddHours(-6);
+
+    /// <summary>
+    /// A run is stale when it executes in a later discovery slot than the one it was scheduled for;
+    /// the current slot's trigger owns that slot, so a late-draining instance must no-op.
+    /// </summary>
+    public static bool IsStaleRun(DateTime scheduledAtUtc, DateTime currentUtcDateTime) =>
+        GetSlotStartForTime(scheduledAtUtc) != GetSlotStartForTime(currentUtcDateTime);
 }

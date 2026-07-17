@@ -75,6 +75,19 @@ public static class DiscoveryOrchestrationHealthChecker
         return issues;
     }
 
+    /// <summary>
+    /// Pending instances created before the current slot: their slot has passed, so they should be
+    /// terminated rather than left to block scheduling and later execute as duplicate runs when a
+    /// healthy host starts.
+    /// </summary>
+    public static IReadOnlyList<DiscoveryOrchestrationInstance> GetStalePendingInstances(
+        DateTimeOffset currentSlotStart,
+        IEnumerable<DiscoveryOrchestrationInstance> instances) =>
+        instances
+            .Where(instance => instance.Status == OrchestrationRuntimeStatus.Pending &&
+                               instance.CreatedAt < currentSlotStart)
+            .ToList();
+
     public static DiscoveryOrchestrationHealthIssue CreateBlockedByActiveRunIssue(
         DiscoveryOrchestrationInstance instance) =>
         new(

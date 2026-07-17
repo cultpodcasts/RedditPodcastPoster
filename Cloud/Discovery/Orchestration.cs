@@ -4,14 +4,29 @@ using Microsoft.Extensions.Logging;
 namespace Discovery;
 
 [DurableTask(nameof(Orchestration))]
-public class Orchestration : TaskOrchestrator<object, DiscoveryContext>
+public class Orchestration : TaskOrchestrator<DiscoveryOrchestrationRunInput?, DiscoveryContext>
 {
-    public override async Task<DiscoveryContext> RunAsync(TaskOrchestrationContext context, object input)
+    public override async Task<DiscoveryContext> RunAsync(
+        TaskOrchestrationContext context,
+        DiscoveryOrchestrationRunInput? input)
     {
         var logger = context.CreateReplaySafeLogger<Orchestration>();
         logger.LogWarning(
             "{nameofOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
             nameof(Orchestration), nameof(RunAsync), context.InstanceId);
+
+        // Stale-run guard: an instance scheduled for an earlier discovery slot (e.g. a Pending
+        // backlog draining after a broken host was fixed) must no-op instead of re-running
+        // discovery. Deterministic: input is fixed and CurrentUtcDateTime is replay-safe.
+        // Instances scheduled by older code carry no input and run unguarded.
+        if (input is not null &&
+            DiscoverySchedule.IsStaleRun(input.ScheduledAtUtc, context.CurrentUtcDateTime))
+        {
+            logger.LogWarning(
+                "{nameofOrchestration} stale-run-skipped instance-id='{InstanceId}' scheduled-at-utc='{ScheduledAtUtc:O}' current-utc='{CurrentUtc:O}'.",
+                nameof(Orchestration), context.InstanceId, input.ScheduledAtUtc, context.CurrentUtcDateTime);
+            return new DiscoveryContext(Guid.Empty, Success: true);
+        }
 
         var discoveryContext = new DiscoveryContext(context.NewGuid());
         logger.LogInformation("{nameofRunAsync}: Pre: discovery-context: {discoveryContext}",
