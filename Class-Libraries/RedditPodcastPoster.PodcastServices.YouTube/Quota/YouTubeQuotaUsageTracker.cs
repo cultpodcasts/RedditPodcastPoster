@@ -287,7 +287,6 @@ public sealed class YouTubeQuotaUsageTracker(
 
         return new YouTubeQuotaDailyReport
         {
-            Id = YouTubeQuotaDailyReport.CreateId(reportDate, sourceApplication),
             ReportDate = reportDate,
             SourceApplication = sourceApplication,
             Keys = _stats.Values

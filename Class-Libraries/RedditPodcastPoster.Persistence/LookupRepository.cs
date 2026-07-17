@@ -41,15 +41,14 @@ public class LookupRepository(
         await lookupContainer.UpsertItemAsync(homePageCache, new PartitionKey(homePageCache.Id.ToString()));
     }
 
-    public async Task SaveYouTubeQuotaDailyReport(YouTubeQuotaDailyReport report)
+    public async Task SaveYouTubeQuotaReport(YouTubeQuotaReport report)
     {
         await lookupContainer.UpsertItemAsync(report, new PartitionKey(report.Id.ToString()));
     }
 
-    public Task<YouTubeQuotaDailyReport?> GetYouTubeQuotaDailyReport(DateOnly reportDate, string sourceApplication)
+    public Task<YouTubeQuotaReport?> GetYouTubeQuotaReport()
     {
-        var id = YouTubeQuotaDailyReport.CreateId(reportDate, sourceApplication);
-        return GetById<YouTubeQuotaDailyReport>(id);
+        return GetById<YouTubeQuotaReport>(YouTubeQuotaReport._Id);
     }
 
     public Task<YouTubeIndexerKeyState?> GetYouTubeIndexerKeyState()
