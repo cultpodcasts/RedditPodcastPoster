@@ -5,4 +5,5 @@ namespace RedditPodcastPoster.ContentPublisher;
 public interface IDiscoveryPublisher
 {
     Task PublishDiscoveryInfo(DiscoveryInfo discoveryInfo);
+    Task<DiscoveryInfo?> GetDiscoveryInfo(CancellationToken cancellationToken = default);
 }

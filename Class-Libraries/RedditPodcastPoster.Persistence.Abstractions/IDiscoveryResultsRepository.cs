@@ -8,4 +8,5 @@ public interface IDiscoveryResultsRepository : IRepository<DiscoveryResultsDocum
     Task SetProcessed(IEnumerable<Guid> ids);
     Task<DiscoveryResultsDocument?> GetById(Guid documentId);
     IAsyncEnumerable<DiscoveryResultsDocument> GetByIds(IEnumerable<Guid> ids);
+    Task<DateTime?> GetLatestDiscoveryBegan(CancellationToken cancellationToken = default);
 }

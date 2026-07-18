@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.S3;
@@ -43,6 +44,35 @@ public class DiscoveryPublisher(
             logger.LogError(ex,
                 "{MethodName} - Failed to upload discovery-info-content to R2. BucketName: '{BucketName}', Key: '{Key}', content: '{Json}'.",
                 nameof(PublishDiscoveryInfo), _contentOptions.BucketName, _contentOptions.DiscoveryInfoKey, json);
+        }
+    }
+
+    public async Task<DiscoveryInfo?> GetDiscoveryInfo(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await client.GetObjectAsync(new GetObjectRequest
+            {
+                BucketName = _contentOptions.BucketName,
+                Key = _contentOptions.DiscoveryInfoKey
+            }, cancellationToken);
+
+            await using var stream = response.ResponseStream;
+            return await JsonSerializer.DeserializeAsync<DiscoveryInfo>(stream, JsonSerializerOptions, cancellationToken);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            logger.LogInformation(
+                "{MethodName}: no discovery-info at BucketName: '{BucketName}', Key: '{Key}'.",
+                nameof(GetDiscoveryInfo), _contentOptions.BucketName, _contentOptions.DiscoveryInfoKey);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "{MethodName} - Failed to read discovery-info from R2. BucketName: '{BucketName}', Key: '{Key}'.",
+                nameof(GetDiscoveryInfo), _contentOptions.BucketName, _contentOptions.DiscoveryInfoKey);
+            throw;
         }
     }
 }

@@ -87,6 +87,33 @@ public class DiscoveryResultsRepository(
         return GetByIdsInternal(x => Enumerable.Contains(idArray, x.Id));
     }
 
+    public async Task<DateTime?> GetLatestDiscoveryBegan(CancellationToken cancellationToken = default)
+    {
+        var query = new QueryDefinition(
+                "SELECT VALUE MAX(c.discoveryBegan) FROM c WHERE c.type = @type")
+            .WithParameter("@type", nameof(ModelType.Discovery));
+
+        var iterator = discoveryContainer.GetItemQueryIterator<DateTime?>(query);
+        while (iterator.HasMoreResults)
+        {
+            try
+            {
+                var response = await iterator.ReadNextAsync(cancellationToken);
+                foreach (var value in response)
+                {
+                    return value;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: error querying latest discoveryBegan.", nameof(GetLatestDiscoveryBegan));
+                throw;
+            }
+        }
+
+        return null;
+    }
+
     private async IAsyncEnumerable<DiscoveryResultsDocument> GetByIdsInternal(
         System.Linq.Expressions.Expression<Func<DiscoveryResultsDocument, bool>> predicate)
     {

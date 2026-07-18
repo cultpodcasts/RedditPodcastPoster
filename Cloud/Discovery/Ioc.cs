@@ -41,6 +41,7 @@ public static class Ioc
             .AddHttpClient()
             .BindConfiguration<DiscoverOptions>("discover")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
-            .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>();
+            .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
+            .AddScoped<IDiscoveryLookbackResolver, DiscoveryLookbackResolver>();
     }
 }

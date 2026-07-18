@@ -15,4 +15,12 @@ public class DiscoveryInfo
     [JsonPropertyName("discoveryBegan")]
     [JsonPropertyOrder(3)]
     public DateTime? DiscoveryBegan { get; set; } = null;
+
+    /// <summary>
+    /// Watermark of the most recent successful Discover run. Survives curation clearing unprocessed docs.
+    /// Used for dynamic lookback; distinct from <see cref="DiscoveryBegan"/> (min unprocessed queue start).
+    /// </summary>
+    [JsonPropertyName("lastSuccessfulDiscoveryBegan")]
+    [JsonPropertyOrder(4)]
+    public DateTime? LastSuccessfulDiscoveryBegan { get; set; } = null;
 }
