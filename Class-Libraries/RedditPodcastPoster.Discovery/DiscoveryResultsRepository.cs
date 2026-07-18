@@ -53,18 +53,35 @@ public class DiscoveryResultsRepository(
 
     public async Task SetProcessed(IEnumerable<Guid> ids)
     {
-        var deleteTasks = ids.Select(id =>
-            discoveryContainer.DeleteItemAsync<DiscoveryResultsDocument>(id.ToString(), new PartitionKey(id.ToString())));
+        // Keep documents (State=Processed) so MAX(discoveryBegan) remains available for dynamic lookback.
+        // Matches Api MarkAsProcessed; do not delete.
+        foreach (var id in ids.Distinct())
+        {
+            try
+            {
+                var document = await GetById(id);
+                if (document is null)
+                {
+                    logger.LogWarning(
+                        "{Method}: no {DocumentType} with id '{DocumentId}'.",
+                        nameof(SetProcessed), nameof(DiscoveryResultsDocument), id);
+                    continue;
+                }
 
-        try
-        {
-            await Task.WhenAll(deleteTasks);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                "{SetProcessedName} failure to delete {DiscoveryResultsDocumentName}s with ids: {Join}.",
-                nameof(SetProcessed), nameof(DiscoveryResultsDocument), string.Join(", ", ids));
+                if (document.State == DiscoveryResultsDocumentState.Processed)
+                {
+                    continue;
+                }
+
+                document.State = DiscoveryResultsDocumentState.Processed;
+                await Save(document);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "{Method}: failure to mark {DocumentType} '{DocumentId}' as processed.",
+                    nameof(SetProcessed), nameof(DiscoveryResultsDocument), id);
+            }
         }
     }
 
@@ -87,6 +104,10 @@ public class DiscoveryResultsRepository(
         return GetByIdsInternal(x => Enumerable.Contains(idArray, x.Id));
     }
 
+    /// <summary>
+    /// Latest <see cref="DiscoveryResultsDocument.DiscoveryBegan"/> across all Discovery docs
+    /// (unprocessed and processed). Curation must leave processed docs in Cosmos for lookback.
+    /// </summary>
     public async Task<DateTime?> GetLatestDiscoveryBegan(CancellationToken cancellationToken = default)
     {
         var query = new QueryDefinition(

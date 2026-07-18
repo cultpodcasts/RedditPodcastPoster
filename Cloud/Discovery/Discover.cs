@@ -112,8 +112,7 @@ public class Discover(
 
             try
             {
-                var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync(
-                    lastSuccessfulDiscoveryBegan: discoveryBegan);
+                var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync();
 
                 if (discoveryInfo.DocumentCount > 0)
                 {

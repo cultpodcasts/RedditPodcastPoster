@@ -8,5 +8,9 @@ public interface IDiscoveryResultsRepository : IRepository<DiscoveryResultsDocum
     Task SetProcessed(IEnumerable<Guid> ids);
     Task<DiscoveryResultsDocument?> GetById(Guid documentId);
     IAsyncEnumerable<DiscoveryResultsDocument> GetByIds(IEnumerable<Guid> ids);
+
+    /// <summary>
+    /// Max <c>discoveryBegan</c> over Discovery documents still in Cosmos (including processed).
+    /// </summary>
     Task<DateTime?> GetLatestDiscoveryBegan(CancellationToken cancellationToken = default);
 }

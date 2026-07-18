@@ -49,7 +49,7 @@ public class DiscoveryProcessor(
             discoveryResults = OrderDiscoveryResults(
                 await GetDiscoveryResults(request, discoveryContext.Since));
             await SaveDiscoveryResults(request, discoveryContext, discoveryResults);
-            await PublishDiscoveryInfo(discoveryContext.DiscoveryBegan);
+            await PublishDiscoveryInfo();
             latest = discoveryContext.DiscoveryBegan;
         }
 
@@ -153,12 +153,11 @@ public class DiscoveryProcessor(
             nameof(Process), nameof(DiscoveryResultsDocument), discoveryResultsDocument.Id);
     }
 
-    private async Task PublishDiscoveryInfo(DateTime discoveryBegan)
+    private async Task PublishDiscoveryInfo()
     {
         try
         {
-            var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync(
-                lastSuccessfulDiscoveryBegan: discoveryBegan);
+            var discoveryInfo = await discoveryInfoContentPublisher.PublishUnprocessedSummaryAsync();
             logger.LogInformation(
                 "{method}: published discovery-info for {documentCount} document(s) and {visibleResultCount} visible deduped result(s).",
                 nameof(PublishDiscoveryInfo),

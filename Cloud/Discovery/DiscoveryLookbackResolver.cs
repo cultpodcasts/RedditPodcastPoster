@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace Discovery;
@@ -8,7 +7,6 @@ namespace Discovery;
 public class DiscoveryLookbackResolver(
     IOptions<DiscoverOptions> discoverOptions,
     IDiscoveryResultsRepository discoveryResultsRepository,
-    IDiscoveryInfoRepository discoveryInfoRepository,
     ILogger<DiscoveryLookbackResolver> logger) : IDiscoveryLookbackResolver
 {
     private readonly DiscoverOptions _discoverOptions =
@@ -37,13 +35,13 @@ public class DiscoveryLookbackResolver(
         if (latestSuccessful is null)
         {
             logger.LogInformation(
-                "Dynamic lookback: no prior Discovery run signal; falling back to static SearchSince '{SearchSince}'.",
+                "Dynamic lookback: no prior Discovery run in Cosmos; falling back to static SearchSince '{SearchSince}'.",
                 _discoverOptions.SearchSince);
             return new DiscoveryLookbackResolution(since, DiscoveryLookbackMode.Static, null);
         }
 
         logger.LogInformation(
-            "Dynamic lookback: latest successful DiscoveryBegan '{Latest:O}', overlap '{Overlap}', since '{Since:O}'.",
+            "Dynamic lookback: latest Cosmos DiscoveryBegan '{Latest:O}', overlap '{Overlap}', since '{Since:O}'.",
             latestSuccessful, overlap, since);
 
         return new DiscoveryLookbackResolution(since, DiscoveryLookbackMode.Dynamic, latestSuccessful);
@@ -51,39 +49,15 @@ public class DiscoveryLookbackResolver(
 
     private async Task<DateTime?> GetLatestSuccessfulDiscoveryBeganAsync(CancellationToken cancellationToken)
     {
-        DateTime? fromReports = null;
         try
         {
-            fromReports = await discoveryResultsRepository.GetLatestDiscoveryBegan(cancellationToken);
+            var latest = await discoveryResultsRepository.GetLatestDiscoveryBegan(cancellationToken);
+            return latest?.ToUniversalTime();
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to query latest Discovery report DiscoveryBegan; trying published discovery-info.");
+            logger.LogWarning(ex, "Failed to query latest DiscoveryBegan from Cosmos; falling back to static lookback.");
+            return null;
         }
-
-        DateTime? fromPublishedInfo = null;
-        try
-        {
-            var discoveryInfo = await discoveryInfoRepository.Get(cancellationToken);
-            fromPublishedInfo = discoveryInfo?.LastSuccessfulDiscoveryBegan;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to read published discovery-info for lastSuccessfulDiscoveryBegan.");
-        }
-
-        if (fromReports is null)
-        {
-            return fromPublishedInfo?.ToUniversalTime();
-        }
-
-        if (fromPublishedInfo is null)
-        {
-            return fromReports.Value.ToUniversalTime();
-        }
-
-        var reportUtc = fromReports.Value.ToUniversalTime();
-        var infoUtc = fromPublishedInfo.Value.ToUniversalTime();
-        return reportUtc > infoUtc ? reportUtc : infoUtc;
     }
 }

@@ -8,13 +8,10 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class DiscoveryInfoContentPublisher(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IDiscoveryResultDeduplicator discoveryResultDeduplicator,
-    IDiscoveryInfoRepository discoveryInfoRepository,
     IDiscoveryPublisher discoveryPublisher,
     ILogger<DiscoveryInfoContentPublisher> logger) : IDiscoveryInfoContentPublisher
 {
-    public async Task<DiscoveryInfo> PublishUnprocessedSummaryAsync(
-        DateTime? lastSuccessfulDiscoveryBegan = null,
-        CancellationToken cancellationToken = default)
+    public async Task<DiscoveryInfo> PublishUnprocessedSummaryAsync(CancellationToken cancellationToken = default)
     {
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(cancellationToken);
         var dedupedResults = discoveryResultDeduplicator.Deduplicate(
@@ -28,38 +25,20 @@ public class DiscoveryInfoContentPublisher(
             numberOfResults = dedupedResults.Count(x => !x.AutoHidden);
         }
 
-        var preservedWatermark = lastSuccessfulDiscoveryBegan;
-        if (preservedWatermark is null)
-        {
-            try
-            {
-                var existing = await discoveryInfoRepository.Get(cancellationToken);
-                preservedWatermark = existing?.LastSuccessfulDiscoveryBegan;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex,
-                    "{Method}: failed to read existing discovery-info when preserving lastSuccessfulDiscoveryBegan.",
-                    nameof(PublishUnprocessedSummaryAsync));
-            }
-        }
-
         var discoveryInfo = new DiscoveryInfo
         {
             DocumentCount = documents.Count,
             NumberOfResults = numberOfResults,
-            DiscoveryBegan = discoveryBegan,
-            LastSuccessfulDiscoveryBegan = preservedWatermark
+            DiscoveryBegan = discoveryBegan
         };
 
         await discoveryPublisher.PublishDiscoveryInfo(discoveryInfo);
 
         logger.LogInformation(
-            "{Method} published discovery-info for {DocumentCount} document(s) and {VisibleResultCount} visible deduped result(s); lastSuccessfulDiscoveryBegan='{LastSuccessful}'.",
+            "{Method} published discovery-info for {DocumentCount} document(s) and {VisibleResultCount} visible deduped result(s).",
             nameof(PublishUnprocessedSummaryAsync),
             documents.Count,
-            numberOfResults ?? 0,
-            preservedWatermark?.ToString("O") ?? "none");
+            numberOfResults ?? 0);
 
         return discoveryInfo;
     }
