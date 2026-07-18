@@ -64,6 +64,35 @@ public class PodcastEpisodeExtensionsTests
     }
 
     [Fact]
+    public void Truncates_long_description_on_word_boundary_with_ellipsis()
+    {
+        var episode = CreateEpisode();
+        // 220 chars of complete words, then a partial token that would be mid-cut at 230.
+        episode.Description = new string('a', 10) + " " + new string('b', 209) + " Salt Lake City continues";
+        episode.Description.Length.Should().BeGreaterThan(Constants.DescriptionSize);
+
+        var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
+            .ToEpisodeSearchRecord();
+
+        result.EpisodeDescription.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
+        result.EpisodeDescription.Should().EndWith("\u2026");
+        result.EpisodeDescription.Should().Contain("Salt");
+        result.EpisodeDescription.Should().NotContain("Lake");
+    }
+
+    [Fact]
+    public void Leaves_short_description_unchanged()
+    {
+        var episode = CreateEpisode();
+        episode.Description = "  Short description.  ";
+
+        var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
+            .ToEpisodeSearchRecord();
+
+        result.EpisodeDescription.Should().Be("Short description.");
+    }
+
+    [Fact]
     public void Slim_schema_drops_explicit_and_hides_language()
     {
         var fields = new FieldBuilder
