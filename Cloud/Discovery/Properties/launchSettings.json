@@ -34,6 +34,9 @@
         "discover__IgnoreTerms__11": "cult classic",
         "discover__IgnoreTerms__12": "cult film",
         "discover__IgnoreTerms__13": "cult movie",
+        "discover__SearchSince": "6:30:00",
+        "discover__LookbackMode": "Dynamic",
+        "discover__DynamicLookbackOverlap": "00:10:00",
         "pushSubscriptions__Subject": "mailto:vapid@cultpodcasts.com",
         "listenNotes__RequestDelaySeconds": "2"
       }

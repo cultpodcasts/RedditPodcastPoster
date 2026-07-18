@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
             .AddScoped<IPeoplePublisher, PeoplePublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()
+            .AddScoped<IDiscoveryInfoRepository, DiscoveryInfoRepository>()
             .AddScoped<IDiscoveryInfoContentPublisher, DiscoveryInfoContentPublisher>()
             .AddScoped<ILanguagesPublisher, LanguagesPublisher>()
             .BindConfiguration<ContentOptions>("content")

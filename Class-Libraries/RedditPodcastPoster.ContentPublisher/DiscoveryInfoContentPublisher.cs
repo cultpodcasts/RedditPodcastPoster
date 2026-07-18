@@ -8,6 +8,7 @@ namespace RedditPodcastPoster.ContentPublisher;
 public class DiscoveryInfoContentPublisher(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IDiscoveryResultDeduplicator discoveryResultDeduplicator,
+    IDiscoveryInfoRepository discoveryInfoRepository,
     IDiscoveryPublisher discoveryPublisher,
     ILogger<DiscoveryInfoContentPublisher> logger) : IDiscoveryInfoContentPublisher
 {
@@ -32,7 +33,7 @@ public class DiscoveryInfoContentPublisher(
         {
             try
             {
-                var existing = await discoveryPublisher.GetDiscoveryInfo(cancellationToken);
+                var existing = await discoveryInfoRepository.Get(cancellationToken);
                 preservedWatermark = existing?.LastSuccessfulDiscoveryBegan;
             }
             catch (Exception ex)

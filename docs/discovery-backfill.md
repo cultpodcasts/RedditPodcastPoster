@@ -6,7 +6,7 @@ Use when scheduled `discover-infra` runs were missed. This documents **`Discover
 
 `DiscoveryTrigger` cron: `30 2/6 * * *` (UTC) → **03:30, 09:30, 15:30, 21:30 BST** (when UK is on BST, UTC+1).
 
-Production search window: `discover__SearchSince = 6:10:00` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — each run searches episodes released in the **6 hours 10 minutes** before the trigger.
+Production search window: `discover__SearchSince = 6:10:00` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — each run searches episodes released in the **6 hours 10 minutes** before the trigger (static floor). Production lookback is **dynamic**: `discover__LookbackMode = Dynamic` with `discover__DynamicLookbackOverlap = 00:10:00`, so missed slots extend the window from the latest successful Discovery run watermark. `LookbackMode` is required (no default); set `Static` explicitly only when a fixed window is wanted.
 
 Missed trigger on **11 Jun 2026**:
 
@@ -92,7 +92,7 @@ Successful run prints `Discovery initiated at '<timestamp>'.` and persists resul
 |--------|--------------------------|---------------------------|
 | Entry | Timer → Durable orchestration | Direct CLI |
 | Queries | `discover__Queries__*` in bicep | `discover:Queries` in `appsettings.json` / `Discover.appsettings.json` (synced from bicep) |
-| Search window | `discover__SearchSince` app setting | `-t` / `-r` arguments |
+| Search window | `discover__SearchSince` + required `discover__LookbackMode` (`Dynamic` in prod) | `-t` / `-r` arguments |
 | Notifications / publisher | Full orchestration pipeline | Saves discovery document only |
 
 CLI service flags (`--include-listen-notes`, `--include-taddy`, `--include-youtube`) and `--taddy-offset` default to production bicep values. Search window still comes from `-t` / `-r`, not `discover__SearchSince`.

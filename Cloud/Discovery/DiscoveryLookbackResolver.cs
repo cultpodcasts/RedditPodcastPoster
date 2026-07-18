@@ -8,7 +8,7 @@ namespace Discovery;
 public class DiscoveryLookbackResolver(
     IOptions<DiscoverOptions> discoverOptions,
     IDiscoveryResultsRepository discoveryResultsRepository,
-    IDiscoveryPublisher discoveryPublisher,
+    IDiscoveryInfoRepository discoveryInfoRepository,
     ILogger<DiscoveryLookbackResolver> logger) : IDiscoveryLookbackResolver
 {
     private readonly DiscoverOptions _discoverOptions =
@@ -18,9 +18,11 @@ public class DiscoveryLookbackResolver(
     {
         var searchSince = TimeSpan.Parse(_discoverOptions.SearchSince);
         var utcNow = DateTime.UtcNow;
-        var mode = _discoverOptions.LookbackMode;
+        var mode = _discoverOptions.LookbackMode
+            ?? throw new InvalidOperationException(
+                $"{nameof(DiscoverOptions)}.{nameof(DiscoverOptions.LookbackMode)} is required.");
 
-        if (mode != DiscoveryLookbackMode.Dynamic)
+        if (mode == DiscoveryLookbackMode.Static)
         {
             var staticSince = DiscoveryLookbackCalculator.ResolveSince(
                 utcNow, searchSince, DiscoveryLookbackMode.Static, null);
@@ -62,7 +64,7 @@ public class DiscoveryLookbackResolver(
         DateTime? fromPublishedInfo = null;
         try
         {
-            var discoveryInfo = await discoveryPublisher.GetDiscoveryInfo(cancellationToken);
+            var discoveryInfo = await discoveryInfoRepository.Get(cancellationToken);
             fromPublishedInfo = discoveryInfo?.LastSuccessfulDiscoveryBegan;
         }
         catch (Exception ex)

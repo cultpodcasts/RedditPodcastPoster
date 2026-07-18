@@ -3,6 +3,7 @@ using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -41,7 +42,10 @@ public static class Ioc
             .AddHttpClient()
             .BindConfiguration<DiscoverOptions>("discover")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IValidateOptions<DiscoverOptions>, DiscoverOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddScoped<IDiscoveryLookbackResolver, DiscoveryLookbackResolver>();
+
+        serviceCollection.AddOptions<DiscoverOptions>().ValidateOnStart();
     }
 }
