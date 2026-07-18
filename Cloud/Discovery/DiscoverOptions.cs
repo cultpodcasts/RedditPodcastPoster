@@ -14,8 +14,9 @@ public class DiscoverOptions
     public DiscoveryLookbackMode? LookbackMode { get; set; }
 
     /// <summary>
-    /// Optional overlap subtracted from the latest successful run when <see cref="LookbackMode"/> is Dynamic.
-    /// <c>00:00:00</c> (default) means no overlap: <c>since = lastSuccess</c>.
+    /// Overlap subtracted from the latest successful run when <see cref="LookbackMode"/> is Dynamic.
+    /// Defaults to 10 minutes to mirror the production static 6h10m vs 6h schedule overlap.
+    /// <c>00:00:00</c> means no overlap: <c>since = lastSuccess</c>.
     /// Config key: <c>discover__DynamicLookbackOverlap</c>.
     /// </summary>
     public TimeSpan? DynamicLookbackOverlap { get; set; }

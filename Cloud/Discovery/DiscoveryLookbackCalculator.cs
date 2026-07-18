@@ -3,10 +3,11 @@ namespace Discovery;
 public static class DiscoveryLookbackCalculator
 {
     /// <summary>
-    /// Default Dynamic overlap: none. Config <c>discover__DynamicLookbackOverlap</c> of
-    /// <c>00:00:00</c> (or unset) means <c>since = lastSuccess</c> with no re-search of the prior window.
+    /// Default Dynamic overlap (10 minutes), mirroring the production static 6h10m vs 6h schedule overlap.
+    /// Config <c>discover__DynamicLookbackOverlap</c> of <c>00:00:00</c> means no overlap:
+    /// <c>since = lastSuccess</c>.
     /// </summary>
-    public static readonly TimeSpan DefaultDynamicOverlap = TimeSpan.Zero;
+    public static readonly TimeSpan DefaultDynamicOverlap = TimeSpan.FromMinutes(10);
 
     public static DateTime ResolveSince(
         DateTime utcNow,

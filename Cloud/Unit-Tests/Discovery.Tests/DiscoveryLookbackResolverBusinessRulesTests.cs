@@ -14,6 +14,7 @@ namespace Discovery.Tests;
 public class DiscoveryLookbackResolverBusinessRulesTests
 {
     private static readonly TimeSpan SearchSince = TimeSpan.Parse("6:10:00");
+    private static readonly TimeSpan Overlap10m = TimeSpan.FromMinutes(10);
 
     [Fact(DisplayName =
         "Failure scenario: repository returns null (no prior success) → ModeUsed=Static, " +
@@ -23,7 +24,7 @@ public class DiscoveryLookbackResolverBusinessRulesTests
         var repo = new Mock<IDiscoveryResultsRepository>(MockBehavior.Strict);
         repo.Setup(r => r.GetLatestDiscoveryBegan(It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime?)null);
-        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, TimeSpan.Zero, repo.Object);
+        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, Overlap10m, repo.Object);
         var before = DateTime.UtcNow;
 
         var result = await sut.ResolveAsync();
@@ -44,7 +45,7 @@ public class DiscoveryLookbackResolverBusinessRulesTests
         var repo = new Mock<IDiscoveryResultsRepository>(MockBehavior.Strict);
         repo.Setup(r => r.GetLatestDiscoveryBegan(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Cosmos unavailable"));
-        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, TimeSpan.Zero, repo.Object);
+        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, Overlap10m, repo.Object);
         var before = DateTime.UtcNow;
 
         var result = await sut.ResolveAsync();
@@ -61,7 +62,7 @@ public class DiscoveryLookbackResolverBusinessRulesTests
     public async Task Static_mode_does_not_query_repository()
     {
         var repo = new Mock<IDiscoveryResultsRepository>(MockBehavior.Strict);
-        var sut = CreateSut(DiscoveryLookbackMode.Static, TimeSpan.Zero, repo.Object);
+        var sut = CreateSut(DiscoveryLookbackMode.Static, Overlap10m, repo.Object);
         var before = DateTime.UtcNow;
 
         var result = await sut.ResolveAsync();
@@ -75,40 +76,40 @@ public class DiscoveryLookbackResolverBusinessRulesTests
     }
 
     [Fact(DisplayName =
-        "Business rule: Dynamic + prior success → ModeUsed=Dynamic, since = lastSuccess " +
-        "(no overlap), not a full SearchSince re-search.")]
-    public async Task Dynamic_with_prior_success_anchors_to_lastSuccess_without_overlap()
+        "Business rule: Dynamic + prior success → ModeUsed=Dynamic, since = lastSuccess - 10m, " +
+        "not a full SearchSince re-search.")]
+    public async Task Dynamic_with_prior_success_anchors_to_lastSuccess_minus_overlap()
     {
         var lastSuccess = DateTime.UtcNow.AddMinutes(-12).ToUniversalTime();
         var repo = new Mock<IDiscoveryResultsRepository>(MockBehavior.Strict);
         repo.Setup(r => r.GetLatestDiscoveryBegan(It.IsAny<CancellationToken>()))
             .ReturnsAsync(lastSuccess);
-        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, TimeSpan.Zero, repo.Object);
+        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, Overlap10m, repo.Object);
 
         var result = await sut.ResolveAsync();
 
         result.ModeUsed.Should().Be(DiscoveryLookbackMode.Dynamic);
         result.LatestSuccessfulDiscoveryBegan.Should().Be(lastSuccess);
-        result.Since.Should().Be(lastSuccess);
+        result.Since.Should().Be(lastSuccess.Subtract(Overlap10m));
         (DateTime.UtcNow - result.Since).Should().BeLessThan(SearchSince);
     }
 
     [Fact(DisplayName =
         "Failure scenario: catch-up then recycle minutes later via resolver → since = catch-up " +
-        "discoveryBegan; window far shorter than SearchSince.")]
+        "discoveryBegan - 10m; window far shorter than SearchSince.")]
     public async Task Failure_recent_catchup_watermark_does_not_reopen_SearchSince()
     {
         var catchUpBegan = DateTime.UtcNow.AddMinutes(-8).ToUniversalTime();
         var repo = new Mock<IDiscoveryResultsRepository>(MockBehavior.Strict);
         repo.Setup(r => r.GetLatestDiscoveryBegan(It.IsAny<CancellationToken>()))
             .ReturnsAsync(catchUpBegan);
-        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, TimeSpan.Zero, repo.Object);
+        var sut = CreateSut(DiscoveryLookbackMode.Dynamic, Overlap10m, repo.Object);
 
         var result = await sut.ResolveAsync();
 
         result.ModeUsed.Should().Be(DiscoveryLookbackMode.Dynamic);
-        result.Since.Should().Be(catchUpBegan);
-        (DateTime.UtcNow - result.Since).Should().BeLessThan(TimeSpan.FromMinutes(15));
+        result.Since.Should().Be(catchUpBegan.Subtract(Overlap10m));
+        (DateTime.UtcNow - result.Since).Should().BeLessThan(TimeSpan.FromMinutes(25));
         (DateTime.UtcNow - result.Since).Should().BeLessThan(SearchSince);
     }
 
