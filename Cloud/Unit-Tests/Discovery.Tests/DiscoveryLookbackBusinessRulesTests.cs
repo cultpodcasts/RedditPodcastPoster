@@ -9,7 +9,10 @@ namespace Discovery.Tests;
 /// </summary>
 public class DiscoveryLookbackBusinessRulesTests
 {
-    private static readonly DateTime UtcNow = DateTime.Parse("2026-07-18T14:33:00Z").ToUniversalTime();
+    /// <summary>Today at 14:33 UTC — time-of-day fixed; calendar date is always relative to now.</summary>
+    private static readonly DateTime UtcNow =
+        DateTime.SpecifyKind(DateTime.UtcNow.Date.AddHours(14).AddMinutes(33), DateTimeKind.Utc);
+
     private static readonly TimeSpan SearchSince = TimeSpan.Parse("6:10:00");
     private static readonly TimeSpan Overlap10m = TimeSpan.FromMinutes(10);
     private static readonly DateTime StaticFloor = UtcNow.Subtract(SearchSince);
@@ -108,9 +111,9 @@ public class DiscoveryLookbackBusinessRulesTests
         "(covers the gap; extends past static floor).")]
     public void Failure_missed_one_slot_recovers_from_lastSuccess()
     {
-        // Schedule ~08:33 succeeded; 14:33 missed; catch-up at ~20:33
-        var catchUpNow = DateTime.Parse("2026-07-18T20:33:00Z").ToUniversalTime();
-        var lastSuccess = DateTime.Parse("2026-07-18T08:33:00Z").ToUniversalTime();
+        // Schedule ~08:33 succeeded; 14:33 missed; catch-up at ~20:33 (same calendar day as UtcNow)
+        var catchUpNow = UtcNow.AddHours(6); // 20:33
+        var lastSuccess = UtcNow.AddHours(-6); // 08:33
         var staticFloor = catchUpNow.Subtract(SearchSince);
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
@@ -142,9 +145,9 @@ public class DiscoveryLookbackBusinessRulesTests
         "second run since = first run discoveryBegan - 10m; MUST NOT re-search full SearchSince window.")]
     public void Failure_catchup_then_scheduled_minutes_later_does_not_duplicate_SearchSince_window()
     {
-        // Catch-up completed at 14:20; scheduled/recycle fires at 14:33 with lastSuccess = catch-up began
-        var catchUpDiscoveryBegan = DateTime.Parse("2026-07-18T14:20:00Z").ToUniversalTime();
-        var scheduledRunNow = UtcNow; // 14:33
+        // Catch-up completed 13 minutes before scheduled/recycle at UtcNow (14:33)
+        var catchUpDiscoveryBegan = UtcNow.AddMinutes(-13);
+        var scheduledRunNow = UtcNow;
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
             scheduledRunNow, SearchSince, DiscoveryLookbackMode.Dynamic, catchUpDiscoveryBegan, Overlap10m);
@@ -199,9 +202,8 @@ public class DiscoveryLookbackBusinessRulesTests
         "Edge: non-UTC lastSuccess Kind is normalized via ToUniversalTime before anchoring.")]
     public void Edge_non_utc_lastSuccess_is_converted_to_universal_time()
     {
-        var lastSuccessLocal = DateTime.SpecifyKind(
-            DateTime.Parse("2026-07-18T08:33:00"),
-            DateTimeKind.Local);
+        // Same clock face as UtcNow - 6h, marked Local so ToUniversalTime applies a conversion
+        var lastSuccessLocal = DateTime.SpecifyKind(UtcNow.AddHours(-6), DateTimeKind.Local);
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
             UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastSuccessLocal, Overlap10m);
