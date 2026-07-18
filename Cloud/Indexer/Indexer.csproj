@@ -8,6 +8,21 @@
     <UserSecretsId>e4eaaf12-4507-4875-857d-a8d4032107f3</UserSecretsId>
     <!-- Force Azure Functions wrappers (not standalone Durable Task Worker registration). -->
     <DurableTaskGeneratorProjectType>Functions</DurableTaskGeneratorProjectType>
+    <!--
+      Disable Worker SDK source generation so the host falls back to reflection-based discovery
+      (functions.metadata). Required because Roslyn source generators cannot see each other's
+      output: the Worker.Sdk metadata generator misses the [Function] wrappers emitted by
+      Microsoft.DurableTask.Generators. Matches the official durabletask-dotnet
+      AzureFunctionsApp sample. See microsoft/durabletask-dotnet#247.
+    -->
+    <FunctionsEnableExecutorSourceGen>false</FunctionsEnableExecutorSourceGen>
+    <FunctionsEnableWorkerIndexing>false</FunctionsEnableWorkerIndexing>
+    <!--
+      AD0001: MatchingInputOutputTypeActivityAnalyzer crashes (ToDictionary duplicate key) because it
+      indexes both each TaskActivity class (e.g. 'Bluesky', 'LoadRecentCandidates') and its same-named
+      [Function] wrapper in GeneratedDurableTaskExtensions. Bug present in durabletask-dotnet main as of Jul 2026.
+    -->
+    <NoWarn>$(NoWarn);AD0001</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Release'">true</PublishReadyToRun>
@@ -50,5 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
+    <!-- The generators package ships no props/targets, so the project must expose this property to the analyzer. -->
+    <CompilerVisibleProperty Include="DurableTaskGeneratorProjectType" />
   </ItemGroup>
 </Project>
