@@ -6,7 +6,7 @@ Use when scheduled `discover-infra` runs were missed. This documents **`Discover
 
 `DiscoveryTrigger` cron: `30 2/6 * * *` (UTC) → **03:30, 09:30, 15:30, 21:30 BST** (when UK is on BST, UTC+1).
 
-Production search window: `discover__SearchSince = 6:10:00` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — each run searches episodes released in the **6 hours 10 minutes** before the trigger (static floor). Production lookback is **dynamic**: `discover__LookbackMode = Dynamic` with `discover__DynamicLookbackOverlap = 00:10:00`, so missed slots extend the window from the latest successful Discovery run watermark. `LookbackMode` is required (no default); set `Static` explicitly only when a fixed window is wanted.
+Production static floor: `discover__SearchSince = 6:10:00` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — used only when `LookbackMode` is `Static`, or as the Dynamic fallback when no prior Cosmos success exists. Production lookback is **dynamic**: `discover__LookbackMode = Dynamic` with `discover__DynamicLookbackOverlap = 00:10:00`, so each run searches from `lastSuccess - 10m` (and no static floor when a prior success exists). Missed slots therefore extend the window automatically. `LookbackMode` is required (no default); set `Static` explicitly only when a fixed window is wanted.
 
 Missed trigger on **11 Jun 2026**:
 

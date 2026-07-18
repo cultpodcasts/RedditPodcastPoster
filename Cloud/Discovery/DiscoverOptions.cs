@@ -5,9 +5,10 @@ public class DiscoverOptions
     public required string SearchSince { get; set; }
 
     /// <summary>
-    /// Required. <see cref="DiscoveryLookbackMode.Static"/>: fixed <see cref="SearchSince"/> window.
-    /// <see cref="DiscoveryLookbackMode.Dynamic"/>: anchor to latest successful Discovery run signal;
-    /// falls back to the static window when no prior signal exists.
+    /// Required. <see cref="DiscoveryLookbackMode.Static"/>: fixed <see cref="SearchSince"/> window
+    /// (may intentionally overlap the schedule, e.g. 6h10m over 6h).
+    /// <see cref="DiscoveryLookbackMode.Dynamic"/>: <c>since = lastSuccess - DynamicLookbackOverlap</c>
+    /// with no <see cref="SearchSince"/> floor; falls back to the static window when no prior signal exists.
     /// Config key: <c>discover__LookbackMode</c>. No default — must be set explicitly.
     /// </summary>
     public DiscoveryLookbackMode? LookbackMode { get; set; }
@@ -15,6 +16,8 @@ public class DiscoverOptions
     /// <summary>
     /// Overlap subtracted from the latest successful run when <see cref="LookbackMode"/> is Dynamic.
     /// Defaults to 10 minutes to mirror the production static 6h10m vs 6h schedule overlap.
+    /// <c>00:00:00</c> means no overlap: <c>since = lastSuccess</c>.
+    /// Config key: <c>discover__DynamicLookbackOverlap</c>.
     /// </summary>
     public TimeSpan? DynamicLookbackOverlap { get; set; }
 
