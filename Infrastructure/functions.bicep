@@ -267,7 +267,7 @@ var discover= {
     discover__Queries__6__Term: 'Cult'
     discover__SearchSince: '6:10:00'
     discover__LookbackMode: 'Dynamic'
-    discover__DynamicLookbackOverlap: '00:10:00'
+    discover__DynamicLookbackOverlap: '00:00:00'
     discover__TaddyOffset: '2:00:00'
 }
 

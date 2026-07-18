@@ -27,39 +27,66 @@ public class DiscoveryLookbackCalculatorTests
     }
 
     [Fact]
-    public void Dynamic_with_recent_prior_run_keeps_at_least_static_window()
+    public void Dynamic_with_prior_run_uses_last_success_without_static_floor()
     {
-        // Last run ~6h ago — with 10m overlap, dynamic since ≈ static since
+        // Last run ~6h ago — since is lastSuccess, not SearchSince floor
         var lastRun = DateTime.Parse("2026-07-18T08:33:00Z").ToUniversalTime();
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
-            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, TimeSpan.FromMinutes(10));
+            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, TimeSpan.Zero);
 
-        since.Should().Be(UtcNow.Subtract(SearchSince));
+        since.Should().Be(lastRun);
+        since.Should().BeAfter(UtcNow.Subtract(SearchSince));
     }
 
     [Fact]
-    public void Dynamic_after_missed_run_extends_lookback_to_last_successful_minus_overlap()
+    public void Dynamic_after_missed_run_extends_lookback_to_last_successful()
     {
         // Missed 08:33; last success 02:33 → look back further than static 6h10m
         var lastRun = DateTime.Parse("2026-07-18T02:33:00Z").ToUniversalTime();
+
+        var since = DiscoveryLookbackCalculator.ResolveSince(
+            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, TimeSpan.Zero);
+
+        since.Should().Be(lastRun);
+        since.Should().BeBefore(UtcNow.Subtract(SearchSince));
+    }
+
+    [Fact]
+    public void Dynamic_with_very_recent_prior_run_uses_last_success_not_static_window()
+    {
+        // Today's bug: last success ~minutes ago must not re-search the full SearchSince window
+        var lastRun = UtcNow.AddHours(-1);
+
+        var since = DiscoveryLookbackCalculator.ResolveSince(
+            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, TimeSpan.Zero);
+
+        since.Should().Be(lastRun);
+        since.Should().NotBe(UtcNow.Subtract(SearchSince));
+    }
+
+    [Fact]
+    public void Dynamic_with_overlap_subtracts_from_last_success_only()
+    {
+        var lastRun = UtcNow.AddHours(-1);
         var overlap = TimeSpan.FromMinutes(10);
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
             UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, overlap);
 
         since.Should().Be(lastRun.Subtract(overlap));
-        since.Should().BeBefore(UtcNow.Subtract(SearchSince));
+        since.Should().BeAfter(UtcNow.Subtract(SearchSince));
     }
 
     [Fact]
-    public void Dynamic_with_very_recent_prior_run_does_not_shorten_below_static()
+    public void Dynamic_default_overlap_is_zero()
     {
-        var lastRun = UtcNow.AddHours(-1);
+        var lastRun = UtcNow.AddHours(-2);
 
         var since = DiscoveryLookbackCalculator.ResolveSince(
-            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun, TimeSpan.FromMinutes(10));
+            UtcNow, SearchSince, DiscoveryLookbackMode.Dynamic, lastRun);
 
-        since.Should().Be(UtcNow.Subtract(SearchSince));
+        since.Should().Be(lastRun);
+        DiscoveryLookbackCalculator.DefaultDynamicOverlap.Should().Be(TimeSpan.Zero);
     }
 }

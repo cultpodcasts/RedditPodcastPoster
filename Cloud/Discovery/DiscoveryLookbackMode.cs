@@ -8,8 +8,9 @@ public enum DiscoveryLookbackMode
     Static = 0,
 
     /// <summary>
-    /// Window anchored to the latest successful Discovery run signal, extending further back when runs were missed.
-    /// Falls back to <see cref="Static"/> when no prior signal exists.
+    /// Window anchored to the latest successful Discovery run (<c>since = lastSuccess</c>, optional overlap only).
+    /// Does not apply the static <c>SearchSince</c> floor when a prior success exists.
+    /// Extends further back when runs were missed. Falls back to <see cref="Static"/> when no prior signal exists.
     /// </summary>
     Dynamic = 1
 }
