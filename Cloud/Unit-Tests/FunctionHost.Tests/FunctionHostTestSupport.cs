@@ -30,6 +30,8 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:LookUpsContainer"] = "LookUps",
             ["cosmosdb:PushSubscriptionsContainer"] = "PushSubscriptions",
             ["discover:SearchSince"] = "6:10:00",
+            ["discover:LookbackMode"] = "Dynamic",
+            ["discover:DynamicLookbackOverlap"] = "00:10:00",
             ["discover:scorer:Enabled"] = "false",
             ["listenNotes:Key"] = "test-listen-notes-key",
             ["listenNotes:RequestDelaySeconds"] = "1",

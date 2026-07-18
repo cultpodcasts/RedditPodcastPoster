@@ -18,6 +18,7 @@ namespace Discovery;
 public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
+    IDiscoveryLookbackResolver discoveryLookbackResolver,
     IDiscoveryServiceConfigProvider discoveryConfigProvider,
     IDiscoveryService discoveryService,
     IDiscoveryResultsRepository discoveryResultsRepository,
@@ -38,10 +39,14 @@ public class Discover(
         logger.LogInformation("{method}: discovery-options: {discoverOptions}",
             nameof(RunAsync), _discoverOptions);
         logger.LogInformation("{method}: discovery-context: {input}", nameof(RunAsync), input);
-        var since = DateTime.UtcNow.Subtract(TimeSpan.Parse(_discoverOptions.SearchSince));
+        var lookback = await discoveryLookbackResolver.ResolveAsync();
+        var since = lookback.Since;
         logger.LogInformation(
-            "Discovering items released since '{since:O}' (local:'{sinceLocal:O}'). ",
-            since.ToUniversalTime(), since.ToLocalTime());
+            "Discovering items released since '{since:O}' (local:'{sinceLocal:O}', lookback-mode:'{lookbackMode}', latest-run:'{latestRun}'). ",
+            since.ToUniversalTime(),
+            since.ToLocalTime(),
+            lookback.ModeUsed,
+            lookback.LatestSuccessfulDiscoveryBegan?.ToString("O") ?? "none");
 
         var indexingContext = new IndexingContext(
             since,
@@ -86,7 +91,7 @@ public class Discover(
             var discoveryResults = await discoveryService.GetDiscoveryResults(discoveryConfig, indexingContext).ToListAsync();
             var discoveryResultsDocument = new DiscoveryResultsDocument(discoveryBegan, discoveryResults)
             {
-                SearchSince = _discoverOptions.SearchSince
+                SearchSince = (discoveryBegan - since).ToString()
             };
             EnrichDiscoveryResultsDocument(
                 discoveryResultsDocument,
