@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
@@ -84,6 +85,21 @@ public class CategorisedItemProcessor(
             {
                 logger.LogWarning("Bypassing persisting new-podcast.");
             }
+        }
+
+        if (submitResult is { EpisodeResult: SubmitResultState.Created, Episode: not null })
+        {
+            var podcastId = submitResult.Episode.PodcastId != Guid.Empty
+                ? submitResult.Episode.PodcastId
+                : submitResult.Podcast?.Id
+                  ?? categorisedItem.MatchingPodcast?.Id
+                  ?? Guid.Empty;
+            EpisodeCreationLogger.LogCreated(
+                logger,
+                submitResult.Episode,
+                podcastId,
+                submitOptions.CreationSource,
+                categorisedItem.Authority);
         }
 
         LogSubmitEpisodeState(submitResult);

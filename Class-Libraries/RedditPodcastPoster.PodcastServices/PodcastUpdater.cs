@@ -154,6 +154,17 @@ public class PodcastUpdater(
         // Persist newly added episodes
         if (mergeResult.AddedEpisodes.Any())
         {
+            foreach (var added in mergeResult.AddedEpisodes)
+            {
+                var service = EpisodeCreationLogger.ResolveCreatingService(added, podcast.ReleaseAuthority);
+                EpisodeCreationLogger.LogCreated(
+                    logger,
+                    added,
+                    podcast.Id,
+                    EpisodeCreationSource.Indexer,
+                    service);
+            }
+
             await episodeRepository.Save(mergeResult.AddedEpisodes);
         }
 

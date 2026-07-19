@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -24,6 +25,9 @@ public class DiscoveryUrlSubmitter(
         {
             return new DiscoverySubmitResult(DiscoverySubmitResultState.NoUrls);
         }
+
+        // Discovery path always tags creates as Discovery regardless of caller-supplied CreationSource.
+        submitOptions = submitOptions with { CreationSource = EpisodeCreationSource.Discovery };
 
         Podcast? spotifyPodcast = null, applePodcast = null, youTubePodcast = null;
         if (discoveryResult.Urls.Spotify != null)

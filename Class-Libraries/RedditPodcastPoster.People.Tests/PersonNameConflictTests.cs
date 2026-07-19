@@ -12,22 +12,22 @@ public class PersonNameConflictTests
     [Fact]
     public async Task GetByName_UsesNormalizedKey_CaseInsensitive()
     {
-        var existing = new PersonFactory().Create("Ilhan Omar");
+        var existing = new PersonFactory().Create("Ada Example");
         var repository = new Mock<IPersonRepository>();
         repository
-            .Setup(x => x.GetByName("ilhan omar"))
+            .Setup(x => x.GetByName("ada example"))
             .ReturnsAsync(existing);
 
-        var result = await repository.Object.GetByName("ilhan omar");
+        var result = await repository.Object.GetByName("ada example");
 
         result.Should().BeSameAs(existing);
-        repository.Verify(x => x.GetByName("ilhan omar"), Times.Once);
+        repository.Verify(x => x.GetByName("ada example"), Times.Once);
     }
 
     [Fact]
     public async Task Match_FindsPerson_WhenCaseDiffers()
     {
-        var existing = new PersonFactory().Create("Ilhan Omar");
+        var existing = new PersonFactory().Create("Ada Example");
         var repository = new Mock<IPersonRepository>();
         repository
             .Setup(x => x.GetAll())
@@ -35,7 +35,7 @@ public class PersonNameConflictTests
 
         var sut = new PersonService(repository.Object, Mock.Of<ITextSanitiser>());
 
-        var result = await sut.Match("ilhan omar");
+        var result = await sut.Match("ada example");
 
         result.Should().BeSameAs(existing);
     }
@@ -43,8 +43,8 @@ public class PersonNameConflictTests
     [Fact]
     public void ConflictingNameKeys_AreDetected()
     {
-        var existingKey = Person.NormalizeNameKey("Ilhan Omar");
-        var incomingKey = Person.NormalizeNameKey("ilhan omar");
+        var existingKey = Person.NormalizeNameKey("Ada Example");
+        var incomingKey = Person.NormalizeNameKey("ada example");
         var selfKey = Person.NormalizeNameKey("Someone Else");
 
         (existingKey == incomingKey).Should().BeTrue();

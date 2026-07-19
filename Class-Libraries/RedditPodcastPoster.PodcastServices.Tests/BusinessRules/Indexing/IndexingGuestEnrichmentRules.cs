@@ -66,9 +66,9 @@ public class IndexingGuestEnrichmentRules
             .Setup(x => x.EnrichGuests(added, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
             {
-                episode.Guests = ["Janja Lalich"];
+                episode.Guests = ["Ada Example"];
             })
-            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Janja Lalich")], []));
+            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Ada Example")], []));
 
         var indexer = new Indexer(
             podcastRepository,
@@ -90,7 +90,7 @@ public class IndexingGuestEnrichmentRules
             Times.Once);
         episodeRepository.SavedEpisodes.Should().ContainSingle();
         var saved = episodeRepository.SavedEpisodes.Single();
-        saved.Guests.Should().Equal("Janja Lalich");
+        saved.Guests.Should().Equal("Ada Example");
     }
 
     [Fact(DisplayName =

@@ -6,6 +6,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -45,7 +46,7 @@ public class DiscoveryCurationHandler(
                 SkipExpensiveYouTubeQueries = false,
                 SkipExpensiveSpotifyQueries = false
             };
-            var submitOptions = new SubmitOptions(null, true);
+            var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(m);
             var submitResults = new List<DiscoverySubmitResponseItem>();
