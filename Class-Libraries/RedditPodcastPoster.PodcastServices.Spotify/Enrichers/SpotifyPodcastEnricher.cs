@@ -50,9 +50,10 @@ public class SpotifyPodcastEnricher(
                         !findEpisodeResponse.FullEpisode.IsSpotifyFree())
                     {
                         logger.LogWarning(
-                            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+                            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
                             findEpisodeResponse.FullEpisode.Id,
-                            findEpisodeResponse.FullEpisode.Name);
+                            findEpisodeResponse.FullEpisode.Name,
+                            findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
                     }
                     else if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {

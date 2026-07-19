@@ -46,9 +46,10 @@ public class SpotifyEpisodeProvider(
         }
 
         logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
             episode.Id,
-            episode.Name);
+            episode.Name,
+            episode.GetSpotifyRestrictionReason());
         return false;
     }
 

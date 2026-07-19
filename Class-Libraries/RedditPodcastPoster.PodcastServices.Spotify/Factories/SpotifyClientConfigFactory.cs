@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.PodcastServices.Spotify.Configuration;
+using RedditPodcastPoster.PodcastServices.Spotify.Serialization;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Factories;
@@ -21,7 +22,9 @@ public class SpotifyClientConfigFactory(
             _settings.ClientSecret[^2..]
         );
 
-        var config = SpotifyClientConfig.CreateDefault();
+        var config = SpotifyClientConfig
+            .CreateDefault()
+            .WithJSONSerializer(new SpotifyEpisodeRestrictionsJsonSerializer());
 
         var token = await GetToken(config);
         if (token == null)

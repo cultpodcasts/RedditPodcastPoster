@@ -51,9 +51,10 @@ public class SpotifySearcher(
                 if (!hit.IsSpotifyFree())
                 {
                     logger.LogWarning(
-                        "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+                        "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
                         hit.Id,
-                        hit.Name);
+                        hit.Name,
+                        hit.GetSpotifyRestrictionReason());
                     continue;
                 }
 
@@ -97,9 +98,10 @@ public class SpotifySearcher(
         }
 
         logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
             episode.Id,
-            episode.Name);
+            episode.Name,
+            episode.GetSpotifyRestrictionReason());
         return false;
     }
 
