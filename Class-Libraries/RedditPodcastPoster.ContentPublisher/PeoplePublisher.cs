@@ -32,6 +32,7 @@ public class PeoplePublisher(
                 id = x.Id,
                 name = x.Name,
                 sortName = x.SortName,
+                isOrganization = x.IsOrganization ? true : (bool?)null,
                 aliases = x.Aliases,
                 twitterHandle = x.TwitterHandle,
                 blueskyHandle = x.BlueskyHandle

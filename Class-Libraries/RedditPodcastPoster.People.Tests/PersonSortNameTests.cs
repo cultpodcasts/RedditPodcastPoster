@@ -69,7 +69,22 @@ public class PersonSortNameTests
         person.Name.Should().Be("Ada Example");
         person.NameKey.Should().Be("ada example");
         person.SortName.Should().Be("Example, Ada");
+        person.IsOrganization.Should().BeFalse();
         person.GetEffectiveSortKey().Should().Be("Example, Ada");
+    }
+
+    [Fact]
+    public void PersonFactory_Create_OrganizationFlag_PersistsFullNameSort()
+    {
+        var person = new PersonFactory().Create(
+            "Mira Voss",
+            sortName: "Voss",
+            isOrganization: true);
+
+        person.IsOrganization.Should().BeTrue();
+        person.SortName.Should().Be("Mira Voss");
+        person.GetEffectiveSortKey().Should().Be("Mira Voss");
+        person.NameKey.Should().Be("mira voss");
     }
 
     [Fact]
@@ -100,6 +115,17 @@ public class PersonSortNameTests
         PersonSortNameResolver.ResolveForPersist("Ada Example", "Example").Should().BeNull();
         PersonSortNameResolver.ResolveForPersist("Ada Example", "  Example  ").Should().BeNull();
         PersonSortNameResolver.ResolveForPersist("Pat Placeholder", null).Should().BeNull();
+    }
+
+    [Fact]
+    public void ResolveForPersist_ExplicitOrganizationFlag_UsesFullName_EvenWithoutHeuristic()
+    {
+        // Surname-style name: heuristic says not org, but curator flag forces full-name sort.
+        PersonSortNameResolver.LooksLikeOrganization("Mira Voss").Should().BeFalse();
+        PersonSortNameResolver.ResolveForPersist("Mira Voss", "Voss", isOrganization: true)
+            .Should().Be("Mira Voss");
+        PersonSortNameResolver.ResolveForPersist("Mira Voss", null, isOrganization: true)
+            .Should().Be("Mira Voss");
     }
 
     [Fact]

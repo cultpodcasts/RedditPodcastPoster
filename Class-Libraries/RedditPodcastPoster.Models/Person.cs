@@ -34,6 +34,14 @@ public sealed class Person : CosmosSelector
     [JsonPropertyOrder(12)]
     public string? SortName { get; set; }
 
+    /// <summary>
+    /// When true, this entry is an organization/entity: sort using the full name
+    /// (see <c>sortName</c> / <see cref="GetEffectiveSortKey()"/>) rather than a surname token.
+    /// </summary>
+    [JsonPropertyName("isOrganization")]
+    [JsonPropertyOrder(13)]
+    public bool IsOrganization { get; set; }
+
     [JsonPropertyName("aliases")]
     [JsonPropertyOrder(20)]
     public string[]? Aliases { get; set; }
