@@ -14,7 +14,11 @@ public class SubjectEnricher(
         SubjectEnrichmentOptions? options = null)
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
-        var (additions, removals) = CompareSubjects(episode.Subjects, subjectMatches, options?.DefaultSubject);
+        var (additions, removals) = CompareSubjects(
+            episode.Subjects,
+            episode.RemovedSubjects,
+            subjectMatches,
+            options?.DefaultSubject);
         var hadSubjects = episode.Subjects.Any();
         if (additions.Any())
         {
@@ -47,7 +51,9 @@ public class SubjectEnricher(
         }
         else
         {
-            if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
+            if (!episode.Subjects.Any() &&
+                !string.IsNullOrWhiteSpace(options?.DefaultSubject) &&
+                !episode.IsSubjectRemovedByUser(options.DefaultSubject))
             {
                 additions.Add(new SubjectMatch(new Subject(options.DefaultSubject), []));
                 episode.Subjects = [options.DefaultSubject];
@@ -69,7 +75,9 @@ public class SubjectEnricher(
                 string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
         }
 
-        if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) && !hadSubjects &&
+        if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) &&
+            !episode.IsSubjectRemovedByUser(options.DefaultSubject) &&
+            !hadSubjects &&
             (!episode.Subjects.Any() || episode.Subjects.All(x => x.StartsWith("_"))))
         {
             if (!episode.Subjects.Contains(options.DefaultSubject, StringComparer.OrdinalIgnoreCase))
@@ -93,6 +101,7 @@ public class SubjectEnricher(
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(
         IList<string> existingSubjects,
+        IList<string> removedSubjects,
         IList<SubjectMatch> matches,
         string? defaultSubject)
     {
@@ -103,7 +112,8 @@ public class SubjectEnricher(
         foreach (var match in matches)
         {
             var matchName = match.Subject.Name.ToLowerInvariant();
-            if (!loweredExistingSubjects.Contains(matchName))
+            if (!loweredExistingSubjects.Contains(matchName) &&
+                !removedSubjects.Any(x => x.Equals(match.Subject.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 additions.Add(match);
             }

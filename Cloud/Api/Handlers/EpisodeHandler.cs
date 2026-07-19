@@ -754,10 +754,9 @@ public class EpisodeHandler(
                 episodeChangeRequest.BlueskyPosted.HasValue && episodeChangeRequest.BlueskyPosted.Value ? true : null;
         }
 
-        if (episodeChangeRequest.Subjects != null && !episode.Subjects.SequenceEqual(episodeChangeRequest.Subjects))
+        if (episodeChangeRequest.Subjects != null && episode.ApplyUserSubjects(episodeChangeRequest.Subjects))
         {
             changeState.UpdatedSubjects = true;
-            episode.Subjects = episodeChangeRequest.Subjects.ToList();
         }
 
         if (episodeChangeRequest.Urls?.Spotify != null)

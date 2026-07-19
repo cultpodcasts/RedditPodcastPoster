@@ -117,4 +117,47 @@ public class SubjectEnricherTests
         // assert
         result.Additions.Should().StartWith(options.DefaultSubject);
     }
+
+    [Fact]
+    public async Task EnrichSubjects_DoesNotReAddUserRemovedSubject()
+    {
+        // arrange
+        var removedSubject = _subjectMatches.First().Subject.Name;
+        var episode = _fixture.Build<Episode>()
+            .With(x => x.Subjects, [])
+            .With(x => x.RemovedSubjects, [removedSubject])
+            .Create();
+        var options = _fixture.Create<SubjectEnrichmentOptions>();
+        var sut = _mocker.CreateInstance<SubjectEnricher>();
+
+        // act
+        var result = await sut.EnrichSubjects(episode, options);
+
+        // assert
+        result.Additions.Should().NotContain(removedSubject);
+        episode.Subjects.Should().NotContain(removedSubject);
+    }
+
+    [Fact]
+    public async Task EnrichSubjects_DoesNotApplyDefaultSubjectWhenUserRemovedIt()
+    {
+        // arrange
+        var defaultSubject = "Cults";
+        var episode = _fixture.Build<Episode>()
+            .With(x => x.Subjects, [])
+            .With(x => x.RemovedSubjects, [defaultSubject])
+            .Create();
+        var options = _fixture.Build<SubjectEnrichmentOptions>()
+            .With(x => x.DefaultSubject, defaultSubject)
+            .Create();
+        _subjectMatches = [];
+        var sut = _mocker.CreateInstance<SubjectEnricher>();
+
+        // act
+        var result = await sut.EnrichSubjects(episode, options);
+
+        // assert
+        result.Additions.Should().BeEmpty();
+        episode.Subjects.Should().BeEmpty();
+    }
 }
