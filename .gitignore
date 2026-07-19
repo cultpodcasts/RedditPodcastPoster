@@ -437,3 +437,6 @@ plan-blocks.md
 .local/
 **/people-seed*.json
 !**/sample-people-seed.json
+
+# Local production cookie (never commit)
+.cookie
