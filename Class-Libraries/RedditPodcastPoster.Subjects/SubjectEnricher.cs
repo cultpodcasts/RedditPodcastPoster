@@ -96,7 +96,43 @@ public class SubjectEnricher(
                 options.DefaultSubject, episode.Title, episode.Id);
         }
 
+        SyncSubjectMatches(episode, subjectMatches);
+
         return new EnrichSubjectsResult(additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
+    }
+
+    private static void SyncSubjectMatches(Episode episode, IList<SubjectMatch> subjectMatches)
+    {
+        episode.Matches.RemoveAll(m => episode.IsSubjectRemovedByUser(m.Subject));
+
+        var episodeSubjects = new HashSet<string>(episode.Subjects, StringComparer.OrdinalIgnoreCase);
+        foreach (var match in subjectMatches)
+        {
+            if (!episodeSubjects.Contains(match.Subject.Name) ||
+                episode.IsSubjectRemovedByUser(match.Subject.Name))
+            {
+                continue;
+            }
+
+            var evidence = match.MatchResults.Where(r => r.Source.HasValue).ToArray();
+            if (evidence.Length == 0)
+            {
+                continue;
+            }
+
+            episode.Matches.RemoveAll(m =>
+                m.Subject.Equals(match.Subject.Name, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var result in evidence)
+            {
+                episode.Matches.Add(new EpisodeSubjectMatch
+                {
+                    Subject = match.Subject.Name,
+                    Term = result.Term,
+                    Source = result.Source!.Value
+                });
+            }
+        }
     }
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(

@@ -79,6 +79,10 @@ public class Episode
     [JsonPropertyOrder(71)]
     public List<string> RemovedSubjects { get; set; } = [];
 
+    [JsonPropertyName("matches")]
+    [JsonPropertyOrder(72)]
+    public List<EpisodeSubjectMatch> Matches { get; set; } = [];
+
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
@@ -301,6 +305,7 @@ public class Episode
 
         RemovedSubjects.RemoveAll(s => newSet.Contains(s));
         Subjects = newList;
+        Matches.RemoveAll(m => !newSet.Contains(m.Subject, StringComparer.OrdinalIgnoreCase));
         return true;
     }
 

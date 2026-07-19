@@ -65,4 +65,33 @@ public class EpisodeRemovedSubjectsRules
         episode.RemovedSubjects.Should().BeEmpty();
         episode.Subjects.Should().Equal("Scientology", "CULTS");
     }
+
+    [Fact(DisplayName = "Removing a subject clears its match records.")]
+    public void apply_user_subjects_removal_clears_matches()
+    {
+        var episode = new Episode
+        {
+            Subjects = ["Cults", "Scientology"],
+            Matches =
+            [
+                new EpisodeSubjectMatch
+                {
+                    Subject = "Cults",
+                    Term = "cult",
+                    Source = SubjectMatchSource.Title
+                },
+                new EpisodeSubjectMatch
+                {
+                    Subject = "Scientology",
+                    Term = "scientology",
+                    Source = SubjectMatchSource.Description
+                }
+            ]
+        };
+
+        episode.ApplyUserSubjects(["Scientology"]);
+
+        episode.Matches.Should().ContainSingle();
+        episode.Matches[0].Subject.Should().Be("Scientology");
+    }
 }
