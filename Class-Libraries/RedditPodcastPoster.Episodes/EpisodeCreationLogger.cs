@@ -13,14 +13,24 @@ public static class EpisodeCreationLogger
     public const string MessagePrefix = "Episode created:";
 
     public const string MessageTemplate =
-        "Episode created: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' source='{Source}' service='{Service}' spotify-id='{SpotifyId}' spotify-url='{SpotifyUrl}' apple-id='{AppleId}' apple-url='{AppleUrl}' youtube-id='{YouTubeId}' youtube-url='{YouTubeUrl}'";
+        "Episode created: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' source='{Source}' caller='{Caller}' service='{Service}' spotify-id='{SpotifyId}' spotify-url='{SpotifyUrl}' apple-id='{AppleId}' apple-url='{AppleUrl}' youtube-id='{YouTubeId}' youtube-url='{YouTubeUrl}'";
 
+    /// <summary>
+    /// Logs episode create provenance.
+    /// </summary>
+    /// <param name="caller">
+    /// Creating call site — who invoked <see cref="LogCreated"/> (the caller), e.g.
+    /// <c>PodcastUpdater.Update</c> or <c>CategorisedItemProcessor.ProcessCategorisedItem</c>.
+    /// Named <c>caller</c> deliberately: in C# logging this matches <c>CallerMemberName</c>
+    /// semantics; not the callee (<see cref="LogCreated"/> itself).
+    /// </param>
     public static void LogCreated(
         ILogger logger,
         Episode episode,
         Guid podcastId,
         EpisodeCreationSource source,
-        Service service)
+        Service service,
+        string caller)
     {
         logger.LogWarning(
             MessageTemplate,
@@ -28,6 +38,7 @@ public static class EpisodeCreationLogger
             episode.Title,
             podcastId,
             source,
+            caller,
             service,
             EmptyToNull(episode.SpotifyId),
             episode.Urls.Spotify,
@@ -40,14 +51,16 @@ public static class EpisodeCreationLogger
     /// <summary>
     /// Same content as the rendered Warning message (for unit tests / docs).
     /// </summary>
+    /// <param name="caller">Creating call site (caller of <see cref="LogCreated"/>), e.g. <c>PodcastUpdater.Update</c>.</param>
     public static string FormatMessage(
         Episode episode,
         Guid podcastId,
         EpisodeCreationSource source,
-        Service service)
+        Service service,
+        string caller)
     {
         return
-            $"{MessagePrefix} episode-id='{episode.Id}' title='{episode.Title}' podcast-id='{podcastId}' source='{source}' service='{service}' spotify-id='{EmptyToNull(episode.SpotifyId)}' spotify-url='{episode.Urls.Spotify}' apple-id='{episode.AppleId}' apple-url='{episode.Urls.Apple}' youtube-id='{EmptyToNull(episode.YouTubeId)}' youtube-url='{episode.Urls.YouTube}'";
+            $"{MessagePrefix} episode-id='{episode.Id}' title='{episode.Title}' podcast-id='{podcastId}' source='{source}' caller='{caller}' service='{service}' spotify-id='{EmptyToNull(episode.SpotifyId)}' spotify-url='{episode.Urls.Spotify}' apple-id='{episode.AppleId}' apple-url='{episode.Urls.Apple}' youtube-id='{EmptyToNull(episode.YouTubeId)}' youtube-url='{episode.Urls.YouTube}'";
     }
 
     /// <summary>

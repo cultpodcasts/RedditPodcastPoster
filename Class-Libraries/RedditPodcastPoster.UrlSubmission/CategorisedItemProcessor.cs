@@ -99,7 +99,8 @@ public class CategorisedItemProcessor(
                 submitResult.Episode,
                 podcastId,
                 submitOptions.CreationSource,
-                categorisedItem.Authority);
+                categorisedItem.Authority,
+                caller: "CategorisedItemProcessor.ProcessCategorisedItem");
         }
 
         LogSubmitEpisodeState(submitResult);

@@ -162,7 +162,8 @@ public class PodcastUpdater(
                     added,
                     podcast.Id,
                     EpisodeCreationSource.Indexer,
-                    service);
+                    service,
+                    caller: "PodcastUpdater.Update");
             }
 
             await episodeRepository.Save(mergeResult.AddedEpisodes);

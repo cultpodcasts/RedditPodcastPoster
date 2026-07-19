@@ -30,13 +30,15 @@ public class EpisodeCreationLoggerRules
             episode,
             podcastId,
             EpisodeCreationSource.Indexer,
-            Service.Spotify);
+            Service.Spotify,
+            caller: "FakeIndexerComponent.CreateEpisode");
 
         message.Should().StartWith(EpisodeCreationLogger.MessagePrefix);
         message.Should().Contain($"episode-id='{episodeId}'");
         message.Should().Contain("title='Preacher Boys Episode'");
         message.Should().Contain($"podcast-id='{podcastId}'");
         message.Should().Contain("source='Indexer'");
+        message.Should().Contain("caller='FakeIndexerComponent.CreateEpisode'");
         message.Should().Contain("service='Spotify'");
         message.Should().Contain("spotify-id='spotifyEp123'");
         message.Should().Contain("spotify-url='https://open.spotify.com/episode/spotifyEp123'");
@@ -91,8 +93,9 @@ public class EpisodeCreationLoggerRules
         };
 
         var message = EpisodeCreationLogger.FormatMessage(
-            episode, Guid.NewGuid(), source, Service.Spotify);
+            episode, Guid.NewGuid(), source, Service.Spotify, caller: "FakeSubmitPath.Persist");
 
         message.Should().Contain($"source='{source}'");
+        message.Should().Contain("caller='FakeSubmitPath.Persist'");
     }
 }
