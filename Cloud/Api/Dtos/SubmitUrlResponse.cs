@@ -57,27 +57,21 @@ public class SubmitUrlResponse
                 resultSubmitEpisodeDetails.InternetArchive,
                 resultSubmitEpisodeDetails.Subjects ?? [],
                 (resultSubmitEpisodeDetails.People ?? [])
-                .Select(ToPersonMatchDto)
+                .Select(x => x.Person.Name)
                 .ToArray(),
                 (resultSubmitEpisodeDetails.GuestSuggestions ?? [])
-                .Select(ToPersonMatchDto)
+                .Select(ToSubmitGuestSuggestionDto)
                 .ToArray());
         }
 
         return null;
     }
 
-    private static PersonMatchDto ToPersonMatchDto(PersonMatch match)
+    private static SubmitGuestSuggestionDto ToSubmitGuestSuggestionDto(PersonMatch match)
     {
-        return new PersonMatchDto
+        return new SubmitGuestSuggestionDto
         {
-            Person = new Person
-            {
-                Id = match.Person.Id,
-                Name = match.Person.Name,
-                TwitterHandle = match.Person.TwitterHandle,
-                BlueskyHandle = match.Person.BlueskyHandle
-            },
+            Name = match.Person.Name,
             MatchResults = match.MatchResults
                 .Select(x => new PersonMatchResultDto { Term = x.Term, Matches = x.Matches })
                 .ToArray()
