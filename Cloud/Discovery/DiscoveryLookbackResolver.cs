@@ -14,50 +14,45 @@ public class DiscoveryLookbackResolver(
 
     public async Task<DiscoveryLookbackResolution> ResolveAsync(CancellationToken cancellationToken = default)
     {
-        var searchSince = TimeSpan.Parse(_discoverOptions.SearchSince);
-        var utcNow = DateTime.UtcNow;
-        var mode = _discoverOptions.LookbackMode
-            ?? throw new InvalidOperationException(
-                $"{nameof(DiscoverOptions)}.{nameof(DiscoverOptions.LookbackMode)} is required.");
-
-        if (mode == DiscoveryLookbackMode.Static)
+        DateTime? latestSuccessful;
+        try
         {
-            var staticSince = DiscoveryLookbackCalculator.ResolveSince(
-                utcNow, searchSince, DiscoveryLookbackMode.Static, null);
-            return new DiscoveryLookbackResolution(staticSince, DiscoveryLookbackMode.Static, null);
+            latestSuccessful = await GetLatestSuccessfulDiscoveryBeganAsync(cancellationToken);
         }
-
-        var latestSuccessful = await GetLatestSuccessfulDiscoveryBeganAsync(cancellationToken);
-        var overlap = _discoverOptions.DynamicLookbackOverlap ?? DiscoveryLookbackCalculator.DefaultDynamicOverlap;
-        var since = DiscoveryLookbackCalculator.ResolveSince(
-            utcNow, searchSince, DiscoveryLookbackMode.Dynamic, latestSuccessful, overlap);
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to query latest DiscoveryBegan from Cosmos; Dynamic lookback fail-closed.");
+            throw new DiscoveryLookbackUnavailableException(
+                "Discovery lookback fail-closed: could not read the latest successful discoveryBegan watermark from Cosmos. " +
+                "Fix Cosmos access, then seed the first success with Console-Apps/Discover (see docs/discovery-uk-schedule.md).",
+                ex);
+        }
 
         if (latestSuccessful is null)
         {
-            logger.LogInformation(
-                "Dynamic lookback: no prior Discovery run in Cosmos; falling back to static SearchSince '{SearchSince}'.",
-                _discoverOptions.SearchSince);
-            return new DiscoveryLookbackResolution(since, DiscoveryLookbackMode.Static, null);
+            logger.LogError(
+                "No prior Discovery success watermark in Cosmos; Dynamic lookback fail-closed. First run must be CLI.");
+            throw new DiscoveryLookbackUnavailableException(
+                "Discovery lookback fail-closed: no prior discoveryBegan watermark in Cosmos. " +
+                "The first successful Discovery run MUST be via Console-Apps/Discover (CLI). " +
+                "After that, the timer uses Dynamic lookback from the watermark. " +
+                "See docs/discovery-uk-schedule.md.");
         }
+
+        var overlap = _discoverOptions.DynamicLookbackOverlap ?? DiscoveryLookbackCalculator.DefaultDynamicOverlap;
+        var since = DiscoveryLookbackCalculator.ResolveSince(latestSuccessful.Value, overlap);
 
         logger.LogInformation(
             "Dynamic lookback: latest Cosmos DiscoveryBegan '{Latest:O}', overlap '{Overlap}', since '{Since:O}'.",
             latestSuccessful, overlap, since);
 
-        return new DiscoveryLookbackResolution(since, DiscoveryLookbackMode.Dynamic, latestSuccessful);
+        return new DiscoveryLookbackResolution(since, latestSuccessful.Value);
     }
 
     private async Task<DateTime?> GetLatestSuccessfulDiscoveryBeganAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            var latest = await discoveryResultsRepository.GetLatestDiscoveryBegan(cancellationToken);
-            return latest?.ToUniversalTime();
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to query latest DiscoveryBegan from Cosmos; falling back to static lookback.");
-            return null;
-        }
+        var latest = await discoveryResultsRepository.GetLatestDiscoveryBegan(cancellationToken);
+        return latest?.ToUniversalTime();
     }
 }

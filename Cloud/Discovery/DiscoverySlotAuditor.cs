@@ -12,6 +12,7 @@ public enum DiscoverySlotAuditKind
 
 public readonly record struct DiscoverySlotAudit(
     DiscoverySlotAuditKind Kind,
+    string SlotId,
     DateTimeOffset SlotStartUtc,
     string InstanceId,
     OrchestrationRuntimeStatus? Status,
@@ -22,15 +23,28 @@ public static class DiscoverySlotAuditor
 {
     public static bool InstanceBelongsToSlot(
         DiscoveryOrchestrationInstance instance,
-        DateTimeOffset slotStartUtc) =>
-        DiscoverySchedule.GetSlotStartForTime(instance.CreatedAt.UtcDateTime) == slotStartUtc;
+        DateTimeOffset slotStartUtc,
+        IReadOnlyList<TimeOnly> runTimesUk,
+        TimeZoneInfo? ukTimeZone = null)
+    {
+        var instanceSlot = DiscoverySchedule.GetLatestDueSlot(
+            instance.CreatedAt.UtcDateTime, runTimesUk, ukTimeZone);
+        return instanceSlot.SlotStartUtc == slotStartUtc;
+    }
 
     public static DiscoverySlotAudit AuditSlot(
+        DiscoverySlot slotHint,
         DateTimeOffset slotStartUtc,
-        IEnumerable<DiscoveryOrchestrationInstance> instances)
+        IEnumerable<DiscoveryOrchestrationInstance> instances,
+        IReadOnlyList<TimeOnly> runTimesUk,
+        TimeZoneInfo? ukTimeZone = null)
     {
+        var slotId = slotHint.SlotStartUtc == slotStartUtc
+            ? slotHint.SlotId
+            : DiscoverySchedule.GetLatestDueSlot(slotStartUtc.UtcDateTime, runTimesUk, ukTimeZone).SlotId;
+
         var slotInstances = instances
-            .Where(instance => InstanceBelongsToSlot(instance, slotStartUtc))
+            .Where(instance => InstanceBelongsToSlot(instance, slotStartUtc, runTimesUk, ukTimeZone))
             .OrderBy(instance => instance.CreatedAt)
             .ToList();
 
@@ -38,11 +52,12 @@ public static class DiscoverySlotAuditor
         {
             return new DiscoverySlotAudit(
                 DiscoverySlotAuditKind.Missing,
+                slotId,
                 slotStartUtc,
                 string.Empty,
                 null,
                 null,
-                $"No Discovery orchestration instance recorded for slot {FormatSlot(slotStartUtc)}.");
+                $"No Discovery orchestration instance recorded for slot {slotId}.");
         }
 
         var completed = slotInstances
@@ -51,11 +66,12 @@ public static class DiscoverySlotAuditor
         {
             return new DiscoverySlotAudit(
                 DiscoverySlotAuditKind.Completed,
+                slotId,
                 slotStartUtc,
                 completed.InstanceId,
                 completed.Status,
                 completed.CreatedAt,
-                $"Discovery slot {FormatSlot(slotStartUtc)} completed (instance-id='{completed.InstanceId}', created-at='{completed.CreatedAt.UtcDateTime:O}').");
+                $"Discovery slot {slotId} completed (instance-id='{completed.InstanceId}', created-at='{completed.CreatedAt.UtcDateTime:O}').");
         }
 
         var failed = slotInstances
@@ -64,23 +80,22 @@ public static class DiscoverySlotAuditor
         {
             return new DiscoverySlotAudit(
                 DiscoverySlotAuditKind.Failed,
+                slotId,
                 slotStartUtc,
                 failed.InstanceId,
                 failed.Status,
                 failed.CreatedAt,
-                $"Discovery slot {FormatSlot(slotStartUtc)} failed (instance-id='{failed.InstanceId}', created-at='{failed.CreatedAt.UtcDateTime:O}').");
+                $"Discovery slot {slotId} failed (instance-id='{failed.InstanceId}', created-at='{failed.CreatedAt.UtcDateTime:O}').");
         }
 
         var inProgress = slotInstances[^1];
         return new DiscoverySlotAudit(
             DiscoverySlotAuditKind.InProgress,
+            slotId,
             slotStartUtc,
             inProgress.InstanceId,
             inProgress.Status,
             inProgress.CreatedAt,
-            $"Discovery slot {FormatSlot(slotStartUtc)} is still '{inProgress.Status}' (instance-id='{inProgress.InstanceId}', created-at='{inProgress.CreatedAt.UtcDateTime:O}').");
+            $"Discovery slot {slotId} is still '{inProgress.Status}' (instance-id='{inProgress.InstanceId}', created-at='{inProgress.CreatedAt.UtcDateTime:O}').");
     }
-
-    public static string FormatSlot(DateTimeOffset slotStartUtc) =>
-        $"{slotStartUtc.UtcDateTime:yyyy-MM-dd HH:mm} UTC";
 }

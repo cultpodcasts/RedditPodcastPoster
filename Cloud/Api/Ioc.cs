@@ -90,6 +90,7 @@ public static class Ioc
             .AddScoped<IPersonHandler, PersonHandler>()
             .AddScoped<ITermsHandler, TermsHandler>()
             .AddScoped<IDiscoveryCurationHandler, DiscoveryCurationHandler>()
+            .AddScoped<IDiscoveryScheduleHandler, DiscoveryScheduleHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")

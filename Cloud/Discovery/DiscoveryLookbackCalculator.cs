@@ -3,27 +3,22 @@ namespace Discovery;
 public static class DiscoveryLookbackCalculator
 {
     /// <summary>
-    /// Default Dynamic overlap (10 minutes), mirroring the production static 6h10m vs 6h schedule overlap.
+    /// Default Dynamic overlap (10 minutes).
     /// Config <c>discover__DynamicLookbackOverlap</c> of <c>00:00:00</c> means no overlap:
     /// <c>since = lastSuccess</c>.
     /// </summary>
     public static readonly TimeSpan DefaultDynamicOverlap = TimeSpan.FromMinutes(10);
 
+    /// <summary>
+    /// Dynamic-only: <c>since = lastSuccess - overlap</c>.
+    /// Caller must ensure <paramref name="latestSuccessfulDiscoveryBegan"/> is non-null
+    /// (fail closed otherwise).
+    /// </summary>
     public static DateTime ResolveSince(
-        DateTime utcNow,
-        TimeSpan searchSince,
-        DiscoveryLookbackMode mode,
-        DateTime? latestSuccessfulDiscoveryBegan,
+        DateTime latestSuccessfulDiscoveryBegan,
         TimeSpan? dynamicOverlap = null)
     {
-        if (mode != DiscoveryLookbackMode.Dynamic || latestSuccessfulDiscoveryBegan is null)
-        {
-            return utcNow.Subtract(searchSince);
-        }
-
         var overlap = dynamicOverlap ?? DefaultDynamicOverlap;
-        // Anchor to last success (minus optional overlap). Do not floor at SearchSince —
-        // that forced a full static window even when the prior run was minutes ago.
-        return latestSuccessfulDiscoveryBegan.Value.ToUniversalTime().Subtract(overlap);
+        return latestSuccessfulDiscoveryBegan.ToUniversalTime().Subtract(overlap);
     }
 }

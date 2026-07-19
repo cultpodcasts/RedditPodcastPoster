@@ -5,8 +5,10 @@ namespace RedditPodcastPoster.Persistence.Abstractions;
 public interface ILookupRepository
 {
     Task<EliminationTerms?> GetEliminationTerms();
+    Task<DiscoveryScheduleConfig?> GetDiscoveryScheduleConfig();
     Task<TKnownTerms?> GetKnownTerms<TKnownTerms>() where TKnownTerms : CosmosSelector;
     Task SaveEliminationTerms(EliminationTerms eliminationTerms);
+    Task SaveDiscoveryScheduleConfig(DiscoveryScheduleConfig config);
     Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector;
     Task<HomePageCache?> GetHomePageCache();
     Task SaveHomePageCache(HomePageCache homePageCache);

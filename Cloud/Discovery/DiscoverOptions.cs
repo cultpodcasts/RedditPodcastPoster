@@ -2,21 +2,9 @@
 
 public class DiscoverOptions
 {
-    public required string SearchSince { get; set; }
-
     /// <summary>
-    /// Required. <see cref="DiscoveryLookbackMode.Static"/>: fixed <see cref="SearchSince"/> window
-    /// (may intentionally overlap the schedule, e.g. 6h10m over 6h).
-    /// <see cref="DiscoveryLookbackMode.Dynamic"/>: <c>since = lastSuccess - DynamicLookbackOverlap</c>
-    /// with no <see cref="SearchSince"/> floor; falls back to the static window when no prior signal exists.
-    /// Config key: <c>discover__LookbackMode</c>. No default — must be set explicitly.
-    /// </summary>
-    public DiscoveryLookbackMode? LookbackMode { get; set; }
-
-    /// <summary>
-    /// Overlap subtracted from the latest successful run when <see cref="LookbackMode"/> is Dynamic.
-    /// Defaults to 10 minutes to mirror the production static 6h10m vs 6h schedule overlap.
-    /// <c>00:00:00</c> means no overlap: <c>since = lastSuccess</c>.
+    /// Overlap subtracted from the latest successful run for Dynamic lookback.
+    /// Defaults to 10 minutes. <c>00:00:00</c> means no overlap: <c>since = lastSuccess</c>.
     /// Config key: <c>discover__DynamicLookbackOverlap</c>.
     /// </summary>
     public TimeSpan? DynamicLookbackOverlap { get; set; }
@@ -33,8 +21,6 @@ public class DiscoverOptions
     {
         var reportDefinition = new[]
         {
-            new {displayName = "since", value = SearchSince},
-            new {displayName = "lookback-mode", value = LookbackMode?.ToString() ?? "Unset"},
             new {displayName = "dynamic-lookback-overlap", value = DynamicLookbackOverlap?.ToString() ?? "Null"},
             new {displayName = "taddyOffset", value = TaddyOffset?.ToString() ?? "Null"},
             new {displayName = "exclude-spotify", value = ExcludeSpotify.ToString()},

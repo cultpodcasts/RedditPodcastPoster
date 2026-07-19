@@ -19,13 +19,17 @@ public class Orchestration : TaskOrchestrator<DiscoveryOrchestrationRunInput?, D
         // backlog draining after a broken host was fixed) must no-op instead of re-running
         // discovery. Deterministic: input is fixed and CurrentUtcDateTime is replay-safe.
         // Instances scheduled by older code carry no input and run unguarded.
-        if (input is not null &&
-            DiscoverySchedule.IsStaleRun(input.ScheduledAtUtc, context.CurrentUtcDateTime))
+        if (input is not null)
         {
-            logger.LogWarning(
-                "{nameofOrchestration} stale-run-skipped instance-id='{InstanceId}' scheduled-at-utc='{ScheduledAtUtc:O}' current-utc='{CurrentUtc:O}'.",
-                nameof(Orchestration), context.InstanceId, input.ScheduledAtUtc, context.CurrentUtcDateTime);
-            return new DiscoveryContext(Guid.Empty, Success: true);
+            var runTimes = DiscoverySchedule.ParseRunTimes(input.RunTimesUk);
+            if (DiscoverySchedule.IsStaleRun(input.SlotStartUtc, context.CurrentUtcDateTime, runTimes))
+            {
+                logger.LogWarning(
+                    "{nameofOrchestration} stale-run-skipped instance-id='{InstanceId}' slot='{SlotId}' scheduled-at-utc='{ScheduledAtUtc:O}' current-utc='{CurrentUtc:O}'.",
+                    nameof(Orchestration), context.InstanceId, input.SlotId, input.ScheduledAtUtc,
+                    context.CurrentUtcDateTime);
+                return new DiscoveryContext(Guid.Empty, Success: true);
+            }
         }
 
         var discoveryContext = new DiscoveryContext(context.NewGuid());
