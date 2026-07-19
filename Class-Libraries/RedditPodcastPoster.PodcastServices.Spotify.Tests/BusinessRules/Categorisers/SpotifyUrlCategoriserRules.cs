@@ -271,6 +271,7 @@ public class SpotifyUrlCategoriserRules
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
             Explicit = false,
+            IsPlayable = true,
             ExternalUrls = new Dictionary<string, string>
             {
                 ["spotify"] = _fixture.DefaultSpotifyUrl(episodeId).ToString()
@@ -296,7 +297,8 @@ public class SpotifyUrlCategoriserRules
             Name = _fixture.CreateTitle(),
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
-            Type = ItemType.Episode
+            Type = ItemType.Episode,
+            IsPlayable = true
         };
 
     private static SpotifyUrlCategoriser CreateSut(ISpotifyEpisodeResolver resolver) =>

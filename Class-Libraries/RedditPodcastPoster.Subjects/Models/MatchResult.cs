@@ -1,3 +1,5 @@
-﻿namespace RedditPodcastPoster.Subjects.Models;
+﻿using RedditPodcastPoster.Models;
 
-public record MatchResult(string Term, int Matches);
+namespace RedditPodcastPoster.Subjects.Models;
+
+public record MatchResult(string Term, int Matches, SubjectMatchSource? Source = null);

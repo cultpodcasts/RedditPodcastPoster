@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Extensions;
@@ -78,12 +79,113 @@ public class SpotifyEpisodeExtensionsRules
         result.Should().Be(DateTime.ParseExact(releaseDate, "yyyy-MM-dd", null));
     }
 
+    [Theory(DisplayName =
+        "When SimpleEpisode IsPlayable is set, IsSpotifyFree mirrors that flag " +
+        "because paywall filtering uses IsPlayable as the free-episode signal.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Simple_episode_is_spotify_free_matches_is_playable(bool isPlayable)
+    {
+        // Arrange
+        var episode = CreateSimpleEpisode(DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"));
+        episode.IsPlayable = isPlayable;
+
+        // Act / Assert
+        episode.IsSpotifyFree().Should().Be(isPlayable);
+    }
+
+    [Theory(DisplayName =
+        "When FullEpisode IsPlayable is set, IsSpotifyFree mirrors that flag " +
+        "because enricher and resolver gates share the same free-episode helper.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Full_episode_is_spotify_free_matches_is_playable(bool isPlayable)
+    {
+        // Arrange
+        var episode = CreateFullEpisode(DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"));
+        episode.IsPlayable = isPlayable;
+
+        // Act / Assert
+        episode.IsSpotifyFree().Should().Be(isPlayable);
+    }
+
+    [Fact(DisplayName =
+        "When SimpleEpisode is the base SDK type without Restrictions, GetSpotifyRestrictionReason returns (none) " +
+        "because absent restriction data must still log an explicit reason placeholder.")]
+    public void Simple_episode_without_restrictions_returns_none()
+    {
+        // Arrange
+        var episode = CreateSimpleEpisode(DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"));
+        episode.IsPlayable = false;
+
+        // Act / Assert
+        episode.GetSpotifyRestrictionReason().Should().Be(SpotifyEpisodeExtensions.AbsentRestrictionReason);
+    }
+
+    [Fact(DisplayName =
+        "When SimpleEpisodeWithRestrictions has restrictions.reason, GetSpotifyRestrictionReason returns that value " +
+        "because skip logs should surface why Spotify marked the episode non-playable.")]
+    public void Simple_episode_with_restriction_reason_returns_reason()
+    {
+        // Arrange
+        var episode = new SimpleEpisodeWithRestrictions
+        {
+            Id = _fixture.CreateSpotifyId(),
+            Name = _fixture.CreateTitle(),
+            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string> { ["reason"] = "payment_required" }
+        };
+
+        // Act / Assert
+        episode.GetSpotifyRestrictionReason().Should().Be("payment_required");
+    }
+
+    [Fact(DisplayName =
+        "When FullEpisodeWithRestrictions has empty Restrictions, GetSpotifyRestrictionReason returns (none) " +
+        "because missing reason must not be logged as a blank value.")]
+    public void Full_episode_with_empty_restrictions_returns_none()
+    {
+        // Arrange
+        var episode = new FullEpisodeWithRestrictions
+        {
+            Id = _fixture.CreateSpotifyId(),
+            Name = _fixture.CreateTitle(),
+            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string>()
+        };
+
+        // Act / Assert
+        episode.GetSpotifyRestrictionReason().Should().Be(SpotifyEpisodeExtensions.AbsentRestrictionReason);
+    }
+
+    [Fact(DisplayName =
+        "When FullEpisodeWithRestrictions has restrictions.reason, GetSpotifyRestrictionReason returns that value " +
+        "because hydrate/enricher skip paths share the same logging helper.")]
+    public void Full_episode_with_restriction_reason_returns_reason()
+    {
+        // Arrange
+        var episode = new FullEpisodeWithRestrictions
+        {
+            Id = _fixture.CreateSpotifyId(),
+            Name = _fixture.CreateTitle(),
+            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string> { ["reason"] = "payment_required" }
+        };
+
+        // Act / Assert
+        episode.GetSpotifyRestrictionReason().Should().Be("payment_required");
+    }
+
     private SimpleEpisode CreateSimpleEpisode(string? releaseDate) =>
         new()
         {
             Id = _fixture.CreateSpotifyId(),
             Name = _fixture.CreateTitle(),
-            ReleaseDate = releaseDate!
+            ReleaseDate = releaseDate!,
+            IsPlayable = true
         };
 
     private FullEpisode CreateFullEpisode(string? releaseDate) =>
@@ -91,6 +193,7 @@ public class SpotifyEpisodeExtensionsRules
         {
             Id = _fixture.CreateSpotifyId(),
             Name = _fixture.CreateTitle(),
-            ReleaseDate = releaseDate!
+            ReleaseDate = releaseDate!,
+            IsPlayable = true
         };
 }

@@ -22,6 +22,11 @@ public class UrlSubmissionGuestEnrichmentRules
 {
     private readonly DomainTestFixture _fixture = new();
 
+    private static PersonMatch CreatePersonMatch(string name) =>
+        new(
+            new PersonMatchPerson(Guid.NewGuid(), name, null, null),
+            [new PersonMatchResult(name, 1)]);
+
     [Fact(DisplayName =
         "When a new episode is created on an existing podcast, guest enrichment unions high-confidence guests onto the episode.")]
     public async Task new_episode_create_path_enriches_guests()
@@ -38,9 +43,9 @@ public class UrlSubmissionGuestEnrichmentRules
             .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
             {
-                episode.Guests = ["Janja Lalich"];
+                episode.Guests = ["Ada Example"];
             })
-            .ReturnsAsync(new EnrichGuestsResult(["Janja Lalich"], []));
+            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Ada Example")], []));
 
         var processor = CreateProcessor(
             matchingEpisode: null,
@@ -54,10 +59,48 @@ public class UrlSubmissionGuestEnrichmentRules
 
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Created);
-        result.Episode!.Guests.Should().Equal("Janja Lalich");
+        result.Episode!.Guests.Should().Equal("Ada Example");
+        result.SubmitEpisodeDetails!.People.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Ada Example");
         guestEnricher.Verify(
             x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When guest enrichment skips low-confidence matches, submit episode details include guest suggestions.")]
+    public async Task new_episode_create_path_includes_guest_suggestions()
+    {
+        // Arrange
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var created = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration()));
+        created.PodcastId = podcast.Id;
+        created.Subjects = ["Cults"];
+
+        var skipped = new PersonMatch(
+            new PersonMatchPerson(Guid.NewGuid(), "Sam", null, null),
+            [new PersonMatchResult("Sam", 1)]);
+
+        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        guestEnricher
+            .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
+            .ReturnsAsync(new EnrichGuestsResult([], [skipped]));
+
+        var processor = CreateProcessor(
+            matchingEpisode: null,
+            createdEpisode: created,
+            guestEnricher: guestEnricher.Object);
+
+        var categorisedItem = CreateSpotifyCategorisedItem(podcast, matchingEpisode: null, podcastEpisodes: []);
+
+        // Act
+        var result = await processor.AddEpisodeToExistingPodcast(categorisedItem);
+
+        // Assert
+        result.SubmitEpisodeDetails!.People.Should().BeEmpty();
+        result.SubmitEpisodeDetails!.GuestSuggestions.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Sam");
     }
 
     [Fact(DisplayName =
@@ -77,9 +120,9 @@ public class UrlSubmissionGuestEnrichmentRules
             .Setup(x => x.EnrichGuests(existing, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
             {
-                episode.Guests = ["Steven Hassan"];
+                episode.Guests = ["Pat Placeholder"];
             })
-            .ReturnsAsync(new EnrichGuestsResult(["Steven Hassan"], []));
+            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Pat Placeholder")], []));
 
         var processor = CreateProcessor(
             matchingEpisode: existing,
@@ -97,7 +140,9 @@ public class UrlSubmissionGuestEnrichmentRules
 
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
-        result.Episode!.Guests.Should().Equal("Steven Hassan");
+        result.Episode!.Guests.Should().Equal("Pat Placeholder");
+        result.SubmitEpisodeDetails!.People.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Pat Placeholder");
         guestEnricher.Verify(
             x => x.EnrichGuests(existing, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);
@@ -166,9 +211,9 @@ public class UrlSubmissionGuestEnrichmentRules
             .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
             {
-                episode.Guests = ["Janja Lalich"];
+                episode.Guests = ["Ada Example"];
             })
-            .ReturnsAsync(new EnrichGuestsResult(["Janja Lalich"], []));
+            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Ada Example")], []));
 
         var factory = new PodcastAndEpisodeFactory(
             episodeFactory.Object,
@@ -204,7 +249,7 @@ public class UrlSubmissionGuestEnrichmentRules
         var response = await factory.CreatePodcastWithEpisode(categorisedItem);
 
         // Assert
-        response.NewEpisode.Guests.Should().Equal("Janja Lalich");
+        response.NewEpisode.Guests.Should().Equal("Ada Example");
         guestEnricher.Verify(
             x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);

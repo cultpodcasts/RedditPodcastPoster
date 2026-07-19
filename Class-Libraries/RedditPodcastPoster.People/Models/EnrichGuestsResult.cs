@@ -1,5 +1,5 @@
 namespace RedditPodcastPoster.People.Models;
 
 public record EnrichGuestsResult(
-    string[] Additions,
+    PersonMatch[] Additions,
     PersonMatch[] SkippedLowConfidence);

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
@@ -95,12 +96,13 @@ public class SpotifyPodcastEpisodesProvider(
             if (allEpisodes.Any())
             {
                 return new PodcastEpisodesResult(
-                    allEpisodes
-                        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-                        .Where(x => x != null && x.Any())
-                        .SelectMany(x => x)
-                        .GroupBy(x => x.Id)
-                        .Select(x => x.First()),
+                    TakeFreeEpisodes(
+                        allEpisodes
+                            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                            .Where(x => x != null && x.Any())
+                            .SelectMany(x => x)
+                            .GroupBy(x => x.Id)
+                            .Select(x => x.First())),
                     expensiveQueryFound);
             }
         }
@@ -143,11 +145,41 @@ public class SpotifyPodcastEpisodesProvider(
             logger.LogInformation(
                 "{nameofGetEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
                 nameof(GetEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
-            return new PodcastEpisodesResult(pagedEpisodes?.Items ?? []);
+            return new PodcastEpisodesResult(TakeFreeEpisodes(pagedEpisodes?.Items ?? []));
         }
 
         var results = await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
-        _cache[request.SpotifyPodcastId.PodcastId] = results;
-        return results;
+        var freeResults = new PodcastEpisodesResult(
+            TakeFreeEpisodes(results.Episodes),
+            results.ExpensiveQueryFound);
+        _cache[request.SpotifyPodcastId.PodcastId] = freeResults;
+        return freeResults;
+    }
+
+    private List<SimpleEpisode> TakeFreeEpisodes(IEnumerable<SimpleEpisode> episodes)
+    {
+        var free = new List<SimpleEpisode>();
+        foreach (var episode in episodes)
+        {
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (episode == null)
+            {
+                continue;
+            }
+
+            if (!episode.IsSpotifyFree())
+            {
+                logger.LogWarning(
+                    "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
+                    episode.Id,
+                    episode.Name,
+                    episode.GetSpotifyRestrictionReason());
+                continue;
+            }
+
+            free.Add(episode);
+        }
+
+        return free;
     }
 }

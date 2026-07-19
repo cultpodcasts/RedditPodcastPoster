@@ -202,11 +202,10 @@ public class SubjectService(
             {
                 if (Include(ignoredAssociatedSubjects, term))
                 {
-                    var matchCtr = 0;
-                    var match = GetMatches(term.Term, WebUtility.HtmlDecode(episode.Title));
-                    if (match > 0)
+                    var titleMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episode.Title));
+                    if (titleMatch > 0)
                     {
-                        matchCtr += match;
+                        matches.Add(new MatchResult(term.Term, titleMatch, SubjectMatchSource.Title));
                     }
 
                     if (withDescription)
@@ -216,13 +215,8 @@ public class SubjectService(
                         var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
                         if (descMatch > 0)
                         {
-                            matchCtr += descMatch;
+                            matches.Add(new MatchResult(term.Term, descMatch, SubjectMatchSource.Description));
                         }
-                    }
-
-                    if (matchCtr > 0)
-                    {
-                        matches.Add(new MatchResult(term.Term, matchCtr));
                     }
                 }
             }

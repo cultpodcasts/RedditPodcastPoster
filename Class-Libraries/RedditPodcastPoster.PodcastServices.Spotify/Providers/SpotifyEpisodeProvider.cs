@@ -16,9 +16,7 @@ public class SpotifyEpisodeProvider(
     IHtmlSanitiser htmlSanitiser,
     IEpisodeCatalogueAdapter<SpotifyCatalogueInput> spotifyEpisodeAdapter,
     IEpisodeFromCandidateFactory episodeFromCandidateFactory,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeProvider> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyEpisodeProvider
 {
     public async Task<GetEpisodesResponse> GetEpisodes(GetEpisodesRequest request, IndexingContext indexingContext)
@@ -33,9 +31,26 @@ public class SpotifyEpisodeProvider(
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
+        episodes = episodes.Where(IsFreeSpotifyEpisode).ToList();
+
         return new GetEpisodesResponse(
             episodes.Select(MapEpisode).ToList(),
             expensiveQueryFound);
+    }
+
+    private bool IsFreeSpotifyEpisode(SpotifyAPI.Web.SimpleEpisode episode)
+    {
+        if (episode.IsSpotifyFree())
+        {
+            return true;
+        }
+
+        logger.LogWarning(
+            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
+            episode.Id,
+            episode.Name,
+            episode.GetSpotifyRestrictionReason());
+        return false;
     }
 
     private Episode MapEpisode(SpotifyAPI.Web.SimpleEpisode episode)

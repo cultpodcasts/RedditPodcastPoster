@@ -91,6 +91,16 @@ public class SpotifyUrlCategoriser(
             return null;
         }
 
+        if (!findEpisodeResponse.FullEpisode.IsSpotifyFree())
+        {
+            logger.LogWarning(
+                "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
+                findEpisodeResponse.FullEpisode.Id,
+                findEpisodeResponse.FullEpisode.Name,
+                findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
+            return null;
+        }
+
         return new ResolvedSpotifyItem(
             findEpisodeResponse.FullEpisode.Show.Id,
             findEpisodeResponse.FullEpisode.Id,
@@ -133,6 +143,17 @@ public class SpotifyUrlCategoriser(
             indexingContext);
         if (findEpisodeResponse.FullEpisode != null)
         {
+            if (!findEpisodeResponse.FullEpisode.IsSpotifyFree())
+            {
+                logger.LogWarning(
+                    "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
+                    findEpisodeResponse.FullEpisode.Id,
+                    findEpisodeResponse.FullEpisode.Name,
+                    findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
+                throw new InvalidOperationException(
+                    $"Spotify episode '{episodeId}' is not free/playable.");
+            }
+
             return new ResolvedSpotifyItem(
                 findEpisodeResponse.FullEpisode.Show.Id,
                 findEpisodeResponse.FullEpisode.Id,

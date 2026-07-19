@@ -96,6 +96,7 @@ public class SpotifyEpisodeEnricherCatalogueReleaseReducerRules
             HtmlDescription = $"<p>{_fixture.Create<string>()}</p>",
             DurationMs = (int)duration.TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
+            IsPlayable = true,
             ExternalUrls = new Dictionary<string, string> { ["spotify"] = spotifyUrl },
             Images = []
         };
