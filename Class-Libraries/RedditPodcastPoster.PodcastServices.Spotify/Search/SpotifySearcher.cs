@@ -38,12 +38,27 @@ public class SpotifySearcher(
             var termRegex = new Regex(queryRegexPattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var allResults = await spotifyClient.PaginateAll(results, response => response.Episodes, indexingContext);
 
-            var recentResults =
-                allResults?
-                    .Where(x =>
-                        x != null &&
-                        x.GetReleaseDate() >= indexingContext.ReleasedSince &&
-                        (termRegex.IsMatch(x.Name) || termRegex.IsMatch(x.Description))) ?? [];
+            var recentResults = new List<SimpleEpisode>();
+            foreach (var hit in allResults ?? [])
+            {
+                if (hit == null ||
+                    hit.GetReleaseDate() < indexingContext.ReleasedSince ||
+                    (!termRegex.IsMatch(hit.Name) && !termRegex.IsMatch(hit.Description)))
+                {
+                    continue;
+                }
+
+                if (!hit.IsSpotifyFree())
+                {
+                    logger.LogWarning(
+                        "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+                        hit.Id,
+                        hit.Name);
+                    continue;
+                }
+
+                recentResults.Add(hit);
+            }
 
             if (recentResults.Any())
             {
@@ -60,7 +75,9 @@ public class SpotifySearcher(
                         nameof(Search), episodeIds.Length, query, string.Join(",", episodeIds));
                 }
 
-                var episodeResults = fullShows?.Episodes.Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
+                var episodeResults = fullShows?.Episodes
+                    .Where(IsFreeFullEpisode)
+                    .Select(ToEpisodeResult) ?? Enumerable.Empty<EpisodeResult>();
                 logger.LogInformation(
                     "{SearchName}: Found {Count} items from spotify matching query '{Query}'.", nameof(Search), episodeResults.Count(x => x.Released >= indexingContext.ReleasedSince), query);
 
@@ -70,6 +87,20 @@ public class SpotifySearcher(
 
         logger.LogInformation("{SearchName}: Found no items from spotify matching query '{Query}'.", nameof(Search), query);
         return new List<EpisodeResult>();
+    }
+
+    private bool IsFreeFullEpisode(FullEpisode episode)
+    {
+        if (episode.IsSpotifyFree())
+        {
+            return true;
+        }
+
+        logger.LogWarning(
+            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false).",
+            episode.Id,
+            episode.Name);
+        return false;
     }
 
     private EpisodeResult ToEpisodeResult(FullEpisode episode)

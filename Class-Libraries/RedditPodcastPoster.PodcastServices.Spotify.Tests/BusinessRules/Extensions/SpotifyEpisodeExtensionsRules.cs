@@ -78,12 +78,43 @@ public class SpotifyEpisodeExtensionsRules
         result.Should().Be(DateTime.ParseExact(releaseDate, "yyyy-MM-dd", null));
     }
 
+    [Theory(DisplayName =
+        "When SimpleEpisode IsPlayable is set, IsSpotifyFree mirrors that flag " +
+        "because paywall filtering uses IsPlayable as the free-episode signal.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Simple_episode_is_spotify_free_matches_is_playable(bool isPlayable)
+    {
+        // Arrange
+        var episode = CreateSimpleEpisode(DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"));
+        episode.IsPlayable = isPlayable;
+
+        // Act / Assert
+        episode.IsSpotifyFree().Should().Be(isPlayable);
+    }
+
+    [Theory(DisplayName =
+        "When FullEpisode IsPlayable is set, IsSpotifyFree mirrors that flag " +
+        "because enricher and resolver gates share the same free-episode helper.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Full_episode_is_spotify_free_matches_is_playable(bool isPlayable)
+    {
+        // Arrange
+        var episode = CreateFullEpisode(DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"));
+        episode.IsPlayable = isPlayable;
+
+        // Act / Assert
+        episode.IsSpotifyFree().Should().Be(isPlayable);
+    }
+
     private SimpleEpisode CreateSimpleEpisode(string? releaseDate) =>
         new()
         {
             Id = _fixture.CreateSpotifyId(),
             Name = _fixture.CreateTitle(),
-            ReleaseDate = releaseDate!
+            ReleaseDate = releaseDate!,
+            IsPlayable = true
         };
 
     private FullEpisode CreateFullEpisode(string? releaseDate) =>
@@ -91,6 +122,7 @@ public class SpotifyEpisodeExtensionsRules
         {
             Id = _fixture.CreateSpotifyId(),
             Name = _fixture.CreateTitle(),
-            ReleaseDate = releaseDate!
+            ReleaseDate = releaseDate!,
+            IsPlayable = true
         };
 }
