@@ -55,6 +55,7 @@ public class UrlSubmissionGuestEnrichmentRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Created);
         result.Episode!.Guests.Should().Equal("Janja Lalich");
+        result.SubmitEpisodeDetails!.People.Should().Equal("Janja Lalich");
         guestEnricher.Verify(
             x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);
@@ -98,6 +99,7 @@ public class UrlSubmissionGuestEnrichmentRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
         result.Episode!.Guests.Should().Equal("Steven Hassan");
+        result.SubmitEpisodeDetails!.People.Should().Equal("Steven Hassan");
         guestEnricher.Verify(
             x => x.EnrichGuests(existing, It.IsAny<GuestEnrichmentOptions?>()),
             Times.Once);

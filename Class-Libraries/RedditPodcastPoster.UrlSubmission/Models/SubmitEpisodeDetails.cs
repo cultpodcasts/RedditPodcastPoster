@@ -6,5 +6,6 @@ public record SubmitEpisodeDetails(
     bool YouTube,
     string[]? Subjects = null,
     bool BBC = false,
-    bool InternetArchive = false
+    bool InternetArchive = false,
+    string[]? People = null
 );

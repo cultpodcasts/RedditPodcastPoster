@@ -50,6 +50,8 @@ public class PodcastProcessor(
 
         SubmitResultState episodeResult;
         Episode? episode;
+        string[]? subjectAdditions = null;
+        string[]? peopleAdditions = null;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
@@ -62,7 +64,7 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.IgnoredSubjects,
                     categorisedItem.MatchingPodcast.DefaultSubject,
                     categorisedItem.MatchingPodcast.DescriptionRegex));
-            await guestEnricher.EnrichGuests(episode);
+            var guestsResult = await guestEnricher.EnrichGuests(episode);
 
             if (!episode.Subjects.Any())
             {
@@ -90,7 +92,8 @@ public class PodcastProcessor(
                 episode.Urls.YouTube != null,
                 subjectsResult.Additions,
                 episode.Urls.BBC != null,
-                episode.Urls.InternetArchive != null);
+                episode.Urls.InternetArchive != null,
+                guestsResult.Additions);
         }
         else
         {
@@ -105,6 +108,11 @@ public class PodcastProcessor(
                         categorisedItem.MatchingPodcast.IgnoredSubjects,
                         categorisedItem.MatchingPodcast.DefaultSubject,
                         categorisedItem.MatchingPodcast.DescriptionRegex));
+                if (subjectsResult.Additions.Length > 0)
+                {
+                    subjectAdditions = subjectsResult.Additions;
+                }
+
                 if (episode.Subjects.Any())
                 {
                     episodeResult = SubmitResultState.Enriched;
@@ -114,10 +122,20 @@ public class PodcastProcessor(
             if (episode.Guests is not { Length: > 0 })
             {
                 var guestsResult = await guestEnricher.EnrichGuests(episode);
-                if (guestsResult.Additions.Any())
+                if (guestsResult.Additions.Length > 0)
                 {
+                    peopleAdditions = guestsResult.Additions;
                     episodeResult = SubmitResultState.Enriched;
                 }
+            }
+
+            if (subjectAdditions != null || peopleAdditions != null)
+            {
+                submitEpisodeDetails = submitEpisodeDetails! with
+                {
+                    Subjects = subjectAdditions ?? submitEpisodeDetails!.Subjects,
+                    People = peopleAdditions
+                };
             }
         }
 

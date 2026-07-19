@@ -57,7 +57,7 @@ public class PodcastAndEpisodeFactory(
 
         var episode = episodeFactory.CreateEpisode(categorisedItem);
         var subjectsResult = await subjectEnricher.EnrichSubjects(episode);
-        await guestEnricher.EnrichGuests(episode);
+        var guestsResult = await guestEnricher.EnrichGuests(episode);
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
         var submitEpisodeDetails = new SubmitEpisodeDetails(
@@ -66,7 +66,8 @@ public class PodcastAndEpisodeFactory(
             episode.Urls.YouTube != null,
             subjectsResult.Additions,
             episode.Urls.BBC != null,
-            episode.Urls.InternetArchive != null);
+            episode.Urls.InternetArchive != null,
+            guestsResult.Additions);
         episode.SetPodcastProperties(newPodcast);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }

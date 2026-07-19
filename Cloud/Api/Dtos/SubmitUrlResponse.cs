@@ -54,7 +54,8 @@ public class SubmitUrlResponse
                 resultSubmitEpisodeDetails.YouTube,
                 resultSubmitEpisodeDetails.BBC,
                 resultSubmitEpisodeDetails.InternetArchive,
-                resultSubmitEpisodeDetails.Subjects ?? []);
+                resultSubmitEpisodeDetails.Subjects ?? [],
+                resultSubmitEpisodeDetails.People ?? []);
         }
 
         return null;
