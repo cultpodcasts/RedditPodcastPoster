@@ -127,7 +127,8 @@ public class PersonHandler(
             person.Aliases,
             person.TwitterHandle,
             person.BlueskyHandle,
-            person.SortName);
+            person.SortName,
+            person.IsOrganization ?? false);
 
         var nameConflict = await personRepository.GetByName(entity.Name);
         if (nameConflict != null)
@@ -156,11 +157,32 @@ public class PersonHandler(
             entity.EnsureNameKey();
         }
 
+        if (change.IsOrganization.HasValue)
+        {
+            entity.IsOrganization = change.IsOrganization.Value;
+        }
+
         if (change.SortName != null)
         {
-            entity.SortName = string.IsNullOrWhiteSpace(change.SortName)
-                ? null
-                : change.SortName.Trim();
+            entity.SortName = PersonSortNameResolver.ResolveForPersist(
+                entity.Name,
+                change.SortName,
+                entity.IsOrganization);
+        }
+        else if (change.IsOrganization == true)
+        {
+            entity.SortName = PersonSortNameResolver.ResolveForPersist(
+                entity.Name,
+                entity.SortName,
+                isOrganization: true);
+        }
+        else if (change.IsOrganization == false)
+        {
+            // Dropping the org flag without an explicit sortName → surname default.
+            entity.SortName = PersonSortNameResolver.ResolveForPersist(
+                entity.Name,
+                sortName: null,
+                isOrganization: false);
         }
 
         if (change.Aliases != null)

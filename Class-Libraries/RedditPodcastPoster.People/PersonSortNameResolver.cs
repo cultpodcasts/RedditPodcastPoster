@@ -89,12 +89,12 @@ public static class PersonSortNameResolver
     /// <summary>
     /// Value to store on <see cref="Person.SortName"/>.
     /// <list type="bullet">
-    /// <item>Org/full-name path: persist <c>StripLeadingThe(Name)</c> (always, when ≠ last-token).</item>
+    /// <item>Explicit <paramref name="isOrganization"/> or heuristic org: persist <c>StripLeadingThe(Name)</c> when ≠ last-token.</item>
     /// <item>Manual overrides kept (leading "The " stripped when the value is an org full-name key).</item>
     /// <item>Null only when effective key equals the last whitespace token of Name.</item>
     /// </list>
     /// </summary>
-    public static string? ResolveForPersist(string? name, string? sortName)
+    public static string? ResolveForPersist(string? name, string? sortName, bool isOrganization = false)
     {
         var trimmedName = name?.Trim() ?? string.Empty;
         if (trimmedName.Length == 0)
@@ -103,8 +103,14 @@ public static class PersonSortNameResolver
         }
 
         var lastToken = Person.DeriveSortKeyFromName(trimmedName);
-        var isOrg = LooksLikeOrganization(trimmedName);
+        var isOrg = isOrganization || LooksLikeOrganization(trimmedName);
         var orgKey = isOrg ? StripLeadingThe(trimmedName) : null;
+
+        // Curator flagged organization: always use the full-name org key (ignore stale surname seed).
+        if (isOrganization && orgKey is not null)
+        {
+            return string.Equals(orgKey, lastToken, StringComparison.Ordinal) ? null : orgKey;
+        }
 
         string effective;
         if (!string.IsNullOrWhiteSpace(sortName))

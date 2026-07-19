@@ -13,6 +13,12 @@ public class Person
     [JsonPropertyName("sortName")]
     public string? SortName { get; set; }
 
+    /// <summary>
+    /// Organization/entity flag. On create/GET always set; on PATCH omit (null) to leave unchanged.
+    /// </summary>
+    [JsonPropertyName("isOrganization")]
+    public bool? IsOrganization { get; set; }
+
     [JsonPropertyName("aliases")]
     public string[]? Aliases { get; set; }
 

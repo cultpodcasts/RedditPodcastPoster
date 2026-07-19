@@ -9,7 +9,8 @@ public interface IPersonFactory
         string[]? aliases = null,
         string? twitterHandle = null,
         string? blueskyHandle = null,
-        string? sortName = null);
+        string? sortName = null,
+        bool isOrganization = false);
 }
 
 public class PersonFactory : IPersonFactory
@@ -19,7 +20,8 @@ public class PersonFactory : IPersonFactory
         string[]? aliases = null,
         string? twitterHandle = null,
         string? blueskyHandle = null,
-        string? sortName = null)
+        string? sortName = null,
+        bool isOrganization = false)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -28,7 +30,8 @@ public class PersonFactory : IPersonFactory
 
         var person = new Person(name.Trim())
         {
-            SortName = string.IsNullOrWhiteSpace(sortName) ? null : sortName.Trim(),
+            IsOrganization = isOrganization,
+            SortName = PersonSortNameResolver.ResolveForPersist(name.Trim(), sortName, isOrganization),
             Aliases = aliases?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToArray(),
             TwitterHandle = NormalizeHandle(twitterHandle),
             BlueskyHandle = NormalizeHandle(blueskyHandle)
