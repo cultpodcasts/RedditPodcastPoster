@@ -9,13 +9,14 @@ namespace Discovery;
 
 public class DiscoveryTrigger(
     ILogger<DiscoveryTrigger> logger,
-    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
+    IDiscoveryScheduleProvider discoveryScheduleProvider)
 {
-    private static readonly TimeSpan InstanceLookback = TimeSpan.FromHours(12);
+    private static readonly TimeSpan InstanceLookback = TimeSpan.FromHours(36);
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
     [Function("DiscoveryTrigger")]
-    public async Task Run([TimerTrigger("0 33 2/6 * * *"
+    public async Task Run([TimerTrigger("0 */30 * * * *"
 #if DEBUG
             , RunOnStartup = true
 #endif
@@ -26,23 +27,60 @@ public class DiscoveryTrigger(
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(DiscoveryTrigger));
         var utcNow = DateTime.UtcNow;
-        var currentSlotStart = DiscoverySchedule.GetSlotStartForTime(utcNow);
-        var priorSlotStart = DiscoverySchedule.GetPriorSlotStart(currentSlotStart);
+
+        var scheduleConfig = await discoveryScheduleProvider.GetAsync(cancellationToken);
+        if (!scheduleConfig.Enabled)
+        {
+            logger.LogWarning(
+                "{DiscoveryTriggerName} {RunName} skipped. DiscoveryScheduleConfig.enabled=false.",
+                nameof(DiscoveryTrigger),
+                nameof(Run));
+            memoryProbe.End();
+            return;
+        }
+
+        IReadOnlyList<TimeOnly> runTimes;
+        try
+        {
+            runTimes = DiscoverySchedule.ParseRunTimes(scheduleConfig.RunTimes);
+        }
+        catch (FormatException ex)
+        {
+            memoryProbe.End(false, ex.GetType().Name);
+            logger.LogError(ex, "Invalid DiscoveryScheduleConfig.runTimes; skipping tick.");
+            throw;
+        }
+
+        var ukTz = DiscoverySchedule.ResolveUkTimeZone(scheduleConfig.TimeZoneId);
+        var dueSlot = DiscoverySchedule.TryMatchDueSlot(utcNow, runTimes, DiscoverySchedule.DefaultGrace, ukTz);
+        if (dueSlot is null)
+        {
+            logger.LogInformation(
+                "{DiscoveryTriggerName} {RunName} no-op. UK local time is not within grace of a scheduled runTimes slot.",
+                nameof(DiscoveryTrigger),
+                nameof(Run));
+            memoryProbe.End();
+            return;
+        }
+
+        var currentSlot = dueSlot.Value;
+        var priorSlot = DiscoverySchedule.GetPriorSlot(currentSlot, runTimes, ukTz);
 
         logger.LogWarning(
-            "{DiscoveryTriggerName} {RunName} initiated slot-utc='{SlotUtc}'.",
+            "{DiscoveryTriggerName} {RunName} initiated slot='{SlotId}' slot-utc='{SlotUtc}'.",
             nameof(DiscoveryTrigger),
             nameof(Run),
-            DiscoverySlotAuditor.FormatSlot(currentSlotStart));
+            currentSlot.SlotId,
+            DiscoverySchedule.FormatSlot(currentSlot));
 
         var orchestrationInstances = await GetDiscoveryOrchestrationInstancesAsync(client, cancellationToken);
-        LogDiscoverySlotAudit(DiscoverySlotAuditor.AuditSlot(priorSlotStart, orchestrationInstances));
+        LogDiscoverySlotAudit(DiscoverySlotAuditor.AuditSlot(priorSlot, priorSlot.SlotStartUtc, orchestrationInstances, runTimes, ukTz));
 
         LogDiscoveryOrchestrationHealthIssues(
             DiscoveryOrchestrationHealthChecker.FindFailedInstances(orchestrationInstances));
 
         var stalePendingInstances = await TerminateStalePendingInstancesAsync(
-            client, currentSlotStart, orchestrationInstances, cancellationToken);
+            client, currentSlot, orchestrationInstances, cancellationToken);
         if (stalePendingInstances.Count > 0)
         {
             orchestrationInstances = orchestrationInstances
@@ -50,15 +88,16 @@ public class DiscoveryTrigger(
                 .ToList();
         }
 
-        var currentSlotAudit = DiscoverySlotAuditor.AuditSlot(currentSlotStart, orchestrationInstances);
+        var currentSlotAudit = DiscoverySlotAuditor.AuditSlot(
+            currentSlot, currentSlot.SlotStartUtc, orchestrationInstances, runTimes, ukTz);
         if (currentSlotAudit.Kind == DiscoverySlotAuditKind.Completed)
         {
             LogDiscoverySlotAudit(currentSlotAudit);
             logger.LogWarning(
-                "{DiscoveryTriggerName} {RunName} skipped. Discovery already completed for slot-utc='{SlotUtc}' instance-id='{InstanceId}'.",
+                "{DiscoveryTriggerName} {RunName} skipped. Discovery already completed for slot='{SlotId}' instance-id='{InstanceId}'.",
                 nameof(DiscoveryTrigger),
                 nameof(Run),
-                DiscoverySlotAuditor.FormatSlot(currentSlotStart),
+                currentSlot.SlotId,
                 currentSlotAudit.InstanceId);
 
             memoryProbe.End();
@@ -109,7 +148,11 @@ public class DiscoveryTrigger(
         {
             instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
                 nameof(Orchestration),
-                new DiscoveryOrchestrationRunInput(utcNow));
+                new DiscoveryOrchestrationRunInput(
+                    utcNow,
+                    currentSlot.SlotStartUtc,
+                    currentSlot.SlotId,
+                    runTimes.Select(t => t.ToString("HH\\:mm")).ToArray()));
         }
         catch (RpcException ex)
         {
@@ -141,10 +184,10 @@ public class DiscoveryTrigger(
         }
 
         logger.LogWarning(
-            "{DiscoveryTriggerName} {RunName} scheduled slot-utc='{SlotUtc}' instance-id='{InstanceId}'.",
+            "{DiscoveryTriggerName} {RunName} scheduled slot='{SlotId}' instance-id='{InstanceId}'.",
             nameof(DiscoveryTrigger),
             nameof(Run),
-            DiscoverySlotAuditor.FormatSlot(currentSlotStart),
+            currentSlot.SlotId,
             instanceId);
 
         memoryProbe.End();
@@ -152,12 +195,12 @@ public class DiscoveryTrigger(
 
     private async Task<IReadOnlyList<DiscoveryOrchestrationInstance>> TerminateStalePendingInstancesAsync(
         DurableTaskClient client,
-        DateTimeOffset currentSlotStart,
+        DiscoverySlot currentSlot,
         IReadOnlyList<DiscoveryOrchestrationInstance> orchestrationInstances,
         CancellationToken cancellationToken)
     {
         var staleInstances = DiscoveryOrchestrationHealthChecker.GetStalePendingInstances(
-            currentSlotStart, orchestrationInstances);
+            currentSlot.SlotStartUtc, orchestrationInstances);
         foreach (var staleInstance in staleInstances)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -169,11 +212,11 @@ public class DiscoveryTrigger(
                     $"Stale pending {nameof(Orchestration)} terminated by {nameof(DiscoveryTrigger)}.",
                     cancellationToken);
                 logger.LogWarning(
-                    "{DiscoveryTriggerName} terminated-stale instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}' slot-utc='{SlotUtc}'.",
+                    "{DiscoveryTriggerName} terminated-stale instance-id='{InstanceId}' created-at-utc='{CreatedAtUtc:O}' slot='{SlotId}'.",
                     nameof(DiscoveryTrigger),
                     staleInstance.InstanceId,
                     staleInstance.CreatedAt.UtcDateTime,
-                    DiscoverySlotAuditor.FormatSlot(currentSlotStart));
+                    currentSlot.SlotId);
             }
             catch (Exception ex)
             {
@@ -221,18 +264,18 @@ public class DiscoveryTrigger(
             var exception = new DiscoveryOrchestrationIncompleteException(audit.Message);
             logger.LogError(
                 exception,
-                "Discovery slot-audit kind='{Kind}' slot-utc='{SlotUtc}' instance-id='{InstanceId}' status='{Status}'.",
+                "Discovery slot-audit kind='{Kind}' slot='{SlotId}' instance-id='{InstanceId}' status='{Status}'.",
                 audit.Kind,
-                DiscoverySlotAuditor.FormatSlot(audit.SlotStartUtc),
+                audit.SlotId,
                 audit.InstanceId,
                 audit.Status);
             return;
         }
 
         logger.LogWarning(
-            "Discovery slot-audit kind='{Kind}' slot-utc='{SlotUtc}' instance-id='{InstanceId}' status='{Status}' created-at='{CreatedAtUtc}'. {Message}",
+            "Discovery slot-audit kind='{Kind}' slot='{SlotId}' instance-id='{InstanceId}' status='{Status}' created-at='{CreatedAtUtc}'. {Message}",
             audit.Kind,
-            DiscoverySlotAuditor.FormatSlot(audit.SlotStartUtc),
+            audit.SlotId,
             audit.InstanceId,
             audit.Status,
             audit.CreatedAt?.UtcDateTime,

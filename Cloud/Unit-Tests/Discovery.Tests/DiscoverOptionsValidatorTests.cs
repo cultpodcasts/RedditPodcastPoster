@@ -9,61 +9,29 @@ public class DiscoverOptionsValidatorTests
     private readonly DiscoverOptionsValidator _validator = new();
 
     [Fact]
-    public void Succeeds_when_SearchSince_and_LookbackMode_are_set()
+    public void Succeeds_when_options_are_default()
     {
-        var options = new DiscoverOptions
-        {
-            SearchSince = "6:10:00",
-            LookbackMode = DiscoveryLookbackMode.Dynamic
-        };
-
-        var result = _validator.Validate(null, options);
-
-        result.Succeeded.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Fails_when_LookbackMode_is_missing()
-    {
-        var options = new DiscoverOptions
-        {
-            SearchSince = "6:10:00",
-            LookbackMode = null
-        };
-
-        var result = _validator.Validate(null, options);
-
-        result.Failed.Should().BeTrue();
-        result.FailureMessage.Should().Contain("LookbackMode");
-        result.FailureMessage.Should().Contain("discover__LookbackMode");
-    }
-
-    [Fact]
-    public void Fails_when_SearchSince_is_missing()
-    {
-        var options = new DiscoverOptions
-        {
-            SearchSince = " ",
-            LookbackMode = DiscoveryLookbackMode.Static
-        };
-
-        var result = _validator.Validate(null, options);
-
-        result.Failed.Should().BeTrue();
-        result.FailureMessage.Should().Contain("SearchSince");
-    }
-
-    [Theory]
-    [InlineData(DiscoveryLookbackMode.Static)]
-    [InlineData(DiscoveryLookbackMode.Dynamic)]
-    public void Accepts_explicit_Static_or_Dynamic(DiscoveryLookbackMode mode)
-    {
-        var options = new DiscoverOptions
-        {
-            SearchSince = "6:10:00",
-            LookbackMode = mode
-        };
+        var options = new DiscoverOptions();
 
         _validator.Validate(null, options).Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Succeeds_when_DynamicLookbackOverlap_is_zero()
+    {
+        var options = new DiscoverOptions { DynamicLookbackOverlap = TimeSpan.Zero };
+
+        _validator.Validate(null, options).Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Fails_when_DynamicLookbackOverlap_is_negative()
+    {
+        var options = new DiscoverOptions { DynamicLookbackOverlap = TimeSpan.FromMinutes(-1) };
+
+        var result = _validator.Validate(null, options);
+
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("DynamicLookbackOverlap");
     }
 }

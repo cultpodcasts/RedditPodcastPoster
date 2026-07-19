@@ -1,19 +1,16 @@
 # Discovery backfill (console app)
 
-Use when scheduled `discover-infra` runs were missed. This documents **`Discover.exe`** (project `Console-Apps/Discover`), not the Azure Function host.
+Use when scheduled `discover-infra` runs were missed, or for the **mandatory first CLI seed** when Cosmos has no `discoveryBegan` watermark.
+
+> **CRITICAL cold start:** Cloud Discovery is Dynamic-only and **fail-closed**. If there is no prior successful Discovery document, the timer/orchestration **will fail** on purpose. Seed with `Discover.exe` first — full ops runbook: **[discovery-uk-schedule.md](./discovery-uk-schedule.md)**.
+
+This documents **`Discover.exe`** (project `Console-Apps/Discover`), not the Azure Function host.
 
 ## Scheduled runs (production)
 
-`DiscoveryTrigger` cron: `30 2/6 * * *` (UTC) → **03:30, 09:30, 15:30, 21:30 BST** (when UK is on BST, UTC+1).
+`DiscoveryTrigger` cron: `0 */30 * * * *` (UTC). Runs only when UK local time matches Cosmos `DiscoveryScheduleConfig.runTimes` (defaults `08:00` and `22:00` UK) within ±15 minutes. See [discovery-uk-schedule.md](./discovery-uk-schedule.md).
 
-Production static floor: `discover__SearchSince = 6:10:00` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) — used only when `LookbackMode` is `Static`, or as the Dynamic fallback when no prior Cosmos success exists. Production lookback is **dynamic**: `discover__LookbackMode = Dynamic` with `discover__DynamicLookbackOverlap = 00:10:00`, so each run searches from `lastSuccess - 10m` (and no static floor when a prior success exists). Missed slots therefore extend the window automatically. `LookbackMode` is required (no default); set `Static` explicitly only when a fixed window is wanted.
-
-Missed trigger on **11 Jun 2026**:
-
-| Missed run (BST) | Trigger (UTC) | Backfill `--time-since` (UTC) |
-|------------------|---------------|-------------------------------|
-| 03:30 | 2026-06-11T02:30:00Z | `2026-06-10T20:20:00Z` (6h10m before trigger) |
-| 09:30 | 2026-06-11T08:30:00Z | `2026-06-11T02:20:00Z` (6h10m before trigger) |
+Lookback is **Dynamic only**: `since = lastSuccess - discover__DynamicLookbackOverlap` (prod `00:10:00`). There is **no** `discover__SearchSince` / Static mode. Missed slots extend the window automatically once a watermark exists.
 
 ## CLI — verified
 
@@ -69,11 +66,22 @@ Exit code `0`. Cosmos/API credentials were available via user secrets on the ope
 
 3. Run from any directory; config loads from the exe folder (`appsettings.json` or `Discover.appsettings.json`). After `publish-console-apps.ps1`, `artifacts\tools\Discover.appsettings.json` is copied alongside `Discover.exe`.
 
-## Backfill command (11 Jun 2026)
+## First-run seed (required when watermark missing)
 
 **Requires user approval before running against production Cosmos.**
 
-Single command covering both missed **03:30** and **09:30 BST** runs on 11 Jun 2026 (see table above for per-window semantics). Production-equivalent flags (from bicep `discover__*` settings):
+```powershell
+$exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
+& $exe --time-since "2026-07-18T20:00:00Z" `
+  --include-listen-notes --include-taddy --include-youtube `
+  --taddy-offset 02:00:00
+```
+
+Adjust `--time-since` to the intentional backfill start (UTC). Successful run prints `Discovery initiated at '<timestamp>'.` and persists results via `IDiscoveryResultsRepository.Save`. After that, scheduled cloud runs use Dynamic lookback from the new watermark.
+
+## Backfill command (historical — 11 Jun 2026, old 6h UTC cron)
+
+For the miss under the **previous** schedule (`:33` UTC / 6h cadence). Prefer UK-slot-aware `--time-since` going forward.
 
 ```powershell
 $exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
@@ -82,27 +90,23 @@ $exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
   --taddy-offset 02:00:00
 ```
 
-`--time-since` searches all episodes released since that timestamp (no upper bound until now). The earliest missed-window start — 6h10m before the 03:30 BST trigger (`2026-06-10T20:20:00Z`) — covers both gaps in one pass. The 10-minute overlap between the two scheduled windows is harmless.
-
-Successful run prints `Discovery initiated at '<timestamp>'.` and persists results via `IDiscoveryResultsRepository.Save` (same path as normal CLI discovery, not the Durable Function orchestration).
-
 ## Differences from cloud Discovery
 
 | Aspect | Cloud (`discover-infra`) | Console (`Discover.exe`) |
 |--------|--------------------------|---------------------------|
-| Entry | Timer → Durable orchestration | Direct CLI |
-| Queries | `discover__Queries__*` in bicep | `discover:Queries` in `appsettings.json` / `Discover.appsettings.json` (synced from bicep) |
-| Search window | `discover__SearchSince` + required `discover__LookbackMode` (`Dynamic` in prod) | `-t` / `-r` arguments |
+| Entry | 30-min Timer → UK schedule gate → Durable orchestration | Direct CLI |
+| Queries | `discover__Queries__*` in bicep | `discover:Queries` in `appsettings.json` / `Discover.appsettings.json` |
+| Search window | Dynamic from Cosmos watermark (fail-closed if none) | `-t` / `-r` arguments |
 | Notifications / publisher | Full orchestration pipeline | Saves discovery document only |
 
-CLI service flags (`--include-listen-notes`, `--include-taddy`, `--include-youtube`) and `--taddy-offset` default to production bicep values. Search window still comes from `-t` / `-r`, not `discover__SearchSince`.
+CLI service flags (`--include-listen-notes`, `--include-taddy`, `--include-youtube`) and `--taddy-offset` default to production bicep values. Search window comes from `-t` / `-r` only.
 
 ## When cloud discovery is down
 
-1. Confirm missed runs (no `DiscoveryTrigger` traces in App Insights for `discover-infra`).
-2. Run backfill command above (with user approval for production Cosmos).
+1. Confirm missed runs via **`AppRequests`** for `discover-infra` (not traces alone) — see production execution truth rules.
+2. If fails are lookback fail-closed: seed/backfill with CLI (approval required).
 3. Fix hosting separately — see [deployment.md](./deployment.md). Do not change app settings during code deploy.
-4. After `discover-infra` is healthy, scheduled runs resume; backfill covers the gap only if CLI runs completed successfully.
+4. After `discover-infra` is healthy and a watermark exists, scheduled UK slots resume.
 
 ## Agent rules
 

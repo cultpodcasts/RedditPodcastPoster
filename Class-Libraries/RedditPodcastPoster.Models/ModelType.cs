@@ -47,6 +47,9 @@ public enum ModelType
     YouTubeQuotaUsageState = 14,
 
     [JsonPropertyName(nameof(Person))]
-    Person = 15
+    Person = 15,
+
+    [JsonPropertyName(nameof(DiscoveryScheduleConfig))]
+    DiscoveryScheduleConfig = 16
 
 }

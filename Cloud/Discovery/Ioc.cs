@@ -44,7 +44,8 @@ public static class Ioc
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
             .AddSingleton<IValidateOptions<DiscoverOptions>, DiscoverOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
-            .AddScoped<IDiscoveryLookbackResolver, DiscoveryLookbackResolver>();
+            .AddScoped<IDiscoveryLookbackResolver, DiscoveryLookbackResolver>()
+            .AddScoped<IDiscoveryScheduleProvider, DiscoveryScheduleProvider>();
 
         serviceCollection.AddOptions<DiscoverOptions>().ValidateOnStart();
     }

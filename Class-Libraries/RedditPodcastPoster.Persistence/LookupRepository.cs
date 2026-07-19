@@ -16,6 +16,11 @@ public class LookupRepository(
         return GetBy<EliminationTerms>(x => x.Id == EliminationTerms._Id && x.ModelType == ModelType.EliminationTerms);
     }
 
+    public Task<DiscoveryScheduleConfig?> GetDiscoveryScheduleConfig()
+    {
+        return GetById<DiscoveryScheduleConfig>(DiscoveryScheduleConfig._Id);
+    }
+
     public Task<TKnownTerms?> GetKnownTerms<TKnownTerms>() where TKnownTerms : CosmosSelector
     {
         return GetBy<TKnownTerms>(x => x.ModelType == ModelType.KnownTerms);
@@ -29,6 +34,11 @@ public class LookupRepository(
     public async Task SaveEliminationTerms(EliminationTerms eliminationTerms)
     {
         await lookupContainer.UpsertItemAsync(eliminationTerms, new PartitionKey(eliminationTerms.Id.ToString()));
+    }
+
+    public async Task SaveDiscoveryScheduleConfig(DiscoveryScheduleConfig config)
+    {
+        await lookupContainer.UpsertItemAsync(config, new PartitionKey(config.Id.ToString()));
     }
 
     public async Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector

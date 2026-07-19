@@ -39,14 +39,25 @@ public class Discover(
         logger.LogInformation("{method}: discovery-options: {discoverOptions}",
             nameof(RunAsync), _discoverOptions);
         logger.LogInformation("{method}: discovery-context: {input}", nameof(RunAsync), input);
-        var lookback = await discoveryLookbackResolver.ResolveAsync();
+
+        DiscoveryLookbackResolution lookback;
+        try
+        {
+            // Fail-closed: no watermark / Cosmos failure throws DiscoveryLookbackUnavailableException.
+            lookback = await discoveryLookbackResolver.ResolveAsync();
+        }
+        catch (Exception ex)
+        {
+            memoryProbe.End(false, ex.GetType().Name);
+            throw;
+        }
+
         var since = lookback.Since;
         logger.LogInformation(
-            "Discovering items released since '{since:O}' (local:'{sinceLocal:O}', lookback-mode:'{lookbackMode}', latest-run:'{latestRun}'). ",
+            "Discovering items released since '{since:O}' (local:'{sinceLocal:O}', lookback:'Dynamic', latest-run:'{latestRun}'). ",
             since.ToUniversalTime(),
             since.ToLocalTime(),
-            lookback.ModeUsed,
-            lookback.LatestSuccessfulDiscoveryBegan?.ToString("O") ?? "none");
+            lookback.LatestSuccessfulDiscoveryBegan.ToString("O"));
 
         var indexingContext = new IndexingContext(
             since,
@@ -59,6 +70,7 @@ public class Discover(
 
         if (DryRun.IsDiscoverDryRun)
         {
+            memoryProbe.End(true);
             return input with
             {
                 Success = true
@@ -68,6 +80,7 @@ public class Discover(
         var activityBooked = await activityMarshaller.Initiate(input.DiscoveryOperationId, nameof(Discover));
         if (activityBooked != ActivityStatus.Initiated)
         {
+            memoryProbe.End(true);
             return input with
             {
                 DuplicateDiscoveryOperation = true
