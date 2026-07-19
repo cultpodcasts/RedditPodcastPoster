@@ -56,7 +56,9 @@ public class SubmitUrlResponse
                 resultSubmitEpisodeDetails.BBC,
                 resultSubmitEpisodeDetails.InternetArchive,
                 resultSubmitEpisodeDetails.Subjects ?? [],
-                resultSubmitEpisodeDetails.People ?? [],
+                (resultSubmitEpisodeDetails.People ?? [])
+                .Select(ToPersonMatchDto)
+                .ToArray(),
                 (resultSubmitEpisodeDetails.GuestSuggestions ?? [])
                 .Select(ToPersonMatchDto)
                 .ToArray());

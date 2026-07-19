@@ -39,7 +39,8 @@ public record SubmitResult(
 
             if (SubmitEpisodeDetails.People != null)
             {
-                results.Add($"people: '{string.Join("', '", SubmitEpisodeDetails.People)}'");
+                results.Add(
+                    $"people: '{string.Join("', '", SubmitEpisodeDetails.People.Select(x => x.Person.Name))}'");
             }
         }
 

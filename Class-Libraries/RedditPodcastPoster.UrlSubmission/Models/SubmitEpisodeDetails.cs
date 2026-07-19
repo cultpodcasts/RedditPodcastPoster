@@ -9,6 +9,6 @@ public record SubmitEpisodeDetails(
     string[]? Subjects = null,
     bool BBC = false,
     bool InternetArchive = false,
-    string[]? People = null,
+    PersonMatch[]? People = null,
     PersonMatch[]? GuestSuggestions = null
 );

@@ -23,6 +23,11 @@ public class IndexingGuestEnrichmentRules
     private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
     private readonly DomainTestFixture _fixture = new();
 
+    private static PersonMatch CreatePersonMatch(string name) =>
+        new(
+            new PersonMatchPerson(Guid.NewGuid(), name, null, null),
+            [new PersonMatchResult(name, 1)]);
+
     [Fact(DisplayName =
         "When indexing adds an episode, guest enrichment unions guests and persists the episode.")]
     public async Task indexing_added_episode_enriches_guests()
@@ -63,7 +68,7 @@ public class IndexingGuestEnrichmentRules
             {
                 episode.Guests = ["Janja Lalich"];
             })
-            .ReturnsAsync(new EnrichGuestsResult(["Janja Lalich"], []));
+            .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Janja Lalich")], []));
 
         var indexer = new Indexer(
             podcastRepository,

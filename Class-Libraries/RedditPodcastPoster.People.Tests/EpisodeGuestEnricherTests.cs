@@ -27,7 +27,8 @@ public class EpisodeGuestEnricherTests
 
         var result = await CreateSut().EnrichGuests(episode);
 
-        result.Additions.Should().Equal("Janja Lalich");
+        result.Additions.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Janja Lalich");
         result.SkippedLowConfidence.Should().BeEmpty();
         episode.Guests.Should().Equal("Janja Lalich");
     }
@@ -68,7 +69,8 @@ public class EpisodeGuestEnricherTests
 
         var result = await CreateSut().EnrichGuests(episode);
 
-        result.Additions.Should().Equal("Janja Lalich");
+        result.Additions.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Janja Lalich");
         episode.Guests.Should().BeEquivalentTo(["Existing Guest", "Janja Lalich"]);
     }
 
@@ -130,7 +132,8 @@ public class EpisodeGuestEnricherTests
             episode,
             GuestEnrichmentOptions.Default with { MinMatchCount = 2 });
 
-        result.Additions.Should().Equal("Janja Lalich");
+        result.Additions.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Janja Lalich");
         episode.Guests.Should().Equal("Janja Lalich");
     }
 

@@ -22,7 +22,7 @@ public class EpisodeGuestEnricher(
         var existing = episode.Guests?.ToHashSet(StringComparer.OrdinalIgnoreCase)
                        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var additions = new List<string>();
+        var additions = new List<PersonMatch>();
         var skipped = new List<PersonMatch>();
 
         foreach (var match in matches)
@@ -38,14 +38,15 @@ public class EpisodeGuestEnricher(
                 continue;
             }
 
-            additions.Add(match.Person.Name);
+            additions.Add(match);
             existing.Add(match.Person.Name);
         }
 
         if (additions.Count > 0)
         {
+            var addedNames = additions.Select(x => x.Person.Name).ToArray();
             episode.Guests = (episode.Guests ?? [])
-                .Concat(additions)
+                .Concat(addedNames)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
@@ -53,7 +54,7 @@ public class EpisodeGuestEnricher(
                 "{Method}: added {Count} guest(s) [{Guests}] to '{EpisodeTitle}' ({EpisodeId}); skipped {Skipped} low-confidence.",
                 nameof(EnrichGuests),
                 additions.Count,
-                string.Join(", ", additions),
+                string.Join(", ", addedNames),
                 episode.Title,
                 episode.Id,
                 skipped.Count);

@@ -52,7 +52,7 @@ public class PodcastProcessor(
         SubmitResultState episodeResult;
         Episode? episode;
         string[]? subjectAdditions = null;
-        string[]? peopleAdditions = null;
+        PersonMatch[]? peopleAdditions = null;
         PersonMatch[]? guestSuggestions = null;
         if (matchingEpisode == null)
         {
