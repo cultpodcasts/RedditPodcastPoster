@@ -39,7 +39,7 @@ public class SpotifyEpisodeResolver(
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
             if (fullEpisode != null)
             {
-                return new FindEpisodeResponse(TakeIfFree(fullEpisode));
+                return new FindEpisodeResponse(fullEpisode);
             }
         }
 
@@ -71,21 +71,6 @@ public class SpotifyEpisodeResolver(
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
         }
 
-        return new FindEpisodeResponse(TakeIfFree(fullEpisode), podcastEpisodes.ExpensiveQueryFound);
-    }
-
-    private FullEpisode? TakeIfFree(FullEpisode? episode)
-    {
-        if (episode == null || episode.IsSpotifyFree())
-        {
-            return episode;
-        }
-
-        logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-            episode.Id,
-            episode.Name,
-            episode.GetSpotifyRestrictionReason());
-        return null;
+        return new FindEpisodeResponse(fullEpisode, podcastEpisodes.ExpensiveQueryFound);
     }
 }

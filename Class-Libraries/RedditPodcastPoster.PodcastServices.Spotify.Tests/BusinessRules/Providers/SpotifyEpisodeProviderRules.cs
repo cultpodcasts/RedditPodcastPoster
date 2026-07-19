@@ -99,26 +99,6 @@ public class SpotifyEpisodeProviderRules
         result.ExpensiveQueryFound.Should().BeFalse();
     }
 
-    [Fact(DisplayName =
-        "When a SimpleEpisode has IsPlayable=false, GetEpisodes excludes it from mapped results " +
-        "because paywalled Spotify episodes must not be indexed via the Spotify provider.")]
-    public async Task Non_playable_episode_is_excluded_from_mapped_results()
-    {
-        // Arrange
-        var free = CreateSimpleEpisode(DomainTestFixture.UtcDateDaysAgo(1), isPlayable: true);
-        var paywalled = CreateSimpleEpisode(DomainTestFixture.UtcDateDaysAgo(1), isPlayable: false);
-        var inner = CreateInnerProvider([free, paywalled], expensive: false);
-        var sut = CreateSut(inner.Object);
-        var request = new GetEpisodesRequest(new SpotifyPodcastId(_fixture.CreateSpotifyId()), Market: null);
-
-        // Act
-        var result = await sut.GetEpisodes(request, new IndexingContext());
-
-        // Assert
-        result.Results.Should().ContainSingle();
-        result.Results![0].SpotifyId.Should().Be(free.Id);
-    }
-
     private Mock<ISpotifyPodcastEpisodesProvider> CreateInnerProvider(
         IList<SimpleEpisode> episodes,
         bool expensive)
@@ -130,7 +110,7 @@ public class SpotifyEpisodeProviderRules
         return inner;
     }
 
-    private SimpleEpisode CreateSimpleEpisode(DateTime release, bool isPlayable = true)
+    private SimpleEpisode CreateSimpleEpisode(DateTime release)
     {
         var id = _fixture.CreateSpotifyId();
         return new SimpleEpisode
@@ -141,7 +121,6 @@ public class SpotifyEpisodeProviderRules
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
             Explicit = false,
-            IsPlayable = isPlayable,
             ExternalUrls = new Dictionary<string, string>
             {
                 ["spotify"] = _fixture.DefaultSpotifyUrl(id).ToString()

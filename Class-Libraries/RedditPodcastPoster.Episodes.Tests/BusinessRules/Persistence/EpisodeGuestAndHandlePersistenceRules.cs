@@ -27,7 +27,7 @@ public class EpisodeGuestAndHandlePersistenceRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.Guests = ["Ada Example", "Pat Placeholder"];
+                e.Guests = ["Janja Lalich", "Steven Hassan"];
             })
             .Create();
 
@@ -36,7 +36,7 @@ public class EpisodeGuestAndHandlePersistenceRules
         var stored = repository.GetStored(episode.Id);
 
         // Assert
-        stored.Guests.Should().Equal("Ada Example", "Pat Placeholder");
+        stored.Guests.Should().Equal("Janja Lalich", "Steven Hassan");
     }
 
     [Fact(DisplayName =
@@ -52,7 +52,7 @@ public class EpisodeGuestAndHandlePersistenceRules
             .WithYouTube(youTubeInput.YouTubeId, youTubeInput.YouTubeUrl)
             .Customize(e =>
             {
-                e.Guests = ["Ada Example"];
+                e.Guests = ["Janja Lalich"];
                 e.SpotifyId = string.Empty;
                 e.Urls.Spotify = null;
             })
@@ -68,7 +68,7 @@ public class EpisodeGuestAndHandlePersistenceRules
 
         // Assert
         result.MergedEpisodes.Should().ContainSingle();
-        stored.Guests.Should().Equal("Ada Example");
+        stored.Guests.Should().Equal("Janja Lalich");
         stored.SpotifyId.Should().Be(spotifyInput.SpotifyId);
         stored.Urls.Spotify.Should().Be(spotifyInput.SpotifyUrl);
     }

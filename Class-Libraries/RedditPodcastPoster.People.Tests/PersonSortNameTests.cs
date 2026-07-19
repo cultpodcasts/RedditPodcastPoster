@@ -7,9 +7,9 @@ namespace RedditPodcastPoster.People.Tests;
 public class PersonSortNameTests
 {
     [Theory]
-    [InlineData("Ada Example", "Example")]
+    [InlineData("Ilhan Omar", "Omar")]
     [InlineData("  Mary Smith-Jones  ", "Smith-Jones")]
-    [InlineData("Solara", "Solara")]
+    [InlineData("Madonna", "Madonna")]
     [InlineData("Jean-Luc Picard", "Picard")]
     [InlineData("A B C", "C")]
     public void DeriveSortKeyFromName_UsesLastWhitespaceToken(string name, string expected)
@@ -29,15 +29,15 @@ public class PersonSortNameTests
     [Fact]
     public void GetEffectiveSortKey_NullSortName_DerivesLastToken()
     {
-        Person.GetEffectiveSortKey("Ada Example", null).Should().Be("Example");
-        Person.GetEffectiveSortKey("Ada Example", "").Should().Be("Example");
-        Person.GetEffectiveSortKey("Ada Example", "   ").Should().Be("Example");
+        Person.GetEffectiveSortKey("Ilhan Omar", null).Should().Be("Omar");
+        Person.GetEffectiveSortKey("Ilhan Omar", "").Should().Be("Omar");
+        Person.GetEffectiveSortKey("Ilhan Omar", "   ").Should().Be("Omar");
     }
 
     [Fact]
     public void GetEffectiveSortKey_ExplicitSortName_UsesOverride()
     {
-        Person.GetEffectiveSortKey("Ada Example", "Example, Ada").Should().Be("Example, Ada");
+        Person.GetEffectiveSortKey("Ilhan Omar", "Omar, Ilhan").Should().Be("Omar, Ilhan");
         Person.GetEffectiveSortKey("Something Else", "  Custom  ").Should().Be("Custom");
     }
 
@@ -51,8 +51,8 @@ public class PersonSortNameTests
     [Fact]
     public void Instance_GetEffectiveSortKey_UsesPersistedSortName()
     {
-        var person = new Person("Ada Example") { SortName = null };
-        person.GetEffectiveSortKey().Should().Be("Example");
+        var person = new Person("Ilhan Omar") { SortName = null };
+        person.GetEffectiveSortKey().Should().Be("Omar");
 
         person.SortName = "Church of Scientology";
         person.Name = "Church of Scientology";
@@ -63,31 +63,31 @@ public class PersonSortNameTests
     public void PersonFactory_Create_SetsSortName_WithoutChangingNameKey()
     {
         var person = new PersonFactory().Create(
-            "  Ada Example  ",
-            sortName: "  Example, Ada  ");
+            "  Ilhan Omar  ",
+            sortName: "  Omar, Ilhan  ");
 
-        person.Name.Should().Be("Ada Example");
-        person.NameKey.Should().Be("ada example");
-        person.SortName.Should().Be("Example, Ada");
-        person.GetEffectiveSortKey().Should().Be("Example, Ada");
+        person.Name.Should().Be("Ilhan Omar");
+        person.NameKey.Should().Be("ilhan omar");
+        person.SortName.Should().Be("Omar, Ilhan");
+        person.GetEffectiveSortKey().Should().Be("Omar, Ilhan");
     }
 
     [Fact]
     public void PersonFactory_Create_BlankSortName_LeavesNull()
     {
-        var person = new PersonFactory().Create("Ada Example", sortName: "  ");
+        var person = new PersonFactory().Create("Ilhan Omar", sortName: "  ");
 
         person.SortName.Should().BeNull();
-        person.GetEffectiveSortKey().Should().Be("Example");
-        person.NameKey.Should().Be("ada example");
+        person.GetEffectiveSortKey().Should().Be("Omar");
+        person.NameKey.Should().Be("ilhan omar");
     }
 
     [Theory]
     [InlineData("CNN News Central", true)]
     [InlineData("Church of Scientology", true)]
     [InlineData("University of Michigan", true)]
-    [InlineData("Ada Example", false)]
-    [InlineData("Casey Compound Surname", false)]
+    [InlineData("Ilhan Omar", false)]
+    [InlineData("Daniella Mestyanek Young", false)]
     public void LooksLikeOrganization_DetectsOrgKeywords(string name, bool expected)
     {
         PersonSortNameResolver.LooksLikeOrganization(name).Should().Be(expected);
@@ -96,10 +96,10 @@ public class PersonSortNameTests
     [Fact]
     public void ResolveForPersist_OmitsLastTokenDefault()
     {
-        PersonSortNameResolver.ResolveForPersist("Ada Example", null).Should().BeNull();
-        PersonSortNameResolver.ResolveForPersist("Ada Example", "Example").Should().BeNull();
-        PersonSortNameResolver.ResolveForPersist("Ada Example", "  Example  ").Should().BeNull();
-        PersonSortNameResolver.ResolveForPersist("Pat Placeholder", null).Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", null).Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", "Omar").Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Ilhan Omar", "  Omar  ").Should().BeNull();
+        PersonSortNameResolver.ResolveForPersist("Alan Sherry", null).Should().BeNull();
     }
 
     [Fact]
@@ -129,8 +129,8 @@ public class PersonSortNameTests
     [Fact]
     public void GuessSortName_Person_UsesLastToken()
     {
-        PersonSortNameResolver.GuessSortName("Ada Example").Should().Be("Example");
-        PersonSortNameResolver.GuessSortName("Solara").Should().Be("Solara");
+        PersonSortNameResolver.GuessSortName("Ilhan Omar").Should().Be("Omar");
+        PersonSortNameResolver.GuessSortName("Madonna").Should().Be("Madonna");
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class PersonSortNameTests
     [Fact]
     public void ResolveForPersist_KeepsManualOverride()
     {
-        PersonSortNameResolver.ResolveForPersist("Casey Compound Surname", "Compound Surname")
-            .Should().Be("Compound Surname");
+        PersonSortNameResolver.ResolveForPersist("Daniella Mestyanek Young", "Mestyanek Young")
+            .Should().Be("Mestyanek Young");
     }
 }

@@ -14,11 +14,7 @@ public class SubjectEnricher(
         SubjectEnrichmentOptions? options = null)
     {
         var subjectMatches = await subjectMatcher.MatchSubjects(episode, options);
-        var (additions, removals) = CompareSubjects(
-            episode.Subjects,
-            episode.RemovedSubjects,
-            subjectMatches,
-            options?.DefaultSubject);
+        var (additions, removals) = CompareSubjects(episode.Subjects, subjectMatches, options?.DefaultSubject);
         var hadSubjects = episode.Subjects.Any();
         if (additions.Any())
         {
@@ -51,9 +47,7 @@ public class SubjectEnricher(
         }
         else
         {
-            if (!episode.Subjects.Any() &&
-                !string.IsNullOrWhiteSpace(options?.DefaultSubject) &&
-                !episode.IsSubjectRemovedByUser(options.DefaultSubject))
+            if (!episode.Subjects.Any() && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
             {
                 additions.Add(new SubjectMatch(new Subject(options.DefaultSubject), []));
                 episode.Subjects = [options.DefaultSubject];
@@ -75,9 +69,7 @@ public class SubjectEnricher(
                 string.Join(",", removals.Select(x => "'" + x + "'")), episode.Title, episode.Id);
         }
 
-        if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) &&
-            !episode.IsSubjectRemovedByUser(options.DefaultSubject) &&
-            !hadSubjects &&
+        if (!string.IsNullOrWhiteSpace(options?.DefaultSubject) && !hadSubjects &&
             (!episode.Subjects.Any() || episode.Subjects.All(x => x.StartsWith("_"))))
         {
             if (!episode.Subjects.Contains(options.DefaultSubject, StringComparer.OrdinalIgnoreCase))
@@ -96,48 +88,11 @@ public class SubjectEnricher(
                 options.DefaultSubject, episode.Title, episode.Id);
         }
 
-        SyncSubjectMatches(episode, subjectMatches);
-
         return new EnrichSubjectsResult(additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
-    }
-
-    private static void SyncSubjectMatches(Episode episode, IList<SubjectMatch> subjectMatches)
-    {
-        episode.Matches.RemoveAll(m => episode.IsSubjectRemovedByUser(m.Subject));
-
-        var episodeSubjects = new HashSet<string>(episode.Subjects, StringComparer.OrdinalIgnoreCase);
-        foreach (var match in subjectMatches)
-        {
-            if (!episodeSubjects.Contains(match.Subject.Name) ||
-                episode.IsSubjectRemovedByUser(match.Subject.Name))
-            {
-                continue;
-            }
-
-            var evidence = match.MatchResults.Where(r => r.Source.HasValue).ToArray();
-            if (evidence.Length == 0)
-            {
-                continue;
-            }
-
-            episode.Matches.RemoveAll(m =>
-                m.Subject.Equals(match.Subject.Name, StringComparison.OrdinalIgnoreCase));
-
-            foreach (var result in evidence)
-            {
-                episode.Matches.Add(new EpisodeSubjectMatch
-                {
-                    Subject = match.Subject.Name,
-                    Term = result.Term,
-                    Source = result.Source!.Value
-                });
-            }
-        }
     }
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(
         IList<string> existingSubjects,
-        IList<string> removedSubjects,
         IList<SubjectMatch> matches,
         string? defaultSubject)
     {
@@ -148,8 +103,7 @@ public class SubjectEnricher(
         foreach (var match in matches)
         {
             var matchName = match.Subject.Name.ToLowerInvariant();
-            if (!loweredExistingSubjects.Contains(matchName) &&
-                !removedSubjects.Any(x => x.Equals(match.Subject.Name, StringComparison.OrdinalIgnoreCase)))
+            if (!loweredExistingSubjects.Contains(matchName))
             {
                 additions.Add(match);
             }

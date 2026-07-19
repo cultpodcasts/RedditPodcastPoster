@@ -151,7 +151,6 @@ public class SpotifyUrlCategoriserUrlAuthorityRules
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
             Explicit = false,
-            IsPlayable = true,
             ExternalUrls = new Dictionary<string, string>
             {
                 ["spotify"] = _fixture.DefaultSpotifyUrl(episodeId).ToString()

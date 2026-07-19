@@ -7,10 +7,10 @@ namespace RedditPodcastPoster.People.Tests;
 public class PersonNameKeyTests
 {
     [Theory]
-    [InlineData("Ada Example", "ada example")]
-    [InlineData("  Ada Example  ", "ada example")]
-    [InlineData("ADA EXAMPLE", "ada example")]
-    [InlineData("ada example", "ada example")]
+    [InlineData("Ilhan Omar", "ilhan omar")]
+    [InlineData("  Ilhan Omar  ", "ilhan omar")]
+    [InlineData("ILHAN OMAR", "ilhan omar")]
+    [InlineData("ilhan omar", "ilhan omar")]
     public void NormalizeNameKey_TrimsAndLowercases(string input, string expected)
     {
         Person.NormalizeNameKey(input).Should().Be(expected);
@@ -28,9 +28,9 @@ public class PersonNameKeyTests
     [Fact]
     public void Constructor_SetsNameKey()
     {
-        var person = new Person("  Ada Example  ");
+        var person = new Person("  Ilhan Omar  ");
 
-        person.NameKey.Should().Be("ada example");
+        person.NameKey.Should().Be("ilhan omar");
     }
 
     [Fact]
@@ -47,17 +47,17 @@ public class PersonNameKeyTests
     [Fact]
     public void PersonFactory_Create_SetsNameKey()
     {
-        var person = new PersonFactory().Create("  Ada Example  ");
+        var person = new PersonFactory().Create("  Ilhan Omar  ");
 
-        person.Name.Should().Be("Ada Example");
-        person.NameKey.Should().Be("ada example");
+        person.Name.Should().Be("Ilhan Omar");
+        person.NameKey.Should().Be("ilhan omar");
     }
 
     [Fact]
     public void NameKeys_DifferingOnlyByCase_AreEqual()
     {
-        var a = Person.NormalizeNameKey("Ada Example");
-        var b = Person.NormalizeNameKey("ada example");
+        var a = Person.NormalizeNameKey("Ilhan Omar");
+        var b = Person.NormalizeNameKey("ilhan omar");
 
         a.Should().Be(b);
     }

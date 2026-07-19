@@ -53,38 +53,33 @@ public class RecentPodcastEpisodeCategoriser(
                 .GroupBy(x => x.Podcast.Id)
                 .Select(g => $"'{g.First().Podcast.Name}' ({g.Key})")));
 
-        foreach (var podcastGroup in podcastEpisodesToCategorise.GroupBy(x => x.Podcast.Id))
+        foreach (var podcastEpisode in podcastEpisodesToCategorise)
         {
-            var podcast = podcastGroup.First().Podcast;
-            var episodeDeltas = new List<CategoriseEpisodeDelta>();
+            logger.LogWarning("{method}: Categorise podcast '{Name}'.", nameof(Categorise),
+                podcastEpisode.Podcast.Name);
+            logger.LogWarning("{method}: Categorise episode '{episodeTitle}'.", nameof(Categorise),
+                podcastEpisode.Episode.Title);
 
-            foreach (var podcastEpisode in podcastGroup)
+            var updatedEpisode = await categoriser.Categorise(
+                podcastEpisode.Episode,
+                podcastEpisode.Podcast.IgnoredAssociatedSubjects,
+                podcastEpisode.Podcast.IgnoredSubjects,
+                podcastEpisode.Podcast.DefaultSubject,
+                podcastEpisode.Podcast.DescriptionRegex);
+
+            if (updatedEpisode)
             {
-                var episode = podcastEpisode.Episode;
-                var before = episode.Subjects.ToArray();
+                await episodeRepository.Save(podcastEpisode.Episode);
 
-                var updatedEpisode = await categoriser.Categorise(
-                    episode,
-                    podcast.IgnoredAssociatedSubjects,
-                    podcast.IgnoredSubjects,
-                    podcast.DefaultSubject,
-                    podcast.DescriptionRegex);
-
-                if (updatedEpisode)
-                {
-                    await episodeRepository.Save(episode);
-                    updatedEpisodes.Add(episode.Id);
-                }
-
-                episodeDeltas.Add(CategoriseEpisodeDelta.From(
-                    episode.Id,
-                    episode.Title,
-                    before,
-                    episode.Subjects.ToArray(),
-                    updatedEpisode));
+                updatedEpisodes.Add(podcastEpisode.Episode.Id);
+                logger.LogWarning(
+                    "{method}: Podcast '{podcastName}' with id '{podcastId}' and episode with id {episodeId}, updated subjects persisted: {subjects}.",
+                    nameof(Categorise),
+                    podcastEpisode.Podcast.Name,
+                    podcastEpisode.Podcast.Id,
+                    podcastEpisode.Episode.Id,
+                    string.Join(", ", podcastEpisode.Episode.Subjects.Select(x => $"'{x}'")));
             }
-
-            CategorisePodcastLogger.Log(logger, podcast.Id, podcast.Name, episodeDeltas);
         }
 
         return updatedEpisodes;

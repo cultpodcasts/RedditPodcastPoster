@@ -560,8 +560,6 @@ public class EpisodeHandler(
             Urls = episode.Urls,
             Images = episode.Images,
             Subjects = episode.Subjects,
-            RemovedSubjects = episode.RemovedSubjects,
-            Matches = episode.Matches,
             SearchTerms = episode.SearchTerms,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
@@ -756,9 +754,10 @@ public class EpisodeHandler(
                 episodeChangeRequest.BlueskyPosted.HasValue && episodeChangeRequest.BlueskyPosted.Value ? true : null;
         }
 
-        if (episodeChangeRequest.Subjects != null && episode.ApplyUserSubjects(episodeChangeRequest.Subjects))
+        if (episodeChangeRequest.Subjects != null && !episode.Subjects.SequenceEqual(episodeChangeRequest.Subjects))
         {
             changeState.UpdatedSubjects = true;
+            episode.Subjects = episodeChangeRequest.Subjects.ToList();
         }
 
         if (episodeChangeRequest.Urls?.Spotify != null)

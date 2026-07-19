@@ -8,20 +8,20 @@ public class PersonGetNamesTests
     [Fact]
     public void GetNames_YieldsTrimmedName()
     {
-        var person = new Person("  Ada Example  ");
+        var person = new Person("  Ilhan Omar  ");
 
-        person.GetNames().Should().Equal("Ada Example");
+        person.GetNames().Should().Equal("Ilhan Omar");
     }
 
     [Fact]
     public void GetNames_YieldsTrimmedNameAndAliases()
     {
-        var person = new Person("Ada Example")
+        var person = new Person("Ilhan Omar")
         {
-            Aliases = ["  Ada  ", "Example", "  ", null!]
+            Aliases = ["  Ilhan  ", "Omar", "  ", null!]
         };
 
-        person.GetNames().Should().Equal("Ada Example", "Ada", "Example");
+        person.GetNames().Should().Equal("Ilhan Omar", "Ilhan", "Omar");
     }
 
     [Fact]

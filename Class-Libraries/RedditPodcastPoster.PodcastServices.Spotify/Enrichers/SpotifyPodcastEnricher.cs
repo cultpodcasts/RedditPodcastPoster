@@ -10,7 +10,9 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 public class SpotifyPodcastEnricher(
     ISpotifyEpisodeResolver spotifyIdResolver,
     ISpotifyPodcastResolver spotifyPodcastResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyPodcastEnricher> logger)
+#pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyPodcastEnricher
 {
     public async Task<bool> AddIdAndUrls(Podcast podcast, IEnumerable<Episode> episodes, IndexingContext indexingContext)
@@ -46,16 +48,7 @@ public class SpotifyPodcastEnricher(
                             podcast,
                             podcastEpisode),
                         indexingContext);
-                    if (findEpisodeResponse.FullEpisode != null &&
-                        !findEpisodeResponse.FullEpisode.IsSpotifyFree())
-                    {
-                        logger.LogWarning(
-                            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                            findEpisodeResponse.FullEpisode.Id,
-                            findEpisodeResponse.FullEpisode.Name,
-                            findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
-                    }
-                    else if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
+                    if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
                         podcastEpisode.SpotifyId = findEpisodeResponse.FullEpisode.Id;
                         podcastShouldUpdate = true;

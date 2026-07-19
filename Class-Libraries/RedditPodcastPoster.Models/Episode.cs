@@ -72,17 +72,6 @@ public class Episode
     [JsonPropertyOrder(70)]
     public List<string> Subjects { get; set; } = [];
 
-    /// <summary>
-    /// Subjects removed by a curator; indexer enrichment must not re-add these.
-    /// </summary>
-    [JsonPropertyName("removedSubjects")]
-    [JsonPropertyOrder(71)]
-    public List<string> RemovedSubjects { get; set; } = [];
-
-    [JsonPropertyName("matches")]
-    [JsonPropertyOrder(72)]
-    public List<EpisodeSubjectMatch> Matches { get; set; } = [];
-
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
@@ -281,34 +270,4 @@ public class Episode
         Language = podcastLanguage;
         return true;
     }
-
-    /// <summary>
-    /// Applies a curator subject update and maintains <see cref="RemovedSubjects"/>.
-    /// </summary>
-    public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
-    {
-        var newList = newSubjects.ToList();
-        if (Subjects.SequenceEqual(newList))
-        {
-            return false;
-        }
-
-        var newSet = new HashSet<string>(newList, StringComparer.OrdinalIgnoreCase);
-        foreach (var subject in Subjects)
-        {
-            if (!newSet.Contains(subject) &&
-                !RemovedSubjects.Contains(subject, StringComparer.OrdinalIgnoreCase))
-            {
-                RemovedSubjects.Add(subject);
-            }
-        }
-
-        RemovedSubjects.RemoveAll(s => newSet.Contains(s));
-        Subjects = newList;
-        Matches.RemoveAll(m => !newSet.Contains(m.Subject, StringComparer.OrdinalIgnoreCase));
-        return true;
-    }
-
-    public bool IsSubjectRemovedByUser(string subjectName) =>
-        RemovedSubjects.Contains(subjectName, StringComparer.OrdinalIgnoreCase);
 }

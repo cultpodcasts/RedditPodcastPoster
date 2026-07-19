@@ -220,41 +220,11 @@ public class SpotifySearcherRules
         return client;
     }
 
-    [Fact(DisplayName =
-        "When a search hit has IsPlayable=false, Search excludes it before hydrate " +
-        "because paywalled Spotify episodes must not enter discovery results.")]
-    public async Task Non_playable_search_hit_is_excluded()
-    {
-        // Arrange
-        const string query = "cultists";
-        var episodeId = _fixture.CreateSpotifyId();
-        var searchHit = CreateSimpleEpisode(
-            episodeId,
-            name: $"Interview with {query} today",
-            release: DomainTestFixture.UtcDateDaysAgo(1),
-            isPlayable: false);
-        var client = CreateClientReturning([searchHit], fullEpisode: null);
-        var sut = CreateSut(client.Object);
-
-        // Act
-        var results = await sut.Search(query, new IndexingContext(ReleasedSince: DomainTestFixture.UtcDateDaysAgo(3)));
-
-        // Assert
-        results.Should().BeEmpty();
-        client.Verify(
-            x => x.GetSeveral(
-                It.IsAny<EpisodesRequest>(),
-                It.IsAny<IndexingContext>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
     private SimpleEpisode CreateSimpleEpisode(
         string id,
         string name,
         DateTime release,
-        string? description = null,
-        bool isPlayable = true) =>
+        string? description = null) =>
         new()
         {
             Id = id,
@@ -262,8 +232,7 @@ public class SpotifySearcherRules
             Description = description ?? _fixture.CreateTitle(),
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
-            Type = ItemType.Episode,
-            IsPlayable = isPlayable
+            Type = ItemType.Episode
         };
 
     private FullEpisode CreateFullEpisode(string episodeId, string title, DateTime release)
@@ -277,7 +246,6 @@ public class SpotifySearcherRules
             DurationMs = (int)_fixture.CreateDuration().TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
             Explicit = false,
-            IsPlayable = true,
             ExternalUrls = new Dictionary<string, string>
             {
                 ["spotify"] = _fixture.DefaultSpotifyUrl(episodeId).ToString()

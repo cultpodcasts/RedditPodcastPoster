@@ -55,7 +55,7 @@ public class SpotifyEpisodeResolverRules
     {
         // Arrange
         var episodeId = _fixture.CreateSpotifyId();
-        var fullEpisode = new FullEpisode { Id = episodeId, Name = _fixture.CreateTitle(), IsPlayable = true };
+        var fullEpisode = new FullEpisode { Id = episodeId, Name = _fixture.CreateTitle() };
         var provider = new Mock<ISpotifyPodcastEpisodesProvider>(MockBehavior.Strict);
         var wrapper = new Mock<ISpotifyClientWrapper>();
         wrapper
@@ -105,7 +105,7 @@ public class SpotifyEpisodeResolverRules
         var released = DomainTestFixture.UtcDateDaysAgo(2);
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released);
-        var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
+        var hydrated = new FullEpisode { Id = matchId, Name = title };
         var provider = new Mock<ISpotifyPodcastEpisodesProvider>();
         provider
             .Setup(x => x.GetAllEpisodes(
@@ -180,7 +180,7 @@ public class SpotifyEpisodeResolverRules
         var released = DomainTestFixture.UtcDateDaysAgo(1);
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released);
-        var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
+        var hydrated = new FullEpisode { Id = matchId, Name = title };
         var provider = new Mock<ISpotifyPodcastEpisodesProvider>();
         provider
             .Setup(x => x.GetAllEpisodes(
@@ -254,7 +254,7 @@ public class SpotifyEpisodeResolverRules
         var released = DomainTestFixture.UtcDateDaysAgo(3);
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released, length);
-        var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
+        var hydrated = new FullEpisode { Id = matchId, Name = title };
         Func<SimpleEpisode, bool>? reducer = _ => true;
         var provider = new Mock<ISpotifyPodcastEpisodesProvider>();
         provider
@@ -334,7 +334,7 @@ public class SpotifyEpisodeResolverRules
         var released = DomainTestFixture.UtcDateDaysAgo(4);
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released, length);
-        var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
+        var hydrated = new FullEpisode { Id = matchId, Name = title };
         var provider = new Mock<ISpotifyPodcastEpisodesProvider>();
         provider
             .Setup(x => x.GetAllEpisodes(
@@ -439,51 +439,6 @@ public class SpotifyEpisodeResolverRules
             Times.Once);
     }
 
-    [Fact(DisplayName =
-        "When GetFullEpisode returns an episode with IsPlayable=false, FindEpisode returns no episode " +
-        "because paywalled Spotify episodes must not be attached or enriched.")]
-    public async Task Non_playable_full_episode_is_excluded()
-    {
-        // Arrange
-        var episodeId = _fixture.CreateSpotifyId();
-        var paywalled = new FullEpisode
-        {
-            Id = episodeId,
-            Name = _fixture.CreateTitle(),
-            IsPlayable = false
-        };
-        var provider = new Mock<ISpotifyPodcastEpisodesProvider>(MockBehavior.Strict);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
-        wrapper
-            .Setup(x => x.GetFullEpisode(
-                episodeId,
-                It.IsAny<EpisodeRequest>(),
-                It.IsAny<IndexingContext>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(paywalled);
-        var finder = new Mock<ISpotifySearchResultFinder>(MockBehavior.Strict);
-        var sut = CreateSut(provider.Object, wrapper.Object, finder.Object);
-        var request = new FindSpotifyEpisodeRequest(
-            PodcastSpotifyId: _fixture.CreateSpotifyId(),
-            PodcastName: _fixture.CreateTitle(),
-            EpisodeSpotifyId: episodeId,
-            EpisodeTitle: _fixture.CreateTitle(),
-            Released: DomainTestFixture.UtcDateDaysAgo(1),
-            HasExpensiveSpotifyEpisodesQuery: false);
-
-        // Act
-        var result = await sut.FindEpisode(request, new IndexingContext());
-
-        // Assert
-        result.FullEpisode.Should().BeNull();
-        provider.Verify(
-            x => x.GetAllEpisodes(
-                It.IsAny<FindSpotifyEpisodeRequest>(),
-                It.IsAny<IndexingContext>(),
-                It.IsAny<string>()),
-            Times.Never);
-    }
-
     private SimpleEpisode CreateSimpleEpisode(
         string id,
         string title,
@@ -495,8 +450,7 @@ public class SpotifyEpisodeResolverRules
             Name = title,
             DurationMs = (int)(length ?? _fixture.CreateDuration()).TotalMilliseconds,
             ReleaseDate = release.ToString("yyyy-MM-dd"),
-            Type = ItemType.Episode,
-            IsPlayable = true
+            Type = ItemType.Episode
         };
 
     private static SpotifyEpisodeResolver CreateSut(

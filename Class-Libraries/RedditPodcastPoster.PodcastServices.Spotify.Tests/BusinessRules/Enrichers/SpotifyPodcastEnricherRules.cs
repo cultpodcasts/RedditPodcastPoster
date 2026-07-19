@@ -91,8 +91,7 @@ public class SpotifyPodcastEnricherRules
         {
             Id = resolvedEpisodeId,
             Name = episode.Title,
-            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
-            IsPlayable = true
+            ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd")
         };
         var podcastResolver = new Mock<ISpotifyPodcastResolver>(MockBehavior.Strict);
         var episodeResolver = new Mock<ISpotifyEpisodeResolver>();

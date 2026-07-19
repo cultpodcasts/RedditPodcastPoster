@@ -296,56 +296,18 @@ public class SpotifyPodcastEpisodesProviderRules
             Times.Never);
     }
 
-    [Fact(DisplayName =
-        "When the first page includes a non-playable episode, GetEpisodes excludes it under the expensive-query guard " +
-        "because paywalled Spotify episodes must not enter the catalogue matching cache.")]
-    public async Task Known_id_path_excludes_non_playable_on_first_page()
-    {
-        // Arrange
-        var showId = _fixture.CreateSpotifyId();
-        var free = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1, isPlayable: true);
-        var paywalled = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1, isPlayable: false);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
-        wrapper
-            .Setup(x => x.GetShowEpisodes(
-                showId,
-                It.IsAny<ShowEpisodesRequest>(),
-                It.IsAny<IndexingContext>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Paging<SimpleEpisode>
-            {
-                Items = [free, paywalled],
-                Next = "https://api.spotify.com/v1/shows/x/episodes?offset=5"
-            });
-
-        var sut = CreateSut(wrapper.Object, Mock.Of<ISpotifyQueryPaginator>(), Mock.Of<ISpotifySearchResultFinder>());
-        var indexingContext = new IndexingContext(
-            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
-            SkipPodcastDiscovery: true,
-            SkipExpensiveSpotifyQueries: true);
-
-        // Act
-        var result = await sut.GetEpisodes(
-            new GetEpisodesRequest(new SpotifyPodcastId(showId), Market.CountryCode, HasExpensiveSpotifyEpisodesQuery: true),
-            indexingContext);
-
-        // Assert
-        result.Episodes.Select(x => x.Id).Should().ContainSingle().Which.Should().Be(free.Id);
-    }
-
     private static SpotifyPodcastEpisodesProvider CreateSut(
         ISpotifyClientWrapper wrapper,
         ISpotifyQueryPaginator paginator,
         ISpotifySearchResultFinder finder) =>
         new(wrapper, paginator, finder, NullLogger<SpotifyPodcastEpisodesProvider>.Instance);
 
-    private SimpleEpisode CreateEpisode(string id, int daysAgo, bool isPlayable = true) =>
+    private SimpleEpisode CreateEpisode(string id, int daysAgo) =>
         new()
         {
             Id = id,
             Name = _fixture.CreateTitle(),
             ReleaseDate = DomainTestFixture.UtcDateDaysAgo(daysAgo).ToString("yyyy-MM-dd"),
-            Type = ItemType.Episode,
-            IsPlayable = isPlayable
+            Type = ItemType.Episode
         };
 }
