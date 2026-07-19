@@ -560,6 +560,8 @@ public class EpisodeHandler(
             Urls = episode.Urls,
             Images = episode.Images,
             Subjects = episode.Subjects,
+            RemovedSubjects = episode.RemovedSubjects,
+            Matches = episode.Matches,
             SearchTerms = episode.SearchTerms,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
