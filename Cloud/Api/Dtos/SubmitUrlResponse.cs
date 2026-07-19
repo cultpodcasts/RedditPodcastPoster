@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -55,9 +56,29 @@ public class SubmitUrlResponse
                 resultSubmitEpisodeDetails.BBC,
                 resultSubmitEpisodeDetails.InternetArchive,
                 resultSubmitEpisodeDetails.Subjects ?? [],
-                resultSubmitEpisodeDetails.People ?? []);
+                resultSubmitEpisodeDetails.People ?? [],
+                (resultSubmitEpisodeDetails.GuestSuggestions ?? [])
+                .Select(ToPersonMatchDto)
+                .ToArray());
         }
 
         return null;
+    }
+
+    private static PersonMatchDto ToPersonMatchDto(PersonMatch match)
+    {
+        return new PersonMatchDto
+        {
+            Person = new Person
+            {
+                Id = match.Person.Id,
+                Name = match.Person.Name,
+                TwitterHandle = match.Person.TwitterHandle,
+                BlueskyHandle = match.Person.BlueskyHandle
+            },
+            MatchResults = match.MatchResults
+                .Select(x => new PersonMatchResultDto { Term = x.Term, Matches = x.Matches })
+                .ToArray()
+        };
     }
 }

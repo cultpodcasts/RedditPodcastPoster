@@ -9,7 +9,8 @@ public class SubmitEpisodeDetails(
     bool BBC,
     bool internetArchive,
     string[] subjects,
-    string[] people
+    string[] people,
+    PersonMatchDto[] guestSuggestions
 )
 {
     [JsonPropertyName("spotify")]
@@ -32,4 +33,7 @@ public class SubmitEpisodeDetails(
 
     [JsonPropertyName("internetArchive")]
     public bool InternetArchive { get; private set; } = internetArchive;
+
+    [JsonPropertyName("guestSuggestions")]
+    public PersonMatchDto[] GuestSuggestions { get; private set; } = guestSuggestions;
 }

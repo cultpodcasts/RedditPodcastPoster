@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.People;
+using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
@@ -52,6 +53,7 @@ public class PodcastProcessor(
         Episode? episode;
         string[]? subjectAdditions = null;
         string[]? peopleAdditions = null;
+        PersonMatch[]? guestSuggestions = null;
         if (matchingEpisode == null)
         {
             episodeResult = SubmitResultState.Created;
@@ -93,7 +95,8 @@ public class PodcastProcessor(
                 subjectsResult.Additions,
                 episode.Urls.BBC != null,
                 episode.Urls.InternetArchive != null,
-                guestsResult.Additions);
+                guestsResult.Additions,
+                guestsResult.SkippedLowConfidence);
         }
         else
         {
@@ -127,14 +130,20 @@ public class PodcastProcessor(
                     peopleAdditions = guestsResult.Additions;
                     episodeResult = SubmitResultState.Enriched;
                 }
+
+                if (guestsResult.SkippedLowConfidence.Length > 0)
+                {
+                    guestSuggestions = guestsResult.SkippedLowConfidence;
+                }
             }
 
-            if (subjectAdditions != null || peopleAdditions != null)
+            if (subjectAdditions != null || peopleAdditions != null || guestSuggestions != null)
             {
                 submitEpisodeDetails = submitEpisodeDetails! with
                 {
                     Subjects = subjectAdditions ?? submitEpisodeDetails!.Subjects,
-                    People = peopleAdditions
+                    People = peopleAdditions,
+                    GuestSuggestions = guestSuggestions
                 };
             }
         }

@@ -62,6 +62,42 @@ public class UrlSubmissionGuestEnrichmentRules
     }
 
     [Fact(DisplayName =
+        "When guest enrichment skips low-confidence matches, submit episode details include guest suggestions.")]
+    public async Task new_episode_create_path_includes_guest_suggestions()
+    {
+        // Arrange
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var created = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration()));
+        created.PodcastId = podcast.Id;
+        created.Subjects = ["Cults"];
+
+        var skipped = new PersonMatch(
+            new PersonMatchPerson(Guid.NewGuid(), "Jon", null, null),
+            [new PersonMatchResult("Jon", 1)]);
+
+        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        guestEnricher
+            .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
+            .ReturnsAsync(new EnrichGuestsResult([], [skipped]));
+
+        var processor = CreateProcessor(
+            matchingEpisode: null,
+            createdEpisode: created,
+            guestEnricher: guestEnricher.Object);
+
+        var categorisedItem = CreateSpotifyCategorisedItem(podcast, matchingEpisode: null, podcastEpisodes: []);
+
+        // Act
+        var result = await processor.AddEpisodeToExistingPodcast(categorisedItem);
+
+        // Assert
+        result.SubmitEpisodeDetails!.People.Should().BeEmpty();
+        result.SubmitEpisodeDetails!.GuestSuggestions.Should().ContainSingle()
+            .Which.Person.Name.Should().Be("Jon");
+    }
+
+    [Fact(DisplayName =
         "When an existing episode has no Guests, URL submission enriches guests and reports Enriched.")]
     public async Task existing_episode_without_guests_is_enriched()
     {

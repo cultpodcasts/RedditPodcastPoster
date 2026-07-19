@@ -67,7 +67,8 @@ public class PodcastAndEpisodeFactory(
             subjectsResult.Additions,
             episode.Urls.BBC != null,
             episode.Urls.InternetArchive != null,
-            guestsResult.Additions);
+            guestsResult.Additions,
+            guestsResult.SkippedLowConfidence);
         episode.SetPodcastProperties(newPodcast);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }

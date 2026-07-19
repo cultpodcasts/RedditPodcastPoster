@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.UrlSubmission.Models;
+﻿using RedditPodcastPoster.People.Models;
+
+namespace RedditPodcastPoster.UrlSubmission.Models;
 
 public record SubmitEpisodeDetails(
     bool Spotify,
@@ -7,5 +9,6 @@ public record SubmitEpisodeDetails(
     string[]? Subjects = null,
     bool BBC = false,
     bool InternetArchive = false,
-    string[]? People = null
+    string[]? People = null,
+    PersonMatch[]? GuestSuggestions = null
 );
