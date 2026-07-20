@@ -113,7 +113,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 
 ### PublishR2
 
-**Purpose:** Publish static content to Cloudflare R2 and subject flairs to Reddit. Replaces former `R2Publisher` / `FlairPublisher`.
+**Purpose:** Publish static content to Cloudflare R2 and subject flairs to Reddit. Replaces former `R2Publisher` / `FlairPublisher`. Each mode uses its own request + processor (`R2PublishRequest`/`R2PublishProcessor`, `FlairPublishRequest`/`FlairPublishProcessor`).
 
 **Run:** `dotnet run --project Console-Apps/PublishR2 --` · PATH: `PublishR2`
 
@@ -121,10 +121,10 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 
 | Mode | Aliases | Effect |
 |------|---------|--------|
-| `languages` (default) | `--languages`, `-l` | Publish languages list to R2 |
-| `people` | `--people`, `-p` | Publish People register to R2 |
-| `flairs` | `--flairs`, `-f`, `flair` | Publish subject flairs to Reddit |
-| `all` | `--all`, `-a` | Languages, then people, then flairs |
+| `languages` (default) | `--languages`, `-l` | `R2PublishProcessor` — languages list to R2 |
+| `people` | `--people`, `-p` | `R2PublishProcessor` — People register to R2 |
+| `flairs` | `--flairs`, `-f`, `flair` | `FlairPublishProcessor` — subject flairs to Reddit |
+| `all` | `--all`, `-a` | R2 languages+people, then flairs |
 
 ```text
 PublishR2
@@ -135,7 +135,7 @@ PublishR2 all
 
 ### MigrateConfig
 
-**Purpose:** Convert local config JSON to Azure function app-setting JSON. Native AOT. Replaces `SecretsToFunctionSettings` and `LaunchSettingsToAppSettings`.
+**Purpose:** Convert local config JSON to Azure function app-setting JSON. Native AOT. Replaces `SecretsToFunctionSettings` and `LaunchSettingsToAppSettings`. Modes dispatch to `SecretsRequest`/`SecretsProcessor` or `LaunchSettingsRequest`/`LaunchSettingsProcessor`.
 
 **Run:** `dotnet run --project Console-Apps/MigrateConfig --` · PATH: `MigrateConfig`
 
@@ -151,7 +151,7 @@ MigrateConfig launch-settings Cloud/Indexer/Properties/launchSettings.json Index
 
 ### RemoveEpisodes
 
-**Purpose:** Mark matching search episodes as removed, or restore from a prior remove log. `restore` folds former `UnremoveEpisodes`.
+**Purpose:** Mark matching search episodes as removed, or restore from a prior remove log. `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
 
 **Run:** `dotnet run --project Console-Apps/RemoveEpisodes --` · PATH: `RemoveEpisodes`
 

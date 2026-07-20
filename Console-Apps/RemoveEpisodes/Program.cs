@@ -21,6 +21,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<Processor>()
+    .AddScoped<RestoreProcessor>()
     .AddRepositories()
     .AddEpisodeSearchIndexerService()
     .AddHttpClient();
@@ -35,14 +36,14 @@ return await Parser.Default.ParseArguments<RemoveRequest, RestoreRequest>(args)
 
 async Task<int> RunRemove(RemoveRequest request)
 {
-    var processor = host.Services.GetService<Processor>()!;
-    await processor.ProcessRemove(request);
+    var processor = host.Services.GetRequiredService<Processor>();
+    await processor.Process(request);
     return 0;
 }
 
 async Task<int> RunRestore(RestoreRequest request)
 {
-    var processor = host.Services.GetService<Processor>()!;
-    await processor.ProcessRestore(request);
+    var processor = host.Services.GetRequiredService<RestoreProcessor>();
+    await processor.Process(request);
     return 0;
 }
