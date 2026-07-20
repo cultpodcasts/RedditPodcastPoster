@@ -16,9 +16,11 @@ Published executable name matches the project name (e.g. `Index`, `PublishR2`, `
 
 ```powershell
 .\scripts\publish-console-apps.ps1
+# Opt out of concurrent publish (default is parallel after a sequential pre-build; requires pwsh 7+):
+.\scripts\publish-console-apps.ps1 -Sequential
 ```
 
-Defaults to `artifacts\tools\` (gitignored). `ThrowawayConsole` is excluded from publish. Most apps are self-contained; `MigrateConfig` publishes as Native AOT.
+Defaults to `artifacts\tools\` (gitignored). Publish is **parallel by default** (sequential pre-build, then concurrent `dotnet publish`; `-ThrottleLimit` defaults to `4`). Pass `-Sequential` for one-at-a-time publish. `ThrowawayConsole` is excluded from publish. Most apps are self-contained; `MigrateConfig` publishes as Native AOT.
 
 For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or run the published exe with `--help`).
 

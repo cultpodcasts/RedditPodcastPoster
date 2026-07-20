@@ -1,3 +1,6 @@
+# Publish console apps as standalone executables under artifacts\tools (for PATH).
+# App inventory, CLI modes, and flags: Console-Apps/README.md
+# Default: parallel publish after a sequential pre-build (requires pwsh 7+). Use -Sequential to opt out.
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [Parameter(Position = 0)]
@@ -14,11 +17,11 @@ param(
     # Skip the upfront restore (assumes packages are already restored).
     [switch]$NoRestore,
 
-    # Publish apps concurrently after a sequential pre-build. Default stays sequential
-    # to avoid file-lock races when multiple publishes compile shared ProjectReferences.
-    [switch]$Parallel,
+    # Opt out of concurrent publish. Default is parallel after a sequential pre-build
+    # (shared ProjectReferences compile once; then each app packages concurrently).
+    [switch]$Sequential,
 
-    # Max concurrent dotnet publish processes when -Parallel is set.
+    # Max concurrent dotnet publish processes (ignored with -Sequential).
     [int]$ThrottleLimit = 4
 )
 
@@ -28,8 +31,10 @@ if ($ThrottleLimit -lt 1) {
     throw "-ThrottleLimit must be >= 1"
 }
 
-if ($Parallel -and $PSVersionTable.PSVersion.Major -lt 7) {
-    throw "-Parallel requires PowerShell 7+ (ForEach-Object -Parallel). Current: $($PSVersionTable.PSVersion). Re-run under pwsh, or omit -Parallel."
+$useParallel = -not $Sequential
+
+if ($useParallel -and $PSVersionTable.PSVersion.Major -lt 7) {
+    throw "Parallel publish (default) requires PowerShell 7+ (ForEach-Object -Parallel). Current: $($PSVersionTable.PSVersion). Re-run under pwsh, or pass -Sequential."
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -209,14 +214,14 @@ if (-not $NoRestore) {
 $published = [System.Collections.Generic.List[object]]::new()
 $failures = [System.Collections.Generic.List[object]]::new()
 
-$publishTarget = if ($Parallel) {
+$publishTarget = if ($useParallel) {
     "publish $($projects.Count) console app(s) (parallel, throttle $ThrottleLimit)"
 } else {
     "publish $($projects.Count) console app(s) (sequential)"
 }
 
 if ($PSCmdlet.ShouldProcess($OutputDir, $publishTarget)) {
-if ($Parallel) {
+if ($useParallel) {
     # Sequential compile first so shared class libraries are built once; parallel publish then
     # only packages each app (--no-build / BuildProjectReferences=false) and avoids compile races.
     Write-Host "Pre-building $($projects.Count) app(s) for parallel publish (ThrottleLimit=$ThrottleLimit)..." -ForegroundColor Cyan
@@ -336,8 +341,8 @@ if ($Parallel) {
     foreach ($item in $syncFailures) { $failures.Add($item) }
 }
 else {
-    # Sequential (default): restore already done; allow MSBuild to use multiple nodes within each
-    # publish so ProjectReferences compile concurrently. Use -Parallel for cross-app concurrency.
+    # Sequential (-Sequential): restore already done; allow MSBuild to use multiple nodes within each
+    # publish so ProjectReferences compile concurrently. Default path is parallel (omit -Sequential).
     foreach ($project in $projects) {
         $appName = [IO.Path]::GetFileNameWithoutExtension($project.Name)
         try {

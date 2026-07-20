@@ -174,9 +174,11 @@ For **local dev convenience**, build console apps into a single folder of standa
 
 ```powershell
 .\scripts\publish-console-apps.ps1
+# Opt out of concurrent publish (default is parallel after a sequential pre-build; requires pwsh 7+):
+.\scripts\publish-console-apps.ps1 -Sequential
 ```
 
-Output defaults to `artifacts\tools\` (gitignored). Add that folder to your PATH, then run tools by name (e.g. `Discover`, `Index`, `Poster`):
+Output defaults to `artifacts\tools\` (gitignored). Publish runs in parallel by default; pass `-Sequential` for the slower one-at-a-time path. Add that folder to your PATH, then run tools by name (e.g. `Discover`, `Index`, `Poster`):
 
 ```powershell
 $tools = (Resolve-Path 'artifacts\tools').Path
