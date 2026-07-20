@@ -1,5 +1,5 @@
 using FluentAssertions;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Formatting;
 using Xunit;
 
 namespace Indexer.Tests;

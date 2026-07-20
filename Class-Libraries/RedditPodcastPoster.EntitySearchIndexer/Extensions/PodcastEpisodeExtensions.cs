@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Formatting;
+using RedditPodcastPoster.Search.Models;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 

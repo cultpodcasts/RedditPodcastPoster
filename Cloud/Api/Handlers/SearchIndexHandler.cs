@@ -4,8 +4,8 @@ using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Search;
-using IndexerState = RedditPodcastPoster.Search.IndexerState;
+using RedditPodcastPoster.Search.Services;
+using IndexerState = RedditPodcastPoster.Search.Models.IndexerState;
 
 namespace Api.Handlers;
 

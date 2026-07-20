@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Search.Configuration;
+using RedditPodcastPoster.Search.Factories;
+using RedditPodcastPoster.Search.Services;
 
 namespace RedditPodcastPoster.Search.Extensions;
 

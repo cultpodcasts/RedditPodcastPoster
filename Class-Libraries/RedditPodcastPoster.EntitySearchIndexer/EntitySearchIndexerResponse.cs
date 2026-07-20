@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Search;
+﻿using RedditPodcastPoster.Search.Models;
 
 namespace RedditPodcastPoster.EntitySearchIndexer;
 

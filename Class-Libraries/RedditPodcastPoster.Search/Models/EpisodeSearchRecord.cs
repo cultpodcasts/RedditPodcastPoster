@@ -1,7 +1,7 @@
 ﻿using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 
-namespace RedditPodcastPoster.Search;
+namespace RedditPodcastPoster.Search.Models;
 
 public class EpisodeSearchRecord
 {

@@ -6,7 +6,7 @@ public class IndexerState
 {
     [JsonPropertyName("state")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public RedditPodcastPoster.Search.IndexerState State { get; set; }
+    public RedditPodcastPoster.Search.Models.IndexerState State { get; set; }
 
     [JsonPropertyName("nextRun")]
     public TimeSpan? NextRun { get; set; }
