@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Factories;
 
 public class RedditBundleCommentFactory(
 #pragma warning disable CS9113 // Parameter is unread.

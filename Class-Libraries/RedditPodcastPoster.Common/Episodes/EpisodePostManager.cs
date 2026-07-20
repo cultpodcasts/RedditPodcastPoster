@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Reddit;
+using RedditPodcastPoster.Reddit.Factories;
+using RedditPodcastPoster.Reddit.Managers;
+using RedditPodcastPoster.Reddit.Models;
+using RedditPodcastPoster.Reddit.Posters;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

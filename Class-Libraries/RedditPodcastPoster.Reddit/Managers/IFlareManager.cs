@@ -1,6 +1,7 @@
 ﻿using Reddit.Controllers;
+using RedditPodcastPoster.Reddit.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Managers;
 
 public interface IFlareManager
 {

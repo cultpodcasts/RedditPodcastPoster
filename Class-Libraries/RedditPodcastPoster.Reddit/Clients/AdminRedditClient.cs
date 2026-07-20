@@ -1,6 +1,6 @@
 ﻿using Reddit;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Clients;
 
 public class AdminRedditClient(RedditClient redditClient) : IAdminRedditClient
 {

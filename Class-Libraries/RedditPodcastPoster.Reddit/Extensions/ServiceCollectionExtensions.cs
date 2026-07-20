@@ -1,5 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Reddit.Configuration;
+using RedditPodcastPoster.Reddit.Factories;
+using RedditPodcastPoster.Reddit.Managers;
+using RedditPodcastPoster.Reddit.Posters;
+using RedditPodcastPoster.Reddit.Resolvers;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
 

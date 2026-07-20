@@ -1,6 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Posters;
 
 public interface IRedditLinkPoster
 {

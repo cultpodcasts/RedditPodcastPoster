@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Factories;
 
 public class RedditPostTitleFactory(
     ITextSanitiser textSanitiser,

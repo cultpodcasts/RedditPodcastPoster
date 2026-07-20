@@ -2,8 +2,9 @@
 using Reddit.Controllers;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Reddit.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Managers;
 
 public class FlareManager(
     ISubjectRepository subjectRepository,

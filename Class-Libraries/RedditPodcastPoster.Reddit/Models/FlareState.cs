@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Reddit;
+﻿namespace RedditPodcastPoster.Reddit.Models;
 
 public enum FlareState
 {
