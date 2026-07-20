@@ -12,7 +12,7 @@ namespace Indexer.Tests;
 public class PodcastEpisodeExtensionsTests
 {
     [Fact]
-    public void Maps_service_ids_language_and_stores_youtube_image_as_is()
+    public void Maps_service_ids_language_and_compacts_youtube_image()
     {
         var episode = CreateEpisode();
         episode.Images = new EpisodeImages
@@ -37,15 +37,16 @@ public class PodcastEpisodeExtensionsTests
         result.PodcastAppleId.Should().Be("1234567890");
         result.Lang.Should().Be("es");
         // Image handling is owned by SearchEpisodeImage (see SearchEpisodeImageTests); this just
-        // confirms ToEpisodeSearchRecord wires it through: the selected YouTube URL is stored as-is
-        // and the retired youtubeImageVariant is cleared with an empty string.
-        result.Image.Should().Be($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg");
+        // confirms ToEpisodeSearchRecord wires the youtubeId through so the selected maxresdefault
+        // thumbnail is loss-lessly compacted to the "yx" token, and the retired youtubeImageVariant
+        // is cleared with an empty string.
+        result.Image.Should().Be("yx");
         result.YoutubeImageVariant.Should().BeEmpty();
         result.Duration.Should().Be("00:02:03");
     }
 
     [Fact]
-    public void Keeps_opaque_image_and_omits_empty_ids()
+    public void Compacts_spotify_image_and_omits_empty_ids()
     {
         var episode = CreateEpisode();
         episode.SpotifyId = " ";
@@ -62,7 +63,7 @@ public class PodcastEpisodeExtensionsTests
         result.SpotifyId.Should().BeNull();
         result.YoutubeId.Should().BeNull();
         result.AppleId.Should().BeNull();
-        result.Image.Should().Be("https://i.scdn.co/image/opaque");
+        result.Image.Should().Be("sopaque");
         result.YoutubeImageVariant.Should().BeEmpty();
     }
 
