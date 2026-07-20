@@ -18,6 +18,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 namespace Discovery;
 

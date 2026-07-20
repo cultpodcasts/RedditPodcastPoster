@@ -5,6 +5,7 @@ using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace SubmitUrl;
 

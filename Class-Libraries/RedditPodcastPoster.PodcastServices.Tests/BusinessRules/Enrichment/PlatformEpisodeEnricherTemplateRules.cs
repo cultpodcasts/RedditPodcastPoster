@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.Adapters;
@@ -11,11 +11,12 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Enrichment;
 
 /// <summary>
-/// Shared enricher template rules — delayed-publishing bypass and apply-to-context wiring.
+/// Shared enricher template rules â€” delayed-publishing bypass and apply-to-context wiring.
 /// </summary>
 public class PlatformEpisodeEnricherTemplateRules
 {

@@ -38,6 +38,8 @@ using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using Episode = RedditPodcastPoster.Models.Episode;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;

@@ -3,11 +3,13 @@ using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Enrichment;
 
 /// <summary>
-/// Enrichment result → context projection rules for indexing persistence tracking.
+/// Enrichment result â†’ context projection rules for indexing persistence tracking.
 /// </summary>
 public class PlatformEnrichmentResultExtensionsRules
 {

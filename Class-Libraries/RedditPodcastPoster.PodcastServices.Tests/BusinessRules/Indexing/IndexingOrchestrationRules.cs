@@ -1,9 +1,10 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
@@ -378,7 +379,7 @@ public class IndexingOrchestrationRules
             enrichOnly: true,
             PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
 
-        // Assert — orchestrator still calls EnrichEpisodes, but no rows need platform backfill
+        // Assert â€” orchestrator still calls EnrichEpisodes, but no rows need platform backfill
         harness.EpisodeEnricher.Verify(
             x => x.EnrichEpisodes(
                 podcast,

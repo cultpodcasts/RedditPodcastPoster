@@ -1,12 +1,14 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 
@@ -107,7 +109,7 @@ public class SpotifyUrlCategoriser(
             findEpisodeResponse.FullEpisode.Show.Name,
             findEpisodeResponse.FullEpisode.Show.Description,
             // Spotify removed 'publisher' from show objects (Feb 2026 Web API changes); keep reading it
-            // while responses may still carry it — downstream already tolerates null/empty.
+            // while responses may still carry it â€” downstream already tolerates null/empty.
 #pragma warning disable CS0618
             findEpisodeResponse.FullEpisode.Show.Publisher,
 #pragma warning restore CS0618

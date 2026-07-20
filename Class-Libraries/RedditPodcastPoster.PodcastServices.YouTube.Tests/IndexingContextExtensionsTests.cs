@@ -1,6 +1,8 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 

@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 
@@ -88,4 +89,4 @@ public class SpotifyEpisodeEnricher(
         enrichmentSideEffect.OnFindComplete(request.Podcast, findEpisodeResult.IsExpensiveQuery);
     }
 }
-
+

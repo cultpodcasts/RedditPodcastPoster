@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Factories;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 
@@ -88,4 +89,4 @@ public class AppleEpisodeEnricher(
         ApplyResolvedCandidate(request, appleAdapter.Adapt(catalogueInput), enrichmentContext);
     }
 }
-
+

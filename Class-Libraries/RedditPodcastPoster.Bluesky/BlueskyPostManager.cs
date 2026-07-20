@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using idunno.AtProto;
 using idunno.AtProto.Repo;
 using idunno.Bluesky;
@@ -12,6 +12,7 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
+using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 
 namespace RedditPodcastPoster.Bluesky;
 

@@ -23,6 +23,7 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using SubmitUrl;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Categorisers;
 
@@ -111,7 +112,7 @@ public class SpotifyUrlCategoriserUrlAuthorityRules
 
     [Fact(DisplayName =
         "KNOWN: When the URL has no /episode/{id} segment, GetEpisodeId returns empty string (not null), so Resolve skips the null-id throw " +
-        "and proceeds to FindEpisode — characterize current routing, do not fix in this tests-only PR.")]
+        "and proceeds to FindEpisode â€” characterize current routing, do not fix in this tests-only PR.")]
     public async Task Non_episode_url_uses_empty_id_path_not_null_throw()
     {
         // Arrange

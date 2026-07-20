@@ -11,6 +11,8 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission;

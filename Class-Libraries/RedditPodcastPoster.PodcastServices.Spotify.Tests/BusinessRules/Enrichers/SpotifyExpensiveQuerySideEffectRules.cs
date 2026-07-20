@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
@@ -10,11 +10,12 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Enrichers;
 
 /// <summary>
-/// Spotify expensive-query side-effect rules — podcast flag persistence after FindEpisode.
+/// Spotify expensive-query side-effect rules â€” podcast flag persistence after FindEpisode.
 /// </summary>
 public class SpotifyExpensiveQuerySideEffectRules
 {

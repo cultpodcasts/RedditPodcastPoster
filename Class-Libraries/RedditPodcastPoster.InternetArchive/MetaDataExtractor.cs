@@ -4,6 +4,7 @@ using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.InternetArchive.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.InternetArchive;
 

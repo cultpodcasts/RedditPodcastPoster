@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -589,7 +590,7 @@ public class UrlSubmissionEnrichmentRules
     public void enrich_stores_non_podcast_image_on_youtube_images_current_behavior()
     {
         // Arrange
-        // KNOWN: likely bug — fix tracked separately; see README §4.7
+        // KNOWN: likely bug â€” fix tracked separately; see README Â§4.7
         var enricher = CreateEnricher();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => e.Images = new EpisodeImages());

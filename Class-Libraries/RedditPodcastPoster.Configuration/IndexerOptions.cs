@@ -1,5 +1,6 @@
-using RedditPodcastPoster.Configuration.Extensions;
+﻿using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.Configuration;
 

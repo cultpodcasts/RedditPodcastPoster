@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -8,12 +8,13 @@ using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Search;
 
 /// <summary>
 /// Discovery Spotify search must floor ReleasedSince to UTC day, require whole-word query matches,
-/// then hydrate filtered hits via GetSeveral — otherwise discovery emits false positives or skips URLs.
+/// then hydrate filtered hits via GetSeveral â€” otherwise discovery emits false positives or skips URLs.
 /// </summary>
 public class SpotifySearcherRules
 {

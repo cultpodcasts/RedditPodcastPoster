@@ -4,6 +4,7 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Index;
 

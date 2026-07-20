@@ -1,9 +1,10 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests;
 
@@ -34,7 +35,7 @@ public class EpisodeProviderTests
         // Act
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
-        // Assert — Spotify-primary discovery handles the podcast; Apple merge pass must not run
+        // Assert â€” Spotify-primary discovery handles the podcast; Apple merge pass must not run
         harness.AppleHandler.Verify(
             x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
             Times.Never);

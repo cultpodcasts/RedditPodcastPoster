@@ -8,6 +8,7 @@ using RedditPodcastPoster.PodcastServices.ListenNotes.Configuration;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Factories;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Model;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.ListenNotes;
 

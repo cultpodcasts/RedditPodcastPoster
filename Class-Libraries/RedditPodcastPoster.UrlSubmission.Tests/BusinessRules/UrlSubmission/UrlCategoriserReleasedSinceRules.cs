@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
@@ -12,12 +12,14 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
 /// <summary>
 /// MatchOtherServices must narrow Spotify/Apple lookups with ReleasedSince derived from the
-/// authority platform release (Apple −1 day; YouTube ± publishing delay as coded).
+/// authority platform release (Apple âˆ’1 day; YouTube Â± publishing delay as coded).
 /// </summary>
 public class UrlCategoriserReleasedSinceRules
 {

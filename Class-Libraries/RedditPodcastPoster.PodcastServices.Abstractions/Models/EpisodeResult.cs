@@ -1,0 +1,35 @@
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
+
+public class EpisodeResult(
+    string id,
+    DateTime released,
+    string episodeDescription,
+    string episodeName,
+    TimeSpan? length,
+    string showName,
+    string showDescription,
+    DiscoverService discoverService,
+    ulong? viewCount = null,
+    ulong? memberCount = null,
+    Uri? imageUrl = null,
+    long? itunesPodcastId = null)
+{
+    public long? ITunesPodcastId { get; init; } = itunesPodcastId;
+    public string Id { get; init; } = id;
+    public DateTime Released { get; set; } = released;
+    public string Description { get; init; } = episodeDescription;
+    public string ShowDescription { get; set; } = showDescription;
+    public string EpisodeName { get; init; } = episodeName;
+    public TimeSpan? Length { get; init; } = length;
+    public string ShowName { get; init; } = showName;
+    public DiscoverService[] DiscoverServices { get; set; } = [discoverService];
+    public ulong? ViewCount { get; set; } = viewCount;
+    public ulong? MemberCount { get; set; } = memberCount;
+    public Uri? ImageUrl { get; set; } = imageUrl;
+    public PodcastServiceUrls Urls { get; set; } = new();
+    public PodcastServiceIds PodcastIds { get; set; } = new();
+    public bool EnrichedTimeFromApple { get; set; }
+    public bool EnrichedUrlFromSpotify { get; set; }
+}

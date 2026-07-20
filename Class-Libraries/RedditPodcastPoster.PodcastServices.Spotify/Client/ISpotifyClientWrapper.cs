@@ -1,5 +1,6 @@
 ﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 

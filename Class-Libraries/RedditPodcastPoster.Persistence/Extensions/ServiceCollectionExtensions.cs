@@ -1,4 +1,4 @@
-using Microsoft.Azure.Cosmos;
+﻿using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
@@ -7,6 +7,7 @@ using RedditPodcastPoster.Persistence.Lookups;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.KnownTerms;
+using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
 
@@ -15,7 +16,7 @@ public static class ServiceCollectionExtensions
     extension(IServiceCollection services)
     {
         /// <summary>
-        /// Cosmos repositories. Does not register episodes domain or merge orchestration — callers that
+        /// Cosmos repositories. Does not register episodes domain or merge orchestration â€” callers that
         /// resolve matcher, merger, or UrlSubmission enrichers must call <c>AddEpisodesDomain()</c> and
         /// <c>AddPodcastServices()</c> explicitly at the composition root.
         /// </summary>

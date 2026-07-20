@@ -5,6 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace EnrichPodcastWithImages;
 

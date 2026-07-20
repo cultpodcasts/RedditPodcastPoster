@@ -14,6 +14,7 @@ using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace AddAudioPodcast;
 

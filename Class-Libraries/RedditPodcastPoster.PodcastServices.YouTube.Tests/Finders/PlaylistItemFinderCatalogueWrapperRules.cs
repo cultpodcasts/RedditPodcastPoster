@@ -1,4 +1,4 @@
-using System.Xml;
+﻿using System.Xml;
 using FluentAssertions;
 using FuzzySharp;
 using Google.Apis.YouTube.v3.Data;
@@ -12,14 +12,15 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Finders;
 
 /// <summary>
 /// Playlist finder characterization: exact-title matching, publish-delay delegation to
 /// <see cref="RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher.IsCatalogueMatch"/>,
-/// local fuzzy-title closeness (FuzzySharp ≥ 70), and wrapper-specific duration gates.
-/// Fuzzy/heuristic paths use explicit <see cref="FuzzyTitleVariantStrategy"/> matrix rows per unit-tests.mdc §7.
+/// local fuzzy-title closeness (FuzzySharp â‰¥ 70), and wrapper-specific duration gates.
+/// Fuzzy/heuristic paths use explicit <see cref="FuzzyTitleVariantStrategy"/> matrix rows per unit-tests.mdc Â§7.
 /// </summary>
 public class PlaylistItemFinderCatalogueWrapperRules
 {
@@ -189,7 +190,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
     }
 
     // --------------------------------------------------------------------------------------------
-    // Local fuzzy-title closeness fallback (FuzzySharp ≥ 70) when earlier matchers fail.
+    // Local fuzzy-title closeness fallback (FuzzySharp â‰¥ 70) when earlier matchers fail.
     // Duration offset skips the 2-minute duration-only path but still passes long-form validation.
     // --------------------------------------------------------------------------------------------
 
@@ -297,7 +298,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
         {
             CreatePlaylistItem(matchingVideoId, catalogueTitle, DomainTestFixture.UtcDaysAgo(1))
         };
-        // Offset > 2-minute duration-only tolerance so only fuzzy closeness is exercised — and fails.
+        // Offset > 2-minute duration-only tolerance so only fuzzy closeness is exercised â€” and fails.
         ConfigureVideoDuration(matchingVideoId, episodeLength - TimeSpan.FromMinutes(3));
 
         // Act
@@ -459,7 +460,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             (firstVideoId, episodeLength),
             (secondVideoId, episodeLength));
 
-        // Act — falls through exact-title ambiguity; duration-only picks closest (both equal here).
+        // Act â€” falls through exact-title ambiguity; duration-only picks closest (both equal here).
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             playlistItems,
@@ -642,14 +643,14 @@ public class PlaylistItemFinderCatalogueWrapperRules
         var episode = _fixture.BuildEpisode()
             .Customize(e =>
             {
-                e.Title = "Episode 42 — Monday briefing";
+                e.Title = "Episode 42 â€” Monday briefing";
                 e.Length = episodeLength;
             })
             .Create();
         var playlistItems = new List<PlaylistItem>
         {
-            CreatePlaylistItem(firstVideoId, "Episode 42 — studio cut", DomainTestFixture.UtcDaysAgo(1)),
-            CreatePlaylistItem(secondVideoId, "Episode 42 — extended cut", DomainTestFixture.UtcDaysAgo(2))
+            CreatePlaylistItem(firstVideoId, "Episode 42 â€” studio cut", DomainTestFixture.UtcDaysAgo(1)),
+            CreatePlaylistItem(secondVideoId, "Episode 42 â€” extended cut", DomainTestFixture.UtcDaysAgo(2))
         };
         // Durations beyond the two-minute duration-only path so only ambiguous number matching is in play.
         ConfigureVideoDurations(
@@ -1037,7 +1038,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
         Fuzz.WeightedRatio(episodeTitle, catalogueTitle)
             .Should().BeGreaterThanOrEqualTo(
                 MinFuzzyTitleScore,
-                "variant strategy {0} must produce a title within FuzzySharp threshold — " +
+                "variant strategy {0} must produce a title within FuzzySharp threshold â€” " +
                 "episode=\"{1}\" catalogue=\"{2}\"",
                 strategy, episodeTitle, catalogueTitle);
     }

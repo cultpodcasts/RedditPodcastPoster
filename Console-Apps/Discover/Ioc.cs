@@ -1,4 +1,4 @@
-using iTunesSearch.Library;
+﻿using iTunesSearch.Library;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 namespace Discover;
 

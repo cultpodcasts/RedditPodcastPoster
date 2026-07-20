@@ -1,4 +1,4 @@
-using System.Xml;
+﻿using System.Xml;
 using FluentAssertions;
 using FuzzySharp;
 using Google.Apis.YouTube.v3.Data;
@@ -12,13 +12,14 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Finders;
 
 /// <summary>
 /// Search-result finder characterization: exact-title matching, publish-delay delegation to
 /// <see cref="RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher.IsCatalogueMatch"/>,
-/// local fuzzy-title closeness (FuzzySharp ≥ 70), and wrapper-specific duration gates.
+/// local fuzzy-title closeness (FuzzySharp â‰¥ 70), and wrapper-specific duration gates.
 /// </summary>
 public class SearchResultFinderCatalogueWrapperRules
 {
@@ -150,7 +151,7 @@ public class SearchResultFinderCatalogueWrapperRules
             (firstVideoId, episodeLength),
             (secondVideoId, episodeLength));
 
-        // Act — falls through exact-title ambiguity; duration-only picks closest (both equal here).
+        // Act â€” falls through exact-title ambiguity; duration-only picks closest (both equal here).
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             searchResults,
@@ -302,7 +303,7 @@ public class SearchResultFinderCatalogueWrapperRules
         Fuzz.WeightedRatio(episodeTitle, catalogueTitle)
             .Should().BeGreaterThanOrEqualTo(
                 MinFuzzyTitleScore,
-                "variant strategy {0} must produce a title within FuzzySharp threshold — " +
+                "variant strategy {0} must produce a title within FuzzySharp threshold â€” " +
                 "episode=\"{1}\" catalogue=\"{2}\"",
                 strategy, episodeTitle, catalogueTitle);
     }
