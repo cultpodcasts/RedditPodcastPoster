@@ -2,7 +2,8 @@
 
 namespace RemoveEpisodes;
 
-public class Request
+[Verb("remove", isDefault: true, HelpText = "Mark matching search episodes as removed.")]
+public class RemoveRequest
 {
     [Value(0, MetaName = "query", HelpText = "Query to perform", Required = true)]
     public required string Query { get; set; }
@@ -15,4 +16,11 @@ public class Request
 
     [Option('r', "non-dry-run", Default = false, HelpText = "Persist changes to database.")]
     public bool IsNonDryRun { get; set; }
+}
+
+[Verb("restore", HelpText = "Restore removed episodes listed in a log file (unremove).")]
+public class RestoreRequest
+{
+    [Value(0, MetaName = "filename", HelpText = "Filename containing episodes to restore", Required = true)]
+    public required string Filename { get; set; }
 }

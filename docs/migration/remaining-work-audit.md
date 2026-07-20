@@ -33,7 +33,7 @@ Suggested coverage: `PodcastUpdater`, `EpisodeRepository`, `PodcastEpisodeProvid
 
 ## ⏳ Optional follow-ups
 
-- [ ] Retire `ModelTransformer` / `JsonSplitCosmosDbUploader` if no operational use remains.
+- [x] Retire `ModelTransformer` / `JsonSplitCosmosDbUploader` (removed in console-apps triage).
 - [ ] Phase 7 verification gates (RU/latency, end-to-end flow validation) — run if not already done in production soak.
 
 ---

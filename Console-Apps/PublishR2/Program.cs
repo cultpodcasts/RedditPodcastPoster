@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +7,9 @@ using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Reddit.Extensions;
+using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Text.Extensions;
 
 if (args.Any(IsHelpArg))
 {
@@ -37,7 +40,10 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddPeopleServices()
-    .AddContentPublishing();
+    .AddContentPublishing()
+    .AddRedditServices()
+    .AddTextSanitiser()
+    .AddSubjectServices();
 
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
@@ -54,6 +60,12 @@ if (success && publishTarget is PublishTarget.People or PublishTarget.All)
 {
     var peoplePublisher = scope.ServiceProvider.GetRequiredService<IPeoplePublisher>();
     await peoplePublisher.PublishPeople();
+}
+
+if (success && publishTarget is PublishTarget.Flairs or PublishTarget.All)
+{
+    var subjectsPublisher = scope.ServiceProvider.GetRequiredService<ISubjectsPublisher>();
+    await subjectsPublisher.PublishFlairs();
 }
 
 return success ? 0 : 1;
@@ -80,6 +92,7 @@ static PublishTarget? ParsePublishTarget(string[] args)
     {
         "languages" or "--languages" or "-l" => PublishTarget.Languages,
         "people" or "--people" or "-p" => PublishTarget.People,
+        "flairs" or "--flairs" or "-f" or "flair" => PublishTarget.Flairs,
         "all" or "--all" or "-a" => PublishTarget.All,
         _ => null
     };
@@ -91,22 +104,23 @@ static bool IsHelpArg(string arg) =>
 static void PrintUsage()
 {
     Console.WriteLine("""
-        R2Publisher — publish static content JSON to Cloudflare R2 (languages and people).
+        PublishR2 — publish static content to Cloudflare R2 and Reddit flairs.
 
         Usage:
-          R2Publisher [languages|people|all]
-          R2Publisher [--languages|-l|--people|-p|--all|-a]
+          PublishR2 [languages|people|flairs|all]
+          PublishR2 [--languages|-l|--people|-p|--flairs|-f|--all|-a]
 
         Targets:
           languages (default)  Publish languages list to R2
           people               Publish People register to R2 (Cosmos read → R2 write)
-          all                  Publish languages, then people
+          flairs               Publish subject flairs to Reddit
+          all                  Publish languages, people, then flairs
 
         Examples:
-          R2Publisher
-          R2Publisher people
-          R2Publisher --people
-          R2Publisher all
+          PublishR2
+          PublishR2 people
+          PublishR2 --flairs
+          PublishR2 all
         """);
 }
 
@@ -114,5 +128,6 @@ enum PublishTarget
 {
     Languages,
     People,
+    Flairs,
     All
 }

@@ -1,3 +1,5 @@
+# Publish console apps as standalone executables under artifacts\tools (for PATH).
+# App inventory, CLI modes, and flags: Console-Apps/README.md
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [Parameter(Position = 0)]
@@ -9,7 +11,7 @@ param(
 
     [string]$OutputDir,
 
-    [string[]]$Exclude = @('ThrowawayConsole', 'TextClassifierTraining.Tests'),
+    [string[]]$Exclude = @('ThrowawayConsole'),
 
     [switch]$NoRestore
 )

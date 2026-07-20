@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "EliminateExistingEpisodes": {
-      "commandName": "Project",
-      "commandLineArgs": "-n \"Scientology - Life After a Cult\""
-    }
-  }
-}

@@ -27,13 +27,22 @@ builder.Services
 
 using var host = builder.Build();
 
-return await Parser.Default.ParseArguments<Request>(args)
-    .MapResult(async request => await Run(request),
+return await Parser.Default.ParseArguments<RemoveRequest, RestoreRequest>(args)
+    .MapResult(
+        (RemoveRequest request) => RunRemove(request),
+        (RestoreRequest request) => RunRestore(request),
         errs => Task.FromResult(-1));
 
-async Task<int> Run(Request request)
+async Task<int> RunRemove(RemoveRequest request)
 {
-    var podcastProcessor = host.Services.GetService<Processor>()!;
-    await podcastProcessor.Process(request);
+    var processor = host.Services.GetService<Processor>()!;
+    await processor.ProcessRemove(request);
+    return 0;
+}
+
+async Task<int> RunRestore(RestoreRequest request)
+{
+    var processor = host.Services.GetService<Processor>()!;
+    await processor.ProcessRestore(request);
     return 0;
 }

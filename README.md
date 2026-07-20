@@ -12,7 +12,7 @@ Licensed under the MIT license.
 |------|---------|
 | `Cloud/` | Azure Functions apps — **Api**, **Discovery**, **Indexer** |
 | `Class-Libraries/` | Shared domain, persistence, podcast-service integrations, posting |
-| `Console-Apps/` | Local CLI tools for indexing, enrichment, and ops |
+| `Console-Apps/` | Local CLI tools for indexing, enrichment, and ops — see [`Console-Apps/README.md`](Console-Apps/README.md) |
 | `Infrastructure/` | Bicep templates for Azure resources and function app settings |
 | `docs/` | Cost analysis and operational runbooks |
 
@@ -73,7 +73,7 @@ dotnet user-secrets set "youtube:Applications:13:ApiKey" "YOUR_KEY_PLACEHOLDER" 
 To convert a user-secrets JSON file to app-setting names:
 
 ```powershell
-dotnet run --project Console-Apps/SecretsToFunctionSettings -- path-to-secrets.json
+dotnet run --project Console-Apps/MigrateConfig -- secrets path-to-secrets.json
 ```
 
 ### Common settings (local user-secrets)
@@ -152,14 +152,18 @@ Generate a Reddit refresh token using [Reddit.NET](https://github.com/sirkris/Re
 
 ## Useful console apps
 
+Full CLI reference (all apps, modes, and flags): [`Console-Apps/README.md`](Console-Apps/README.md).
+
 | App | Typical use |
 |-----|-------------|
 | `Index` | Index episodes for one or more podcasts |
 | `Discover` | Run discovery locally |
-| `Poster` / `Tweet` | Post episodes to Reddit / Twitter |
+| `Poster` | Post episodes to Reddit |
 | `EnrichExistingEpisodesFromPodcastServices` | Backfill Spotify/Apple/YouTube URLs |
 | `EnrichYouTubeOnlyPodcasts` | Enrich YouTube-only channel podcasts |
-| `EpisodeDriftDetector` | Compare stored vs provider metadata |
+| `PublishR2` | Publish languages/people JSON to R2, or subject flairs to Reddit |
+| `RemoveEpisodes` | Remove matching episodes (`remove`) or restore from a log (`restore`) |
+| `MigrateConfig` | Convert user-secrets or launchSettings JSON to Azure app-setting JSON |
 | `SubmitUrl` | Submit a URL via the same path as the API |
 
 Run from the app directory: `dotnet run --project Console-Apps/Index -- [args]`
@@ -182,9 +186,7 @@ $tools = (Resolve-Path 'artifacts\tools').Path
 | Publish profile | Apps | Why |
 |-----------------|------|-----|
 | **Self-contained** (default) | Most console apps | Uses reflection-based DI, `CommandLineParser`, Cosmos DB, and reflection JSON — not compatible with Native AOT without broad rewrites. |
-| **Native AOT** | `SecretsToFunctionSettings` | Small utility with source-generated JSON and no reflection-based CLI parsing (`CommandLineParser` is incompatible with Native AOT). |
-
-`LaunchSettingsToAppSettings` and other JSON utilities stay self-contained because they use reflection JSON (`JsonNode` navigation) and `CommandLineParser`.
+| **Native AOT** | `MigrateConfig` | Small utility with source-generated JSON and manual CLI parsing (no `CommandLineParser`). |
 
 Published tools use the same shared user-secrets store as `dotnet run` (same `UserSecretsId`). Per-app `appsettings.json` files are not copied into `artifacts\tools` (they would overwrite each other); run `dotnet run` from the app directory when you need bundled defaults such as `postingCriteria`.
 
