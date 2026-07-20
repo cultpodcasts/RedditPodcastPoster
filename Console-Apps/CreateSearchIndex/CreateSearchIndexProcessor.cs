@@ -399,8 +399,9 @@ public partial class CreateSearchIndexProcessor(
         //      Azure AI Search merge ignores null source values, so an empty string (or a real
         //      value) is required to clear/overwrite a previously-indexed image during incremental
         //      (high-water-mark) reindexing (e.g. a stale Spotify cover before YouTube).
-        //   4. youtubeImageVariant is retired: no longer computed. Emit an empty string so a merge
-        //      clears any coarse variant left on already-indexed documents by the old scheme.
+        //   4. youtubeImageVariant has been removed entirely (field no longer exists on the index):
+        //      a full reindex / index recreate is required after deploy so every document carries a
+        //      lossless `image` token/URL and clients no longer rely on the coarse variant.
         const string spotifyPrefix = "https://i.scdn.co/image/";
         const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
         // Full Apple prefix = "https://is" (10) + digit (1) + appleHostTail => digit at index 10.
@@ -463,7 +464,6 @@ public partial class CreateSearchIndexProcessor(
                                 IIF({isSpotifyToken}, {spotifyToken},
                                     IIF({isAppleToken}, {appleToken},
                                         (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """"))) as image,
-                            """" as youtubeImageVariant,
                             e.lang ?? e.podcastLanguage as lang,
                             e._ts
                             FROM episodes e

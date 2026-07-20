@@ -31,12 +31,7 @@ public static class PodcastEpisodeExtensions
             Release = podcastEpisode.Episode.Release,
             SpotifyId = NullIfWhiteSpace(podcastEpisode.Episode.SpotifyId),
             Subjects = podcastEpisode.Episode.Subjects.ToArray(),
-            YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId),
-            // youtubeImageVariant is retired: the (loss-lessly compacted) image is now the single
-            // cover-art field. Emit an empty string (not null) so an incremental merge clears any
-            // coarse variant (maxres/sd/hq) left on already-indexed documents by the old scheme,
-            // ensuring clients expand the `image` token/URL instead.
-            YoutubeImageVariant = string.Empty
+            YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId)
         };
     }
 

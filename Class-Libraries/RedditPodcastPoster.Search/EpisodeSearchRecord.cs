@@ -58,9 +58,6 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public string? Image { get; set; }
 
-    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
-    public string? YoutubeImageVariant { get; set; }
-
     [SimpleField(IsFilterable = true, IsFacetable = true, IsHidden = true)]
     public string? Lang { get; set; }
 }

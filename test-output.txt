@@ -1,0 +1,309 @@
+Test run for C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\bin\Debug\net10.0\FunctionHost.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.04]     FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Bluesky)) [FAIL]
+[xUnit.net 00:00:01.05]     FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(entryPointType: typeof(Api.Handlers.IEpisodeHandler)) [FAIL]
+[xUnit.net 00:00:01.05]     FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Poster)) [FAIL]
+  Failed FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Bluesky)) [528 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.Fetch() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 31
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 19
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.Common.Factories.PostModelFactory..ctor(ISubjectsProvider subjectsProvider, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Common\Factories\PostModelFactory.cs:line 14
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorInfoEx.GetService(IServiceProvider serviceProvider, Int32 parameterIndex)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 62
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.IndexerIocTests.<>c__DisplayClass2_0.<<Indexer_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 32
+--- End of stack trace from previous location ---
+  Failed FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(entryPointType: typeof(Api.Handlers.IEpisodeHandler)) [109 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.Common.Factories.PostModelFactory..ctor(ISubjectsProvider subjectsProvider, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Common\Factories\PostModelFactory.cs:line 14
+   at InvokeStub_PostModelFactory..ctor(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 58
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.ApiIocTests.<>c__DisplayClass2_0.<<Api_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\ApiIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\ApiIocTests.cs:line 32
+--- End of stack trace from previous location ---
+  Failed FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Poster)) [16 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.Fetch() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 31
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 19
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.Common.Factories.PostModelFactory..ctor(ISubjectsProvider subjectsProvider, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Common\Factories\PostModelFactory.cs:line 14
+   at InvokeStub_PostModelFactory..ctor(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorInfoEx.GetService(IServiceProvider serviceProvider, Int32 parameterIndex)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 62
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.IndexerIocTests.<>c__DisplayClass2_0.<<Indexer_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 32
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:01.20]     FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(entryPointType: typeof(Api.Handlers.IPublishHandler)) [FAIL]
+[xUnit.net 00:00:01.21]     FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Publisher)) [FAIL]
+  Failed FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(entryPointType: typeof(Api.Handlers.IPublishHandler)) [160 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.ContentPublisher.HomepagePublisher..ctor(IPodcastRepository podcastRepository, IEpisodeRepository episodeRepository, ITextSanitiser textSanitiser, ISubjectsProvider subjectsProvider, IAmazonS3 client, IOptions`1 contentOptions, ILookupRepository lookupRepository, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.ContentPublisher\HomepagePublisher.cs:line 36
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithManyArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 58
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.ApiIocTests.<>c__DisplayClass2_0.<<Api_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\ApiIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.ApiIocTests.Api_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\ApiIocTests.cs:line 32
+--- End of stack trace from previous location ---
+  Failed FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Publisher)) [141 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.Fetch() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 31
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 19
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.ContentPublisher.HomepagePublisher..ctor(IPodcastRepository podcastRepository, IEpisodeRepository episodeRepository, ITextSanitiser textSanitiser, ISubjectsProvider subjectsProvider, IAmazonS3 client, IOptions`1 contentOptions, ILookupRepository lookupRepository, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.ContentPublisher\HomepagePublisher.cs:line 36
+   at InvokeStub_HomepagePublisher..ctor(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithManyArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorInfoEx.GetService(IServiceProvider serviceProvider, Int32 parameterIndex)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 62
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.IndexerIocTests.<>c__DisplayClass2_0.<<Indexer_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 32
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:01.23]     FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Tweet)) [FAIL]
+  Failed FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(entryPointType: typeof(Indexer.Tweet)) [14 ms]
+  Error Message:
+   Did not expect any exception, but found System.ArgumentOutOfRangeException: ToFeedIterator is only supported on Cosmos LINQ query operations (Parameter 'linqQuery')
+   at Microsoft.Azure.Cosmos.Linq.CosmosLinqExtensions.ToFeedIterator[T](IQueryable`1 query)
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\SubjectRepository.cs:line 47
+   at RedditPodcastPoster.Subjects.SubjectRepository.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at System.Linq.AsyncEnumerable.<ToArrayAsync>g__Impl|179_0[TSource](ConfiguredCancelableAsyncEnumerable`1 source)
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.Fetch() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 31
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Subjects\CachedSubjectProvider.cs:line 19
+   at RedditPodcastPoster.Subjects.CachedSubjectProvider.GetAll()+System.Threading.Tasks.Sources.IValueTaskSource<System.Boolean>.GetResult()
+   at System.Threading.Tasks.TaskAsyncEnumerableExtensions.ToBlockingEnumerable[T](IAsyncEnumerable`1 source, CancellationToken cancellationToken)+MoveNext()
+   at System.Collections.Generic.List`1..ctor(IEnumerable`1 collection)
+   at System.Linq.Enumerable.ToList[TSource](IEnumerable`1 source)
+   at RedditPodcastPoster.Common.Factories.PostModelFactory..ctor(ISubjectsProvider subjectsProvider, ILogger`1 logger) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Class-Libraries\RedditPodcastPoster.Common\Factories\PostModelFactory.cs:line 14
+   at InvokeStub_PostModelFactory..ctor(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitCache(ServiceCallSite callSite, RuntimeResolverContext context, ServiceProviderEngineScope serviceProviderEngine, RuntimeResolverLock lockType)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitScopeCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.DynamicServiceProviderEngine.<>c__DisplayClass2_0.<RealizeService>b__0(ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorInfoEx.GetService(IServiceProvider serviceProvider, Int32 parameterIndex)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ConstructorMatcher.CreateInstance(IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance(IServiceProvider provider, Type instanceType, Object[] parameters)
+   at Azure.HostCompositionValidator.ResolveFromScope(IServiceProvider scopedProvider, Type serviceType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Azure\HostCompositionValidator.cs:line 62
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 175
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.FunctionHostTestSupport.ValidateEntryPointAsync(IServiceCollection services, Type[] entryPointTypes) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\FunctionHostTestSupport.cs:line 173
+   at FunctionHost.Tests.IndexerIocTests.<>c__DisplayClass2_0.<<Indexer_host_resolves_entry_point>b__0>d.MoveNext() in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 30
+--- End of stack trace from previous location ---
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs).
+  Stack Trace:
+     at FluentAssertions.Specialized.DelegateAssertionsBase`2.NotThrowInternal(Exception exception, String because, Object[] becauseArgs)
+   at FluentAssertions.Specialized.NonGenericAsyncFunctionAssertions.NotThrowAsync(String because, Object[] becauseArgs)
+   at FunctionHost.Tests.IndexerIocTests.Indexer_host_resolves_entry_point(Type entryPointType) in C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster\Cloud\Unit-Tests\FunctionHost.Tests\IndexerIocTests.cs:line 32
+--- End of stack trace from previous location ---
+
+Failed!  - Failed:     6, Passed:    18, Skipped:     0, Total:    24, Duration: 861 ms - FunctionHost.Tests.dll (net10.0)

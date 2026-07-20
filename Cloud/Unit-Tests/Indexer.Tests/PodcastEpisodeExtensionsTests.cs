@@ -38,10 +38,8 @@ public class PodcastEpisodeExtensionsTests
         result.Lang.Should().Be("es");
         // Image handling is owned by SearchEpisodeImage (see SearchEpisodeImageTests); this just
         // confirms ToEpisodeSearchRecord wires the youtubeId through so the selected maxresdefault
-        // thumbnail is loss-lessly compacted to the "yx" token, and the retired youtubeImageVariant
-        // is cleared with an empty string.
+        // thumbnail is loss-lessly compacted to the "yx" token.
         result.Image.Should().Be("yx");
-        result.YoutubeImageVariant.Should().BeEmpty();
         result.Duration.Should().Be("00:02:03");
     }
 
@@ -64,7 +62,6 @@ public class PodcastEpisodeExtensionsTests
         result.YoutubeId.Should().BeNull();
         result.AppleId.Should().BeNull();
         result.Image.Should().Be("sopaque");
-        result.YoutubeImageVariant.Should().BeEmpty();
     }
 
     [Fact]
@@ -112,7 +109,6 @@ public class PodcastEpisodeExtensionsTests
         fields.Should().Contain(field => field.Name == "youtubeId");
         fields.Should().Contain(field => field.Name == "appleId");
         fields.Should().Contain(field => field.Name == "podcastAppleId");
-        fields.Should().Contain(field => field.Name == "youtubeImageVariant");
 
         var language = fields.Single(field => field.Name == "lang");
         language.IsFilterable.Should().BeTrue();

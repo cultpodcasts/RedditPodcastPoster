@@ -273,7 +273,7 @@ Proposal: keep `image` only for non-YT images; for YT thumbs store a small `yout
 | Spotify | `https://i.scdn.co/image/{id}` | `s{id}` | same | fixed prefix dropped; opaque id kept |
 | Apple | `https://is{n}-ssl.mzstatic.com/image/thumb/{path}` | `a{n}{path}` | same | fixed prefix dropped; host digit `n` (1-5) + deep path kept verbatim |
 
-Anything else — `other` art, a thumbnail for a different video, a URL with a query string, an unusual host — is kept as its **full URL** in `image` (nothing lossy is dropped). `image` is always a non-null string; **empty string** (never `null`) when there is no image, so Azure Search incremental merge clears stale covers. `youtubeImageVariant` is **retired for new writes** (kept in schema, emitted as `""` to clear the old enum on already-indexed docs; the client still reads it as a legacy fallback until each doc re-merges).
+Anything else — `other` art, a thumbnail for a different video, a URL with a query string, an unusual host — is kept as its **full URL** in `image` (nothing lossy is dropped). `image` is always a non-null string; **empty string** (never `null`) when there is no image, so Azure Search incremental merge clears stale covers. `youtubeImageVariant` has been **removed entirely** — the field no longer exists on the index schema, is not projected by the data-source SQL, and is no longer read by the client. A **full search reindex (or index recreate)** is required after deploy so every document carries a lossless `image` token/URL and nothing relies on the retired coarse variant.
 
 Loss-less size estimate vs storing full URLs (from the host/origin scan above):
 
@@ -464,8 +464,8 @@ Reset page to 1 and re-run search (same pattern as `podcastsChange`).
 | `appleId` + `podcastAppleId` | retrievable strings | Replace full `apple` URL; slug omitted |
 | `bbc` | retrievable string | Keep full URL; not derivable |
 | `internetArchive` | retrievable string | Keep full URL; not derivable |
-| `image` | retrievable string? | Store only non-YouTube image URLs; omit for derivable YT thumbnails |
-| `youtubeImageVariant` (optional) | retrievable string/enum | Preserve YT thumbnail variant only if fallback behavior is insufficient |
+| `image` | retrievable string? | Lossless token/URL for the coalesced cover (empty string clears stale covers on merge) |
+| ~~`youtubeImageVariant`~~ | **removed** | Retired coarse enum — removed from schema, push path, pull SQL, and client; full reindex required |
 | `podcastSearchTerms` | searchable, retrievable=false | Unchanged |
 | `episodeSearchTerms` | searchable, retrievable=false | Unchanged |
 
