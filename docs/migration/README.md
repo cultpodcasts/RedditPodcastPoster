@@ -21,7 +21,7 @@ See [`remaining-work-audit.md`](./remaining-work-audit.md) for test gaps and opt
 
 **Summary:**
 - ❌ No automated tests for detached-episode paths
-- 🟡 Assess retirement of legacy-format console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`)
+- ✅ Legacy-format console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`) removed
 
 ## Historical docs
 

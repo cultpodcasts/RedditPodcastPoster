@@ -80,7 +80,7 @@ Production-equivalent discover queries / ignore terms live in bicep; keep local 
 ### Secrets → function app setting names
 
 ```powershell
-dotnet run --project Console-Apps/SecretsToFunctionSettings -- path-to-secrets.json
+dotnet run --project Console-Apps/MigrateConfig -- secrets path-to-secrets.json
 ```
 
 Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).

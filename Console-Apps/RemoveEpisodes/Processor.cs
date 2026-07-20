@@ -11,7 +11,7 @@ public class Processor(
     IEpisodeRepository episodeRepository,
     ILogger<Processor> logger)
 {
-    public async Task Process(Request request)
+    public async Task Process(RemoveRequest request)
     {
         if (request.IsNonDryRun)
         {

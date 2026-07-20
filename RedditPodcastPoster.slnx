@@ -139,8 +139,6 @@
 
     <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
 
-    <Project Path="Console-Apps/CosmosDbFixer/CosmosDbFixer.csproj" />
-
     <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />
 
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
@@ -153,70 +151,35 @@
 
     <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />
 
+    <Project Path="Console-Apps/DiscoveryTrainingExport/DiscoveryTrainingExport.csproj" />
+
+    <Project Path="Console-Apps/DiscoveryTrainingTrain/DiscoveryTrainingTrain.csproj" />
+
     <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
-
-    <Project Path="Console-Apps/EliminateExistingEpisodes/EliminateExistingEpisodes.csproj" />
-
-    <Project Path="Console-Apps/EnrichEpisodesFromPostFlare/EnrichEpisodesFromPostFlare.csproj" />
 
     <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
 
     <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
 
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
-    <Project Path="Console-Apps/EpisodeDriftDetector/EpisodeDriftDetector.csproj" />
+
     <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
-
-    <Project Path="Console-Apps/FixDatesFromApple/FixDatesFromApple.csproj" />
-
-    <Project Path="Console-Apps/FlairPublisher/FlairPublisher.csproj" />
 
     <Project Path="Console-Apps/Index/Index.csproj" />
 
-    <Project Path="Console-Apps/IndexAllEpisodesAudit/IndexAllEpisodesAudit.csproj" />
-
-    <Project Path="Console-Apps/JsonSplitCosmosDbUploader/JsonSplitCosmosDbUploader.csproj" />
-
     <Project Path="Console-Apps/KVWriter/KVWriter.csproj" />
 
-    <Project Path="Console-Apps/R2Publisher/R2Publisher.csproj" />
+    <Project Path="Console-Apps/MigrateConfig/MigrateConfig.csproj" />
 
-    <Project Path="Console-Apps/LaunchSettingsToAppSettings/LaunchSettingsToAppSettings.csproj" />
-    <Project Path="Console-Apps/MachineAuth0/MachineAuth0.csproj" />
     <Project Path="Console-Apps/Poster/Poster.csproj" />
+
+    <Project Path="Console-Apps/PublishR2/PublishR2.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
 
-    <Project Path="Console-Apps/RenamePodcast/RenamePodcast.csproj" />
-
-    <Project Path="Console-Apps/SecretsToFunctionSettings/SecretsToFunctionSettings.csproj" />
-
-    <Project Path="Console-Apps/SeedEliminationTerms/SeedEliminationTerms.csproj" />
-
-    <Project Path="Console-Apps/SeedKnownTerms/SeedKnownTerms.csproj" />
-
-    <Project Path="Console-Apps/SubjectSeeder/SubjectSeeder.csproj" />
-
     <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
 
-    <Project Path="Console-Apps/TextClassifierTraining/TextClassifierTraining.csproj" />
-
     <Project Path="Console-Apps/ThrowawayConsole/ThrowawayConsole.csproj" />
-
-    <Project Path="Console-Apps/Tweet/Tweet.csproj" />
-
-    <Project Path="Console-Apps/UnremoveEpisodes/UnremoveEpisodes.csproj" />
-
-    <Project Path="Console-Apps/WebsubStatus/WebsubStatus.csproj" />
-
-    <Project Path="Console-Apps/WikipediaEpisodeEnricher/WikipediaEpisodeEnricher.csproj" />
-
-    <Project Path="Console-Apps/YouTubePushNotificationSubscribe/YouTubePushNotificationSubscribe.csproj" />
-
-  </Folder>
-
-  <Folder Name="/Console-Apps/Tests/">
-    <Project Path="Console-Apps/TextClassifierTraining.Tests/TextClassifierTraining.Tests.csproj" />
 
   </Folder>
 
@@ -263,5 +226,3 @@
   </Folder>
 
 </Solution>
-
-

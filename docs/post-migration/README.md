@@ -23,7 +23,7 @@
 These are not blocking production:
 
 - [ ] Add unit/integration tests for detached-episode code paths (see historical checklist in `docs/migration/remaining-work-audit.md`).
-- [ ] Retire or reassess pre-migration console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`) if no longer needed.
+- [x] Retire pre-migration console tools (`ModelTransformer`, `JsonSplitCosmosDbUploader`) — removed.
 
 ---
 
