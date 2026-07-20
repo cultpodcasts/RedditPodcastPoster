@@ -1,6 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple.Clients;
+using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
+using RedditPodcastPoster.PodcastServices.Apple.Handlers;
+using RedditPodcastPoster.PodcastServices.Apple.Providers;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Extensions;
 

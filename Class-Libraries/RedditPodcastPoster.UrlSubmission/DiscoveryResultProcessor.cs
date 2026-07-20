@@ -1,6 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;

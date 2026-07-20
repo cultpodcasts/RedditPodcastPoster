@@ -4,7 +4,7 @@ using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;

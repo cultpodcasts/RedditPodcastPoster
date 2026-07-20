@@ -1,4 +1,4 @@
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.UrlSubmission.Models;

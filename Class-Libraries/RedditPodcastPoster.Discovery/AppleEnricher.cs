@@ -1,7 +1,8 @@
 ﻿using iTunesSearch.Library.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
 namespace RedditPodcastPoster.Discovery;
 

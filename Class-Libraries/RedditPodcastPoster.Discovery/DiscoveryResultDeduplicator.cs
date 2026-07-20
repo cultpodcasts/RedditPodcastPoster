@@ -1,5 +1,5 @@
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 
 namespace RedditPodcastPoster.Discovery;
