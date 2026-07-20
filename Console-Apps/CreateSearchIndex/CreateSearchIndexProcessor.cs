@@ -382,15 +382,36 @@ public partial class CreateSearchIndexProcessor(
         // IMAGE PROJECTION — this SQL is the pull-path mirror of the push-path C# helper
         // SearchEpisodeImage.From (RedditPodcastPoster.EntitySearchIndexer), the single documented
         // source of truth. Cosmos SQL cannot call C#, so the two are kept in sync. The rules:
-        //   1. image = youtube ?? spotify ?? apple ?? other  (first available, YouTube-first),
-        //      stored AS-IS — the selected URL (including the full YouTube thumbnail URL) is never
-        //      inspected, classified by quality (maxresdefault/hqdefault/sddefault/…), or rewritten.
-        //   2. `image` is always non-null. When there is no image it is an EMPTY STRING, never null:
-        //      Azure AI Search merge ignores null source values, so an empty string (or a real
-        //      coalesced URL) is required to clear/overwrite a previously-indexed image during
-        //      incremental (high-water-mark) reindexing (e.g. a stale Spotify cover before YouTube).
-        //   3. youtubeImageVariant is retired: no longer computed. Emit an empty string so a merge
-        //      clears any variant left on already-indexed documents by the old compaction scheme.
+        //   1. image = youtube ?? spotify ?? apple ?? other  (first available, YouTube-first).
+        //   2. COMPACT the two platforms whose URL is a fixed prefix + one opaque token, so the
+        //      index stores only the token and the client rebuilds the URL:
+        //        - YouTube: a standard i.ytimg.com/vi/{youTubeId}/{quality}.jpg thumbnail for this
+        //          episode's video -> youtubeImageVariant (maxres/sd/hq), mapped from the filename
+        //          AS-IS (the selected quality is preserved, never re-evaluated); image emptied.
+        //        - Spotify: a standard i.scdn.co/image/{id} cover (single segment, no query)
+        //          -> spotifyImageId = {id}; image emptied.
+        //      Apple (variable host/deep path), other, and any non-standard YouTube/Spotify URL are
+        //      NOT compacted — the full URL is kept in image.
+        //   3. image / youtubeImageVariant / spotifyImageId are always non-null. A value that does
+        //      not apply is an EMPTY STRING, never null: Azure AI Search merge ignores null source
+        //      values, so an empty string (or a real value) is required to clear/overwrite a
+        //      previously-indexed value during incremental (high-water-mark) reindexing (e.g. a
+        //      stale Spotify cover left in image from before a YouTube video was merged onto it).
+        const string spotifyImagePrefix = "https://i.scdn.co/image/";
+        var youtubeStandardThumb =
+            @$"(IS_DEFINED(e.images.youtube)
+                AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/""))
+                AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")))";
+        // Spotify wins the coalesce only when there is no YouTube image; compact it only when it is
+        // a bare i.scdn.co/image/{id} (no extra path segment, no query string).
+        var spotifyStandardCover =
+            @$"((NOT IS_DEFINED(e.images.youtube))
+                AND IS_DEFINED(e.images.spotify)
+                AND STARTSWITH(e.images.spotify, ""{spotifyImagePrefix}"")
+                AND (NOT CONTAINS(SUBSTRING(e.images.spotify, {spotifyImagePrefix.Length}, LENGTH(e.images.spotify) - {spotifyImagePrefix.Length}), ""/""))
+                AND (NOT CONTAINS(e.images.spotify, ""?"")))";
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
@@ -413,8 +434,16 @@ public partial class CreateSearchIndexProcessor(
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
-                            (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """" as image,
-                            """" as youtubeImageVariant,
+                            IIF({youtubeStandardThumb} OR {spotifyStandardCover},
+                                """",
+                                (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """") as image,
+                            IIF({youtubeStandardThumb},
+                                IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""maxres"",
+                                    IIF(ENDSWITH(e.images.youtube, ""/sddefault.jpg""), ""sd"", ""hq"")),
+                                """") as youtubeImageVariant,
+                            IIF({spotifyStandardCover},
+                                SUBSTRING(e.images.spotify, {spotifyImagePrefix.Length}, LENGTH(e.images.spotify) - {spotifyImagePrefix.Length}),
+                                """") as spotifyImageId,
                             e.lang ?? e.podcastLanguage as lang,
                             e._ts
                             FROM episodes e

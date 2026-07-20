@@ -265,6 +265,14 @@ Host/origin breakdown (rescanned later same day — live index drifts ~1% betwee
 
 Proposal: keep `image` only for non-YT images; for YT thumbs store a small `youtubeImageVariant` value (`maxresdefault` / `sddefault` / `hqdefault`, or a compact enum value) or adopt client-side fallback (`maxresdefault` → `hqdefault`). Net saving remains approximately **3.18 MB**. The webapp already inspects `i.ytimg.com` hosts for crop handling (`episode-image.component.ts`), so the reconstruction pattern is established.
 
+**Implemented (compaction for client expansion).** The two platforms whose cover URL is a fixed prefix + a single opaque token are compacted at index time and re-expanded by the client (`SearchEpisodeImage.From` is the single source of truth; the Cosmos data-source SQL mirrors it):
+
+- **YouTube** — a standard `i.ytimg.com/vi/{youtubeId}/{quality}.jpg` thumbnail for the episode's own video → `youtubeImageVariant` (`maxres`/`sd`/`hq`), `image` emptied. The variant is mapped from the **existing filename as-is** — the selected quality is never upgraded/downgraded or second-guessed.
+- **Spotify** — a standard `i.scdn.co/image/{id}` cover (single path segment, no query) → `spotifyImageId` = `{id}`, `image` emptied. Client rebuilds `https://i.scdn.co/image/{id}`.
+- **Apple** (`is{1-5}-ssl.mzstatic.com/image/thumb/…/{dims}bb.jpg`) is **not** compacted — variable host + deep, variable path with no single reversible token, and low volume (641 docs / ~93 KB). It, `other`, and any non-standard YouTube/Spotify URL keep their full URL in `image`.
+
+`image`, `youtubeImageVariant`, and `spotifyImageId` are always **non-null strings** — a not-applicable value is an **empty string** (never `null`) so Azure AI Search incremental merge clears stale covers/tokens (merge ignores `null` source values). The client renders whichever of the three is populated, YouTube-first then Spotify.
+
 ### Audit totals (beyond §3A's ~5.29 MB URL savings)
 
 | Item | Net saved |
