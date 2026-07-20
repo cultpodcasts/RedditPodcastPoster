@@ -7,13 +7,7 @@ public static class PodcastEpisodeExtensions
 {
     public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
     {
-        var image = podcastEpisode.Episode.Images?.YouTube ?? podcastEpisode.Episode.Images?.Spotify ??
-            podcastEpisode.Episode.Images?.Apple ?? podcastEpisode.Episode.Images?.Other;
-        var youtubeImageVariant = GetYoutubeImageVariant(image, podcastEpisode.Episode.YouTubeId);
-        if (youtubeImageVariant != null)
-        {
-            image = null;
-        }
+        var image = SearchEpisodeImage.From(podcastEpisode.Episode.Images, podcastEpisode.Episode.YouTubeId);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
         var duration = podcastEpisode.Episode.Length.ToString();
@@ -26,7 +20,7 @@ public static class PodcastEpisodeExtensions
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
             Id = podcastEpisode.Episode.Id.ToString(),
-            Image = image?.ToString(),
+            Image = image.Image,
             InternetArchive = podcastEpisode.Episode.Urls.InternetArchive != null
                 ? podcastEpisode.Episode.Urls.InternetArchive.ToString()
                 : string.Empty,
@@ -37,32 +31,7 @@ public static class PodcastEpisodeExtensions
             Release = podcastEpisode.Episode.Release,
             SpotifyId = NullIfWhiteSpace(podcastEpisode.Episode.SpotifyId),
             Subjects = podcastEpisode.Episode.Subjects.ToArray(),
-            YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId),
-            YoutubeImageVariant = youtubeImageVariant
-        };
-    }
-
-    private static string? GetYoutubeImageVariant(Uri? image, string youtubeId)
-    {
-        if (image == null ||
-            string.IsNullOrWhiteSpace(youtubeId) ||
-            !image.Host.Equals("i.ytimg.com", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var expectedPrefix = $"/vi/{youtubeId}/";
-        if (!image.AbsolutePath.StartsWith(expectedPrefix, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return image.AbsolutePath[expectedPrefix.Length..] switch
-        {
-            "maxresdefault.jpg" => "maxres",
-            "sddefault.jpg" => "sd",
-            "hqdefault.jpg" => "hq",
-            _ => null
+            YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId)
         };
     }
 

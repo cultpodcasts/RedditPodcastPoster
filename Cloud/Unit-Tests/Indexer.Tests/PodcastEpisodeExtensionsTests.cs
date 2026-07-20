@@ -12,7 +12,7 @@ namespace Indexer.Tests;
 public class PodcastEpisodeExtensionsTests
 {
     [Fact]
-    public void Maps_compact_service_ids_language_and_derivable_youtube_image()
+    public void Maps_service_ids_language_and_compacts_youtube_image()
     {
         var episode = CreateEpisode();
         episode.Images = new EpisodeImages
@@ -36,13 +36,15 @@ public class PodcastEpisodeExtensionsTests
         result.AppleId.Should().Be("987654321");
         result.PodcastAppleId.Should().Be("1234567890");
         result.Lang.Should().Be("es");
-        result.Image.Should().BeNull();
-        result.YoutubeImageVariant.Should().Be("maxres");
+        // Image handling is owned by SearchEpisodeImage (see SearchEpisodeImageTests); this just
+        // confirms ToEpisodeSearchRecord wires the youtubeId through so the selected maxresdefault
+        // thumbnail is loss-lessly compacted to the "yx" token.
+        result.Image.Should().Be("yx");
         result.Duration.Should().Be("00:02:03");
     }
 
     [Fact]
-    public void Keeps_opaque_image_and_omits_empty_ids()
+    public void Compacts_spotify_image_and_omits_empty_ids()
     {
         var episode = CreateEpisode();
         episode.SpotifyId = " ";
@@ -59,8 +61,7 @@ public class PodcastEpisodeExtensionsTests
         result.SpotifyId.Should().BeNull();
         result.YoutubeId.Should().BeNull();
         result.AppleId.Should().BeNull();
-        result.Image.Should().Be("https://i.scdn.co/image/opaque");
-        result.YoutubeImageVariant.Should().BeNull();
+        result.Image.Should().Be("sopaque");
     }
 
     [Fact]
@@ -108,7 +109,6 @@ public class PodcastEpisodeExtensionsTests
         fields.Should().Contain(field => field.Name == "youtubeId");
         fields.Should().Contain(field => field.Name == "appleId");
         fields.Should().Contain(field => field.Name == "podcastAppleId");
-        fields.Should().Contain(field => field.Name == "youtubeImageVariant");
 
         var language = fields.Single(field => field.Name == "lang");
         language.IsFilterable.Should().BeTrue();

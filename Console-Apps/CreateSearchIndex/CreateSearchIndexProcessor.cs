@@ -378,6 +378,66 @@ public partial class CreateSearchIndexProcessor(
     {
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
+
+        // IMAGE PROJECTION — this SQL is the pull-path mirror of the push-path C# helper
+        // SearchEpisodeImage (RedditPodcastPoster.EntitySearchIndexer), the single documented source
+        // of truth. Cosmos SQL cannot call C#, so the two are kept in sync. The rules:
+        //   1. image = youtube ?? spotify ?? apple ?? other  (first available, YouTube-first).
+        //   2. LOSS-LESS COMPACTION: the winner is stored as a short token the client expands back
+        //      to the EXACT same URL (never a coarse quality guess):
+        //        - YouTube "y{q}": a standard i.ytimg.com/vi/{youTubeId}/{quality}.jpg thumbnail for
+        //          this episode's video (the placeholder-safe image chosen at ingestion). The video
+        //          id is dropped (== youtubeId) and the quality is one char mapped from the filename
+        //          AS-IS: x=maxresdefault, s=sddefault, h=hqdefault, m=mqdefault, d=default.
+        //        - Spotify "s{id}": a standard i.scdn.co/image/{id} cover (single segment, no
+        //          query/fragment) -> drop the fixed prefix.
+        //        - Apple "a{n}{path}": a standard is{n}-ssl.mzstatic.com/image/thumb/{path} artwork
+        //          -> drop the fixed prefix, keep host digit {n} and the deep {path} verbatim.
+        //      Any other shape (other art, non-standard URL, thumbnail for a different video, a URL
+        //      with a query) is kept as its FULL URL in image — nothing lossy is dropped.
+        //   3. image is always non-null. When there is no image it is an EMPTY STRING, never null:
+        //      Azure AI Search merge ignores null source values, so an empty string (or a real
+        //      value) is required to clear/overwrite a previously-indexed image during incremental
+        //      (high-water-mark) reindexing (e.g. a stale Spotify cover before YouTube).
+        //   4. youtubeImageVariant has been removed entirely (field no longer exists on the index):
+        //      a full reindex / index recreate is required after deploy so every document carries a
+        //      lossless `image` token/URL and clients no longer rely on the coarse variant.
+        const string spotifyPrefix = "https://i.scdn.co/image/";
+        const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
+        // Full Apple prefix = "https://is" (10) + digit (1) + appleHostTail => digit at index 10.
+        var applePrefixLength = "https://is".Length + 1 + appleHostTail.Length;
+        var isYouTubeToken =
+            @$"(IS_DEFINED(e.images.youtube) AND IS_DEFINED(e.youTubeId)
+                AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/""))
+                AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/mqdefault.jpg"")
+                    OR ENDSWITH(e.images.youtube, ""/default.jpg"")))";
+        var youTubeToken =
+            @"CONCAT(""y"",
+                IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""x"",
+                    IIF(ENDSWITH(e.images.youtube, ""/sddefault.jpg""), ""s"",
+                        IIF(ENDSWITH(e.images.youtube, ""/hqdefault.jpg""), ""h"",
+                            IIF(ENDSWITH(e.images.youtube, ""/mqdefault.jpg""), ""m"", ""d"")))))";
+        var isSpotifyToken =
+            @$"((NOT IS_DEFINED(e.images.youtube)) AND IS_DEFINED(e.images.spotify)
+                AND STARTSWITH(e.images.spotify, ""{spotifyPrefix}"")
+                AND LENGTH(e.images.spotify) > {spotifyPrefix.Length}
+                AND (NOT CONTAINS(SUBSTRING(e.images.spotify, {spotifyPrefix.Length}, LENGTH(e.images.spotify) - {spotifyPrefix.Length}), ""/""))
+                AND (NOT CONTAINS(e.images.spotify, ""?""))
+                AND (NOT CONTAINS(e.images.spotify, ""#"")))";
+        var spotifyToken =
+            @$"CONCAT(""s"", SUBSTRING(e.images.spotify, {spotifyPrefix.Length}, LENGTH(e.images.spotify) - {spotifyPrefix.Length}))";
+        var isAppleToken =
+            @$"((NOT IS_DEFINED(e.images.youtube)) AND (NOT IS_DEFINED(e.images.spotify)) AND IS_DEFINED(e.images.apple)
+                AND (STARTSWITH(e.images.apple, ""https://is1{appleHostTail}"")
+                    OR STARTSWITH(e.images.apple, ""https://is2{appleHostTail}"")
+                    OR STARTSWITH(e.images.apple, ""https://is3{appleHostTail}"")
+                    OR STARTSWITH(e.images.apple, ""https://is4{appleHostTail}"")
+                    OR STARTSWITH(e.images.apple, ""https://is5{appleHostTail}"")))";
+        var appleToken =
+            @$"CONCAT(""a"", SUBSTRING(e.images.apple, 10, 1), SUBSTRING(e.images.apple, {applePrefixLength}, LENGTH(e.images.apple) - {applePrefixLength}))";
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
@@ -400,19 +460,10 @@ public partial class CreateSearchIndexProcessor(
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
-                            IIF(IS_DEFINED(e.images.youtube)
-                                    AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/""))
-                                    AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
-                                        OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
-                                        OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")),
-                                null,
-                                e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) as image,
-                            IIF(IS_DEFINED(e.images.youtube)
-                                    AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/"")),
-                                IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""maxres"",
-                                    IIF(ENDSWITH(e.images.youtube, ""/sddefault.jpg""), ""sd"",
-                                        IIF(ENDSWITH(e.images.youtube, ""/hqdefault.jpg""), ""hq"", null))),
-                                null) as youtubeImageVariant,
+                            IIF({isYouTubeToken}, {youTubeToken},
+                                IIF({isSpotifyToken}, {spotifyToken},
+                                    IIF({isAppleToken}, {appleToken},
+                                        (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """"))) as image,
                             e.lang ?? e.podcastLanguage as lang,
                             e._ts
                             FROM episodes e
