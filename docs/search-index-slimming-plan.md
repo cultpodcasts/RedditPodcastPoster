@@ -265,27 +265,6 @@ Host/origin breakdown (rescanned later same day — live index drifts ~1% betwee
 
 Proposal: keep `image` only for non-YT images; for YT thumbs store a small `youtubeImageVariant` value (`maxresdefault` / `sddefault` / `hqdefault`, or a compact enum value) or adopt client-side fallback (`maxresdefault` → `hqdefault`). Net saving remains approximately **3.18 MB**. The webapp already inspects `i.ytimg.com` hosts for crop handling (`episode-image.component.ts`), so the reconstruction pattern is established.
 
-**Implemented (loss-less image-URL compaction).** The earlier coarse `youtubeImageVariant` (`maxres`/`sd`/`hq`) enum was **rejected**: it dropped the exact probed thumbnail (e.g. a `hqdefault` selected because the video has no `maxresdefault`) and let the client reconstruct a quality tier that 404s to a grey placeholder. It is replaced by a **loss-less token scheme** in the single `image` field. `SearchEpisodeImage` (push path) is the source of truth; the Cosmos data-source SQL (`CreateSearchIndexProcessor.CreateDataSource`) mirrors it; the webapp `expandImage()` reverses it. A token is only ever emitted when expanding it reproduces the original URL **byte-for-byte** (`SearchEpisodeImage.Compact` verifies the round-trip), so the selected image is never lost or altered. First character = scheme sigil:
-
-| Platform | Standard URL | Token | Expands to | Notes |
-|----------|--------------|-------|------------|-------|
-| YouTube | `https://i.ytimg.com/vi/{youtubeId}/{quality}.jpg` | `y{q}` | same | id dropped (= doc `youtubeId`); `x`=maxresdefault, `s`=sddefault, `h`=hqdefault, `m`=mqdefault, `d`=default — every resolver-selectable quality is representable |
-| Spotify | `https://i.scdn.co/image/{id}` | `s{id}` | same | fixed prefix dropped; opaque id kept |
-| Apple | `https://is{n}-ssl.mzstatic.com/image/thumb/{path}` | `a{n}{path}` | same | fixed prefix dropped; host digit `n` (1-5) + deep path kept verbatim |
-
-Anything else — `other` art, a thumbnail for a different video, a URL with a query string, an unusual host — is kept as its **full URL** in `image` (nothing lossy is dropped). `image` is always a non-null string; **empty string** (never `null`) when there is no image, so Azure Search incremental merge clears stale covers. `youtubeImageVariant` has been **removed entirely** — the field no longer exists on the index schema, is not projected by the data-source SQL, and is no longer read by the client. A **full search reindex (or index recreate)** is required after deploy so every document carries a lossless `image` token/URL and nothing relies on the retired coarse variant.
-
-Loss-less size estimate vs storing full URLs (from the host/origin scan above):
-
-| Platform | Docs | Full-URL chars | Prefix/token saving per doc | Net saved |
-|----------|------|----------------|-----------------------------|-----------|
-| YouTube (`i.ytimg.com`) | 66,381 | 3,413,113 | ~50 → 2 chars | **~3.13 MB** |
-| Spotify (`i.scdn.co`) | 12,708 | 813,312 | drop 24-char prefix (id kept) | **~0.28 MB** |
-| Apple (`is{n}-ssl.mzstatic.com`) | 641 | 93,101 | drop 41-char prefix → `a{n}` | **~0.024 MB** |
-| **Total** | | | | **≈3.43 MB (loss-less)** |
-
-The **anti-placeholder guarantee is upstream and untouched**: `Episode.Images.YouTube` is chosen at ingestion by `YouTubeThumbnailResolver` (candidates highest-resolution-first, grey placeholder rejected). Compaction records that selection verbatim and the client rebuilds the identical URL, so index-slimming can never resurrect a placeholder and **no** client `maxres`→`hqdefault` fallback is needed.
-
 ### Audit totals (beyond §3A's ~5.29 MB URL savings)
 
 | Item | Net saved |
@@ -464,8 +443,8 @@ Reset page to 1 and re-run search (same pattern as `podcastsChange`).
 | `appleId` + `podcastAppleId` | retrievable strings | Replace full `apple` URL; slug omitted |
 | `bbc` | retrievable string | Keep full URL; not derivable |
 | `internetArchive` | retrievable string | Keep full URL; not derivable |
-| `image` | retrievable string? | Lossless token/URL for the coalesced cover (empty string clears stale covers on merge) |
-| ~~`youtubeImageVariant`~~ | **removed** | Retired coarse enum — removed from schema, push path, pull SQL, and client; full reindex required |
+| `image` | retrievable string? | Store only non-YouTube image URLs; omit for derivable YT thumbnails |
+| `youtubeImageVariant` (optional) | retrievable string/enum | Preserve YT thumbnail variant only if fallback behavior is insufficient |
 | `podcastSearchTerms` | searchable, retrievable=false | Unchanged |
 | `episodeSearchTerms` | searchable, retrievable=false | Unchanged |
 
