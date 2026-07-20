@@ -379,14 +379,19 @@ public partial class CreateSearchIndexProcessor(
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
 
-        // The `image` projection is coalesced YouTube-first. When the image is a derivable
-        // i.ytimg.com thumbnail it is encoded compactly as `youtubeImageVariant` and `image`
-        // is emitted as an EMPTY STRING (not null). Azure AI Search indexers cannot distinguish
-        // a null source value from a missing field, so a null is ignored on merge and any
-        // previously-indexed image (e.g. a stale Spotify cover from before a YouTube merge)
-        // would never be cleared during incremental (high-water-mark) reindexing. Emitting a
-        // non-null empty string forces the merge to overwrite/clear the stale value so the
-        // effective image correctly coalesces to the YouTube thumbnail.
+        // IMAGE PROJECTION — this SQL is the pull-path mirror of the push-path C# helper
+        // SearchEpisodeImage.From (RedditPodcastPoster.EntitySearchIndexer), which is the single
+        // documented source of truth for these rules. Cosmos SQL cannot call C#, so the two must
+        // be kept in sync. The rules (identical on both paths):
+        //   1. image = youtube ?? spotify ?? apple ?? other   (first available, YouTube-first).
+        //   2. COMPACT YOUTUBE THUMBNAILS ONLY: when the winner is a standard i.ytimg.com
+        //      thumbnail for this episode's video (maxresdefault/sddefault/hqdefault), drop the
+        //      URL and emit only `youtubeImageVariant`. Spotify, Apple, other, and non-standard
+        //      YouTube URLs are NOT compacted — their full URL is kept in `image`.
+        //   3. `image` is always non-null. When compacted (or absent) it is an EMPTY STRING, never
+        //      null: Azure AI Search merge ignores null source values, so an empty string is
+        //      required to clear/overwrite a previously-indexed image URL during incremental
+        //      (high-water-mark) reindexing (e.g. a stale Spotify cover from before a YouTube merge).
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
