@@ -7,7 +7,7 @@ public static class PodcastEpisodeExtensions
 {
     public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
     {
-        var image = SearchEpisodeImage.From(podcastEpisode.Episode.Images, podcastEpisode.Episode.YouTubeId);
+        var image = SearchEpisodeImage.From(podcastEpisode.Episode.Images);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
         var duration = podcastEpisode.Episode.Length.ToString();
@@ -32,7 +32,11 @@ public static class PodcastEpisodeExtensions
             SpotifyId = NullIfWhiteSpace(podcastEpisode.Episode.SpotifyId),
             Subjects = podcastEpisode.Episode.Subjects.ToArray(),
             YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId),
-            YoutubeImageVariant = image.YoutubeImageVariant
+            // youtubeImageVariant is retired: the full image URL is now stored as-is, so no
+            // variant is ever computed for new writes. Emit an empty string (not null) so an
+            // incremental merge clears any variant left on already-indexed documents by the old
+            // compaction scheme, ensuring clients render the actual `image` URL.
+            YoutubeImageVariant = string.Empty
         };
     }
 

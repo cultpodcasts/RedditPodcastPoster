@@ -12,7 +12,7 @@ namespace Indexer.Tests;
 public class PodcastEpisodeExtensionsTests
 {
     [Fact]
-    public void Maps_compact_service_ids_language_and_derivable_youtube_image()
+    public void Maps_service_ids_language_and_stores_youtube_image_as_is()
     {
         var episode = CreateEpisode();
         episode.Images = new EpisodeImages
@@ -37,10 +37,10 @@ public class PodcastEpisodeExtensionsTests
         result.PodcastAppleId.Should().Be("1234567890");
         result.Lang.Should().Be("es");
         // Image handling is owned by SearchEpisodeImage (see SearchEpisodeImageTests); this just
-        // confirms ToEpisodeSearchRecord wires it through: a standard YouTube thumbnail becomes an
-        // empty-string image + variant.
-        result.Image.Should().BeEmpty();
-        result.YoutubeImageVariant.Should().Be("maxres");
+        // confirms ToEpisodeSearchRecord wires it through: the selected YouTube URL is stored as-is
+        // and the retired youtubeImageVariant is cleared with an empty string.
+        result.Image.Should().Be($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg");
+        result.YoutubeImageVariant.Should().BeEmpty();
         result.Duration.Should().Be("00:02:03");
     }
 
@@ -63,7 +63,7 @@ public class PodcastEpisodeExtensionsTests
         result.YoutubeId.Should().BeNull();
         result.AppleId.Should().BeNull();
         result.Image.Should().Be("https://i.scdn.co/image/opaque");
-        result.YoutubeImageVariant.Should().BeNull();
+        result.YoutubeImageVariant.Should().BeEmpty();
     }
 
     [Fact]
