@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 

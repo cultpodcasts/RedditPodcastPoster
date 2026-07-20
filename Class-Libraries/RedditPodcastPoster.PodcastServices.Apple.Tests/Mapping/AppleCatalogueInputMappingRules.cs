@@ -3,8 +3,8 @@ using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Apple.Mapping;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests.Mapping;
 

@@ -1,4 +1,6 @@
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Mapping;
 

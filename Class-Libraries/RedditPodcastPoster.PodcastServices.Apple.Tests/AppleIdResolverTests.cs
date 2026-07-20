@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
