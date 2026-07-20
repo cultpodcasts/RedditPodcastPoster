@@ -12,6 +12,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 

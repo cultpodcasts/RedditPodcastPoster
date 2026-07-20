@@ -6,6 +6,7 @@ using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Discover;
 

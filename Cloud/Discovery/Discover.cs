@@ -11,6 +11,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PushSubscriptions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Discovery;
 

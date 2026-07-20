@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Api.Dtos;
 using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -9,6 +9,7 @@ using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Handlers;
 

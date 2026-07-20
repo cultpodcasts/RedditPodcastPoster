@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Resolvers;
 
@@ -116,7 +117,7 @@ public class SpotifyPodcastResolverRules
     public async Task Expensive_query_found_is_not_assigned_on_wrapper()
     {
         // Arrange
-        // KNOWN: likely bug — SpotifyPodcastWrapper(ctor expensiveQueryFound) never sets ExpensiveQueryFound.
+        // KNOWN: likely bug â€” SpotifyPodcastWrapper(ctor expensiveQueryFound) never sets ExpensiveQueryFound.
         var showName = _fixture.CreateTitle();
         var showId = _fixture.CreateSpotifyId();
         var candidate = new SimpleShow { Id = showId, Name = showName };

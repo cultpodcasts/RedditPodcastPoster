@@ -1,9 +1,10 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
@@ -48,7 +49,7 @@ public class EpisodeProviderRules
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, Apple catalogue discovery " +
-        "must run even when Spotify indexing is disabled — Apple merge supports cross-platform matching " +
+        "must run even when Spotify indexing is disabled â€” Apple merge supports cross-platform matching " +
         "independently of Spotify URL resolution.")]
     public async Task apple_catalogue_merge_pass_runs_when_index_spotify_false()
     {

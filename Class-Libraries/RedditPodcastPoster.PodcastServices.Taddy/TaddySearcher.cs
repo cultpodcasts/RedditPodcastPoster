@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Taddy.Dtos;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using PodcastEpisode = RedditPodcastPoster.PodcastServices.Taddy.Dtos.PodcastEpisode;
 
 namespace RedditPodcastPoster.PodcastServices.Taddy;

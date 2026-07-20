@@ -19,6 +19,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 var builder = Host.CreateApplicationBuilder(args);
 

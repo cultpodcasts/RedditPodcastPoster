@@ -1,10 +1,12 @@
-using System.Net;
+﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Client;
 

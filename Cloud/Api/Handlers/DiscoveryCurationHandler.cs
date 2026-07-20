@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Api.Dtos;
 using Api.Extensions;
 using Api.Services;
@@ -10,6 +10,7 @@ using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Handlers;
 

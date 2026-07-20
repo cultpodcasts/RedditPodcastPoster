@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 
 namespace RedditPodcastPoster.InternetArchive;
 

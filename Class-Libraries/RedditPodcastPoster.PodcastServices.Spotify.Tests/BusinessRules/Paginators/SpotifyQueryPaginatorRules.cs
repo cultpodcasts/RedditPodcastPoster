@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Paginators;
 
@@ -94,7 +95,7 @@ public class SpotifyQueryPaginatorRules
         "because a date-scoped lookup must not pull the full catalogue (discovery timeouts).")]
     public async Task Released_since_skips_paginate_all_even_when_expensive()
     {
-        // Arrange — older episode before newer breaks reverse-time-order detection
+        // Arrange â€” older episode before newer breaks reverse-time-order detection
         var older = CreateEpisode("episode-older", daysAgo: 10);
         var newer = CreateEpisode("episode-newer", daysAgo: 1);
         var wrapper = new CapturingSpotifyClientWrapper
@@ -181,7 +182,7 @@ public class SpotifyQueryPaginatorRules
         "because the growth loop must stop once the oldest seen release is older than the slot window.")]
     public async Task Reverse_chrono_growth_stops_when_oldest_before_released_since()
     {
-        // Arrange — newest-first (reverse chrono); oldest already before ReleasedSince
+        // Arrange â€” newest-first (reverse chrono); oldest already before ReleasedSince
         var newer = CreateEpisode("episode-newer", daysAgo: 1);
         var older = CreateEpisode("episode-older", daysAgo: 10);
         var wrapper = new CapturingSpotifyClientWrapper

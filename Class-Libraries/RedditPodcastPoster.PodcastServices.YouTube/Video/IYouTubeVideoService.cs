@@ -1,5 +1,6 @@
-using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Video;
 

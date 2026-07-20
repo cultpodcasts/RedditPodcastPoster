@@ -10,6 +10,8 @@ using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Enrichment;
 

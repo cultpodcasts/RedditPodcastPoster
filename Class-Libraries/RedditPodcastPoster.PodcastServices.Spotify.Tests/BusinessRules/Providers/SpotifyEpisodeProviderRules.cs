@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.Adapters;
@@ -9,11 +9,12 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Providers;
 
 /// <summary>
-/// Indexer SpotifyEpisodeProvider post-filters by ReleasedSince then maps SimpleEpisode → Episode,
+/// Indexer SpotifyEpisodeProvider post-filters by ReleasedSince then maps SimpleEpisode â†’ Episode,
 /// preserving ExpensiveQueryFound from the inner catalogue provider.
 /// </summary>
 public class SpotifyEpisodeProviderRules
