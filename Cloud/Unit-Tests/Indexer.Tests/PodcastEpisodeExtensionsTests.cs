@@ -4,7 +4,8 @@ using Azure.Search.Documents.Indexes;
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Formatting;
+using RedditPodcastPoster.Search.Models;
 using Xunit;
 
 namespace Indexer.Tests;

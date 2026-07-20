@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Services;
 
 namespace Indexer;
 

@@ -1,6 +1,6 @@
 ﻿using Api.Dtos;
 using RedditPodcastPoster.EntitySearchIndexer;
-using IndexerState = RedditPodcastPoster.Search.IndexerState;
+using IndexerState = RedditPodcastPoster.Search.Models.IndexerState;
 
 namespace Api.Extensions;
 

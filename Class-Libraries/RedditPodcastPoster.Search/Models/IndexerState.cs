@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Search;
+﻿namespace RedditPodcastPoster.Search.Models;
 
 public enum IndexerState
 {

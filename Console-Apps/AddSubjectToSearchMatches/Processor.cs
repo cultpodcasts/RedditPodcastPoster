@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 

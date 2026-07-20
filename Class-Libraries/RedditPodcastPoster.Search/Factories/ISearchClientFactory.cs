@@ -1,6 +1,6 @@
 ﻿using Azure.Search.Documents;
 
-namespace RedditPodcastPoster.Search;
+namespace RedditPodcastPoster.Search.Factories;
 
 public interface ISearchClientFactory
 {

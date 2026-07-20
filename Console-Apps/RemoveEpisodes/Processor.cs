@@ -1,7 +1,7 @@
 ﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions;
-using RedditPodcastPoster.Search;
+using RedditPodcastPoster.Search.Models;
 
 namespace RemoveEpisodes;
 

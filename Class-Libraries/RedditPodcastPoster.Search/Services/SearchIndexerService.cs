@@ -4,8 +4,10 @@ using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Search.Configuration;
+using RedditPodcastPoster.Search.Models;
 
-namespace RedditPodcastPoster.Search;
+namespace RedditPodcastPoster.Search.Services;
 
 public class SearchIndexerService(
     SearchIndexerClient searchIndexerClient,

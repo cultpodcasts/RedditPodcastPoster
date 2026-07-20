@@ -2,8 +2,9 @@
 using Azure.Search.Documents.Indexes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Search.Configuration;
 
-namespace RedditPodcastPoster.Search;
+namespace RedditPodcastPoster.Search.Factories;
 
 public class SearchIndexerClientFactory(
     IOptions<SearchIndexConfig> searchIndexConfig,

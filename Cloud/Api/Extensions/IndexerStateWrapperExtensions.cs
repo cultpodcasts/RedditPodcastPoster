@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Search;
+﻿using RedditPodcastPoster.Search.Models;
 using IndexerState = Api.Dtos.IndexerState;
 
 namespace Api.Extensions;
