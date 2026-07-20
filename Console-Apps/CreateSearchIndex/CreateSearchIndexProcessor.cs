@@ -378,6 +378,15 @@ public partial class CreateSearchIndexProcessor(
     {
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
+
+        // The `image` projection is coalesced YouTube-first. When the image is a derivable
+        // i.ytimg.com thumbnail it is encoded compactly as `youtubeImageVariant` and `image`
+        // is emitted as an EMPTY STRING (not null). Azure AI Search indexers cannot distinguish
+        // a null source value from a missing field, so a null is ignored on merge and any
+        // previously-indexed image (e.g. a stale Spotify cover from before a YouTube merge)
+        // would never be cleared during incremental (high-water-mark) reindexing. Emitting a
+        // non-null empty string forces the merge to overwrite/clear the stale value so the
+        // effective image correctly coalesces to the YouTube thumbnail.
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
@@ -405,8 +414,8 @@ public partial class CreateSearchIndexProcessor(
                                     AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
                                         OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
                                         OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")),
-                                null,
-                                e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) as image,
+                                """",
+                                (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """") as image,
                             IIF(IS_DEFINED(e.images.youtube)
                                     AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/"")),
                                 IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""maxres"",

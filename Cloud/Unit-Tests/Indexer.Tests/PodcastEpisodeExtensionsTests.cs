@@ -36,9 +36,74 @@ public class PodcastEpisodeExtensionsTests
         result.AppleId.Should().Be("987654321");
         result.PodcastAppleId.Should().Be("1234567890");
         result.Lang.Should().Be("es");
-        result.Image.Should().BeNull();
+        // Derivable YouTube thumbnail => encoded as variant and image emitted as an EMPTY STRING
+        // (never null) so an Azure Search merge clears any previously-indexed image URL.
+        result.Image.Should().BeEmpty();
         result.YoutubeImageVariant.Should().Be("maxres");
         result.Duration.Should().Be("00:02:03");
+    }
+
+    [Fact]
+    public void Clears_image_with_empty_string_when_youtube_thumbnail_is_derivable()
+    {
+        // A previously audio-only episode ("The Whispering Ledger", Marbury Vale Broadcasting)
+        // gets a YouTube video merged onto it. Its coalesced image is now a standard
+        // i.ytimg.com thumbnail, so the record encodes youtubeImageVariant and must emit image
+        // as an empty string (not null) to defeat Azure Search merge-ignore-null and overwrite
+        // the stale Spotify cover art that is already in the index.
+        var episode = CreateEpisode();
+        episode.YouTubeId = "griffinsong42";
+        episode.Images = new EpisodeImages
+        {
+            YouTube = new Uri($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg"),
+            Spotify = new Uri("https://i.scdn.co/image/staleSpotifyCoverForWhisperingLedger")
+        };
+
+        var podcast = new Podcast { Name = "Marbury Vale Broadcasting" };
+
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        result.Image.Should().NotBeNull();
+        result.Image.Should().BeEmpty();
+        result.YoutubeImageVariant.Should().Be("maxres");
+    }
+
+    [Fact]
+    public void Coalesces_non_derivable_youtube_image_url_onto_image_and_leaves_variant_null()
+    {
+        // "Lanterns Over Quillhaven" (Thornby & Fennwick Media) has a non-standard YouTube image
+        // host, so it cannot be compactly encoded. The full URL must land on image (YouTube-first
+        // coalescing) and youtubeImageVariant stays null.
+        var episode = CreateEpisode();
+        episode.YouTubeId = "quillhaven";
+        episode.Images = new EpisodeImages
+        {
+            YouTube = new Uri("https://images.thornbyfennwick.example/quillhaven/custom-art.png"),
+            Spotify = new Uri("https://i.scdn.co/image/quillhavenSpotify")
+        };
+
+        var result = new PodcastEpisode(new Podcast { Name = "Thornby & Fennwick Media" }, episode)
+            .ToEpisodeSearchRecord();
+
+        result.Image.Should().Be("https://images.thornbyfennwick.example/quillhaven/custom-art.png");
+        result.YoutubeImageVariant.Should().BeNull();
+    }
+
+    [Fact]
+    public void Emits_empty_string_image_when_episode_has_no_images()
+    {
+        // "Salt & Cinder" (Draymoor Audio Collective) has no images at all. Image is emitted as an
+        // empty string (not null) so a merge clears any image that a prior version of the document
+        // may have carried.
+        var episode = CreateEpisode();
+        episode.Images = null;
+
+        var result = new PodcastEpisode(new Podcast { Name = "Draymoor Audio Collective" }, episode)
+            .ToEpisodeSearchRecord();
+
+        result.Image.Should().NotBeNull();
+        result.Image.Should().BeEmpty();
+        result.YoutubeImageVariant.Should().BeNull();
     }
 
     [Fact]

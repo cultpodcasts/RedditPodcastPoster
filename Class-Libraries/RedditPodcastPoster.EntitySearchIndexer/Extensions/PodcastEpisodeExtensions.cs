@@ -10,10 +10,17 @@ public static class PodcastEpisodeExtensions
         var image = podcastEpisode.Episode.Images?.YouTube ?? podcastEpisode.Episode.Images?.Spotify ??
             podcastEpisode.Episode.Images?.Apple ?? podcastEpisode.Episode.Images?.Other;
         var youtubeImageVariant = GetYoutubeImageVariant(image, podcastEpisode.Episode.YouTubeId);
-        if (youtubeImageVariant != null)
-        {
-            image = null;
-        }
+
+        // The image field is coalesced YouTube-first. When the coalesced image is a standard
+        // i.ytimg.com thumbnail it is encoded compactly as youtubeImageVariant and the image
+        // URL is dropped (the client reconstructs it). The dropped value MUST be emitted as an
+        // empty string rather than null: Azure AI Search cannot distinguish a null source value
+        // from a missing field, so a null is ignored on merge and a previously-indexed image
+        // (e.g. stale Spotify cover art from before a YouTube merge) is never cleared. Emitting a
+        // non-null empty string forces the merge to overwrite/clear the stale value.
+        var imageValue = youtubeImageVariant != null
+            ? string.Empty
+            : image?.ToString() ?? string.Empty;
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
         var duration = podcastEpisode.Episode.Length.ToString();
@@ -26,7 +33,7 @@ public static class PodcastEpisodeExtensions
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
             Id = podcastEpisode.Episode.Id.ToString(),
-            Image = image?.ToString(),
+            Image = imageValue,
             InternetArchive = podcastEpisode.Episode.Urls.InternetArchive != null
                 ? podcastEpisode.Episode.Urls.InternetArchive.ToString()
                 : string.Empty,
