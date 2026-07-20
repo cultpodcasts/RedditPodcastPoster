@@ -1,5 +1,5 @@
 ﻿using Reddit.Controllers;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Models;
 
 public record PostResponse(LinkPost? LinkPost, bool Posted);

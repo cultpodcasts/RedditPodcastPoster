@@ -2,8 +2,9 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
+using RedditPodcastPoster.Reddit.Configuration;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Factories;
 
 public class RedditClientFactory(
     IOptions<RedditSettings> redditSettings,

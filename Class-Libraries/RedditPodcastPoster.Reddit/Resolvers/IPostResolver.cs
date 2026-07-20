@@ -1,7 +1,7 @@
 using Reddit.Controllers;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Resolvers;
 
 public interface IPostResolver
 {

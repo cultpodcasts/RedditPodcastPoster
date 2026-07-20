@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Reddit;
+﻿namespace RedditPodcastPoster.Reddit.Configuration;
 
 public class AdminRedditSettings
 {

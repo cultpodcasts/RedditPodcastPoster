@@ -1,6 +1,6 @@
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Managers;
 
 public interface IPostManager
 {

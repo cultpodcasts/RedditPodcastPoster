@@ -4,8 +4,11 @@ using Reddit;
 using Reddit.Controllers;
 using Reddit.Exceptions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit.Configuration;
+using RedditPodcastPoster.Reddit.Factories;
+using RedditPodcastPoster.Reddit.Models;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Posters;
 
 public class RedditLinkPoster(
     IRedditPostTitleFactory redditPostTitleFactory,

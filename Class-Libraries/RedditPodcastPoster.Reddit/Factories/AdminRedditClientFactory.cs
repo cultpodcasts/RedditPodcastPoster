@@ -2,8 +2,10 @@
 using Microsoft.Extensions.Options;
 using Reddit;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Reddit.Clients;
+using RedditPodcastPoster.Reddit.Configuration;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Factories;
 
 public class AdminRedditClientFactory(
     IOptions<AdminRedditSettings> adminRedditSettings, 

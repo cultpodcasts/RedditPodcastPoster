@@ -8,7 +8,7 @@ using Reddit;
 using Reddit.Things;
 using RedditPodcastPoster.Persistence.Abstractions;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
-using SubredditSettings = RedditPodcastPoster.Reddit.SubredditSettings;
+using SubredditSettings = RedditPodcastPoster.Reddit.Configuration.SubredditSettings;
 
 namespace RedditPodcastPoster.ContentPublisher;
 

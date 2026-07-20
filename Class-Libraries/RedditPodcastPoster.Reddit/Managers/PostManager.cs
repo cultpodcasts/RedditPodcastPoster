@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Reddit.Resolvers;
 
-namespace RedditPodcastPoster.Reddit;
+namespace RedditPodcastPoster.Reddit.Managers;
 
 public class PostManager(
     IPostResolver postResolver,
