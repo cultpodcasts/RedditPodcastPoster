@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.YouTubeQuota;
 
