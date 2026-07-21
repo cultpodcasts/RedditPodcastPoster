@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Notifications;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

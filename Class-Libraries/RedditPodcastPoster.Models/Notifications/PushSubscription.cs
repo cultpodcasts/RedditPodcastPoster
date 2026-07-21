@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Notifications;
 
 [CosmosSelector(ModelType.PushSubscription)]
 public sealed class PushSubscription : CosmosSelector
