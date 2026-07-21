@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.HomePage;
 
 [CosmosSelector(ModelType.HomePageCache)]
 public sealed class HomePageCache : CosmosSelector

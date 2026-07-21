@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.HomePage;
 
 public class PreProcessedHomePageModel
 {
