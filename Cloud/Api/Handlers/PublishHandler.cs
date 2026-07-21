@@ -4,7 +4,7 @@ using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 
 namespace Api.Handlers;
 

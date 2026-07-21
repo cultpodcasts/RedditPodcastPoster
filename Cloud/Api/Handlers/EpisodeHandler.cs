@@ -15,7 +15,7 @@ using RedditPodcastPoster.Bluesky;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

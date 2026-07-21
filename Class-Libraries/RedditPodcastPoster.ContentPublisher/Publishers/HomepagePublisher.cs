@@ -7,6 +7,7 @@ using Amazon.S3.Model;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
@@ -14,7 +15,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class HomepagePublisher(
     IPodcastRepository podcastRepository,

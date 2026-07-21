@@ -1,4 +1,4 @@
-using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 
 namespace PublishR2;
 

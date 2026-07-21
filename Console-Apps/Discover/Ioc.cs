@@ -1,6 +1,5 @@
 ﻿using iTunesSearch.Library;
 using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.ContentPublisher;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;

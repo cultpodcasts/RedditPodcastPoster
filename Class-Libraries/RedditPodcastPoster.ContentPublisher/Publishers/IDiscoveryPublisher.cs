@@ -1,6 +1,6 @@
 using RedditPodcastPoster.ContentPublisher.Models;
 
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public interface IDiscoveryPublisher
 {
