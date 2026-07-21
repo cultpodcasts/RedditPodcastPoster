@@ -1,5 +1,5 @@
-﻿using RedditPodcastPoster.Search.Models;
 using IndexerState = Api.Dtos.IndexerState;
+using RedditPodcastPoster.Search.Models;
 
 namespace Api.Extensions;
 

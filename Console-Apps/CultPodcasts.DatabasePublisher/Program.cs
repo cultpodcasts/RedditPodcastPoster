@@ -1,8 +1,8 @@
-﻿using System.Reflection;
-using CultPodcasts.DatabasePublisher;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CultPodcasts.DatabasePublisher;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 

@@ -1,7 +1,8 @@
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Bluesky;
+using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Bluesky.Posters;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -9,8 +10,10 @@ using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Twitter;
-using RedditPodcastPoster.UrlShortening;
+using RedditPodcastPoster.Twitter.Dtos;
+using RedditPodcastPoster.Twitter.Models;
+using RedditPodcastPoster.Twitter.Posters;
+using RedditPodcastPoster.UrlShortening.Services;
 
 namespace Poster;
 

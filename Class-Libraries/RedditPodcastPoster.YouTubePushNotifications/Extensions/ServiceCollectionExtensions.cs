@@ -1,6 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.YouTubePushNotifications.Adaptors;
 using RedditPodcastPoster.YouTubePushNotifications.Configuration;
+using RedditPodcastPoster.YouTubePushNotifications.Extensions;
+using RedditPodcastPoster.YouTubePushNotifications.Handlers;
+using RedditPodcastPoster.YouTubePushNotifications.Models;
+using RedditPodcastPoster.YouTubePushNotifications.Subscribers;
 
 namespace RedditPodcastPoster.YouTubePushNotifications.Extensions;
 

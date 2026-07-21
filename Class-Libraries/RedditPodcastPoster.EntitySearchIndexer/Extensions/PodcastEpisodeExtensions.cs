@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;

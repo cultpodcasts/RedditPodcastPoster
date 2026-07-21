@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Reddit.Inputs.PrivateMessages;
 using Reddit.Things;
 using RestSharp;
-using System.Threading.Tasks;
 
 namespace Reddit.Models
 {

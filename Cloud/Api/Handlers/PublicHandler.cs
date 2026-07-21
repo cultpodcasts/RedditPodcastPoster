@@ -1,11 +1,11 @@
-﻿using System.Net;
+using System.Net;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Api.Resolvers;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;
 

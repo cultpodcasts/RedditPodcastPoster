@@ -1,5 +1,5 @@
-﻿using Reddit.Things;
 using System.Collections.Generic;
+using Reddit.Things;
 
 namespace Reddit.Controllers.EventArgs
 {

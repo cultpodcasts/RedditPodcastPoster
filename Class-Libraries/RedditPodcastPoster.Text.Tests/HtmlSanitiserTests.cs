@@ -1,5 +1,6 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Moq.AutoMock;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Text.Tests;
 

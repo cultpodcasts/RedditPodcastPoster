@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Common.Factories;
+using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration.Extensions;
 

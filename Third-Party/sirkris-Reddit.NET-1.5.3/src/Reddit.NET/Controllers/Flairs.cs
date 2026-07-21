@@ -1,8 +1,8 @@
-﻿using Reddit.Inputs.Flair;
-using Reddit.Things;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Reddit.Inputs.Flair;
+using Reddit.Things;
 
 namespace Reddit.Controllers
 {

@@ -2,16 +2,16 @@ using System.Text.Json;
 using Azure.Core.Serialization;
 using Azure.Search.Documents.Indexes;
 using FluentAssertions;
+using Indexer.Activities;
+using Indexer.Models;
+using Indexer.Orchestrations;
+using Indexer.Services;
+using Xunit;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
-using Xunit;
-using Indexer.Activities;
-using Indexer.Orchestrations;
-using Indexer.Services;
-using Indexer.Models;
 
 namespace Indexer.Tests;
 

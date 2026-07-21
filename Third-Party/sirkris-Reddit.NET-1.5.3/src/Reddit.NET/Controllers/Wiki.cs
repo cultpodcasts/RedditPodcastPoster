@@ -1,12 +1,12 @@
-﻿using Reddit.Controllers.EventArgs;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Reddit.Controllers.EventArgs;
 using Reddit.Controllers.Internal;
 using Reddit.Controllers.Structures;
 using Reddit.Exceptions;
 using Reddit.Inputs;
 using Reddit.Inputs.Subreddits;
-using System;
-using System.Collections.Generic;
-using System.Threading;
 
 namespace Reddit.Controllers
 {

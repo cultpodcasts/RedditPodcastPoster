@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.EntitySearchIndexer;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Subjects.Categorisation;
 using RedditPodcastPoster.Subjects.Enrichers;

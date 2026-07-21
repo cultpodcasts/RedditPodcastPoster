@@ -1,9 +1,9 @@
-﻿using System.Reflection;
-using AddYouTubeChannelAsPodcast;
-using CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using AddYouTubeChannelAsPodcast;
+using CommandLine;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;

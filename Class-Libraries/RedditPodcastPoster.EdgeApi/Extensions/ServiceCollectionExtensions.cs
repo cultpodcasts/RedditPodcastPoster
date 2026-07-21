@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Auth0.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EdgeApi.Clients;
+using RedditPodcastPoster.EdgeApi.Configuration;
+using RedditPodcastPoster.EdgeApi.Extensions;
 
 namespace RedditPodcastPoster.EdgeApi.Extensions;
 

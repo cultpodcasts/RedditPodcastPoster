@@ -1,5 +1,4 @@
-﻿using System.Linq;
-
+using System.Linq;
 using Newtonsoft.Json;
 using Reddit.Inputs.Search;
 using Reddit.Things;

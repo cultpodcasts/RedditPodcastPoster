@@ -1,5 +1,4 @@
-﻿﻿﻿﻿using Microsoft.Extensions.Options;
-
+using Microsoft.Extensions.Options;
 using Indexer.Models;
 
 namespace Indexer.Services;

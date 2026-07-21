@@ -1,14 +1,14 @@
-using Azure.Diagnostics;
-using Grpc.Core;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.Discovery;
-using Discovery.Orchestrations;
-using Discovery.Models;
-using Discovery.Services;
+using Azure.Diagnostics;
 using Discovery.Activities;
+using Discovery.Models;
+using Discovery.Orchestrations;
+using Discovery.Services;
+using Grpc.Core;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace Discovery.Triggers;
 

@@ -6,11 +6,13 @@ using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Extensions;
-using RedditPodcastPoster.People;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.People.Resolvers;
+using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
-using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 

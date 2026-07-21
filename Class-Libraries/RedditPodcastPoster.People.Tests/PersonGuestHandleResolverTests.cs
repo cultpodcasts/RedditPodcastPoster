@@ -2,6 +2,8 @@ using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.People;
+using RedditPodcastPoster.People.Resolvers;
+using RedditPodcastPoster.People.Services;
 
 namespace RedditPodcastPoster.People.Tests;
 

@@ -1,15 +1,15 @@
-﻿using System.Diagnostics;
-using Azure;
-using Azure.Diagnostics;
+using System.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Configuration;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.Quota;
-using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using Azure;
+using Azure.Diagnostics;
 using Indexer.Models;
 using Indexer.Services;
+using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace Indexer.Activities;
 

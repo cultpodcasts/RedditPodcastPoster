@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
-using Reddit.Models.Converters;
 using System;
+using Newtonsoft.Json;
+using Reddit.Models.Converters;
 
 namespace Reddit.Controllers.Structures
 {

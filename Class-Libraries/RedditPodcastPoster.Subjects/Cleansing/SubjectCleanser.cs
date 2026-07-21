@@ -1,8 +1,7 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Subjects.Services;
-
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Subjects.Services;
 
 namespace RedditPodcastPoster.Subjects.Cleansing;
 

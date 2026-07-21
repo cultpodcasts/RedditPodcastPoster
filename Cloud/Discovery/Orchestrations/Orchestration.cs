@@ -1,7 +1,7 @@
-﻿using Microsoft.DurableTask;
+using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
-using Discovery.Models;
 using Discovery.Activities;
+using Discovery.Models;
 using Discovery.Services;
 
 namespace Discovery.Orchestrations;

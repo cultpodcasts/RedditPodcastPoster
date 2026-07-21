@@ -1,7 +1,7 @@
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
-using Indexer.Models;
 using Indexer.Activities;
+using Indexer.Models;
 
 namespace Indexer.Orchestrations;
 

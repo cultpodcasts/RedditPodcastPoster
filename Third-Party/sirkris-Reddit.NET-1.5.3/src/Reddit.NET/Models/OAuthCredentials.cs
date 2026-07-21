@@ -1,5 +1,5 @@
-﻿using Reddit.Models.EventArgs;
 using System;
+using Reddit.Models.EventArgs;
 
 namespace Reddit.Models
 {

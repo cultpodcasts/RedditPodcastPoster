@@ -1,9 +1,0 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-
-namespace RedditPodcastPoster.PodcastServices.ListenNotes;
-
-public interface IListenNotesSearcher
-{
-    Task<IList<EpisodeResult>> Search(string query, IndexingContext indexingContext);
-}

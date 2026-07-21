@@ -1,5 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using RedditPodcastPoster.Auth0.Clients;
+using RedditPodcastPoster.Auth0.Configuration;
+using RedditPodcastPoster.Auth0.Extensions;
+using RedditPodcastPoster.Auth0.Factories;
+using RedditPodcastPoster.Auth0.Models;
+using RedditPodcastPoster.Auth0.Validators;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 

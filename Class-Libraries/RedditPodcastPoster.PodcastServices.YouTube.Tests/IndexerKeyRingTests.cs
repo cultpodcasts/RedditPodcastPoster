@@ -1,8 +1,9 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Configuration.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
 

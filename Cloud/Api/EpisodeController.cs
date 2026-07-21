@@ -1,13 +1,13 @@
-﻿using Api.Configuration;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Api.Configuration;
 using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
 using Api.Models;
 using Azure.Diagnostics;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Api;
 

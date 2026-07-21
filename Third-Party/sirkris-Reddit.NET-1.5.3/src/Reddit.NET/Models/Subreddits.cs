@@ -1,11 +1,11 @@
-﻿using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Reddit.Inputs;
 using Reddit.Inputs.Subreddits;
 using Reddit.Things;
 using RestSharp;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Reddit.Models
 {

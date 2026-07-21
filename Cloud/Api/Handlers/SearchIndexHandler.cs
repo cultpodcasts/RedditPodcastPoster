@@ -1,11 +1,11 @@
-﻿using System.Net;
-using Api.Dtos;
-using Api.Extensions;
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Search.Services;
+using Api.Dtos;
+using Api.Extensions;
 using IndexerState = RedditPodcastPoster.Search.Models.IndexerState;
+using RedditPodcastPoster.Auth0.Models;
+using RedditPodcastPoster.Search.Services;
 
 namespace Api.Handlers;
 

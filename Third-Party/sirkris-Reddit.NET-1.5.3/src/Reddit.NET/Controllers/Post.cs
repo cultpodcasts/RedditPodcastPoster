@@ -1,4 +1,8 @@
-﻿using Reddit.Controllers.EventArgs;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Reddit.Controllers.EventArgs;
 using Reddit.Controllers.Internal;
 using Reddit.Controllers.Structures;
 using Reddit.Exceptions;
@@ -7,10 +11,6 @@ using Reddit.Inputs.LinksAndComments;
 using Reddit.Inputs.Listings;
 using Reddit.Inputs.Moderation;
 using Reddit.Things;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Reddit.Controllers
 {

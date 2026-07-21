@@ -1,11 +1,11 @@
 using FluentAssertions;
 using Indexer;
-using Xunit;
 using Indexer.Activities;
-using Indexer.Orchestrations;
-using Indexer.Triggers;
-using Indexer.Services;
 using Indexer.Models;
+using Indexer.Orchestrations;
+using Indexer.Services;
+using Indexer.Triggers;
+using Xunit;
 
 namespace FunctionHost.Tests;
 

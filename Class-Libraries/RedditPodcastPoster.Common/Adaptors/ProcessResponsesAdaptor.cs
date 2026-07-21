@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Common.Models;
 
 namespace RedditPodcastPoster.Common.Adaptors;
 

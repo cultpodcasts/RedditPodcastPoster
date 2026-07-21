@@ -2,8 +2,9 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.Auth0.Extensions;
+using RedditPodcastPoster.Auth0.Models;
+using RedditPodcastPoster.Auth0.Validators;
 
 namespace Api.Factories;
 

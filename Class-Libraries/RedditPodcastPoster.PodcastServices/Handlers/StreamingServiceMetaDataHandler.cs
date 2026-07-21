@@ -1,0 +1,71 @@
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.InternetArchive.Extractors;
+using RedditPodcastPoster.InternetArchive.Matching;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.BBC.Extractors;
+using RedditPodcastPoster.BBC.Matching;
+
+namespace RedditPodcastPoster.PodcastServices.Handlers;
+
+public class StreamingServiceMetaDataHandler(
+    IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
+    IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
+    ILogger<StreamingServiceMetaDataHandler> logger
+) : IStreamingServiceMetaDataHandler
+{
+    public async Task<ResolvedNonPodcastServiceItem> ResolveServiceItem(
+        Podcast? podcast,
+        IEnumerable<Episode> episodes,
+        Uri url)
+    {
+        NonPodcastService service;
+        NonPodcastServiceItemMetaData metaData;
+        Episode? matchingEpisode;
+
+        if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
+        {
+            metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
+            service = NonPodcastService.InternetArchive;
+            if (episodes.Count(x => x.Urls.InternetArchive == url) > 1)
+            {
+                logger.LogError(
+                    "Multiple episodes of podcast with podcast-id {podcastId} with internet-archive url '{url}'.",
+                    podcast?.Id, url);
+            }
+
+            matchingEpisode = episodes.FirstOrDefault(x => x.Urls.InternetArchive == url);
+        }
+        else if (BBCUrlMatcher.IsBBCUrl(url))
+        {
+            metaData = await bbcPageMetaDataExtractor.GetMetaData(url);
+            service = NonPodcastService.BBC;
+            if (episodes.Count(x => x.Urls.BBC == url) > 1)
+            {
+                logger.LogError("Multiple episodes of podcast with podcast-id {podcastId} with bbc url '{url}'.",
+                    podcast?.Id, url);
+            }
+
+            matchingEpisode = episodes.FirstOrDefault(x => x.Urls.BBC == url);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Url $'{url}' cannot be handled");
+        }
+
+        return new ResolvedNonPodcastServiceItem(
+            service,
+            podcast,
+            matchingEpisode,
+            url,
+            metaData.Title,
+            metaData.Description,
+            metaData.Publisher,
+            metaData.Image,
+            metaData.Release,
+            metaData.Duration,
+            metaData.Explicit);
+    }
+}

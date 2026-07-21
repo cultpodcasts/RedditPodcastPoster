@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
-using Api.Dtos;
-using Api.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
+using Api.Dtos;
+using Api.Extensions;
+using RedditPodcastPoster.Auth0.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.KnownTerms;
 

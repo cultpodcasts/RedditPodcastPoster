@@ -1,9 +1,9 @@
-﻿using System.Reflection;
-using CommandLine;
-using DeleteSearchDocument;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using DeleteSearchDocument;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Search.Extensions;

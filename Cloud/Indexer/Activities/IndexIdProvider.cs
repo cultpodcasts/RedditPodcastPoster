@@ -1,14 +1,14 @@
-using Azure.Diagnostics;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Configuration;
+using Azure.Diagnostics;
+using Indexer.Models;
+using Indexer.Services;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
-using Indexer.Models;
-using Indexer.Services;
 
 namespace Indexer.Activities;
 

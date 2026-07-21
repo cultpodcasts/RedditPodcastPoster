@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.Episodes.Matching;
 

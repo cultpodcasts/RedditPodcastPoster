@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Auth0.Extensions;
+using RedditPodcastPoster.Auth0.Models;
+
+namespace RedditPodcastPoster.Auth0.Extensions;
 
 public static class ValidatedTokenExtensions {
     private const string ClaimsRolesIdentifierType = "https://api.cultpodcasts.com/roles";

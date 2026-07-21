@@ -1,8 +1,8 @@
-﻿using Reddit.Controllers.Structures;
-using Reddit.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Reddit.Controllers.Structures;
+using Reddit.Exceptions;
 
 namespace Reddit.Controllers.Internal
 {

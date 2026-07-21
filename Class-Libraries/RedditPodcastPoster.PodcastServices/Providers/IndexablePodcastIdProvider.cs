@@ -1,0 +1,24 @@
+using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+
+namespace RedditPodcastPoster.PodcastServices.Providers;
+
+public class IndexablePodcastIdProvider(
+    IPodcastRepository podcastRepository,
+    ILogger<IndexablePodcastIdProvider> logger
+) : IIndexablePodcastIdProvider
+{
+    public IAsyncEnumerable<Guid> GetIndexablePodcastIds()
+    {
+        logger.LogInformation($"{nameof(GetIndexablePodcastIds)} Retrieving podcasts.");
+
+        var podcastIds = podcastRepository.GetAllBy(
+            podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                        podcast.IndexAllEpisodes) ||
+                       podcast.EpisodeIncludeTitleRegex != "",
+            x => x.Id);
+
+        return podcastIds;
+    }
+}

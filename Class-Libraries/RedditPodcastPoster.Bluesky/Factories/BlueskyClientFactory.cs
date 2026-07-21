@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using X.Bluesky;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Configuration;
-using X.Bluesky;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 

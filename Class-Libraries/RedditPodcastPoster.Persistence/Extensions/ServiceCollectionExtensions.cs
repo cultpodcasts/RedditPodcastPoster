@@ -1,7 +1,8 @@
-﻿using Microsoft.Azure.Cosmos;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -12,11 +13,9 @@ using RedditPodcastPoster.Persistence.Providers;
 using RedditPodcastPoster.Persistence.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.KnownTerms;
-using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
-
-using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
 

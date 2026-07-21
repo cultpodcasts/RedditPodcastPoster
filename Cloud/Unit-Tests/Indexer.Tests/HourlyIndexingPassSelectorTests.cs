@@ -1,9 +1,9 @@
 using FluentAssertions;
-using Xunit;
 using Indexer.Activities;
+using Indexer.Models;
 using Indexer.Orchestrations;
 using Indexer.Services;
-using Indexer.Models;
+using Xunit;
 
 namespace Indexer.Tests;
 

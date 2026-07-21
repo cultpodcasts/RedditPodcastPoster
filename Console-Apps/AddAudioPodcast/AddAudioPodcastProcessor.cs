@@ -1,21 +1,21 @@
-using iTunesSearch.Library;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using iTunesSearch.Library;
+using SpotifyAPI.Web;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
-using SpotifyAPI.Web;
-using System.Text.RegularExpressions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace AddAudioPodcast;
 

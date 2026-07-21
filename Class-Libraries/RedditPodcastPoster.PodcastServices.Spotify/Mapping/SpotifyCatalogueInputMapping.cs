@@ -2,6 +2,7 @@ using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 

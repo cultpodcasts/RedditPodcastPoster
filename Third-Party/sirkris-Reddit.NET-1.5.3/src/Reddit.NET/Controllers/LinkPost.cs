@@ -1,11 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using Reddit.Exceptions;
 using Reddit.Inputs.LinksAndComments;
 using Reddit.Inputs.Listings;
 using Reddit.Things;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Reddit.Controllers
 {

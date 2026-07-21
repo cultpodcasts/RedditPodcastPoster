@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+using FluentAssertions;
+using RedditPodcastPoster.Text.Models;
 
 namespace RedditPodcastPoster.Text.Tests;
 

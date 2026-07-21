@@ -1,10 +1,10 @@
-using Grpc.Core;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
-using Indexer.Orchestrations;
+using Grpc.Core;
 using Indexer.Models;
+using Indexer.Orchestrations;
 
 namespace Indexer.Triggers;
 

@@ -1,10 +1,10 @@
-using FluentAssertions;
 using Microsoft.Extensions.Options;
-using Xunit;
 using Discovery.Activities;
+using Discovery.Models;
 using Discovery.Orchestrations;
 using Discovery.Services;
-using Discovery.Models;
+using FluentAssertions;
+using Xunit;
 
 namespace Discovery.Tests;
 

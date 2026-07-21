@@ -1,6 +1,6 @@
-﻿using idunno.Bluesky;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using idunno.Bluesky;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 

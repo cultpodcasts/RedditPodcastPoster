@@ -8,6 +8,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Mapping;
 

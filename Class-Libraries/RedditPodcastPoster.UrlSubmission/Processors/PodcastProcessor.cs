@@ -10,6 +10,8 @@ using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
 

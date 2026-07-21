@@ -1,5 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using RedditPodcastPoster.InternetArchive.JsonConverters;
+using RedditPodcastPoster.InternetArchive.Models;
 
 namespace RedditPodcastPoster.InternetArchive.Models
 {

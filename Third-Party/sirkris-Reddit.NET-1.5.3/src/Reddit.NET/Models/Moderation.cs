@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Reddit.Inputs.Moderation;
 using Reddit.Inputs.Users;
 using Reddit.Things;
 using RestSharp;
-using System.Threading.Tasks;
 
 namespace Reddit.Models
 {

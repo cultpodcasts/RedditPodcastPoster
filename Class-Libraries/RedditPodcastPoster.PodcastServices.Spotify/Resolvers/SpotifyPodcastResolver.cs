@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.Episodes.Matching;
 

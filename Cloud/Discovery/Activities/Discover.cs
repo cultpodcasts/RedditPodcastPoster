@@ -1,9 +1,12 @@
 using System.Text.Json;
-using Azure;
-using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Azure;
+using Azure.Diagnostics;
+using Discovery.Models;
+using Discovery.Orchestrations;
+using Discovery.Services;
 using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Discovery.Models;
@@ -12,11 +15,10 @@ using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PushSubscriptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using Discovery.Models;
-using Discovery.Orchestrations;
-using Discovery.Services;
+using RedditPodcastPoster.PushSubscriptions.Dtos;
+using RedditPodcastPoster.PushSubscriptions.Models;
+using RedditPodcastPoster.PushSubscriptions.Publishers;
 
 namespace Discovery.Activities;
 

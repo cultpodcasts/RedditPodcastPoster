@@ -1,9 +1,19 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
-using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
+using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Categorisers;
+using RedditPodcastPoster.PodcastServices.Clients;
+using RedditPodcastPoster.PodcastServices.Enrichers;
+using RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.PodcastServices.Handlers;
+using RedditPodcastPoster.PodcastServices.Matching;
+using RedditPodcastPoster.PodcastServices.Merging;
+using RedditPodcastPoster.PodcastServices.Models;
+using RedditPodcastPoster.PodcastServices.Providers;
+using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
 

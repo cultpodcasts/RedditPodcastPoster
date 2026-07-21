@@ -4,9 +4,11 @@ using System.Xml.Linq;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.YouTubePushNotifications;
-using Indexer.Orchestrations;
 using Indexer.Models;
+using Indexer.Orchestrations;
+using RedditPodcastPoster.YouTubePushNotifications.Configuration;
+using RedditPodcastPoster.YouTubePushNotifications.Handlers;
+using RedditPodcastPoster.YouTubePushNotifications.Subscribers;
 
 namespace Indexer.Triggers;
 

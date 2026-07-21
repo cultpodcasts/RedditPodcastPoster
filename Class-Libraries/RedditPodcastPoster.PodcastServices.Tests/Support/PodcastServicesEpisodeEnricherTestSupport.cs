@@ -14,6 +14,9 @@ using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.PodcastServices.Enrichers;
+using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Support;
 

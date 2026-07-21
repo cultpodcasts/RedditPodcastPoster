@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.People.Services;
 
 namespace RedditPodcastPoster.People.Tests;
 

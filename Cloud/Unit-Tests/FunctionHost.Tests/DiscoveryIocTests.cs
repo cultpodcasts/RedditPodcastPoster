@@ -1,11 +1,11 @@
 using Discovery;
+using Discovery.Activities;
+using Discovery.Models;
+using Discovery.Orchestrations;
+using Discovery.Services;
+using Discovery.Triggers;
 using FluentAssertions;
 using Xunit;
-using Discovery.Activities;
-using Discovery.Orchestrations;
-using Discovery.Triggers;
-using Discovery.Services;
-using Discovery.Models;
 
 namespace FunctionHost.Tests;
 

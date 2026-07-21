@@ -1,5 +1,6 @@
-﻿using AutoFixture;
+using AutoFixture;
 using Moq.AutoMock;
+using RedditPodcastPoster.BBC.Extractors;
 
 namespace RedditPodcastPoster.BBC.Tests;
 

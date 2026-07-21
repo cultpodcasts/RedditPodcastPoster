@@ -1,17 +1,18 @@
 using System.Text.RegularExpressions;
-using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
-using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -22,7 +23,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.EliminationTerms;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace EnrichYouTubeOnlyPodcasts;
 

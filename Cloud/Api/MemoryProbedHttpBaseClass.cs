@@ -1,12 +1,12 @@
 using System.Net;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api.Extensions;
 using Api.Factories;
 using Azure.Diagnostics;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Auth0;
+using RedditPodcastPoster.Auth0.Models;
 
 namespace Api;
 

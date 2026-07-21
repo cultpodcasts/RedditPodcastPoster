@@ -1,11 +1,11 @@
-using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Bluesky;
-using RedditPodcastPoster.Configuration;
+using Azure.Diagnostics;
 using Indexer.Models;
 using Indexer.Services;
+using RedditPodcastPoster.Bluesky.Managers;
+using RedditPodcastPoster.Configuration.Options;
 
 namespace Indexer.Activities;
 

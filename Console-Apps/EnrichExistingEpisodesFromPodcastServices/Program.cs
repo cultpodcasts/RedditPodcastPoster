@@ -1,10 +1,10 @@
-﻿using System.Reflection;
-using CommandLine;
-using EnrichExistingEpisodesFromPodcastServices;
-using iTunesSearch.Library;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using EnrichExistingEpisodesFromPodcastServices;
+using iTunesSearch.Library;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;

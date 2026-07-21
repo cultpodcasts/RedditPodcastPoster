@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Configuration;
 using Indexer.Models;
+using RedditPodcastPoster.Configuration.Services;
 
 namespace Indexer.Services;
 

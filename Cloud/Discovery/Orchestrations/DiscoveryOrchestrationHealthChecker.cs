@@ -1,6 +1,6 @@
 using Microsoft.DurableTask.Client;
-using Discovery.Models;
 using Discovery.Activities;
+using Discovery.Models;
 using Discovery.Services;
 
 namespace Discovery.Orchestrations;

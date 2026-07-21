@@ -1,12 +1,13 @@
 using System.Reflection;
-using CommandLine;
-using DiscoveryScoreBackfill;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using DiscoveryScoreBackfill;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
-using RedditPodcastPoster.Discovery.ML;
+using RedditPodcastPoster.Discovery.ML.Configuration;
+using RedditPodcastPoster.Discovery.ML.Services;
 using RedditPodcastPoster.Persistence.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);

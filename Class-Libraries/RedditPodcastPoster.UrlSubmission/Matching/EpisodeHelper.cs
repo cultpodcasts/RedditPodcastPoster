@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.UrlSubmission.Matching;
 

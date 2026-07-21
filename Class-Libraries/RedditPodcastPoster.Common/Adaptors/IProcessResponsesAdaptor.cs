@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Common.Adaptors;
+using RedditPodcastPoster.Common.Models;
+
+namespace RedditPodcastPoster.Common.Adaptors;
 
 public interface IProcessResponsesAdaptor
 {

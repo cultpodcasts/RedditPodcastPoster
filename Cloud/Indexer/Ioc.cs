@@ -1,17 +1,20 @@
-using Azure;
-using Azure.Diagnostics;
-using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Azure;
+using Azure.Diagnostics;
+using Indexer.Models;
+using Indexer.Services;
+using iTunesSearch.Library;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Common.Extensions;
-using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -22,13 +25,10 @@ using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
-using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
 using RedditPodcastPoster.UrlShortening.Extensions;
-using Indexer.Models;
-using Indexer.Services;
 
 namespace Indexer;
 

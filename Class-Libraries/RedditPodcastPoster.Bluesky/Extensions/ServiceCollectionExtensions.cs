@@ -1,7 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using idunno.Bluesky;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Configuration;
+using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Bluesky.Managers;
+using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Bluesky.Posters;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;

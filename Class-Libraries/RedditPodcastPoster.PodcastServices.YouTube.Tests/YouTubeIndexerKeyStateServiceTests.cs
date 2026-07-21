@@ -1,15 +1,16 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Configuration.Services;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
-using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 

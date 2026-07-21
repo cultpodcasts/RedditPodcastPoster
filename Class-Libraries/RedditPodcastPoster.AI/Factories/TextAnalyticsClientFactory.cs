@@ -1,7 +1,7 @@
-﻿using Azure;
-using Azure.AI.TextAnalytics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Azure;
+using Azure.AI.TextAnalytics;
 using RedditPodcastPoster.AI.Configuration;
 
 namespace RedditPodcastPoster.AI.Factories;

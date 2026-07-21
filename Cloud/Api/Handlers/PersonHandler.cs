@@ -1,17 +1,19 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Api.Extensions;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.ContentPublisher.Publishers;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.People;
-using RedditPodcastPoster.People.Factories;
-using PersonEntity = RedditPodcastPoster.Models.People.Person;
 using PersonDto = Api.Dtos.Person;
+using PersonEntity = RedditPodcastPoster.Models.People.Person;
+using RedditPodcastPoster.Auth0.Models;
+using RedditPodcastPoster.ContentPublisher.Publishers;
+using RedditPodcastPoster.People.Factories;
+using RedditPodcastPoster.People.Repositories;
+using RedditPodcastPoster.People.Resolvers;
+using RedditPodcastPoster.People.Services;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Handlers;
 

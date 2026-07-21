@@ -1,10 +1,10 @@
 using FluentAssertions;
-using RedditPodcastPoster.Search.Formatting;
-using Xunit;
 using Indexer.Activities;
+using Indexer.Models;
 using Indexer.Orchestrations;
 using Indexer.Services;
-using Indexer.Models;
+using Xunit;
+using RedditPodcastPoster.Search.Formatting;
 
 namespace Indexer.Tests;
 

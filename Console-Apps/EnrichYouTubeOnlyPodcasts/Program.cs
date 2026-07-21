@@ -1,10 +1,10 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
-using CommandLine;
-using EnrichYouTubeOnlyPodcasts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using EnrichYouTubeOnlyPodcasts;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;

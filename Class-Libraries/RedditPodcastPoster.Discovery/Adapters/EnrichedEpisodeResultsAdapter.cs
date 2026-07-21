@@ -3,6 +3,7 @@ using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Discovery.ML.Services;
 
 namespace RedditPodcastPoster.Discovery.Adapters;
 

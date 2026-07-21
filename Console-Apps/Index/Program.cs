@@ -1,10 +1,10 @@
-﻿using System.Reflection;
-using CommandLine;
-using Index;
-using iTunesSearch.Library;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using Index;
+using iTunesSearch.Library;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
@@ -12,16 +12,16 @@ using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 var builder = Host.CreateApplicationBuilder(args);
 

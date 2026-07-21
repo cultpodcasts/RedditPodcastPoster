@@ -1,9 +1,11 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.People;
+using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
+using RedditPodcastPoster.People.Services;
 
 namespace RedditPodcastPoster.People.Tests;
 

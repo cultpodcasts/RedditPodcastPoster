@@ -1,9 +1,9 @@
-﻿using System.Reflection;
-using CategorisePodcastEpisodes;
-using CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CategorisePodcastEpisodes;
+using CommandLine;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
