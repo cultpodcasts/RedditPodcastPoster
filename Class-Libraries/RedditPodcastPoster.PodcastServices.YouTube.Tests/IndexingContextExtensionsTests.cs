@@ -1,5 +1,5 @@
-﻿using FluentAssertions;
-using RedditPodcastPoster.Models;
+using FluentAssertions;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;

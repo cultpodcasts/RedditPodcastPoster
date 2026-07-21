@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.EliminationTerms;
-using EliminationTermsModel = RedditPodcastPoster.Models.EliminationTerms;
+using EliminationTermsModel = RedditPodcastPoster.Models.Subjects.EliminationTerms;
+
+using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Persistence.Lookups;
 

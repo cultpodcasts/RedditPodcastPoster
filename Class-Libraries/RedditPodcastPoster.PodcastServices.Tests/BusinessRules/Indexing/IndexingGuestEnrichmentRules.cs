@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Common.Podcasts;
@@ -6,7 +6,8 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;

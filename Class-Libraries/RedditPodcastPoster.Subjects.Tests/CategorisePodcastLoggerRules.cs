@@ -1,6 +1,8 @@
 using FluentAssertions;
 using RedditPodcastPoster.Subjects.Categorisation;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Subjects.Tests;
 
 public class CategorisePodcastLoggerRules

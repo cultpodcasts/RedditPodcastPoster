@@ -1,7 +1,8 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Text;
 
 namespace RedditPodcastPoster.Episodes.Matching;

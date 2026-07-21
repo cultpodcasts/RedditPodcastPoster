@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
@@ -13,15 +13,16 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using Episode = RedditPodcastPoster.Models.Episode;
+using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
-using DomainPodcast = RedditPodcastPoster.Models.Podcast;
+using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace Api.Handlers;
 

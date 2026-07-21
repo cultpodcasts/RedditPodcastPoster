@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Discovery.Configuration;
 using RedditPodcastPoster.Discovery.Models;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace RedditPodcastPoster.Discovery.Providers;
 

@@ -1,7 +1,8 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Reddit.Factories;
 
 namespace RedditPodcastPoster.Reddit.Tests;

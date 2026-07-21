@@ -1,8 +1,11 @@
-﻿namespace RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+
+namespace RedditPodcastPoster.PodcastServices.Extensions;
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeImageUpdateRequest ToEpisodeImageUpdateRequest(this (Models.Podcast Podcast, Models.Episode Episode) podcastEpisode)
+    public static EpisodeImageUpdateRequest ToEpisodeImageUpdateRequest(this (Podcast Podcast, Episode Episode) podcastEpisode)
     {
         return new EpisodeImageUpdateRequest(
                     !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.SpotifyId) &&

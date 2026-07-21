@@ -1,5 +1,5 @@
 using RedditPodcastPoster.Episodes.Domain;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Factories;
 

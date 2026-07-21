@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RedditPodcastPoster.Bluesky.Models;
-using RedditPodcastPoster.Models;
 using System.Net.Http.Headers;
 using X.Bluesky;
 using X.Bluesky.Models;

@@ -1,7 +1,7 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

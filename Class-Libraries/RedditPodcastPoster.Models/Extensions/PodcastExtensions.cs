@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Models.Extensions;
+﻿using RedditPodcastPoster.Models.Podcasts;
+
+namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastExtensions
 {

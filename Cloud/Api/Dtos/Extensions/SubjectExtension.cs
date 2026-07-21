@@ -2,7 +2,7 @@
 
 public static class SubjectExtension
 {
-    public static Subject ToDto(this RedditPodcastPoster.Models.Subject subject)
+    public static Subject ToDto(this RedditPodcastPoster.Models.Subjects.Subject subject)
     {
         return new Subject
         {

@@ -1,4 +1,4 @@
-﻿using System.Xml;
+using System.Xml;
 using FluentAssertions;
 using FuzzySharp;
 using Google.Apis.YouTube.v3.Data;
@@ -6,13 +6,14 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Finders;
 
@@ -259,7 +260,7 @@ public class SearchResultFinderCatalogueWrapperRules
     }
 
     private (
-        RedditPodcastPoster.Models.Episode Episode,
+        EpisodeModel Episode,
         string MatchingVideoId,
         List<SearchResult> SearchResults,
         TimeSpan CatalogueVideoLength) BuildPublishDelayScenario(

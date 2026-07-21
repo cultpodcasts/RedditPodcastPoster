@@ -1,7 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Api.Dtos;
 using Api.Dtos.Extensions;
@@ -9,13 +9,13 @@ using Microsoft.Extensions.Options;
 using Reddit.Inputs.Flair;
 using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.ContentPublisher.Publishers;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Reddit.Clients;
 using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Services;
-using Subject = RedditPodcastPoster.Models.Subject;
+using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Handlers;
 

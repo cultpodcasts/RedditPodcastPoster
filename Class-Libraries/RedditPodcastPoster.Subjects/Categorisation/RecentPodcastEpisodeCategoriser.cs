@@ -4,7 +4,8 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Subjects.Categorisation;

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;

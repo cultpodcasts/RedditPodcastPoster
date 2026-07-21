@@ -1,5 +1,5 @@
-﻿using RedditPodcastPoster.Discovery.Extensions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Discovery.Extensions;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Dtos.Extensions;
 
@@ -35,7 +35,7 @@ public static class DiscoveryResultExtensions
         result.Subjects = item.Subjects;
         result.Sources = item.Sources
             .Select(x =>
-                x.ConvertEnumByName<RedditPodcastPoster.Models.DiscoverService, DiscoverService>(true))
+                x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoverService>(true))
             .ToArray();
         result.AcceptProbability = item.AcceptProbability;
         result.AutoHidden = item.AutoHidden;

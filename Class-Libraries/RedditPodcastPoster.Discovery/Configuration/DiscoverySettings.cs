@@ -1,5 +1,7 @@
 using RedditPodcastPoster.Discovery.Models;
 
+using RedditPodcastPoster.Models.Discovery;
+
 namespace RedditPodcastPoster.Discovery.Configuration;
 
 public class DiscoverySettings

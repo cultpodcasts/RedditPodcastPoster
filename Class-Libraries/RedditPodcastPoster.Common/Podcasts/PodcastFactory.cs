@@ -1,6 +1,6 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.Common.Podcasts;
 

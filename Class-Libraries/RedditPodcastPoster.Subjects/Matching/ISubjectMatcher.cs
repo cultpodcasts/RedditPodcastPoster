@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects.Matching;

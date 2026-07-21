@@ -2,7 +2,6 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Persistence;

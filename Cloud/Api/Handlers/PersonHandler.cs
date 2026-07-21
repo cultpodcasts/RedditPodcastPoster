@@ -10,7 +10,7 @@ using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Factories;
-using PersonEntity = RedditPodcastPoster.Models.Person;
+using PersonEntity = RedditPodcastPoster.Models.People.Person;
 using PersonDto = Api.Dtos.Person;
 
 namespace Api.Handlers;

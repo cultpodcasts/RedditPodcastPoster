@@ -2,6 +2,8 @@
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Subjects.Extensions;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Subjects.HashTags;
 
 public class HashTagProvider(

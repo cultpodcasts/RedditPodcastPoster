@@ -17,7 +17,7 @@ using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.EntitySearchIndexer;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -40,10 +40,10 @@ using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
-using Episode = RedditPodcastPoster.Models.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
-using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
-using Subject = RedditPodcastPoster.Models.Subject;
+using Episode = RedditPodcastPoster.Models.Episodes.Episode;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
+using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Handlers;
 

@@ -1,8 +1,8 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
@@ -28,7 +29,7 @@ public partial class YouTubeSearchResultFinder(
     private static readonly TimeSpan VideoDurationToleranceForPublicationDate = TimeSpan.FromMinutes(5);
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext)
@@ -88,7 +89,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
         IndexingContext indexingContext)
@@ -119,7 +120,7 @@ public partial class YouTubeSearchResultFinder(
         return null;
     }
 
-    private bool IsDurationMatch(RedditPodcastPoster.Models.Episode episode, Google.Apis.YouTube.v3.Data.Video video)
+    private bool IsDurationMatch(EpisodeModel episode, Google.Apis.YouTube.v3.Data.Video video)
     {
         var matchingVideoLength = video.GetLength() ?? TimeSpan.Zero;
         var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
@@ -127,14 +128,14 @@ public partial class YouTubeSearchResultFinder(
         return isMatch;
     }
 
-    private SearchResult? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
+    private SearchResult? MatchOnTextCloseness(EpisodeModel episode,
         IList<SearchResult> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
     private async Task<FindEpisodeResponse?> MatchOnEpisodeNumberWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         IndexingContext indexingContext)
     {
@@ -148,7 +149,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private async Task<FindEpisodeResponse?> MatchOnTextClosenessWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         IndexingContext indexingContext)
     {
@@ -162,7 +163,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private SearchResult? MatchOnEpisodeNumber(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
@@ -194,7 +195,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private SearchResult? MatchOnPublishTimeComparedToPublishDelay(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         TimeSpan youTubePublishDelay)
     {
@@ -212,7 +213,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private async Task<FindEpisodeResponse?> MatchOnExactTitleWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         IndexingContext indexingContext)
     {
@@ -226,7 +227,7 @@ public partial class YouTubeSearchResultFinder(
     }
 
     private async Task<FindEpisodeResponse?> ValidateSearchMatchWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         SearchResult match,
         string matchKind,
         IndexingContext indexingContext)
@@ -251,7 +252,7 @@ public partial class YouTubeSearchResultFinder(
         return new FindEpisodeResponse(match, Video: video);
     }
 
-    private SearchResult? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
+    private SearchResult? MatchOnExactTitle(EpisodeModel episode,
         IList<SearchResult> searchResults)
     {
         var episodeTitle = episode.Title.Trim().ToLower();
@@ -281,13 +282,13 @@ public partial class YouTubeSearchResultFinder(
     private static partial Regex CreateNumberMatch();
 
     private bool IsPublishDelayCatalogueMatch(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         SearchResult match,
         TimeSpan youTubePublishDelay,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails)
     {
         var videoDetail = videoDetails?.SingleOrDefault(x => x.Id == match.Id.VideoId);
-        var catalogueEpisode = new RedditPodcastPoster.Models.Episode
+        var catalogueEpisode = new EpisodeModel
         {
             Title = match.Snippet.Title,
             Release = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
@@ -295,7 +296,7 @@ public partial class YouTubeSearchResultFinder(
             YouTubeId = match.Id.VideoId
         };
 
-        var podcast = new RedditPodcastPoster.Models.Podcast
+        var podcast = new Podcast
         {
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = youTubePublishDelay.Ticks

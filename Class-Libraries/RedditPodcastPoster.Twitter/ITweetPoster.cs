@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter;

@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Subjects.Services;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Subjects.Cleansing;
 
 public class SubjectCleanser(

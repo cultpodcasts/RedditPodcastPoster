@@ -1,5 +1,5 @@
 using RedditPodcastPoster.Episodes.Applying;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Extensions;

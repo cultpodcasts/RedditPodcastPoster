@@ -1,5 +1,5 @@
 
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace RedditPodcastPoster.Discovery.Models;
 

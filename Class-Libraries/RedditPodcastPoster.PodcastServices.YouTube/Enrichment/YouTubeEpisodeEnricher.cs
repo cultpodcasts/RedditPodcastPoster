@@ -1,10 +1,10 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 
@@ -182,7 +183,7 @@ public class YouTubeEpisodeEnricher(
     }
 
     private void ApplyYouTubeLink(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         string youTubeId,
         Uri url,
         EnrichmentContext enrichmentContext)

@@ -1,5 +1,7 @@
 ﻿using RedditPodcastPoster.Subjects.HashTags;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Subjects.Extensions;
 
 public static class HashTagExtensions

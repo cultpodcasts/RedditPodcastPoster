@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models.Operations;
 
 namespace RedditPodcastPoster.Common;
 

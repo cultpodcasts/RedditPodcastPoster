@@ -1,6 +1,7 @@
-﻿using System.Net;
+using System.Net;
 using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using SpotifyAPI.Web;
 

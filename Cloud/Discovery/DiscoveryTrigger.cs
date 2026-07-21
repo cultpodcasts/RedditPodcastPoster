@@ -5,6 +5,8 @@ using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
+using RedditPodcastPoster.Models.Discovery;
+
 namespace Discovery;
 
 public class DiscoveryTrigger(

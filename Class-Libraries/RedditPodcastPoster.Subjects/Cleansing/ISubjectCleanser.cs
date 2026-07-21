@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Subjects.Cleansing;
+﻿using RedditPodcastPoster.Models.Subjects;
+
+namespace RedditPodcastPoster.Subjects.Cleansing;
 
 public interface ISubjectCleanser
 {

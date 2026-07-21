@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Subjects.Categorisation;
 

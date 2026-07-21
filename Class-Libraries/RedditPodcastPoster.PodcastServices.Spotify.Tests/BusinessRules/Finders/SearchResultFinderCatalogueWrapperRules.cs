@@ -1,7 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using SpotifyAPI.Web;
 

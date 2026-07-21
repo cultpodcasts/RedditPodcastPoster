@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.People;
 
 namespace RedditPodcastPoster.People;
 

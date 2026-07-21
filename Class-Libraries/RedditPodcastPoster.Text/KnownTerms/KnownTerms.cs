@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Text.KnownTerms;
 

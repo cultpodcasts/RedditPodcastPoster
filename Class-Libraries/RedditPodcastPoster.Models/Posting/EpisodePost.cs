@@ -1,0 +1,15 @@
+namespace RedditPodcastPoster.Models.Posting;
+
+public record EpisodePost(
+    string Title,
+    Uri? YouTube,
+    Uri? Spotify,
+    Uri? Apple,
+    string Release,
+    string Duration,
+    string Description,
+    string Id,
+    DateTime Published,
+    string[] Subjects,
+    Uri? BBC,
+    Uri? InternetArchive);

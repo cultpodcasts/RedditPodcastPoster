@@ -1,5 +1,5 @@
-﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models;
+using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 

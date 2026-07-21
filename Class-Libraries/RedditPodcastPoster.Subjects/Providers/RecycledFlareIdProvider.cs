@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Subjects.Providers;
+﻿using RedditPodcastPoster.Models.Subjects;
+
+namespace RedditPodcastPoster.Subjects.Providers;
 
 public class RecycledFlareIdProvider : IRecycledFlareIdProvider
 {

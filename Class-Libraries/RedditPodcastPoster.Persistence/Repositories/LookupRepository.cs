@@ -1,7 +1,11 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.YouTubeQuota;
+using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
