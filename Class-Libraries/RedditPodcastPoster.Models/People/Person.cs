@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.People;
 
 [CosmosSelector(ModelType.Person)]
 public sealed class Person : CosmosSelector

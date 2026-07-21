@@ -2,7 +2,7 @@ namespace Api.Dtos.Extensions;
 
 public static class PersonExtension
 {
-    public static Person ToDto(this RedditPodcastPoster.Models.Person person)
+    public static Person ToDto(this RedditPodcastPoster.Models.People.Person person)
     {
         return new Person
         {

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Models;
 
 namespace RedditPodcastPoster.People.Tests;
