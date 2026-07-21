@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Logging;
 
 namespace RedditPodcastPoster.UrlSubmission.Models;
 

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using FuzzySharp;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.Text.Tests;
 

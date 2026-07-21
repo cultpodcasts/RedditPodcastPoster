@@ -1,3 +1,7 @@
+using Discovery.Activities;
+using Discovery.Models;
+using Discovery.Orchestrations;
+using Discovery.Services;
 using FluentAssertions;
 using Xunit;
 

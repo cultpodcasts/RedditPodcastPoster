@@ -1,0 +1,7 @@
+namespace Discovery.Models;
+
+public record DiscoveryOrchestrationRunInput(
+    DateTime ScheduledAtUtc,
+    DateTimeOffset SlotStartUtc,
+    string SlotId,
+    string[] RunTimesUk);

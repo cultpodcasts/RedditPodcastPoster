@@ -7,6 +7,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Subjects.Services;
 

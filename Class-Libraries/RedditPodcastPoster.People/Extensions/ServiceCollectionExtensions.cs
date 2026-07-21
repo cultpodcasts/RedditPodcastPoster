@@ -1,5 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.People.Factories;
+using RedditPodcastPoster.People.Models;
+using RedditPodcastPoster.People.Repositories;
+using RedditPodcastPoster.People.Resolvers;
+using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

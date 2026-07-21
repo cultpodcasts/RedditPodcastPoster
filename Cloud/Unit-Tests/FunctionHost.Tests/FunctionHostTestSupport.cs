@@ -1,12 +1,12 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
-using Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Azure;
 using Moq;
+using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.YouTubeQuota;
-using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

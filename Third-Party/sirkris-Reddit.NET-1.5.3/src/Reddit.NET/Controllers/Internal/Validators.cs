@@ -1,7 +1,7 @@
-﻿using Reddit.Exceptions;
-using Reddit.Things;
 using System;
 using System.Collections.Generic;
+using Reddit.Exceptions;
+using Reddit.Things;
 
 namespace Reddit.Controllers.Internal
 {

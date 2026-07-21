@@ -7,6 +7,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Configuration.Options;
 
 namespace RedditPodcastPoster.Subjects.Categorisation;
 

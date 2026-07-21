@@ -1,14 +1,14 @@
-﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using Reddit.Controllers.Structures;
 using Reddit.Exceptions;
 using Reddit.Inputs.Moderation;
 using Reddit.Inputs.Search;
 using Reddit.Inputs.Subreddits;
 using Reddit.Inputs.Users;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Reddit.Controllers
 {

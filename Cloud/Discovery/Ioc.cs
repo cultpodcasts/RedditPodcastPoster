@@ -1,9 +1,11 @@
-﻿using Azure;
-using Azure.Diagnostics;
-using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Azure;
+using Azure.Diagnostics;
+using Discovery.Models;
+using Discovery.Services;
+using iTunesSearch.Library;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -12,13 +14,13 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
+using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 
 namespace Discovery;
 

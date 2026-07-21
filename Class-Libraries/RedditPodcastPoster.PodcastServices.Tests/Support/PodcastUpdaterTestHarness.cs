@@ -15,6 +15,9 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.PodcastServices.Enrichers;
+using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Support;
 

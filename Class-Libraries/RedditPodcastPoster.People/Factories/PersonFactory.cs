@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.People;
+using RedditPodcastPoster.People.Resolvers;
 
 namespace RedditPodcastPoster.People.Factories;
 

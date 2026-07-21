@@ -1,5 +1,9 @@
-using FluentAssertions;
 using Microsoft.DurableTask.Client;
+using FluentAssertions;
+using Indexer.Activities;
+using Indexer.Models;
+using Indexer.Orchestrations;
+using Indexer.Services;
 using Xunit;
 
 namespace Indexer.Tests;

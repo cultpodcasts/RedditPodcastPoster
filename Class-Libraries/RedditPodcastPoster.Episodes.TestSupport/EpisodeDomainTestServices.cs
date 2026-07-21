@@ -1,10 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Applying;
-using RedditPodcastPoster.Episodes.Merging;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.PodcastServices;
+using RedditPodcastPoster.PodcastServices.Matching;
+using RedditPodcastPoster.PodcastServices.Merging;
+using RedditPodcastPoster.Episodes.Merging;
 
 namespace RedditPodcastPoster.Episodes.TestSupport;
 

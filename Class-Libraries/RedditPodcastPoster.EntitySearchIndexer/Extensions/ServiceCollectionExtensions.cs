@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Search.Extensions;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;

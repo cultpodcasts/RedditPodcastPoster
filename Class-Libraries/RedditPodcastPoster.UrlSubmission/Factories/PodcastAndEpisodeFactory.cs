@@ -5,6 +5,7 @@ using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.People.Enrichers;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 

@@ -1,9 +1,13 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Discovery.Activities;
+using Discovery.Models;
+using Discovery.Orchestrations;
+using Discovery.Services;
+using FluentAssertions;
 using Moq;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Discovery.Tests;
 

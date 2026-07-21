@@ -1,17 +1,16 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Amazon.S3;
-using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
 using Reddit;
 using Reddit.Things;
-using RedditPodcastPoster.ContentPublisher.Configuration;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
 using SubredditSettings = RedditPodcastPoster.Reddit.Configuration.SubredditSettings;
-
+using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 

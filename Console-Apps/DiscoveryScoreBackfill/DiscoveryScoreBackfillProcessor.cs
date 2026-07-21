@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Discovery.ML;
+using RedditPodcastPoster.Discovery.ML.Configuration;
+using RedditPodcastPoster.Discovery.ML.Services;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

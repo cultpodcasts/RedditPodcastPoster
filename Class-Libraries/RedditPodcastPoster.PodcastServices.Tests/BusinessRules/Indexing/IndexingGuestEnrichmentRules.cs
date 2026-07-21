@@ -1,20 +1,21 @@
-using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Indexing.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.People;
+using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 

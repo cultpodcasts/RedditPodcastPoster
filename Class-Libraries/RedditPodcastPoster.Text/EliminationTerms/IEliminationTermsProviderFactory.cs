@@ -1,5 +1,4 @@
-﻿using RedditPodcastPoster.DependencyInjection;
-
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Text.EliminationTerms;

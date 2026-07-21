@@ -1,4 +1,4 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -6,6 +6,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Strategies;
+using RedditPodcastPoster.Configuration.Services;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 

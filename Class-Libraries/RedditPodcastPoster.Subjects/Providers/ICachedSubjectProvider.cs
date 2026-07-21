@@ -1,6 +1,5 @@
-﻿using RedditPodcastPoster.Persistence.Abstractions.Providers;
-
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
 
 namespace RedditPodcastPoster.Subjects.Providers;
 

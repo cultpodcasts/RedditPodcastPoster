@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Episodes.Matching;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 

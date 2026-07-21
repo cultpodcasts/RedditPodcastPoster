@@ -1,7 +1,7 @@
-﻿using Api.Dtos;
-using Api.Models;
 using Microsoft.Azure.Functions.Worker.Http;
-using RedditPodcastPoster.Auth0;
+using Api.Dtos;
+using Api.Models;
+using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;
 

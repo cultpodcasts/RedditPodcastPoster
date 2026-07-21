@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Adapters;
 using RedditPodcastPoster.Discovery.Configuration;
@@ -16,6 +16,8 @@ using RedditPodcastPoster.PodcastServices.Taddy.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Discovery.ML.Services;
+using RedditPodcastPoster.Discovery.ML.Configuration;
 
 namespace RedditPodcastPoster.Discovery.Extensions;
 

@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple.Factories;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
@@ -15,8 +16,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
-using RedditPodcastPoster.Text;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace EnrichExistingEpisodesFromPodcastServices;
 

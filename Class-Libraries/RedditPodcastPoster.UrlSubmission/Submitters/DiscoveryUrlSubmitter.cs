@@ -8,6 +8,7 @@ using RedditPodcastPoster.UrlSubmission.Processors;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using RedditPodcastPoster.Episodes.Logging;
 
 namespace RedditPodcastPoster.UrlSubmission.Submitters;
 

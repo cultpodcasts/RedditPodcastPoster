@@ -1,15 +1,16 @@
-﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using FluentAssertions;
 using Moq;
+using SpotifyAPI.Web;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using RedditPodcastPoster.Text;
-using SpotifyAPI.Web;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Providers;
 

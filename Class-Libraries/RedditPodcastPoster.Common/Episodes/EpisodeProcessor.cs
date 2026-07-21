@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Adaptors;
-using RedditPodcastPoster.Configuration;
-using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Common.Models;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using DateTimeExtensions = RedditPodcastPoster.Configuration.Extensions.DateTimeExtensions;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

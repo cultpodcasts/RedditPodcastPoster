@@ -9,6 +9,9 @@ using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using RedditPodcastPoster.PodcastServices.Taddy;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.ListenNotes.Searchers;
+using RedditPodcastPoster.PodcastServices.Taddy.Searchers;
+using RedditPodcastPoster.PodcastServices.Taddy.Models;
 
 namespace RedditPodcastPoster.Discovery.Providers;
 

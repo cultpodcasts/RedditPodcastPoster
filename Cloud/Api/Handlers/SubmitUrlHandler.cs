@@ -1,15 +1,15 @@
-﻿using System.Net;
-using Api.Dtos;
-using Api.Extensions;
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.EntitySearchIndexer;
+using Api.Dtos;
+using Api.Extensions;
+using RedditPodcastPoster.Auth0.Models;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Handlers;
 

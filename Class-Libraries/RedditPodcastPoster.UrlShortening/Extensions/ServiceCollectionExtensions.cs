@@ -1,5 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.UrlShortening.Configuration;
+using RedditPodcastPoster.UrlShortening.Extensions;
+using RedditPodcastPoster.UrlShortening.Models;
+using RedditPodcastPoster.UrlShortening.Services;
 
 namespace RedditPodcastPoster.UrlShortening.Extensions;
 

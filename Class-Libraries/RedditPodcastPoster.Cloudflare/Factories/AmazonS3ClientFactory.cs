@@ -1,7 +1,8 @@
-using Amazon.Runtime;
-using Amazon.S3;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Amazon.Runtime;
+using Amazon.S3;
+using RedditPodcastPoster.Cloudflare.Configuration;
 
 namespace RedditPodcastPoster.Cloudflare.Factories;
 

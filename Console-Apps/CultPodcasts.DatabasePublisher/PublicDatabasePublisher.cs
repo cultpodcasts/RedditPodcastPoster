@@ -1,6 +1,6 @@
-﻿using CultPodcasts.DatabasePublisher.PublicModels;
-using Konsole;
 using Microsoft.Extensions.Logging;
+using CultPodcasts.DatabasePublisher.PublicModels;
+using Konsole;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
 

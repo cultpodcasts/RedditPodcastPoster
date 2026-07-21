@@ -1,5 +1,10 @@
 using FluentAssertions;
-using RedditPodcastPoster.EntitySearchIndexer;
+using Indexer.Activities;
+using Indexer.Models;
+using Indexer.Orchestrations;
+using Indexer.Services;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
 using Xunit;
 

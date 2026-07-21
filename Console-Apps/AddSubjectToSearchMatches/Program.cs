@@ -1,9 +1,9 @@
-﻿using System.Reflection;
-using AddSubjectToSearchMatches;
-using CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using AddSubjectToSearchMatches;
+using CommandLine;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;

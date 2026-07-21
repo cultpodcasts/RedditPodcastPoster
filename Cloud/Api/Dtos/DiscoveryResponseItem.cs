@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Converters;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Dtos;
 

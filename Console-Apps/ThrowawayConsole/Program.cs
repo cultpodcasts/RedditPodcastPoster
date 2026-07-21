@@ -1,23 +1,22 @@
-﻿using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
+using System.Reflection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.InternetArchive;
+using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using System.Diagnostics;
-using System.Reflection;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Factories;
+using RedditPodcastPoster.People.Resolvers;
 
 namespace RedditPodcastPoster.People.Tests;
 

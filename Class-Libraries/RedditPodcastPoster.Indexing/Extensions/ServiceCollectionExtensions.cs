@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Indexing.Extensions;
+using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Indexing.Services;
 using RedditPodcastPoster.People.Extensions;
 
 namespace RedditPodcastPoster.Indexing.Extensions;

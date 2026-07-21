@@ -1,13 +1,12 @@
-﻿using System.Text.Json;
-using Konsole;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Konsole;
+using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.Text.KnownTerms;
-using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
-
-using RedditPodcastPoster.Models.Discovery;
 
 namespace CosmosDbDownloader;
 

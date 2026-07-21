@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.UrlShortening;
+using RedditPodcastPoster.UrlShortening.Services;
 
 namespace KVWriter;
 

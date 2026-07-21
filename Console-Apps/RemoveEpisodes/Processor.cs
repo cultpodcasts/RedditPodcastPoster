@@ -1,5 +1,5 @@
-﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
+using Azure.Search.Documents;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 

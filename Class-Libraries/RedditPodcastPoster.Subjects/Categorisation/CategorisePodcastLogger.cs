@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-
 using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Subjects.Categorisation;

@@ -1,10 +1,10 @@
-﻿using Newtonsoft.Json;
+using System;
+using System.Linq;
+using Newtonsoft.Json;
 using Reddit.Inputs;
 using Reddit.Inputs.Emoji;
 using Reddit.Things;
 using RestSharp;
-using System;
-using System.Linq;
 
 namespace Reddit.Models
 {

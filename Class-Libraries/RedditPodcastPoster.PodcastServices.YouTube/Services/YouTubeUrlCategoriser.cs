@@ -1,6 +1,10 @@
-using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
+using Google.Apis.YouTube.v3.Data;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -11,10 +15,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
-using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 

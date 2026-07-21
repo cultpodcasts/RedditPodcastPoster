@@ -1,7 +1,7 @@
-﻿using Reddit.Models.Internal;
-using RestSharp;
 using System;
 using System.Collections.Generic;
+using Reddit.Models.Internal;
+using RestSharp;
 
 namespace Reddit.Models
 {

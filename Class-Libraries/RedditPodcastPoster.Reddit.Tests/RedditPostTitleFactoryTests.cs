@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Options;
 using AutoFixture;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.DependencyInjection;
@@ -10,6 +10,7 @@ using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Reddit.Factories;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.KnownTerms;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Reddit.Tests;
 

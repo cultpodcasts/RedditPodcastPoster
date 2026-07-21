@@ -1,9 +1,9 @@
-﻿using Reddit.Controllers.Internal;
+using System;
+using System.Threading.Tasks;
+using Reddit.Controllers.Internal;
 using Reddit.Exceptions;
 using Reddit.Inputs.LinksAndComments;
 using Reddit.Things;
-using System;
-using System.Threading.Tasks;
 
 namespace Reddit.Controllers
 {

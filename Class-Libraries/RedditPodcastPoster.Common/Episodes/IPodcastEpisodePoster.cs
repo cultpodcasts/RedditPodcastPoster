@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Common.Models;
 using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Common.Episodes;

@@ -1,7 +1,6 @@
 using FluentAssertions;
-using RedditPodcastPoster.Subjects.Categorisation;
-
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Subjects.Categorisation;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 

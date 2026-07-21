@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer;
-using RedditPodcastPoster.Indexing;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Indexing.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;

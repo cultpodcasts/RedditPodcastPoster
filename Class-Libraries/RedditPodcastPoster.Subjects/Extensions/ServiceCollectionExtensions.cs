@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -10,8 +11,6 @@ using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Subjects.Repositories;
 using RedditPodcastPoster.Subjects.Services;
-
-using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
 

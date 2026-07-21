@@ -1,0 +1,15 @@
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+
+namespace RedditPodcastPoster.Cloudflare.Models;
+
+public class KVListResult
+{
+    [JsonPropertyName("expiration")]
+    public long Expiration { get; set; }
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = null!;
+    [JsonPropertyName("metadata")]
+    public JsonNode MetaData { get; set; } = null!;
+
+}

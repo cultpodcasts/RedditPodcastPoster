@@ -1,9 +1,3 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Reddit.Exceptions;
-using Reddit.Models.EventArgs;
-using Reddit.Things;
-using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -11,6 +5,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Reddit.Exceptions;
+using Reddit.Models.EventArgs;
+using Reddit.Things;
+using RestSharp;
 
 namespace Reddit.Models.Internal
 {

@@ -1,9 +1,9 @@
-﻿using System.Reflection;
-using CommandLine;
-using Discover;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using Discover;
 using RedditPodcastPoster.Configuration.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);

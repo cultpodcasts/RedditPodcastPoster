@@ -1,6 +1,7 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
+using RedditPodcastPoster.Text.Enrichers;
 
 namespace RedditPodcastPoster.Text.Tests;
 

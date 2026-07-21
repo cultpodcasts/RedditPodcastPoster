@@ -1,6 +1,6 @@
-﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.EntitySearchIndexer;
+using Azure.Search.Documents;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;

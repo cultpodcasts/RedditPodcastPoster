@@ -1,12 +1,12 @@
-﻿using CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Reflection;
+using CommandLine;
+using RemoveEpisodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RemoveEpisodes;
 
 var builder = Host.CreateApplicationBuilder(args);
 

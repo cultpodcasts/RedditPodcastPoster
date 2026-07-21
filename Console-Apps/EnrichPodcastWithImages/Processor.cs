@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.EntitySearchIndexer;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace EnrichPodcastWithImages;
 

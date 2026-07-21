@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Text;
+using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Reddit.Factories;
 

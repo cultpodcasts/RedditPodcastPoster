@@ -1,9 +1,9 @@
 using System.Reflection;
-using CommandLine;
-using EpisodeLanguageBackfill;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using EpisodeLanguageBackfill;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 

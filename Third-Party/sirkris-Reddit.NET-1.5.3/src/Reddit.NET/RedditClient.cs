@@ -1,10 +1,10 @@
-﻿using Reddit.Controllers;
+using System;
+using System.Collections.Generic;
+using Reddit.Controllers;
 using Reddit.Inputs;
 using Reddit.Inputs.Search;
 using Reddit.Inputs.Subreddits;
 using RestSharp;
-using System;
-using System.Collections.Generic;
 
 /// <summary>
 /// A Reddit API library for .NET Standard with OAuth support.

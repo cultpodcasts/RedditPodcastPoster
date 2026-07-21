@@ -1,8 +1,8 @@
-﻿using Api.Dtos;
-using Api.Models;
 using Microsoft.Azure.Functions.Worker.Http;
-using RedditPodcastPoster.Auth0;
+using Api.Dtos;
+using Api.Models;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
+using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;
 

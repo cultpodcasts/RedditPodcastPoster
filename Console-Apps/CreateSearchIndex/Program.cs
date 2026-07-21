@@ -1,10 +1,10 @@
-﻿using System.Reflection;
-using Azure;
-using CommandLine;
-using CreateSearchIndex;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Azure;
+using CommandLine;
+using CreateSearchIndex;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Extensions;
