@@ -1,12 +1,11 @@
-using RedditPodcastPoster.AI.Configuration;
-
-namespace RedditPodcastPoster.AI.Classifiers;
-
 using Azure.AI.TextAnalytics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.AI.Configuration;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+
+namespace RedditPodcastPoster.AI.Classifiers;
 
 public class EpisodeClassifier(
     ISubjectRepository subjectRepository,
