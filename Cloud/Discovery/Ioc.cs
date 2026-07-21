@@ -1,4 +1,4 @@
-﻿﻿﻿using Azure;
+﻿using Azure;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
 using Microsoft.Azure.Cosmos;
@@ -19,7 +19,6 @@ using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
-
 using Discovery.Models;
 using Discovery.Services;
 

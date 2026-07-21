@@ -1,5 +1,4 @@
 using Microsoft.DurableTask.Client;
-
 using Discovery.Models;
 using Discovery.Activities;
 using Discovery.Services;

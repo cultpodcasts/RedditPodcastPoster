@@ -4,9 +4,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
-
 using RedditPodcastPoster.Models.Discovery;
-
 using Discovery.Orchestrations;
 using Discovery.Models;
 using Discovery.Services;

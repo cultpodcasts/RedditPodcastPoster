@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-
 using Discovery.Models;
 
 namespace Discovery.Services;

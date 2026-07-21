@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Search.Services;
-
 using Indexer.Models;
 using Indexer.Services;
 

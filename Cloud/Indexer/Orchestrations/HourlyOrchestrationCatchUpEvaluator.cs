@@ -1,5 +1,4 @@
 using Microsoft.DurableTask.Client;
-
 using Indexer.Models;
 using Indexer.Activities;
 

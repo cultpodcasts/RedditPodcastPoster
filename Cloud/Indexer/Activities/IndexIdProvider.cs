@@ -7,7 +7,6 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
-
 using Indexer.Models;
 using Indexer.Services;
 

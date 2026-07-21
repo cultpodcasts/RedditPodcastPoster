@@ -27,7 +27,6 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
 using RedditPodcastPoster.UrlShortening.Extensions;
-
 using Indexer.Models;
 using Indexer.Services;
 

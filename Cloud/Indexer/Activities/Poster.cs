@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using Azure.Diagnostics;
+﻿using Azure.Diagnostics;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -6,7 +6,6 @@ using RedditPodcastPoster.Common;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
-
 using Indexer.Models;
 using Indexer.Services;
 

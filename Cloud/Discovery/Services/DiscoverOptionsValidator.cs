@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-
 using Discovery.Models;
 
 namespace Discovery.Services;

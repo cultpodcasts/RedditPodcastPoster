@@ -1,6 +1,5 @@
-﻿﻿﻿﻿using Microsoft.DurableTask;
+﻿using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
-
 using Discovery.Models;
 using Discovery.Activities;
 using Discovery.Services;

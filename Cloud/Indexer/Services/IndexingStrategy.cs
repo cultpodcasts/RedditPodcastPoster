@@ -1,5 +1,4 @@
 using RedditPodcastPoster.Configuration;
-
 using Indexer.Models;
 
 namespace Indexer.Services;

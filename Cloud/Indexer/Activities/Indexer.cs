@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System.Diagnostics;
+﻿using System.Diagnostics;
 using Azure;
 using Azure.Diagnostics;
 using Microsoft.DurableTask;
@@ -8,7 +8,6 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
-
 using Indexer.Models;
 using Indexer.Services;
 

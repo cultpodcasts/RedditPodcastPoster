@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
-
 using Indexer.Orchestrations;
 using Indexer.Models;
 
