@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Types intentionally use RedditPodcastPoster.DependencyInjection (not …Abstractions). See docs/adr/0001-folder-equals-namespace.md. -->
+    <RootNamespace>RedditPodcastPoster.DependencyInjection</RootNamespace>
   </PropertyGroup>
 
 </Project>

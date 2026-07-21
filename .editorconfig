@@ -1,0 +1,30 @@
+# EditorConfig for RedditPodcastPoster
+# https://editorconfig.org
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{csproj,props,targets,json,yml,yaml,md}]
+indent_size = 2
+
+[*.cs]
+# House rule: folder path under the project root matches namespace under RootNamespace
+# (see docs/adr/0001-folder-equals-namespace.md). IDE0130 = Namespace does not match folder structure.
+dotnet_style_namespace_match_folder = true
+dotnet_diagnostic.IDE0130.severity = warning
+
+# Prefer usings before file-scoped namespace (IDE0161 suggests file-scoped; ordering is a style convention).
+# csharp_using_directive_placement is not a standard Roslyn option; usings-before-namespace is enforced by review/ADR.
+
+# Vendored / third-party sources — do not enforce our folder=namespace rule.
+[Third-Party/**.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+[Third-Party/**/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
