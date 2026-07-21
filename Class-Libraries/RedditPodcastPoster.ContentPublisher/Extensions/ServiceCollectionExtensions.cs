@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.Configuration;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.People.Extensions;
 
 namespace RedditPodcastPoster.ContentPublisher.Extensions;

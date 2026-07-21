@@ -4,9 +4,10 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class PeoplePublisher(
     IAmazonS3 client,

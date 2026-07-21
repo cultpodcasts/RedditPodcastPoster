@@ -5,7 +5,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Adaptors;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Twitter;

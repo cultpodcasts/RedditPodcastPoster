@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public interface ILanguagesPublisher
 {

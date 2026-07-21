@@ -6,11 +6,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Things;
+using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
 using SubredditSettings = RedditPodcastPoster.Reddit.Configuration.SubredditSettings;
 
-namespace RedditPodcastPoster.ContentPublisher;
+namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class SubjectsPublisher(
     IAmazonS3 client,

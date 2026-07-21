@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit.Inputs.Flair;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.ContentPublisher;
+using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Reddit.Clients;
