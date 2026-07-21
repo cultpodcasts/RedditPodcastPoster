@@ -62,7 +62,8 @@ public class YouTubeEpisodeProvider(
                     var videoDetails =
                         await youTubeVideoService.GetVideoContentDetails(youTubeService, youTubeVideoIds,
                             indexingContext,
-                            true);
+                            withSnippets: true,
+                            withStatistics: true);
 
                     if (videoDetails != null)
                     {
@@ -70,6 +71,11 @@ public class YouTubeEpisodeProvider(
                         foreach (var videoDetail in videoDetails.Where(videoDetail =>
                                      YouTubeVideoDurationMatcher.HasDuration(videoDetail.GetLength())))
                         {
+                            if (SkipMembersOnly(videoDetail))
+                            {
+                                continue;
+                            }
+
                             episodes.Add(await GetEpisodeAsync(
                                 youTubeVideos.First(searchResult => searchResult.Id.VideoId == videoDetail.Id),
                                 videoDetail));
@@ -122,7 +128,8 @@ public class YouTubeEpisodeProvider(
             youTubeService,
             playlistItems.Select(x => x.Snippet.ResourceId.VideoId),
             indexingContext,
-            true);
+            withSnippets: true,
+            withStatistics: true);
         if (videoDetails == null || !videoDetails.Any())
         {
             return null;
@@ -140,6 +147,11 @@ public class YouTubeEpisodeProvider(
                      .Where(x => x.VideoDetails.IsCompletedPublicVideo())
                      .Where(x => x.VideoDetails.Snippet.ChannelId == request.ChannelId))
         {
+            if (SkipMembersOnly(playlistItemVideo.VideoDetails))
+            {
+                continue;
+            }
+
             episodes.Add(await GetEpisodeAsync(playlistItemVideo.PlaylistItem.Snippet, playlistItemVideo.VideoDetails));
         }
 
@@ -189,7 +201,8 @@ public class YouTubeEpisodeProvider(
                 youTubeService,
                 results.Select(x => x.Snippet.ResourceId.VideoId),
                 indexingContext,
-                true);
+                withSnippets: true,
+                withStatistics: true);
         if (videoDetails != null && videoDetails.Any())
         {
             try
@@ -208,6 +221,11 @@ public class YouTubeEpisodeProvider(
                              .Where(x => youTubeChannelId == null ||
                                          x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId))
                 {
+                    if (SkipMembersOnly(playlistItemVideo.VideoDetails))
+                    {
+                        continue;
+                    }
+
                     reducedResults.Add(await GetEpisodeAsync(
                         playlistItemVideo.PlaylistItem.Snippet,
                         playlistItemVideo.VideoDetails));
@@ -225,6 +243,20 @@ public class YouTubeEpisodeProvider(
         }
 
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
+    }
+
+    private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)
+    {
+        if (!video.IsMembersOnly())
+        {
+            return false;
+        }
+
+        logger.LogWarning(
+            "Skipping YouTube video '{VideoId}' ('{VideoTitle}') because it is members-only (statistics.viewCount is absent while other statistics are present).",
+            video.Id,
+            video.Snippet?.Title);
+        return true;
     }
 
     private record PlaylistItemVideo(PlaylistItem PlaylistItem, Google.Apis.YouTube.v3.Data.Video VideoDetails);

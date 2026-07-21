@@ -23,6 +23,63 @@ public class VideoExtensionsTests
     }
 
     [Fact]
+    public void IsMembersOnly_WhenViewCountAbsentButOtherStatisticsPresent_ReturnsTrue()
+    {
+        // Members-only videos stay publicly listed but YouTube omits statistics.viewCount for them,
+        // while still returning likeCount/favoriteCount/commentCount.
+        var video = new Google.Apis.YouTube.v3.Data.Video
+        {
+            Statistics = new VideoStatistics
+            {
+                LikeCount = 0,
+                FavoriteCount = 0,
+                CommentCount = 0
+                // ViewCount deliberately left null (property absent) — the members-only signal.
+            }
+        };
+
+        video.IsMembersOnly().Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsMembersOnly_WhenViewCountIsZero_ReturnsFalse()
+    {
+        // A brand-new PUBLIC upload with no views returns "viewCount": "0" (present, value 0).
+        // Zero views must NOT be treated as members-only.
+        var video = new Google.Apis.YouTube.v3.Data.Video
+        {
+            Statistics = new VideoStatistics
+            {
+                ViewCount = 0,
+                LikeCount = 0,
+                CommentCount = 0
+            }
+        };
+
+        video.IsMembersOnly().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsMembersOnly_WhenViewCountPresent_ReturnsFalse()
+    {
+        var video = new Google.Apis.YouTube.v3.Data.Video
+        {
+            Statistics = new VideoStatistics { ViewCount = 4242 }
+        };
+
+        video.IsMembersOnly().Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsMembersOnly_WhenStatisticsNotRequested_ReturnsFalse()
+    {
+        // Statistics part not requested -> Statistics is null -> never flag as members-only.
+        var video = new Google.Apis.YouTube.v3.Data.Video { Statistics = null };
+
+        video.IsMembersOnly().Should().BeFalse();
+    }
+
+    [Fact]
     public void GetThumbnailCandidates_OrdersByHeightDescending()
     {
         var video = new Google.Apis.YouTube.v3.Data.Video
