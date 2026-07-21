@@ -2,7 +2,7 @@
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Submitters;
 
 public interface IUrlSubmitter
 {

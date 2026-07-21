@@ -3,8 +3,8 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Submitters;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace SubmitUrl;

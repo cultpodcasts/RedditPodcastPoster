@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Matching;
 
 public class EpisodeHelper : IEpisodeHelper
 {

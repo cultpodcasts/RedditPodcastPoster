@@ -2,11 +2,14 @@
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.UrlSubmission.Adaptors;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Submitters;
 
 public class DiscoveryUrlSubmitter(
     IPodcastService podcastService,

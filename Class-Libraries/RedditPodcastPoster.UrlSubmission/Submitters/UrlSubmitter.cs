@@ -4,9 +4,11 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Submitters;
 
 public class UrlSubmitter(
     IPodcastRepository podcastRepository,

@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.UrlSubmission.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Adaptors;
 
 public class SubmitResultAdaptor : ISubmitResultAdaptor
 {

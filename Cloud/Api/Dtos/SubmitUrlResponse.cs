@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.People.Models;
-using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api.Dtos;

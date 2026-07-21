@@ -4,7 +4,7 @@ using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Processors;
 
 public interface IDiscoveryResultProcessor
 {
