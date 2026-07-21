@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Subjects;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Persistence;
