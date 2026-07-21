@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Reddit.Controllers;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Reddit.Models;
 
 namespace RedditPodcastPoster.Reddit.Managers;

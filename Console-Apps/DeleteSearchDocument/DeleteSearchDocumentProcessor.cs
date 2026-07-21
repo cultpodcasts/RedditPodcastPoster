@@ -1,6 +1,6 @@
 ﻿using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace DeleteSearchDocument;
 

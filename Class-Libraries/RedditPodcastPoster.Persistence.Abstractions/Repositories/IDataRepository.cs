@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 public interface IDataRepository
 {

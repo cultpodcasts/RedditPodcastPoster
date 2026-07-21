@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.KnownTerms;
 using KnownTermsModel = RedditPodcastPoster.Text.KnownTerms.KnownTerms;
 

@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 public interface IRepository<TEntity>
 {

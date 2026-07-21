@@ -1,7 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
 namespace Api.Resolvers;

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.Discovery.Scheduling;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Handlers;
 

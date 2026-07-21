@@ -10,7 +10,7 @@ using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices;
 using RedditPodcastPoster.PodcastServices.Abstractions;

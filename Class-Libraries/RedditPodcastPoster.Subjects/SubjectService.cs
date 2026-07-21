@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
