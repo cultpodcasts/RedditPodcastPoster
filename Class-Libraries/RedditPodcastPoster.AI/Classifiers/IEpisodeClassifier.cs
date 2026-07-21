@@ -1,6 +1,6 @@
-namespace RedditPodcastPoster.AI.Classifiers;
-
 using RedditPodcastPoster.Models.Episodes;
+
+namespace RedditPodcastPoster.AI.Classifiers;
 
 public interface IEpisodeClassifier
 {
