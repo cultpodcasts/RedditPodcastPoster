@@ -11,6 +11,8 @@ using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Subjects.Repositories;
 using RedditPodcastPoster.Subjects.Services;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Subjects.Extensions;
 
 public static class ServiceCollectionExtensions

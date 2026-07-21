@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Models;
 
 public class EpisodeSubjectMatch

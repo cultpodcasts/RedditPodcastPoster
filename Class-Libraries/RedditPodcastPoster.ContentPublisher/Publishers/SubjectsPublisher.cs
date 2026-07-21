@@ -11,6 +11,8 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
 using SubredditSettings = RedditPodcastPoster.Reddit.Configuration.SubredditSettings;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class SubjectsPublisher(

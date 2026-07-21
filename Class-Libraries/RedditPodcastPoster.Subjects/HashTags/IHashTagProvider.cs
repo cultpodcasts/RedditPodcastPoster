@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Subjects.HashTags;
+﻿using RedditPodcastPoster.Models.Subjects;
+
+namespace RedditPodcastPoster.Subjects.HashTags;
 
 public interface IHashTagProvider
 {

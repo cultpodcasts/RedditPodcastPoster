@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 
 namespace RedditPodcastPoster.Subjects.HashTags;

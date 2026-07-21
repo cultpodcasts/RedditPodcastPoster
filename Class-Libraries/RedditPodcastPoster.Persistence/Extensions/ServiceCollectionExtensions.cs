@@ -16,6 +16,8 @@ using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 
+using RedditPodcastPoster.Models.Subjects;
+
 namespace RedditPodcastPoster.Persistence.Extensions;
 
 public static class ServiceCollectionExtensions

@@ -1,8 +1,10 @@
-﻿namespace RedditPodcastPoster.Text.EliminationTerms;
+﻿using EliminationTermsEntity = RedditPodcastPoster.Models.Subjects.EliminationTerms;
 
-public class EliminationTermsProvider(Models.EliminationTerms eliminationTerms) : IEliminationTermsProvider
+namespace RedditPodcastPoster.Text.EliminationTerms;
+
+public class EliminationTermsProvider(EliminationTermsEntity eliminationTerms) : IEliminationTermsProvider
 {
-    public Models.EliminationTerms GetEliminationTerms()
+    public EliminationTermsEntity GetEliminationTerms()
     {
         return eliminationTerms;
     }
