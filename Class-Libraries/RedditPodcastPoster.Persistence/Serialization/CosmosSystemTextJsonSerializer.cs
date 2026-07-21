@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Azure.Core.Serialization;
 using Microsoft.Azure.Cosmos;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Serialization;
 
 /// <remarks>
 // See: https://github.com/Azure/azure-cosmos-dotnet-v3/blob/master/Microsoft.Azure.Cosmos.Samples/Usage/SystemTextJson/CosmosSystemTextJsonSerializer.cs

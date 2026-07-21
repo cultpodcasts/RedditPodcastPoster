@@ -6,7 +6,7 @@ using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class FileRepository : IFileRepository
 {

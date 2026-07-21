@@ -2,8 +2,9 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Configuration;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Factories;
 
 public class CosmosDbContainerFactory(
     CosmosClient cosmosClient,

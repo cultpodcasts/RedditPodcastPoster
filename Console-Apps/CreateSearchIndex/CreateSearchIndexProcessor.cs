@@ -11,7 +11,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Extensions;
-using RedditPodcastPoster.Persistence;
+using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Search.Services;

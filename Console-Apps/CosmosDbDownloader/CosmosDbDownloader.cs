@@ -1,9 +1,9 @@
 ﻿using System.Text.Json;
 using Konsole;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.Text.KnownTerms;
 using static RedditPodcastPoster.Models.FileKeyFactory;
 
