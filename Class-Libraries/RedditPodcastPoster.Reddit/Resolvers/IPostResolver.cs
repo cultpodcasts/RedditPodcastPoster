@@ -1,5 +1,6 @@
 using Reddit.Controllers;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Reddit.Resolvers;
 

@@ -10,6 +10,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;

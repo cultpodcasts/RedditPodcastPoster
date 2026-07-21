@@ -43,7 +43,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using Episode = RedditPodcastPoster.Models.Episode;
 using Podcast = RedditPodcastPoster.Models.Podcast;
-using PodcastEpisode = RedditPodcastPoster.Models.PodcastEpisode;
+using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Handlers;

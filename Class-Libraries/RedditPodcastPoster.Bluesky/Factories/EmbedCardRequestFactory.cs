@@ -3,6 +3,7 @@ using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;

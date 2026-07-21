@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Episodes;
+
 namespace RedditPodcastPoster.Models.Extensions;
 
 public static class PodcastEpisodesExtension

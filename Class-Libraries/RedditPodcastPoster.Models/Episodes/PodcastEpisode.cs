@@ -1,5 +1,4 @@
-
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Episodes;
 
 /// <summary>
 /// Pairs a detached `Podcast` with a detached `Episode`.

@@ -121,7 +121,7 @@ public class AppleUrlCategoriser(
     {
         if (podcast != null && episodes.Any(x => x.Urls.Apple == url))
         {
-            return new ResolvedAppleItem(new RedditPodcastPoster.Models.PodcastEpisode(podcast, episodes.Single(x => x.Urls.Apple == url)));
+            return new ResolvedAppleItem(new RedditPodcastPoster.Models.Episodes.PodcastEpisode(podcast, episodes.Single(x => x.Urls.Apple == url)));
         }
 
         var podcastId = AppleIdResolver.GetPodcastId(url);

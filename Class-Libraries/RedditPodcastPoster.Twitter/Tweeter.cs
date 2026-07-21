@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.UrlShortening;
 
 namespace RedditPodcastPoster.Twitter;

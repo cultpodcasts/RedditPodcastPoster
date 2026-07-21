@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Reddit;
 using Reddit.Controllers;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Reddit.Configuration;
 
 namespace RedditPodcastPoster.Reddit.Resolvers;
