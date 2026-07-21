@@ -1,6 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.Discovery.Adapters;
+using RedditPodcastPoster.Discovery.Configuration;
+using RedditPodcastPoster.Discovery.Enrichers;
 using RedditPodcastPoster.Discovery.ML;
+using RedditPodcastPoster.Discovery.Providers;
+using RedditPodcastPoster.Discovery.Repositories;
+using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Extensions;
