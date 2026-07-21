@@ -4,7 +4,7 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Models;
 
 namespace AddSubjectToSearchMatches;

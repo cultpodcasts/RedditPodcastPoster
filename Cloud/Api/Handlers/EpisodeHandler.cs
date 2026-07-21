@@ -33,7 +33,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Reddit.Managers;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Twitter;
 using RedditPodcastPoster.Twitter.Models;

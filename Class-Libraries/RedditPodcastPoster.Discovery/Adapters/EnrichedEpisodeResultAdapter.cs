@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Matching;
 
 namespace RedditPodcastPoster.Discovery.Adapters;
 

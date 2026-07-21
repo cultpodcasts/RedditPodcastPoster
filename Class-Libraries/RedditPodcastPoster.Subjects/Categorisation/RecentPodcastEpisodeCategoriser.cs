@@ -7,7 +7,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Categorisation;
 
 public class RecentPodcastEpisodeCategoriser(
     ICategoriser categoriser,

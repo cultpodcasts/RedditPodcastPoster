@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Subjects.Categorisation;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 

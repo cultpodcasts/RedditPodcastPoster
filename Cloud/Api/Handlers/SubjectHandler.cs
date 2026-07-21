@@ -13,8 +13,8 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Reddit.Clients;
 using RedditPodcastPoster.Reddit.Configuration;
-using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Factories;
+using RedditPodcastPoster.Subjects.Services;
 using Subject = RedditPodcastPoster.Models.Subject;
 
 namespace Api.Handlers;

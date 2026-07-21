@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Categorisation;
 
 /// <summary>
 /// Emits a stable Warning-level podcast categorise line so App Insights can show

@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Categorisation;
 
 /// <summary>
 /// Subject delta for one episode within a podcast-level categorise log line.

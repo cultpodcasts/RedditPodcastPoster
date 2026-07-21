@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Categorisation;
+using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 
 namespace CategorisePodcastEpisodes;

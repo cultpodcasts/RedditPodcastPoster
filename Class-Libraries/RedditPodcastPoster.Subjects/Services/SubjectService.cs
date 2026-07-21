@@ -7,7 +7,7 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Services;
 
 public class SubjectService(
     ISubjectsProvider subjectRepository,

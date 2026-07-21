@@ -3,6 +3,8 @@ using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Enrichers;
+using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.Subjects.Tests;

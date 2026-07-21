@@ -2,8 +2,14 @@
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Subjects.Categorisation;
+using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Subjects.Matching;
+using RedditPodcastPoster.Subjects.Providers;
+using RedditPodcastPoster.Subjects.Repositories;
+using RedditPodcastPoster.Subjects.Services;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
 
