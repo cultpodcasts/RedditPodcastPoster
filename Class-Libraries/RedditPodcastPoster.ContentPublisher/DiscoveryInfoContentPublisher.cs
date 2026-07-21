@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher.Models;
-using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Persistence.Abstractions;
 
 namespace RedditPodcastPoster.ContentPublisher;

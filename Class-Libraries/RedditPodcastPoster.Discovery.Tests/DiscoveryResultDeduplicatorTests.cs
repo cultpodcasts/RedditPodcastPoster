@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Discovery.Tests.Fixtures;
 using RedditPodcastPoster.Models;
 

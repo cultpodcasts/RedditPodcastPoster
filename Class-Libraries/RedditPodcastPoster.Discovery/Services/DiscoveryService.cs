@@ -1,0 +1,33 @@
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Discovery.Adapters;
+using RedditPodcastPoster.Discovery.Enrichers;
+using RedditPodcastPoster.Discovery.Models;
+using RedditPodcastPoster.Discovery.Providers;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+
+namespace RedditPodcastPoster.Discovery.Services;
+
+public class DiscoveryService(
+    ISearchProvider searchProvider,
+    IEnrichedEpisodeResultsAdapter enrichedEpisodeResultsAdapter,
+    IEpisodeResultsEnricher episodeResultsEnricher,
+    ILogger<DiscoveryService> logger
+) : IDiscoveryService
+{
+    public async IAsyncEnumerable<DiscoveryResult> GetDiscoveryResults(
+        DiscoveryConfig discoveryConfig,
+        IndexingContext indexingContext)
+    {
+        logger.LogInformation($"{nameof(GetDiscoveryResults)} initiated.");
+
+        var results = await searchProvider.GetEpisodes(discoveryConfig, indexingContext);
+        var enrichedResults = episodeResultsEnricher.EnrichWithPodcastDetails(results);
+
+        await foreach (var item in enrichedEpisodeResultsAdapter.ToDiscoveryResults(enrichedResults))
+        {
+            yield return item;
+        }
+    }
+}

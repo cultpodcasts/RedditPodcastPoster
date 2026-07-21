@@ -2,7 +2,7 @@ using Api.Dtos;
 using Api.Dtos.Extensions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.Discovery;
+using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 

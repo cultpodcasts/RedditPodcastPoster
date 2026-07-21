@@ -1,8 +1,10 @@
 ﻿using System.Globalization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher;
-using RedditPodcastPoster.Discovery;
 using RedditPodcastPoster.Discovery.ML;
+using RedditPodcastPoster.Discovery.Models;
+using RedditPodcastPoster.Discovery.Providers;
+using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
