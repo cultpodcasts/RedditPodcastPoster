@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 

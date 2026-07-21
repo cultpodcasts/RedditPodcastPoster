@@ -1,4 +1,6 @@
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.Discovery;
 
 public enum DiscoverService
 {

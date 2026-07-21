@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Converters;
 
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.Discovery;
 
 public class DiscoveryResult
 {

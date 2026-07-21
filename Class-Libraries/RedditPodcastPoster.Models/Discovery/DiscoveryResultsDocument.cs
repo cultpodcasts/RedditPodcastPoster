@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.Discovery;
 
 [CosmosSelector(ModelType.Discovery)]
 public sealed class DiscoveryResultsDocument : CosmosSelector

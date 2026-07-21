@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace DiscoveryScoreBackfill;
 

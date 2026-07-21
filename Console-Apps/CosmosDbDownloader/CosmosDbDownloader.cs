@@ -7,6 +7,8 @@ using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.Text.KnownTerms;
 using static RedditPodcastPoster.Models.FileKeyFactory;
 
+using RedditPodcastPoster.Models.Discovery;
+
 namespace CosmosDbDownloader;
 
 public class CosmosDbDownloader(

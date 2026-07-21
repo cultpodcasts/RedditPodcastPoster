@@ -4,6 +4,7 @@ using RedditPodcastPoster.Discovery.Enrichers;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Discovery;
 
 namespace DiscoveryTrainingTrain;
 

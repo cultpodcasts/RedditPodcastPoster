@@ -3,6 +3,8 @@ using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
+using RedditPodcastPoster.Models.Discovery;
+
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class DiscoveryInfoContentPublisher(
