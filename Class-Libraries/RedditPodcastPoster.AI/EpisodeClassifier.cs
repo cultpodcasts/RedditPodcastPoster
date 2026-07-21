@@ -1,8 +1,7 @@
-﻿using Azure.AI.TextAnalytics;
+using Azure.AI.TextAnalytics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.AI.Configuration;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

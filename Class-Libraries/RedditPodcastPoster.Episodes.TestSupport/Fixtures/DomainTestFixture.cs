@@ -1,7 +1,6 @@
 using AutoFixture;
 using AutoFixture.Dsl;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 

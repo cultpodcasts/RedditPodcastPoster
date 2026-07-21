@@ -1,10 +1,9 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Reddit.Configuration;

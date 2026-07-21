@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;

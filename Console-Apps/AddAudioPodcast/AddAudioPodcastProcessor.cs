@@ -1,9 +1,8 @@
-﻿using iTunesSearch.Library;
+using iTunesSearch.Library;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.EntitySearchIndexer;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

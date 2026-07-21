@@ -13,7 +13,6 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

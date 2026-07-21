@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;

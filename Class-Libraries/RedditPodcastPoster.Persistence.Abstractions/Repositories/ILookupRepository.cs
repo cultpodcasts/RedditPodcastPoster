@@ -1,4 +1,3 @@
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.Discovery;

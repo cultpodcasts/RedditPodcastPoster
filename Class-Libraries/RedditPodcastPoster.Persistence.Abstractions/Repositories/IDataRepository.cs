@@ -1,5 +1,4 @@
-﻿using System.Linq.Expressions;
-using RedditPodcastPoster.Models;
+using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;

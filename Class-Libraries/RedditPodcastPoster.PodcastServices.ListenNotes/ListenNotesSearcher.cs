@@ -1,8 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PodcastAPI;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.ListenNotes.Configuration;

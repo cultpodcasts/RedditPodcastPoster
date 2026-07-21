@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Subjects.Matching;

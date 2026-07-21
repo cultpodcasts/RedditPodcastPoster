@@ -1,4 +1,3 @@
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Discovery;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;

@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Enrichers;

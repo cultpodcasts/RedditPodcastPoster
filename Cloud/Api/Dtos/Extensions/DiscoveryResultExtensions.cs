@@ -1,5 +1,4 @@
-﻿using RedditPodcastPoster.Discovery.Extensions;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Dtos.Extensions;

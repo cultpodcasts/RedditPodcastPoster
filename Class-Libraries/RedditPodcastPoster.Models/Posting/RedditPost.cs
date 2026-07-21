@@ -1,5 +1,4 @@
-﻿
-using RedditPodcastPoster.Models;
+
 using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.Posting;

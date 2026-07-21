@@ -1,6 +1,5 @@
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;

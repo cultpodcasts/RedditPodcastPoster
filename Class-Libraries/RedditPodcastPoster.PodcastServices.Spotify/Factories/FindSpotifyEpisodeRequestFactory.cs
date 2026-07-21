@@ -1,5 +1,4 @@
-﻿using RedditPodcastPoster.Episodes;
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;

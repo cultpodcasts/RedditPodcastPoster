@@ -3,7 +3,6 @@ using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Merging.Policies;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 

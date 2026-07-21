@@ -1,6 +1,5 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;

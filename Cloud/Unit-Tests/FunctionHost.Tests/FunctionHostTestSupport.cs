@@ -4,7 +4,6 @@ using Azure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Models.HomePage;

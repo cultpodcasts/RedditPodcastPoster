@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Enrichers;
 using RedditPodcastPoster.Discovery.Models;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;

@@ -1,8 +1,7 @@
-﻿using System.Net;
+using System.Net;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using SpotifyAPI.Web;

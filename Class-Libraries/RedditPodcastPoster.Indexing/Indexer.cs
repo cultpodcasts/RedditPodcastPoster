@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.Persistence.Abstractions.Models;

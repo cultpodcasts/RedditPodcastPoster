@@ -1,6 +1,5 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Posting;
 
 namespace RedditPodcastPoster.Reddit.Factories;

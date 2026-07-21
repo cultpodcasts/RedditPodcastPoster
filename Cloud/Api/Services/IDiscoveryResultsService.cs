@@ -1,5 +1,4 @@
 using Api.Dtos;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Services;

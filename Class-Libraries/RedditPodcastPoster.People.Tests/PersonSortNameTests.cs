@@ -1,5 +1,4 @@
 using FluentAssertions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Factories;
 

@@ -2,7 +2,6 @@ using GraphQL;
 using GraphQL.Client.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;

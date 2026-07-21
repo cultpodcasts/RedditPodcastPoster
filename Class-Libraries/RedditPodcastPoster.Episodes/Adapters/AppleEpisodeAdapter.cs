@@ -1,6 +1,5 @@
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Domain;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Adapters;

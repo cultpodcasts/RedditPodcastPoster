@@ -1,10 +1,9 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using AutoFixture;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Text.KnownTerms;
 

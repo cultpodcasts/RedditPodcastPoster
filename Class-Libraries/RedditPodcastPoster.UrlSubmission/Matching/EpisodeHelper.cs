@@ -1,5 +1,4 @@
-﻿using System.Net;
-using RedditPodcastPoster.Models;
+using System.Net;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Text;

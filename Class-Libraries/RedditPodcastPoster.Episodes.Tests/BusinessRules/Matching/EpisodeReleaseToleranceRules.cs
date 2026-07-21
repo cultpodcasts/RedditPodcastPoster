@@ -1,7 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 

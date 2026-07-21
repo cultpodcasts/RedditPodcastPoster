@@ -2,7 +2,6 @@ using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Auth0;
-using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using PushSubscription = Api.Dtos.PushSubscription;
