@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using Xunit;
 
 namespace Indexer.Tests;
