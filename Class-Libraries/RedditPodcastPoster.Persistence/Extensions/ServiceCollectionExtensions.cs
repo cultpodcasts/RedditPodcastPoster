@@ -2,7 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Lookups;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.Text.EliminationTerms;

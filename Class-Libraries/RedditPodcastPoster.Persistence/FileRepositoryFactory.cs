@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence;
 

@@ -6,7 +6,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Episodes;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;

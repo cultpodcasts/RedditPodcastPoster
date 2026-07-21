@@ -1,6 +1,6 @@
 ﻿using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 public interface IFileRepository : IDataRepository
 {

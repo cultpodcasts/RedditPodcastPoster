@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
 
 namespace RedditPodcastPoster.Common.Factories;
 

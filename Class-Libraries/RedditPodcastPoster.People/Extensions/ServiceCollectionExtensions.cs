@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.People.Factories;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.People.Extensions;
 

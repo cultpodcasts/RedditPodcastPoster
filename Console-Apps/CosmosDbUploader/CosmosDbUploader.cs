@@ -1,7 +1,8 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace CosmosDbUploader;

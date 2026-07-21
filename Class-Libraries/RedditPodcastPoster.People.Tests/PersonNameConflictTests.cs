@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Moq;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.People.Factories;
 using RedditPodcastPoster.Text;
 

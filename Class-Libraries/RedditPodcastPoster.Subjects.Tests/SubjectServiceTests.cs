@@ -2,7 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 

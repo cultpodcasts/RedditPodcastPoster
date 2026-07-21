@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Activity = RedditPodcastPoster.Models.Activity;
 
 namespace RedditPodcastPoster.Persistence;

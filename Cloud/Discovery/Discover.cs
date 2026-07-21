@@ -10,7 +10,7 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PushSubscriptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;

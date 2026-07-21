@@ -4,7 +4,7 @@ using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 

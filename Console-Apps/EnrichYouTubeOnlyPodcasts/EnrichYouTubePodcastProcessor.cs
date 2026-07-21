@@ -8,7 +8,7 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;

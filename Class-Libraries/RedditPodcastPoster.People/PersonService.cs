@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Text;
 

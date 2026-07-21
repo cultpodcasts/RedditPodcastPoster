@@ -1,4 +1,6 @@
-﻿namespace RedditPodcastPoster.Persistence.Abstractions;
+﻿using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+
+namespace RedditPodcastPoster.Persistence.Abstractions.Factories;
 
 public interface IFileRepositoryFactory
 {

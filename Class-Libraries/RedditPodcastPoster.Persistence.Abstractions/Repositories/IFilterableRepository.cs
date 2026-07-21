@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace RedditPodcastPoster.Persistence.Abstractions;
+namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 public interface IFilterableRepository<TEntity>
 {

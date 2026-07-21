@@ -2,7 +2,7 @@
 using Konsole;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence;
-using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace CultPodcasts.DatabasePublisher;
 
