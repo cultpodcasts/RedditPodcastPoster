@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.YouTubeQuota;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 

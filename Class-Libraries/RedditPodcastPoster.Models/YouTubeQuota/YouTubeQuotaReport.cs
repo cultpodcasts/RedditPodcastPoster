@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.YouTubeQuota;
 
 [CosmosSelector(ModelType.YouTubeQuotaReport)]
 public sealed class YouTubeQuotaReport : CosmosSelector

@@ -1,4 +1,5 @@
-using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Quota;

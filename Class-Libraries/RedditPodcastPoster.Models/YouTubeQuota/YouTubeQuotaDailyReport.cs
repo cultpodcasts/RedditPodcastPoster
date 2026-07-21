@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.YouTubeQuota;
 
 /// <summary>
 ///     A single day's quota snapshot, embedded in the rolling <see cref="YouTubeQuotaReport" /> document.
