@@ -17,7 +17,7 @@ using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 

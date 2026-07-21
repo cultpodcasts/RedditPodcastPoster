@@ -1,5 +1,6 @@
-﻿using Google.Apis.YouTube.v3.Data;
+using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;

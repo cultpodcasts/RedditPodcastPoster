@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 

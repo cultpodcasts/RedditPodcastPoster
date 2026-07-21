@@ -5,6 +5,7 @@ using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;

@@ -1,9 +1,10 @@
-﻿using Google.Apis.YouTube.v3.Data;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;

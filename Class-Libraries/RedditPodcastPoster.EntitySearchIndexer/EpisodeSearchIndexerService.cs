@@ -7,7 +7,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.EntitySearchIndexer;
 

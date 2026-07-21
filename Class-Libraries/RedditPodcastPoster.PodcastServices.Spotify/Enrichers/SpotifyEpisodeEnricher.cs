@@ -1,10 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;

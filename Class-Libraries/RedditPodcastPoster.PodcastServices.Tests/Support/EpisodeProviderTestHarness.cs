@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Common.Episodes;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;

@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.YouTubePushNotifications.Configuration;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.YouTubePushNotifications;
 

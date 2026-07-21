@@ -42,7 +42,7 @@ using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Api.Dtos;
 using Api.Extensions;
@@ -23,7 +23,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
-using DomainPodcast = RedditPodcastPoster.Models.Podcast;
+using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace Api.Handlers;
 

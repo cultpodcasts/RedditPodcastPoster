@@ -3,7 +3,7 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.Discovery.Enrichers;
 

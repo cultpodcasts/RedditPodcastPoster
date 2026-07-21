@@ -1,8 +1,9 @@
-﻿using AutoFixture;
+using AutoFixture;
 using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;

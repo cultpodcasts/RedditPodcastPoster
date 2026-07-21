@@ -4,7 +4,7 @@ using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

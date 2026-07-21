@@ -297,7 +297,7 @@ public partial class YouTubeSearchResultFinder(
             YouTubeId = match.Id.VideoId
         };
 
-        var podcast = new RedditPodcastPoster.Models.Podcast
+        var podcast = new Podcast
         {
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = youTubePublishDelay.Ticks

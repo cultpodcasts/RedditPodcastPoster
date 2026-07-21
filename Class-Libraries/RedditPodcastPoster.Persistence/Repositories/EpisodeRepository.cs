@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;

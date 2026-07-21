@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Handlers;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;

@@ -1,4 +1,4 @@
-﻿using Google.Apis.YouTube.v3.Data;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -14,7 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;

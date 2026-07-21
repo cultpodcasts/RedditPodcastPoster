@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

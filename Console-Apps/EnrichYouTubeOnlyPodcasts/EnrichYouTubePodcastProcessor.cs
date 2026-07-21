@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,6 +9,7 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;

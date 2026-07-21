@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Common.Episodes;
@@ -10,6 +10,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;

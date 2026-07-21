@@ -1,5 +1,6 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;

@@ -1,8 +1,8 @@
-﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using Podcast = RedditPodcastPoster.Models.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.Common.Episodes;
 

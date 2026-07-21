@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 

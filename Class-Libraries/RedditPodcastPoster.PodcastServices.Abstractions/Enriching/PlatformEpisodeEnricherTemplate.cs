@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 

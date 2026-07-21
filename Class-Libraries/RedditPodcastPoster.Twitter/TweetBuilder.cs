@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Common.Factories;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.HashTags;

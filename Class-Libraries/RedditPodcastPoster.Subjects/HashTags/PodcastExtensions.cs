@@ -1,11 +1,11 @@
-﻿using RedditPodcastPoster.Models;
+﻿using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Extensions;
 
 namespace RedditPodcastPoster.Subjects.HashTags;
 
 public static class PodcastExtensions {
-    public static IEnumerable<HashTag> GetHashTags(this global::RedditPodcastPoster.Models.Podcast podcast) {
+    public static IEnumerable<HashTag> GetHashTags(this Podcast podcast) {
         var hashTags = new List<HashTag>();
         if (!string.IsNullOrWhiteSpace(podcast.HashTag)) {
             var x = podcast.HashTag.ToHashTags();
