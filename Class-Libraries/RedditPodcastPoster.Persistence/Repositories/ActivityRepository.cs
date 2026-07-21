@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Activity = RedditPodcastPoster.Models.Activity;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class ActivityRepository(
     Container activitiesContainer,

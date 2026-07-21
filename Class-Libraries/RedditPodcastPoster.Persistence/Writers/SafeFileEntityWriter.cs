@@ -1,7 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Writers;
 
 public class SafeFileEntityWriter(
     IFileRepository fileRepository

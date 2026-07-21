@@ -2,8 +2,9 @@
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Repositories;
 
-namespace RedditPodcastPoster.Persistence;
+namespace RedditPodcastPoster.Persistence.Factories;
 
 public class FileRepositoryFactory(
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
