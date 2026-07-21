@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Providers;
 
 public class CachedSubjectProvider(
     ISubjectRepository subjectRepository,

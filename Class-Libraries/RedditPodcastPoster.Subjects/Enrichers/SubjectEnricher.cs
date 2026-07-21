@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Models;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Enrichers;
 
 public class SubjectEnricher(
     ISubjectMatcher subjectMatcher,

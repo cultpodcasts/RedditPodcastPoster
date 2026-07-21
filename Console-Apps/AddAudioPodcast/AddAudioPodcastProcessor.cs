@@ -10,7 +10,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 using SpotifyAPI.Web;
 using System.Text.RegularExpressions;

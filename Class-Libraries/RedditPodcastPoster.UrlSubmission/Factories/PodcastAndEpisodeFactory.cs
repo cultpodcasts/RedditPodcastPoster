@@ -2,7 +2,7 @@
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.People;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 

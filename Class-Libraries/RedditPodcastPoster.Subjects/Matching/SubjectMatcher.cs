@@ -2,8 +2,9 @@
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Services;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Matching;
 
 public class SubjectMatcher(
     ISubjectService subjectService,

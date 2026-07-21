@@ -8,7 +8,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Providers;
 
 namespace FunctionHost.Tests;
 

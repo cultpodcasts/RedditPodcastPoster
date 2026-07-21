@@ -10,7 +10,7 @@ using RedditPodcastPoster.Models;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.Subjects;
+using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;

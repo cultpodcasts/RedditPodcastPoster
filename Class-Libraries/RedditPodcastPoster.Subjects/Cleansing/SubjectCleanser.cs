@@ -1,7 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Subjects.Services;
 
-namespace RedditPodcastPoster.Subjects;
+namespace RedditPodcastPoster.Subjects.Cleansing;
 
 public class SubjectCleanser(
     ISubjectService subjectService,

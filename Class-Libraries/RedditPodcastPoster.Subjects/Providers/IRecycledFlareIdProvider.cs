@@ -1,4 +1,4 @@
-﻿namespace RedditPodcastPoster.Subjects;
+﻿namespace RedditPodcastPoster.Subjects.Providers;
 
 public interface IRecycledFlareIdProvider
 {
