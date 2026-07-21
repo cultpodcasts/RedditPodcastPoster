@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using Activity = RedditPodcastPoster.Models.Activity;
+using Activity = RedditPodcastPoster.Models.Operations.Activity;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 

@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Operations;
 
 public class MessageResponseBase(bool success, string message = "")
 {

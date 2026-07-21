@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Operations;
 
 [CosmosSelector(ModelType.Activity)]
 public sealed class Activity : CosmosSelector
