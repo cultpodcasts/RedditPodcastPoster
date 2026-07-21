@@ -6,7 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Handlers;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using EpisodeModel = RedditPodcastPoster.Models.Episode;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using IYouTubeEpisodeProvider = RedditPodcastPoster.PodcastServices.YouTube.Episode.IYouTubeEpisodeProvider;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Handlers;

@@ -1,22 +1,24 @@
 ﻿using Google.Apis.YouTube.v3.Data;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 
 public interface IYouTubeEpisodeProvider
 {
-    Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
-        RedditPodcastPoster.Models.Podcast podcast,
+    Task<IList<EpisodeModel>?> GetEpisodes(
+        Podcast podcast,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds);
 
-    Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(
+    Task<EpisodeModel> GetEpisodeAsync(
         SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 
-    Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(
+    Task<EpisodeModel> GetEpisodeAsync(
         PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 

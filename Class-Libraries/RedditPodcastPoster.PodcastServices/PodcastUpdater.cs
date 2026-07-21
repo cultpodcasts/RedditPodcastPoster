@@ -5,6 +5,7 @@ using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

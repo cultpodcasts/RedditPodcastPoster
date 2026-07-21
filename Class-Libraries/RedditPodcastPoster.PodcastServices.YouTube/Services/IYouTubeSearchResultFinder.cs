@@ -2,12 +2,13 @@
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public interface IYouTubeSearchResultFinder
 {
-    Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(RedditPodcastPoster.Models.Episode episode,
+    Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(EpisodeModel episode,
         IList<SearchResult> searchResults,
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext);

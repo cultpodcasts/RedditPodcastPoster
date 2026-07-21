@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Services;
 
@@ -54,7 +55,7 @@ public class SearchResultFinderTests
         var expectedTitle = "Matching Episode";
         var today = DateTime.UtcNow.Date;
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.Episode>()
+            .Build<EpisodeModel>()
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, today)
             .With(x => x.Length, DefaultEpisodeLength)
@@ -98,7 +99,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.Episode>()
+            .Build<EpisodeModel>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
@@ -142,7 +143,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.Episode>()
+            .Build<EpisodeModel>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, release)
@@ -184,7 +185,7 @@ public class SearchResultFinderTests
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
         var episode = _fixture
-            .Build<RedditPodcastPoster.Models.Episode>()
+            .Build<EpisodeModel>()
             .With(x => x.Title, $"Prefix-A {episodeNumber} Suffix-A")
             .With(x => x.Release, release)
             .With(x => x.Length, DefaultEpisodeLength)

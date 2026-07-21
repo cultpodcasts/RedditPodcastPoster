@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
@@ -28,7 +29,7 @@ public partial class PlaylistItemFinder(
     private static readonly TimeSpan VideoDurationToleranceForPublicationDate = TimeSpan.FromMinutes(5);
 
     public async Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
         TimeSpan? youTubePublishDelay,
         IndexingContext indexingContext)
@@ -93,7 +94,7 @@ public partial class PlaylistItemFinder(
     }
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
         IndexingContext indexingContext)
@@ -125,13 +126,13 @@ public partial class PlaylistItemFinder(
         return null;
     }
 
-    private PlaylistItem? MatchOnTextCloseness(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnTextCloseness(EpisodeModel episode,
         IList<PlaylistItem> searchResults)
     {
         return FuzzyMatcher.Match(episode.Title, searchResults, x => x.Snippet.Title, MinFuzzyScore);
     }
 
-    private PlaylistItem? MatchOnEpisodeNumber(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnEpisodeNumber(EpisodeModel episode,
         IList<PlaylistItem> searchResults)
     {
         var episodeNumberMatch = NumberMatch.Match(episode.Title);
@@ -163,7 +164,7 @@ public partial class PlaylistItemFinder(
     }
 
     private PlaylistItem? MatchOnPublishTimeComparedToPublishDelay(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> searchResults,
         TimeSpan youTubePublishDelay)
     {
@@ -181,7 +182,7 @@ public partial class PlaylistItemFinder(
     }
 
     private async Task<FindEpisodeResponse?> MatchOnEpisodeNumberWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
         IndexingContext indexingContext)
     {
@@ -195,7 +196,7 @@ public partial class PlaylistItemFinder(
     }
 
     private async Task<FindEpisodeResponse?> MatchOnTextClosenessWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
         IndexingContext indexingContext)
     {
@@ -209,7 +210,7 @@ public partial class PlaylistItemFinder(
     }
 
     private async Task<FindEpisodeResponse?> MatchOnExactTitleWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
         IndexingContext indexingContext)
     {
@@ -223,7 +224,7 @@ public partial class PlaylistItemFinder(
     }
 
     private async Task<FindEpisodeResponse?> ValidatePlaylistMatchWithDuration(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         PlaylistItem match,
         string matchKind,
         IndexingContext indexingContext)
@@ -267,7 +268,7 @@ public partial class PlaylistItemFinder(
         return playlistItems.Where(x => completedVideoIds.Contains(x.GetVideoId())).ToList();
     }
 
-    private PlaylistItem? MatchOnExactTitle(RedditPodcastPoster.Models.Episode episode,
+    private PlaylistItem? MatchOnExactTitle(EpisodeModel episode,
         IList<PlaylistItem> searchResults)
     {
         var episodeTitle = episode.Title.Trim().ToLower();
@@ -296,13 +297,13 @@ public partial class PlaylistItemFinder(
     private static partial Regex CreateNumberMatch();
 
     private bool IsPublishDelayCatalogueMatch(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         PlaylistItem match,
         TimeSpan youTubePublishDelay,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails)
     {
         var videoDetail = videoDetails?.SingleOrDefault(x => x.Id == match.GetVideoId());
-        var catalogueEpisode = new RedditPodcastPoster.Models.Episode
+        var catalogueEpisode = new EpisodeModel
         {
             Title = match.Snippet.Title,
             Release = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,

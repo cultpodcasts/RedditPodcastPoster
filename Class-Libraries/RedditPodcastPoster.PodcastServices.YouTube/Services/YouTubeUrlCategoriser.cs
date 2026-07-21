@@ -1,7 +1,6 @@
 ﻿using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
-using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
@@ -14,7 +13,9 @@ using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = RedditPodcastPoster.Models.Podcast;
+using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
@@ -38,7 +39,7 @@ public class YouTubeUrlCategoriser(
 
     public async Task<ResolvedYouTubeItem?> Resolve(
         Podcast? podcast,
-        IList<RedditPodcastPoster.Models.Episode> podcastEpisodes,
+        IList<EpisodeModel> podcastEpisodes,
         Uri url,
         IndexingContext indexingContext)
     {
@@ -154,7 +155,7 @@ public class YouTubeUrlCategoriser(
     public async Task<ResolvedYouTubeItem?> Resolve(
         PodcastServiceSearchCriteria criteria,
         Podcast? matchingPodcast,
-        IList<RedditPodcastPoster.Models.Episode> episodes,
+        IList<EpisodeModel> episodes,
         IndexingContext indexingContext)
     {
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))

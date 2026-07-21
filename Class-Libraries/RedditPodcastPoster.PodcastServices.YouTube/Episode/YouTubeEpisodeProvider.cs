@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Factories;
+using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
@@ -17,6 +18,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 
@@ -33,8 +35,8 @@ public class YouTubeEpisodeProvider(
     ILogger<YouTubeEpisodeProvider> logger)
     : IYouTubeEpisodeProvider
 {
-    public async Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodes(
-        RedditPodcastPoster.Models.Podcast podcast,
+    public async Task<IList<EpisodeModel>?> GetEpisodes(
+        Podcast podcast,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
     {
@@ -67,7 +69,7 @@ public class YouTubeEpisodeProvider(
 
                     if (videoDetails != null)
                     {
-                        var episodes = new List<RedditPodcastPoster.Models.Episode>();
+                        var episodes = new List<EpisodeModel>();
                         foreach (var videoDetail in videoDetails.Where(videoDetail =>
                                      YouTubeVideoDurationMatcher.HasDuration(videoDetail.GetLength())))
                         {
@@ -98,7 +100,7 @@ public class YouTubeEpisodeProvider(
         }
     }
 
-    private async Task<IList<RedditPodcastPoster.Models.Episode>?> GetEpisodesFromChannelUploadsPlaylist(
+    private async Task<IList<EpisodeModel>?> GetEpisodesFromChannelUploadsPlaylist(
         YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
@@ -135,7 +137,7 @@ public class YouTubeEpisodeProvider(
             return null;
         }
 
-        var episodes = new List<RedditPodcastPoster.Models.Episode>();
+        var episodes = new List<EpisodeModel>();
         foreach (var playlistItemVideo in playlistItems
                      .Where(x => x.Snippet.Title != "Deleted video")
                      .Select(x =>
@@ -158,7 +160,7 @@ public class YouTubeEpisodeProvider(
         return episodes;
     }
 
-    public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(SearchResult searchResult,
+    public async Task<EpisodeModel> GetEpisodeAsync(SearchResult searchResult,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
         var image = await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails);
@@ -168,7 +170,7 @@ public class YouTubeEpisodeProvider(
         return episodeFromCandidateFactory.Create(candidate, isExplicit);
     }
 
-    public async Task<RedditPodcastPoster.Models.Episode> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
+    public async Task<EpisodeModel> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
         var image = await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails);
@@ -207,7 +209,7 @@ public class YouTubeEpisodeProvider(
         {
             try
             {
-                var reducedResults = new List<RedditPodcastPoster.Models.Episode>();
+                var reducedResults = new List<EpisodeModel>();
                 foreach (var playlistItemVideo in results
                              .Where(x => x.Snippet != null)
                              .Where(x => x.Snippet.Title != "Deleted video")

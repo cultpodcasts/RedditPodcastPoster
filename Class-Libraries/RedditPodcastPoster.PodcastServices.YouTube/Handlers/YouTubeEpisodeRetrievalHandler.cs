@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Handlers;
 
@@ -14,10 +15,10 @@ public class YouTubeEpisodeRetrievalHandler(
     ILogger<YouTubeEpisodeRetrievalHandler> logger)
     : IYouTubeEpisodeRetrievalHandler
 {
-    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<RedditPodcastPoster.Models.Episode> episodes, IndexingContext indexingContext)
+    public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<EpisodeModel> episodes, IndexingContext indexingContext)
     {
         var handled = false;
-        IList<RedditPodcastPoster.Models.Episode> newEpisodes = new List<RedditPodcastPoster.Models.Episode>();
+        IList<EpisodeModel> newEpisodes = new List<EpisodeModel>();
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
             LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0);

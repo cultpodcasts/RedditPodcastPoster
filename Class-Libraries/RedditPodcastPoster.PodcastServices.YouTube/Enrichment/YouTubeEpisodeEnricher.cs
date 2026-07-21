@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 
@@ -182,7 +183,7 @@ public class YouTubeEpisodeEnricher(
     }
 
     private void ApplyYouTubeLink(
-        RedditPodcastPoster.Models.Episode episode,
+        EpisodeModel episode,
         string youTubeId,
         Uri url,
         EnrichmentContext enrichmentContext)

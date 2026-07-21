@@ -20,7 +20,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using Episode = RedditPodcastPoster.Models.Episode;
+using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = Api.Dtos.Podcast;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 using DomainPodcast = RedditPodcastPoster.Models.Podcast;

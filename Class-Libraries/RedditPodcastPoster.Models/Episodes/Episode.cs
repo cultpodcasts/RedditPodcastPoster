@@ -1,8 +1,6 @@
-using RedditPodcastPoster.Models.Episodes;
-
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Episodes;
 
 public class Episode
 {

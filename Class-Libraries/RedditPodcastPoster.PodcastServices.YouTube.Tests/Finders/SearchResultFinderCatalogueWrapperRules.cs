@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Finders;
 
@@ -259,7 +260,7 @@ public class SearchResultFinderCatalogueWrapperRules
     }
 
     private (
-        RedditPodcastPoster.Models.Episode Episode,
+        EpisodeModel Episode,
         string MatchingVideoId,
         List<SearchResult> SearchResults,
         TimeSpan CatalogueVideoLength) BuildPublishDelayScenario(

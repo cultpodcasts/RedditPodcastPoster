@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Tests;
 

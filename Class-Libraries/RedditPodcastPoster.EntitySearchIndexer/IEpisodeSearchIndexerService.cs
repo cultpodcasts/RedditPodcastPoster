@@ -1,6 +1,7 @@
 ﻿namespace RedditPodcastPoster.EntitySearchIndexer;
 
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 public interface IEpisodeSearchIndexerService
 {

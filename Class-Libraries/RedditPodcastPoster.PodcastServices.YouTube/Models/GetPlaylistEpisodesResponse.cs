@@ -1,5 +1,7 @@
-﻿namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
+﻿using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
+
+namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
 public record GetPlaylistEpisodesResponse(
-    IList<RedditPodcastPoster.Models.Episode>? Results,
+    IList<EpisodeModel>? Results,
     bool IsExpensiveQuery = false);

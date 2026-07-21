@@ -4,6 +4,7 @@ using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Episodes.Merging.Policies;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Applying;
 

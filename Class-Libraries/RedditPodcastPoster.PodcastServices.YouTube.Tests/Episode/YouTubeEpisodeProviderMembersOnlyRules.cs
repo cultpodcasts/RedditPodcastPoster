@@ -16,6 +16,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Episode;
 
@@ -74,7 +75,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
 
         _mocker.GetMock<IEpisodeFromCandidateFactory>()
             .Setup(x => x.Create(It.IsAny<EpisodeCandidate>(), It.IsAny<bool>()))
-            .Returns(new RedditPodcastPoster.Models.Episode());
+            .Returns(new EpisodeModel());
 
         // Act
         var episodes = await Sut.GetEpisodes(podcast, indexingContext, knownIds: []);
@@ -132,7 +133,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
 
         _mocker.GetMock<IEpisodeFromCandidateFactory>()
             .Setup(x => x.Create(It.IsAny<EpisodeCandidate>(), It.IsAny<bool>()))
-            .Returns(new RedditPodcastPoster.Models.Episode());
+            .Returns(new EpisodeModel());
 
         // Act
         var episodes = await Sut.GetEpisodes(podcast, indexingContext, knownIds: []);

@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Notifications;
 using RedditPodcastPoster.Models.Subjects;

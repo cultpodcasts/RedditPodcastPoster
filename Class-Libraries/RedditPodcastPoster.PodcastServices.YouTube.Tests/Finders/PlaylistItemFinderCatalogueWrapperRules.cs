@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Finders;
 
@@ -754,8 +755,8 @@ public class PlaylistItemFinderCatalogueWrapperRules
         var matcher = new Mock<RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher>();
         matcher
             .Setup(x => x.IsCatalogueMatch(
-                It.IsAny<RedditPodcastPoster.Models.Episode>(),
-                It.IsAny<RedditPodcastPoster.Models.Episode>(),
+                It.IsAny<EpisodeModel>(),
+                It.IsAny<EpisodeModel>(),
                 It.IsAny<Podcast>(),
                 null))
             .Returns(false);
@@ -994,7 +995,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
     }
 
     private (
-        RedditPodcastPoster.Models.Episode Episode,
+        EpisodeModel Episode,
         string MatchingVideoId,
         List<PlaylistItem> PlaylistItems,
         TimeSpan CatalogueVideoLength) BuildPublishDelayScenario(

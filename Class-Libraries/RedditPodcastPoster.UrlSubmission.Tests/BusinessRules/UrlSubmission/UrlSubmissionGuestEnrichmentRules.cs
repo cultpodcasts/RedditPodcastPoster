@@ -4,6 +4,7 @@ using Moq;
 using RedditPodcastPoster.Common.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;

@@ -1,5 +1,6 @@
 using System.Text;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 

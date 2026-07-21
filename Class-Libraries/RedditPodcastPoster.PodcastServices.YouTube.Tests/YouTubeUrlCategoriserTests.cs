@@ -8,6 +8,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
@@ -22,7 +23,7 @@ public class YouTubeUrlCategoriserTests
     public async Task Resolve()
     {
         // arrange
-        var episodes = new List<RedditPodcastPoster.Models.Episode>
+        var episodes = new List<EpisodeModel>
         {
             new()
             {

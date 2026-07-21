@@ -2,6 +2,7 @@
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
