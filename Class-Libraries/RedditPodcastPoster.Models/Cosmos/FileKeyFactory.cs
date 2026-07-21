@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Cosmos;
 
 public static class FileKeyFactory
 {

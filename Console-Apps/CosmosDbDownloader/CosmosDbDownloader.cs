@@ -5,7 +5,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.Text.KnownTerms;
-using static RedditPodcastPoster.Models.FileKeyFactory;
+using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
 
 using RedditPodcastPoster.Models.Discovery;
 

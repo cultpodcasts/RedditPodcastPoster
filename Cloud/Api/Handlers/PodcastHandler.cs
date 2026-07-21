@@ -14,6 +14,7 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Indexing;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.UrlShortening;

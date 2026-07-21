@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
