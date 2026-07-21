@@ -6,10 +6,12 @@ using RedditPodcastPoster.Subjects;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Processors;
 
 public class PodcastProcessor(
     IEpisodeHelper episodeHelper,

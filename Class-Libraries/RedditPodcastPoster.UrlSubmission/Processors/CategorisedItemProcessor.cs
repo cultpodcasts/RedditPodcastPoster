@@ -5,7 +5,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Models;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Processors;
 
 public class CategorisedItemProcessor(
     IPodcastProcessor podcastProcessor,

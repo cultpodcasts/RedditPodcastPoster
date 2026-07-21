@@ -7,8 +7,8 @@ using RedditPodcastPoster.Auth0;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Submitters;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Handlers;

@@ -15,7 +15,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcast;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Services;
 
 public class PodcastService(
     IYouTubeServiceWrapper youTubeService,

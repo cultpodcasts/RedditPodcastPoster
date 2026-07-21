@@ -3,8 +3,14 @@ using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
 using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.UrlSubmission.Adaptors;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Matching;
+using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.UrlSubmission.Services;
+using RedditPodcastPoster.UrlSubmission.Submitters;
 
 namespace RedditPodcastPoster.UrlSubmission.Extensions;
 

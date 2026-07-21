@@ -1,7 +1,7 @@
 ﻿using RedditPodcastPoster.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
-namespace RedditPodcastPoster.UrlSubmission;
+namespace RedditPodcastPoster.UrlSubmission.Enrichers;
 
 public class DescriptionHelper : IDescriptionHelper
 {

@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.People;
+using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Extensions;
+using RedditPodcastPoster.UrlSubmission.Processors;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
 
