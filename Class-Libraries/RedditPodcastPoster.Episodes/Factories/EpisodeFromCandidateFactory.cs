@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Factories;
 

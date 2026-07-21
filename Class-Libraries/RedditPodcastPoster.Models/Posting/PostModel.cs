@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Models.Posting;
 

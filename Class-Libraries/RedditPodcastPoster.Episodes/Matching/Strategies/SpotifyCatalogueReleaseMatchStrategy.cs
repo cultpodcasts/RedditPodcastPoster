@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Matching.Strategies;
 

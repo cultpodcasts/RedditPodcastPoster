@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Models;
 

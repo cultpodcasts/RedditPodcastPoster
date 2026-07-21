@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Adapters;
 
