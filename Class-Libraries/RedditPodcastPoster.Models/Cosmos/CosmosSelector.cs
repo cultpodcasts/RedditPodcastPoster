@@ -1,8 +1,6 @@
 using System.Text.Json.Serialization;
 
-using RedditPodcastPoster.Models.Cosmos;
-
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Cosmos;
 
 public class CosmosSelector
 {
