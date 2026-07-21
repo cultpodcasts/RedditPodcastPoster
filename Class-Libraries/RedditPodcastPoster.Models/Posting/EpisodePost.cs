@@ -1,4 +1,4 @@
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Posting;
 
 public record EpisodePost(
     string Title,

@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text.Tests;

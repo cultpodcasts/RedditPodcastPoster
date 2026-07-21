@@ -1,4 +1,5 @@
 ﻿using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Posting;
 
 namespace RedditPodcastPoster.Common.Factories;
 

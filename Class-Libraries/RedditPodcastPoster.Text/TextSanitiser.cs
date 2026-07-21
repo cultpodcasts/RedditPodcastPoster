@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Text;

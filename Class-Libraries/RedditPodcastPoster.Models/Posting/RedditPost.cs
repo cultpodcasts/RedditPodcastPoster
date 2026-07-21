@@ -1,5 +1,7 @@
 ﻿
-namespace RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models;
+
+namespace RedditPodcastPoster.Models.Posting;
 
 [CosmosSelector(ModelType.RedditPost)]
 public sealed class RedditPost : CosmosSelector

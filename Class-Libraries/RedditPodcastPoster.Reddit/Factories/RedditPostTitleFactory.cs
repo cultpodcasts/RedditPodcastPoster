@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Text;
 

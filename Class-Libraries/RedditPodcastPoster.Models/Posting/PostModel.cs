@@ -1,7 +1,8 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Posting;
 
 public class PostModel
 {
