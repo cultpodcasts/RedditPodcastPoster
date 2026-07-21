@@ -1,5 +1,3 @@
-using RedditPodcastPoster.Models;
-
 namespace RedditPodcastPoster.Models.Cosmos;
 
 public class CosmosSelectorAttribute(ModelType modelType) : Attribute

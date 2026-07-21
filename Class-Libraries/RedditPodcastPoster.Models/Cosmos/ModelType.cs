@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Cosmos;
 
 public enum ModelType
 {
@@ -13,7 +13,7 @@ public enum ModelType
     [JsonPropertyName(nameof(EliminationTerms))]
     EliminationTerms = 3,
 
-    [JsonPropertyName(nameof(RedditPost))] 
+    [JsonPropertyName(nameof(RedditPost))]
     RedditPost = 4,
 
     [JsonPropertyName(nameof(KnownTerms))]
@@ -51,5 +51,4 @@ public enum ModelType
 
     [JsonPropertyName(nameof(DiscoveryScheduleConfig))]
     DiscoveryScheduleConfig = 16
-
 }
