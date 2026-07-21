@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models;
+namespace RedditPodcastPoster.Models.Podcasts;
 
 public class ServiceUrls
 {

@@ -2,6 +2,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 

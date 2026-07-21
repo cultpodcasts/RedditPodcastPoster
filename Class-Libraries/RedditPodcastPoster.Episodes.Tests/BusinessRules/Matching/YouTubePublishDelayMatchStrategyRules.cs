@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.Matching.Strategies;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 

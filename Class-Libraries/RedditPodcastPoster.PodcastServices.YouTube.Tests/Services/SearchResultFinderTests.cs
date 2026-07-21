@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Models;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
