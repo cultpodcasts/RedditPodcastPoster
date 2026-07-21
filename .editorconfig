@@ -23,8 +23,5 @@ dotnet_diagnostic.IDE0130.severity = warning
 # csharp_using_directive_placement is not a standard Roslyn option; usings-before-namespace is enforced by review/ADR.
 
 # Vendored / third-party sources — do not enforce our folder=namespace rule.
-[Third-Party/**.cs]
-dotnet_diagnostic.IDE0130.severity = none
-
 [Third-Party/**/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
