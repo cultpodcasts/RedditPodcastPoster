@@ -1,5 +1,9 @@
 using FluentAssertions;
 using Xunit;
+using Discovery.Activities;
+using Discovery.Orchestrations;
+using Discovery.Services;
+using Discovery.Models;
 
 namespace Discovery.Tests;
 

@@ -1,0 +1,92 @@
+﻿﻿﻿﻿using Azure.Diagnostics;
+using Microsoft.DurableTask;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Common;
+using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.Configuration;
+using RedditPodcastPoster.Configuration.Extensions;
+
+using Indexer.Models;
+using Indexer.Services;
+
+namespace Indexer.Activities;
+
+[DurableTask(nameof(Poster))]
+public class Poster(
+    IEpisodeProcessor episodeProcessor,
+    IActivityOptionsProvider activityOptionsProvider,
+    IOptions<PosterOptions> posterOptions,
+    IOptions<PostingCriteria> postingCriteria,
+    IOptions<IndexerOptions> indexerOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator,
+    ILogger<Poster> logger)
+    : TaskActivity<IndexerContext, IndexerContext>
+{
+    private readonly PosterOptions _posterOptions = posterOptions.Value;
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
+    private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
+    private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
+
+    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    {
+        var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Poster));
+
+        logger.LogInformation("{class} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
+            nameof(Poster), context.InstanceId);
+        logger.LogInformation(indexerContext.ToString());
+        logger.LogInformation(_posterOptions.ToString());
+        logger.LogInformation(_postingCriteria.ToString());
+        var baselineDate = DateTimeExtensions.DaysAgo(_posterOptions.ReleasedDaysAgo);
+
+        logger.LogInformation(
+            "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
+            nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
+
+        if (!activityOptionsProvider.RunPoster(out var reason))
+        {
+            logger.LogWarning("{class} activity disabled. Reason: '{reason}'.", nameof(Poster), reason);
+            return indexerContext with { Success = true };
+        }
+        else
+        {
+            logger.LogInformation("{class} activity enabled. Reason: '{reason}'.", nameof(Poster), reason);
+        }
+
+        if (indexerContext.PosterOperationId == null)
+        {
+            throw new ArgumentNullException(nameof(indexerContext.PosterOperationId));
+        }
+
+        ProcessResponse results;
+        try
+        {
+            results = await episodeProcessor.PostEpisodesSinceReleaseDate(
+                baselineDate,
+                _posterOptions.MaxPosts,
+                indexerContext is { SkipYouTubeUrlResolving: false, YouTubeError: false },
+                indexerContext is { SkipSpotifyUrlResolving: false, SpotifyError: false },
+                indexerContext.RecentEpisodeCandidates);
+        }
+        catch (Exception ex)
+        {
+            memoryProbe.End(false, ex.GetType().Name);
+            throw;
+        }
+
+        if (!results.Success)
+        {
+            logger.LogError("{method} Failed to process posts. {results}", nameof(RunAsync), results);
+            throw new InvalidOperationException($"Poster failed: {results}");
+        }
+
+        logger.LogInformation("{method} Successfully processed posts. {results}", nameof(RunAsync), results);
+
+        var result = indexerContext with { Success = true };
+
+        memoryProbe.End(result.Success ?? false);
+
+        logger.LogInformation("{method} Completed. Result: {result}", nameof(RunAsync), result);
+        return result;
+    }
+}

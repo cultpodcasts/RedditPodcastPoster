@@ -8,6 +8,10 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
+using Indexer.Activities;
+using Indexer.Orchestrations;
+using Indexer.Services;
+using Indexer.Models;
 
 namespace Indexer.Tests;
 

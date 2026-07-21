@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
+using Discovery.Activities;
+using Discovery.Orchestrations;
+using Discovery.Services;
+using Discovery.Models;
 
 namespace Discovery.Tests;
 

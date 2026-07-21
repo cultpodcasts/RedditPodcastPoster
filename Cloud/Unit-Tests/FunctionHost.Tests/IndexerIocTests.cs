@@ -1,6 +1,11 @@
 using FluentAssertions;
 using Indexer;
 using Xunit;
+using Indexer.Activities;
+using Indexer.Orchestrations;
+using Indexer.Triggers;
+using Indexer.Services;
+using Indexer.Models;
 
 namespace FunctionHost.Tests;
 
@@ -8,7 +13,7 @@ public class IndexerIocTests
 {
     public static IEnumerable<object[]> EntryPoints =>
     [
-        [typeof(global::Indexer.Indexer)],
+        [typeof(global::Indexer.Activities.Indexer)],
         [typeof(Tweet)],
         [typeof(Poster)],
         [typeof(Categoriser)],

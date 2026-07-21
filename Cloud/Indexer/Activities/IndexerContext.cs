@@ -1,0 +1,103 @@
+using RedditPodcastPoster.Models.Episodes;
+
+namespace Indexer.Activities;
+
+public record IndexerContext(
+    Guid[]? IndexerPassOperationIds = null,
+    Guid[][]? IndexIds = null,
+    Guid? CategoriserOperationId = null,
+    Guid? PosterOperationId = null,
+    Guid? PublisherOperationId = null,
+    Guid? TweetOperationId = null,
+    Guid? BlueskyOperationId = null,
+    bool? Success = null,
+    bool? SkipYouTubeUrlResolving = null,
+    bool? YouTubeError = null,
+    bool? SkipSpotifyUrlResolving = null,
+    bool? SpotifyError = null,
+    bool[]? DuplicateIndexerPassOperations = null,
+    bool? DuplicateCategoriserOperation = null,
+    bool? DuplicatePosterOperation = null,
+    bool? DuplicatePublisherOperation = null,
+    bool? DuplicateTweetOperation = null,
+    bool? DuplicateBlueskyOperation = null,
+    PodcastEpisode[]? RecentEpisodeCandidates = null)
+{
+    public override string ToString()
+    {
+        string? indexerPassOperationIds = null;
+        if (IndexerPassOperationIds != null)
+        {
+            indexerPassOperationIds = string.Join(", ",
+                IndexerPassOperationIds.Select((guid, idx) => $"indexer-pass-{idx + 1}-operation-id: '{guid}'"));
+        }
+
+        var categoriserOperationId = CategoriserOperationId.HasValue
+            ? $"categoriser-operation-id: '{CategoriserOperationId}'"
+            : string.Empty;
+        var posterOperationId = PosterOperationId.HasValue
+            ? $"poster-operation-id: '{PosterOperationId}'"
+            : string.Empty;
+        var publisherOperationId = PublisherOperationId.HasValue
+            ? $"publisher-operation-id: '{PublisherOperationId}'"
+            : string.Empty;
+        var tweetOperationId = TweetOperationId.HasValue
+            ? $"tweet-operation-id: '{TweetOperationId}'"
+            : string.Empty;
+        var blueskyOperationId = BlueskyOperationId.HasValue
+            ? $"bluesky-operation-id: '{BlueskyOperationId}'"
+            : string.Empty;
+        var success = Success.HasValue
+            ? $"success: '{Success}'"
+            : string.Empty;
+        var skipYouTubeUrlResolving = SkipYouTubeUrlResolving.HasValue
+            ? $"skip-youtube-url-resolving: '{SkipYouTubeUrlResolving}'"
+            : string.Empty;
+        var youTubeError = YouTubeError.HasValue
+            ? $"youtube-error: '{YouTubeError}'"
+            : string.Empty;
+        var skipSpotifyUrlResolving = SkipSpotifyUrlResolving.HasValue
+            ? $"skip-spotify-url-resolving: '{SkipSpotifyUrlResolving}'"
+            : string.Empty;
+        var spotifyError = SpotifyError.HasValue
+            ? $"spotify-error: '{SpotifyError}'"
+            : string.Empty;
+        var duplicateIndexerOperation = DuplicateIndexerPassOperations != null
+            ? $"duplicate-indexer-pass-operation: '{string.Join(", ", DuplicateIndexerPassOperations.Select((dup, idx) => new {duplicate = dup, index = idx}).Where(x => x.duplicate).Select(x => x.index))}'"
+            : string.Empty;
+        var duplicateCategoriserOperation = DuplicateCategoriserOperation.HasValue
+            ? $"duplicate-categoriser-operation: '{DuplicateCategoriserOperation}'"
+            : string.Empty;
+        var duplicatePosterOperation = DuplicatePosterOperation.HasValue
+            ? $"duplicate-poster-operation: '{DuplicatePosterOperation}'"
+            : string.Empty;
+        var duplicatePublisherOperation = DuplicatePublisherOperation.HasValue
+            ? $"duplicate-publisher-operation: '{DuplicatePublisherOperation}'"
+            : string.Empty;
+        var duplicateTweetOperation = DuplicateTweetOperation.HasValue
+            ? $"duplicate-tweet-operation: '{DuplicateTweetOperation}'"
+            : string.Empty;
+        var duplicateBlueskyOperation = DuplicateBlueskyOperation.HasValue
+            ? $"duplicate-bluesky-operation: '{DuplicateBlueskyOperation}'"
+            : string.Empty;
+        var recentEpisodeCandidates = RecentEpisodeCandidates != null
+            ? $"recent-episode-candidates: '{RecentEpisodeCandidates.Length}'"
+            : string.Empty;
+
+        var strings = new List<string>
+        {
+            categoriserOperationId, posterOperationId, publisherOperationId, tweetOperationId,
+            blueskyOperationId, success, skipYouTubeUrlResolving, youTubeError, skipSpotifyUrlResolving, spotifyError,
+            duplicateIndexerOperation, duplicateCategoriserOperation, duplicatePosterOperation,
+            duplicatePublisherOperation, duplicateTweetOperation, duplicateBlueskyOperation,
+            recentEpisodeCandidates
+        };
+        if (indexerPassOperationIds != null)
+        {
+            strings.Insert(0, indexerPassOperationIds);
+        }
+
+        return
+            $"{nameof(IndexerContext)} Indexer-options {string.Join(", ", strings.Where(x => !string.IsNullOrWhiteSpace(x)))}.";
+    }
+}
