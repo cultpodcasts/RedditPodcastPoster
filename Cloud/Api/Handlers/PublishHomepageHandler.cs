@@ -3,7 +3,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Extensions;
 using Api.Models;
-using Api.Services.Publish;
+using Api.Services.Homepage;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;

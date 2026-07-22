@@ -10,7 +10,7 @@ using Api.Services.Episodes;
 using Api.Services.People;
 using Api.Services.Podcasts;
 using Api.Services.Public;
-using Api.Services.Publish;
+using Api.Services.Homepage;
 using Api.Services.PushSubscriptions;
 using Api.Services.SearchIndex;
 using Api.Services.Subjects;
