@@ -143,17 +143,17 @@ Theme: refactor with regression nets in place. Stop for review after each major 
 - [x] **Angular — Collapse `*-send` → services** (2026-07-22)  
   - Paths: `curation-submit.service.ts`; all six `*-send` dialogs call service (no inline token fetch).
 
-- [ ] **Angular — Deduplicate add/edit episode (then podcast) dialogs** — deferred full merge; **safe slice done 2026-07-22:** shared pure helpers in `cultpodcasts/src/app/episode-form.util.ts` (form build, getChanges, guests/subjects regroup). Thin add/edit shells retained. Podcast pair not touched.
+- [x] **Angular — Deduplicate add/edit episode (then podcast) dialogs** — full merge still deferred; **safe slices done 2026-07-22** on [website #426](https://github.com/cultpodcasts/website/pull/426): `episode-form.util.ts` + `podcast-form.util.ts`; thin add/edit shells retained.
 
 - [x] **C# — Split `EpisodeHandler` by use-case** (2026-07-22 → completed on PR [#911](https://github.com/cultpodcasts/RedditPodcastPoster/pull/911))  
   - Paths: Controllers → Handlers/{Area} → Services/{Area}; `EpisodeHandler` removed. Exemplary Dtos/`architecture.md` on same PR.
 
-- [ ] **Follow-ons when touching hot paths**  
-  - Angular: OnPush + `takeUntilDestroyed` on list/API components; drop dual `AppRoutingModule` + `provideRouter` (`app-routing.module.ts` / `app.config.ts`).  
+- [ ] **Follow-ons / zoneless readiness**  
+  - Angular (**started 2026-07-22** on website #426): OnPush + signals/`toSignal` + `takeUntilDestroyed` on `search-api`, `podcast-api`, `subject-api`, `bookmarks-api`. Still Zone (`provideZoneChangeDetection`). Next: same pattern for `episodes-api` / `outgoing-episodes-api` / `discovery-api`, then drop Zone/`zone.js`. Also: dual `AppRoutingModule` + `provideRouter`.  
   - Api: tighten Zod beyond `z.any()`; deprecate old `/episode/:id` after client cutover; decide Analytics Engine use-or-drop; bump `compatibility_date` deliberately.  
   - C#: `ValidateOnStart` on Indexer/Api options; `LoggerMessage` on hot paths when edited; optional `DomainTestFixture` split only if BR churn demands it.
 
-**Wave 3 done when:** Api proxy helper landed; Angular auth interceptor + `*-send` collapse landed; C# EpisodeHandler split landed — each with Wave 2 tests still green.
+**Wave 3 done when:** Api proxy helper landed; Angular auth interceptor + `*-send` collapse landed; C# EpisodeHandler split landed — each with Wave 2 tests still green. **Met.** Remaining items are follow-ons (zoneless completion, Zod, ValidateOnStart).
 
 ---
 
