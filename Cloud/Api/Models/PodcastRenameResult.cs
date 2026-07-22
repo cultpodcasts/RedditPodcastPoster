@@ -1,4 +1,4 @@
-using Api.Dtos;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
 
 namespace Api.Models;
 
@@ -15,4 +15,4 @@ public enum PodcastRenameStatus
 
 public record PodcastRenameResult(
     PodcastRenameStatus Status,
-    PodcastRenameResponse? Response = null);
+    EntitySearchIndexerResponse? SearchIndexer = null);

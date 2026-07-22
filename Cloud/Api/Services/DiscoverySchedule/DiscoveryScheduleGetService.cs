@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Scheduling;
@@ -16,16 +15,16 @@ public class DiscoveryScheduleGetService(
     ILookupRepository lookupRepository,
     ILogger<DiscoveryScheduleGetService> logger) : IDiscoveryScheduleGetService
 {
-    private const int NextRunsPreviewCount = 6;
-
     public async Task<DiscoveryScheduleGetResult> GetAsync(CancellationToken cancellationToken)
     {
         try
         {
             var persisted = await lookupRepository.GetDiscoveryScheduleConfig();
             var config = persisted ?? DiscoveryScheduleConfig.CreateDefault();
-            var response = DiscoveryScheduleResponseBuilder.Build(config, isDefault: persisted is null, NextRunsPreviewCount);
-            return new DiscoveryScheduleGetResult(DiscoveryScheduleGetStatus.Ok, response);
+            return new DiscoveryScheduleGetResult(
+                DiscoveryScheduleGetStatus.Ok,
+                config,
+                IsDefault: persisted is null);
         }
         catch (Exception ex)
         {

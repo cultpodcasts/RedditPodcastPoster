@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;

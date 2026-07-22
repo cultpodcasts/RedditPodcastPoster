@@ -1,5 +1,3 @@
-using Api.Dtos;
-
 namespace Api.Models;
 
 public enum EpisodeUpdateStatus
@@ -11,4 +9,4 @@ public enum EpisodeUpdateStatus
 
 public record EpisodeUpdateResult(
     EpisodeUpdateStatus Status,
-    EpisodeUpdateResponse? Response = null);
+    EpisodeUpdateOutcome? Outcome = null);

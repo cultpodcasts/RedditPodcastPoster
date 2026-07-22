@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 
 namespace Api.Services.Discovery;

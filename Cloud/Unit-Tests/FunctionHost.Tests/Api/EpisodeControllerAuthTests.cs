@@ -87,6 +87,10 @@ internal static class HttpTestHelpers
 
         var context = new Mock<FunctionContext>();
         context.SetupGet(c => c.InstanceServices).Returns(serviceProvider);
+        var functionDefinition = new Mock<FunctionDefinition>();
+        functionDefinition.SetupGet(d => d.Name).Returns("TestFunction");
+        context.SetupGet(c => c.FunctionDefinition).Returns(functionDefinition.Object);
+        context.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
 
         var response = new Mock<HttpResponseData>(context.Object);
         response.SetupProperty(r => r.StatusCode, HttpStatusCode.OK);

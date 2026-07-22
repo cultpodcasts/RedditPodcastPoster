@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Api.Resolvers;
@@ -141,15 +140,15 @@ public class EpisodeUpdateService(
                 }
             }
 
-            var respModel = new EpisodeUpdateResponse();
+            var outcome = new EpisodeUpdateOutcome();
             if (changeState.UnTweet)
             {
-                respModel.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
+                outcome.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
             }
 
             if (changeState.UnBlueskyPost)
             {
-                respModel.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
+                outcome.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
             }
 
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
@@ -179,10 +178,10 @@ public class EpisodeUpdateService(
 
                 await Task.WhenAll(indexTask, homepageTask);
 
-                respModel.SearchIndexerState = (await indexTask).ToDto();
+                outcome.SearchIndexer = await indexTask;
             }
 
-            return new EpisodeUpdateResult(EpisodeUpdateStatus.Accepted, respModel);
+            return new EpisodeUpdateResult(EpisodeUpdateStatus.Accepted, outcome);
         }
         catch (Exception ex)
         {

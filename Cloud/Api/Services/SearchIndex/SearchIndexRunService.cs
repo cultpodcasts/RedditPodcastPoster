@@ -1,4 +1,3 @@
-using Api.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using IndexerState = RedditPodcastPoster.Search.Models.IndexerState;
@@ -20,10 +19,9 @@ public class SearchIndexRunService(
         try
         {
             var result = await searchIndexerService.RunIndexer();
-            var dto = result.ToDto();
             return result.IndexerState == IndexerState.Executed
-                ? new SearchIndexRunResult(SearchIndexRunStatus.Ok, dto)
-                : new SearchIndexRunResult(SearchIndexRunStatus.BadRequest, dto);
+                ? new SearchIndexRunResult(SearchIndexRunStatus.Ok, result)
+                : new SearchIndexRunResult(SearchIndexRunStatus.BadRequest, result);
         }
         catch (Exception ex)
         {

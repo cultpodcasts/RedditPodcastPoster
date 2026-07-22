@@ -1,4 +1,3 @@
-using Api.Dtos.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -16,7 +15,6 @@ public class PersonGetAllService(
             var people = await personRepository.GetAll()
                 .OrderBy(x => x.GetEffectiveSortKey())
                 .ThenBy(x => x.Name)
-                .Select(x => x.ToDto())
                 .ToListAsync(cancellationToken);
             return new PersonGetAllResult(PersonGetAllStatus.Ok, people);
         }

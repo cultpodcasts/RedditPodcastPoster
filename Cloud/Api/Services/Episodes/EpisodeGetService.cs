@@ -9,7 +9,6 @@ namespace Api.Services.Episodes;
 public class EpisodeGetService(
     IPodcastEpisodeResolver podcastEpisodeResolver,
     ICachedSubjectProvider subjectsProvider,
-    EpisodeDiscreteMapper episodeDiscreteMapper,
     ILogger<EpisodeGetService> logger) : IEpisodeGetService
 {
     public async Task<EpisodeGetResult> GetAsync(
@@ -41,13 +40,12 @@ public class EpisodeGetService(
             }
 
             var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-            var discreteEpisode = await episodeDiscreteMapper.ToDiscreteEpisode(
+
+            return new EpisodeGetResult(
+                EpisodeGetStatus.Ok,
                 podcastEpisodeResolverResponse.Episode,
                 podcastEpisodeResolverResponse.Podcast,
-                subjects,
-                includeGuestSuggestions: true);
-
-            return new EpisodeGetResult(EpisodeGetStatus.Ok, discreteEpisode);
+                subjects);
         }
         catch (Exception ex)
         {

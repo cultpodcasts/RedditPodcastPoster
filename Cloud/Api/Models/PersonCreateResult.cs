@@ -1,4 +1,4 @@
-using Api.Dtos;
+using Person = RedditPodcastPoster.Models.People.Person;
 
 namespace Api.Models;
 

@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -82,12 +81,12 @@ public class SubmitUrlService(
                 }
             }
 
-            return new SubmitUrlResult(SubmitUrlStatus.Ok, SubmitUrlResponse.Successful(result));
+            return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(SubmitAsync), submitUrlModel.Url);
-            return new SubmitUrlResult(SubmitUrlStatus.Failed, SubmitUrlResponse.Failure("Failure"));
+            return new SubmitUrlResult(SubmitUrlStatus.Failed, Message: "Failure");
         }
     }
 }

@@ -1,5 +1,3 @@
-using Api.Dtos;
-
 namespace Api.Models;
 
 public enum EpisodeOutgoingStatus
@@ -10,4 +8,4 @@ public enum EpisodeOutgoingStatus
 
 public record EpisodeOutgoingResult(
     EpisodeOutgoingStatus Status,
-    IReadOnlyList<DiscreteEpisode>? Episodes = null);
+    IReadOnlyList<EpisodePodcastPair>? Episodes = null);

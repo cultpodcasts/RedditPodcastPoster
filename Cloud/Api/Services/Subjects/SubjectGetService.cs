@@ -1,4 +1,3 @@
-using Api.Dtos.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -21,7 +20,7 @@ public class SubjectGetService(
                 return new SubjectGetResult(SubjectGetStatus.NotFound);
             }
 
-            return new SubjectGetResult(SubjectGetStatus.Ok, subject.ToDto());
+            return new SubjectGetResult(SubjectGetStatus.Ok, subject);
         }
         catch (Exception ex)
         {

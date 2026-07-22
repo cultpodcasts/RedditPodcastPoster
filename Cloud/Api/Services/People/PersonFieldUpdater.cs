@@ -1,5 +1,5 @@
-using Api.Dtos;
 using PersonEntity = RedditPodcastPoster.Models.People.Person;
+using Person = Api.Dtos.Person;
 using RedditPodcastPoster.People.Factories;
 using RedditPodcastPoster.People.Resolvers;
 

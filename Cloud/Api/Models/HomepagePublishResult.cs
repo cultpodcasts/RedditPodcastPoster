@@ -1,4 +1,4 @@
-using Api.Dtos;
+using RedditPodcastPoster.ContentPublisher.Models;
 
 namespace Api.Models;
 
@@ -10,4 +10,4 @@ public enum HomepagePublishStatus
 
 public record HomepagePublishResult(
     HomepagePublishStatus Status,
-    PublishHomepageResponse? Response = null);
+    PublishHomepageResult? Result = null);

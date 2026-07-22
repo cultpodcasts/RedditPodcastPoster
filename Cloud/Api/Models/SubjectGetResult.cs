@@ -1,4 +1,4 @@
-using Api.Dtos;
+using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Models;
 

@@ -31,15 +31,3 @@ public class DiscoveryScheduleNextRun
     [JsonPropertyName("slotStartUk")]
     public required DateTimeOffset SlotStartUk { get; init; }
 }
-
-public class DiscoveryScheduleUpdateRequest
-{
-    [JsonPropertyName("runTimes")]
-    public required List<string> RunTimes { get; init; }
-
-    [JsonPropertyName("timeZoneId")]
-    public string? TimeZoneId { get; init; }
-
-    [JsonPropertyName("enabled")]
-    public bool? Enabled { get; init; }
-}

@@ -1,4 +1,3 @@
-using Api.Dtos.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -19,7 +18,7 @@ public class PersonGetService(
                 return new PersonGetResult(PersonGetStatus.NotFound);
             }
 
-            return new PersonGetResult(PersonGetStatus.Ok, person.ToDto());
+            return new PersonGetResult(PersonGetStatus.Ok, person);
         }
         catch (Exception ex)
         {

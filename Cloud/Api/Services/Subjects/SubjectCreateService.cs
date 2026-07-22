@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Api.Dtos;
-using Api.Dtos.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher.Publishers;
@@ -47,7 +46,7 @@ public class SubjectCreateService(
             logger.LogInformation("Created subject '{subjectName}' with subject-id '{subjectId}'.",
                 subject.Name, subject.Id);
 
-            return new SubjectCreateResult(SubjectCreateStatus.Accepted, entity.ToDto());
+            return new SubjectCreateResult(SubjectCreateStatus.Accepted, entity);
         }
         catch (Exception ex)
         {

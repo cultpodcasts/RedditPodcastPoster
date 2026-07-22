@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Discovery;
@@ -18,8 +17,6 @@ public class DiscoveryScheduleUpdateService(
     ILookupRepository lookupRepository,
     ILogger<DiscoveryScheduleUpdateService> logger) : IDiscoveryScheduleUpdateService
 {
-    private const int NextRunsPreviewCount = 6;
-
     public async Task<DiscoveryScheduleUpdateResult> UpdateAsync(
         DiscoveryScheduleUpdateRequest body,
         CancellationToken cancellationToken)
@@ -60,8 +57,7 @@ public class DiscoveryScheduleUpdateService(
             DiscoveryScheduleLogic.ResolveUkTimeZone(config.TimeZoneId);
 
             await lookupRepository.SaveDiscoveryScheduleConfig(config);
-            var response = DiscoveryScheduleResponseBuilder.Build(config, isDefault: false, NextRunsPreviewCount);
-            return new DiscoveryScheduleUpdateResult(DiscoveryScheduleUpdateStatus.Ok, response);
+            return new DiscoveryScheduleUpdateResult(DiscoveryScheduleUpdateStatus.Ok, config);
         }
         catch (Exception ex)
         {

@@ -5,6 +5,18 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api.Factories;
 using Api.Handlers;
+using Api.Handlers.Discovery;
+using Api.Handlers.DiscoverySchedule;
+using Api.Handlers.Episodes;
+using Api.Handlers.Homepage;
+using Api.Handlers.People;
+using Api.Handlers.Podcasts;
+using Api.Handlers.Public;
+using Api.Handlers.PushSubscriptions;
+using Api.Handlers.SearchIndex;
+using Api.Handlers.Subjects;
+using Api.Handlers.SubmitUrl;
+using Api.Handlers.Terms;
 using Azure.Diagnostics;
 
 namespace Api;

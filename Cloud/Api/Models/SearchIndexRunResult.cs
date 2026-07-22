@@ -1,4 +1,4 @@
-using Api.Dtos;
+using RedditPodcastPoster.Search.Models;
 
 namespace Api.Models;
 
@@ -11,4 +11,4 @@ public enum SearchIndexRunStatus
 
 public record SearchIndexRunResult(
     SearchIndexRunStatus Status,
-    IndexerState? Response = null);
+    IndexerStateWrapper? Result = null);

@@ -1,4 +1,4 @@
-using Api.Dtos;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api.Models;
 
@@ -11,5 +11,5 @@ public enum SubmitUrlStatus
 
 public record SubmitUrlResult(
     SubmitUrlStatus Status,
-    SubmitUrlResponse? Response = null,
+    SubmitResult? Result = null,
     string? Message = null);

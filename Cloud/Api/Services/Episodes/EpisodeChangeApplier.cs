@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;

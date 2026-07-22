@@ -1,5 +1,3 @@
-using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
@@ -73,12 +71,9 @@ public class PodcastRenameService(
                 }
 
                 var indexed = await searchIndexerService.IndexEpisodes(episodeIds.Distinct(), c);
-                var indexState = indexed.ToDto();
 
-                logger.LogInformation("Search-index run-state: {indexState}.", indexState);
-                return new PodcastRenameResult(
-                    PodcastRenameStatus.Ok,
-                    new PodcastRenameResponse { IndexState = indexState });
+                logger.LogInformation("Search-index run-state: {indexState}.", indexed);
+                return new PodcastRenameResult(PodcastRenameStatus.Ok, indexed);
             }
 
             return new PodcastRenameResult(PodcastRenameStatus.BadRequest);

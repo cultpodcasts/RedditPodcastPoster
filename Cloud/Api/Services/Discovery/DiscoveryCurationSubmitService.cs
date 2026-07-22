@@ -1,5 +1,3 @@
-using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -33,7 +31,7 @@ public class DiscoveryCurationSubmitService(
             var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
-            var submitResults = new List<DiscoverySubmitResponseItem>();
+            var submitResults = new List<DiscoverySubmitItemOutcome>();
             var erroredResults = new List<Guid>();
 
             foreach (var discoveryResult in discoveryResults)
@@ -45,24 +43,18 @@ public class DiscoveryCurationSubmitService(
                 {
                     var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
                     submitResults.Add(
-                        new DiscoverySubmitResponseItem
-                        {
-                            DiscoveryItemId = discoveryResult.Id,
-                            EpisodeId = result.Episode?.Id,
-                            PodcastId = result.Episode?.PodcastId,
-                            Message = result.State.ToString()
-                        });
+                        new DiscoverySubmitItemOutcome(
+                            discoveryResult.Id,
+                            result.Episode?.Id,
+                            result.Episode?.PodcastId,
+                            result.State.ToString()));
                 }
                 catch (Exception ex)
                 {
                     erroredResults.Add(discoveryResult.Id);
                     errorsOccured = true;
                     submitResults.Add(
-                        new DiscoverySubmitResponseItem
-                        {
-                            DiscoveryItemId = discoveryResult.Id,
-                            Message = "Error"
-                        });
+                        new DiscoverySubmitItemOutcome(discoveryResult.Id, null, null, "Error"));
                     logger.LogError(ex, "{method} Failure submitting discovery-result '{discoveryResultId}'.",
                         nameof(SubmitAsync), discoveryResult.Id);
                 }
@@ -78,15 +70,13 @@ public class DiscoveryCurationSubmitService(
 
             await discoveryResultsService.UpdateDiscoveryInfoContent();
 
-            var response = new DiscoverySubmitResponse
-            {
-                Message = "Success",
-                ErrorsOccurred = errorsOccured,
-                Results = [.. submitResults],
-                SearchIndexerState = indexed.ToDto()
-            };
+            var outcome = new DiscoverySubmitOutcome(
+                "Success",
+                errorsOccured,
+                submitResults,
+                indexed);
 
-            return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok, response);
+            return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok, outcome);
         }
         catch (Exception e)
         {

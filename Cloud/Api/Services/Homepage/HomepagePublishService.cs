@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher.Publishers;
@@ -19,16 +18,15 @@ public class HomepagePublishService(
         try
         {
             var result = await contentPublisher.PublishHomepage();
-            var dto = PublishHomepageResponse.ToDto(result);
             if (!result.HomepagePublished || (result.PreProcessedHomepagePublished.HasValue &&
                                               !result.PreProcessedHomepagePublished.Value))
             {
                 logger.LogError("{method}: Failed to publish homepage. Result: {result}",
                     nameof(PublishAsync), result);
-                return new HomepagePublishResult(HomepagePublishStatus.Failed, dto);
+                return new HomepagePublishResult(HomepagePublishStatus.Failed, result);
             }
 
-            return new HomepagePublishResult(HomepagePublishStatus.Ok, dto);
+            return new HomepagePublishResult(HomepagePublishStatus.Ok, result);
         }
         catch (Exception ex)
         {

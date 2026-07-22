@@ -1,5 +1,3 @@
-using Api.Dtos;
-
 namespace Api.Models;
 
 public enum DiscoveryCurationGetStatus
@@ -10,4 +8,4 @@ public enum DiscoveryCurationGetStatus
 
 public record DiscoveryCurationGetResult(
     DiscoveryCurationGetStatus Status,
-    DiscoveryResponse? Response = null);
+    DiscoveryCurationData? Data = null);

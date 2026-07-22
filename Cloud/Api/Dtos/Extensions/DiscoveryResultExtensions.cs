@@ -1,3 +1,4 @@
+using Api.Models;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models.Discovery;
 
@@ -5,7 +6,30 @@ namespace Api.Dtos.Extensions;
 
 public static class DiscoveryResultExtensions
 {
-    public static DiscoveryResponseItem ToDiscoveryResponseItem(this DiscoveryResult item,
+    public static DiscoveryResponse ToDto(this DiscoveryCurationData data)
+    {
+        var podcastsLookup = data.Podcasts.ToDictionary(
+            kv => kv.Key,
+            kv => new DiscoveryPodcast
+            {
+                Name = kv.Value.Name,
+                IsVisible = kv.Value.IsVisible,
+                VisibleEpisodes = kv.Value.VisibleEpisodes
+            });
+
+        return new DiscoveryResponse
+        {
+            Ids = data.Ids,
+            Results = data.Results
+                .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
+                .OrderByDescending(x => x.AcceptProbability ?? -1f)
+                .ThenBy(x => x.Released),
+            HiddenCount = data.HiddenCount
+        };
+    }
+
+    public static DiscoveryResponseItem ToDiscoveryResponseItem(
+        this DiscoveryResult item,
         IDictionary<Guid, DiscoveryPodcast> podcasts)
     {
         var result = new DiscoveryResponseItem();

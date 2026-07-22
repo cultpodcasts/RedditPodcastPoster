@@ -1,4 +1,4 @@
-using Podcast = Api.Dtos.Podcast;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace Api.Models;
 

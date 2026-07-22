@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using Api.Dtos;
 using Api.Dtos.Extensions;
+using Api.Models;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
@@ -16,7 +16,7 @@ public class DiscoveryResultsService(
     IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
 {
-    public async Task<DiscoveryResponse> Get(bool includeHidden, CancellationToken c)
+    public async Task<DiscoveryCurationData> Get(bool includeHidden, CancellationToken c)
     {
         logger.LogInformation("{Method} initiated. IncludeHidden={IncludeHidden}.", nameof(Get), includeHidden);
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(c);
@@ -53,23 +53,19 @@ public class DiscoveryResultsService(
 
         logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
         var podcastsLookup = referencedPodcasts
-            .ToDictionary(pd => pd.id, pd => new DiscoveryPodcast
-            {
-                Name = pd.name,
-                IsVisible = pd.isVisible,
-                VisibleEpisodes = visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0
-            });
-        var result = new DiscoveryResponse
-        {
-            Ids = documents.Select(x => x.Id),
-            Results = results
-                .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
-                .OrderByDescending(x => x.AcceptProbability ?? -1f)
-                .ThenBy(x => x.Released),
-            HiddenCount = hiddenCount
-        };
+            .ToDictionary(
+                pd => pd.id,
+                pd => new DiscoveryPodcastInfo(
+                    pd.name,
+                    pd.isVisible,
+                    visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0));
+        var result = new DiscoveryCurationData(
+            documents.Select(x => x.Id),
+            results,
+            podcastsLookup,
+            hiddenCount);
         logger.LogInformation("{Method} gathered {ResultCount} results ({HiddenCount} auto-hidden).",
-            nameof(Get), result.Results.Count(), hiddenCount);
+            nameof(Get), result.Results.Count, hiddenCount);
         return result;
     }
 

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Dtos;
 using Api.Models;
 using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;

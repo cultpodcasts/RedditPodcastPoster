@@ -29,7 +29,7 @@ public class EpisodePublishService(
     {
         try
         {
-            EpisodePublishResponse response;
+            EpisodePublishOutcome outcome;
             var podcastEpisodeResolverResponse =
                 await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
                     nameof(PublishAsync));
@@ -47,7 +47,7 @@ public class EpisodePublishService(
             }
             else
             {
-                response = new EpisodePublishResponse(podcastEpisodeResolverResponse.Podcast.Id);
+                outcome = new EpisodePublishOutcome(podcastEpisodeResolverResponse.Podcast.Id);
             }
 
             var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
@@ -61,7 +61,7 @@ public class EpisodePublishService(
                     logger.LogError(result.ToString());
                 }
 
-                response.Posted = result.Success;
+                outcome.Posted = result.Success;
             }
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
@@ -80,17 +80,17 @@ public class EpisodePublishService(
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
-                            response.FailedTweetContent = result.candidateTweet;
-                            response.Tweeted = false;
+                            outcome.FailedTweetContent = result.candidateTweet;
+                            outcome.Tweeted = false;
                         }
                         else
                         {
-                            response.Tweeted = true;
+                            outcome.Tweeted = true;
                         }
                     }
                     catch (Exception e)
                     {
-                        response.Tweeted = false;
+                        outcome.Tweeted = false;
                         logger.LogError(e,
                             "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
                             podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
@@ -105,16 +105,16 @@ public class EpisodePublishService(
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);
-                            response.BlueskyPosted = false;
+                            outcome.BlueskyPosted = false;
                         }
                         else
                         {
-                            response.BlueskyPosted = true;
+                            outcome.BlueskyPosted = true;
                         }
                     }
                     catch (Exception e)
                     {
-                        response.BlueskyPosted = false;
+                        outcome.BlueskyPosted = false;
                         logger.LogError(e,
                             "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
                             podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
@@ -122,7 +122,7 @@ public class EpisodePublishService(
                 }
             }
 
-            if (response.Updated())
+            if (outcome.Updated())
             {
                 if (podcastEpisodeResolverResponse.Episode.Ignored)
                 {
@@ -138,8 +138,8 @@ public class EpisodePublishService(
             }
 
             return new EpisodePublishResult(
-                response.Updated() ? EpisodePublishStatus.Ok : EpisodePublishStatus.BadRequest,
-                response);
+                outcome.Updated() ? EpisodePublishStatus.Ok : EpisodePublishStatus.BadRequest,
+                outcome);
         }
         catch (Exception ex)
         {

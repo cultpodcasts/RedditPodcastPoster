@@ -1,9 +1,8 @@
-using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Indexing.Services;
@@ -58,14 +57,13 @@ public class PodcastIndexService(
         try
         {
             var response = await index();
-            var indexed = SearchIndexerState.Unknown;
+            EntitySearchIndexerResponse? searchIndexer = null;
             if (response.IndexStatus == IndexStatus.Performed)
             {
                 var episodes = response.UpdatedEpisodes != null
                     ? response.UpdatedEpisodes.Select(x => x.Episode.Id)
                     : [];
-                var result = await searchIndexerService.IndexEpisodes(episodes, c);
-                indexed = result.ToDto();
+                searchIndexer = await searchIndexerService.IndexEpisodes(episodes, c);
             }
 
             var status = response.IndexStatus switch
@@ -80,7 +78,7 @@ public class PodcastIndexService(
                 logger.LogWarning("{method}: Podcast not found during index request.", nameof(IndexPodcast));
             }
 
-            return new PodcastIndexResult(status, IndexPodcastResponse.ToDto(response, indexed));
+            return new PodcastIndexResult(status, response, searchIndexer);
         }
         catch (Exception ex)
         {

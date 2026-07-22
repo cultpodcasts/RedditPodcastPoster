@@ -1,4 +1,6 @@
-using Api.Dtos;
+using Episode = RedditPodcastPoster.Models.Episodes.Episode;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Models;
 
@@ -12,4 +14,6 @@ public enum EpisodeGetStatus
 
 public record EpisodeGetResult(
     EpisodeGetStatus Status,
-    DiscreteEpisode? Episode = null);
+    Episode? Episode = null,
+    Podcast? Podcast = null,
+    IReadOnlyList<Subject>? Subjects = null);

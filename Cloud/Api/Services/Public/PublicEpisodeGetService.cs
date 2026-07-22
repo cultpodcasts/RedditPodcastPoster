@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Api.Resolvers;
@@ -47,24 +46,10 @@ public class PublicEpisodeGetService(
                 return new PublicEpisodeGetResult(PublicEpisodeGetStatus.NotFound);
             }
 
-            var publicEpisode = new PublicEpisode
-            {
-                PodcastName = podcastEpisodeResolverResponse.Podcast.Name,
-                Id = podcastEpisodeResolverResponse.Episode.Id,
-                Title = podcastEpisodeResolverResponse.Episode.Title,
-                Description = podcastEpisodeResolverResponse.Episode.Description,
-                Release = podcastEpisodeResolverResponse.Episode.Release,
-                Length = podcastEpisodeResolverResponse.Episode.Length,
-                Explicit = podcastEpisodeResolverResponse.Episode.Explicit,
-                Urls = podcastEpisodeResolverResponse.Episode.Urls,
-                Subjects = podcastEpisodeResolverResponse.Episode.Subjects,
-                Image = podcastEpisodeResolverResponse.Episode.Images?.YouTube ??
-                        podcastEpisodeResolverResponse.Episode.Images?.Spotify ??
-                        podcastEpisodeResolverResponse.Episode.Images?.Apple ??
-                        podcastEpisodeResolverResponse.Episode.Images?.Other
-            };
-
-            return new PublicEpisodeGetResult(PublicEpisodeGetStatus.Ok, publicEpisode);
+            return new PublicEpisodeGetResult(
+                PublicEpisodeGetStatus.Ok,
+                podcastEpisodeResolverResponse.Episode,
+                podcastEpisodeResolverResponse.Podcast);
         }
         catch (Exception ex)
         {

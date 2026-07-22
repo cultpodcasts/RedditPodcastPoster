@@ -1,7 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
-using Podcast = Api.Dtos.Podcast;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.Podcasts;
@@ -20,7 +19,7 @@ public class PodcastGetService(
             var podcastResult = await GetPodcast(podcastGetRequest, c);
             if (podcastResult is { RetrievalState: PodcastRetrievalState.Found, Podcast: not null })
             {
-                return new PodcastGetResult(PodcastGetStatus.Found, ToDto(podcastResult.Podcast));
+                return new PodcastGetResult(PodcastGetStatus.Found, podcastResult.Podcast);
             }
 
             if (podcastResult.RetrievalState == PodcastRetrievalState.NotFound)
@@ -53,43 +52,6 @@ public class PodcastGetService(
             logger.LogError(ex, "{method}: Failed to index-podcast.", nameof(GetAsync));
             return new PodcastGetResult(PodcastGetStatus.Failed);
         }
-    }
-
-    private static Podcast ToDto(DomainPodcast podcast)
-    {
-        return new Podcast
-        {
-            Id = podcast.Id,
-            Name = podcast.Name,
-            Language = podcast.Language,
-            Removed = podcast.Removed,
-            IndexAllEpisodes = podcast.IndexAllEpisodes,
-            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
-            ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService,
-            SpotifyId = podcast.SpotifyId,
-            AppleId = podcast.AppleId,
-            YouTubePublishingDelayTimeSpan = podcast.YouTubePublicationOffset.HasValue
-                ? TimeSpan.FromTicks(podcast.YouTubePublicationOffset.Value).ToString("g")
-                : string.Empty,
-            SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
-            TwitterHandle = podcast.TwitterHandle,
-            BlueskyHandle = podcast.BlueskyHandle ?? string.Empty,
-            TitleRegex = podcast.TitleRegex,
-            DescriptionRegex = podcast.DescriptionRegex,
-            EpisodeMatchRegex = podcast.EpisodeMatchRegex,
-            EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
-            DefaultSubject = podcast.DefaultSubject,
-            IgnoreAllEpisodes = podcast.IgnoreAllEpisodes ?? false,
-            YouTubeChannelId = podcast.YouTubeChannelId,
-            YouTubePlaylistId = podcast.YouTubePlaylistId,
-            IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
-            IgnoredSubjects = podcast.IgnoredSubjects,
-            KnownTerms = podcast.KnownTerms,
-            MinimumDuration = podcast.MinimumDuration?.ToString(),
-            HashTag = podcast.HashTag,
-            EnrichmentHashTags = podcast.EnrichmentHashTags
-        };
     }
 
     private async Task<PodcastWrapper> GetPodcast(PodcastGetRequest podcastGetRequest, CancellationToken c)

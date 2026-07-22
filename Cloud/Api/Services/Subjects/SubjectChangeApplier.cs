@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Reddit.Inputs.Flair;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
+using SubjectChange = Api.Dtos.Subject;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Reddit.Clients;
@@ -17,7 +18,7 @@ public class SubjectChangeApplier(
 {
     private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
-    public async Task Apply(Subject subject, Dtos.Subject change)
+    public async Task Apply(Subject subject, SubjectChange change)
     {
         if (change.Aliases != null)
         {
