@@ -103,16 +103,16 @@ public class EpisodeDiscreteMapper(
             var suggestions = await personService.MatchEpisode(episode);
             discreteEpisode.GuestSuggestions = suggestions
                 .Where(x => !selectedNames.Contains(x.Person.Name))
-                .Select(ToPersonMatchDto)
+                .Select(ToPersonMatch)
                 .ToList();
         }
 
         return discreteEpisode;
     }
 
-    public static PersonMatchDto ToPersonMatchDto(PersonMatch match)
+    public static DiscreteEpisodeDto.PersonMatch ToPersonMatch(PersonMatch match)
     {
-        return new PersonMatchDto
+        return new DiscreteEpisodeDto.PersonMatch
         {
             Person = new PersonDto
             {
@@ -122,7 +122,7 @@ public class EpisodeDiscreteMapper(
                 BlueskyHandle = match.Person.BlueskyHandle
             },
             MatchResults = match.MatchResults
-                .Select(x => new PersonMatchResultDto { Term = x.Term, Matches = x.Matches })
+                .Select(x => new DiscreteEpisodeDto.MatchResult { Term = x.Term, Matches = x.Matches })
                 .ToArray()
         };
     }

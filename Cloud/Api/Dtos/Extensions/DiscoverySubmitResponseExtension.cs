@@ -10,7 +10,7 @@ public static class DiscoverySubmitResponseExtension
         {
             Message = outcome.Message,
             ErrorsOccurred = outcome.ErrorsOccurred,
-            Results = outcome.Results.Select(x => new DiscoverySubmitResponseItem
+            Results = outcome.Results.Select(x => new DiscoverySubmitResponse.Item
             {
                 DiscoveryItemId = x.DiscoveryItemId,
                 EpisodeId = x.EpisodeId,

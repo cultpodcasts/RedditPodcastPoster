@@ -130,9 +130,10 @@ Cloud/Api/
 **DTO naming (exemplary):**
 - Top-level JSON entity roots → `*Dto` (`DiscreteEpisodeDto`, `PublicEpisodeDto`, `IndexerStateDto`).
 - Top-level verb/outcome envelopes → `*Response` (`EpisodeUpdateResponse`, `IndexPodcastResponse`).
-- Nested members of a single root → inner types (`IndexPodcastResponse.IndexedEpisode`, `SubmitUrlResponse.ItemState`, `DiscoveryResponseItem.MatchingPodcast`).
+- Nested members of a single root → inner types **without** a `Dto` suffix (`DiscoveryResponse.Item`, `IndexPodcastResponse.IndexedEpisode`, `DiscreteEpisodeDto.PersonMatch`, `SubmitUrlResponse.ItemState`).
 - Shared nested enums used by several roots → sibling file, no `Dto` suffix (`SearchIndexerState`).
 - Prefer flat projections over inheriting domain entities (especially `Episode`).
+- Never put `Dto` on a type that is only nested under another JSON root.
 
 **Rename:** wire JSON for rename body is `Api.Dtos.PodcastRenameRequest`; internal command is `Api.Models.PodcastRenameCommand`.
 

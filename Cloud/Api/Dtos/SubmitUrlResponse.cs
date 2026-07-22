@@ -72,7 +72,7 @@ public class SubmitUrlResponse
         {
             Name = match.Person.Name,
             MatchResults = match.MatchResults
-                .Select(x => new PersonMatchResultDto { Term = x.Term, Matches = x.Matches })
+                .Select(x => new GuestSuggestion.MatchResult { Term = x.Term, Matches = x.Matches })
                 .ToArray()
         };
     }
@@ -152,6 +152,15 @@ public class SubmitUrlResponse
         public required string Name { get; set; }
 
         [JsonPropertyName("matchResults")]
-        public required PersonMatchResultDto[] MatchResults { get; set; }
+        public required MatchResult[] MatchResults { get; set; }
+
+        public class MatchResult
+        {
+            [JsonPropertyName("term")]
+            public required string Term { get; set; }
+
+            [JsonPropertyName("matches")]
+            public required int Matches { get; set; }
+        }
     }
 }

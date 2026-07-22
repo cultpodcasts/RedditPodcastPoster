@@ -145,5 +145,23 @@ public class DiscreteEpisodeDto
 
     [JsonPropertyName("guestSuggestions")]
     [JsonPropertyOrder(271)]
-    public IList<PersonMatchDto>? GuestSuggestions { get; set; }
+    public IList<PersonMatch>? GuestSuggestions { get; set; }
+
+    public class PersonMatch
+    {
+        [JsonPropertyName("person")]
+        public required PersonDto Person { get; set; }
+
+        [JsonPropertyName("matchResults")]
+        public required MatchResult[] MatchResults { get; set; }
+    }
+
+    public class MatchResult
+    {
+        [JsonPropertyName("term")]
+        public required string Term { get; set; }
+
+        [JsonPropertyName("matches")]
+        public required int Matches { get; set; }
+    }
 }
