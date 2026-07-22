@@ -1,10 +1,10 @@
+using Api.Models;
 using Microsoft.Azure.Functions.Worker.Http;
-using PersonDto = Api.Dtos.Person;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.People;
 
 public interface IPutPersonHandler
 {
-    Task<HttpResponseData> Handle(HttpRequestData req, PersonDto person, ClientPrincipal? _, CancellationToken ct);
+    Task<HttpResponseData> Handle(HttpRequestData req, PersonChangeRequest person, ClientPrincipal? _, CancellationToken ct);
 }

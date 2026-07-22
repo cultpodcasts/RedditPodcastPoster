@@ -3,7 +3,6 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;

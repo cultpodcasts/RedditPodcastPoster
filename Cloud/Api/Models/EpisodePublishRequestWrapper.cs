@@ -1,4 +1,4 @@
-namespace Api.Dtos;
+namespace Api.Models;
 
 public record EpisodePublishRequestWrapper(
     Guid? PodcastId,

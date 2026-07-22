@@ -48,7 +48,7 @@ public class PersonUpdateService(
                 }
             }
 
-            PersonFieldUpdater.Apply(person, change);
+            PersonChangeApplier.Apply(person, change);
             await personRepository.Save(person);
             await peoplePublisher.PublishPeople();
             return new PersonUpdateResult(PersonUpdateStatus.Accepted);

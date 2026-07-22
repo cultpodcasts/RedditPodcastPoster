@@ -1,4 +1,3 @@
-using Api.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 
 namespace Api.Dtos.Extensions;

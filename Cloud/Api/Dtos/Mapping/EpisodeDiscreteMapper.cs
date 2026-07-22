@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Api.Dtos;
 using Api.Dtos.Extensions;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.People.Services;
@@ -96,7 +97,7 @@ public class EpisodeDiscreteMapper(
     {
         return new PersonMatchDto
         {
-            Person = new Person
+            Person = new PersonDto
             {
                 Id = match.Person.Id,
                 Name = match.Person.Name,

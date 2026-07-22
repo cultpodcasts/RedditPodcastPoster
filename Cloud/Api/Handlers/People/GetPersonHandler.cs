@@ -30,7 +30,7 @@ public class GetPersonHandler(
                 req.CreateResponse(HttpStatusCode.NotFound),
             PersonGetStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve person"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve person"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -39,6 +39,6 @@ public class GetPersonHandler(
     {
         logger.LogError("Person get failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve person"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve person"), c);
     }
 }

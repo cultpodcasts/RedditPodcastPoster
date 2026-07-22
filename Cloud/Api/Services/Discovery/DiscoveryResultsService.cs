@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
-using Api.Dtos.Extensions;
 using Api.Models;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace Api.Services;
+namespace Api.Services.Discovery;
 
 public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,

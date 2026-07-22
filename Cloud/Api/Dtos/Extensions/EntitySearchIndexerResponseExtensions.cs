@@ -1,8 +1,7 @@
-using Api.Dtos;
-using IndexerState = RedditPodcastPoster.Search.Models.IndexerState;
+using DomainIndexerState = RedditPodcastPoster.Search.Models.IndexerState;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 
-namespace Api.Extensions;
+namespace Api.Dtos.Extensions;
 
 public static class EntitySearchIndexerResponseExtensions
 {
@@ -12,13 +11,13 @@ public static class EntitySearchIndexerResponseExtensions
         {
             switch (response.IndexerState)
             {
-                case IndexerState.Failure:
+                case DomainIndexerState.Failure:
                     return SearchIndexerState.Failure;
-                case IndexerState.AlreadyRunning:
+                case DomainIndexerState.AlreadyRunning:
                     return SearchIndexerState.AlreadyRunning;
-                case IndexerState.TooManyRequests:
+                case DomainIndexerState.TooManyRequests:
                     return SearchIndexerState.TooManyRequests;
-                case IndexerState.Executed:
+                case DomainIndexerState.Executed:
                     return SearchIndexerState.Executed;
             }
         }

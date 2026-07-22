@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Extensions;
 using Api.Models;
 using Api.Resolvers;

@@ -30,7 +30,7 @@ public class GetPublicEpisodeHandler(
                 req.CreateResponse(HttpStatusCode.NotFound),
             PublicEpisodeGetStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve episode"), c),
             _ => LogAndFail(req)
         };
     }

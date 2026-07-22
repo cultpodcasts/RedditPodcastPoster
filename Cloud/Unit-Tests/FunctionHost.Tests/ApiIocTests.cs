@@ -1,5 +1,4 @@
 using Api;
-using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;

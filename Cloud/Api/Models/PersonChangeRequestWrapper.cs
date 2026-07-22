@@ -1,5 +1,3 @@
-using Api.Dtos;
-
 namespace Api.Models;
 
-public record PersonChangeRequestWrapper(Guid PersonId, Person Person);
+public record PersonChangeRequestWrapper(Guid PersonId, PersonChangeRequest Person);

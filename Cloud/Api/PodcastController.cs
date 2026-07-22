@@ -5,23 +5,9 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api.Dtos;
 using Api.Factories;
-using Api.Handlers;
-using Api.Handlers.Discovery;
-using Api.Handlers.DiscoverySchedule;
-using Api.Handlers.Episodes;
-using Api.Handlers.Homepage;
-using Api.Handlers.People;
 using Api.Handlers.Podcasts;
-using Api.Handlers.Public;
-using Api.Handlers.PushSubscriptions;
-using Api.Handlers.SearchIndex;
-using Api.Handlers.Subjects;
-using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
 using Api.Models;
 using Azure.Diagnostics;
-using Podcast = Api.Dtos.Podcast;
-using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 
 namespace Api;
 
@@ -47,7 +33,7 @@ public class PodcastController(
     ) => HandleRequest(
             req,
             ["admin"],
-            new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName),
+            new PodcastRenameCommand(podcastName, newPodcastName.NewPodcastName),
             renamePodcastHandler.Handle,
             Unauthorised,
             ct
@@ -101,8 +87,7 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody]
-        Podcast podcastChangeRequest,
+        [FromBody] PodcastChangeRequest podcastChangeRequest,
         CancellationToken ct
     ) => HandleRequest(
             req,
@@ -117,8 +102,7 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody]
-        Podcast podcastChangeRequest,
+        [FromBody] PodcastChangeRequest podcastChangeRequest,
         CancellationToken ct
     ) => HandleRequest(
             req,

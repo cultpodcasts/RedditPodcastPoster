@@ -28,16 +28,16 @@ public class GetPodcastHandler(
                 await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(result.Podcast!.ToDto(), c),
             PodcastGetStatus.NotFound =>
                 await req.CreateResponse(HttpStatusCode.NotFound)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
             PodcastGetStatus.Conflict when result.AmbiguousPodcasts != null =>
                 await req.CreateResponse(HttpStatusCode.Conflict)
                     .WithJsonBody(result.AmbiguousPodcasts, c),
             PodcastGetStatus.Conflict =>
                 await req.CreateResponse(HttpStatusCode.Conflict)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
             PodcastGetStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -46,6 +46,6 @@ public class GetPodcastHandler(
     {
         logger.LogError("Podcast get failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve podcast"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c);
     }
 }

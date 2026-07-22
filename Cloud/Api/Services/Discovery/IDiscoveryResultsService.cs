@@ -1,7 +1,7 @@
 using Api.Models;
 using RedditPodcastPoster.Models.Discovery;
 
-namespace Api.Services;
+namespace Api.Services.Discovery;
 
 public interface IDiscoveryResultsService
 {

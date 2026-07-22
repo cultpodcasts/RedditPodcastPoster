@@ -5,7 +5,7 @@ namespace Api.Dtos;
 public class PersonMatchDto
 {
     [JsonPropertyName("person")]
-    public required Person Person { get; set; }
+    public required PersonDto Person { get; set; }
 
     [JsonPropertyName("matchResults")]
     public required PersonMatchResultDto[] MatchResults { get; set; }

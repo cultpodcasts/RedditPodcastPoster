@@ -25,7 +25,7 @@ public class GetAllPeopleHandler(
                     .WithJsonBody(result.People!.Select(x => x.ToDto()).ToList(), c),
             PersonGetAllStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve people"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve people"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -34,6 +34,6 @@ public class GetAllPeopleHandler(
     {
         logger.LogError("People get-all failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve people"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve people"), c);
     }
 }

@@ -1,4 +1,3 @@
-using Api.Extensions;
 using Api.Models;
 
 namespace Api.Dtos.Extensions;

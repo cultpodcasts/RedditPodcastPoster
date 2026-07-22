@@ -4,9 +4,9 @@ namespace Api.Dtos.Extensions;
 
 public static class PodcastExtension
 {
-    public static Podcast ToDto(this DomainPodcast podcast)
+    public static PodcastDto ToDto(this DomainPodcast podcast)
     {
-        return new Podcast
+        return new PodcastDto
         {
             Id = podcast.Id,
             Name = podcast.Name,

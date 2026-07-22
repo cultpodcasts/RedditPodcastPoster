@@ -46,7 +46,7 @@ public class DiscreteEpisode : Episode
 
     [JsonPropertyName("guestPeople")]
     [JsonPropertyOrder(270)]
-    public IList<Person>? GuestPeople { get; set; }
+    public IList<PersonDto>? GuestPeople { get; set; }
 
     [JsonPropertyName("guestSuggestions")]
     [JsonPropertyOrder(271)]

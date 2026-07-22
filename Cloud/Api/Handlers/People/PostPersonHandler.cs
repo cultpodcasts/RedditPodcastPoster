@@ -35,7 +35,7 @@ public class PostPersonHandler(
                     .WithJsonBody(new { conflict = result.ConflictName }, c),
             PersonUpdateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to update person"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update person"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -44,6 +44,6 @@ public class PostPersonHandler(
     {
         logger.LogError("Person update failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to update person"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to update person"), c);
     }
 }

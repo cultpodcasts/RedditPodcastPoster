@@ -8,7 +8,7 @@ public interface IRenamePodcastHandler
 {
     Task<HttpResponseData> Handle(
         HttpRequestData req,
-        PodcastRenameRequest change,
+        PodcastRenameCommand change,
         ClientPrincipal? clientPrincipal,
         CancellationToken c);
 }

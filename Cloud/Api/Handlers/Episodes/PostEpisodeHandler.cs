@@ -31,7 +31,7 @@ public class PostEpisodeHandler(
                 req.CreateResponse(HttpStatusCode.NotFound),
             EpisodeUpdateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to update episode"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update episode"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -40,6 +40,6 @@ public class PostEpisodeHandler(
     {
         logger.LogError("Episode update failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to update episode"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to update episode"), c);
     }
 }

@@ -1,6 +1,5 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
-using PersonDto = Api.Dtos.Person;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.People.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -15,7 +14,7 @@ public class PersonCreateService(
     IPeoplePublisher peoplePublisher,
     ILogger<PersonCreateService> logger) : IPersonCreateService
 {
-    public async Task<PersonCreateResult> CreateAsync(PersonDto person, CancellationToken cancellationToken)
+    public async Task<PersonCreateResult> CreateAsync(PersonChangeRequest person, CancellationToken cancellationToken)
     {
         try
         {

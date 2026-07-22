@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class Person
+public class PersonDto
 {
     [JsonPropertyName("id")]
     public Guid? Id { get; set; }

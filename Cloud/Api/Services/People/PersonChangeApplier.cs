@@ -1,13 +1,13 @@
 using PersonEntity = RedditPodcastPoster.Models.People.Person;
-using Person = Api.Dtos.Person;
+using PersonChangeRequest = Api.Models.PersonChangeRequest;
 using RedditPodcastPoster.People.Factories;
 using RedditPodcastPoster.People.Resolvers;
 
 namespace Api.Services.People;
 
-public static class PersonFieldUpdater
+public static class PersonChangeApplier
 {
-    public static void Apply(PersonEntity entity, Person change)
+    public static void Apply(PersonEntity entity, PersonChangeRequest change)
     {
         if (change.Name != null && !string.IsNullOrWhiteSpace(change.Name))
         {

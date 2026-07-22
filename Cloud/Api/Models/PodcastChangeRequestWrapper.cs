@@ -1,5 +1,3 @@
-using Api.Dtos;
-
 namespace Api.Models;
 
-public record PodcastChangeRequestWrapper(Guid PodcastId, Podcast Podcast, bool AllowNameChange = false);
+public record PodcastChangeRequestWrapper(Guid PodcastId, PodcastChangeRequest Podcast, bool AllowNameChange = false);

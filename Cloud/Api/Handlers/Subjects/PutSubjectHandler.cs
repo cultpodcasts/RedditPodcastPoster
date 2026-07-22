@@ -16,7 +16,7 @@ public class PutSubjectHandler(
 {
     public async Task<HttpResponseData> Handle(
         HttpRequestData req,
-        Subject subject,
+        SubjectChangeRequest subject,
         ClientPrincipal? cp,
         CancellationToken ct)
     {
@@ -34,7 +34,7 @@ public class PutSubjectHandler(
                     .WithJsonBody(new { conflict = result.ConflictName }, ct),
             SubjectCreateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to create subject"), ct),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to create subject"), ct),
             _ => await LogAndFail(req, ct)
         };
     }
@@ -43,6 +43,6 @@ public class PutSubjectHandler(
     {
         logger.LogError("Subject create failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to create subject"), ct);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to create subject"), ct);
     }
 }

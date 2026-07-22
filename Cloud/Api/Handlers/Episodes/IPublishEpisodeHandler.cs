@@ -1,5 +1,5 @@
 using Microsoft.Azure.Functions.Worker.Http;
-using Api.Dtos;
+using Api.Models;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Episodes;

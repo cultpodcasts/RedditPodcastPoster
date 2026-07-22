@@ -1,6 +1,5 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
-using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -17,7 +16,7 @@ public class PodcastRenameService(
 {
     private const int MaxPodcastToRename = 2;
 
-    public async Task<PodcastRenameResult> RenameAsync(PodcastRenameRequest change, CancellationToken c)
+    public async Task<PodcastRenameResult> RenameAsync(PodcastRenameCommand change, CancellationToken c)
     {
         try
         {

@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
-using Podcast = Api.Dtos.Podcast;
+using Api.Models;
 
 namespace Api.Services.Podcasts;
 
 public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
 {
-    public void Apply(DomainPodcast podcast, Podcast podcastChangeRequest)
+    public void Apply(DomainPodcast podcast, PodcastChangeRequest podcastChangeRequest)
     {
         if (podcastChangeRequest.Removed != null)
         {

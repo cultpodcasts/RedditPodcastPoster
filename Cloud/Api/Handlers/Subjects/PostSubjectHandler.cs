@@ -29,7 +29,7 @@ public class PostSubjectHandler(
                 req.CreateResponse(HttpStatusCode.NotFound),
             SubjectUpdateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to update subject"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update subject"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -38,6 +38,6 @@ public class PostSubjectHandler(
     {
         logger.LogError("Subject update failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to update subject"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to update subject"), c);
     }
 }

@@ -36,7 +36,7 @@ public class PostPodcastHandler(
                     .WithJsonBody(new { id = result.PodcastId }, c),
             PodcastUpdateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to update podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update podcast"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -45,6 +45,6 @@ public class PostPodcastHandler(
     {
         logger.LogError("Podcast update failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to update podcast"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to update podcast"), c);
     }
 }

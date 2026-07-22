@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Api.Configuration;
 using Api.Factories;
-using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;
@@ -15,7 +14,6 @@ using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
 using Api.Handlers.Terms;
 using Api.Resolvers;
-using Api.Services;
 using Api.Services.Discovery;
 using Api.Services.DiscoverySchedule;
 using Api.Services.Episodes;

@@ -42,7 +42,7 @@ public class GetEpisodeHandler(
                     .WithJsonBody(new { message = "Podcast not found." }, c),
             EpisodeGetStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve episode"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -51,6 +51,6 @@ public class GetEpisodeHandler(
     {
         logger.LogError("Episode get failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve episode"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve episode"), c);
     }
 }

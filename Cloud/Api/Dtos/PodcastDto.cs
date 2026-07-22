@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Dtos;
 
-public class Podcast
+public class PodcastDto
 {
     [JsonPropertyName("id")]
     public Guid? Id { get; set; }

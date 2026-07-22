@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Api.Configuration;
 using Api.Factories;
-using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;

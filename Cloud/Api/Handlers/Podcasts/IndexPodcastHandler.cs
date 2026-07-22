@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
@@ -34,7 +35,7 @@ public class IndexPodcastHandler(
                     .WithJsonBody(ToResponse(result), c),
             PodcastIndexStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to index podcast"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -49,6 +50,6 @@ public class IndexPodcastHandler(
     {
         logger.LogError("Podcast index failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to index podcast"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to index podcast"), c);
     }
 }

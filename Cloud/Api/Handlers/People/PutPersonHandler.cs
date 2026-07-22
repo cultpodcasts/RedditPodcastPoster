@@ -6,7 +6,6 @@ using Api.Dtos.Extensions;
 using Api.Extensions;
 using Api.Models;
 using Api.Services.People;
-using PersonDto = Api.Dtos.Person;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.People;
@@ -17,7 +16,7 @@ public class PutPersonHandler(
 {
     public async Task<HttpResponseData> Handle(
         HttpRequestData req,
-        PersonDto person,
+        PersonChangeRequest person,
         ClientPrincipal? _,
         CancellationToken ct)
     {
@@ -35,7 +34,7 @@ public class PutPersonHandler(
                     .WithJsonBody(new { conflict = result.ConflictName }, ct),
             PersonCreateStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to create person"), ct),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to create person"), ct),
             _ => await LogAndFail(req, ct)
         };
     }
@@ -44,6 +43,6 @@ public class PutPersonHandler(
     {
         logger.LogError("Person create failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to create person"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to create person"), c);
     }
 }

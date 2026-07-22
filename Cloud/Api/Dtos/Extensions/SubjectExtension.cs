@@ -1,10 +1,11 @@
-﻿namespace Api.Dtos.Extensions;
+
+namespace Api.Dtos.Extensions;
 
 public static class SubjectExtension
 {
-    public static Subject ToDto(this RedditPodcastPoster.Models.Subjects.Subject subject)
+    public static SubjectDto ToDto(this RedditPodcastPoster.Models.Subjects.Subject subject)
     {
-        return new Subject
+        return new SubjectDto
         {
             Id = subject.Id,
             Aliases = subject.Aliases,

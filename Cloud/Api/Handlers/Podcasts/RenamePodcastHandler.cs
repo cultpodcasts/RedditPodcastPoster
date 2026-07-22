@@ -6,7 +6,6 @@ using Api.Dtos.Extensions;
 using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
-using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
@@ -17,7 +16,7 @@ public class RenamePodcastHandler(
 {
     public async Task<HttpResponseData> Handle(
         HttpRequestData req,
-        PodcastRenameRequest change,
+        PodcastRenameCommand change,
         ClientPrincipal? _,
         CancellationToken c)
     {
@@ -40,7 +39,7 @@ public class RenamePodcastHandler(
                 req.CreateResponse(HttpStatusCode.InternalServerError),
             PodcastRenameStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to rename podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to rename podcast"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -49,6 +48,6 @@ public class RenamePodcastHandler(
     {
         logger.LogError("Podcast rename failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to rename podcast"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to rename podcast"), c);
     }
 }

@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Extensions;
 using Api.Models;
 using Api.Services.SearchIndex;
@@ -24,7 +25,7 @@ public class RunSearchIndexHandler(
                 await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(result.Result!.ToDto(), c),
             SearchIndexRunStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to update podcast"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update podcast"), c),
             _ => LogAndFail(req)
         };
     }

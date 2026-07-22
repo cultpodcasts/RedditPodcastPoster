@@ -30,7 +30,7 @@ public class GetSubjectHandler(
                 req.CreateResponse(HttpStatusCode.NotFound),
             SubjectGetStatus.Failed =>
                 await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve subject"), c),
+                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve subject"), c),
             _ => await LogAndFail(req, c)
         };
     }
@@ -39,6 +39,6 @@ public class GetSubjectHandler(
     {
         logger.LogError("Subject get failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve subject"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve subject"), c);
     }
 }

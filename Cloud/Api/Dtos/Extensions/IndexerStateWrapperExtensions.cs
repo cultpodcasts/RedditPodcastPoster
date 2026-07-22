@@ -1,7 +1,7 @@
 using IndexerState = Api.Dtos.IndexerState;
 using RedditPodcastPoster.Search.Models;
 
-namespace Api.Extensions;
+namespace Api.Dtos.Extensions;
 
 public static class IndexerStateWrapperExtensions
 {

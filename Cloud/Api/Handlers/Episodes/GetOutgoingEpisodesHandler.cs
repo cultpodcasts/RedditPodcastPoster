@@ -33,7 +33,7 @@ public class GetOutgoingEpisodesHandler(
         if (result.Status == EpisodeOutgoingStatus.Failed)
         {
             return await req.CreateResponse(HttpStatusCode.InternalServerError)
-                .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve out-going episodes"), c);
+                .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve out-going episodes"), c);
         }
 
         if (result.Status != EpisodeOutgoingStatus.Ok)
@@ -55,6 +55,6 @@ public class GetOutgoingEpisodesHandler(
     {
         logger.LogError("Outgoing episodes get failed with unexpected status.");
         return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Unable to retrieve out-going episodes"), c);
+            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve out-going episodes"), c);
     }
 }

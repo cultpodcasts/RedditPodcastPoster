@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.ContentPublisher.Publishers;
@@ -17,7 +16,7 @@ public class SubjectCreateService(
     SubjectChangeApplier subjectChangeApplier,
     ILogger<SubjectCreateService> logger) : ISubjectCreateService
 {
-    public async Task<SubjectCreateResult> CreateAsync(Subject subject, CancellationToken cancellationToken)
+    public async Task<SubjectCreateResult> CreateAsync(SubjectChangeRequest subject, CancellationToken cancellationToken)
     {
         try
         {
