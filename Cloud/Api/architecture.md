@@ -91,7 +91,7 @@ Cloud/Api/
 ├── Models/                 Requests, commands, results, outcomes
 ├── Dtos/                   Response JSON types
 │   ├── Extensions/         ToDto() for domain → Dto and outcome → response
-│   └── Mapping/            Heavier mappers (e.g. EpisodeDiscreteMapper)
+│   └── Mapping/            Heavier mappers (e.g. EpisodeDtoMapper)
 └── architecture.md         This document
 ```
 
@@ -121,16 +121,16 @@ Cloud/Api/
 | Change / create body | `Api.Models` | `EpisodeChangeRequest`, `PersonChangeRequest`, `PodcastChangeRequest`, `SubjectChangeRequest` | Yes (`[FromBody]`) | Only if you deliberately echo it (prefer `*Dto` for GET) |
 | Command / wrapper | `Api.Models` | `PodcastRenameCommand`, `EpisodePublishRequestWrapper`, `PersonChangeRequestWrapper` | Wrapper built in controller | No |
 | Result / outcome | `Api.Models` | `PersonGetResult`, `EpisodeUpdateOutcome`, status enums | No | No — handler maps them |
-| Response DTO | `Api.Dtos` | `PersonDto`, `PodcastDto`, `SubjectDto`, `DiscreteEpisodeDto`, `PublicEpisodeDto` | No | Yes via `ToDto` |
+| Response DTO | `Api.Dtos` | `PersonDto`, `PodcastDto`, `SubjectDto`, `EpisodeDto`, `PublicEpisodeDto` | No | Yes via `ToDto` |
 | Error envelope | `Api.Dtos` | `ApiErrorResponse` | No | Yes on failure paths |
 | Submit-url success shape | `Api.Dtos` | `SubmitUrlResponse` | No | Yes — **only** submit-url flow (do not reuse as generic error) |
 
 **Naming rule:** never put a type named `Person`, `Podcast`, `Subject`, or bare `Episode` in `Api.Dtos` or `Api.Models` — those collide with `RedditPodcastPoster.Models.*` and break aliases. Use `PersonDto` / `PersonChangeRequest` (and likewise for Podcast/Subject).
 
 **DTO naming (exemplary):**
-- Top-level JSON entity roots → `*Dto` (`DiscreteEpisodeDto`, `PublicEpisodeDto`, `IndexerStateDto`).
+- Top-level JSON entity roots → `*Dto` (`EpisodeDto`, `PublicEpisodeDto`, `IndexerStateDto`).
 - Top-level verb/outcome envelopes → `*Response` (`EpisodeUpdateResponse`, `IndexPodcastResponse`).
-- Nested members of a single root → inner types **without** a `Dto` suffix (`DiscoveryResponse.Item`, `IndexPodcastResponse.IndexedEpisode`, `DiscreteEpisodeDto.PersonMatch`, `SubmitUrlResponse.ItemState`).
+- Nested members of a single root → inner types **without** a `Dto` suffix (`DiscoveryResponse.Item`, `IndexPodcastResponse.IndexedEpisode`, `EpisodeDto.PersonMatch`, `SubmitUrlResponse.ItemState`).
 - Shared nested enums used by several roots → sibling file, no `Dto` suffix (`SearchIndexerState`).
 - Prefer flat projections over inheriting domain entities (especially `Episode`).
 - Never put `Dto` on a type that is only nested under another JSON root.
@@ -166,7 +166,7 @@ Cloud/Api/
 ### Dtos / mapping
 
 - [ ] Prefer `Dtos/Extensions/*Extension.cs` for `ToDto`.
-- [ ] Use `Dtos/Mapping/` when mapping needs DI (e.g. `EpisodeDiscreteMapper`).
+- [ ] Use `Dtos/Mapping/` when mapping needs DI (e.g. `EpisodeDtoMapper`).
 - [ ] Keep `[JsonPropertyName]` stable when renaming CLR types (`Person` → `PersonDto`).
 
 ---
@@ -228,7 +228,7 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | `HttpRequestData` / `ClientPrincipal` on handlers | `IHandlerContext` (+ separate `CancellationToken`) |
 | `CancellationToken` on `IHandlerContext` | Keep CT as a `Handle` parameter; pass into `ctx.Ok(body, ct)` |
 | `new PersonDto { ... }` inside a service | Return domain entity; handler `.ToDto()` |
-| Inheriting domain `Episode` for API JSON | Flat `DiscreteEpisodeDto` projection |
+| Inheriting domain `Episode` for API JSON | Flat `EpisodeDto` projection |
 | Top-level entity DTO without `*Dto` suffix | `PublicEpisodeDto`, `IndexerStateDto`, … |
 | Shared nested type forced inner on one root | Sibling file when several roots use it |
 | `SubmitUrlResponse.Failure` for unrelated APIs | `ApiErrorResponse.Failure` |
@@ -250,6 +250,6 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | Person GET exemplar | `Handlers/People/GetPersonHandler.cs`, `Services/People/PersonGetService.cs` |
 | Person mutate | `Models/PersonChangeRequest.cs`, `Services/People/PersonChangeApplier.cs` |
 | Episode mutate | `Models/EpisodeChangeRequest.cs`, `Services/Episodes/EpisodeChangeApplier.cs` |
-| Response mapping | `Dtos/Extensions/PersonExtension.cs`, `Dtos/Mapping/EpisodeDiscreteMapper.cs` |
+| Response mapping | `Dtos/Extensions/PersonExtension.cs`, `Dtos/Mapping/EpisodeDtoMapper.cs` |
 | Errors | `Dtos/ApiErrorResponse.cs` |
 | HTTP JSON helper | `Extensions/ResponseExtensions.cs` |

@@ -12,26 +12,26 @@ using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace Api.Dtos.Mapping;
 
-public class EpisodeDiscreteMapper(
+public class EpisodeDtoMapper(
     ITextSanitiser textSanitiser,
     IPersonService personService,
     ICachedSubjectProvider subjectsProvider)
 {
-    public async Task<IReadOnlyList<DiscreteEpisodeDto>> ToDiscreteEpisodes(
+    public async Task<IReadOnlyList<EpisodeDto>> ToDtos(
         IEnumerable<EpisodePodcastPair> pairs,
         CancellationToken cancellationToken)
     {
         var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-        var episodes = new List<DiscreteEpisodeDto>();
+        var episodes = new List<EpisodeDto>();
         foreach (var pair in pairs)
         {
-            episodes.Add(await ToDiscreteEpisode(pair.Episode, pair.Podcast, subjects));
+            episodes.Add(await ToDto(pair.Episode, pair.Podcast, subjects));
         }
 
         return episodes;
     }
 
-    public async Task<DiscreteEpisodeDto> ToDiscreteEpisode(
+    public async Task<EpisodeDto> ToDto(
         DomainEpisode episode,
         DomainPodcast podcast,
         IEnumerable<DomainSubject> subjects,
@@ -50,7 +50,7 @@ public class EpisodeDiscreteMapper(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        var discreteEpisode = new DiscreteEpisodeDto
+        var dto = new EpisodeDto
         {
             Id = episode.Id,
             PodcastName = podcast.Name,
@@ -94,25 +94,25 @@ public class EpisodeDiscreteMapper(
         if (episode.Guests is { Length: > 0 })
         {
             var guestPeople = await personService.GetByNames(episode.Guests);
-            discreteEpisode.GuestPeople = guestPeople.Select(x => x.ToDto()).ToList();
+            dto.GuestPeople = guestPeople.Select(x => x.ToDto()).ToList();
         }
 
         if (includeGuestSuggestions)
         {
             var selectedNames = episode.Guests?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
             var suggestions = await personService.MatchEpisode(episode);
-            discreteEpisode.GuestSuggestions = suggestions
+            dto.GuestSuggestions = suggestions
                 .Where(x => !selectedNames.Contains(x.Person.Name))
                 .Select(ToPersonMatch)
                 .ToList();
         }
 
-        return discreteEpisode;
+        return dto;
     }
 
-    public static DiscreteEpisodeDto.PersonMatch ToPersonMatch(PersonMatch match)
+    public static EpisodeDto.PersonMatch ToPersonMatch(PersonMatch match)
     {
-        return new DiscreteEpisodeDto.PersonMatch
+        return new EpisodeDto.PersonMatch
         {
             Person = new PersonDto
             {
@@ -122,7 +122,7 @@ public class EpisodeDiscreteMapper(
                 BlueskyHandle = match.Person.BlueskyHandle
             },
             MatchResults = match.MatchResults
-                .Select(x => new DiscreteEpisodeDto.MatchResult { Term = x.Term, Matches = x.Matches })
+                .Select(x => new EpisodeDto.MatchResult { Term = x.Term, Matches = x.Matches })
                 .ToArray()
         };
     }

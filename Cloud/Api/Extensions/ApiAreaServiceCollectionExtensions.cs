@@ -37,7 +37,7 @@ public static class ApiAreaServiceCollectionExtensions
     public static IServiceCollection AddApiEpisodes(this IServiceCollection services) =>
         services
             .AddScoped<EpisodeSearchIndexCleanup>()
-            .AddScoped<EpisodeDiscreteMapper>()
+            .AddScoped<EpisodeDtoMapper>()
             .AddScoped<EpisodeChangeApplier>()
             .AddScoped<IEpisodeDeleteService, EpisodeDeleteService>()
             .AddScoped<IEpisodeGetService, EpisodeGetService>()

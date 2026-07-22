@@ -9,7 +9,7 @@ namespace Api.Handlers.Episodes;
 
 public class GetOutgoingEpisodesHandler(
     IEpisodeOutgoingService episodeOutgoingService,
-    EpisodeDiscreteMapper episodeDiscreteMapper,
+    EpisodeDtoMapper episodeDtoMapper,
     ILogger<GetOutgoingEpisodesHandler> logger) : IGetOutgoingEpisodesHandler
 {
     public async Task<HttpResponseData> Handle(
@@ -26,7 +26,7 @@ public class GetOutgoingEpisodesHandler(
         return result.Status switch
         {
             EpisodeOutgoingStatus.Ok =>
-                await ctx.Ok(await episodeDiscreteMapper.ToDiscreteEpisodes(result.Episodes!, c), c),
+                await ctx.Ok(await episodeDtoMapper.ToDtos(result.Episodes!, c), c),
             EpisodeOutgoingStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve out-going episodes"), c),
             _ => await LogAndFail(ctx, c)

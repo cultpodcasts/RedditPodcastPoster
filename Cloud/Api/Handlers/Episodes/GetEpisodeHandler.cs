@@ -10,7 +10,7 @@ namespace Api.Handlers.Episodes;
 
 public class GetEpisodeHandler(
     IEpisodeGetService episodeGetService,
-    EpisodeDiscreteMapper episodeDiscreteMapper,
+    EpisodeDtoMapper episodeDtoMapper,
     ILogger<GetEpisodeHandler> logger) : IGetEpisodeHandler
 {
     public async Task<HttpResponseData> Handle(
@@ -24,7 +24,7 @@ public class GetEpisodeHandler(
         {
             EpisodeGetStatus.Ok =>
                 await ctx.Ok(
-                    await episodeDiscreteMapper.ToDiscreteEpisode(
+                    await episodeDtoMapper.ToDto(
                         result.Episode!,
                         result.Podcast!,
                         result.Subjects!,

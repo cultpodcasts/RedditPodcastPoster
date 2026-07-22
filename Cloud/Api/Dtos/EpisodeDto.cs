@@ -5,9 +5,9 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace Api.Dtos;
 
 /// <summary>
-/// Curate/admin episode JSON projection. Intentionally does not inherit domain <c>Episode</c>.
+/// Curate/admin episode JSON. Flat projection — does not inherit domain Episode.
 /// </summary>
-public class DiscreteEpisodeDto
+public class EpisodeDto
 {
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
