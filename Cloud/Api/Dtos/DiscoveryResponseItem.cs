@@ -69,7 +69,7 @@ public class DiscoveryResponseItem
 
     [JsonPropertyName("matchingPodcasts")]
     [JsonPropertyOrder(150)]
-    public DiscoveryPodcast[]? MatchingPodcasts { get; set; }
+    public MatchingPodcast[]? MatchingPodcasts { get; set; }
 
     [JsonPropertyName("acceptProbability")]
     [JsonPropertyOrder(160)]
@@ -78,4 +78,24 @@ public class DiscoveryResponseItem
     [JsonPropertyName("autoHidden")]
     [JsonPropertyOrder(170)]
     public bool AutoHidden { get; set; }
+
+    public enum DiscoverService
+    {
+        Spotify = 1,
+        ListenNotes,
+        YouTube,
+        Taddy
+    }
+
+    public class MatchingPodcast
+    {
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+
+        [JsonPropertyName("visible")]
+        public required bool IsVisible { get; set; }
+
+        [JsonPropertyName("visibleEpisodes")]
+        public required int VisibleEpisodes { get; set; }
+    }
 }

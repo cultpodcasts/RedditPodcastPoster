@@ -15,4 +15,25 @@ public class IndexPodcastResponse
     [JsonPropertyName("searchIndexerState")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SearchIndexerState SearchIndexerState { get; set; }
+
+    public class IndexedEpisode
+    {
+        [JsonPropertyName("podcastId")]
+        public required Guid PodcastId { get; set; }
+
+        [JsonPropertyName("episodeId")]
+        public required Guid EpisodeId { get; set; }
+
+        [JsonPropertyName("spotify")]
+        public required bool Spotify { get; set; }
+
+        [JsonPropertyName("apple")]
+        public required bool Apple { get; set; }
+
+        [JsonPropertyName("youtube")]
+        public required bool YouTube { get; set; }
+
+        [JsonPropertyName("subjects")]
+        public required string[] Subjects { get; set; }
+    }
 }

@@ -1,13 +1,12 @@
-using IndexerState = Api.Dtos.IndexerState;
 using RedditPodcastPoster.Search.Models;
 
 namespace Api.Dtos.Extensions;
 
 public static class IndexerStateWrapperExtensions
 {
-    public static IndexerState ToDto(this IndexerStateWrapper indexerStateWrapper)
+    public static IndexerStateDto ToDto(this IndexerStateWrapper indexerStateWrapper)
     {
-        return new IndexerState
+        return new IndexerStateDto
         {
             State = indexerStateWrapper.IndexerState,
             NextRun = indexerStateWrapper.NextRun,

@@ -1,8 +1,8 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class IndexerState
+public class IndexerStateDto
 {
     [JsonPropertyName("state")]
     [JsonConverter(typeof(JsonStringEnumConverter))]

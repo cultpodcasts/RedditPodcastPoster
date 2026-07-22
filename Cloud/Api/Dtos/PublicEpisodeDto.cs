@@ -3,14 +3,16 @@ using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Dtos;
 
-public class PublicEpisode
+public class PublicEpisodeDto
 {
-    [JsonPropertyName("podcastName")]
-    [JsonPropertyOrder(30)]
-    public string PodcastName { get; set; } = "";
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }
+
+    [JsonPropertyName("podcastName")]
+    [JsonPropertyOrder(30)]
+    public string PodcastName { get; set; } = "";
+
     [JsonPropertyName("title")]
     [JsonPropertyOrder(30)]
     public string Title { get; set; } = "";
@@ -18,6 +20,7 @@ public class PublicEpisode
     [JsonPropertyName("description")]
     [JsonPropertyOrder(40)]
     public string Description { get; set; } = "";
+
     [JsonPropertyName("release")]
     [JsonPropertyOrder(70)]
     public DateTime Release { get; set; }
@@ -29,14 +32,14 @@ public class PublicEpisode
     [JsonPropertyName("explicit")]
     [JsonPropertyOrder(72)]
     public bool Explicit { get; set; }
-    [JsonPropertyName("urls")]
-    [JsonPropertyOrder(100)]
-    public ServiceUrls Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(90)]
     public List<string> Subjects { get; set; } = [];
 
+    [JsonPropertyName("urls")]
+    [JsonPropertyOrder(100)]
+    public ServiceUrls Urls { get; set; } = new();
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]

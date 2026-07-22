@@ -17,17 +17,17 @@ public class DiscoveryScheduleResponse
     public required bool IsDefault { get; init; }
 
     [JsonPropertyName("nextRuns")]
-    public required IReadOnlyList<DiscoveryScheduleNextRun> NextRuns { get; init; }
-}
+    public required IReadOnlyList<NextRun> NextRuns { get; init; }
 
-public class DiscoveryScheduleNextRun
-{
-    [JsonPropertyName("slotId")]
-    public required string SlotId { get; init; }
+    public class NextRun
+    {
+        [JsonPropertyName("slotId")]
+        public required string SlotId { get; init; }
 
-    [JsonPropertyName("slotStartUtc")]
-    public required DateTimeOffset SlotStartUtc { get; init; }
+        [JsonPropertyName("slotStartUtc")]
+        public required DateTimeOffset SlotStartUtc { get; init; }
 
-    [JsonPropertyName("slotStartUk")]
-    public required DateTimeOffset SlotStartUk { get; init; }
+        [JsonPropertyName("slotStartUk")]
+        public required DateTimeOffset SlotStartUk { get; init; }
+    }
 }

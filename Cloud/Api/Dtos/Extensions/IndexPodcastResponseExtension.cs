@@ -19,9 +19,10 @@ public static class IndexPodcastResponseExtension
         };
     }
 
-    private static IndexedEpisode ToDto(this RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode)
+    private static IndexPodcastResponse.IndexedEpisode ToDto(
+        this RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode)
     {
-        return new IndexedEpisode
+        return new IndexPodcastResponse.IndexedEpisode
         {
             EpisodeId = indexedEpisode.Episode.Id,
             PodcastId = indexedEpisode.Episode.PodcastId,

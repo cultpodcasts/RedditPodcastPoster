@@ -20,7 +20,7 @@ public static class DiscoveryScheduleResponseBuilder
             TimeZoneId = config.TimeZoneId,
             Enabled = config.Enabled,
             IsDefault = isDefault,
-            NextRuns = next.Select(s => new DiscoveryScheduleNextRun
+            NextRuns = next.Select(s => new DiscoveryScheduleResponse.NextRun
             {
                 SlotId = s.SlotId,
                 SlotStartUtc = s.SlotStartUtc,

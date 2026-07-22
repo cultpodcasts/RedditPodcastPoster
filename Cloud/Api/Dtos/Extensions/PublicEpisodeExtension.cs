@@ -2,11 +2,11 @@ namespace Api.Dtos.Extensions;
 
 public static class PublicEpisodeExtension
 {
-    public static PublicEpisode ToDto(
+    public static PublicEpisodeDto ToDto(
         this RedditPodcastPoster.Models.Episodes.Episode episode,
         RedditPodcastPoster.Models.Podcasts.Podcast podcast)
     {
-        return new PublicEpisode
+        return new PublicEpisodeDto
         {
             PodcastName = podcast.Name,
             Id = episode.Id,

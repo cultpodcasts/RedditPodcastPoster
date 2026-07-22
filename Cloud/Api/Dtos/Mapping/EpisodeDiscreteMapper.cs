@@ -17,12 +17,12 @@ public class EpisodeDiscreteMapper(
     IPersonService personService,
     ICachedSubjectProvider subjectsProvider)
 {
-    public async Task<IReadOnlyList<DiscreteEpisode>> ToDiscreteEpisodes(
+    public async Task<IReadOnlyList<DiscreteEpisodeDto>> ToDiscreteEpisodes(
         IEnumerable<EpisodePodcastPair> pairs,
         CancellationToken cancellationToken)
     {
         var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-        var episodes = new List<DiscreteEpisode>();
+        var episodes = new List<DiscreteEpisodeDto>();
         foreach (var pair in pairs)
         {
             episodes.Add(await ToDiscreteEpisode(pair.Episode, pair.Podcast, subjects));
@@ -31,7 +31,7 @@ public class EpisodeDiscreteMapper(
         return episodes;
     }
 
-    public async Task<DiscreteEpisode> ToDiscreteEpisode(
+    public async Task<DiscreteEpisodeDto> ToDiscreteEpisode(
         DomainEpisode episode,
         DomainPodcast podcast,
         IEnumerable<DomainSubject> subjects,
@@ -50,7 +50,7 @@ public class EpisodeDiscreteMapper(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        var discreteEpisode = new DiscreteEpisode
+        var discreteEpisode = new DiscreteEpisodeDto
         {
             Id = episode.Id,
             PodcastName = podcast.Name,

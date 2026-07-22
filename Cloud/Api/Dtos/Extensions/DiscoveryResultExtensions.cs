@@ -10,7 +10,7 @@ public static class DiscoveryResultExtensions
     {
         var podcastsLookup = data.Podcasts.ToDictionary(
             kv => kv.Key,
-            kv => new DiscoveryPodcast
+            kv => new DiscoveryResponseItem.MatchingPodcast
             {
                 Name = kv.Value.Name,
                 IsVisible = kv.Value.IsVisible,
@@ -30,7 +30,7 @@ public static class DiscoveryResultExtensions
 
     public static DiscoveryResponseItem ToDiscoveryResponseItem(
         this DiscoveryResult item,
-        IDictionary<Guid, DiscoveryPodcast> podcasts)
+        IDictionary<Guid, DiscoveryResponseItem.MatchingPodcast> podcasts)
     {
         var result = new DiscoveryResponseItem();
         result.Urls = item.Urls;
@@ -59,7 +59,7 @@ public static class DiscoveryResultExtensions
         result.Subjects = item.Subjects;
         result.Sources = item.Sources
             .Select(x =>
-                x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoverService>(true))
+                x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoveryResponseItem.DiscoverService>(true))
             .ToArray();
         result.AcceptProbability = item.AcceptProbability;
         result.AutoHidden = item.AutoHidden;
