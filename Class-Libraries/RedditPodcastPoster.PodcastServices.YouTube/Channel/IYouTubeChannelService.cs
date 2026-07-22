@@ -1,10 +1,9 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+﻿using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Channel;
 
-public interface IYouTubeChannelService : IFlushable
+public interface IYouTubeChannelService
 {
     Task<Google.Apis.YouTube.v3.Data.Channel?> GetChannel(
         YouTubeChannelId channelId,

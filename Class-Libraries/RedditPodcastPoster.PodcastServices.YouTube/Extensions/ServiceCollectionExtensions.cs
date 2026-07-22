@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
@@ -33,6 +34,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<IYouTubeChannelService>())
             .AddScoped<ITolerantYouTubeChannelService, TolerantYouTubeChannelService>()
             .AddScoped<IYouTubeSearchResultFinder, YouTubeSearchResultFinder>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
@@ -41,6 +44,8 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IYouTubeThumbnailResolver, YouTubeThumbnailResolver>()
             .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()
             .AddScoped<IYouTubeChannelVideosService, YouTubeChannelVideosService>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<IYouTubeChannelVideosService>())
             .AddScoped<IYouTubeServiceFactory, YouTubeServiceFactory>()
             .AddScoped<IYouTubeApiKeyStrategy, YouTubeApiKeyStrategy>()
             .AddSingleton<IYouTubeQuotaUsageTracker, YouTubeQuotaUsageTracker>()
@@ -48,8 +53,12 @@ public static class ServiceCollectionExtensions
             .AddScoped(s => s.GetService<IYouTubeServiceFactory>()!.Create(usage))
             .AddScoped<ITolerantYouTubeChannelVideoSnippetsService, TolerantYouTubeChannelVideoSnippetsService>()
             .AddScoped<ICachedTolerantYouTubeChannelVideoSnippetsService, CachedTolerantYouTubeChannelVideoSnippetsService>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedTolerantYouTubeChannelVideoSnippetsService>())
             .AddScoped<ITolerantYouTubePlaylistService, TolerantYouTubePlaylistService>()
             .AddScoped<ICachedTolerantYouTubePlaylistService, CachedTolerantYouTubePlaylistService>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedTolerantYouTubePlaylistService>())
             .AddScoped<IPlaylistItemFinder, PlaylistItemFinder>()
             .AddSingleton<IYouTubeChannelVideoRetrievalPolicy, YouTubeChannelVideoRetrievalPolicy>()
             .BindConfiguration<YouTubeSettings>("youtube")

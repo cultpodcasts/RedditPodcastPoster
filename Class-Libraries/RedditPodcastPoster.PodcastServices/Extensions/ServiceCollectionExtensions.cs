@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
@@ -26,7 +26,7 @@ public static class ServiceCollectionExtensions
             return services
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
-                .AddScoped<IFlushable, CacheFlusher>()
+                .AddScoped<IPodcastPassApiCache, PodcastPassApiCache>()
                 .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
                 .AddScoped<IPodcastUpdater, PodcastUpdater>()
                 .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()

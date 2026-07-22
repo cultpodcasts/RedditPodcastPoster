@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Apple.Clients;
 using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Apple.Handlers;
@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
             .AddScoped<IApplePodcastService, ApplePodcastService>()
             .AddScoped<IAppleEpisodeProvider, AppleEpisodeProvider>()
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedApplePodcastService>())
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
             .AddSingleton<IApplePodcastHttpClientFactory, ApplePodcastHttpClientFactory>()
             .AddSingleton<IAsyncInstance<HttpClient>>(x => 

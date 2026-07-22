@@ -1,10 +1,9 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Spotify.Models;
+﻿using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Providers;
 
-public interface ISpotifyPodcastEpisodesProvider : IFlushable
+public interface ISpotifyPodcastEpisodesProvider
 {
     public Task<PodcastEpisodesResult> GetAllEpisodes(
         FindSpotifyEpisodeRequest request,

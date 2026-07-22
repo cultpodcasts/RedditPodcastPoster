@@ -1,10 +1,9 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Apple.Models;
+﻿using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Providers;
 
-public interface ICachedApplePodcastService : IFlushable
+public interface ICachedApplePodcastService
 {
     Task<AppleEpisode?> SingleUseGetEpisode(ApplePodcastId podcastId, long episodeId,
         IndexingContext indexingContext);

@@ -1,10 +1,9 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.YouTube.Models;
+﻿using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
-public interface ICachedTolerantYouTubePlaylistService : IFlushable
+public interface ICachedTolerantYouTubePlaylistService
 {
     Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId,
