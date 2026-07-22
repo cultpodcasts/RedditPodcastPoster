@@ -146,10 +146,6 @@ public class AppleEpisodeResolverTests
 
     private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
     {
-        public void Flush()
-        {
-        }
-
         public Task<AppleEpisode?> SingleUseGetEpisode(
             ApplePodcastId podcastId,
             long episodeId,

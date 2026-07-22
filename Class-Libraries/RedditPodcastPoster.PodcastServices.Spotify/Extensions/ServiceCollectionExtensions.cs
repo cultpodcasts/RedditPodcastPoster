@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Configuration;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
@@ -42,6 +42,8 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ISpotifyPodcastEnricher, SpotifyPodcastEnricher>()
                 .AddScoped<ISpotifyEpisodeResolver, SpotifyEpisodeResolver>()
                 .AddScoped<ISpotifyPodcastEpisodesProvider, SpotifyPodcastEpisodesProvider>()
+                .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                    (IPodcastPassApiCacheSource)sp.GetRequiredService<ISpotifyPodcastEpisodesProvider>())
                 .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
                 .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
                 .AddScoped<ISpotifySearchResultFinder, SpotifySearchResultFinder>()

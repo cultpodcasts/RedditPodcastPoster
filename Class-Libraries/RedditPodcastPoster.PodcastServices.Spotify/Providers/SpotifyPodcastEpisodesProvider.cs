@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
@@ -16,11 +16,11 @@ public class SpotifyPodcastEpisodesProvider(
     ISpotifyQueryPaginator spotifyQueryPaginator,
     ISpotifySearchResultFinder searchResultFinder,
     ILogger<SpotifyPodcastEpisodesProvider> logger
-) : ISpotifyPodcastEpisodesProvider
+) : ISpotifyPodcastEpisodesProvider, IPodcastPassApiCacheSource
 {
     private readonly ConcurrentDictionary<string, PodcastEpisodesResult> _cache = new();
 
-    public void Flush()
+    public void ClearPassCache()
     {
         _cache.Clear();
     }

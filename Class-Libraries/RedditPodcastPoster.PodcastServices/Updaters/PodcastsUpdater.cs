@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
@@ -14,7 +14,7 @@ public class PodcastsUpdater(
     IIndexablePodcastIdProvider indexablePodcastIdProvider,
     IPodcastUpdater podcastUpdater,
     IPodcastRepository podcastRepository,
-    IFlushable flushableCaches,
+    IPodcastPassApiCache passApiCache,
     ILogger<PodcastsUpdater> logger)
     : IPodcastsUpdater
 {
@@ -103,7 +103,7 @@ public class PodcastsUpdater(
                 }
                 finally
                 {
-                    flushableCaches.Flush();
+                    passApiCache.Clear();
                 }
             }
             else if (dependsOnYouTubeForDiscovery)

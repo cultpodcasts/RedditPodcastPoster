@@ -3,7 +3,7 @@ using System.Net;
 using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -16,7 +16,7 @@ public class YouTubeChannelService(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeChannelService> logger)
-    : IYouTubeChannelService
+    : IYouTubeChannelService, IPodcastPassApiCacheSource
 {
     private const string Snippets = "-snippets";
     private const string ContentOwner = "-contentOwner";
@@ -24,7 +24,7 @@ public class YouTubeChannelService(
 
     private readonly ConcurrentDictionary<string, Google.Apis.YouTube.v3.Data.Channel> _cache = new();
 
-    public void Flush()
+    public void ClearPassCache()
     {
         _cache.Clear();
     }

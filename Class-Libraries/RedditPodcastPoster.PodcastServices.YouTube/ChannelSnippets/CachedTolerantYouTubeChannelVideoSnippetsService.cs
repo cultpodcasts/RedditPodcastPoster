@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -10,15 +10,15 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 public class CachedTolerantYouTubeChannelVideoSnippetsService(
     ITolerantYouTubeChannelVideoSnippetsService tolerantYouTubeChannelVideoSnippetsService,
     ILogger<CachedTolerantYouTubeChannelVideoSnippetsService> logger)
-    : ICachedTolerantYouTubeChannelVideoSnippetsService
+    : ICachedTolerantYouTubeChannelVideoSnippetsService, IPodcastPassApiCacheSource
 {
-    private static readonly ConcurrentDictionary<string, IList<SearchResult>> Cache = new();
+    private readonly ConcurrentDictionary<string, IList<SearchResult>> _cache = new();
 
     public async Task<IList<SearchResult>?> GetLatestChannelVideoSnippets(
         YouTubeChannelId channelId,
         IndexingContext indexingContext)
     {
-        if (Cache.TryGetValue(channelId.ChannelId, out var snippets))
+        if (_cache.TryGetValue(channelId.ChannelId, out var snippets))
         {
             return snippets;
         }
@@ -37,14 +37,14 @@ public class CachedTolerantYouTubeChannelVideoSnippetsService(
 
         if (result != null)
         {
-            Cache[channelId.ChannelId] = result;
+            _cache[channelId.ChannelId] = result;
         }
 
         return result;
     }
 
-    public void Flush()
+    public void ClearPassCache()
     {
-        Cache.Clear();
+        _cache.Clear();
     }
 }

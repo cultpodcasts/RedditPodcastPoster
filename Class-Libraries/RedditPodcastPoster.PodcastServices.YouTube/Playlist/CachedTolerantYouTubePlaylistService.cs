@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -10,9 +10,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 public class CachedTolerantYouTubePlaylistService(
     ITolerantYouTubePlaylistService tolerantYouTubePlaylistService,
     ILogger<CachedTolerantYouTubePlaylistService> logger
-) : ICachedTolerantYouTubePlaylistService
+) : ICachedTolerantYouTubePlaylistService, IPodcastPassApiCacheSource
 {
-    private static readonly ConcurrentDictionary<string, IList<PlaylistItem>> Cache = new();
+    private readonly ConcurrentDictionary<string, IList<PlaylistItem>> _cache = new();
 
 
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
@@ -21,7 +21,7 @@ public class CachedTolerantYouTubePlaylistService(
         bool withContentDetails = false,
         bool expensivePlaylist = false)
     {
-        if (Cache.TryGetValue(playlistId.PlaylistId + withContentDetails, out var playlistItems))
+        if (_cache.TryGetValue(playlistId.PlaylistId + withContentDetails, out var playlistItems))
         {
             return new GetPlaylistVideoSnippetsResponse(playlistItems);
         }
@@ -39,14 +39,14 @@ public class CachedTolerantYouTubePlaylistService(
 
         if (result?.Result != null)
         {
-            Cache[playlistId.PlaylistId + withContentDetails] = result.Result;
+            _cache[playlistId.PlaylistId + withContentDetails] = result.Result;
         }
 
         return result ?? new GetPlaylistVideoSnippetsResponse(null);
     }
 
-    public void Flush()
+    public void ClearPassCache()
     {
-        Cache.Clear();
+        _cache.Clear();
     }
 }

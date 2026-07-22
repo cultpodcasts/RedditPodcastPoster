@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -14,11 +14,11 @@ public class YouTubeChannelVideosService(
     ITolerantYouTubeChannelService youTubeChannelService,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     ILogger<YouTubeChannelVideosService> logger
-) : IYouTubeChannelVideosService
+) : IYouTubeChannelVideosService, IPodcastPassApiCacheSource
 {
     private readonly ConcurrentDictionary<string, Models.ChannelVideos> _cache = new();
 
-    public void Flush()
+    public void ClearPassCache()
     {
         _cache.Clear();
     }
