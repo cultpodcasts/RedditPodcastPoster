@@ -1,11 +1,7 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Terms;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Terms;
 
@@ -14,27 +10,26 @@ public class PostTermsHandler(
     ILogger<PostTermsHandler> logger) : IPostTermsHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         TermSubmitRequest termSubmitRequest,
-        ClientPrincipal? clientPrincipal,
         CancellationToken c)
     {
         var result = await termsSubmitService.SubmitAsync(termSubmitRequest, c);
         return result.Status switch
         {
             TermsSubmitStatus.Ok =>
-                await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { }, c),
+                await ctx.Ok(new { }, c),
             TermsSubmitStatus.Conflict =>
-                req.CreateResponse(HttpStatusCode.Conflict),
+                ctx.Conflict(),
             TermsSubmitStatus.Failed =>
-                req.CreateResponse(HttpStatusCode.InternalServerError),
-            _ => LogAndFail(req)
+                ctx.InternalError(),
+            _ => LogAndFail(ctx)
         };
     }
 
-    private HttpResponseData LogAndFail(HttpRequestData req)
+    private HttpResponseData LogAndFail(IHandlerContext ctx)
     {
         logger.LogError("Terms submit failed with unexpected status.");
-        return req.CreateResponse(HttpStatusCode.InternalServerError);
+        return ctx.InternalError();
     }
 }

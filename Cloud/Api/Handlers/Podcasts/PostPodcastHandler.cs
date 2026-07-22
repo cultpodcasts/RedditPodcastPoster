@@ -1,11 +1,8 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
 
@@ -14,9 +11,8 @@ public class PostPodcastHandler(
     ILogger<PostPodcastHandler> logger) : IPostPodcastHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         PodcastChangeRequestWrapper podcastChangeRequestWrapper,
-        ClientPrincipal? _,
         CancellationToken c)
     {
         var result = await podcastUpdateService.UpdateAsync(podcastChangeRequestWrapper, c);
@@ -24,27 +20,22 @@ public class PostPodcastHandler(
         return result.Status switch
         {
             PodcastUpdateStatus.Accepted when result.FailureIndexingEpisodes =>
-                await req.CreateResponse(HttpStatusCode.Accepted)
-                    .WithJsonBody(new { failureIndexingEpisodes = true }, c),
+                await ctx.Accepted(new { failureIndexingEpisodes = true }, c),
             PodcastUpdateStatus.Accepted when result.FailureDeletingFromIndex =>
-                await req.CreateResponse(HttpStatusCode.Accepted)
-                    .WithJsonBody(new { failureDeletingFromIndex = true }, c),
+                await ctx.Accepted(new { failureDeletingFromIndex = true }, c),
             PodcastUpdateStatus.Accepted =>
-                req.CreateResponse(HttpStatusCode.Accepted),
+                ctx.Accepted(),
             PodcastUpdateStatus.NotFound =>
-                await req.CreateResponse(HttpStatusCode.NotFound)
-                    .WithJsonBody(new { id = result.PodcastId }, c),
+                await ctx.NotFound(new { id = result.PodcastId }, c),
             PodcastUpdateStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update podcast"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to update podcast"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("Podcast update failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to update podcast"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to update podcast"), c);
     }
 }

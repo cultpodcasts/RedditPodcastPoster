@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Api.Handlers;
 using Api.Handlers.People;
 using Api.Handlers.Podcasts;
 using Api.Handlers.Subjects;
@@ -49,7 +50,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "Ada", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "Ada", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -64,7 +65,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "missing", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "missing", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -79,7 +80,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "Ada", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "Ada", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
@@ -99,7 +100,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastGetRequest(podcast.Id), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(podcast.Id), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -114,7 +115,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastGetRequest(Guid.NewGuid()), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(Guid.NewGuid()), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var body = await ReadJsonBodyAsync(result);
@@ -132,7 +133,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastGetRequest("show", null), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest("show", null), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var body = await ReadJsonBodyAsync(result);
@@ -149,7 +150,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastGetRequest(Guid.NewGuid()), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(Guid.NewGuid()), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
@@ -169,7 +170,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "News", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "News", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -184,7 +185,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "missing", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "missing", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -199,7 +200,7 @@ public class HandlerStatusMatrixTests
         var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "News", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "News", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);

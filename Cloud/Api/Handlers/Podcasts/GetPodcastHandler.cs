@@ -1,12 +1,9 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
 
@@ -15,9 +12,8 @@ public class GetPodcastHandler(
     ILogger<GetPodcastHandler> logger) : IGetPodcastHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         PodcastGetRequest podcastGetRequest,
-        ClientPrincipal? _,
         CancellationToken c)
     {
         var result = await podcastGetService.GetAsync(podcastGetRequest, c);
@@ -25,27 +21,22 @@ public class GetPodcastHandler(
         return result.Status switch
         {
             PodcastGetStatus.Found =>
-                await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(result.Podcast!.ToDto(), c),
+                await ctx.Ok(result.Podcast!.ToDto(), c),
             PodcastGetStatus.NotFound =>
-                await req.CreateResponse(HttpStatusCode.NotFound)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
+                await ctx.NotFound(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
             PodcastGetStatus.Conflict when result.AmbiguousPodcasts != null =>
-                await req.CreateResponse(HttpStatusCode.Conflict)
-                    .WithJsonBody(result.AmbiguousPodcasts, c),
+                await ctx.Conflict(result.AmbiguousPodcasts, c),
             PodcastGetStatus.Conflict =>
-                await req.CreateResponse(HttpStatusCode.Conflict)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
+                await ctx.Conflict(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
             PodcastGetStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve podcast"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("Podcast get failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve podcast"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve podcast"), c);
     }
 }

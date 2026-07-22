@@ -1,12 +1,9 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.People;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.People;
 
@@ -14,26 +11,23 @@ public class GetAllPeopleHandler(
     IPersonGetAllService personGetAllService,
     ILogger<GetAllPeopleHandler> logger) : IGetAllPeopleHandler
 {
-    public async Task<HttpResponseData> Handle(HttpRequestData req, ClientPrincipal? _, CancellationToken c)
+    public async Task<HttpResponseData> Handle(IHandlerContext ctx, CancellationToken c)
     {
         var result = await personGetAllService.GetAllAsync(c);
 
         return result.Status switch
         {
             PersonGetAllStatus.Ok =>
-                await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(result.People!.Select(x => x.ToDto()).ToList(), c),
+                await ctx.Ok(result.People!.Select(x => x.ToDto()).ToList(), c),
             PersonGetAllStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve people"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve people"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("People get-all failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to retrieve people"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve people"), c);
     }
 }

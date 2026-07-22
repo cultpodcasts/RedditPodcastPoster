@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Api.Configuration;
 using Api.Factories;
+using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;
@@ -39,12 +40,11 @@ public class PublicControllerAuthTests
 
         var handler = new Mock<IGetPublicEpisodeHandler>();
         handler.Setup(h => h.Handle(
-                It.IsAny<HttpRequestData>(),
+                It.IsAny<IHandlerContext>(),
                 It.IsAny<PodcastEpisodeRequestWrapper>(),
-                It.IsAny<ClientPrincipal?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((HttpRequestData r, PodcastEpisodeRequestWrapper _, ClientPrincipal? _, CancellationToken _) =>
-                r.CreateResponse(HttpStatusCode.OK));
+            .ReturnsAsync((IHandlerContext ctx, PodcastEpisodeRequestWrapper _, CancellationToken _) =>
+                ctx.Ok());
 
         var controller = new global::Api.PublicController(
             handler.Object,
@@ -58,9 +58,8 @@ public class PublicControllerAuthTests
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         handler.Verify(h => h.Handle(
-            It.IsAny<HttpRequestData>(),
+            It.IsAny<IHandlerContext>(),
             It.IsAny<PodcastEpisodeRequestWrapper>(),
-            It.IsAny<ClientPrincipal?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

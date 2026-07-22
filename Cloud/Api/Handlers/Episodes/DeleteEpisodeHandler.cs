@@ -1,10 +1,7 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Episodes;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Episodes;
 
@@ -13,9 +10,8 @@ public class DeleteEpisodeHandler(
     ILogger<DeleteEpisodeHandler> logger) : IDeleteEpisodeHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper,
-        ClientPrincipal? cp,
         CancellationToken c)
     {
         var result = await episodeDeleteService.DeleteAsync(podcastEpisodeRequestWrapper, c);
@@ -23,26 +19,26 @@ public class DeleteEpisodeHandler(
         return result.Status switch
         {
             EpisodeDeleteStatus.Deleted =>
-                req.CreateResponse(HttpStatusCode.OK),
+                ctx.Ok(),
             EpisodeDeleteStatus.PodcastConflict =>
-                req.CreateResponse(HttpStatusCode.Conflict),
+                ctx.Conflict(),
             EpisodeDeleteStatus.NotFound =>
-                req.CreateResponse(HttpStatusCode.NotFound),
+                ctx.NotFound(),
             EpisodeDeleteStatus.AlreadySocial =>
-                await req.CreateResponse(HttpStatusCode.BadRequest).WithJsonBody(
+                await ctx.BadRequest(
                     new
                     {
                         message = "Cannot remove episode.",
                         posted = result.Posted,
                         tweeted = result.Tweeted
                     }, c),
-            _ => LogAndFail(req)
+            _ => LogAndFail(ctx)
         };
     }
 
-    private HttpResponseData LogAndFail(HttpRequestData req)
+    private HttpResponseData LogAndFail(IHandlerContext ctx)
     {
         logger.LogError("Episode delete failed with unexpected status.");
-        return req.CreateResponse(HttpStatusCode.InternalServerError);
+        return ctx.InternalError();
     }
 }

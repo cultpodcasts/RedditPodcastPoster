@@ -1,14 +1,12 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Api.Models;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
 
 public interface IGetPodcastHandler
 {
     Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         PodcastGetRequest podcastGetRequest,
-        ClientPrincipal? clientPrincipal,
         CancellationToken c);
 }

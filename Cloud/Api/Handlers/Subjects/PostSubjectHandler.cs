@@ -1,11 +1,8 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Subjects;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Subjects;
 
@@ -14,9 +11,8 @@ public class PostSubjectHandler(
     ILogger<PostSubjectHandler> logger) : IPostSubjectHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         SubjectChangeRequestWrapper subjectChangeRequestWrapper,
-        ClientPrincipal? cp,
         CancellationToken c)
     {
         var result = await subjectUpdateService.UpdateAsync(subjectChangeRequestWrapper, c);
@@ -24,20 +20,18 @@ public class PostSubjectHandler(
         return result.Status switch
         {
             SubjectUpdateStatus.Accepted =>
-                req.CreateResponse(HttpStatusCode.Accepted),
+                ctx.Accepted(),
             SubjectUpdateStatus.NotFound =>
-                req.CreateResponse(HttpStatusCode.NotFound),
+                ctx.NotFound(),
             SubjectUpdateStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to update subject"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to update subject"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("Subject update failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to update subject"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to update subject"), c);
     }
 }

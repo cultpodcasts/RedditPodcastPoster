@@ -1,12 +1,9 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
 
@@ -15,9 +12,8 @@ public class RenamePodcastHandler(
     ILogger<RenamePodcastHandler> logger) : IRenamePodcastHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         PodcastRenameCommand change,
-        ClientPrincipal? _,
         CancellationToken c)
     {
         var result = await podcastRenameService.RenameAsync(change, c);
@@ -25,29 +21,26 @@ public class RenamePodcastHandler(
         return result.Status switch
         {
             PodcastRenameStatus.Ok =>
-                await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(result.SearchIndexer!.ToPodcastRenameResponse(), c),
+                await ctx.Ok(result.SearchIndexer!.ToPodcastRenameResponse(), c),
             PodcastRenameStatus.Conflict =>
-                req.CreateResponse(HttpStatusCode.Conflict),
+                ctx.Conflict(),
             PodcastRenameStatus.NotFound =>
-                req.CreateResponse(HttpStatusCode.NotFound),
+                ctx.NotFound(),
             PodcastRenameStatus.BadRequest =>
-                req.CreateResponse(HttpStatusCode.BadRequest),
+                ctx.BadRequest(),
             PodcastRenameStatus.InvalidName =>
-                req.CreateResponse(HttpStatusCode.InternalServerError),
+                ctx.InternalError(),
             PodcastRenameStatus.TooMany =>
-                req.CreateResponse(HttpStatusCode.InternalServerError),
+                ctx.InternalError(),
             PodcastRenameStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to rename podcast"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to rename podcast"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("Podcast rename failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to rename podcast"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to rename podcast"), c);
     }
 }

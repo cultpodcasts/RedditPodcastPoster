@@ -13,12 +13,13 @@ Azure Functions HTTP API for Cult Podcasts curation and related operations (`api
 | Principle | Detail |
 | --------- | ------ |
 | **Controller wires HTTP only** | Route, auth roles, deserialize body/query, call `HandleRequest` → handler. No business logic, no Cosmos, no `ToDto`. |
-| **Handler maps outcomes to HTTP** | Calls one service method, switches on `*Status` / `*Result`, returns status codes and JSON. Calls `.ToDto()` for responses. |
+| **Handler maps outcomes to HTTP** | Receives `IHandlerContext` + model + `CancellationToken`. Calls one service method, switches on `*Status` / `*Result`, returns responses via `ctx.Ok` / `ctx.NotFound` / … and `.ToDto()` for bodies. Does not take `HttpRequestData` or `ClientPrincipal`. |
 | **Service owns use-case logic** | Returns `Api.Models` result/outcome types (and domain entities). **Must not** reference `Api.Dtos`, construct response DTOs, or touch `HttpResponseData`. |
 | **Models = internal + request shapes** | `*ChangeRequest`, `*Command`, wrappers, `*Result` / `*Outcome` / status enums. Mutation JSON bodies bind to Models (same pattern as `EpisodeChangeRequest`). |
 | **Dtos = response (and rare wire) JSON** | `*Dto`, response envelopes, `ApiErrorResponse`. Mapping lives in `Dtos/Extensions` (and `Dtos/Mapping` for non-trivial maps). |
 | **Folder = namespace** | `Handlers/People/GetPersonHandler.cs` → `Api.Handlers.People`. Same for `Services/{Area}/`. See ADR 0001. |
 | **One verb, one handler, one service** | Prefer `GetPersonHandler` + `IPersonGetService` over multi-verb god types. |
+| **IHandlerContext at the HTTP edge** | `BaseHttpFunction` builds concrete `HandlerContext` from `HttpRequestData` + principal after auth. Handlers depend only on `IHandlerContext` (`Subject`, `Query`, status helpers). Cancellation tokens stay as separate `Handle` parameters — not on the context. |
 
 ---
 
@@ -29,34 +30,34 @@ flowchart LR
     Client[Client / Cloudflare worker]
     Ctrl[Controller]
     Auth[BaseHttpFunction / MemoryProbed<br/>roles + ClientPrincipal]
+    Ctx[HandlerContext as IHandlerContext]
     H[Handler]
     S[Service]
     Dom[(Domain repos / libs)]
     M[Models.*Result]
     D[Dtos via ToDto]
 
-    Client --> Ctrl --> Auth --> H --> S --> Dom
+    Client --> Ctrl --> Auth --> Ctx --> H --> S --> Dom
     S --> M --> H
     H --> D --> Client
 ```
 
 1. **Controller** — `[Function]`, route, `[FromBody]` Models request (when mutating), required roles (`curate`, `admin`, `publish`, …).
-2. **Auth base** — `HandleRequest` / `HandlePublicRequest` enforce principal and roles; memory probe wraps execution.
-3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → `HttpStatusCode` + optional body.
+2. **Auth base** — `HandleRequest` / `HandlePublicRequest` enforce principal and roles; memory probe wraps execution; constructs `HandlerContext` and passes `IHandlerContext` to the handler.
+3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → `ctx.Ok` / `ctx.NotFound` / `ctx.InternalError(...)`.
 4. **Service** — load/apply/persist via class libraries; return typed result (never DTOs).
-5. **Handler edge** — `entity.ToDto()` or outcome `.ToDto()`; failures use `ApiErrorResponse.Failure(...)`.
+5. **Handler edge** — `entity.ToDto()` or outcome `.ToDto()` into `ctx.Ok` / `ctx.Accepted`; failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
 
 ### Exemplar: GET person
 
 ```
 PersonController.Get
-  → GetPersonHandler.Handle(personName)
+  → GetPersonHandler.Handle(ctx, personName, ct)
       → IPersonGetService.GetAsync → PersonGetResult
-      → Ok      → 200 + person.ToDto()     // PersonDto
-      → NotFound → 404
-      → Failed  → 500 + ApiErrorResponse
+      → Ok      → await ctx.Ok(person.ToDto(), ct)     // PersonDto
+      → NotFound → ctx.NotFound()
+      → Failed  → await ctx.InternalError(ApiErrorResponse.Failure(...), ct)
 ```
-
 ### Exemplar: PATCH/POST person
 
 ```
@@ -83,7 +84,9 @@ Cloud/Api/
 ├── Factories/              ClientPrincipal factory, etc.
 ├── Resolvers/              e.g. PodcastEpisodeResolver
 ├── Extensions/             HTTP helpers (WithJsonBody, …) — not ToDto
-├── Handlers/{Area}/        Api.Handlers.{Area} — status → HTTP + ToDto
+├── Handlers/
+│   ├── IHandlerContext.cs / HandlerContext.cs   HTTP edge for handlers (Subject, Query, status helpers)
+│   └── {Area}/         Api.Handlers.{Area} — status → HTTP + ToDto
 ├── Services/{Area}/        Api.Services.{Area} — use cases, appliers
 ├── Models/                 Requests, commands, results, outcomes
 ├── Dtos/                   Response JSON types
@@ -140,8 +143,10 @@ Cloud/Api/
 ### Handlers
 
 - [ ] Depend on `I{Area}{Verb}Service` (or equivalent), not repositories directly (unless a rare pure map with no I/O).
-- [ ] Exhaustive `switch` on status; unexpected → log + `ApiErrorResponse`.
-- [ ] Response mapping: `using Api.Dtos.Extensions;` and `.ToDto()`.
+- [ ] Signature: `Handle(IHandlerContext ctx, …, CancellationToken ct)` — never `HttpRequestData` / `ClientPrincipal`.
+- [ ] Exhaustive `switch` on status; unexpected → log + `ctx.InternalError(ApiErrorResponse.Failure(...), ct)`.
+- [ ] Response mapping: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` / `ctx.Accepted`.
+- [ ] Use `ctx.Subject` / `ctx.Query(...)` only when needed (most handlers ignore subject; auth already ran).
 - [ ] Keep orchestration light; if you load subjects and map many episodes, prefer pushing that into a service.
 
 ### Services / appliers
@@ -212,6 +217,8 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | ----- | ------ |
 | Fat multi-verb handler | One handler + one service per verb |
 | `HttpResponseData` in `Services/` | Return `*Result`; handler maps HTTP |
+| `HttpRequestData` / `ClientPrincipal` on handlers | `IHandlerContext` (+ separate `CancellationToken`) |
+| `CancellationToken` on `IHandlerContext` | Keep CT as a `Handle` parameter; pass into `ctx.Ok(body, ct)` |
 | `new PersonDto { ... }` inside a service | Return domain entity; handler `.ToDto()` |
 | `SubmitUrlResponse.Failure` for unrelated APIs | `ApiErrorResponse.Failure` |
 | `Api.Dtos.Person` / bare `Person` as both GET and PATCH type | `PersonDto` + `PersonChangeRequest` |
@@ -227,6 +234,7 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | ---- | ---- |
 | Composition | `Ioc.cs` |
 | Auth base | `BaseHttpFunction.cs`, `MemoryProbedHttpBaseClass.cs` |
+| Handler HTTP edge | `Handlers/IHandlerContext.cs`, `Handlers/HandlerContext.cs` |
 | Person GET exemplar | `Handlers/People/GetPersonHandler.cs`, `Services/People/PersonGetService.cs` |
 | Person mutate | `Models/PersonChangeRequest.cs`, `Services/People/PersonChangeApplier.cs` |
 | Episode mutate | `Models/EpisodeChangeRequest.cs`, `Services/Episodes/EpisodeChangeApplier.cs` |

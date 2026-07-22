@@ -1,12 +1,9 @@
-using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
-using Api.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
-using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers.Podcasts;
 
@@ -15,9 +12,8 @@ public class IndexPodcastHandler(
     ILogger<IndexPodcastHandler> logger) : IIndexPodcastHandler
 {
     public async Task<HttpResponseData> Handle(
-        HttpRequestData req,
+        IHandlerContext ctx,
         string podcastName,
-        ClientPrincipal? _,
         CancellationToken c)
     {
         var result = await podcastIndexService.IndexAsync(podcastName, c);
@@ -25,18 +21,14 @@ public class IndexPodcastHandler(
         return result.Status switch
         {
             PodcastIndexStatus.Ok =>
-                await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(ToResponse(result), c),
+                await ctx.Ok(ToResponse(result), c),
             PodcastIndexStatus.NotFound =>
-                await req.CreateResponse(HttpStatusCode.NotFound)
-                    .WithJsonBody(ToResponse(result), c),
+                await ctx.NotFound(ToResponse(result), c),
             PodcastIndexStatus.BadRequest =>
-                await req.CreateResponse(HttpStatusCode.BadRequest)
-                    .WithJsonBody(ToResponse(result), c),
+                await ctx.BadRequest(ToResponse(result), c),
             PodcastIndexStatus.Failed =>
-                await req.CreateResponse(HttpStatusCode.InternalServerError)
-                    .WithJsonBody(ApiErrorResponse.Failure("Unable to index podcast"), c),
-            _ => await LogAndFail(req, c)
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to index podcast"), c),
+            _ => await LogAndFail(ctx, c)
         };
     }
 
@@ -46,10 +38,9 @@ public class IndexPodcastHandler(
         return IndexPodcastResponse.ToDto(result.IndexResponse!, indexed);
     }
 
-    private async Task<HttpResponseData> LogAndFail(HttpRequestData req, CancellationToken c)
+    private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)
     {
         logger.LogError("Podcast index failed with unexpected status.");
-        return await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(ApiErrorResponse.Failure("Unable to index podcast"), c);
+        return await ctx.InternalError(ApiErrorResponse.Failure("Unable to index podcast"), c);
     }
 }

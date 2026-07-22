@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Api.Handlers;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;
@@ -42,7 +43,7 @@ public class ThinHandlerTests
         var handler = new GetPublicEpisodeHandler(service.Object, NullLogger<GetPublicEpisodeHandler>.Instance);
         var (req, response) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastEpisodeRequestWrapper(episode.Id), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastEpisodeRequestWrapper(episode.Id), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -57,7 +58,7 @@ public class ThinHandlerTests
         var handler = new GetPublicEpisodeHandler(service.Object, NullLogger<GetPublicEpisodeHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, new PodcastEpisodeRequestWrapper(Guid.NewGuid()), null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastEpisodeRequestWrapper(Guid.NewGuid()), CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -73,7 +74,7 @@ public class ThinHandlerTests
         var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "Ada", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "Ada", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -88,7 +89,7 @@ public class ThinHandlerTests
         var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(req.Object, "missing", null, CancellationToken.None);
+        var result = await handler.Handle(new HandlerContext(req.Object, null), "missing", CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

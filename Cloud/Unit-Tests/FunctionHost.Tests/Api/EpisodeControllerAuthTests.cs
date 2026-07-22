@@ -67,7 +67,7 @@ public class EpisodeControllerAuthTests
             HandleRequest(
                 req,
                 roles,
-                (r, _, _) => Task.FromResult(r.CreateResponse(HttpStatusCode.Accepted)),
+                (_, _) => Task.FromResult(req.CreateResponse(HttpStatusCode.Accepted)),
                 Unauthorised,
                 CancellationToken.None);
     }

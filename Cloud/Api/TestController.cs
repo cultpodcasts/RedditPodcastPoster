@@ -29,15 +29,14 @@ public class TestController(
         return await HandleRequest(
             req,
             ["*"],
-            async (r, cp, c) =>
+            async (ctx, c) =>
             {
-                var success = await req.CreateResponse(HttpStatusCode.OK)
-                    .WithJsonBody(new {message = "success"}, c);
+                var success = await ctx.Ok(new {message = "success"}, c);
                 return success;
             },
-            async (r, cp, c) =>
+            async (ctx, c) =>
             {
-                var failure = await req.CreateResponse(HttpStatusCode.Forbidden)
+                var failure = await ctx.Status(HttpStatusCode.Forbidden)
                     .WithJsonBody(new {message = "failure"}, c);
                 return failure;
             },
