@@ -3,12 +3,13 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.DiscoverySchedule;
 using Azure.Diagnostics;
 
-namespace Api;
+namespace Api.Controllers;
 
 public class DiscoveryScheduleController(
     IGetDiscoveryScheduleHandler getDiscoveryScheduleHandler,

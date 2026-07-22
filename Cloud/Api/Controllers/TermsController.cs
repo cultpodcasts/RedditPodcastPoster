@@ -3,34 +3,36 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
 using Api.Models;
 using Api.Factories;
-using Api.Handlers.PushSubscriptions;
+using Api.Handlers.Terms;
 using Azure.Diagnostics;
 
-namespace Api;
+namespace Api.Controllers;
 
-public class PushSubscriptionController(
-    ICreatePushSubscriptionHandler createPushSubscriptionHandler,
+public class TermsController(
+    IPostTermsHandler postTermsHandler,
     IClientPrincipalFactory clientPrincipalFactory,
-    ILogger<PushSubscriptionController> logger,
+    ILogger<TermsController> logger,
     IOptions<HostingOptions> hostingOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator)
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
-    [Function("PushSubscription")]
-    public Task<HttpResponseData> CreatePushSubscription(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "pushsubscription")]
+    private const string? Route = "terms";
+
+    [Function("TermPost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
-        [FromBody] PushSubscription pushSubscription,
         FunctionContext executionContext,
-        CancellationToken ct
-    ) =>
+        [FromBody] TermSubmitRequest termSubmitRequest,
+        CancellationToken ct) =>
         HandleRequest(
             req,
-            ["admin"],
-            pushSubscription,
-            createPushSubscriptionHandler.Handle,
+            ["curate"],
+            termSubmitRequest,
+            postTermsHandler.Handle,
             Unauthorised,
             ct);
 }

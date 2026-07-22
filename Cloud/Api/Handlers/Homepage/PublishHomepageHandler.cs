@@ -1,6 +1,7 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Homepage;
 
@@ -16,9 +17,9 @@ public class PublishHomepageHandler(
         return result.Status switch
         {
             HomepagePublishStatus.Ok =>
-                await ctx.Ok(PublishHomepageResponse.ToDto(result.Result!), c),
+                await ctx.Ok(result.Result!.ToDto(), c),
             HomepagePublishStatus.Failed when result.Result != null =>
-                await ctx.InternalError(PublishHomepageResponse.ToDto(result.Result), c),
+                await ctx.InternalError(result.Result.ToDto(), c),
             HomepagePublishStatus.Failed =>
                 ctx.InternalError(),
             _ => LogAndFail(ctx)

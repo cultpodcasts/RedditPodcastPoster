@@ -1,8 +1,10 @@
 using System.Text.RegularExpressions;
 using Api.Dtos;
 using Api.Dtos.Extensions;
+using Api.Models;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.People.Services;
+using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Text.Sanitisers;
 using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -12,8 +14,23 @@ namespace Api.Dtos.Mapping;
 
 public class EpisodeDiscreteMapper(
     ITextSanitiser textSanitiser,
-    IPersonService personService)
+    IPersonService personService,
+    ICachedSubjectProvider subjectsProvider)
 {
+    public async Task<IReadOnlyList<DiscreteEpisode>> ToDiscreteEpisodes(
+        IEnumerable<EpisodePodcastPair> pairs,
+        CancellationToken cancellationToken)
+    {
+        var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
+        var episodes = new List<DiscreteEpisode>();
+        foreach (var pair in pairs)
+        {
+            episodes.Add(await ToDiscreteEpisode(pair.Episode, pair.Podcast, subjects));
+        }
+
+        return episodes;
+    }
+
     public async Task<DiscreteEpisode> ToDiscreteEpisode(
         DomainEpisode episode,
         DomainPodcast podcast,

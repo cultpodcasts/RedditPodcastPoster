@@ -35,7 +35,7 @@ public class IndexPodcastHandler(
     private static IndexPodcastResponse ToResponse(PodcastIndexResult result)
     {
         var indexed = result.SearchIndexer?.ToDto() ?? SearchIndexerState.Unknown;
-        return IndexPodcastResponse.ToDto(result.IndexResponse!, indexed);
+        return result.IndexResponse!.ToDto(indexed);
     }
 
     private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)

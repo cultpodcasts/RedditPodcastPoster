@@ -4,13 +4,11 @@ using Api.Dtos;
 using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Services.Episodes;
-using RedditPodcastPoster.Subjects.Providers;
 
 namespace Api.Handlers.Episodes;
 
 public class GetOutgoingEpisodesHandler(
     IEpisodeOutgoingService episodeOutgoingService,
-    ICachedSubjectProvider subjectsProvider,
     EpisodeDiscreteMapper episodeDiscreteMapper,
     ILogger<GetOutgoingEpisodesHandler> logger) : IGetOutgoingEpisodesHandler
 {
@@ -18,32 +16,21 @@ public class GetOutgoingEpisodesHandler(
         IHandlerContext ctx,
         CancellationToken c)
     {
-        var query = OutgoingEpisodesQuery.Parse(
+        var result = await episodeOutgoingService.GetOutgoingAsync(
             ctx.Query("days"),
             ctx.Query("posted"),
             ctx.Query("tweeted"),
-            ctx.Query("blueskyPosted"));
+            ctx.Query("blueskyPosted"),
+            c);
 
-        var result = await episodeOutgoingService.GetOutgoingAsync(query, c);
-
-        if (result.Status == EpisodeOutgoingStatus.Failed)
+        return result.Status switch
         {
-            return await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve out-going episodes"), c);
-        }
-
-        if (result.Status != EpisodeOutgoingStatus.Ok)
-        {
-            return await LogAndFail(ctx, c);
-        }
-
-        var subjects = await subjectsProvider.GetAll().ToListAsync(c);
-        var episodes = new List<DiscreteEpisode>();
-        foreach (var pair in result.Episodes!)
-        {
-            episodes.Add(await episodeDiscreteMapper.ToDiscreteEpisode(pair.Episode, pair.Podcast, subjects));
-        }
-
-        return await ctx.Ok(episodes, c);
+            EpisodeOutgoingStatus.Ok =>
+                await ctx.Ok(await episodeDiscreteMapper.ToDiscreteEpisodes(result.Episodes!, c), c),
+            EpisodeOutgoingStatus.Failed =>
+                await ctx.InternalError(ApiErrorResponse.Failure("Unable to retrieve out-going episodes"), c),
+            _ => await LogAndFail(ctx, c)
+        };
     }
 
     private async Task<HttpResponseData> LogAndFail(IHandlerContext ctx, CancellationToken c)

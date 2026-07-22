@@ -8,11 +8,6 @@ using RedditPodcastPoster.UrlSubmission.Submitters;
 
 namespace Api.Services.SubmitUrl;
 
-public interface ISubmitUrlService
-{
-    Task<SubmitUrlResult> SubmitAsync(SubmitUrlRequest submitUrlModel, CancellationToken cancellationToken);
-}
-
 public class SubmitUrlService(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,

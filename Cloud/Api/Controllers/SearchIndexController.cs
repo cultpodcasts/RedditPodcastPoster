@@ -3,35 +3,32 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
-using Api.Models;
+using Api;
 using Api.Factories;
-using Api.Handlers.Terms;
+using Api.Handlers.SearchIndex;
 using Azure.Diagnostics;
 
-namespace Api;
+namespace Api.Controllers;
 
-public class TermsController(
-    IPostTermsHandler postTermsHandler,
+public class SearchIndexController(
+    IRunSearchIndexHandler runSearchIndexHandler,
     IClientPrincipalFactory clientPrincipalFactory,
-    ILogger<TermsController> logger,
+    ILogger<SearchIndexController> logger,
     IOptions<HostingOptions> hostingOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator)
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
-    private const string? Route = "terms";
-
-    [Function("TermPost")]
-    public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
+    [Function("SearchIndexRun")]
+    public Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "searchindex/run")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] TermSubmitRequest termSubmitRequest,
-        CancellationToken ct) =>
+        CancellationToken ct
+    ) =>
         HandleRequest(
             req,
-            ["curate"],
-            termSubmitRequest,
-            postTermsHandler.Handle,
+            ["admin"],
+            runSearchIndexHandler.Handle,
             Unauthorised,
             ct);
 }

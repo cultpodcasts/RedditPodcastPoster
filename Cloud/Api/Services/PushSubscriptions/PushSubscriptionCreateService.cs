@@ -5,14 +5,6 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.PushSubscriptions;
 
-public interface IPushSubscriptionCreateService
-{
-    Task<PushSubscriptionCreateResult> CreateAsync(
-        PushSubscription pushSubscription,
-        string? subject,
-        CancellationToken cancellationToken);
-}
-
 public class PushSubscriptionCreateService(
     IPushSubscriptionRepository pushSubscriptionRepository,
     ILogger<PushSubscriptionCreateService> logger) : IPushSubscriptionCreateService

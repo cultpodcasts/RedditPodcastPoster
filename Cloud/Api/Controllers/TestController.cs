@@ -4,11 +4,12 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
 using Api.Extensions;
 using Api.Factories;
 using Azure.Diagnostics;
 
-namespace Api;
+namespace Api.Controllers;
 
 public class TestController(
     IClientPrincipalFactory clientPrincipalFactory,

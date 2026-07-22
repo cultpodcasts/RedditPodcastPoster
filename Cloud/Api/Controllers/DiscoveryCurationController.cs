@@ -3,13 +3,14 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
 using Api.Dtos;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.Discovery;
 using Azure.Diagnostics;
 
-namespace Api;
+namespace Api.Controllers;
 
 public class DiscoveryCurationController(
     IGetDiscoveryCurationHandler getDiscoveryCurationHandler,

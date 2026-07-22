@@ -46,9 +46,9 @@ public class PublicControllerAuthTests
             .ReturnsAsync((IHandlerContext ctx, PodcastEpisodeRequestWrapper _, CancellationToken _) =>
                 ctx.Ok());
 
-        var controller = new global::Api.PublicController(
+        var controller = new global::Api.Controllers.PublicController(
             handler.Object,
-            NullLogger<global::Api.EpisodeController>.Instance,
+            NullLogger<global::Api.Controllers.EpisodeController>.Instance,
             factory.Object,
             Options.Create(new HostingOptions { TestMode = false, UserRoles = [] }),
             CreateMemoryProbeOrchestrator());
@@ -71,9 +71,9 @@ public class PublicControllerAuthTests
 
         var handler = new Mock<IGetPublicEpisodeHandler>(MockBehavior.Strict);
 
-        var controller = new global::Api.PublicController(
+        var controller = new global::Api.Controllers.PublicController(
             handler.Object,
-            NullLogger<global::Api.EpisodeController>.Instance,
+            NullLogger<global::Api.Controllers.EpisodeController>.Instance,
             factory.Object,
             Options.Create(new HostingOptions { TestMode = false, UserRoles = [] }),
             CreateMemoryProbeOrchestrator());

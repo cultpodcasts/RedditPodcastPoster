@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Api;
+namespace Api.Models;
 
 internal static class PodcastRouteNameNormalizer
 {

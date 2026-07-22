@@ -6,13 +6,6 @@ using DiscoveryScheduleLogic = RedditPodcastPoster.Discovery.Scheduling.Discover
 
 namespace Api.Services.DiscoverySchedule;
 
-public interface IDiscoveryScheduleUpdateService
-{
-    Task<DiscoveryScheduleUpdateResult> UpdateAsync(
-        DiscoveryScheduleUpdateRequest body,
-        CancellationToken cancellationToken);
-}
-
 public class DiscoveryScheduleUpdateService(
     ILookupRepository lookupRepository,
     ILogger<DiscoveryScheduleUpdateService> logger) : IDiscoveryScheduleUpdateService

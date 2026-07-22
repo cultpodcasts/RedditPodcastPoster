@@ -4,11 +4,6 @@ using RedditPodcastPoster.ContentPublisher.Publishers;
 
 namespace Api.Services.Homepage;
 
-public interface IHomepagePublishService
-{
-    Task<HomepagePublishResult> PublishAsync(CancellationToken cancellationToken);
-}
-
 public class HomepagePublishService(
     IHomepagePublisher contentPublisher,
     ILogger<HomepagePublishService> logger) : IHomepagePublishService

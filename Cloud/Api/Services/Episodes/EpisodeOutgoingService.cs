@@ -9,6 +9,17 @@ public class EpisodeOutgoingService(
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     ILogger<EpisodeOutgoingService> logger) : IEpisodeOutgoingService
 {
+    public Task<EpisodeOutgoingResult> GetOutgoingAsync(
+        string? days,
+        string? posted,
+        string? tweeted,
+        string? blueskyPosted,
+        CancellationToken cancellationToken)
+    {
+        var query = OutgoingEpisodesQuery.Parse(days, posted, tweeted, blueskyPosted);
+        return GetOutgoingAsync(query, cancellationToken);
+    }
+
     public async Task<EpisodeOutgoingResult> GetOutgoingAsync(
         OutgoingEpisodesQuery query,
         CancellationToken cancellationToken)

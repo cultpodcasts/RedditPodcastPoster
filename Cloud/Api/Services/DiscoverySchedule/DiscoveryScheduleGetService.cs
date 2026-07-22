@@ -6,11 +6,6 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.DiscoverySchedule;
 
-public interface IDiscoveryScheduleGetService
-{
-    Task<DiscoveryScheduleGetResult> GetAsync(CancellationToken cancellationToken);
-}
-
 public class DiscoveryScheduleGetService(
     ILookupRepository lookupRepository,
     ILogger<DiscoveryScheduleGetService> logger) : IDiscoveryScheduleGetService

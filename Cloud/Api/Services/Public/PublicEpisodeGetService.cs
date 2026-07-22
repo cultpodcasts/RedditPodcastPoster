@@ -5,13 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Api.Services.Public;
 
-public interface IPublicEpisodeGetService
-{
-    Task<PublicEpisodeGetResult> GetAsync(
-        PodcastEpisodeRequestWrapper request,
-        CancellationToken cancellationToken);
-}
-
 public class PublicEpisodeGetService(
     IPodcastEpisodeResolver podcastEpisodeResolver,
     ILogger<PublicEpisodeGetService> logger) : IPublicEpisodeGetService

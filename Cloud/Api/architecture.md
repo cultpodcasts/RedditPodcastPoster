@@ -17,7 +17,7 @@ Azure Functions HTTP API for Cult Podcasts curation and related operations (`api
 | **Service owns use-case logic** | Returns `Api.Models` result/outcome types (and domain entities). **Must not** reference `Api.Dtos`, construct response DTOs, or touch `HttpResponseData`. |
 | **Models = internal + request shapes** | `*ChangeRequest`, `*Command`, wrappers, `*Result` / `*Outcome` / status enums. Mutation JSON bodies bind to Models (same pattern as `EpisodeChangeRequest`). |
 | **Dtos = response (and rare wire) JSON** | `*Dto`, response envelopes, `ApiErrorResponse`. Mapping lives in `Dtos/Extensions` (and `Dtos/Mapping` for non-trivial maps). |
-| **Folder = namespace** | `Handlers/People/GetPersonHandler.cs` → `Api.Handlers.People`. Same for `Services/{Area}/`. See ADR 0001. |
+| **Folder = namespace** | `Controllers/PersonController.cs` → `Api.Controllers`. `Handlers/People/…` → `Api.Handlers.People`. Same for `Services/{Area}/`. See ADR 0001. |
 | **One verb, one handler, one service** | Prefer `GetPersonHandler` + `IPersonGetService` over multi-verb god types. |
 | **IHandlerContext at the HTTP edge** | `BaseHttpFunction` builds concrete `HandlerContext` from `HttpRequestData` + principal after auth. Handlers depend only on `IHandlerContext` (`Subject`, `Query`, status helpers). Cancellation tokens stay as separate `Handle` parameters — not on the context. |
 
@@ -76,18 +76,18 @@ PersonController.Post
 
 ```
 Cloud/Api/
-├── *Controller.cs          Azure Functions entry (namespace Api)
-├── BaseHttpFunction.cs     Auth + role gates
+├── Controllers/            Azure Functions entry (namespace Api.Controllers)
+├── BaseHttpFunction.cs     Auth + role gates (namespace Api)
 ├── MemoryProbedHttpBaseClass.cs
-├── Ioc.cs                  Composition root for this host
+├── Ioc.cs                  Composition root — calls AddApi{Area}() helpers
 ├── Configuration/          HostingOptions, etc.
 ├── Factories/              ClientPrincipal factory, etc.
 ├── Resolvers/              e.g. PodcastEpisodeResolver
-├── Extensions/             HTTP helpers (WithJsonBody, …) — not ToDto
+├── Extensions/             HTTP helpers + ApiAreaServiceCollectionExtensions (DI)
 ├── Handlers/
 │   ├── IHandlerContext.cs / HandlerContext.cs   HTTP edge for handlers (Subject, Query, status helpers)
 │   └── {Area}/         Api.Handlers.{Area} — status → HTTP + ToDto
-├── Services/{Area}/        Api.Services.{Area} — use cases, appliers
+├── Services/{Area}/        Api.Services.{Area} — use cases, appliers (IService + Service split files)
 ├── Models/                 Requests, commands, results, outcomes
 ├── Dtos/                   Response JSON types
 │   ├── Extensions/         ToDto() for domain → Dto and outcome → response
@@ -147,7 +147,7 @@ Cloud/Api/
 - [ ] Exhaustive `switch` on status; unexpected → log + `ctx.InternalError(ApiErrorResponse.Failure(...), ct)`.
 - [ ] Response mapping: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` / `ctx.Accepted`.
 - [ ] Use `ctx.Subject` / `ctx.Query(...)` only when needed (most handlers ignore subject; auth already ran).
-- [ ] Keep orchestration light; if you load subjects and map many episodes, prefer pushing that into a service.
+- [ ] Keep orchestration light; query parsing and batch mapping belong in services / `Dtos/Mapping` (handlers stay status→HTTP).
 
 ### Services / appliers
 
@@ -167,10 +167,10 @@ Cloud/Api/
 
 1. **Decide the area** (or add `Handlers/NewArea` + `Services/NewArea` with matching namespaces).
 2. **Models** — request body (if any) as `*ChangeRequest` or command; `*Result` + status enum for the service return.
-3. **Service** — `IFooService` + `FooService` in `Services/{Area}/`; register in `Ioc.cs`.
+3. **Service** — `IFooService` + `FooService` as separate files in `Services/{Area}/`; register via `AddApi{Area}()` in `Extensions/ApiAreaServiceCollectionExtensions.cs` (wired from `Ioc.cs`).
 4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`; map status → HTTP + `ToDto` / `ApiErrorResponse`.
-5. **Dto** (if new response shape) — `Dtos/FooDto.cs` + `ToDto` extension.
-6. **Controller** — one method: roles + `HandleRequest(..., handler.Handle, ...)`.
+5. **Dto** (if new response shape) — `Dtos/FooDto.cs` + `ToDto` extension in `Dtos/Extensions/` (no static factories on DTO types).
+6. **Controller** — one method under `Controllers/` (`Api.Controllers`): roles + `HandleRequest(..., handler.Handle, ...)`.
 7. **Tests** — at least: service status cases and/or handler status→HTTP matrix (see below).
 
 ---
@@ -183,7 +183,7 @@ Cloud/Api/
 | Public-but-authenticated | `HandlePublicRequest` (e.g. public episode) — principal required, no curate role |
 | Easy Auth / Auth0 principal | `IClientPrincipalFactory` |
 | Memory probe | `MemoryProbedHttpBaseClass` + `IMemoryProbeOrchestrator` |
-| DI | `Ioc.cs` — domain `Add*` extensions, then Api services/handlers/mappers |
+| DI | `Ioc.cs` — domain `Add*` extensions, then `AddApiEpisodes()` / `AddApiPeople()` / … area helpers |
 
 Production deploy is by **script** (blob + restart), not inferred from CI — see repo deploy-truth rules / `docs/deployment.md`.
 
@@ -232,7 +232,8 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 
 | Area | Path |
 | ---- | ---- |
-| Composition | `Ioc.cs` |
+| Composition | `Ioc.cs`, `Extensions/ApiAreaServiceCollectionExtensions.cs` |
+| Controllers | `Controllers/*Controller.cs` (`Api.Controllers`) |
 | Auth base | `BaseHttpFunction.cs`, `MemoryProbedHttpBaseClass.cs` |
 | Handler HTTP edge | `Handlers/IHandlerContext.cs`, `Handlers/HandlerContext.cs` |
 | Person GET exemplar | `Handlers/People/GetPersonHandler.cs`, `Services/People/PersonGetService.cs` |
