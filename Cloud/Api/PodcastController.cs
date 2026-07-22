@@ -14,7 +14,10 @@ using PodcastRenameRequest = Api.Models.PodcastRenameRequest;
 namespace Api;
 
 public class PodcastController(
-    IPodcastHandler handler,
+    IGetPodcastHandler getPodcastHandler,
+    IPostPodcastHandler postPodcastHandler,
+    IIndexPodcastHandler indexPodcastHandler,
+    IRenamePodcastHandler renamePodcastHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PodcastController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -33,7 +36,7 @@ public class PodcastController(
             req,
             ["admin"],
             new PodcastRenameRequest(podcastName, newPodcastName.NewPodcastName),
-            handler.Rename,
+            renamePodcastHandler.Handle,
             Unauthorised,
             ct
         );
@@ -48,7 +51,7 @@ public class PodcastController(
             req,
             ["curate"],
             PodcastRouteNameNormalizer.Normalize(podcastName),
-            handler.Index,
+            indexPodcastHandler.Handle,
             Unauthorised,
             ct);
 
@@ -63,7 +66,7 @@ public class PodcastController(
         var podcastGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
             ? new PodcastGetRequest(podcastId)
             : new PodcastGetRequest(podcastIdentifier, null);
-        return HandleRequest(req, ["curate"], podcastGetRequest, handler.Get, Unauthorised, ct);
+        return HandleRequest(req, ["curate"], podcastGetRequest, getPodcastHandler.Handle, Unauthorised, ct);
     }
 
     [Function("PodcastGetWithEpisodeId")]
@@ -77,7 +80,7 @@ public class PodcastController(
             req,
             ["curate"],
             new PodcastGetRequest(podcastName, episodeId),
-            handler.Get,
+            getPodcastHandler.Handle,
             Unauthorised,
             ct);
 
@@ -93,7 +96,7 @@ public class PodcastController(
             req,
             ["curate"],
             new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest),
-            handler.Post,
+            postPodcastHandler.Handle,
             Unauthorised,
             ct);
 
@@ -109,7 +112,7 @@ public class PodcastController(
             req,
             ["curate"],
             new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest, true),
-            handler.Post,
+            postPodcastHandler.Handle,
             Unauthorised,
             ct);
 }

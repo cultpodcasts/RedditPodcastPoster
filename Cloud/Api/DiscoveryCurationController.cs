@@ -11,7 +11,8 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class DiscoveryCurationController(
-    IDiscoveryCurationHandler discoveryCurationHandler,
+    IGetDiscoveryCurationHandler getDiscoveryCurationHandler,
+    IPostDiscoveryCurationHandler postDiscoveryCurationHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -27,10 +28,10 @@ public class DiscoveryCurationController(
         FunctionContext _,
         CancellationToken ct) =>
         HandleRequest(
-            req, 
-            ["curate"], 
-            discoveryCurationHandler.Get, 
-            Unauthorised, 
+            req,
+            ["curate"],
+            getDiscoveryCurationHandler.Handle,
+            Unauthorised,
             ct);
 
     [Function("DiscoveryCurationPost")]
@@ -41,10 +42,10 @@ public class DiscoveryCurationController(
         [FromBody] DiscoverySubmitRequest discoverySubmitRequest,
         CancellationToken ct) =>
         HandleRequest(
-            req, 
-            ["curate"], 
-            discoverySubmitRequest, 
-            discoveryCurationHandler.Post, 
-            Unauthorised, 
+            req,
+            ["curate"],
+            discoverySubmitRequest,
+            postDiscoveryCurationHandler.Handle,
+            Unauthorised,
             ct);
 }

@@ -12,7 +12,11 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class EpisodeController(
-    IEpisodeHandler episodeHandler,
+    IGetEpisodeHandler getEpisodeHandler,
+    IGetOutgoingEpisodesHandler getOutgoingEpisodesHandler,
+    IPostEpisodeHandler postEpisodeHandler,
+    IPublishEpisodeHandler publishEpisodeHandler,
+    IDeleteEpisodeHandler deleteEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -41,7 +45,7 @@ public class EpisodeController(
             req,
             ["curate"],
             podcastEpisodeGetRequest,
-            episodeHandler.Get,
+            getEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -62,7 +66,7 @@ public class EpisodeController(
             req,
             ["curate"],
             new PodcastEpisodeRequestWrapper(episodeId),
-            episodeHandler.Get,
+            getEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -78,7 +82,7 @@ public class EpisodeController(
         return HandleRequest(
             req,
             ["curate"],
-            episodeHandler.GetOutgoing,
+            getOutgoingEpisodesHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -100,7 +104,7 @@ public class EpisodeController(
             req,
             ["curate"],
             new EpisodeChangeRequestWrapper(null, episodeId, episodeChangeRequest),
-            episodeHandler.Post,
+            postEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -121,7 +125,7 @@ public class EpisodeController(
             req,
             ["curate"],
             new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest),
-            episodeHandler.Post,
+            postEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -141,7 +145,7 @@ public class EpisodeController(
             req,
             ["curate"],
             new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest),
-            episodeHandler.Publish,
+            publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -162,7 +166,7 @@ public class EpisodeController(
             req,
             ["curate"],
             new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
-            episodeHandler.Publish,
+            publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -182,7 +186,7 @@ public class EpisodeController(
             req,
             ["admin"],
             new PodcastEpisodeRequestWrapper(episodeId),
-            episodeHandler.Delete,
+            deleteEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -201,7 +205,7 @@ public class EpisodeController(
             req,
             ["admin"],
             new PodcastEpisodeRequestWrapper(podcastId, episodeId),
-            episodeHandler.Delete,
+            deleteEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }

@@ -6,12 +6,16 @@ using Api.Configuration;
 using Api.Dtos;
 using Api.Factories;
 using Api.Handlers;
+using Api.Models;
 using Azure.Diagnostics;
 
 namespace Api;
 
 public class PersonController(
-    IPersonHandler personHandler,
+    IGetAllPeopleHandler getAllPeopleHandler,
+    IGetPersonHandler getPersonHandler,
+    IPostPersonHandler postPersonHandler,
+    IPutPersonHandler putPersonHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PersonController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -24,7 +28,7 @@ public class PersonController(
         HttpRequestData req,
         FunctionContext executionContext,
         CancellationToken ct) =>
-        HandleRequest(req, ["curate"], personHandler.GetAll, Unauthorised, ct);
+        HandleRequest(req, ["curate"], getAllPeopleHandler.Handle, Unauthorised, ct);
 
     [Function("PersonGet")]
     public Task<HttpResponseData> Get(
@@ -33,7 +37,7 @@ public class PersonController(
         string personName,
         FunctionContext executionContext,
         CancellationToken ct) =>
-        HandleRequest(req, ["curate"], personName, personHandler.Get, Unauthorised, ct);
+        HandleRequest(req, ["curate"], personName, getPersonHandler.Handle, Unauthorised, ct);
 
     [Function("PersonPost")]
     public Task<HttpResponseData> Post(
@@ -47,7 +51,7 @@ public class PersonController(
             req,
             ["curate"],
             new PersonChangeRequestWrapper(personId, personChangeRequest),
-            personHandler.Post,
+            postPersonHandler.Handle,
             Unauthorised,
             ct);
 
@@ -58,5 +62,5 @@ public class PersonController(
         FunctionContext executionContext,
         [FromBody] Person personChangeRequest,
         CancellationToken ct) =>
-        HandleRequest(req, ["curate"], personChangeRequest, personHandler.Put, Unauthorised, ct);
+        HandleRequest(req, ["curate"], personChangeRequest, putPersonHandler.Handle, Unauthorised, ct);
 }

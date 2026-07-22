@@ -9,16 +9,30 @@ public class ApiIocTests
 {
     public static IEnumerable<object[]> EntryPoints =>
     [
-        [typeof(IPodcastHandler)],
-        [typeof(IEpisodeHandler)],
+        [typeof(IGetPodcastHandler)],
+        [typeof(IPostPodcastHandler)],
+        [typeof(IIndexPodcastHandler)],
+        [typeof(IRenamePodcastHandler)],
+        [typeof(IGetEpisodeHandler)],
+        [typeof(IGetOutgoingEpisodesHandler)],
+        [typeof(IPostEpisodeHandler)],
+        [typeof(IPublishEpisodeHandler)],
+        [typeof(IDeleteEpisodeHandler)],
         [typeof(IPublicHandler)],
         [typeof(IPublishHandler)],
         [typeof(IPushSubscriptionHandler)],
         [typeof(ISearchIndexHandler)],
         [typeof(ISubmitUrlHandler)],
-        [typeof(ISubjectHandler)],
+        [typeof(IGetSubjectHandler)],
+        [typeof(IPostSubjectHandler)],
+        [typeof(IPutSubjectHandler)],
+        [typeof(IGetAllPeopleHandler)],
+        [typeof(IGetPersonHandler)],
+        [typeof(IPostPersonHandler)],
+        [typeof(IPutPersonHandler)],
         [typeof(ITermsHandler)],
-        [typeof(IDiscoveryCurationHandler)],
+        [typeof(IGetDiscoveryCurationHandler)],
+        [typeof(IPostDiscoveryCurationHandler)],
     ];
 
     [Theory]

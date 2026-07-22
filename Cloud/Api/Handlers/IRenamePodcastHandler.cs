@@ -1,0 +1,14 @@
+using Microsoft.Azure.Functions.Worker.Http;
+using Api.Models;
+using RedditPodcastPoster.Auth0.Models;
+
+namespace Api.Handlers;
+
+public interface IRenamePodcastHandler
+{
+    Task<HttpResponseData> Handle(
+        HttpRequestData req,
+        PodcastRenameRequest change,
+        ClientPrincipal? clientPrincipal,
+        CancellationToken c);
+}

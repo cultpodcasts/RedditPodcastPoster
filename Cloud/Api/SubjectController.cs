@@ -11,7 +11,9 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class SubjectController(
-    ISubjectHandler subjectHandler,
+    IGetSubjectHandler getSubjectHandler,
+    IPostSubjectHandler postSubjectHandler,
+    IPutSubjectHandler putSubjectHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubjectController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -27,11 +29,11 @@ public class SubjectController(
         CancellationToken ct
     ) =>
         HandleRequest(
-            req, 
-            ["curate"], 
-            subjectName, 
-            subjectHandler.Get,
-            Unauthorised, 
+            req,
+            ["curate"],
+            subjectName,
+            getSubjectHandler.Handle,
+            Unauthorised,
             ct);
 
     [Function("SubjectPost")]
@@ -44,10 +46,10 @@ public class SubjectController(
         CancellationToken ct
     ) =>
         HandleRequest(
-            req, 
-            ["curate"], 
+            req,
+            ["curate"],
             new SubjectChangeRequestWrapper(subjectId, subjectChangeRequest),
-            subjectHandler.Post,
+            postSubjectHandler.Handle,
             Unauthorised,
             ct);
 
@@ -60,10 +62,10 @@ public class SubjectController(
         CancellationToken ct
     ) =>
         HandleRequest(
-            req, 
-            ["curate"], 
-            subjectChangeRequest, 
-            subjectHandler.Put, 
-            Unauthorised, 
+            req,
+            ["curate"],
+            subjectChangeRequest,
+            putSubjectHandler.Handle,
+            Unauthorised,
             ct);
 }
