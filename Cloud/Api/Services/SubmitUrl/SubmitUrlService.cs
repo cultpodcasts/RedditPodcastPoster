@@ -1,41 +1,43 @@
-using System.Net;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Extensions;
-using RedditPodcastPoster.Auth0.Models;
+using Api.Models;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 
-namespace Api.Handlers;
+namespace Api.Services.SubmitUrl;
 
-public class SubmitUrlHandler(
+public interface ISubmitUrlService
+{
+    Task<SubmitUrlResult> SubmitAsync(SubmitUrlRequest submitUrlModel, CancellationToken cancellationToken);
+}
+
+public class SubmitUrlService(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
-    ILogger<SubmitUrlHandler> logger) : ISubmitUrlHandler
+    ILogger<SubmitUrlService> logger) : ISubmitUrlService
 {
-    public async Task<HttpResponseData> Post(HttpRequestData req, SubmitUrlRequest submitUrlModel, ClientPrincipal? _,
-        CancellationToken c)
+    public async Task<SubmitUrlResult> SubmitAsync(
+        SubmitUrlRequest submitUrlModel,
+        CancellationToken cancellationToken)
     {
         try
         {
             logger.LogInformation(
                 "{RunName}: Handling url-submission: url: '{Url}', podcast-id: '{PodcastId}', podcast-name: '{PodcastName}'.",
-                nameof(Post), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
+                nameof(SubmitAsync), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
             Guid? podcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
                 var podcast = await repository.GetBy(x => x.Name == submitUrlModel.PodcastName);
                 if (podcast == null)
                 {
-                    var httpResponseData = await req.CreateResponse(HttpStatusCode.NotFound)
-                        .WithJsonBody(new { message = "Podcast with name not found" }, c);
-                    return httpResponseData;
+                    return new SubmitUrlResult(
+                        SubmitUrlStatus.PodcastNotFound,
+                        Message: "Podcast with name not found");
                 }
 
                 podcastId = podcast.Id;
@@ -63,7 +65,7 @@ public class SubmitUrlHandler(
                 {
                     try
                     {
-                        await episodeSearchIndexerService.IndexEpisode(episodeId.Value, c);
+                        await episodeSearchIndexerService.IndexEpisode(episodeId.Value, cancellationToken);
                     }
                     catch (Exception ex)
                     {
@@ -80,17 +82,12 @@ public class SubmitUrlHandler(
                 }
             }
 
-            var success = SubmitUrlResponse.Successful(result);
-            var response = await req.CreateResponse(HttpStatusCode.OK).WithJsonBody(success, c);
-            return response;
+            return new SubmitUrlResult(SubmitUrlStatus.Ok, SubmitUrlResponse.Successful(result));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(Post), submitUrlModel.Url);
+            logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(SubmitAsync), submitUrlModel.Url);
+            return new SubmitUrlResult(SubmitUrlStatus.Failed, SubmitUrlResponse.Failure("Failure"));
         }
-
-        var failure = await req.CreateResponse(HttpStatusCode.InternalServerError)
-            .WithJsonBody(SubmitUrlResponse.Failure("Failure"), c);
-        return failure;
     }
 }

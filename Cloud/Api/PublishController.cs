@@ -10,7 +10,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class PublishController(
-    IPublishHandler publishHandler,
+    IPublishHomepageHandler publishHomepageHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PublishController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -25,9 +25,9 @@ public class PublishController(
         CancellationToken ct
     ) =>
         HandleRequest(
-            req, 
-            ["admin"], 
-            publishHandler.PublishHomepage, 
+            req,
+            ["admin"],
+            publishHomepageHandler.Handle,
             Unauthorised,
             ct);
 }

@@ -11,7 +11,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class PublicController(
-    IPublicHandler publicHandler,
+    IGetPublicEpisodeHandler getPublicEpisodeHandler,
     ILogger<EpisodeController> logger,
     IClientPrincipalFactory clientPrincipalFactory,
     IOptions<HostingOptions> hostingOptions,
@@ -30,7 +30,7 @@ public class PublicController(
         return HandlePublicRequest(
             req,
             new PodcastEpisodeRequestWrapper(episodeId),
-            publicHandler.Get,
+            getPublicEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }
@@ -49,7 +49,7 @@ public class PublicController(
         return HandlePublicRequest(
             req,
             new PodcastEpisodeRequestWrapper(podcastName, episodeId),
-            publicHandler.Get,
+            getPublicEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }

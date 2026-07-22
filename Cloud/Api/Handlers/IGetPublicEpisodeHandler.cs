@@ -1,14 +1,14 @@
 using Microsoft.Azure.Functions.Worker.Http;
-using Api.Dtos;
+using Api.Models;
 using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;
 
-public interface IPushSubscriptionHandler
+public interface IGetPublicEpisodeHandler
 {
-    Task<HttpResponseData> CreatePushSubscription(
+    Task<HttpResponseData> Handle(
         HttpRequestData req,
-        PushSubscription pushSubscription,
+        PodcastEpisodeRequestWrapper podcastEpisodeRequestWrapper,
         ClientPrincipal? cp,
         CancellationToken c);
 }

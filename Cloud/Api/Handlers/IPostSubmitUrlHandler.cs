@@ -4,9 +4,9 @@ using RedditPodcastPoster.Auth0.Models;
 
 namespace Api.Handlers;
 
-public interface ISubmitUrlHandler
+public interface IPostSubmitUrlHandler
 {
-    Task<HttpResponseData> Post(
+    Task<HttpResponseData> Handle(
         HttpRequestData req,
         SubmitUrlRequest submitUrlModel,
         ClientPrincipal? cp,

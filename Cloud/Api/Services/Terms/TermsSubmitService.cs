@@ -1,33 +1,36 @@
 using System.Globalization;
-using System.Net;
 using System.Text.RegularExpressions;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Extensions;
-using RedditPodcastPoster.Auth0.Models;
+using Api.Models;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.KnownTerms;
 
-namespace Api.Handlers;
+namespace Api.Services.Terms;
 
-public class TermsHandler(
-    ILookupRepository lookupRepository,
-    ILogger<TermsHandler> logger) : ITermsHandler
+public interface ITermsSubmitService
 {
-    public async Task<HttpResponseData> Post(HttpRequestData r, TermSubmitRequest req, ClientPrincipal? _,
-        CancellationToken c)
+    Task<TermsSubmitResult> SubmitAsync(TermSubmitRequest request, CancellationToken cancellationToken);
+}
+
+public class TermsSubmitService(
+    ILookupRepository lookupRepository,
+    ILogger<TermsSubmitService> logger) : ITermsSubmitService
+{
+    public async Task<TermsSubmitResult> SubmitAsync(
+        TermSubmitRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
             var knownTerms = await lookupRepository.GetKnownTerms<KnownTerms>() ?? new KnownTerms();
             if (knownTerms.Terms.Keys.Select(x => x.ToLowerInvariant())
-                .Contains(Regex.Escape(req.Term).ToLowerInvariant()))
+                .Contains(Regex.Escape(request.Term).ToLowerInvariant()))
             {
-                return r.CreateResponse(HttpStatusCode.Conflict);
+                return new TermsSubmitResult(TermsSubmitStatus.Conflict);
             }
 
-            var titleCasedTerm = Regex.Escape(new CultureInfo("en-GB", false).TextInfo.ToTitleCase(req.Term));
+            var titleCasedTerm = Regex.Escape(new CultureInfo("en-GB", false).TextInfo.ToTitleCase(request.Term));
             if (!titleCasedTerm.StartsWith("("))
             {
                 titleCasedTerm = @$"\b{titleCasedTerm}";
@@ -38,15 +41,15 @@ public class TermsHandler(
                 titleCasedTerm = @$"{titleCasedTerm}\b";
             }
 
-            knownTerms.Terms.Add(req.Term,
+            knownTerms.Terms.Add(request.Term,
                 new Regex(titleCasedTerm, RegexOptions.Compiled | RegexOptions.IgnoreCase));
             await lookupRepository.SaveKnownTerms(knownTerms);
-            return await r.CreateResponse(HttpStatusCode.OK).WithJsonBody(new { }, c);
+            return new TermsSubmitResult(TermsSubmitStatus.Ok);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failure to submit term.");
-            return r.CreateResponse(HttpStatusCode.InternalServerError);
+            return new TermsSubmitResult(TermsSubmitStatus.Failed);
         }
     }
 }

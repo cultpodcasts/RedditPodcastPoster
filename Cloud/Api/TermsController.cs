@@ -11,7 +11,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class TermsController(
-    ITermsHandler termsHandler,
+    IPostTermsHandler postTermsHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TermsController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -19,7 +19,6 @@ public class TermsController(
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     private const string? Route = "terms";
-
 
     [Function("TermPost")]
     public Task<HttpResponseData> Post(
@@ -29,10 +28,10 @@ public class TermsController(
         [FromBody] TermSubmitRequest termSubmitRequest,
         CancellationToken ct) =>
         HandleRequest(
-            req, 
-            ["curate"], 
-            termSubmitRequest, 
-            termsHandler.Post, 
-            Unauthorised, 
+            req,
+            ["curate"],
+            termSubmitRequest,
+            postTermsHandler.Handle,
+            Unauthorised,
             ct);
 }

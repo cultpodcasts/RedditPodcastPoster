@@ -11,7 +11,8 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class DiscoveryScheduleController(
-    IDiscoveryScheduleHandler discoveryScheduleHandler,
+    IGetDiscoveryScheduleHandler getDiscoveryScheduleHandler,
+    IPutDiscoveryScheduleHandler putDiscoveryScheduleHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryScheduleController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -29,7 +30,7 @@ public class DiscoveryScheduleController(
         HandleRequest(
             req,
             ["curate"],
-            discoveryScheduleHandler.Get,
+            getDiscoveryScheduleHandler.Handle,
             Unauthorised,
             ct);
 
@@ -44,7 +45,7 @@ public class DiscoveryScheduleController(
             req,
             ["curate"],
             body,
-            discoveryScheduleHandler.Put,
+            putDiscoveryScheduleHandler.Handle,
             Unauthorised,
             ct);
 }

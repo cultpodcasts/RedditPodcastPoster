@@ -10,7 +10,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class SearchIndexController(
-    ISearchIndexHandler searchIndexHandler,
+    IRunSearchIndexHandler runSearchIndexHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SearchIndexController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -27,7 +27,7 @@ public class SearchIndexController(
         HandleRequest(
             req,
             ["admin"],
-            searchIndexHandler.RunIndexer,
+            runSearchIndexHandler.Handle,
             Unauthorised,
             ct);
 }

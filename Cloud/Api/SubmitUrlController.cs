@@ -11,7 +11,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class SubmitUrlController(
-    ISubmitUrlHandler submitUrlHandler,
+    IPostSubmitUrlHandler postSubmitUrlHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -29,7 +29,7 @@ public class SubmitUrlController(
             req,
             ["submit"],
             submitUrlModel,
-            submitUrlHandler.Post,
+            postSubmitUrlHandler.Handle,
             Unauthorised,
             ct);
 }

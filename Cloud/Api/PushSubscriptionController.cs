@@ -11,7 +11,7 @@ using Azure.Diagnostics;
 namespace Api;
 
 public class PushSubscriptionController(
-    IPushSubscriptionHandler pushSubscriptionHandler,
+    ICreatePushSubscriptionHandler createPushSubscriptionHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PushSubscriptionController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -27,10 +27,10 @@ public class PushSubscriptionController(
         CancellationToken ct
     ) =>
         HandleRequest(
-            req, 
-            ["admin"], 
-            pushSubscription, 
-            pushSubscriptionHandler.CreatePushSubscription,
-            Unauthorised, 
+            req,
+            ["admin"],
+            pushSubscription,
+            createPushSubscriptionHandler.Handle,
+            Unauthorised,
             ct);
 }

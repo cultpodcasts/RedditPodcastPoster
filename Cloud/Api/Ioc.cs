@@ -5,10 +5,17 @@ using Api.Handlers;
 using Api.Resolvers;
 using Api.Services;
 using Api.Services.Discovery;
+using Api.Services.DiscoverySchedule;
 using Api.Services.Episodes;
 using Api.Services.People;
 using Api.Services.Podcasts;
+using Api.Services.Public;
+using Api.Services.Publish;
+using Api.Services.PushSubscriptions;
+using Api.Services.SearchIndex;
 using Api.Services.Subjects;
+using Api.Services.SubmitUrl;
+using Api.Services.Terms;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
 using RedditPodcastPoster.Auth0.Extensions;
@@ -107,11 +114,16 @@ public static class Ioc
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
             .AddScoped<IPostEpisodeHandler, PostEpisodeHandler>()
             .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>()
-            .AddScoped<IPublicHandler, PublicHandler>()
-            .AddScoped<IPublishHandler, PublishHandler>()
-            .AddScoped<IPushSubscriptionHandler, PushSubscriptionHandler>()
-            .AddScoped<ISearchIndexHandler, SearchIndexHandler>()
-            .AddScoped<ISubmitUrlHandler, SubmitUrlHandler>()
+            .AddScoped<IGetPublicEpisodeHandler, GetPublicEpisodeHandler>()
+            .AddScoped<IPublicEpisodeGetService, PublicEpisodeGetService>()
+            .AddScoped<IPublishHomepageHandler, PublishHomepageHandler>()
+            .AddScoped<IHomepagePublishService, HomepagePublishService>()
+            .AddScoped<ICreatePushSubscriptionHandler, CreatePushSubscriptionHandler>()
+            .AddScoped<IPushSubscriptionCreateService, PushSubscriptionCreateService>()
+            .AddScoped<IRunSearchIndexHandler, RunSearchIndexHandler>()
+            .AddScoped<ISearchIndexRunService, SearchIndexRunService>()
+            .AddScoped<IPostSubmitUrlHandler, PostSubmitUrlHandler>()
+            .AddScoped<ISubmitUrlService, SubmitUrlService>()
             .AddScoped<SubjectChangeApplier>()
             .AddScoped<ISubjectGetService, SubjectGetService>()
             .AddScoped<ISubjectUpdateService, SubjectUpdateService>()
@@ -127,12 +139,16 @@ public static class Ioc
             .AddScoped<IGetPersonHandler, GetPersonHandler>()
             .AddScoped<IPostPersonHandler, PostPersonHandler>()
             .AddScoped<IPutPersonHandler, PutPersonHandler>()
-            .AddScoped<ITermsHandler, TermsHandler>()
+            .AddScoped<IPostTermsHandler, PostTermsHandler>()
+            .AddScoped<ITermsSubmitService, TermsSubmitService>()
             .AddScoped<IDiscoveryCurationGetService, DiscoveryCurationGetService>()
             .AddScoped<IDiscoveryCurationSubmitService, DiscoveryCurationSubmitService>()
             .AddScoped<IGetDiscoveryCurationHandler, GetDiscoveryCurationHandler>()
             .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>()
-            .AddScoped<IDiscoveryScheduleHandler, DiscoveryScheduleHandler>()
+            .AddScoped<IDiscoveryScheduleGetService, DiscoveryScheduleGetService>()
+            .AddScoped<IDiscoveryScheduleUpdateService, DiscoveryScheduleUpdateService>()
+            .AddScoped<IGetDiscoveryScheduleHandler, GetDiscoveryScheduleHandler>()
+            .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
