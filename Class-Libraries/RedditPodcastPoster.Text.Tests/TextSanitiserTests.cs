@@ -231,6 +231,60 @@ public class TextSanitiserTests
     }
 
     [Theory]
+    [InlineData("The Object\u2019s", "The Object's")]
+    [InlineData("Person\u2019s Thing", "Person's Thing")]
+    [InlineData("Person\u2018s Thing", "Person's Thing")]
+    [InlineData("Person\u02BCs Thing", "Person's Thing")]
+    [InlineData("Person\u2032s Thing", "Person's Thing")]
+    [InlineData("Person\u00B4s Thing", "Person's Thing")]
+    public async Task SanitiseTitle_WithTypographicApostrophe_DoesNotCapitaliseFollowingLetter(
+        string input, string expected)
+    {
+        // arrange
+        // act
+        var result = await Sut.SanitiseTitle(input, null, [], []);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("L'amour Topic", "l'Amour Topic")]
+    [InlineData("D'artagnan Topic", "d'Artagnan Topic")]
+    [InlineData("l'amour Topic", "l'Amour Topic")]
+    [InlineData("d'artagnan Topic", "d'Artagnan Topic")]
+    [InlineData("Something L'amour Topic", "Something l'Amour Topic")]
+    [InlineData("Something D'artagnan Topic", "Something d'Artagnan Topic")]
+    [InlineData("L\u2019amour Topic", "l'Amour Topic")]
+    [InlineData("D\u2019artagnan Topic", "d'Artagnan Topic")]
+    [InlineData("L\u2018amour Topic", "l'Amour Topic")]
+    [InlineData("D\u2018artagnan Topic", "d'Artagnan Topic")]
+    [InlineData("Something L\u2019amour Topic", "Something l'Amour Topic")]
+    [InlineData("Something D\u2019artagnan Topic", "Something d'Artagnan Topic")]
+    public async Task SanitiseTitle_WithRomanceElision_LowercasesParticleAndCapitalisesFollowingLetter(
+        string input, string expected)
+    {
+        // arrange
+        // act
+        var result = await Sut.SanitiseTitle(input, null, [], []);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Don't Stop")]
+    [InlineData("Didn't Stop")]
+    [InlineData("It's Fine")]
+    [InlineData("I'd Agree")]
+    public async Task SanitiseTitle_WithEnglishContraction_DoesNotApplyRomanceElision(string expected)
+    {
+        // arrange
+        // act
+        var result = await Sut.SanitiseTitle(expected, null, [], []);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData("1st Something")]
     [InlineData("2nd Something")]
     [InlineData("3rd Something")]
@@ -258,6 +312,33 @@ public class TextSanitiserTests
         // arrange
         // act
         var result = await Sut.SanitiseTitle(expected, null, [], []);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("日本語 Title Topic", "日本語 Title Topic")]
+    [InlineData("完全に日本語だけ", "完全に日本語だけ")]
+    [InlineData("한글 Title Topic", "한글 Title Topic")]
+    [InlineData("Épisode Spécial", "Épisode Spécial")]
+    public async Task SanitiseTitle_WithNonAsciiLetters_PreservesLeadingLetters(
+        string input, string expected)
+    {
+        // arrange
+        // act
+        var result = await Sut.SanitiseTitle(input, null, [], []);
+        // assert
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("*** Title", "Title")]
+    [InlineData("🔥 Title", "Title")]
+    public async Task SanitiseTitle_WithJunkPrefix_StripsPrefix(string input, string expected)
+    {
+        // arrange
+        // act
+        var result = await Sut.SanitiseTitle(input, null, [], []);
         // assert
         result.Should().Be(expected);
     }
