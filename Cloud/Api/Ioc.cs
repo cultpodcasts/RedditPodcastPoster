@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api.Extensions;
 using Api.Factories;
+using Api.Services;
 using Api.Services.Discovery;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
@@ -93,7 +95,10 @@ public static class Ioc
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IValidateOptions<HostingOptions>, HostingOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddPostingCriteria();
+
+        serviceCollection.AddOptions<HostingOptions>().ValidateOnStart();
     }
 }
