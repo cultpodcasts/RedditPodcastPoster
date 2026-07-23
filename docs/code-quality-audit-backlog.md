@@ -149,7 +149,7 @@ Theme: refactor with regression nets in place. Stop for review after each major 
   - Paths: Controllers → Handlers/{Area} → Services/{Area}; `EpisodeHandler` removed. Exemplary Dtos/`architecture.md` on same PR.
 
 - [ ] **Follow-ons / zoneless readiness**  
-  - Angular (**list APIs OnPush done 2026-07-23** on website #426): OnPush + signals/`toSignal` + `takeUntilDestroyed` on `search-api`, `podcast-api`, `subject-api`, `bookmarks-api`, `episodes-api`, `outgoing-episodes-api`, `discovery-api`. Still Zone (`provideZoneChangeDetection`). Next: drop Zone/`zone.js` after a deliberate app-wide flip; also dual `AppRoutingModule` + `provideRouter`.  
+  - Angular (**list APIs OnPush done 2026-07-23** on website #426): OnPush + signals/`toSignal` + `takeUntilDestroyed` on `search-api`, `podcast-api`, `subject-api`, `bookmarks-api`, `episodes-api`, `outgoing-episodes-api`, `discovery-api`. Dual router removed (`app.routes.ts` + `provideRouter` only). Still Zone (`provideZoneChangeDetection`) — most non-list components remain Default CD; do **not** drop Zone until those are OnPush-ready.  
   - Api: tighten Zod beyond `z.any()`; deprecate old `/episode/:id` after client cutover; decide Analytics Engine use-or-drop; bump `compatibility_date` deliberately.  
   - C#: `ValidateOnStart` on Indexer/Api options; `LoggerMessage` on hot paths when edited; optional `DomainTestFixture` split only if BR churn demands it.
 
