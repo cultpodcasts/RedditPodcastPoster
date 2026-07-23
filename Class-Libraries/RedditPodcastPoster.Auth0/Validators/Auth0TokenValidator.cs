@@ -19,10 +19,11 @@ public class Auth0TokenValidator(
     public async Task<ValidatedToken?> GetClaimsPrincipalAsync(string auth0Bearer)
     {
         var securityKeys = await securityKeysProvider.GetAsync();
+        var trustedIssuers = _options.GetTrustedIssuers();
         var validationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = _options.Issuer,
+            ValidIssuers = trustedIssuers,
             ValidateAudience = true,
             ValidAudience = _options.Audience,
             ValidateIssuerSigningKey = true,
@@ -40,7 +41,10 @@ public class Auth0TokenValidator(
                 return null;
             }
 
-            logger.LogInformation("Token valid.");
+            logger.LogInformation(
+                "Token valid. TrustedIssuers={TrustedIssuerCount}, TrustStagingIssuer={TrustStagingIssuer}.",
+                trustedIssuers.Count,
+                _options.TrustsStagingIssuer);
             return new ValidatedToken(claimsPrincipal, token);
         }
         catch (Exception e)

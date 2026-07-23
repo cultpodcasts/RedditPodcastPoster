@@ -161,10 +161,16 @@ var api= {
     api__Endpoint: 'https://api.cultpodcasts.com'
 }
 
+var auth0StagingDomain= 'auth-staging.cultpodcasts.com'
+// Feature switch: set auth0__Staging__Trust to 'false' to reject staging Auth0 JWTs
+// (api-preview) without removing staging domain/issuer settings.
 var auth0= {
     auth0__Audience: auth0Audience
     auth0__Domain: auth0Domain
     auth0__Issuer: 'https://auth.cultpodcasts.com/'
+    auth0__Staging__Domain: auth0StagingDomain
+    auth0__Staging__Issuer: 'https://${auth0StagingDomain}/'
+    auth0__Staging__Trust: 'true'
 }
 
 var auth0Client= {
