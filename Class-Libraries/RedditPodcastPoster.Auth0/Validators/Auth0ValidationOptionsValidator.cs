@@ -25,6 +25,21 @@ public class Auth0ValidationOptionsValidator : IValidateOptions<Auth0ValidationO
                 $"{nameof(Auth0ValidationOptions)}.{nameof(Auth0ValidationOptions.Issuer)} must not be null or empty (config key: auth0__Issuer).");
         }
 
+        if (options.Staging is { Trust: true })
+        {
+            if (string.IsNullOrWhiteSpace(options.Staging.Domain))
+            {
+                return ValidateOptionsResult.Fail(
+                    $"{nameof(Auth0ValidationOptions)}.{nameof(Auth0ValidationOptions.Staging)}.{nameof(Auth0StagingValidationOptions.Domain)} must not be null or empty when Staging.Trust is true (config key: auth0__Staging__Domain).");
+            }
+
+            if (string.IsNullOrWhiteSpace(options.Staging.Issuer))
+            {
+                return ValidateOptionsResult.Fail(
+                    $"{nameof(Auth0ValidationOptions)}.{nameof(Auth0ValidationOptions.Staging)}.{nameof(Auth0StagingValidationOptions.Issuer)} must not be null or empty when Staging.Trust is true (config key: auth0__Staging__Issuer).");
+            }
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

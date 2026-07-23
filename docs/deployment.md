@@ -156,7 +156,28 @@ Enforced in [`.cursor/rules/deployment.mdc`](../.cursor/rules/deployment.mdc) (a
 
 An agent session **wrongly deleted** `deploy-api.ps1` and `deploy-indexer.ps1` as "duplicates" and removed a session-created `deploy-discover.ps1` the user expected. **Never repeat.** All three thin wrappers were restored; see [`deploy-discover.ps1` history](#deploy-discoverps1-history) above.
 
-## When was prod last deployed? (authoritative — script deploys)
+## Auth0 validation on api-infra (prod + staging preview)
+
+`api-infra` validates Bearer JWTs with `RedditPodcastPoster.Auth0` (`auth0__*` app settings). Production issuer is `https://auth.cultpodcasts.com/`.
+
+Cloudflare **api-preview** uses staging Auth0 (`auth-staging.cultpodcasts.com`) and proxies the same token to `api-infra`. To accept those tokens:
+
+| Setting | Purpose |
+|---------|---------|
+| `auth0__Staging__Trust` | Feature switch — `true` to trust staging; `false` (or omit) rejects staging JWTs even if staging URLs are configured |
+| `auth0__Staging__Domain` | `auth-staging.cultpodcasts.com` (required when Trust is true) |
+| `auth0__Staging__Issuer` | `https://auth-staging.cultpodcasts.com/` (required when Trust is true) |
+
+Bicep sets the staging URLs and `auth0__Staging__Trust=true`. To disable staging trust without a code change:
+
+```powershell
+az functionapp config appsettings set -g AutomatedInfra -n api-infra --settings auth0__Staging__Trust=false
+az functionapp restart -g AutomatedInfra -n api-infra
+```
+
+Signing keys are loaded at process start — restart after flipping the switch.
+
+
 
 **Agents MUST use this before claiming prod is stale, current, or that a fix is/isn't live.**
 
