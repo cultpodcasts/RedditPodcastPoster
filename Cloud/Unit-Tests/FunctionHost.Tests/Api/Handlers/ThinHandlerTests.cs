@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -31,21 +32,49 @@ namespace FunctionHost.Tests.Api.Handlers;
 
 public class ThinHandlerTests
 {
-    [Fact(DisplayName = "GetPublicEpisodeHandler maps Ok to 200")]
-    public async Task Public_get_ok_returns_200()
+    private static async Task<JsonElement> ReadJsonBodyAsync(HttpResponseData response)
     {
-        var episode = new Episode { Id = Guid.NewGuid(), Title = "Ep" };
+        response.Body.Position = 0;
+        using var reader = new StreamReader(response.Body, leaveOpen: true);
+        var json = await reader.ReadToEndAsync();
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.Clone();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when public episode get succeeds, then respond 200 with stable PublicEpisodeDto keys including id, podcastName, title, and duration, because public clients rely on a stable JSON contract.")]
+    public async Task public_get_ok_returns_200_with_stable_public_episode_dto_keys()
+    {
+        // Arrange
+        var episodeId = Guid.NewGuid();
+        var episode = new Episode
+        {
+            Id = episodeId,
+            Title = "Ep",
+            Length = TimeSpan.FromMinutes(30),
+            Release = DateTime.UtcNow.AddDays(-1)
+        };
         var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Show" };
         var service = new Mock<IPublicEpisodeGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.Ok, episode, podcast));
 
         var handler = new GetPublicEpisodeHandler(service.Object, NullLogger<GetPublicEpisodeHandler>.Instance);
-        var (req, response) = HttpTestHelpers.CreateRequestResponse("GET");
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastEpisodeRequestWrapper(episode.Id), CancellationToken.None);
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new PodcastEpisodeRequestWrapper(episodeId),
+            CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("id").GetGuid().Should().Be(episodeId);
+        body.GetProperty("podcastName").GetString().Should().Be("Show");
+        body.GetProperty("title").GetString().Should().Be("Ep");
+        body.TryGetProperty("duration", out _).Should().BeTrue();
     }
 
     [Fact(DisplayName = "GetPublicEpisodeHandler maps NotFound to 404")]

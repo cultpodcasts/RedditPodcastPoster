@@ -1,15 +1,10 @@
 using System.Linq.Expressions;
-using System.Net;
-using Azure.Core.Serialization;
 using FluentAssertions;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Moq.AutoMock;
-using Api.Dtos;
-using Api.Handlers;
+using Api.Models;
+using Api.Services.Subjects;
 using Reddit.Exceptions;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -22,106 +17,98 @@ using SubjectEntity = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
+/// <summary>
+/// Service-level tests preserving #914 intent: Reddit Forbidden flair errors must not block subject persistence.
+/// </summary>
 public class SubjectHandlerTests
 {
-    private readonly AutoMocker _mocker = new();
-
-    public SubjectHandlerTests()
+    [Fact(DisplayName =
+        "Plain English rule: when Reddit flair update is forbidden during subject create, then still save the subject and publish subjects, because flair sync failure must not block curation.")]
+    public async Task create_when_reddit_flair_forbidden_still_saves_subject()
     {
-        _mocker.Use(Options.Create(new SubredditSettings { SubredditName = "testsubreddit" }));
-    }
-
-    private SubjectHandler Sut => _mocker.CreateInstance<SubjectHandler>();
-
-    [Fact]
-    public async Task Put_WhenRedditFlairUpdateForbidden_StillCreatesSubject()
-    {
-        // arrange
+        // Arrange
         var flairId = Guid.NewGuid();
         var entity = new SubjectEntity("Topic") { Id = Guid.NewGuid() };
-        _mocker.GetMock<ISubjectFactory>()
-            .Setup(x => x.Create("Topic", null, null, null))
-            .ReturnsAsync(entity);
-        _mocker.GetMock<ISubjectService>()
-            .Setup(x => x.Match(It.IsAny<SubjectEntity>()))
-            .ReturnsAsync((SubjectEntity?)null);
-        _mocker.GetMock<IAdminRedditClient>()
-            .Setup(x => x.Client)
-            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
-        var (req, _) = CreateRequestResponse("PUT");
 
-        // act
-        var result = await Sut.Put(
-            req.Object,
-            new Subject { Name = "Topic", RedditFlairTemplateId = flairId },
-            null,
+        var subjectFactory = new Mock<ISubjectFactory>();
+        subjectFactory.Setup(x => x.Create("Topic", null, null, null)).ReturnsAsync(entity);
+
+        var subjectService = new Mock<ISubjectService>();
+        subjectService.Setup(x => x.Match(It.IsAny<SubjectEntity>())).ReturnsAsync((SubjectEntity?)null);
+
+        var redditClient = new Mock<IAdminRedditClient>();
+        redditClient.Setup(x => x.Client)
+            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
+
+        var subjectRepo = new Mock<ISubjectRepository>();
+        subjectRepo.Setup(r => r.Save(It.IsAny<SubjectEntity>())).Returns(Task.CompletedTask);
+
+        var publisher = new Mock<ISubjectsPublisher>();
+        publisher.Setup(p => p.PublishSubjects()).Returns(Task.CompletedTask);
+
+        var applier = CreateSubjectChangeApplier(subjectRepo.Object, redditClient.Object);
+        var service = new SubjectCreateService(
+            subjectRepo.Object,
+            subjectService.Object,
+            subjectFactory.Object,
+            publisher.Object,
+            applier,
+            NullLogger<SubjectCreateService>.Instance);
+
+        // Act
+        var result = await service.CreateAsync(
+            new SubjectChangeRequest { Name = "Topic", RedditFlairTemplateId = flairId },
             CancellationToken.None);
 
-        // assert
-        result.StatusCode.Should().Be(HttpStatusCode.Accepted);
-        _mocker.GetMock<ISubjectRepository>().Verify(
+        // Assert
+        result.Status.Should().Be(SubjectCreateStatus.Accepted);
+        subjectRepo.Verify(
             x => x.Save(It.Is<SubjectEntity>(s => s.RedditFlairTemplateId == flairId)),
             Times.Once);
-        _mocker.GetMock<ISubjectsPublisher>().Verify(x => x.PublishSubjects(), Times.Once);
+        publisher.Verify(x => x.PublishSubjects(), Times.Once);
     }
 
-    [Fact]
-    public async Task Post_WhenRedditFlairUpdateForbidden_StillUpdatesSubject()
+    [Fact(DisplayName =
+        "Plain English rule: when Reddit flair update is forbidden during subject update, then still save the subject with the requested flair, because flair sync failure must not roll back local changes.")]
+    public async Task update_when_reddit_flair_forbidden_still_saves_subject()
     {
-        // arrange
+        // Arrange
         var subjectId = Guid.NewGuid();
         var flairId = Guid.NewGuid();
         var existing = new SubjectEntity("Topic") { Id = subjectId };
-        _mocker.GetMock<ISubjectRepository>()
-            .Setup(x => x.GetBy(It.IsAny<Expression<Func<SubjectEntity, bool>>>()))
-            .ReturnsAsync(existing);
-        _mocker.GetMock<IAdminRedditClient>()
-            .Setup(x => x.Client)
-            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
-        var (req, _) = CreateRequestResponse("POST");
 
-        // act
-        var result = await Sut.Post(
-            req.Object,
-            new SubjectChangeRequestWrapper(subjectId, new Subject { RedditFlairTemplateId = flairId }),
-            null,
+        var subjectRepo = new Mock<ISubjectRepository>();
+        subjectRepo.Setup(x => x.GetBy(It.IsAny<Expression<Func<SubjectEntity, bool>>>()))
+            .ReturnsAsync(existing);
+        subjectRepo.Setup(r => r.Save(It.IsAny<SubjectEntity>())).Returns(Task.CompletedTask);
+
+        var redditClient = new Mock<IAdminRedditClient>();
+        redditClient.Setup(x => x.Client)
+            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
+
+        var applier = CreateSubjectChangeApplier(subjectRepo.Object, redditClient.Object);
+        var service = new SubjectUpdateService(
+            subjectRepo.Object,
+            applier,
+            NullLogger<SubjectUpdateService>.Instance);
+
+        // Act
+        var result = await service.UpdateAsync(
+            new SubjectChangeRequestWrapper(subjectId, new SubjectChangeRequest { RedditFlairTemplateId = flairId }),
             CancellationToken.None);
 
-        // assert
-        result.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        // Assert
+        result.Status.Should().Be(SubjectUpdateStatus.Accepted);
         existing.RedditFlairTemplateId.Should().Be(flairId);
-        _mocker.GetMock<ISubjectRepository>().Verify(x => x.Save(existing), Times.Once);
+        subjectRepo.Verify(x => x.Save(existing), Times.Once);
     }
 
-    private static (Mock<HttpRequestData> Req, Mock<HttpResponseData> Response) CreateRequestResponse(
-        string method)
-    {
-        var services = new ServiceCollection();
-        services.Configure<WorkerOptions>(options =>
-        {
-            options.Serializer = new JsonObjectSerializer();
-        });
-        var serviceProvider = services.BuildServiceProvider();
-
-        var context = new Mock<FunctionContext>();
-        context.SetupGet(c => c.InstanceServices).Returns(serviceProvider);
-        var functionDefinition = new Mock<FunctionDefinition>();
-        functionDefinition.SetupGet(d => d.Name).Returns("TestFunction");
-        context.SetupGet(c => c.FunctionDefinition).Returns(functionDefinition.Object);
-        context.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
-
-        var response = new Mock<HttpResponseData>(context.Object);
-        response.SetupProperty(r => r.StatusCode, HttpStatusCode.OK);
-        response.SetupProperty(r => r.Headers, new HttpHeadersCollection());
-        response.Setup(r => r.Body).Returns(new MemoryStream());
-
-        var req = new Mock<HttpRequestData>(context.Object);
-        req.Setup(r => r.CreateResponse()).Returns(response.Object);
-        req.Setup(r => r.Url).Returns(new Uri("https://localhost/api/subject"));
-        req.Setup(r => r.Method).Returns(method);
-        req.Setup(r => r.Headers).Returns(new HttpHeadersCollection());
-        req.Setup(r => r.Body).Returns(new MemoryStream());
-
-        return (req, response);
-    }
+    private static SubjectChangeApplier CreateSubjectChangeApplier(
+        ISubjectRepository subjectRepository,
+        IAdminRedditClient redditClient) =>
+        new(
+            subjectRepository,
+            redditClient,
+            Options.Create(new SubredditSettings { SubredditName = "testsubreddit" }),
+            NullLogger<SubjectChangeApplier>.Instance);
 }
