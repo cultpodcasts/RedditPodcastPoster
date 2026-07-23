@@ -1,9 +1,11 @@
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Configuration.Services;
+using RedditPodcastPoster.Configuration.Validators;
 
 namespace RedditPodcastPoster.Configuration.Extensions;
 
@@ -13,7 +15,11 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddPostingCriteria()
         {
-            return services.BindConfiguration<PostingCriteria>("postingCriteria");
+            services
+                .BindConfiguration<PostingCriteria>("postingCriteria")
+                .AddSingleton<IValidateOptions<PostingCriteria>, PostingCriteriaValidator>();
+            services.AddOptions<PostingCriteria>().ValidateOnStart();
+            return services;
         }
 
         public IServiceCollection AddDelayedYouTubePublication()

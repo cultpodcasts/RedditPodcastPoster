@@ -11,13 +11,4 @@ public class PublishHomepageResponse
 
     [JsonPropertyName("preProcessedHomepagePublished")]
     public bool? PreProcessedHomepagePublished { get; set; }
-
-    public static PublishHomepageResponse ToDto(PublishHomepageResult result)
-    {
-        return new PublishHomepageResponse
-        {
-            HomepagePublished = result.HomepagePublished,
-            PreProcessedHomepagePublished = result.PreProcessedHomepagePublished
-        };
-    }
 }

@@ -1,9 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api.Extensions;
 using Api.Factories;
-using Api.Handlers;
-using Api.Resolvers;
 using Api.Services;
+using Api.Services.Discovery;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
 using RedditPodcastPoster.Auth0.Extensions;
@@ -79,23 +80,25 @@ public static class Ioc
             .AddInternetArchiveServices()
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
-            .AddScoped<IPodcastHandler, PodcastHandler>()
-            .AddScoped<IEpisodeHandler, EpisodeHandler>()
-            .AddScoped<IPublicHandler, PublicHandler>()
-            .AddScoped<IPublishHandler, PublishHandler>()
-            .AddScoped<IPushSubscriptionHandler, PushSubscriptionHandler>()
-            .AddScoped<ISearchIndexHandler, SearchIndexHandler>()
-            .AddScoped<ISubmitUrlHandler, SubmitUrlHandler>()
-            .AddScoped<ISubjectHandler, SubjectHandler>()
-            .AddScoped<IPersonHandler, PersonHandler>()
-            .AddScoped<ITermsHandler, TermsHandler>()
-            .AddScoped<IDiscoveryCurationHandler, DiscoveryCurationHandler>()
-            .AddScoped<IDiscoveryScheduleHandler, DiscoveryScheduleHandler>()
-            .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
+            .AddApiEpisodes()
+            .AddApiPodcasts()
+            .AddApiPeople()
+            .AddApiSubjects()
+            .AddApiPublic()
+            .AddApiHomepage()
+            .AddApiPushSubscriptions()
+            .AddApiSearchIndex()
+            .AddApiSubmitUrl()
+            .AddApiTerms()
+            .AddApiDiscovery()
+            .AddApiDiscoverySchedule()
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IValidateOptions<HostingOptions>, HostingOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddPostingCriteria();
+
+        serviceCollection.AddOptions<HostingOptions>().ValidateOnStart();
     }
 }

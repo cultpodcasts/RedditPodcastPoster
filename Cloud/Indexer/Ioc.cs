@@ -1,5 +1,6 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Azure;
 using Azure.Diagnostics;
 using Indexer.Models;
@@ -67,11 +68,14 @@ public static class Ioc
             .BindConfiguration<PosterOptions>("poster")
             .BindConfiguration<ActivityOptions>("activities")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
+            .AddSingleton<IValidateOptions<PosterOptions>, PosterOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddScoped<IActivityOptionsProvider, ActivityOptionsProvider>()
             .AddPostingCriteria()
             .AddDelayedYouTubePublication()
             .AddBBCServices()
             .AddInternetArchiveServices();
+
+        serviceCollection.AddOptions<PosterOptions>().ValidateOnStart();
     }
 }

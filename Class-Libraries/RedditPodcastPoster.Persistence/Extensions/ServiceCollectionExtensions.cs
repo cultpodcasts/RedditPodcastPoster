@@ -1,5 +1,6 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
@@ -11,6 +12,7 @@ using RedditPodcastPoster.Persistence.Factories;
 using RedditPodcastPoster.Persistence.Lookups;
 using RedditPodcastPoster.Persistence.Providers;
 using RedditPodcastPoster.Persistence.Repositories;
+using RedditPodcastPoster.Persistence.Validators;
 using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
@@ -30,7 +32,7 @@ public static class ServiceCollectionExtensions
         /// </summary>
         public IServiceCollection AddRepositories()
         {
-            return services
+            services
                 .AddSingleton<ICosmosDbClientFactory, CosmosDbClientFactory>()
                 .AddSingleton(sp => sp.GetRequiredService<ICosmosDbClientFactory>().Create())
                 .AddSingleton<ICosmosDbContainerFactory, CosmosDbContainerFactory>()
@@ -72,7 +74,10 @@ public static class ServiceCollectionExtensions
                     new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
-                .BindConfiguration<CosmosDbSettings>("cosmosdb");
+                .BindConfiguration<CosmosDbSettings>("cosmosdb")
+                .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
+            services.AddOptions<CosmosDbSettings>().ValidateOnStart();
+            return services;
         }
 
         public IServiceCollection AddEliminationTerms()

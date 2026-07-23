@@ -1,6 +1,4 @@
-﻿using Api;
-
-namespace Api.Models;
+﻿namespace Api.Models;
 
 public class PodcastGetRequest
 {

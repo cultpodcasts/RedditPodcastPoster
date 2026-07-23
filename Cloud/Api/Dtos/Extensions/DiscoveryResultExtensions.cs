@@ -1,3 +1,4 @@
+using Api.Models;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models.Discovery;
 
@@ -5,10 +6,33 @@ namespace Api.Dtos.Extensions;
 
 public static class DiscoveryResultExtensions
 {
-    public static DiscoveryResponseItem ToDiscoveryResponseItem(this DiscoveryResult item,
-        IDictionary<Guid, DiscoveryPodcast> podcasts)
+    public static DiscoveryResponse ToDto(this DiscoveryCurationData data)
     {
-        var result = new DiscoveryResponseItem();
+        var podcastsLookup = data.Podcasts.ToDictionary(
+            kv => kv.Key,
+            kv => new DiscoveryResponse.Item.MatchingPodcast
+            {
+                Name = kv.Value.Name,
+                IsVisible = kv.Value.IsVisible,
+                VisibleEpisodes = kv.Value.VisibleEpisodes
+            });
+
+        return new DiscoveryResponse
+        {
+            Ids = data.Ids,
+            Results = data.Results
+                .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
+                .OrderByDescending(x => x.AcceptProbability ?? -1f)
+                .ThenBy(x => x.Released),
+            HiddenCount = data.HiddenCount
+        };
+    }
+
+    public static DiscoveryResponse.Item ToDiscoveryResponseItem(
+        this DiscoveryResult item,
+        IDictionary<Guid, DiscoveryResponse.Item.MatchingPodcast> podcasts)
+    {
+        var result = new DiscoveryResponse.Item();
         result.Urls = item.Urls;
         result.Released = item.Released;
         result.Description = item.Description;
@@ -35,7 +59,7 @@ public static class DiscoveryResultExtensions
         result.Subjects = item.Subjects;
         result.Sources = item.Sources
             .Select(x =>
-                x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoverService>(true))
+                x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoveryResponse.Item.DiscoverService>(true))
             .ToArray();
         result.AcceptProbability = item.AcceptProbability;
         result.AutoHidden = item.AutoHidden;

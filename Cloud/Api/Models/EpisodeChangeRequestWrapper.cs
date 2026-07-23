@@ -1,6 +1,4 @@
-﻿using Api.Dtos;
-
-namespace Api.Models;
+﻿namespace Api.Models;
 
 public record EpisodeChangeRequestWrapper(
     Guid? PodcastId,

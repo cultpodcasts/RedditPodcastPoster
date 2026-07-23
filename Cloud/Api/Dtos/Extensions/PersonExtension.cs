@@ -1,10 +1,11 @@
+
 namespace Api.Dtos.Extensions;
 
 public static class PersonExtension
 {
-    public static Person ToDto(this RedditPodcastPoster.Models.People.Person person)
+    public static PersonDto ToDto(this RedditPodcastPoster.Models.People.Person person)
     {
-        return new Person
+        return new PersonDto
         {
             Id = person.Id,
             Name = person.Name,

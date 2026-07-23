@@ -1,0 +1,212 @@
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Api.Configuration;
+using Api;
+using Api.Factories;
+using Api.Handlers.Episodes;
+using Api.Models;
+using Azure.Diagnostics;
+
+namespace Api.Controllers;
+
+public class EpisodeController(
+    IGetEpisodeHandler getEpisodeHandler,
+    IGetOutgoingEpisodesHandler getOutgoingEpisodesHandler,
+    IPostEpisodeHandler postEpisodeHandler,
+    IPublishEpisodeHandler publishEpisodeHandler,
+    IDeleteEpisodeHandler deleteEpisodeHandler,
+    IClientPrincipalFactory clientPrincipalFactory,
+    ILogger<EpisodeController> logger,
+    IOptions<HostingOptions> hostingOptions,
+    IMemoryProbeOrchestrator memoryProbeOrchestrator)
+    : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
+{
+    private const string? Route = "episode/{episodeId:guid}";
+    private const string? PodcastIdentifierRoute = "episode/{podcastIdentifier}/{episodeId:guid}";
+    private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
+
+
+    [Function("PodcastNameEpisodeGet")]
+    public Task<HttpResponseData> GetByPodcastIdentifier(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastIdentifierRoute)]
+        HttpRequestData req,
+        string podcastIdentifier,
+        Guid episodeId,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        var podcastEpisodeGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
+            ? new PodcastEpisodeRequestWrapper(podcastId, episodeId)
+            : new PodcastEpisodeRequestWrapper(podcastIdentifier, episodeId);
+        return HandleRequest(
+            req,
+            ["curate"],
+            podcastEpisodeGetRequest,
+            getEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+
+    [Function("EpisodeGet")]
+    public Task<HttpResponseData> GetByEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(GetByEpisodeId), episodeId);
+        return HandleRequest(
+            req,
+            ["curate"],
+            new PodcastEpisodeRequestWrapper(episodeId),
+            getEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("OutgoingEpisodesGet")]
+    public Task<HttpResponseData> GetOutgoing(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "episodes/outgoing")]
+        HttpRequestData req,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            getOutgoingEpisodesHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("EpisodePost")]
+    public Task<HttpResponseData> PostEpisodeByEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        EpisodeChangeRequest episodeChangeRequest,
+        CancellationToken ct
+    )
+    {
+        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(PostEpisodeByEpisodeId), episodeId);
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeChangeRequestWrapper(null, episodeId, episodeChangeRequest),
+            postEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("PodcastEpisodePost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastIdRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        EpisodeChangeRequest episodeChangeRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest),
+            postEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("EpisodePublish")]
+    public Task<HttpResponseData> PublishEpisodeByEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        EpisodePublishRequest episodePostRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest),
+            publishEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("PodcastEpisodePublish")]
+    public Task<HttpResponseData> Publish(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "episode/publish/{podcastId:guid}/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        EpisodePublishRequest episodePostRequest,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
+            publishEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("EpisodeDelete")]
+    public Task<HttpResponseData> DeleteEpisodeByEpisodeId(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = Route)]
+        HttpRequestData req,
+        Guid episodeId,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        logger.LogWarning("{method}: Deleting episode by ID: {EpisodeId} without any podcast-identifier",
+            nameof(DeleteEpisodeByEpisodeId), episodeId);
+        return HandleRequest(
+            req,
+            ["admin"],
+            new PodcastEpisodeRequestWrapper(episodeId),
+            deleteEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("PodcastEpisodeDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = PodcastIdRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["admin"],
+            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            deleteEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+}

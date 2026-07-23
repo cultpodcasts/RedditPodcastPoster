@@ -16,32 +16,24 @@ public class IndexPodcastResponse
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SearchIndexerState SearchIndexerState { get; set; }
 
-    public static IndexPodcastResponse ToDto(IndexResponse indexResponse, SearchIndexerState indexed)
+    public class IndexedEpisode
     {
-        if (indexResponse.UpdatedEpisodes == null)
-        {
-            return new IndexPodcastResponse { IndexStatus = indexResponse.IndexStatus };
-        }
+        [JsonPropertyName("podcastId")]
+        public required Guid PodcastId { get; set; }
 
-        return new IndexPodcastResponse
-        {
-            IndexStatus = indexResponse.IndexStatus,
-            IndexedEpisodes = indexResponse.UpdatedEpisodes.Select(x => ToDto(x)).ToArray(),
-            SearchIndexerState = indexed
-        };
-    }
+        [JsonPropertyName("episodeId")]
+        public required Guid EpisodeId { get; set; }
 
-    private static IndexedEpisode ToDto(RedditPodcastPoster.Indexing.Models.IndexedEpisode indexedEpisode,
-        bool? indexed = null)
-    {
-        return new IndexedEpisode
-        {
-            EpisodeId = indexedEpisode.Episode.Id,
-            PodcastId = indexedEpisode.Episode.PodcastId,
-            Spotify = indexedEpisode.Spotify,
-            Apple = indexedEpisode.Apple,
-            YouTube = indexedEpisode.YouTube,
-            Subjects = indexedEpisode.Subjects
-        };
+        [JsonPropertyName("spotify")]
+        public required bool Spotify { get; set; }
+
+        [JsonPropertyName("apple")]
+        public required bool Apple { get; set; }
+
+        [JsonPropertyName("youtube")]
+        public required bool YouTube { get; set; }
+
+        [JsonPropertyName("subjects")]
+        public required string[] Subjects { get; set; }
     }
 }

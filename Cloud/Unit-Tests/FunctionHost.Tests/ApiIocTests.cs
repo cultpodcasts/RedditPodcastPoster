@@ -1,5 +1,16 @@
 using Api;
-using Api.Handlers;
+using Api.Handlers.Discovery;
+using Api.Handlers.DiscoverySchedule;
+using Api.Handlers.Episodes;
+using Api.Handlers.Homepage;
+using Api.Handlers.People;
+using Api.Handlers.Podcasts;
+using Api.Handlers.Public;
+using Api.Handlers.PushSubscriptions;
+using Api.Handlers.SearchIndex;
+using Api.Handlers.Subjects;
+using Api.Handlers.SubmitUrl;
+using Api.Handlers.Terms;
 using FluentAssertions;
 using Xunit;
 
@@ -9,16 +20,32 @@ public class ApiIocTests
 {
     public static IEnumerable<object[]> EntryPoints =>
     [
-        [typeof(IPodcastHandler)],
-        [typeof(IEpisodeHandler)],
-        [typeof(IPublicHandler)],
-        [typeof(IPublishHandler)],
-        [typeof(IPushSubscriptionHandler)],
-        [typeof(ISearchIndexHandler)],
-        [typeof(ISubmitUrlHandler)],
-        [typeof(ISubjectHandler)],
-        [typeof(ITermsHandler)],
-        [typeof(IDiscoveryCurationHandler)],
+        [typeof(IGetPodcastHandler)],
+        [typeof(IPostPodcastHandler)],
+        [typeof(IIndexPodcastHandler)],
+        [typeof(IRenamePodcastHandler)],
+        [typeof(IGetEpisodeHandler)],
+        [typeof(IGetOutgoingEpisodesHandler)],
+        [typeof(IPostEpisodeHandler)],
+        [typeof(IPublishEpisodeHandler)],
+        [typeof(IDeleteEpisodeHandler)],
+        [typeof(IGetPublicEpisodeHandler)],
+        [typeof(IPublishHomepageHandler)],
+        [typeof(ICreatePushSubscriptionHandler)],
+        [typeof(IRunSearchIndexHandler)],
+        [typeof(IPostSubmitUrlHandler)],
+        [typeof(IGetSubjectHandler)],
+        [typeof(IPostSubjectHandler)],
+        [typeof(IPutSubjectHandler)],
+        [typeof(IGetAllPeopleHandler)],
+        [typeof(IGetPersonHandler)],
+        [typeof(IPostPersonHandler)],
+        [typeof(IPutPersonHandler)],
+        [typeof(IPostTermsHandler)],
+        [typeof(IGetDiscoveryCurationHandler)],
+        [typeof(IPostDiscoveryCurationHandler)],
+        [typeof(IGetDiscoveryScheduleHandler)],
+        [typeof(IPutDiscoveryScheduleHandler)],
     ];
 
     [Theory]
