@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RedditPodcastPoster.Auth0.Clients;
 using RedditPodcastPoster.Auth0.Configuration;
@@ -29,7 +30,9 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IAsyncInstance<ICollection<SecurityKey>?>>(x =>
                     new AsyncInstance<ICollection<SecurityKey>?>(x.GetService<ISigningKeysFactory>()!))
                 .AddSingleton<IAuth0TokenValidator, Auth0TokenValidator>()
-                .BindConfiguration<Auth0ValidationOptions>("auth0");
+                .BindConfiguration<Auth0ValidationOptions>("auth0")
+                .AddSingleton<IValidateOptions<Auth0ValidationOptions>, Auth0ValidationOptionsValidator>();
+            services.AddOptions<Auth0ValidationOptions>().ValidateOnStart();
             return services;
         }
     }
