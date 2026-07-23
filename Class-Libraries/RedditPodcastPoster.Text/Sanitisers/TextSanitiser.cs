@@ -13,6 +13,7 @@ public partial class TextSanitiser(
     : ITextSanitiser
 {
     private static readonly Regex OApostrophe = CreateOApostrophe();
+    private static readonly Regex RomanceElisionApostrophe = CreateRomanceElisionApostrophe();
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
@@ -56,6 +57,7 @@ public partial class TextSanitiser(
         episodeTitle = HashtagOrAtSymbols.Replace(episodeTitle, "$1");
         episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
         episodeTitle = RaiseOfApostropheLetter(episodeTitle);
+        episodeTitle = FixRomanceElisionApostrophe(episodeTitle);
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
         foreach (var term in LowerCaseTerms.Expressions)
         {
@@ -117,6 +119,22 @@ public partial class TextSanitiser(
             var index = match.Index;
             var length = match.Length;
             var pre = match.Groups["pre"].Value;
+            var post = match.Groups["post"].Value;
+            text = text.Substring(0, index) + pre + "'" + TextInfo.ToTitleCase(post.ToLower()) +
+                   text.Substring(index + length);
+        }
+
+        return text;
+    }
+
+    public string FixRomanceElisionApostrophe(string text)
+    {
+        var matches = RomanceElisionApostrophe.Matches(text);
+        foreach (Match match in matches)
+        {
+            var index = match.Index;
+            var length = match.Length;
+            var pre = match.Groups["pre"].Value.ToLower();
             var post = match.Groups["post"].Value;
             text = text.Substring(0, index) + pre + "'" + TextInfo.ToTitleCase(post.ToLower()) +
                    text.Substring(index + length);
@@ -227,7 +245,7 @@ public partial class TextSanitiser(
         return input;
     }
 
-    [GeneratedRegex(@"(?'prefix'^[^a-zA-Z\d""\$\┬ú\'\(]+)(?'after'.*$)", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?'prefix'^[^\p{L}\p{N}""\$\u00A3\'\(]+)(?'after'.*$)", RegexOptions.Compiled)]
     private static partial Regex GenerateInvalidTitlePrefix();
 
     [GeneratedRegex(@"[#@](\w+)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-GB")]
@@ -244,6 +262,9 @@ public partial class TextSanitiser(
 
     [GeneratedRegex(@"\b(?'pre'O)'\b(?'post'\w+)\b", RegexOptions.Compiled)]
     private static partial Regex CreateOApostrophe();
+
+    [GeneratedRegex(@"\b(?'pre'[LlDd])'\b(?'post'\w+)\b", RegexOptions.Compiled)]
+    private static partial Regex CreateRomanceElisionApostrophe();
 
     [GeneratedRegex(@"\bS\d+ ?E\d+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex GenerateSeasonEpisode();
