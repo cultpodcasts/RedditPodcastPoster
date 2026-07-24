@@ -397,6 +397,18 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
 
+### ExportSearchSuggestions
+
+**Purpose:** Read-only, narrow export for the flix search-typeahead prototype. Reads only Subjects (`name` + `aliases`, `associatedSubjects` deliberately excluded) and Podcasts (`name` only, non-removed) via the existing repository `GetAll()` abstractions, and projects straight to a single small JSON file — never writes to disk per-document like `CosmosDbDownloader`, never writes to Cosmos.
+
+**Run:** `dotnet run --project Console-Apps/ExportSearchSuggestions -- [output-path]` · PATH: `ExportSearchSuggestions`
+
+| Value | Description |
+|-------|-------------|
+| `[output-path]` | Optional positional; JSON output path (default `search-suggestions.json`) |
+
+Consumed by the website repo (`cultpodcasts/docs/search-suggestions.md`) — copy the output into `src/assets/search-suggestions.json` on `design/visual-refresh-v1` and commit.
+
 ---
 
 ## Ops utilities
