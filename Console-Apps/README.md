@@ -399,7 +399,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### ExportSearchSuggestions
 
-**Purpose:** Read-only, narrow export for the flix search-typeahead prototype. Reads only Subjects (`name` + `aliases`, `associatedSubjects` deliberately excluded) and Podcasts (`name` only, non-removed) via the existing repository `GetAll()` abstractions, and projects straight to a single small JSON file — never writes to disk per-document like `CosmosDbDownloader`, never writes to Cosmos.
+**Purpose:** Read-only, narrow export for the flix search-typeahead prototype. Reads only Subjects (`name` + `aliases`, `associatedSubjects` deliberately excluded) and Podcasts (`name` only, non-removed) via the existing repository `GetAll()` abstractions, and projects straight to a single small **flat match-index** JSON file (`entries[]` with `type`, `canonical`, lowercase `searchText`, optional `alias`) — never writes to disk per-document like `CosmosDbDownloader`, never writes to Cosmos.
 
 **Run:** `dotnet run --project Console-Apps/ExportSearchSuggestions -- [output-path]` · PATH: `ExportSearchSuggestions`
 
@@ -407,7 +407,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 |-------|-------------|
 | `[output-path]` | Optional positional; JSON output path (default `search-suggestions.json`) |
 
-Consumed by the website repo (`cultpodcasts/docs/search-suggestions.md`) — copy the output into `src/assets/search-suggestions.json` on `design/visual-refresh-v1` and commit.
+Consumed by the website repo (`cultpodcasts/docs/search-suggestions.md`) — copy the output into `src/assets/search-suggestions.json` on `design/visual-refresh-v1` and commit. If you still have a legacy nested `{ subjects, podcasts }` file, convert with `node scripts/flatten-search-suggestions.mjs` in `cultpodcasts/`.
 
 ---
 
