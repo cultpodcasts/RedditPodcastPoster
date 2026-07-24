@@ -53,4 +53,7 @@ public class PodcastResult
     [JsonPropertyName("knownTerms")]
     [JsonPropertyOrder(271)]
     public string[]? KnownTerms { get; set; } = null;
+
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
 }

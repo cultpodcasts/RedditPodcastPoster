@@ -106,7 +106,8 @@ public class HomepagePublisher(
                     Length = episode.Length,
                     Subjects = episode.Subjects.Count > 0 ? episode.Subjects.ToArray() : null,
                     Images = episode.Images,
-                    KnownTerms = podcast?.KnownTerms
+                    KnownTerms = podcast?.KnownTerms,
+                    Language = episode.Language
                 };
             })
             .OrderByDescending(x => x.Release)
@@ -156,7 +157,8 @@ public class HomepagePublisher(
                 Urls = episode.Urls,
                 Length = episode.Length,
                 Subjects = episode.Subjects,
-                Images = episode.Images
+                Images = episode.Images,
+                Language = episode.Language ?? episode.PodcastLanguage
             });
         }
 
@@ -236,8 +238,29 @@ public class HomepagePublisher(
             InternetArchive = x.InternetArchive,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other
+            Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other,
+            Language = NormaliseHomepageLanguage(x.Language)
         };
+    }
+
+    /// <summary>
+    /// Omit English (and empty) so the homepage payload only carries non-English tags.
+    /// </summary>
+    private static string? NormaliseHomepageLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var trimmed = language.Trim();
+        if (trimmed.StartsWith("en", StringComparison.OrdinalIgnoreCase) &&
+            (trimmed.Length == 2 || trimmed[2] is '-' or '_'))
+        {
+            return null;
+        }
+
+        return trimmed;
     }
 
     private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
@@ -317,5 +340,6 @@ public class HomepagePublisher(
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];
         public EpisodeImages? Images { get; init; }
+        public string? Language { get; init; }
     }
 }
