@@ -58,6 +58,8 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public string? Image { get; set; }
 
-    [SimpleField(IsFilterable = true, IsFacetable = true, IsHidden = true)]
+    // Retrievable so flix/search cards and episode pages can show language flags.
+    // Still filterable+facetable for subject language chips (English ≈ null).
+    [SimpleField(IsFilterable = true, IsFacetable = true)]
     public string? Lang { get; set; }
 }
