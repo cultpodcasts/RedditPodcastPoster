@@ -55,4 +55,10 @@ public class RecentEpisode
 
     [JsonPropertyName("image")]
     public Uri? Image { get; set; } = null;
+
+    /// <summary>
+    /// IETF language tag when non-English. Null/absent means English (or unknown treated as English).
+    /// </summary>
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
 }
