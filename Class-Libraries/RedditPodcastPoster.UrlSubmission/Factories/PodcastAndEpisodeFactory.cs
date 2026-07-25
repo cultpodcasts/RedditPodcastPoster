@@ -6,6 +6,7 @@ using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -49,7 +50,10 @@ public class PodcastAndEpisodeFactory(
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;
         newPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem?.ShowId ?? string.Empty;
-        newPodcast.YouTubePlaylistId = categorisedItem.ResolvedYouTubeItem?.PlaylistId ?? string.Empty;
+        YouTubePlaylistIdChange.Apply(
+            newPodcast,
+            categorisedItem.ResolvedYouTubeItem?.PlaylistId ?? string.Empty,
+            logger);
 
         if (!string.IsNullOrWhiteSpace(newPodcast.YouTubeChannelId))
         {

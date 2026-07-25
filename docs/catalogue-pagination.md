@@ -308,6 +308,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | `Spotify pagination circuit-breaker tripped:` | Error | `SimpleEpisodePaginator`, `AscendingEpisodePaginator` |
 | `Spotify expensive-query flag flipped:` | Warning | `SpotifyExpensiveQueryFlag` |
 | `YouTube expensive-query flag flipped:` | Warning | `YouTubeExpensiveQueryFlag` |
+| `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps) |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
 

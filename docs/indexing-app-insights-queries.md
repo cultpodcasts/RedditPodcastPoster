@@ -131,6 +131,7 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `Spotify pagination circuit-breaker tripped:` | Spotify paginators | **Error** — a bounded catalogue walk hit `MaxPages` / `MaxWalkBackPages`; in-window episodes may be missing |
 | `Spotify expensive-query flag flipped:` | `SpotifyExpensiveQueryFlag` | Warning — conclusive catalogue-order probe changed `SpotifyEpisodesQueryIsExpensive` |
 | `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
+| `YouTube playlist id changed:` | `YouTubePlaylistIdChange` | Warning — stored `youTubePlaylistId` changed (API curator / URL submit); re-check Arbitrary / expensive order |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | `ArbitraryYouTubePlaylistWalk` / `YouTubePlaylistService` | **Error** — Arbitrary playlist walk hit `MaxPages`; in-window episodes may be missing — reclassify or shrink the playlist |
 
 Design reference for order modes, caps, and flag lifecycle: [catalogue-pagination.md](catalogue-pagination.md).
@@ -936,16 +937,27 @@ AppTraces
 | order by TimeGenerated desc
 ```
 
-### B. YouTube playlist signals together (flag flips + Arbitrary cap + discovery path)
+### B. YouTube playlist signals together (flag flips + playlist id change + Arbitrary cap + discovery path)
 
 ```kusto
 AppTraces
 | where TimeGenerated > ago(24h)
-| where AppRoleName == "indexer-infra"
+| where AppRoleName == "indexer-infra" or AppRoleName == "api-infra"
 | where Message startswith "YouTube arbitrary-playlist walk circuit-breaker tripped:"
    or Message startswith "YouTube expensive-query flag flipped:"
+   or Message startswith "YouTube playlist id changed:"
    or Message has "YouTubeDiscoveryPath"
-| project TimeGenerated, SeverityLevel, Message, OperationId
+| project TimeGenerated, AppRoleName, SeverityLevel, Message, OperationId
+| order by TimeGenerated desc
+```
+
+### C. Playlist id swaps only (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "YouTube playlist id changed:"
+| project TimeGenerated, AppRoleName, Message, OperationId
 | order by TimeGenerated desc
 ```
 

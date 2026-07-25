@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using Api.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 namespace Api.Services.Podcasts;
 
@@ -101,7 +102,7 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
 
         if (podcastChangeRequest.YouTubePlaylistId != null)
         {
-            podcast.YouTubePlaylistId = podcastChangeRequest.YouTubePlaylistId;
+            YouTubePlaylistIdChange.Apply(podcast, podcastChangeRequest.YouTubePlaylistId, logger);
         }
 
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
