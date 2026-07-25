@@ -86,6 +86,10 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
             AppleId = podcast.AppleId,
             YouTubeChannelId = podcast.YouTubeChannelId,
             YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePlaylistIdHistory = podcast.YouTubePlaylistIdHistory?
+                .Select(x => new YouTubePlaylistIdHistoryEntry { Id = x.Id, ReplacedAt = x.ReplacedAt })
+                .ToList(),
+            YouTubePlaylistOrder = podcast.YouTubePlaylistOrder,
             YouTubePublicationOffset = podcast.YouTubePublicationOffset,
             ReleaseAuthority = podcast.ReleaseAuthority,
             IndexAllEpisodes = podcast.IndexAllEpisodes,

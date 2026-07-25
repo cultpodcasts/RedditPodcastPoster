@@ -100,6 +100,14 @@ public class Podcast
     public string YouTubePlaylistId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Former YouTube playlist ids (id + UTC replaced-at), newest last. Populated when
+    /// <see cref="YouTubePlaylistId"/> changes through the playlist-id change helper.
+    /// </summary>
+    [JsonPropertyName("youTubePlaylistIdHistory")]
+    [JsonPropertyOrder(141)]
+    public List<YouTubePlaylistIdHistoryEntry>? YouTubePlaylistIdHistory { get; set; }
+
+    /// <summary>
     /// Declared playlist ordering. Null: probe head order each pass (default). Arbitrary: manually
     /// curated playlist where position carries no date information — full walk + added-at filter.
     /// </summary>

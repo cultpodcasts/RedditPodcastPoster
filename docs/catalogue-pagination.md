@@ -184,7 +184,7 @@ non-primary passes must not start catalogue walks even when discovery would.
 | Episode materialisation | `Episode/YouTubeEpisodeProvider.cs` |
 | Discovery (applies flag) | `Handlers/YouTubeEpisodeRetrievalHandler.cs` |
 | Enrichment (does **not** apply flag) | `Resolvers/YouTubeUrlResolver.cs` (`YouTubeItemResolver`) |
-| Model | `Models/Podcasts/PlaylistOrder.cs`, `Podcast.YouTubePlaylistOrder` |
+| Model | `Models/Podcasts/PlaylistOrder.cs`, `Podcast.YouTubePlaylistOrder`, `Podcast.YouTubePlaylistIdHistory` |
 
 ### `youTubePlaylistOrder` (`PlaylistOrder?`)
 
@@ -295,7 +295,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Symptom | Likely cause | Check |
 |---------|--------------|-------|
 | Recent episode missing Spotify URL | Ascending catalogue + skip-expensive without window; or walk-back circuit breaker | Flag flip / circuit-breaker Error; `ReleasedSince` window |
-| Recent YouTube URL missing on curated show | Playlist not `Arbitrary`, or wrong playlist id, or Arbitrary cap tripped | `youTubePlaylistOrder`, playlist id, Arbitrary circuit-breaker Error |
+| Recent YouTube URL missing on curated show | Playlist not `Arbitrary`, or wrong playlist id, or Arbitrary cap tripped | `youTubePlaylistOrder`, playlist id / `youTubePlaylistIdHistory`, Arbitrary circuit-breaker Error |
 | Expensive flag stuck `true` forever | Probe never returned conclusive newest-first (should not happen — Apply clears) | Flag-flip Warning history |
 | Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass |
 
@@ -308,7 +308,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | `Spotify pagination circuit-breaker tripped:` | Error | `SimpleEpisodePaginator`, `AscendingEpisodePaginator` |
 | `Spotify expensive-query flag flipped:` | Warning | `SpotifyExpensiveQueryFlag` |
 | `YouTube expensive-query flag flipped:` | Warning | `YouTubeExpensiveQueryFlag` |
-| `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps) |
+| `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps; former id kept on `youTubePlaylistIdHistory`) |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
 

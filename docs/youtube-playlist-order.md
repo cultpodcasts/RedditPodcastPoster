@@ -47,6 +47,10 @@ Nullable enum on `Podcast` (`PlaylistOrder`, JSON `youTubePlaylistOrder`):
 | `Arbitrary` | Curated playlist; position carries no date information |
 | `ReverseChronological` / `Ascending` | Reserved for future probe-written classification; not yet consumed |
 
+Former playlist ids are retained on `youTubePlaylistIdHistory` (`id` + `replacedAt` UTC, newest last)
+whenever `YouTubePlaylistIdChange.Apply` swaps a non-empty configured id — so a bad curated swap
+is recoverable from the podcast document (and surfaced on the API podcast DTO).
+
 When `Arbitrary`:
 
 - Walk at batch size 50 with hard page cap `ArbitraryYouTubePlaylistWalk.MaxPages` (= 20 →

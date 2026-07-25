@@ -4,8 +4,9 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 /// <summary>
-/// Applies a new <see cref="Podcast.YouTubePlaylistId"/> and logs when the value actually changes
-/// so operators can see curated show playlist swaps (e.g. unlisted → public show playlist) in App Insights.
+/// Applies a new <see cref="Podcast.YouTubePlaylistId"/>, appends the previous non-empty id to
+/// <see cref="Podcast.YouTubePlaylistIdHistory"/>, and logs when the value actually changes so
+/// operators can see curated show playlist swaps and recover if a swap was wrong.
 /// </summary>
 public static class YouTubePlaylistIdChange
 {
@@ -17,9 +18,15 @@ public static class YouTubePlaylistIdChange
 
     /// <summary>
     /// Sets <paramref name="newPlaylistId"/> on the podcast when it differs from the stored value.
-    /// Null / whitespace is normalized to empty. Returns true when the stored id changed.
+    /// Null / whitespace is normalized to empty. When the previous id was non-empty it is appended
+    /// to history with <paramref name="replacedAtUtc"/> (defaults to <see cref="DateTime.UtcNow"/>).
+    /// Returns true when the stored id changed.
     /// </summary>
-    public static bool Apply(Podcast podcast, string? newPlaylistId, ILogger? logger = null)
+    public static bool Apply(
+        Podcast podcast,
+        string? newPlaylistId,
+        ILogger? logger = null,
+        DateTime? replacedAtUtc = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
 
@@ -28,6 +35,16 @@ public static class YouTubePlaylistIdChange
         if (string.Equals(previous, measured, StringComparison.Ordinal))
         {
             return false;
+        }
+
+        if (!string.IsNullOrEmpty(previous))
+        {
+            podcast.YouTubePlaylistIdHistory ??= [];
+            podcast.YouTubePlaylistIdHistory.Add(new YouTubePlaylistIdHistoryEntry
+            {
+                Id = previous,
+                ReplacedAt = replacedAtUtc ?? DateTime.UtcNow
+            });
         }
 
         podcast.YouTubePlaylistId = measured;
