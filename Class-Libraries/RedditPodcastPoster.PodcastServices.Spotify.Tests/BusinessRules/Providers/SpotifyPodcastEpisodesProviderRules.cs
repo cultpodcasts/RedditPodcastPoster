@@ -167,8 +167,8 @@ public class SpotifyPodcastEpisodesProviderRules
     }
 
     [Fact(DisplayName =
-        "When SkipExpensiveSpotifyQueries is set and the podcast has an expensive Spotify query, name-path GetAllEpisodes skips pagination " +
-        "because indexer secondary passes and guarded submit must not walk high-volume catalogues by podcast name.")]
+        "When SkipExpensiveSpotifyQueries is set with no ReleasedSince window and the podcast has an expensive Spotify query, " +
+        "name-path GetAllEpisodes skips pagination because an unbounded walk of a high-volume catalogue by podcast name burns Spotify quota.")]
     public async Task Name_path_skips_pagination_when_expensive_query_guard_set()
     {
         // Arrange
@@ -201,7 +201,6 @@ public class SpotifyPodcastEpisodesProviderRules
             Released: DomainTestFixture.UtcDateDaysAgo(1),
             HasExpensiveSpotifyEpisodesQuery: true);
         var indexingContext = new IndexingContext(
-            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipPodcastDiscovery: false,
             SkipExpensiveSpotifyQueries: true);
 
@@ -213,6 +212,64 @@ public class SpotifyPodcastEpisodesProviderRules
         paginator.Verify(
             x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()),
             Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When SkipExpensiveSpotifyQueries is set with a ReleasedSince window, name-path GetAllEpisodes still paginates " +
+        "because ascending catalogues put the newest episodes last and skipping leaves only the oldest page.")]
+    public async Task Name_path_paginates_expensive_query_when_released_since_set()
+    {
+        // Arrange
+        var show = new SimpleShow { Id = _fixture.CreateSpotifyId(), Name = _fixture.CreateTitle() };
+        var oldest = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 2000);
+        var recent = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
+        var wrapper = new Mock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetSimpleShows(It.IsAny<SearchRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([show]);
+        wrapper
+            .Setup(x => x.GetShowEpisodes(
+                show.Id,
+                It.IsAny<ShowEpisodesRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Paging<SimpleEpisode>
+            {
+                Items = [oldest],
+                Next = "https://api.spotify.com/v1/shows/x/episodes?offset=1"
+            });
+
+        var finder = new Mock<ISpotifySearchResultFinder>();
+        finder
+            .Setup(x => x.FindMatchingPodcasts(It.IsAny<string>(), It.IsAny<List<SimpleShow>?>()))
+            .Returns([show]);
+
+        var paginator = new Mock<ISpotifyQueryPaginator>();
+        paginator
+            .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new PodcastEpisodesResult([oldest, recent]));
+
+        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: "",
+            PodcastName: show.Name,
+            EpisodeSpotifyId: "",
+            EpisodeTitle: _fixture.CreateTitle(),
+            Released: DomainTestFixture.UtcDateDaysAgo(1),
+            HasExpensiveSpotifyEpisodesQuery: true);
+        var indexingContext = new IndexingContext(
+            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
+            SkipPodcastDiscovery: false,
+            SkipExpensiveSpotifyQueries: true);
+
+        // Act
+        var result = await sut.GetAllEpisodes(request, indexingContext, Market.CountryCode);
+
+        // Assert
+        result.Episodes.Select(x => x.Id).Should().Contain(recent.Id);
+        paginator.Verify(
+            x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -258,8 +315,8 @@ public class SpotifyPodcastEpisodesProviderRules
     }
 
     [Fact(DisplayName =
-        "When SkipExpensiveSpotifyQueries is set and the known-id podcast has an expensive Spotify query, GetEpisodes returns only the first page " +
-        "because indexer secondary passes must not PaginateEpisodes over high-volume catalogues.")]
+        "When SkipExpensiveSpotifyQueries is set with no ReleasedSince window and the known-id podcast has an expensive Spotify query, " +
+        "GetEpisodes returns only the first page because an unbounded PaginateEpisodes over a high-volume catalogue burns Spotify quota.")]
     public async Task Known_id_path_returns_first_page_only_when_expensive_query_guard_set()
     {
         // Arrange
@@ -281,7 +338,6 @@ public class SpotifyPodcastEpisodesProviderRules
         var paginator = new Mock<ISpotifyQueryPaginator>();
         var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
         var indexingContext = new IndexingContext(
-            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipPodcastDiscovery: true,
             SkipExpensiveSpotifyQueries: true);
 
@@ -295,6 +351,56 @@ public class SpotifyPodcastEpisodesProviderRules
         paginator.Verify(
             x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()),
             Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When SkipExpensiveSpotifyQueries is set with a ReleasedSince window, known-id GetEpisodes still paginates " +
+        "because an expensive ascending catalogue returns the oldest episodes first and the in-window row is never on page one.")]
+    public async Task Known_id_path_paginates_expensive_query_when_released_since_set()
+    {
+        // Arrange
+        var showId = _fixture.CreateSpotifyId();
+        var oldest = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 2000);
+        var recent = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
+        ShowEpisodesRequest? capturedRequest = null;
+        var wrapper = new Mock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetShowEpisodes(
+                showId,
+                It.IsAny<ShowEpisodesRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, ShowEpisodesRequest, IndexingContext, CancellationToken>((_, request, _, _) =>
+                capturedRequest = request)
+            .ReturnsAsync(new Paging<SimpleEpisode>
+            {
+                Items = [oldest],
+                Next = "https://api.spotify.com/v1/shows/x/episodes?offset=5"
+            });
+
+        var paginator = new Mock<ISpotifyQueryPaginator>();
+        paginator
+            .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new PodcastEpisodesResult([oldest, recent]));
+
+        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var indexingContext = new IndexingContext(
+            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
+            SkipPodcastDiscovery: true,
+            SkipExpensiveSpotifyQueries: true);
+
+        // Act
+        var result = await sut.GetEpisodes(
+            new GetEpisodesRequest(new SpotifyPodcastId(showId), Market.CountryCode, HasExpensiveSpotifyEpisodesQuery: true),
+            indexingContext);
+
+        // Assert
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Limit.Should().Be(50);
+        result.Episodes.Select(x => x.Id).Should().Contain(recent.Id);
+        paginator.Verify(
+            x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -321,7 +427,6 @@ public class SpotifyPodcastEpisodesProviderRules
 
         var sut = CreateSut(wrapper.Object, Mock.Of<ISpotifyQueryPaginator>(), Mock.Of<ISpotifySearchResultFinder>());
         var indexingContext = new IndexingContext(
-            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipPodcastDiscovery: true,
             SkipExpensiveSpotifyQueries: true);
 

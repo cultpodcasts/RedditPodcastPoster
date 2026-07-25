@@ -139,10 +139,19 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         if (!string.IsNullOrWhiteSpace(request.PlaylistId) &&
-            playlistQueryResponse.IsExpensiveQuery && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
+            playlistQueryResponse.IsExpensiveQuery == true && !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
             logger.LogError("Querying '{playlistId}' is noted for being an expensive query.", playlistId);
             return;
+        }
+
+        if (playlistQueryResponse.IsExpensiveQuery.HasValue)
+        {
+            YouTubeExpensiveQueryFlag.Apply(
+                podcast,
+                playlistQueryResponse.IsExpensiveQuery,
+                YouTubeExpensiveQueryFlag.MinimumOrderSampleSize,
+                logger);
         }
 
         // Get existing episodes from detached repository

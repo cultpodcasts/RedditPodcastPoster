@@ -112,12 +112,11 @@ public class SpotifyPodcastResolverRules
     }
 
     [Fact(DisplayName =
-        "KNOWN: When the episodes provider reports ExpensiveQueryFound during episode-URL verification, FindPodcast still returns ExpensiveQueryFound=false " +
-        "because SpotifyPodcastWrapper's constructor accepts the flag but does not assign the init property.")]
-    public async Task Expensive_query_found_is_not_assigned_on_wrapper()
+        "When the episodes provider reports ExpensiveQueryFound during episode-URL verification, FindPodcast returns ExpensiveQueryFound=true " +
+        "because SpotifyPodcastWrapper now assigns the measured catalogue-order probe.")]
+    public async Task Expensive_query_found_is_assigned_on_wrapper()
     {
         // Arrange
-        // KNOWN: likely bug â€” SpotifyPodcastWrapper(ctor expensiveQueryFound) never sets ExpensiveQueryFound.
         var showName = _fixture.CreateTitle();
         var showId = _fixture.CreateSpotifyId();
         var candidate = new SimpleShow { Id = showId, Name = showName };
@@ -172,7 +171,7 @@ public class SpotifyPodcastResolverRules
         // Assert
         result.Should().NotBeNull();
         result!.Id.Should().Be(showId);
-        result.ExpensiveQueryFound.Should().BeFalse();
+        result.ExpensiveQueryFound.Should().BeTrue();
     }
 
     private static SpotifyPodcastResolver CreateSut(

@@ -86,7 +86,8 @@ public class SearchResultFinderCatalogueWrapperRules
 
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row " +
-        "within five minutes of duration but with a disjoint title must not be selected.")]
+        "within five minutes of duration but outside the expanded release window and with a " +
+        "disjoint title must not be selected.")]
     public void find_by_length_youtube_enrichment_does_not_duration_snipe_disjoint_title()
     {
         // Arrange — wrong-week YouTube (~59:40) must not claim this week's Spotify (~62:39) on duration alone
@@ -119,6 +120,41 @@ public class SearchResultFinderCatalogueWrapperRules
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row " +
+        "with unique duration inside the twelve-hour release window is selected even when titles diverge.")]
+    public void find_by_length_youtube_enrichment_accepts_unique_duration_within_release_window()
+    {
+        // Arrange
+        const string youTubeTitle = "Virginia | Ep 3: Mommy still loves you";
+        const string spotifyTitle = "Ep 3 — A restraining order that changed everything";
+        var length = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var matchingId = _fixture.CreateSpotifyId();
+        var episodes = new List<SimpleEpisode>
+        {
+            new()
+            {
+                Id = matchingId,
+                Name = spotifyTitle,
+                DurationMs = (int)length.TotalMilliseconds,
+                ReleaseDate = "2026-07-24"
+            }
+        };
+
+        // Act — probe release within 12h of Spotify midnight UTC
+        var result = _sut.FindMatchingEpisodeByLength(
+            youTubeTitle,
+            length,
+            episodes,
+            releaseAuthority: Service.Spotify,
+            released: new DateTime(2026, 7, 24, 10, 0, 0, DateTimeKind.Utc),
+            enrichingYouTubeDiscoveredEpisode: true);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(matchingId);
     }
 
     [Fact(DisplayName =

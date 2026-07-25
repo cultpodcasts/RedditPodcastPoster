@@ -88,6 +88,10 @@ public class PodcastDto
     [JsonPropertyName("youTubePlaylistId")]
     public string? YouTubePlaylistId { get; set; }
 
+    /// <summary>Former YouTube playlist ids (id + replaced-at UTC), newest last. Read-only for operators.</summary>
+    [JsonPropertyName("youTubePlaylistIdHistory")]
+    public YouTubePlaylistIdHistoryEntry[]? YouTubePlaylistIdHistory { get; set; }
+
     [JsonPropertyName("ignoredAssociatedSubjects")]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 

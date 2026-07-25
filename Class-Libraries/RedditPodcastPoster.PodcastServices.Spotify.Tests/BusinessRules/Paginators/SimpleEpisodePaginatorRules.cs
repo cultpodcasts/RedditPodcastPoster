@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
@@ -142,6 +143,76 @@ public class SimpleEpisodePaginatorRules
     }
 
     [Fact(DisplayName =
+        "When the ascending page cap stops a walk with pages remaining, SimpleEpisodePaginator logs an Error " +
+        "because a quota circuit-breaker trip can hide in-window episodes and must not be silent.")]
+    public async Task Logs_error_when_circuit_breaker_trips()
+    {
+        // Arrange — every page has a next link so the cap, not exhaustion, stops the walk
+        var pagesByUrl = new Dictionary<string, object>();
+        for (var i = 1; i <= SimpleEpisodePaginator.MaxPages + 1; i++)
+        {
+            var url = $"https://api.spotify.com/v1/shows/show/episodes?offset={i}";
+            pagesByUrl[url] = new Paging<SimpleEpisode>
+            {
+                Items = [CreateEpisode($"ep-{i}", daysAgo: i + 1)],
+                Next = $"https://api.spotify.com/v1/shows/show/episodes?offset={i + 1}"
+            };
+        }
+
+        var firstPage = new Paging<SimpleEpisode>
+        {
+            Items = [CreateEpisode("ep-0", daysAgo: 1)],
+            Next = "https://api.spotify.com/v1/shows/show/episodes?offset=1"
+        };
+        var logger = new CapturingLogger();
+        var sut = new SimpleEpisodePaginator(
+            DomainTestFixture.UtcDateDaysAgo(30),
+            isInReverseOrder: false,
+            logger);
+
+        // Act
+        await sut.Paginate(firstPage, new FakeSpotifyApiConnector(pagesByUrl)).ToListAsync();
+
+        // Assert
+        logger.Errors.Should().ContainSingle(m =>
+            m.StartsWith(SimpleEpisodePaginator.CircuitBreakerTrippedMessagePrefix) &&
+            m.Contains($"pages-fetched='{SimpleEpisodePaginator.MaxPages}'") &&
+            m.Contains($"max-pages='{SimpleEpisodePaginator.MaxPages}'"));
+    }
+
+    [Fact(DisplayName =
+        "When an ascending walk ends because the catalogue is exhausted, SimpleEpisodePaginator logs no circuit-breaker Error " +
+        "because reaching the end of the catalogue is not a quota-protection stop.")]
+    public async Task Does_not_log_error_when_catalogue_exhausted_within_cap()
+    {
+        // Arrange — two subsequent pages then no next link
+        var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
+        var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
+        var firstPage = new Paging<SimpleEpisode>
+        {
+            Items = [CreateEpisode("ep-0", daysAgo: 3)],
+            Next = page1Url
+        };
+        var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>
+        {
+            [page1Url] = new Paging<SimpleEpisode> { Items = [CreateEpisode("ep-1", daysAgo: 2)], Next = page2Url },
+            [page2Url] = new Paging<SimpleEpisode> { Items = [CreateEpisode("ep-2", daysAgo: 1)], Next = null }
+        });
+        var logger = new CapturingLogger();
+        var sut = new SimpleEpisodePaginator(
+            DomainTestFixture.UtcDateDaysAgo(30),
+            isInReverseOrder: false,
+            logger);
+
+        // Act
+        var results = await sut.Paginate(firstPage, connector).ToListAsync();
+
+        // Assert
+        results.Should().HaveCount(3);
+        logger.Errors.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When catalogue order is reverse-chronological, SimpleEpisodePaginator does not apply a page cap " +
         "and continues paging while episodes remain within the ReleasedSince window.")]
     public async Task Does_not_hard_cap_subsequent_pages_when_reverse_chronological()
@@ -177,6 +248,42 @@ public class SimpleEpisodePaginatorRules
         results.Select(x => x.Id).Should().Equal(ep0.Id, ep1.Id, ep2.Id, ep3.Id);
     }
 
+    [Fact(DisplayName =
+        "When catalogue order is reverse-chronological and a page's last episode falls before ReleasedSince, " +
+        "SimpleEpisodePaginator stops without fetching further pages because the date window — not MaxPages — " +
+        "is the early-stop for newest-first catalogues.")]
+    public async Task Reverse_chronological_stops_when_last_episode_falls_before_released_since()
+    {
+        // Arrange — page 0–1 in window; page 1's last item is out of window; page 2 must not be fetched
+        var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
+        var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
+        var inWindow = CreateEpisode("in-window", daysAgo: 1);
+        var outOfWindow = CreateEpisode("out-of-window", daysAgo: 10);
+        var shouldNotFetch = CreateEpisode("should-not-fetch", daysAgo: 11);
+        var firstPage = new Paging<SimpleEpisode>
+        {
+            Items = [inWindow],
+            Next = page1Url
+        };
+        var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>
+        {
+            [page1Url] = new Paging<SimpleEpisode> { Items = [outOfWindow], Next = page2Url },
+            [page2Url] = new Paging<SimpleEpisode> { Items = [shouldNotFetch], Next = null }
+        });
+        var sut = new SimpleEpisodePaginator(
+            DomainTestFixture.UtcDateDaysAgo(7),
+            isInReverseOrder: true,
+            NullLogger<SimpleEpisodePaginator>.Instance);
+
+        // Act
+        var results = await sut.Paginate(firstPage, connector).ToListAsync();
+
+        // Assert — out-of-window item is not yielded; page 2 never fetched
+        results.Select(x => x.Id).Should().Equal(inWindow.Id);
+        results.Should().NotContain(x => x.Id == outOfWindow.Id);
+        results.Should().NotContain(x => x.Id == shouldNotFetch.Id);
+    }
+
     private SimpleEpisode CreateEpisode(string id, int daysAgo) =>
         new()
         {
@@ -185,4 +292,26 @@ public class SimpleEpisodePaginatorRules
             ReleaseDate = DomainTestFixture.UtcDateDaysAgo(daysAgo).ToString("yyyy-MM-dd"),
             Type = ItemType.Episode
         };
+
+    private sealed class CapturingLogger : ILogger<SimpleEpisodePaginator>
+    {
+        public List<string> Errors { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Error)
+            {
+                Errors.Add(formatter(state, exception));
+            }
+        }
+    }
 }

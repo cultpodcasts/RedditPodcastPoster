@@ -11,7 +11,8 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 public class SpotifyQueryPaginator(
     ISpotifyClientWrapper spotifyClientWrapper,
     ILogger<SpotifyQueryPaginator> logger,
-    ILogger<SimpleEpisodePaginator> simpleEpisodePaginatorLogger
+    ISpotifyEpisodePaginatorFactory paginatorFactory,
+    NullEpisodesLeadInPaginator nullEpisodesLeadInPaginator
 )
     : ISpotifyQueryPaginator
 {
@@ -44,16 +45,18 @@ public class SpotifyQueryPaginator(
         var existingPagedEpisodes = await spotifyClientWrapper.Paginate(
             pagedEpisodes,
             indexingContext,
-            new NullEpisodesLeadInPaginator(40, 3));
+            nullEpisodesLeadInPaginator);
 
         if (existingPagedEpisodes != null)
         {
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            var orderSample = existingPagedEpisodes.Where(x => x != null).ToList();
             var currentMoment = DateTime.Now.AddDays(2);
             var isInReverseTimeOrder = true;
             var ctr = 0;
-            while (isInReverseTimeOrder && ctr < existingPagedEpisodes.Count)
+            while (isInReverseTimeOrder && ctr < orderSample.Count)
             {
-                var releaseDate = existingPagedEpisodes[ctr].GetReleaseDate();
+                var releaseDate = orderSample[ctr].GetReleaseDate();
                 isInReverseTimeOrder = currentMoment >= releaseDate;
                 if (isInReverseTimeOrder)
                 {
@@ -63,10 +66,15 @@ public class SpotifyQueryPaginator(
                 ctr++;
             }
 
-            var isExpensiveQueryFound = !isInReverseTimeOrder;
+            // A single episode cannot distinguish ascending vs reverse-chrono; leave the probe
+            // inconclusive so callers do not clear a previously measured expensive flag.
+            bool? isExpensiveQueryFound = orderSample.Count >= SpotifyExpensiveQueryFlag.MinimumOrderSampleSize
+                ? !isInReverseTimeOrder
+                : null;
 
-            logger.LogInformation("Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}.",
-                nameof(PaginateEpisodes), isExpensiveQueryFound);
+            logger.LogInformation(
+                "Running '{nameofPaginateEpisodes}'. isExpensiveQueryFound: {isExpensiveQueryFound}. order-sample-size: {OrderSampleSize}.",
+                nameof(PaginateEpisodes), isExpensiveQueryFound, orderSample.Count);
 
             var episodes = existingPagedEpisodes;
 
@@ -87,28 +95,45 @@ public class SpotifyQueryPaginator(
             }
             else if (episodes.Any())
             {
-                var seenGrowth = true;
-                while (
-                    seenGrowth &&
-                    // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-                    episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last().GetReleaseDate() >=
-                    releasedSince
-                )
+                if (isInReverseTimeOrder)
                 {
-                    var preCount = episodes.Count;
+                    // Newest-first: keep paging while the oldest seen release is still in-window.
+                    var seenGrowth = true;
+                    while (
+                        seenGrowth &&
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+                        episodes.Where(x => x != null).OrderByDescending(x => x.ReleaseDate).Last()
+                            .GetReleaseDate() >= releasedSince
+                    )
+                    {
+                        var preCount = episodes.Count;
+                        var items = await spotifyClientWrapper.Paginate(
+                            pagedEpisodes,
+                            indexingContext,
+                            paginatorFactory.CreateReverseChronologicalPaginator(releasedSince));
+                        if (items != null)
+                        {
+                            episodes = items.ToList();
+                            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                            seenGrowth = items != null && episodes.Count > preCount;
+                        }
+                    }
+                }
+                else
+                {
+                    // Oldest-first (expensive): use Spotify's Total/Limit metadata to jump directly
+                    // to the newest page, then walk backwards only through the ReleasedSince window.
+                    logger.LogInformation(
+                        "Running '{nameofPaginateEpisodes}'. Ascending catalogue with ReleasedSince; jumping to the final Spotify page and walking backwards.",
+                        nameof(PaginateEpisodes));
+
                     var items = await spotifyClientWrapper.Paginate(
                         pagedEpisodes,
                         indexingContext,
-                        new SimpleEpisodePaginator(
-                            releasedSince,
-                            isInReverseTimeOrder,
-                            simpleEpisodePaginatorLogger)
-                    );
+                        paginatorFactory.CreateAscendingEndJumpPaginator(releasedSince.Value));
                     if (items != null)
                     {
                         episodes = items.ToList();
-                        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-                        seenGrowth = items != null && episodes.Count > preCount;
                     }
                 }
             }

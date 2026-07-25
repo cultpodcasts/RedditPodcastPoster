@@ -9,13 +9,12 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
-using RedditPodcastPoster.Text;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Enrichers;
 
 /// <summary>
-/// Spotify expensive-query side-effect rules â€” podcast flag persistence after FindEpisode.
+/// Spotify expensive-query side-effect rules — podcast flag persistence after FindEpisode.
 /// </summary>
 public class SpotifyExpensiveQuerySideEffectRules
 {
@@ -49,13 +48,13 @@ public class SpotifyExpensiveQuerySideEffectRules
     }
 
     [Fact(DisplayName =
-        "When Spotify FindEpisode does not report an expensive query, the side-effect leaves " +
-        "SpotifyEpisodesQueryIsExpensive unset because no throttling signal was returned.")]
-    public async Task non_expensive_query_does_not_set_podcast_flag()
+        "When Spotify FindEpisode reports a newest-first catalogue, the side-effect clears " +
+        "SpotifyEpisodesQueryIsExpensive because ascending order can flip back.")]
+    public async Task non_expensive_query_clears_podcast_flag()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        podcast.SpotifyEpisodesQueryIsExpensive = false;
+        podcast.SpotifyEpisodesQueryIsExpensive = true;
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,
             DomainTestFixture.UtcDaysAgo(5),
@@ -75,17 +74,44 @@ public class SpotifyExpensiveQuerySideEffectRules
         podcast.SpotifyEpisodesQueryIsExpensive.Should().BeFalse();
     }
 
-    private SpotifyEpisodeEnricher CreateEnricher(bool isExpensiveQuery) =>
+    [Fact(DisplayName =
+        "When Spotify FindEpisode returns an inconclusive order probe, the side-effect leaves " +
+        "SpotifyEpisodesQueryIsExpensive unchanged because a thin sample must not invent order.")]
+    public async Task inconclusive_query_leaves_podcast_flag()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.SpotifyEpisodesQueryIsExpensive = true;
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            DomainTestFixture.UtcDaysAgo(5),
+            _fixture.CreateDuration(),
+            _fixture.CreateTitle());
+        episode.SpotifyId = string.Empty;
+        episode.Urls.Spotify = null;
+        var sut = CreateEnricher(isExpensiveQuery: null);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            new EnrichmentContext());
+
+        // Assert
+        podcast.SpotifyEpisodesQueryIsExpensive.Should().BeTrue();
+    }
+
+    private SpotifyEpisodeEnricher CreateEnricher(bool? isExpensiveQuery) =>
         new(
             new ExpensiveQueryOnlySpotifyEpisodeResolver(isExpensiveQuery),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
             new SpotifyEpisodeAdapter(),
             EpisodeDomainTestServices.CreateEnrichmentApplicator(),
-            new SpotifyExpensiveQuerySideEffect(),
+            new SpotifyExpensiveQuerySideEffect(NullLogger<SpotifyExpensiveQuerySideEffect>.Instance),
             new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance),
             NullLogger<SpotifyEpisodeEnricher>.Instance);
 
-    private sealed class ExpensiveQueryOnlySpotifyEpisodeResolver(bool isExpensiveQuery) : ISpotifyEpisodeResolver
+    private sealed class ExpensiveQueryOnlySpotifyEpisodeResolver(bool? isExpensiveQuery) : ISpotifyEpisodeResolver
     {
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,

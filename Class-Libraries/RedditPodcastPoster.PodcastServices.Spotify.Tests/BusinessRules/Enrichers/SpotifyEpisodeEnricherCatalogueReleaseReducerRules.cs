@@ -64,7 +64,7 @@ public class SpotifyEpisodeEnricherCatalogueReleaseReducerRules
             EpisodeDomainTestServices.CreatePlatformMatcher(),
             new SpotifyEpisodeAdapter(),
             EpisodeDomainTestServices.CreateEnrichmentApplicator(),
-            new SpotifyExpensiveQuerySideEffect(),
+            new SpotifyExpensiveQuerySideEffect(NullLogger<SpotifyExpensiveQuerySideEffect>.Instance),
             _htmlSanitiser,
             NullLogger<SpotifyEpisodeEnricher>.Instance);
 

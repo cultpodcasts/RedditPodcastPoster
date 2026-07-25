@@ -4,11 +4,24 @@ using SpotifyAPI.Web.Http;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 
+/// <summary>
+/// Lead-in paginator that yields a small sample of episodes (skipping null slots) so
+/// <see cref="SpotifyQueryPaginator"/> can probe catalogue order. Constants are fixed; register as a
+/// DI singleton — construction is not expensive, but there is no per-request state to parameterize.
+/// </summary>
 public class NullEpisodesLeadInPaginator(
     int maxConsecutiveNullEpisodes,
     int limit
 ) : IPaginator
 {
+    public const int DefaultMaxConsecutiveNullEpisodes = 40;
+    public const int DefaultLimit = 3;
+
+    public NullEpisodesLeadInPaginator()
+        : this(DefaultMaxConsecutiveNullEpisodes, DefaultLimit)
+    {
+    }
+
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
         CancellationToken cancel = new())
     {

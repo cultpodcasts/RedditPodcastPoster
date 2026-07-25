@@ -32,6 +32,7 @@ public static class PodcastExtension
             IgnoreAllEpisodes = podcast.IgnoreAllEpisodes ?? false,
             YouTubeChannelId = podcast.YouTubeChannelId,
             YouTubePlaylistId = podcast.YouTubePlaylistId,
+            YouTubePlaylistIdHistory = podcast.YouTubePlaylistIdHistory?.ToArray(),
             IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
             IgnoredSubjects = podcast.IgnoredSubjects,
             KnownTerms = podcast.KnownTerms,

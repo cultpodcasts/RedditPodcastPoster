@@ -26,5 +26,6 @@ public interface IYouTubeEpisodeProvider
         YouTubePlaylistId youTubePlaylistId,
         YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext, 
-        bool expensivePlaylist = false);
+        bool expensivePlaylist = false,
+        PlaylistOrder? playlistOrder = null);
 }

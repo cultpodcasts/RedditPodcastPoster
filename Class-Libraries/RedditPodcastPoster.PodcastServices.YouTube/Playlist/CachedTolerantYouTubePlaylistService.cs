@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -19,7 +20,8 @@ public class CachedTolerantYouTubePlaylistService(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false,
-        bool expensivePlaylist = false)
+        bool expensivePlaylist = false,
+        PlaylistOrder? playlistOrder = null)
     {
         if (_cache.TryGetValue(playlistId.PlaylistId + withContentDetails, out var playlistItems))
         {
@@ -35,7 +37,7 @@ public class CachedTolerantYouTubePlaylistService(
         }
 
         var result = await tolerantYouTubePlaylistService.GetPlaylistVideoSnippets(
-            playlistId, indexingContext, withContentDetails, expensivePlaylist);
+            playlistId, indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
 
         if (result?.Result != null)
         {

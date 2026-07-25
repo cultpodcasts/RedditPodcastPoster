@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "pwsh -NoProfile -File .cursor/hooks/unit-test-guardrails-after-edit.ps1",
+        "matcher": "Write|StrReplace|EditNotebook|TabWrite",
+        "timeout": 30
+      }
+    ],
+    "stop": [
+      {
+        "command": "pwsh -NoProfile -File .cursor/hooks/unit-test-guardrails-stop.ps1",
+        "timeout": 60,
+        "loop_limit": 3
+      }
+    ]
+  }
+}

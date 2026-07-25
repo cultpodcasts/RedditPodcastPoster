@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\..\Azure\Azure.csproj" />
     <ProjectReference Include="..\..\Api\Api.csproj" />
     <ProjectReference Include="..\..\Discovery\Discovery.csproj" />

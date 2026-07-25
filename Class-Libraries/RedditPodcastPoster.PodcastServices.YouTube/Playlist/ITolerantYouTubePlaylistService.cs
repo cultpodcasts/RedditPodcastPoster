@@ -1,4 +1,5 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+﻿using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -10,5 +11,6 @@ public interface ITolerantYouTubePlaylistService
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false,
-        bool expensivePlaylist = false);
+        bool expensivePlaylist = false,
+        PlaylistOrder? playlistOrder = null);
 }

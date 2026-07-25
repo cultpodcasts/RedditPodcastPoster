@@ -2,4 +2,4 @@
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 
-public record FindEpisodeResponse(FullEpisode? FullEpisode, bool IsExpensiveQuery = false);
+public record FindEpisodeResponse(FullEpisode? FullEpisode, bool? IsExpensiveQuery = null);

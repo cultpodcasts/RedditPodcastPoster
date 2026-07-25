@@ -2,6 +2,7 @@ using System.Security.Authentication;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Bluesky.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -41,6 +42,10 @@ public class BlueskyPoster(
             }
 
             sendStatus = BlueskySendStatus.Success;
+            BlueskyPostLogger.LogPosted(
+                logger,
+                podcastEpisode,
+                caller: nameof(BlueskyPoster) + "." + nameof(Post));
             logger.LogInformation("Posted to bluesky: '{EmbedPostText}'.", embedPost.Text);
         }
         catch (HttpRequestException ex)

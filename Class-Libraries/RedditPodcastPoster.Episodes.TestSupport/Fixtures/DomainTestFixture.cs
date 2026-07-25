@@ -328,6 +328,10 @@ public sealed class DomainTestFixture
   public string CreateYouTubeChannelId() =>
     "UC" + CreateRandomString(_fixture, YouTubeIdAlphabet, 22);
 
+  /// <summary>YouTube playlist ID (PL prefix + 32 chars).</summary>
+  public string CreateYouTubePlaylistId() =>
+    "PL" + CreateRandomString(_fixture, YouTubeIdAlphabet, 32);
+
   /// <summary>Random Guid for generic test identity (podcast/episode ids not asserted).</summary>
   public Guid CreateGuid() => _fixture.Create<Guid>();
 

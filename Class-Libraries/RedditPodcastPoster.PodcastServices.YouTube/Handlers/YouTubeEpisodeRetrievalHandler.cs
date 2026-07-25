@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -27,9 +28,15 @@ public class YouTubeEpisodeRetrievalHandler(
 
         if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
         {
+            var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
             var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
-            var discoveryPath = runExpensivePagination ? "playlist-paginated" : "playlist-single-page";
-            if (podcast.HasExpensiveYouTubePlaylistQuery() && indexingContext.SkipExpensiveYouTubeQueries)
+            var discoveryPath = arbitraryOrder
+                ? "playlist-arbitrary-full-walk"
+                : runExpensivePagination
+                    ? "playlist-paginated"
+                    : "playlist-single-page";
+            if (!arbitraryOrder && podcast.HasExpensiveYouTubePlaylistQuery() &&
+                indexingContext.SkipExpensiveYouTubeQueries)
             {
                 logger.LogInformation(
                     "Podcast '{PodcastId}' has known expensive playlist query; using single-page playlist fetch this pass.",
@@ -38,15 +45,22 @@ public class YouTubeEpisodeRetrievalHandler(
 
             var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
                 new YouTubePlaylistId(podcast.YouTubePlaylistId), new YouTubeChannelId(podcast.YouTubeChannelId),
-                indexingContext, runExpensivePagination);
+                indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder);
             if (getPlaylistEpisodesResult.Results != null)
             {
                 newEpisodes = getPlaylistEpisodesResult.Results;
             }
 
-            if (getPlaylistEpisodesResult.IsExpensiveQuery)
+            // Arbitrary-order playlists never yield a head-order probe result (IsExpensiveQuery stays
+            // null), and even if a probe value sneaks through the expensive flag must stay untouched —
+            // curated playlists have no positional order to learn from.
+            if (!arbitraryOrder && getPlaylistEpisodesResult.IsExpensiveQuery.HasValue)
             {
-                podcast.YouTubePlaylistQueryIsExpensive = true;
+                YouTubeExpensiveQueryFlag.Apply(
+                    podcast,
+                    getPlaylistEpisodesResult.IsExpensiveQuery,
+                    YouTubeExpensiveQueryFlag.MinimumOrderSampleSize,
+                    logger);
             }
 
             LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count);

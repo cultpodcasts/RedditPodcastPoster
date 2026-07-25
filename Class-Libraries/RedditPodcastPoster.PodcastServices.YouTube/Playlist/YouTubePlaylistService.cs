@@ -3,6 +3,7 @@ using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
@@ -25,7 +26,8 @@ public class YouTubePlaylistService(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false,
-        bool expensivePlaylist = false)
+        bool expensivePlaylist = false,
+        PlaylistOrder? playlistOrder = null)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -36,8 +38,19 @@ public class YouTubePlaylistService(
             return new GetPlaylistVideoSnippetsResponse(null);
         }
 
+        // Curated playlists carry no date information in their positions: new items may appear at
+        // either end. Walk at max batch size (1 quota unit per 50 items) with a hard page cap
+        // (see ArbitraryYouTubePlaylistWalk.MaxPages) and rely on the ReleasedSince added-at
+        // filter below; skip the head-order probe entirely so the expensive-query flag is never
+        // flipped by a meaningless head sample.
+        var arbitraryOrder = playlistOrder == PlaylistOrder.Arbitrary;
+
         var batchSize = MaxSearchResults;
-        if (indexingContext.ReleasedSince.HasValue)
+        if (arbitraryOrder)
+        {
+            batchSize = ArbitraryYouTubePlaylistWalk.BatchSize;
+        }
+        else if (indexingContext.ReleasedSince.HasValue)
         {
             batchSize = 3;
         }
@@ -46,6 +59,8 @@ public class YouTubePlaylistService(
         var nextPageToken = "";
         var firstRun = true;
         var knownToBeInReverseOrder = false;
+        bool? isExpensiveQuery = null;
+        var pagesFetched = 0;
         var requestScope = "snippet";
         if (withContentDetails)
         {
@@ -57,6 +72,19 @@ public class YouTubePlaylistService(
             (firstRun || (knownToBeInReverseOrder && result.Any() && result.Last().Snippet.PublishedAtDateTimeOffset
                 .ReleasedSinceDate(indexingContext.ReleasedSince)) || !knownToBeInReverseOrder))
         {
+            if (arbitraryOrder &&
+                ArbitraryYouTubePlaylistWalk.ShouldTripCircuitBreaker(pagesFetched, nextPageToken))
+            {
+                logger.LogError(
+                    ArbitraryYouTubePlaylistWalk.CircuitBreakerTrippedMessageTemplate,
+                    playlistId.PlaylistId,
+                    pagesFetched,
+                    ArbitraryYouTubePlaylistWalk.MaxPages,
+                    indexingContext.ReleasedSince,
+                    nextPageToken);
+                break;
+            }
+
             var playlistRequest = youTubeServiceWrapper.YouTubeService.PlaylistItems.List(requestScope);
             playlistRequest.PlaylistId = playlistId.PlaylistId;
             playlistRequest.MaxResults = batchSize;
@@ -105,18 +133,27 @@ public class YouTubePlaylistService(
             if (firstRun)
             {
                 firstRun = false;
-                if (expensivePlaylist)
+                if (arbitraryOrder)
                 {
-                    batchSize = 10;
+                    logger.LogInformation(
+                        "Playlist '{playlistId}' is declared arbitrary-order; walking with batch-size '{batchSize}' capped at '{maxPages}' pages.",
+                        playlistId.PlaylistId, batchSize, ArbitraryYouTubePlaylistWalk.MaxPages);
                 }
-                else
+                // Always probe order when a date window is present — even for known-expensive
+                // playlists — so a flip back to newest-first can clear the sticky flag.
+                else if (indexingContext.ReleasedSince.HasValue)
                 {
-                    if (indexingContext.ReleasedSince.HasValue)
+                    var sample = playlistItemsListResponse.Items?
+                        .Where(x => x?.Snippet?.PublishedAtDateTimeOffset != null)
+                        .Take(YouTubeExpensiveQueryFlag.MinimumOrderSampleSize + 6)
+                        .ToList() ?? [];
+                    if (sample.Count >= YouTubeExpensiveQueryFlag.MinimumOrderSampleSize)
                     {
-                        knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(playlistItemsListResponse.Items);
+                        knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(sample);
+                        isExpensiveQuery = !knownToBeInReverseOrder;
                         if (knownToBeInReverseOrder)
                         {
-                            batchSize = 1;
+                            batchSize = expensivePlaylist ? 10 : 1;
                             logger.LogInformation(
                                 "Playlist '{playlistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.",
                                 playlistId.PlaylistId, batchSize);
@@ -129,11 +166,21 @@ public class YouTubePlaylistService(
                                 playlistId.PlaylistId, batchSize);
                         }
                     }
+                    else if (expensivePlaylist)
+                    {
+                        batchSize = 10;
+                    }
+                }
+                else if (expensivePlaylist)
+                {
+                    batchSize = 10;
                 }
             }
 
-            result.AddRange(playlistItemsListResponse.Items.Where(x => x.Snippet.Title != PrivateVideoTitle));
+            result.AddRange((playlistItemsListResponse.Items ?? [])
+                .Where(x => x.Snippet.Title != PrivateVideoTitle));
             nextPageToken = playlistItemsListResponse.NextPageToken;
+            pagesFetched++;
         }
 
         if (result.Any() && indexingContext.ReleasedSince != null)
@@ -142,7 +189,7 @@ public class YouTubePlaylistService(
                 x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
         }
 
-        return new GetPlaylistVideoSnippetsResponse(result, !knownToBeInReverseOrder);
+        return new GetPlaylistVideoSnippetsResponse(result, isExpensiveQuery);
     }
 
     public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(IYouTubeServiceWrapper youTubeServiceWrapper,

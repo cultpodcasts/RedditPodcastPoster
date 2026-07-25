@@ -42,7 +42,7 @@ public class SpotifyEpisodeRetrievalHandlerRules
 
     [Fact(DisplayName =
         "When the provider reports ExpensiveQueryFound, the handler sets SpotifyEpisodesQueryIsExpensive on the podcast " +
-        "because subsequent indexer passes must skip expensive pagination for that show.")]
+        "because subsequent indexer passes must use the ascending end-jump path for that show.")]
     public async Task Expensive_query_found_sets_podcast_flag()
     {
         // Arrange
@@ -75,6 +75,90 @@ public class SpotifyEpisodeRetrievalHandlerRules
     }
 
     [Fact(DisplayName =
+        "When the provider reports a newest-first catalogue, the handler clears SpotifyEpisodesQueryIsExpensive " +
+        "because Spotify shows are known to flip back from ascending order.")]
+    public async Task Newest_first_probe_clears_podcast_flag()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.SpotifyEpisodesQueryIsExpensive = true;
+        });
+        var provider = new Mock<ISpotifyEpisodeProvider>();
+        provider
+            .Setup(x => x.GetEpisodes(It.IsAny<GetEpisodesRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new GetEpisodesResponse([], ExpensiveQueryFound: false));
+        var sut = new SpotifyEpisodeRetrievalHandler(
+            provider.Object,
+            NullLogger<SpotifyEpisodeRetrievalHandler>.Instance);
+
+        // Act
+        await sut.GetEpisodes(podcast, new IndexingContext(SkipPodcastDiscovery: true));
+
+        // Assert
+        podcast.SpotifyEpisodesQueryIsExpensive.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Across successive indexer passes a flipping catalogue flips SpotifyEpisodesQueryIsExpensive each time and the stored flag drives the next request " +
+        "because a show that switches order must switch pagination strategy on the following pass.")]
+    public async Task Expensive_flag_round_trips_across_indexer_passes()
+    {
+        // Arrange — probes: ascending, newest-first, ascending
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.SpotifyEpisodesQueryIsExpensive = false;
+        });
+        var provider = new SequencedSpotifyEpisodeProvider(true, false, true);
+        var sut = new SpotifyEpisodeRetrievalHandler(
+            provider,
+            NullLogger<SpotifyEpisodeRetrievalHandler>.Instance);
+
+        // Act
+        var storedFlags = new List<bool?>();
+        for (var pass = 0; pass < 3; pass++)
+        {
+            await sut.GetEpisodes(podcast, new IndexingContext(SkipPodcastDiscovery: true));
+            storedFlags.Add(podcast.SpotifyEpisodesQueryIsExpensive);
+        }
+
+        // Assert — each pass requests using the flag as it stood before that pass's probe
+        storedFlags.Should().Equal(true, false, true);
+        provider.RequestedExpensiveFlags.Should().Equal(false, true, false);
+    }
+
+    [Fact(DisplayName =
+        "An inconclusive probe between two conclusive probes leaves SpotifyEpisodesQueryIsExpensive intact " +
+        "because a pass that could not measure order must not reset the show's pagination strategy.")]
+    public async Task Inconclusive_pass_preserves_flag_between_flips()
+    {
+        // Arrange — probes: ascending, inconclusive, newest-first
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.SpotifyEpisodesQueryIsExpensive = false;
+        });
+        var provider = new SequencedSpotifyEpisodeProvider(true, null, false);
+        var sut = new SpotifyEpisodeRetrievalHandler(
+            provider,
+            NullLogger<SpotifyEpisodeRetrievalHandler>.Instance);
+
+        // Act
+        var storedFlags = new List<bool?>();
+        for (var pass = 0; pass < 3; pass++)
+        {
+            await sut.GetEpisodes(podcast, new IndexingContext(SkipPodcastDiscovery: true));
+            storedFlags.Add(podcast.SpotifyEpisodesQueryIsExpensive);
+        }
+
+        // Assert
+        storedFlags.Should().Equal(true, true, false);
+        provider.RequestedExpensiveFlags.Should().Equal(false, true, true);
+    }
+
+    [Fact(DisplayName =
         "When SkipSpotifyUrlResolving is set, GetEpisodes still calls the provider but returns Handled=false even if episodes are returned " +
         "because rate-limit recovery must not mark Spotify as fully handled for the indexer pass.")]
     public async Task Skip_spotify_url_resolving_returns_not_handled()
@@ -101,5 +185,25 @@ public class SpotifyEpisodeRetrievalHandlerRules
         provider.Verify(
             x => x.GetEpisodes(It.IsAny<GetEpisodesRequest>(), It.IsAny<IndexingContext>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Returns one catalogue-order probe per call and records the expensive-query flag each request
+    /// carried, so a test can observe the flag feeding back into the following pass.
+    /// </summary>
+    private sealed class SequencedSpotifyEpisodeProvider(params bool?[] probes) : ISpotifyEpisodeProvider
+    {
+        private int _call;
+
+        public List<bool> RequestedExpensiveFlags { get; } = [];
+
+        public Task<GetEpisodesResponse> GetEpisodes(
+            GetEpisodesRequest request,
+            IndexingContext indexingContext)
+        {
+            RequestedExpensiveFlags.Add(request.HasExpensiveSpotifyEpisodesQuery);
+            var probe = probes[Math.Min(_call++, probes.Length - 1)];
+            return Task.FromResult(new GetEpisodesResponse([], probe));
+        }
     }
 }

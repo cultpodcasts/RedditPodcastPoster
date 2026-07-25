@@ -601,10 +601,10 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode, FindCatalogueMatchByLength must not duration-snipe " +
-        "a catalogue row whose title shares no fuzzy or substring relationship with the stored episode.")]
+        "a catalogue row outside the expanded release window whose title shares no relationship.")]
     public void youtube_discovered_enrichment_does_not_duration_snipe_disjoint_titles()
     {
-        // Arrange — YouTube-authority enrichment: release window aligns but titles refer to different interviews
+        // Arrange — YouTube-authority enrichment: titles refer to different interviews; release is days apart
         const string storedTitle = "My Buddhist Guru Convinced Me Her Ab*se Was Enlightenment";
         const string catalogueTitle =
             "Growing Up On SISTER WIVES: The Dark Side of Parenting No One Talks About (ft. Mykelti Brown)";
@@ -637,6 +637,46 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode whose Spotify title is wholly different, " +
+        "FindCatalogueMatchByLength still matches the sole catalogue row with unique duration " +
+        "inside the expanded twelve-hour release window.")]
+    public void youtube_discovered_unique_duration_within_release_window_matches_without_title_confidence()
+    {
+        // Arrange — Virginia-style: Apple/YouTube title vs editorial Spotify rename; same length, same day
+        const string storedTitle = "Virginia | Ep 3: Mommy still loves you";
+        const string spotifyTitle = "Ep 3 — A restraining order that changed everything";
+        var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var probeRelease = new DateTime(2026, 7, 24, 19, 0, 0, DateTimeKind.Utc);
+        var spotifyRelease = new DateTime(2026, 7, 24, 12, 0, 0, DateTimeKind.Utc);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = storedTitle;
+            e.Length = sharedLength;
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = spotifyTitle;
+            e.Length = sharedLength;
+            e.Release = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [catalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(catalogueItem);
     }
 
     [Fact(DisplayName =
