@@ -151,7 +151,7 @@ public class PodcastEpisodeFilter(
             .ToArray();
         if (!podcastEpisodes.Any())
         {
-            logger.LogWarning(
+            logger.LogInformation(
                 "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'. Candidate-episodes: {candidateCount}, released-since: '{releasedSince:u}', youTubeRefreshed: {youTubeRefreshed}, spotifyRefreshed: {spotifyRefreshed}.",
                 podcast.Name, podcast.Id, episodeArray.Length, since, youTubeRefreshed, spotifyRefreshed);
         }
@@ -186,7 +186,7 @@ public class PodcastEpisodeFilter(
             .ToArray();
         if (!podcastEpisodes.Any())
         {
-            logger.LogWarning(
+            logger.LogInformation(
                 "No Podcast-Episode found ready to Bluesky for podcast '{PodcastName}' with podcast-id '{PodcastId}'. Candidate-episodes: {candidateCount}, released-since: '{releasedSince:u}'.",
                 podcast.Name, podcast.Id, episodeArray.Length, since);
         }
