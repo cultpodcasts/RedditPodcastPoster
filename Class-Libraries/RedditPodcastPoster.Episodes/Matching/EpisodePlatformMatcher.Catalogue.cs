@@ -215,15 +215,41 @@ public sealed partial class EpisodePlatformMatcher
             .Where(x => HasCatalogueTitleConfidence(probe.Title, x.Title))
             .ToList();
 
-        if (titleConfidentCandidates.Count == 0)
+        if (titleConfidentCandidates.Count > 0)
+        {
+            var titleConfidentMatch = FindYouTubeDiscoveredCatalogueMatchByDuration(
+                titleConfidentCandidates,
+                probe.Length,
+                probe.Release);
+            if (titleConfidentMatch != null)
+            {
+                return titleConfidentMatch;
+            }
+        }
+
+        // Titles can diverge across platforms (e.g. editorial Spotify rename) while release and
+        // duration still uniquely identify the episode. Accept only a sole duration match that
+        // also falls inside the expanded YouTube-discovered release window — never a bare
+        // unique-duration snipe across weeks.
+        return FindUniqueDurationWithinReleaseWindow(probe, sampleList);
+    }
+
+    private static Episode? FindUniqueDurationWithinReleaseWindow(
+        Episode probe,
+        IList<Episode> sampleList)
+    {
+        if (probe.Release == DateTime.MinValue || probe.Length <= TimeSpan.Zero)
         {
             return null;
         }
 
-        return FindYouTubeDiscoveredCatalogueMatchByDuration(
-            titleConfidentCandidates,
-            probe.Length,
-            probe.Release);
+        var matches = sampleList
+            .Where(x =>
+                Math.Abs((x.Length - probe.Length).Ticks) < CatalogueYouTubeDiscoveredDurationThreshold &&
+                Math.Abs((x.Release - probe.Release).Ticks) < CatalogueYouTubeDiscoveredReleaseThreshold.Ticks)
+            .ToList();
+
+        return matches.Count == 1 ? matches[0] : null;
     }
 
     private static bool HasCatalogueTitleConfidence(string probeTitle, string candidateTitle)

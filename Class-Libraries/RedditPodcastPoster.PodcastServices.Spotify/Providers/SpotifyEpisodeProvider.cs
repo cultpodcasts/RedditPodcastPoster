@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.Factories;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.Text;
@@ -33,25 +34,22 @@ public class SpotifyEpisodeProvider(
             episodes = episodes.Where(x => x.GetReleaseDate() >= indexingContext.ReleasedSince.Value);
         }
 
-        episodes = episodes.Where(IsFreeSpotifyEpisode).ToList();
+        var market = request.Market ?? Market.CountryCode;
+        episodes = episodes.Where(x => IsFreeSpotifyEpisode(x, market)).ToList();
 
         return new GetEpisodesResponse(
             episodes.Select(MapEpisode).ToList(),
             expensiveQueryFound);
     }
 
-    private bool IsFreeSpotifyEpisode(SpotifyAPI.Web.SimpleEpisode episode)
+    private bool IsFreeSpotifyEpisode(SpotifyAPI.Web.SimpleEpisode episode, string market)
     {
         if (episode.IsSpotifyFree())
         {
             return true;
         }
 
-        logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-            episode.Id,
-            episode.Name,
-            episode.GetSpotifyRestrictionReason());
+        SpotifyNonPlayableSkipLogger.Log(logger, episode, market);
         return false;
     }
 

@@ -4,6 +4,8 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
+using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -30,9 +32,13 @@ public class SpotifyPodcastEnricher(
                     podcastShouldUpdate = true;
                 }
 
-                if (matchedPodcast.ExpensiveQueryFound)
+                if (matchedPodcast.ExpensiveQueryFound.HasValue)
                 {
-                    podcast.SpotifyEpisodesQueryIsExpensive = true;
+                    SpotifyExpensiveQueryFlag.Apply(
+                        podcast,
+                        matchedPodcast.ExpensiveQueryFound,
+                        SpotifyExpensiveQueryFlag.MinimumOrderSampleSize,
+                        logger);
                 }
             }
         }
@@ -51,11 +57,10 @@ public class SpotifyPodcastEnricher(
                     if (findEpisodeResponse.FullEpisode != null &&
                         !findEpisodeResponse.FullEpisode.IsSpotifyFree())
                     {
-                        logger.LogWarning(
-                            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                            findEpisodeResponse.FullEpisode.Id,
-                            findEpisodeResponse.FullEpisode.Name,
-                            findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
+                        SpotifyNonPlayableSkipLogger.Log(
+                            logger,
+                            findEpisodeResponse.FullEpisode,
+                            Market.CountryCode);
                     }
                     else if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
@@ -63,9 +68,13 @@ public class SpotifyPodcastEnricher(
                         podcastShouldUpdate = true;
                     }
 
-                    if (findEpisodeResponse.IsExpensiveQuery)
+                    if (findEpisodeResponse.IsExpensiveQuery.HasValue)
                     {
-                        podcast.SpotifyEpisodesQueryIsExpensive = true;
+                        SpotifyExpensiveQueryFlag.Apply(
+                            podcast,
+                            findEpisodeResponse.IsExpensiveQuery,
+                            SpotifyExpensiveQueryFlag.MinimumOrderSampleSize,
+                            logger);
                     }
                 }
             }

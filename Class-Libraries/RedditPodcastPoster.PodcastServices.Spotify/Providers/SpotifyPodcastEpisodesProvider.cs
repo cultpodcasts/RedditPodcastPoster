@@ -4,6 +4,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Paginators;
 using SpotifyAPI.Web;
@@ -29,7 +30,7 @@ public class SpotifyPodcastEpisodesProvider(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext, string market)
     {
-        var expensiveQueryFound = false;
+        var expensiveQueryFound = (bool?)null;
         EpisodeFetchResults[]? episodes = null;
         if (!string.IsNullOrWhiteSpace(request.PodcastSpotifyId))
         {
@@ -68,7 +69,12 @@ public class SpotifyPodcastEpisodesProvider(
             {
                 if (paging.Episodes != null)
                 {
-                    if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
+                    var skipUnboundedPagination =
+                        indexingContext.SkipExpensiveSpotifyQueries &&
+                        request.HasExpensiveSpotifyEpisodesQuery &&
+                        !indexingContext.ReleasedSince.HasValue;
+
+                    if (skipUnboundedPagination)
                     {
                         logger.LogInformation(
                             "{nameofGetAllEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
@@ -76,14 +82,22 @@ public class SpotifyPodcastEpisodesProvider(
                     }
                     else
                     {
+                        if (indexingContext.SkipExpensiveSpotifyQueries &&
+                            request.HasExpensiveSpotifyEpisodesQuery &&
+                            indexingContext.ReleasedSince.HasValue)
+                        {
+                            logger.LogInformation(
+                                "{nameofGetAllEpisodes} - Expensive Spotify query flagged with ReleasedSince; running bounded date-scoped pagination.",
+                                nameof(GetAllEpisodes));
+                        }
+
                         var paginateEpisodeResponse =
                             await spotifyQueryPaginator.PaginateEpisodes(paging.Episodes, indexingContext);
                         var result = paginateEpisodeResponse.Episodes.GroupBy(x => x.Id).Select(x => x.First());
                         allEpisodes.Add(result.ToList());
-                        if (paginateEpisodeResponse.ExpensiveQueryFound)
-                        {
-                            expensiveQueryFound = true;
-                        }
+                        expensiveQueryFound = MergeExpensiveQueryFound(
+                            expensiveQueryFound,
+                            paginateEpisodeResponse.ExpensiveQueryFound);
                     }
                 }
                 else
@@ -103,7 +117,8 @@ public class SpotifyPodcastEpisodesProvider(
                             .Where(x => x != null && x.Any())
                             .SelectMany(x => x)
                             .GroupBy(x => x.Id)
-                            .Select(x => x.First())),
+                            .Select(x => x.First()),
+                        market),
                     expensiveQueryFound);
             }
         }
@@ -134,30 +149,46 @@ public class SpotifyPodcastEpisodesProvider(
 
         if (indexingContext.ReleasedSince.HasValue)
         {
-            showEpisodesRequest.Limit = 5;
+            // Expensive catalogues are oldest-first. Their first response supplies Total/Limit for
+            // AscendingEpisodePaginator's end jump, so use Spotify's maximum page size to minimise
+            // any backward walk through the ReleasedSince window.
+            showEpisodesRequest.Limit = request.HasExpensiveSpotifyEpisodesQuery ? 50 : 5;
         }
 
         var pagedEpisodes =
             await spotifyClientWrapper.GetShowEpisodes(request.SpotifyPodcastId.PodcastId, showEpisodesRequest,
                 indexingContext);
 
-        if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
+        if (indexingContext.SkipExpensiveSpotifyQueries &&
+            request.HasExpensiveSpotifyEpisodesQuery &&
+            !indexingContext.ReleasedSince.HasValue)
         {
             logger.LogInformation(
                 "{nameofGetEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
                 nameof(GetEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
-            return new PodcastEpisodesResult(TakeFreeEpisodes(pagedEpisodes?.Items ?? []));
+            return new PodcastEpisodesResult(TakeFreeEpisodes(pagedEpisodes?.Items ?? [], market));
+        }
+
+        if (indexingContext.SkipExpensiveSpotifyQueries &&
+            request.HasExpensiveSpotifyEpisodesQuery &&
+            indexingContext.ReleasedSince.HasValue)
+        {
+            // Ascending catalogues return oldest first; skipping leaves only that page and misses
+            // recent episodes. Date-scoped pagination is bounded (SimpleEpisodePaginator.MaxPages).
+            logger.LogInformation(
+                "{nameofGetEpisodes} - Expensive Spotify query flagged with ReleasedSince; running bounded date-scoped pagination.",
+                nameof(GetEpisodes));
         }
 
         var results = await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
         var freeResults = new PodcastEpisodesResult(
-            TakeFreeEpisodes(results.Episodes),
+            TakeFreeEpisodes(results.Episodes, market),
             results.ExpensiveQueryFound);
         _cache[request.SpotifyPodcastId.PodcastId] = freeResults;
         return freeResults;
     }
 
-    private List<SimpleEpisode> TakeFreeEpisodes(IEnumerable<SimpleEpisode> episodes)
+    private List<SimpleEpisode> TakeFreeEpisodes(IEnumerable<SimpleEpisode> episodes, string market)
     {
         var free = new List<SimpleEpisode>();
         foreach (var episode in episodes)
@@ -170,11 +201,7 @@ public class SpotifyPodcastEpisodesProvider(
 
             if (!episode.IsSpotifyFree())
             {
-                logger.LogWarning(
-                    "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                    episode.Id,
-                    episode.Name,
-                    episode.GetSpotifyRestrictionReason());
+                SpotifyNonPlayableSkipLogger.Log(logger, episode, market);
                 continue;
             }
 
@@ -183,4 +210,12 @@ public class SpotifyPodcastEpisodesProvider(
 
         return free;
     }
+
+    private static bool? MergeExpensiveQueryFound(bool? accumulated, bool? next) =>
+        (accumulated, next) switch
+        {
+            (true, _) or (_, true) => true,
+            (false, _) or (_, false) => false,
+            _ => null
+        };
 }

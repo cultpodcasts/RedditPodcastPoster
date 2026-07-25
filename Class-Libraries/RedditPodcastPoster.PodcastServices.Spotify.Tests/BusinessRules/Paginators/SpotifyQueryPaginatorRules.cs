@@ -91,9 +91,9 @@ public class SpotifyQueryPaginatorRules
     }
 
     [Fact(DisplayName =
-        "When ReleasedSince is set and episodes are not reverse-chronological, PaginateEpisodes must not call PaginateAll " +
-        "because a date-scoped lookup must not pull the full catalogue (discovery timeouts).")]
-    public async Task Released_since_skips_paginate_all_even_when_expensive()
+        "When ReleasedSince is set and episodes are ascending, PaginateEpisodes uses the end-jump paginator " +
+        "because recent episodes are at the catalogue end and a date-scoped lookup must not walk from offset zero.")]
+    public async Task Released_since_uses_end_jump_paginator_when_expensive()
     {
         // Arrange â€” older episode before newer breaks reverse-time-order detection
         var older = CreateEpisode("episode-older", daysAgo: 10);
@@ -116,6 +116,7 @@ public class SpotifyQueryPaginatorRules
         // Assert
         wrapper.PaginateInvoked.Should().BeTrue();
         wrapper.PaginateAllInvoked.Should().BeFalse();
+        wrapper.CapturedPaginatorTypes.Should().Contain(typeof(AscendingEpisodePaginator));
         result.ExpensiveQueryFound.Should().BeTrue();
         result.Episodes.Should().OnlyContain(x => x.Id == newer.Id);
     }
@@ -206,11 +207,43 @@ public class SpotifyQueryPaginatorRules
         result.Episodes.Select(x => x.Id).Should().Equal(newer.Id);
     }
 
+    [Fact(DisplayName =
+        "When ReleasedSince is set and only one lead-in episode is available, ExpensiveQueryFound is null " +
+        "because a single release date cannot distinguish ascending from newest-first order.")]
+    public async Task Single_episode_order_probe_is_inconclusive()
+    {
+        // Arrange
+        var only = CreateEpisode("episode-only", daysAgo: 1);
+        var wrapper = new CapturingSpotifyClientWrapper
+        {
+            PaginateResult = new List<SimpleEpisode> { only }
+        };
+        var sut = CreateSut(wrapper);
+        var pagedEpisodes = new Paging<SimpleEpisode>
+        {
+            Items = new List<SimpleEpisode> { only },
+            Next = null
+        };
+
+        // Act
+        var result = await sut.PaginateEpisodes(
+            pagedEpisodes,
+            new IndexingContext(ReleasedSince: DomainTestFixture.UtcDateDaysAgo(3)));
+
+        // Assert
+        result.ExpensiveQueryFound.Should().BeNull();
+        result.Episodes.Select(x => x.Id).Should().Equal(only.Id);
+        wrapper.PaginateAllInvoked.Should().BeFalse();
+    }
+
     private SpotifyQueryPaginator CreateSut(ISpotifyClientWrapper wrapper) =>
         new(
             wrapper,
             NullLogger<SpotifyQueryPaginator>.Instance,
-            NullLogger<SimpleEpisodePaginator>.Instance);
+            new SpotifyEpisodePaginatorFactory(
+                NullLogger<SimpleEpisodePaginator>.Instance,
+                NullLogger<AscendingEpisodePaginator>.Instance),
+            new NullEpisodesLeadInPaginator());
 
     private SimpleEpisode CreateEpisode(string id, int daysAgo) =>
         CreateEpisode(id, DomainTestFixture.UtcDateDaysAgo(daysAgo));
@@ -228,6 +261,7 @@ public class SpotifyQueryPaginatorRules
     {
         public IList<SimpleEpisode>? PaginateResult { get; init; }
         public IList<SimpleEpisode>? PaginateAllResult { get; init; }
+        public List<Type> CapturedPaginatorTypes { get; } = [];
 
         public Task<IList<T>?> Paginate<T>(
             IPaginatable<T> firstPage,
@@ -237,6 +271,11 @@ public class SpotifyQueryPaginatorRules
         {
             PaginateInvoked = true;
             PaginateCallCount++;
+            if (paginator != null)
+            {
+                CapturedPaginatorTypes.Add(paginator.GetType());
+            }
+
             return Task.FromResult(typeof(T) == typeof(SimpleEpisode)
                 ? (IList<T>?)(object)PaginateResult!
                 : null);

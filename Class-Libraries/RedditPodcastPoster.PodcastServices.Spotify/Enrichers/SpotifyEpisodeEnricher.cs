@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Mapping;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
@@ -68,11 +69,10 @@ public class SpotifyEpisodeEnricher(
         if (findEpisodeResult.FullEpisode != null &&
             !findEpisodeResult.FullEpisode.IsSpotifyFree())
         {
-            logger.LogWarning(
-                "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                findEpisodeResult.FullEpisode.Id,
-                findEpisodeResult.FullEpisode.Name,
-                findEpisodeResult.FullEpisode.GetSpotifyRestrictionReason());
+            SpotifyNonPlayableSkipLogger.Log(
+                logger,
+                findEpisodeResult.FullEpisode,
+                findSpotifyEpisodeRequest.Market ?? Market.CountryCode);
         }
         else if (findEpisodeResult.FullEpisode != null &&
             request.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))
@@ -86,6 +86,22 @@ public class SpotifyEpisodeEnricher(
 
             var catalogueInput = findEpisodeResult.FullEpisode.ToCatalogueInput(htmlSanitiser);
             ApplyResolvedCandidate(request, spotifyAdapter.Adapt(catalogueInput), enrichmentContext);
+        }
+        else if (findEpisodeResult.FullEpisode == null)
+        {
+            logger.LogWarning(
+                "Spotify enrich miss: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' podcast-name='{PodcastName}' spotify-show-id='{SpotifyShowId}' expected-release='{ExpectedRelease}' length='{Length}' youtube-discovered='{YouTubeDiscovered}' release-authority='{ReleaseAuthority}' delay='{Delay}' expensive-query='{ExpensiveQuery}'",
+                request.Episode.Id,
+                request.Episode.Title,
+                request.Podcast.Id,
+                request.Podcast.Name,
+                request.Podcast.SpotifyId,
+                findSpotifyEpisodeRequest.Released ?? request.Episode.Release,
+                request.Episode.Length,
+                findSpotifyEpisodeRequest.EnrichingYouTubeDiscoveredEpisode,
+                request.Podcast.ReleaseAuthority,
+                findSpotifyEpisodeRequest.YouTubePublishingDelay,
+                findEpisodeResult.IsExpensiveQuery);
         }
 
         enrichmentSideEffect.OnFindComplete(request.Podcast, findEpisodeResult.IsExpensiveQuery);

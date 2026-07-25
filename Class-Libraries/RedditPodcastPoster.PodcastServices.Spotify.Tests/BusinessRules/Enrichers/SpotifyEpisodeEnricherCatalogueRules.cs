@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
@@ -86,6 +87,41 @@ public class SpotifyEpisodeEnricherCatalogueRules
         episode.SpotifyId.Should().BeNullOrWhiteSpace();
         episode.Urls.Spotify.Should().BeNull();
         enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When no Spotify catalogue match is found, the enricher emits a Warning with episode-id " +
+        "and rejection context so App Insights can explain enrich misses.")]
+    public async Task enrich_logs_warning_with_rejection_context_when_no_catalogue_match()
+    {
+        // Arrange
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.Name = "Virginia I The Age & SMH Investigates";
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(TimeSpan.FromMinutes(58)));
+        episode.Id = Guid.Parse("f58f1992-c8e6-4ba0-a3a0-fd4b83d261bd");
+        episode.Title = "Virginia | Ep 3: Mommy still loves you";
+        episode.SpotifyId = string.Empty;
+        episode.Urls.Spotify = null;
+        var logger = new CapturingLogger<SpotifyEpisodeEnricher>();
+        var sut = CreateEnricher(
+            new CapturingSpotifyEpisodeResolver([], expectedSpotifyId: string.Empty),
+            logger);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        var miss = logger.Warnings.Should().ContainSingle(m => m.Contains("Spotify enrich miss")).Subject;
+        miss.Should().Contain($"episode-id='{episode.Id}'");
+        miss.Should().Contain($"podcast-id='{podcast.Id}'");
+        miss.Should().Contain($"spotify-show-id='{podcast.SpotifyId}'");
+        miss.Should().Contain("youtube-discovered=");
+        miss.Should().Contain("expected-release=");
+        miss.Should().Contain("length=");
     }
 
     [Fact(DisplayName =
@@ -189,15 +225,17 @@ public class SpotifyEpisodeEnricherCatalogueRules
         enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
     }
 
-    private SpotifyEpisodeEnricher CreateEnricher(ISpotifyEpisodeResolver resolver) =>
+    private SpotifyEpisodeEnricher CreateEnricher(
+        ISpotifyEpisodeResolver resolver,
+        ILogger<SpotifyEpisodeEnricher>? logger = null) =>
         new(
             resolver,
             EpisodeDomainTestServices.CreatePlatformMatcher(),
             new SpotifyEpisodeAdapter(),
             EpisodeDomainTestServices.CreateEnrichmentApplicator(),
-            new SpotifyExpensiveQuerySideEffect(),
+            new SpotifyExpensiveQuerySideEffect(NullLogger<SpotifyExpensiveQuerySideEffect>.Instance),
             _htmlSanitiser,
-            NullLogger<SpotifyEpisodeEnricher>.Instance);
+            logger ?? NullLogger<SpotifyEpisodeEnricher>.Instance);
 
     private FullEpisode CreateFullEpisode(
         string spotifyId,
@@ -276,6 +314,28 @@ public class SpotifyEpisodeEnricherCatalogueRules
         {
             FindEpisodeInvoked = true;
             return Task.FromResult(new FindEpisodeResponse(null));
+        }
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning)
+            {
+                Warnings.Add(formatter(state, exception));
+            }
         }
     }
 }

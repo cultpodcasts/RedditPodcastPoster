@@ -179,11 +179,19 @@ public class PodcastUpdater(
         }
 
         var discoveredYouTubeExpensiveQuery = !knownYouTubeExpensiveQuery && podcast.HasExpensiveYouTubePlaylistQuery();
+        var clearedYouTubeExpensiveQuery = knownYouTubeExpensiveQuery && !podcast.HasExpensiveYouTubePlaylistQuery();
         if (discoveredYouTubeExpensiveQuery)
         {
             logger.LogInformation(
                 "Expensive YouTube Query found processing '{podcastName}' with id '{podcast.}' and youtube-channel-id '{podcastYouTubeChannelId}'.",
                 podcast.Name, podcast.Id, podcast.YouTubeChannelId);
+        }
+
+        if (clearedYouTubeExpensiveQuery)
+        {
+            logger.LogWarning(
+                "YouTube expensive-query flag cleared processing '{podcastName}' with id '{podcastId}' and youtube-playlist-id '{podcastYouTubePlaylistId}'; playlist is newest-first again.",
+                podcast.Name, podcast.Id, podcast.YouTubePlaylistId);
         }
 
         var discoveredYouTubeChannelSearchForbidden = !knownYouTubeChannelSearchForbidden &&
@@ -196,10 +204,18 @@ public class PodcastUpdater(
         }
 
         var discoveredSpotifyExpensiveQuery = !knownSpotifyExpensiveQuery && podcast.HasExpensiveSpotifyEpisodesQuery();
+        var clearedSpotifyExpensiveQuery = knownSpotifyExpensiveQuery && !podcast.HasExpensiveSpotifyEpisodesQuery();
         if (discoveredSpotifyExpensiveQuery)
         {
             logger.LogInformation(
                 "Expensive Spotify Query found processing '{podcastName}' with id '{podcastId}' and spotify-id '{podcastSpotifyId}'.",
+                podcast.Name, podcast.Id, podcast.SpotifyId);
+        }
+
+        if (clearedSpotifyExpensiveQuery)
+        {
+            logger.LogWarning(
+                "Spotify expensive-query flag cleared processing '{podcastName}' with id '{podcastId}' and spotify-id '{podcastSpotifyId}'; catalogue is newest-first again.",
                 podcast.Name, podcast.Id, podcast.SpotifyId);
         }
 
@@ -218,8 +234,9 @@ public class PodcastUpdater(
 
         var podcastChanged = mergeResult.MergedEpisodes.Any() || mergeResult.AddedEpisodes.Any() ||
                              filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
-                             discoveredYouTubeExpensiveQuery || discoveredYouTubeChannelSearchForbidden ||
-                             discoveredSpotifyExpensiveQuery;
+                             discoveredYouTubeExpensiveQuery || clearedYouTubeExpensiveQuery ||
+                             discoveredYouTubeChannelSearchForbidden ||
+                             discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery;
 
         if (indexSucceeded)
         {

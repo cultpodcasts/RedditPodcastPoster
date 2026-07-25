@@ -12,10 +12,17 @@ public class SimpleEpisodePaginator(
     ILogger<SimpleEpisodePaginator> logger) : IPaginator
 {
     /// <summary>
-    /// Cap subsequent page fetches for unordered (expensive) date-scoped catalogue walks.
+    /// Circuit breaker for unordered (expensive) date-scoped catalogue walks: caps subsequent page
+    /// fetches so an ascending high-volume catalogue cannot burn the Spotify quota. Tripping it is
+    /// logged at Error via <see cref="CircuitBreakerTrippedMessagePrefix"/> because episodes may be missed.
     /// Reverse-chronological walks have no page cap and stop via ReleasedSince instead.
     /// </summary>
     public const int MaxPages = 20;
+
+    public const string CircuitBreakerTrippedMessagePrefix = "Spotify pagination circuit-breaker tripped:";
+
+    public const string CircuitBreakerTrippedMessageTemplate =
+        "Spotify pagination circuit-breaker tripped: pages-fetched='{PagesFetched}' max-pages='{MaxPages}' released-since='{ReleasedSince}' next='{Next}' reverse-chronological='false'. Stopped to protect Spotify quota; in-window episodes may be missing.";
 
     public Task<IList<T>> PaginateAll<T>(IPaginatable<T> firstPage, IAPIConnector connector,
         CancellationToken cancel = new())
@@ -104,6 +111,16 @@ public class SimpleEpisodePaginator(
                     lastItem = episode;
                 }
             }
+        }
+
+        if (!isInReverseOrder && pagesFetched >= MaxPages && page.Next != null)
+        {
+            logger.LogError(
+                CircuitBreakerTrippedMessageTemplate,
+                pagesFetched,
+                MaxPages,
+                releasedSince,
+                page.Next);
         }
     }
 

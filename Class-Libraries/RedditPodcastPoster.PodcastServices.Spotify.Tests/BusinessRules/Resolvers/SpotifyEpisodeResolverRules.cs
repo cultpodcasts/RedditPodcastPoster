@@ -46,7 +46,7 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeNull();
-        result.IsExpensiveQuery.Should().BeFalse();
+        result.IsExpensiveQuery.Should().BeNull();
     }
 
     [Fact(DisplayName =

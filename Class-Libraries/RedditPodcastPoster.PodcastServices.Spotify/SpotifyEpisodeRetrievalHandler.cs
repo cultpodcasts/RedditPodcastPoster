@@ -11,9 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify;
 
 public class SpotifyEpisodeRetrievalHandler(
     ISpotifyEpisodeProvider spotifyEpisodeProvider,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<SpotifyEpisodeRetrievalHandler> logger
-#pragma warning restore CS9113 // Parameter is unread.
 ) : ISpotifyEpisodeRetrievalHandler
 {
     public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IndexingContext indexingContext)
@@ -32,9 +30,13 @@ public class SpotifyEpisodeRetrievalHandler(
                 newEpisodes = getEpisodesResult.Results;
             }
 
-            if (getEpisodesResult.ExpensiveQueryFound)
+            if (getEpisodesResult.ExpensiveQueryFound.HasValue)
             {
-                podcast.SpotifyEpisodesQueryIsExpensive = true;
+                SpotifyExpensiveQueryFlag.Apply(
+                    podcast,
+                    getEpisodesResult.ExpensiveQueryFound,
+                    SpotifyExpensiveQueryFlag.MinimumOrderSampleSize,
+                    logger);
             }
 
             if (!indexingContext.SkipSpotifyUrlResolving)

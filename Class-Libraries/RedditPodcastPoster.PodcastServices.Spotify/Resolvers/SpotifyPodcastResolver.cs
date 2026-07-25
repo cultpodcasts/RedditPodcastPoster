@@ -31,7 +31,7 @@ public class SpotifyPodcastResolver(
 
         SimpleShow? matchingSimpleShow = null;
         FullShow? matchingFullShow = null;
-        var expensiveSpotifyEpisodesQueryFound = false;
+        var expensiveSpotifyEpisodesQueryFound = (bool?)null;
         if (!string.IsNullOrWhiteSpace(request.PodcastId))
         {
             var showRequest = new ShowRequest {Market = Market.CountryCode};
@@ -59,10 +59,13 @@ public class SpotifyPodcastResolver(
                             new GetEpisodesRequest(new SpotifyPodcastId(candidatePodcast.Id),
                                 showEpisodesRequest.Market), indexingContext);
 
-                        if (podcastEpisodes.ExpensiveQueryFound)
-                        {
-                            expensiveSpotifyEpisodesQueryFound = true;
-                        }
+                        expensiveSpotifyEpisodesQueryFound =
+                            (expensiveSpotifyEpisodesQueryFound, podcastEpisodes.ExpensiveQueryFound) switch
+                            {
+                                (true, _) or (_, true) => true,
+                                (false, _) or (_, false) => false,
+                                _ => null
+                            };
 
                         if (podcastEpisodes.Episodes.Any())
                         {

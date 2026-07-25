@@ -10,17 +10,17 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 /// <summary>
-/// Characterizes <see cref="Common.Episodes.EpisodeProvider"/> indexing discovery orchestration,
-/// including YouTube release authority catalogue merge passes for cross-platform matching.
+/// Characterizes <see cref="Common.Episodes.EpisodeProvider"/> indexing discovery orchestration.
+/// YouTube release authority must discover via YouTube only — Spotify/Apple catalogue is enrichment, not seed.
 /// </summary>
 public class EpisodeProviderRules
 {
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "For YouTube release authority podcasts with negative publishing delay and a configured Apple id, " +
-        "indexing discovery must merge Apple catalogue episodes into the discovered set for cross-platform matching.")]
-    public async Task youtube_release_authority_negative_delay_merges_apple_catalogue_episodes()
+        "For YouTube release authority podcasts with negative publishing delay, indexing discovery must not " +
+        "merge Apple catalogue episodes as new creates — YouTube alone seeds; Apple attaches via enrichment.")]
+    public async Task youtube_release_authority_negative_delay_does_not_merge_apple_catalogue_episodes()
     {
         // Arrange
         var harness = new EpisodeProviderTestHarness();
@@ -44,73 +44,64 @@ public class EpisodeProviderRules
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
-        discovered.Should().Contain(youTubeEpisode);
-        discovered.Should().Contain(appleEpisode);
+        discovered.Should().ContainSingle().Which.Should().BeSameAs(youTubeEpisode);
+        harness.AppleHandler.Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, Apple catalogue discovery " +
-        "must run even when Spotify indexing is disabled â€” Apple merge supports cross-platform matching " +
-        "independently of Spotify URL resolution.")]
-    public async Task apple_catalogue_merge_pass_runs_when_index_spotify_false()
+        "must not run when Spotify indexing is disabled.")]
+    public async Task apple_catalogue_merge_pass_does_not_run_when_index_spotify_false()
     {
         // Arrange
         var harness = new EpisodeProviderTestHarness();
         var sut = harness.CreateSut();
         var podcast = CreateYouTubeAuthorityNegativeDelayPodcastWithApple();
-        var appleEpisode = _fixture.CreateAppleCatalogueEpisode();
         var indexingContext = IsolatedCatalogueMergeContext() with { IndexSpotify = false };
 
-        harness.AppleHandler
-            .Setup(x => x.GetEpisodes(podcast, indexingContext))
-            .ReturnsAsync(new EpisodeRetrievalHandlerResponse([appleEpisode], Handled: true));
-
         // Act
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
         harness.AppleHandler.Verify(
-            x => x.GetEpisodes(podcast, indexingContext),
-            Times.Once);
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
+            Times.Never);
         harness.SpotifyHandler.Verify(
             x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
             Times.Never);
-        discovered.Should().ContainSingle().Which.Should().BeSameAs(appleEpisode);
+        discovered.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay, Apple catalogue discovery " +
-        "must still run when Spotify URL resolution is bypassed.")]
-    public async Task apple_catalogue_merge_pass_runs_when_skip_spotify_url_resolving()
+        "must not run when Spotify URL resolution is bypassed.")]
+    public async Task apple_catalogue_merge_pass_does_not_run_when_skip_spotify_url_resolving()
     {
         // Arrange
         var harness = new EpisodeProviderTestHarness();
         var sut = harness.CreateSut();
         var podcast = CreateYouTubeAuthorityNegativeDelayPodcastWithApple();
-        var appleEpisode = _fixture.CreateAppleCatalogueEpisode();
         var indexingContext = IsolatedCatalogueMergeContext() with { SkipSpotifyUrlResolving = true };
-
-        harness.AppleHandler
-            .Setup(x => x.GetEpisodes(podcast, indexingContext))
-            .ReturnsAsync(new EpisodeRetrievalHandlerResponse([appleEpisode], Handled: true));
 
         // Act
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
         harness.AppleHandler.Verify(
-            x => x.GetEpisodes(podcast, indexingContext),
-            Times.Once);
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
+            Times.Never);
         harness.SpotifyHandler.Verify(
             x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
             Times.Never);
-        discovered.Should().ContainSingle().Which.Should().BeSameAs(appleEpisode);
+        discovered.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
         "For YouTube release authority podcasts with negative publishing delay and Spotify indexing enabled, " +
-        "indexing discovery must merge Spotify catalogue episodes alongside YouTube discovery.")]
-    public async Task youtube_release_authority_negative_delay_merges_spotify_catalogue_episodes()
+        "indexing discovery must not merge Spotify catalogue episodes as new creates.")]
+    public async Task youtube_release_authority_negative_delay_does_not_merge_spotify_catalogue_episodes()
     {
         // Arrange
         var harness = new EpisodeProviderTestHarness();
@@ -134,8 +125,10 @@ public class EpisodeProviderRules
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
-        discovered.Should().Contain(youTubeEpisode);
-        discovered.Should().Contain(spotifyEpisode);
+        discovered.Should().ContainSingle().Which.Should().BeSameAs(youTubeEpisode);
+        harness.SpotifyHandler.Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

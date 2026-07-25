@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -44,9 +45,13 @@ public class YouTubeEpisodeRetrievalHandler(
                 newEpisodes = getPlaylistEpisodesResult.Results;
             }
 
-            if (getPlaylistEpisodesResult.IsExpensiveQuery)
+            if (getPlaylistEpisodesResult.IsExpensiveQuery.HasValue)
             {
-                podcast.YouTubePlaylistQueryIsExpensive = true;
+                YouTubeExpensiveQueryFlag.Apply(
+                    podcast,
+                    getPlaylistEpisodesResult.IsExpensiveQuery,
+                    YouTubeExpensiveQueryFlag.MinimumOrderSampleSize,
+                    logger);
             }
 
             LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count);

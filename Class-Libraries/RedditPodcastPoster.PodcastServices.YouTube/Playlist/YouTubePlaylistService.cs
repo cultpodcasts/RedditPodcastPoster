@@ -46,6 +46,7 @@ public class YouTubePlaylistService(
         var nextPageToken = "";
         var firstRun = true;
         var knownToBeInReverseOrder = false;
+        bool? isExpensiveQuery = null;
         var requestScope = "snippet";
         if (withContentDetails)
         {
@@ -105,18 +106,21 @@ public class YouTubePlaylistService(
             if (firstRun)
             {
                 firstRun = false;
-                if (expensivePlaylist)
+                // Always probe order when a date window is present — even for known-expensive
+                // playlists — so a flip back to newest-first can clear the sticky flag.
+                if (indexingContext.ReleasedSince.HasValue)
                 {
-                    batchSize = 10;
-                }
-                else
-                {
-                    if (indexingContext.ReleasedSince.HasValue)
+                    var sample = playlistItemsListResponse.Items?
+                        .Where(x => x?.Snippet?.PublishedAtDateTimeOffset != null)
+                        .Take(YouTubeExpensiveQueryFlag.MinimumOrderSampleSize + 6)
+                        .ToList() ?? [];
+                    if (sample.Count >= YouTubeExpensiveQueryFlag.MinimumOrderSampleSize)
                     {
-                        knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(playlistItemsListResponse.Items);
+                        knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(sample);
+                        isExpensiveQuery = !knownToBeInReverseOrder;
                         if (knownToBeInReverseOrder)
                         {
-                            batchSize = 1;
+                            batchSize = expensivePlaylist ? 10 : 1;
                             logger.LogInformation(
                                 "Playlist '{playlistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.",
                                 playlistId.PlaylistId, batchSize);
@@ -129,10 +133,19 @@ public class YouTubePlaylistService(
                                 playlistId.PlaylistId, batchSize);
                         }
                     }
+                    else if (expensivePlaylist)
+                    {
+                        batchSize = 10;
+                    }
+                }
+                else if (expensivePlaylist)
+                {
+                    batchSize = 10;
                 }
             }
 
-            result.AddRange(playlistItemsListResponse.Items.Where(x => x.Snippet.Title != PrivateVideoTitle));
+            result.AddRange((playlistItemsListResponse.Items ?? [])
+                .Where(x => x.Snippet.Title != PrivateVideoTitle));
             nextPageToken = playlistItemsListResponse.NextPageToken;
         }
 
@@ -142,7 +155,7 @@ public class YouTubePlaylistService(
                 x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
         }
 
-        return new GetPlaylistVideoSnippetsResponse(result, !knownToBeInReverseOrder);
+        return new GetPlaylistVideoSnippetsResponse(result, isExpensiveQuery);
     }
 
     public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(IYouTubeServiceWrapper youTubeServiceWrapper,

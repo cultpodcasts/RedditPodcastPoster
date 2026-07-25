@@ -4,6 +4,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
 using SpotifyAPI.Web;
@@ -40,7 +41,7 @@ public class SpotifyEpisodeResolver(
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
             if (fullEpisode != null)
             {
-                return new FindEpisodeResponse(TakeIfFree(fullEpisode));
+                return new FindEpisodeResponse(TakeIfFree(fullEpisode, market));
             }
         }
 
@@ -72,21 +73,17 @@ public class SpotifyEpisodeResolver(
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
         }
 
-        return new FindEpisodeResponse(TakeIfFree(fullEpisode), podcastEpisodes.ExpensiveQueryFound);
+        return new FindEpisodeResponse(TakeIfFree(fullEpisode, market), podcastEpisodes.ExpensiveQueryFound);
     }
 
-    private FullEpisode? TakeIfFree(FullEpisode? episode)
+    private FullEpisode? TakeIfFree(FullEpisode? episode, string market)
     {
         if (episode == null || episode.IsSpotifyFree())
         {
             return episode;
         }
 
-        logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-            episode.Id,
-            episode.Name,
-            episode.GetSpotifyRestrictionReason());
+        SpotifyNonPlayableSkipLogger.Log(logger, episode, market);
         return null;
     }
 }

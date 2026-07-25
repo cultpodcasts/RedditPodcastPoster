@@ -125,6 +125,12 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `YouTubeDiscoveryPath` | `YouTubeEpisodeRetrievalHandler` | Warning when YouTube-authority; Info otherwise |
 | `YouTubeAuthorityPodcastAudit` | `PodcastsUpdater` | Per YouTube-authority podcast |
 | `YouTubeAuthorityIndexingAudit` | `PodcastsUpdater` | Batch-level YouTube-authority summary |
+| `Spotify enrich miss:` | `SpotifyEpisodeEnricher` | Warning — no Spotify candidate matched, with rejection context |
+| `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — Spotify returned `restrictions.reason=market` |
+| `Skipping Spotify episode` | `SpotifyNonPlayableSkipLogger` | Warning — non-playable for a reason other than market |
+| `Spotify pagination circuit-breaker tripped:` | Spotify paginators | **Error** — a bounded catalogue walk hit `MaxPages`; in-window episodes may be missing |
+| `Spotify expensive-query flag flipped:` | `SpotifyExpensiveQueryFlag` | Warning — conclusive catalogue-order probe changed `SpotifyEpisodesQueryIsExpensive` |
+| `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
 
 Jakub Jahl is **usually not** YouTube-authority (Spotify/Apple discovery). For Jakub, prefer `Batch 4:` membership, podcast name logs, and `YouTubeDiscoveryPath` at Info level.
 
@@ -863,6 +869,53 @@ az monitor log-analytics query -w 2b1c62ee-689f-422a-816b-be1605ae88fa -t P14D -
 ```
 
 **Note:** use **single-line** `--analytics-query` with `-t P14D`; multi-line heredocs can return unfiltered workspace noise.
+
+---
+
+## 9. Spotify enrichment misses — market, non-playable, pagination cap
+
+When an episode never merges its Spotify URL, these three signals separate "Spotify never returned the row" from "the matcher rejected it".
+
+### A. All Spotify enrichment failure signals (24h)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where AppRoleName == "indexer-infra"
+| where Message startswith "Spotify enrich miss:"
+   or Message startswith "Spotify episode not available in market:"
+   or Message startswith "Spotify pagination circuit-breaker tripped:"
+   or Message startswith "Skipping Spotify episode"
+| project TimeGenerated, SeverityLevel, Message, OperationId
+| order by TimeGenerated desc
+```
+
+`SeverityLevel == 3` (Error) is market-unavailable or a tripped circuit breaker; `2` (Warning) is an enrich miss or another non-playable reason.
+
+### B. Ascending pagination circuit breaker (quota cap hit)
+
+For oldest-first (`spotifyEpisodesQueryIsExpensive`) catalogues, indexing now uses Spotify's `Total` and `Limit` metadata to jump directly to the final page and walks backwards toward `ReleasedSince`. `SimpleEpisodePaginator.MaxPages` still bounds that reverse walk and the forward fallback used when Spotify omits paging metadata.
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "Spotify pagination circuit-breaker tripped:"
+| project TimeGenerated, AppRoleName, Message
+| order by TimeGenerated desc
+```
+
+Repeated trips for the same show mean the requested release window spans more pages than the safety limit, or Spotify omitted the metadata needed for the end jump. Investigate rather than ignoring the Error.
+
+### C. Market-unavailable episodes by show
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(30d)
+| where Message startswith "Spotify episode not available in market:"
+| parse Message with * "episode-id='" episodeId "'" * "market='" market "'" *
+| summarize occurrences = count(), latest = max(TimeGenerated) by episodeId, market
+| order by latest desc
+```
 
 ---
 

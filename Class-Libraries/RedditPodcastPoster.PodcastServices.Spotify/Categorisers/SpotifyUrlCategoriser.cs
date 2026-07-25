@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
@@ -98,11 +99,10 @@ public class SpotifyUrlCategoriser(
 
         if (!findEpisodeResponse.FullEpisode.IsSpotifyFree())
         {
-            logger.LogWarning(
-                "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                findEpisodeResponse.FullEpisode.Id,
-                findEpisodeResponse.FullEpisode.Name,
-                findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
+            SpotifyNonPlayableSkipLogger.Log(
+                logger,
+                findEpisodeResponse.FullEpisode,
+                Market.CountryCode);
             return null;
         }
 
@@ -150,11 +150,10 @@ public class SpotifyUrlCategoriser(
         {
             if (!findEpisodeResponse.FullEpisode.IsSpotifyFree())
             {
-                logger.LogWarning(
-                    "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                    findEpisodeResponse.FullEpisode.Id,
-                    findEpisodeResponse.FullEpisode.Name,
-                    findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason());
+                SpotifyNonPlayableSkipLogger.Log(
+                    logger,
+                    findEpisodeResponse.FullEpisode,
+                    Market.CountryCode);
                 throw new InvalidOperationException(
                     $"Spotify episode '{episodeId}' is not free/playable.");
             }

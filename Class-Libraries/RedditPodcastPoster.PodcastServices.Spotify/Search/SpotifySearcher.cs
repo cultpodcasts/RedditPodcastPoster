@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.Text;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -52,11 +53,7 @@ public class SpotifySearcher(
 
                 if (!hit.IsSpotifyFree())
                 {
-                    logger.LogWarning(
-                        "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-                        hit.Id,
-                        hit.Name,
-                        hit.GetSpotifyRestrictionReason());
+                    SpotifyNonPlayableSkipLogger.Log(logger, hit, Market.CountryCode);
                     continue;
                 }
 
@@ -99,11 +96,7 @@ public class SpotifySearcher(
             return true;
         }
 
-        logger.LogWarning(
-            "Skipping Spotify episode '{EpisodeId}' ('{EpisodeName}') because it is not free/playable (IsPlayable=false, restrictions.reason={RestrictionReason}).",
-            episode.Id,
-            episode.Name,
-            episode.GetSpotifyRestrictionReason());
+        SpotifyNonPlayableSkipLogger.Log(logger, episode, Market.CountryCode);
         return false;
     }
 

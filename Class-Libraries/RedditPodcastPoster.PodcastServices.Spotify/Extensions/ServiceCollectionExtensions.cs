@@ -46,6 +46,8 @@ public static class ServiceCollectionExtensions
                     (IPodcastPassApiCacheSource)sp.GetRequiredService<ISpotifyPodcastEpisodesProvider>())
                 .AddScoped<ISpotifyPodcastResolver, SpotifyPodcastResolver>()
                 .AddScoped<ISpotifyQueryPaginator, SpotifyQueryPaginator>()
+                .AddScoped<ISpotifyEpisodePaginatorFactory, SpotifyEpisodePaginatorFactory>()
+                .AddSingleton<NullEpisodesLeadInPaginator>()
                 .AddScoped<ISpotifySearchResultFinder, SpotifySearchResultFinder>()
                 .AddScoped<ISpotifySearcher, SpotifySearcher>()
                 .AddScoped<ISpotifyEpisodeRetrievalHandler, SpotifyEpisodeRetrievalHandler>();

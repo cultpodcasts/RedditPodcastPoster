@@ -51,7 +51,7 @@ public class PodcastEpisodeFilter(
             .Where(x =>
                 x.Episode.Release >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
-                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .OrderByDescending(x => x.Episode.Release)
             .ToArray();
@@ -106,7 +106,7 @@ public class PodcastEpisodeFilter(
             .Where(x =>
                 x.Episode.Release >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
-                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
             .OrderByDescending(x => x.Episode.Release)
@@ -144,7 +144,7 @@ public class PodcastEpisodeFilter(
                 x.Episode.Release >= since &&
                 x.Episode.BlueskyPosted is null or false &&
                 x.Episode is { Removed: false, Ignored: false } &&
-                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
             .OrderByDescending(x => x.Episode.Release)
@@ -180,7 +180,7 @@ public class PodcastEpisodeFilter(
                 x.Episode.Release >= since &&
                 x.Episode.BlueskyPosted is null or false &&
                 x.Episode is { Removed: false, Ignored: false } &&
-                (x.Episode.Urls.YouTube != null || x.Episode.Urls.Spotify != null) &&
+                HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .OrderByDescending(x => x.Episode.Release)
             .ToArray();
@@ -192,6 +192,20 @@ public class PodcastEpisodeFilter(
         }
 
         return Task.FromResult<IEnumerable<PodcastEpisode>>(podcastEpisodes);
+    }
+
+    /// <summary>
+    /// YouTube release-authority podcasts must have a YouTube URL before social posting.
+    /// Other authorities may post with Spotify or YouTube.
+    /// </summary>
+    private static bool HasSocialPostableUrl(Podcast podcast, Episode episode)
+    {
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            return episode.Urls.YouTube != null;
+        }
+
+        return episode.Urls.YouTube != null || episode.Urls.Spotify != null;
     }
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
