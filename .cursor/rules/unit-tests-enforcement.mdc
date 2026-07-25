@@ -1,0 +1,31 @@
+---
+description: HARD — unit-test guardrails must be followed; read unit-tests.mdc before any test edit
+alwaysApply: true
+---
+
+# Unit-test guardrails (enforcement)
+
+**Before writing or editing any file under `*Tests/`, `*Tests.cs`, `FunctionHost.Tests`, or `Episodes.TestSupport`:**
+
+1. **MUST** read [unit-tests.mdc](unit-tests.mdc) in the same turn (full contract).
+2. Scope is **every** test in those trees — **not** only classes that already use `DomainTestFixture`. Handler/wiring/logger tests are included.
+3. **MUST NOT** finish a turn that introduced tests violating the contract.
+
+## Hard fails (also enforced by `scripts/assert-unit-test-guardrails.ps1`)
+
+| NEVER | Why |
+|-------|-----|
+| Production podcast/episode brand names in arrange/assert | Use scenario-shaped fixtures / generated titles |
+| `Guid.Parse("...")` / `new Guid("...")` filler | Use `_fixture.CreateGuid()` or specimen ids |
+| `[Fact]` / `[Theory]` without `DisplayName = "..."` | DisplayName is the authoritative rule text |
+| Missing `// Arrange` / `// Act` / `// Assert` | Required section comments |
+| `throw new NotImplementedException` in `BusinessRules/**` test doubles | Prefer Moq / focused fakes that implement only used members |
+| Raw `new Podcast` / `new Episode` filler when `DomainTestFixture` applies | Use fixture factories |
+
+## Stop checklist
+
+Before claiming test work done:
+
+- [ ] Re-read unit-tests.mdc arrange checklist
+- [ ] Ran `pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged` (or CI equivalent) clean
+- [ ] `dotnet test` on affected test projects green

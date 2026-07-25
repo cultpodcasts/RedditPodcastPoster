@@ -32,3 +32,14 @@ jobs:
     - name: Episode domain coverage gate
       shell: pwsh
       run: ./scripts/coverage-gate.ps1 -NoBuild -Verbose
+    - name: Unit-test guardrails (changed test files)
+      shell: pwsh
+      run: |
+        $base = $env:GITHUB_BASE_REF
+        if ([string]::IsNullOrWhiteSpace($base)) {
+          ./scripts/assert-unit-test-guardrails.ps1 -GitChanged
+        }
+        else {
+          git fetch origin $base --depth=1
+          ./scripts/assert-unit-test-guardrails.ps1 -GitChanged -BaseRef "origin/$base"
+        }

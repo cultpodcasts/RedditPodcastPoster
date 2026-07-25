@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
@@ -18,7 +19,7 @@ public class TolerantYouTubePlaylistService(
 {
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false,
-        bool expensivePlaylist = false)
+        bool expensivePlaylist = false, PlaylistOrder? playlistOrder = null)
     {
         var result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
@@ -29,7 +30,7 @@ public class TolerantYouTubePlaylistService(
             {
                 await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
-                    indexingContext, withContentDetails, expensivePlaylist);
+                    indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
                 success = true;
             }
             catch (YouTubeQuotaException)

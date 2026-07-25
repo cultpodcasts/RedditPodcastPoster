@@ -128,9 +128,12 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `Spotify enrich miss:` | `SpotifyEpisodeEnricher` | Warning — no Spotify candidate matched, with rejection context |
 | `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — Spotify returned `restrictions.reason=market` |
 | `Skipping Spotify episode` | `SpotifyNonPlayableSkipLogger` | Warning — non-playable for a reason other than market |
-| `Spotify pagination circuit-breaker tripped:` | Spotify paginators | **Error** — a bounded catalogue walk hit `MaxPages`; in-window episodes may be missing |
+| `Spotify pagination circuit-breaker tripped:` | Spotify paginators | **Error** — a bounded catalogue walk hit `MaxPages` / `MaxWalkBackPages`; in-window episodes may be missing |
 | `Spotify expensive-query flag flipped:` | `SpotifyExpensiveQueryFlag` | Warning — conclusive catalogue-order probe changed `SpotifyEpisodesQueryIsExpensive` |
 | `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
+| `YouTube arbitrary-playlist walk circuit-breaker tripped:` | `ArbitraryYouTubePlaylistWalk` / `YouTubePlaylistService` | **Error** — Arbitrary playlist walk hit `MaxPages`; in-window episodes may be missing — reclassify or shrink the playlist |
+
+Design reference for order modes, caps, and flag lifecycle: [catalogue-pagination.md](catalogue-pagination.md).
 
 Jakub Jahl is **usually not** YouTube-authority (Spotify/Apple discovery). For Jakub, prefer `Batch 4:` membership, podcast name logs, and `YouTubeDiscoveryPath` at Info level.
 
@@ -894,7 +897,7 @@ AppTraces
 
 ### B. Ascending pagination circuit breaker (quota cap hit)
 
-For oldest-first (`spotifyEpisodesQueryIsExpensive`) catalogues, indexing now uses Spotify's `Total` and `Limit` metadata to jump directly to the final page and walks backwards toward `ReleasedSince`. `SimpleEpisodePaginator.MaxPages` still bounds that reverse walk and the forward fallback used when Spotify omits paging metadata.
+For oldest-first (`spotifyEpisodesQueryIsExpensive`) catalogues, indexing now uses Spotify's `Total` and `Limit` metadata to jump directly to the final page and walks backwards toward `ReleasedSince`. That backwards walk is bounded by the small `AscendingEpisodePaginator.MaxWalkBackPages`; the larger `SimpleEpisodePaginator.MaxPages` bounds only the forward crawl from offset zero, used when Spotify omits paging metadata. Both trips share the message prefix below — `walk-back='true'` identifies the backwards walk, `reverse-chronological='false'` the forward crawl.
 
 ```kusto
 AppTraces
@@ -915,6 +918,35 @@ AppTraces
 | parse Message with * "episode-id='" episodeId "'" * "market='" market "'" *
 | summarize occurrences = count(), latest = max(TimeGenerated) by episodeId, market
 | order by latest desc
+```
+
+---
+
+## 10. YouTube playlist pagination — Arbitrary circuit breaker
+
+Curated playlists (`youTubePlaylistOrder = Arbitrary`) walk at 50 items/page capped by `ArbitraryYouTubePlaylistWalk.MaxPages` (20 ≈ 1000 items). A trip means the playlist is larger than the safety budget — reclassify or shrink it rather than raising the cap casually. Design: [catalogue-pagination.md](catalogue-pagination.md), [youtube-playlist-order.md](youtube-playlist-order.md).
+
+### A. Arbitrary walk circuit-breaker trips (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "YouTube arbitrary-playlist walk circuit-breaker tripped:"
+| project TimeGenerated, AppRoleName, Message, OperationId
+| order by TimeGenerated desc
+```
+
+### B. YouTube playlist signals together (flag flips + Arbitrary cap + discovery path)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where AppRoleName == "indexer-infra"
+| where Message startswith "YouTube arbitrary-playlist walk circuit-breaker tripped:"
+   or Message startswith "YouTube expensive-query flag flipped:"
+   or Message has "YouTubeDiscoveryPath"
+| project TimeGenerated, SeverityLevel, Message, OperationId
+| order by TimeGenerated desc
 ```
 
 ---

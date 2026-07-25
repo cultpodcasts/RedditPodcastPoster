@@ -1,49 +1,48 @@
 using FluentAssertions;
 using RedditPodcastPoster.Bluesky.Logging;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
 namespace FunctionHost.Tests.Api;
 
 public class BlueskyPostLoggerRules
 {
-    [Fact(DisplayName = "FormatPostedMessage uses stable Bluesky posted: prefix and includes ids/urls.")]
-    public void format_posted_message_includes_provenance_and_urls()
+    private readonly DomainTestFixture _fixture = new();
+
+    [Fact(DisplayName =
+        "A Bluesky post message carries the stable prefix plus episode, podcast, caller and every platform url " +
+        "because App Insights answers post provenance by searching that one line.")]
+    public void posted_message_carries_provenance_and_platform_urls()
     {
-        var episodeId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-        var podcastId = Guid.Parse("11111111-2222-3333-4444-555555555555");
-        var podcast = new Podcast
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var appleId = _fixture.CreateAppleId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            Id = podcastId,
-            Name = "Preacher Boys Podcast"
-        };
-        var episode = new Episode
-        {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Pastor Kenny Baldwin",
-            Urls = new ServiceUrls
-            {
-                Spotify = new Uri("https://open.spotify.com/episode/spotifyEp123"),
-                YouTube = new Uri("https://www.youtube.com/watch?v=ytVid456"),
-                Apple = new Uri("https://podcasts.apple.com/us/podcast/id1?i=9876543210")
-            }
-        };
-        var podcastEpisode = new PodcastEpisode(podcast, episode);
+            e.SpotifyId = spotifyId;
+            e.YouTubeId = youTubeId;
+            e.AppleId = appleId;
+            e.Urls.Spotify = _fixture.DefaultSpotifyUrl(spotifyId);
+            e.Urls.YouTube = _fixture.DefaultYouTubeUrl(youTubeId);
+            e.Urls.Apple = _fixture.DefaultAppleUrl(appleId);
+        });
+        var caller = _fixture.Create<string>();
 
-        var message = BlueskyPostLogger.FormatPostedMessage(
-            podcastEpisode,
-            caller: "BlueskyPoster.Post");
+        // Act
+        var message = BlueskyPostLogger.FormatPostedMessage(new PodcastEpisode(podcast, episode), caller);
 
+        // Assert
         message.Should().StartWith(BlueskyPostLogger.PostedMessagePrefix);
-        message.Should().Contain($"episode-id='{episodeId}'");
-        message.Should().Contain("title='Pastor Kenny Baldwin'");
-        message.Should().Contain($"podcast-id='{podcastId}'");
-        message.Should().Contain("podcast-name='Preacher Boys Podcast'");
-        message.Should().Contain("caller='BlueskyPoster.Post'");
-        message.Should().Contain("spotify-url='https://open.spotify.com/episode/spotifyEp123'");
-        message.Should().Contain("youtube-url='https://www.youtube.com/watch?v=ytVid456'");
-        message.Should().Contain("apple-url='https://podcasts.apple.com/us/podcast/id1?i=9876543210'");
+        message.Should().Contain($"episode-id='{episode.Id}'");
+        message.Should().Contain($"title='{episode.Title}'");
+        message.Should().Contain($"podcast-id='{podcast.Id}'");
+        message.Should().Contain($"podcast-name='{podcast.Name}'");
+        message.Should().Contain($"caller='{caller}'");
+        message.Should().Contain($"spotify-url='{episode.Urls.Spotify}'");
+        message.Should().Contain($"youtube-url='{episode.Urls.YouTube}'");
+        message.Should().Contain($"apple-url='{episode.Urls.Apple}'");
     }
 }

@@ -1,12 +1,14 @@
 ---
 description: Hard guardrails for episode-domain business-rule unit tests (DomainTestFixture, DisplayName, lean arrange)
-globs: "**/*Tests/**/*.cs,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,plans/episode-domain-refactor/**
+globs: "**/*Tests*/**/*.cs,**/*Tests.cs,**/FunctionHost.Tests/**/*.cs,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,plans/episode-domain-refactor/**
 alwaysApply: false
 ---
 
 # Episode-domain unit test guardrails
 
-**Authoritative AI reference for business-rule tests.** Read before writing or editing tests under `*Tests/` that use `DomainTestFixture`.
+**Authoritative AI reference for business-rule / unit tests.** Read before writing or editing **any** test under `*Tests/`, `*Tests.cs`, `FunctionHost.Tests`, or `Episodes.TestSupport` — including handler, wiring, logger, and DI tests. This is **not** limited to classes that already use `DomainTestFixture`.
+
+Enforcement: [unit-tests-enforcement.mdc](unit-tests-enforcement.mdc) (always-on), `scripts/assert-unit-test-guardrails.ps1` (Cursor stop hook + CI).
 
 Context: [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) (architecture, rule catalog, coverage). This file is the **prescriptive** test-writing contract — not aspirational guidance.
 

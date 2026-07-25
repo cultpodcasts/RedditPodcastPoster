@@ -54,6 +54,38 @@ public class SpotifyUrlCategoriserRules
     }
 
     [Fact(DisplayName =
+        "When the matching podcast has an expensive Spotify query, SkipExpensiveSpotifyQueries is set, and ReleasedSince " +
+        "is present, Resolve still returns null without calling FindEpisode because MatchOtherServices has no " +
+        "ReleasedSince carve-out — unlike SpotifyPodcastEpisodesProvider discovery, which still date-paginates.")]
+    public async Task Resolve_short_circuits_even_when_released_since_is_set()
+    {
+        // Arrange — intentional divergence from provider discovery (see docs/catalogue-pagination.md)
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyEpisodesQueryIsExpensive = true;
+            p.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var criteria = CreateCriteria();
+        var resolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
+        var sut = CreateSut(resolver.Object);
+        var indexingContext = new IndexingContext(
+            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
+            SkipExpensiveSpotifyQueries: true);
+
+        // Act
+        var result = await sut.Resolve(criteria, podcast, indexingContext);
+
+        // Assert
+        result.Should().BeNull();
+        resolver.Verify(
+            x => x.FindEpisode(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Func<SimpleEpisode, bool>?>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When SkipExpensiveSpotifyQueries is false for an expensive podcast, Resolve still attempts FindEpisode " +
         "because API submit and discovery curation allow expensive Spotify matching.")]
     public async Task Resolve_calls_find_episode_when_expensive_queries_allowed()

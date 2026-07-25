@@ -8,7 +8,7 @@ alwaysApply: false
 
 Read before changing production code under `RedditPodcastPoster.Episodes/` (matching, merging, applying, adapters, release tolerance).
 
-**Related:** [unit-tests.mdc](unit-tests.mdc) (how to write rule tests), [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) §5 (rule catalog).
+**Related:** [unit-tests.mdc](unit-tests.mdc) (how to write rule tests), [unit-tests-enforcement.mdc](unit-tests-enforcement.mdc) (always-on + hooks/CI), [plans/episode-domain-refactor/README.md](../../plans/episode-domain-refactor/README.md) §5 (rule catalog).
 
 ---
 

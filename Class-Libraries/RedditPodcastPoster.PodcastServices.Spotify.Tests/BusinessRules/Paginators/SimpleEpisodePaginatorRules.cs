@@ -248,6 +248,42 @@ public class SimpleEpisodePaginatorRules
         results.Select(x => x.Id).Should().Equal(ep0.Id, ep1.Id, ep2.Id, ep3.Id);
     }
 
+    [Fact(DisplayName =
+        "When catalogue order is reverse-chronological and a page's last episode falls before ReleasedSince, " +
+        "SimpleEpisodePaginator stops without fetching further pages because the date window — not MaxPages — " +
+        "is the early-stop for newest-first catalogues.")]
+    public async Task Reverse_chronological_stops_when_last_episode_falls_before_released_since()
+    {
+        // Arrange — page 0–1 in window; page 1's last item is out of window; page 2 must not be fetched
+        var page1Url = "https://api.spotify.com/v1/shows/show/episodes?offset=1";
+        var page2Url = "https://api.spotify.com/v1/shows/show/episodes?offset=2";
+        var inWindow = CreateEpisode("in-window", daysAgo: 1);
+        var outOfWindow = CreateEpisode("out-of-window", daysAgo: 10);
+        var shouldNotFetch = CreateEpisode("should-not-fetch", daysAgo: 11);
+        var firstPage = new Paging<SimpleEpisode>
+        {
+            Items = [inWindow],
+            Next = page1Url
+        };
+        var connector = new FakeSpotifyApiConnector(new Dictionary<string, object>
+        {
+            [page1Url] = new Paging<SimpleEpisode> { Items = [outOfWindow], Next = page2Url },
+            [page2Url] = new Paging<SimpleEpisode> { Items = [shouldNotFetch], Next = null }
+        });
+        var sut = new SimpleEpisodePaginator(
+            DomainTestFixture.UtcDateDaysAgo(7),
+            isInReverseOrder: true,
+            NullLogger<SimpleEpisodePaginator>.Instance);
+
+        // Act
+        var results = await sut.Paginate(firstPage, connector).ToListAsync();
+
+        // Assert — out-of-window item is not yielded; page 2 never fetched
+        results.Select(x => x.Id).Should().Equal(inWindow.Id);
+        results.Should().NotContain(x => x.Id == outOfWindow.Id);
+        results.Should().NotContain(x => x.Id == shouldNotFetch.Id);
+    }
+
     private SimpleEpisode CreateEpisode(string id, int daysAgo) =>
         new()
         {

@@ -181,10 +181,12 @@ public class YouTubeEpisodeProvider(
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
-        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false)
+        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false,
+        PlaylistOrder? playlistOrder = null)
     {
-        var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(
-            youTubePlaylistId.PlaylistId), indexingContext, expensivePlaylist);
+        var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
+            new YouTubePlaylistId(youTubePlaylistId.PlaylistId), indexingContext,
+            expensivePlaylist: expensivePlaylist, playlistOrder: playlistOrder);
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
         if (playlistQueryResponse.Result == null || !playlistQueryResponse.Result.Any())
         {

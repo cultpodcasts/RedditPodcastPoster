@@ -99,6 +99,15 @@ public class Podcast
     [JsonPropertyOrder(140)]
     public string YouTubePlaylistId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Declared playlist ordering. Null: probe head order each pass (default). Arbitrary: manually
+    /// curated playlist where position carries no date information — full walk + added-at filter.
+    /// </summary>
+    [JsonPropertyName("youTubePlaylistOrder")]
+    [JsonPropertyOrder(150)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PlaylistOrder? YouTubePlaylistOrder { get; set; }
+
     [JsonPropertyName("youTubePublicationOffset")]
     [JsonPropertyOrder(151)]
     public long? YouTubePublicationOffset { get; set; }
@@ -181,6 +190,11 @@ public class Podcast
     public bool HasExpensiveYouTubePlaylistQuery()
     {
         return YouTubePlaylistQueryIsExpensive.HasValue && YouTubePlaylistQueryIsExpensive.Value;
+    }
+
+    public bool HasArbitraryYouTubePlaylistOrder()
+    {
+        return YouTubePlaylistOrder == PlaylistOrder.Arbitrary;
     }
 
     public bool HasYouTubeChannelSearchForbidden()

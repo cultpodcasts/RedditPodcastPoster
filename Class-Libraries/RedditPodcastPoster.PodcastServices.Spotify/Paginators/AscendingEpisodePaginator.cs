@@ -17,6 +17,18 @@ public sealed class AscendingEpisodePaginator(
     ILogger<AscendingEpisodePaginator> logger,
     IPaginator forwardFallbackPaginator) : IPaginator
 {
+    /// <summary>
+    /// Caps how many pages the backwards walk may fetch after the end jump. The walk starts at the
+    /// newest end of the catalogue and stops as soon as a page falls outside ReleasedSince, so an
+    /// indexing window only needs a handful of pages; a far smaller bound than the forward crawl in
+    /// <see cref="SimpleEpisodePaginator.MaxPages"/>, which must reach recent episodes from offset zero.
+    /// </summary>
+    public const int MaxWalkBackPages = 5;
+
+    public const string WalkBackCircuitBreakerTrippedMessageTemplate =
+        SimpleEpisodePaginator.CircuitBreakerTrippedMessagePrefix +
+        " pages-fetched='{PagesFetched}' max-pages='{MaxPages}' released-since='{ReleasedSince}' previous='{Previous}' walk-back='true'. Stopped to protect Spotify quota; in-window episodes may be missing.";
+
     public Task<IList<T>> PaginateAll<T>(
         IPaginatable<T> firstPage,
         IAPIConnector connector,
@@ -40,6 +52,8 @@ public sealed class AscendingEpisodePaginator(
 
         if (firstPage is not Paging<T> firstPaging ||
             firstPaging.Items == null ||
+            !firstPaging.Total.HasValue ||
+            !firstPaging.Limit.HasValue ||
             firstPaging.Total <= 0 ||
             firstPaging.Limit <= 0)
         {
@@ -58,13 +72,12 @@ public sealed class AscendingEpisodePaginator(
         var limit = firstPaging.Limit!.Value;
         var finalOffset = Math.Max(0, ((total - 1) / limit) * limit);
         var page = firstPaging;
-        var pagesFetched = 0;
+        var walkBackPages = 0;
 
         if (firstPaging.Offset != finalOffset)
         {
             var finalPageUri = BuildPageUri(firstPaging, finalOffset);
             page = await connector.Get<Paging<T>>(finalPageUri, cancel).ConfigureAwait(false);
-            pagesFetched++;
 
             logger.LogInformation(
                 "Spotify ascending pagination jumped to final page: total='{Total}' limit='{Limit}' offset='{Offset}'.",
@@ -100,12 +113,12 @@ public sealed class AscendingEpisodePaginator(
                 yield break;
             }
 
-            if (pagesFetched >= SimpleEpisodePaginator.MaxPages)
+            if (walkBackPages >= MaxWalkBackPages)
             {
                 logger.LogError(
-                    SimpleEpisodePaginator.CircuitBreakerTrippedMessageTemplate,
-                    pagesFetched,
-                    SimpleEpisodePaginator.MaxPages,
+                    WalkBackCircuitBreakerTrippedMessageTemplate,
+                    walkBackPages,
+                    MaxWalkBackPages,
                     releasedSince,
                     page.Previous);
                 yield break;
@@ -115,7 +128,7 @@ public sealed class AscendingEpisodePaginator(
                     new Uri(NormalizeShowEpisodesPath(page.Previous), UriKind.Absolute),
                     cancel)
                 .ConfigureAwait(false);
-            pagesFetched++;
+            walkBackPages++;
         }
     }
 
