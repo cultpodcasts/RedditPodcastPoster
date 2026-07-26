@@ -246,10 +246,29 @@ public sealed partial class EpisodePlatformMatcher
         var matches = sampleList
             .Where(x =>
                 Math.Abs((x.Length - probe.Length).Ticks) < CatalogueYouTubeDiscoveredDurationThreshold &&
-                Math.Abs((x.Release - probe.Release).Ticks) < CatalogueYouTubeDiscoveredReleaseThreshold.Ticks)
+                IsWithinYouTubeDiscoveredReleaseWindow(probe.Release, x))
             .ToList();
 
         return matches.Count == 1 ? matches[0] : null;
+    }
+
+    /// <summary>
+    /// Spotify catalogue releases are date-only (midnight UTC), so a late-in-the-day YouTube publish
+    /// sits more than twelve hours from its own Spotify row. Compare Spotify rows with the shared
+    /// calendar-day tolerance instead. Apple/YouTube catalogue rows carry a publish time-of-day and
+    /// keep the twelve-hour tick window.
+    /// </summary>
+    private static bool IsWithinYouTubeDiscoveredReleaseWindow(DateTime probeRelease, Episode catalogueItem)
+    {
+        if (!string.IsNullOrWhiteSpace(catalogueItem.SpotifyId))
+        {
+            return EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+                catalogueItem.Release,
+                probeRelease);
+        }
+
+        return Math.Abs((catalogueItem.Release - probeRelease).Ticks) <
+               CatalogueYouTubeDiscoveredReleaseThreshold.Ticks;
     }
 
     private static bool HasCatalogueTitleConfidence(string probeTitle, string candidateTitle)
@@ -294,8 +313,7 @@ public sealed partial class EpisodePlatformMatcher
         if (released != DateTime.MinValue)
         {
             var releaseMatches = sampleList
-                .Where(x => Math.Abs((x.Release - released).Ticks) <
-                            CatalogueYouTubeDiscoveredReleaseThreshold.Ticks)
+                .Where(x => IsWithinYouTubeDiscoveredReleaseWindow(released, x))
                 .ToList();
             if (releaseMatches.Count == 1)
             {

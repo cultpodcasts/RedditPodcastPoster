@@ -90,14 +90,14 @@ public class SearchResultFinderCatalogueWrapperRules
         "disjoint title must not be selected.")]
     public void find_by_length_youtube_enrichment_does_not_duration_snipe_disjoint_title()
     {
-        // Arrange — wrong-week YouTube (~59:40) must not claim this week's Spotify (~62:39) on duration alone
-        const string youTubeTitle =
-            "Civic turnout strategies for mid-cycle ballot measures";
-        const string spotifyTitle =
-            "She Spent a Fortune in a Wellness Scheme with a Guest: New parenthood and a decade lost";
-        var youTubeLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
-        var spotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
+        // Arrange — wrong-week YouTube must not claim a later Spotify row on duration alone
+        var youTubeTitle = _fixture.CreateLongTitle();
+        var spotifyTitle = _fixture.CreateLongTitle();
+        var youTubeLength = _fixture.CreateDuration();
+        var spotifyLength = youTubeLength + TimeSpan.FromMinutes(2) + TimeSpan.FromSeconds(59);
         var matchingId = _fixture.CreateSpotifyId();
+        var probeRelease = DomainTestFixture.UtcAtTime(-9, new TimeSpan(3, 30, 46));
+        var spotifyReleaseDate = DomainTestFixture.UtcDateDaysAgo(7);
         var episodes = new List<SimpleEpisode>
         {
             new()
@@ -105,7 +105,7 @@ public class SearchResultFinderCatalogueWrapperRules
                 Id = matchingId,
                 Name = spotifyTitle,
                 DurationMs = (int)spotifyLength.TotalMilliseconds,
-                ReleaseDate = "2026-07-13"
+                ReleaseDate = spotifyReleaseDate.ToString("yyyy-MM-dd")
             }
         };
 
@@ -115,7 +115,7 @@ public class SearchResultFinderCatalogueWrapperRules
             youTubeLength,
             episodes,
             releaseAuthority: Service.YouTube,
-            released: new DateTime(2026, 7, 11, 3, 30, 46, DateTimeKind.Utc),
+            released: probeRelease,
             enrichingYouTubeDiscoveredEpisode: true);
 
         // Assert
@@ -124,14 +124,16 @@ public class SearchResultFinderCatalogueWrapperRules
 
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row " +
-        "with unique duration inside the twelve-hour release window is selected even when titles diverge.")]
+        "with unique duration on the same calendar day is selected even when titles diverge.")]
     public void find_by_length_youtube_enrichment_accepts_unique_duration_within_release_window()
     {
-        // Arrange
-        const string youTubeTitle = "Virginia | Ep 3: Mommy still loves you";
-        const string spotifyTitle = "Ep 3 — A restraining order that changed everything";
-        var length = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        // Arrange — YouTube title vs wholly different Spotify rename; same length, same calendar day
+        var youTubeTitle = _fixture.CreateLongTitle();
+        var spotifyTitle = _fixture.CreateLongTitle();
+        var length = _fixture.CreateDuration();
         var matchingId = _fixture.CreateSpotifyId();
+        var spotifyReleaseDate = DomainTestFixture.UtcDateDaysAgo(2);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10));
         var episodes = new List<SimpleEpisode>
         {
             new()
@@ -139,7 +141,7 @@ public class SearchResultFinderCatalogueWrapperRules
                 Id = matchingId,
                 Name = spotifyTitle,
                 DurationMs = (int)length.TotalMilliseconds,
-                ReleaseDate = "2026-07-24"
+                ReleaseDate = spotifyReleaseDate.ToString("yyyy-MM-dd")
             }
         };
 
@@ -149,7 +151,46 @@ public class SearchResultFinderCatalogueWrapperRules
             length,
             episodes,
             releaseAuthority: Service.Spotify,
-            released: new DateTime(2026, 7, 24, 10, 0, 0, DateTimeKind.Utc),
+            released: probeRelease,
+            enrichingYouTubeDiscoveredEpisode: true);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(matchingId);
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row with " +
+        "unique duration on the same calendar day is selected even when the YouTube publish is more than " +
+        "twelve hours after Spotify midnight, because Spotify catalogue releases are date-only.")]
+    public void find_by_length_youtube_enrichment_accepts_same_day_spotify_outside_twelve_hours()
+    {
+        // Arrange
+        var youTubeTitle = _fixture.CreateLongTitle();
+        var spotifyTitle = _fixture.CreateLongTitle();
+        var length = _fixture.CreateDuration();
+        var matchingId = _fixture.CreateSpotifyId();
+        var afternoonPublish = TimeSpan.FromHours(17) + TimeSpan.FromMinutes(28);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, afternoonPublish);
+        var episodes = new List<SimpleEpisode>
+        {
+            new()
+            {
+                Id = matchingId,
+                Name = spotifyTitle,
+                DurationMs = (int)length.TotalMilliseconds,
+                ReleaseDate = probeRelease.ToString("yyyy-MM-dd")
+            }
+        };
+        (probeRelease - probeRelease.Date).Should().BeGreaterThan(TimeSpan.FromHours(12));
+
+        // Act
+        var result = _sut.FindMatchingEpisodeByLength(
+            youTubeTitle,
+            length,
+            episodes,
+            releaseAuthority: Service.Spotify,
+            released: probeRelease,
             enrichingYouTubeDiscoveredEpisode: true);
 
         // Assert
@@ -195,10 +236,11 @@ public class SearchResultFinderCatalogueWrapperRules
     public void find_by_length_youtube_enrichment_accepts_title_confident_duration_match()
     {
         // Arrange
-        const string title =
-            "Civic turnout strategies for mid-cycle ballot measures";
-        var length = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
+        var title = _fixture.CreateLongTitle();
+        var length = _fixture.CreateDuration();
         var matchingId = _fixture.CreateSpotifyId();
+        var releaseDate = DomainTestFixture.UtcDateDaysAgo(5);
+        var probeRelease = DomainTestFixture.UtcAtTime(-5, new TimeSpan(3, 30, 46));
         var episodes = new List<SimpleEpisode>
         {
             new()
@@ -206,7 +248,7 @@ public class SearchResultFinderCatalogueWrapperRules
                 Id = matchingId,
                 Name = title,
                 DurationMs = (int)length.TotalMilliseconds,
-                ReleaseDate = "2026-07-11"
+                ReleaseDate = releaseDate.ToString("yyyy-MM-dd")
             }
         };
 
@@ -216,7 +258,7 @@ public class SearchResultFinderCatalogueWrapperRules
             length,
             episodes,
             releaseAuthority: Service.YouTube,
-            released: new DateTime(2026, 7, 11, 3, 30, 46, DateTimeKind.Utc),
+            released: probeRelease,
             enrichingYouTubeDiscoveredEpisode: true);
 
         // Assert
