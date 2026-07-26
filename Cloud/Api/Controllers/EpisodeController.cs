@@ -25,6 +25,9 @@ public class EpisodeController(
 {
     private const string? Route = "episode/{episodeId:guid}";
     private const string? PodcastIdentifierRoute = "episode/{podcastIdentifier}/{episodeId:guid}";
+    // Rare fallback: App Service decodes %2F to '/', so names with '/' become
+    // extra segments and miss PodcastIdentifierRoute (see #9290).
+    private const string? PodcastIdentifierCatchAllRoute = "episode/{*podcastAndEpisode}";
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
 
 
@@ -40,7 +43,9 @@ public class EpisodeController(
     {
         var podcastEpisodeGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
             ? new PodcastEpisodeRequestWrapper(podcastId, episodeId)
-            : new PodcastEpisodeRequestWrapper(podcastIdentifier, episodeId);
+            : new PodcastEpisodeRequestWrapper(
+                PodcastRouteNameNormalizer.Normalize(podcastIdentifier),
+                episodeId);
         return HandleRequest(
             req,
             ["curate"],
@@ -48,6 +53,24 @@ public class EpisodeController(
             getEpisodeHandler.Handle,
             Unauthorised,
             ct);
+    }
+
+    [Function("PodcastNameEpisodeGetSlash")]
+    public Task<HttpResponseData> GetByPodcastIdentifierCatchAll(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = PodcastIdentifierCatchAllRoute)]
+        HttpRequestData req,
+        string podcastAndEpisode,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        if (!PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
+                podcastAndEpisode, out var podcastIdentifier, out var episodeId))
+        {
+            return Task.FromResult(req.CreateResponse(System.Net.HttpStatusCode.NotFound));
+        }
+
+        return GetByPodcastIdentifier(req, podcastIdentifier, episodeId, _, ct);
     }
 
 
