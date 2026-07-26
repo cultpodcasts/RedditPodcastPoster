@@ -731,6 +731,9 @@ module apiFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Api: 'Information'
+        // App Service FE decodes %2F before the Functions host; this restores the
+        // raw path so podcast/subject names containing '/' route correctly.
+        WEBSITE_RESTORE_RAW_REQUEST_PATH: '1'
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
