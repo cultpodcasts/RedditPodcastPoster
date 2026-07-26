@@ -24,6 +24,11 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
             podcast.BypassShortEpisodeChecking = podcastChangeRequest.BypassShortEpisodeChecking.Value;
         }
 
+        if (podcastChangeRequest.AlwaysPromoteAsHero != null)
+        {
+            podcast.AlwaysPromoteAsHero = podcastChangeRequest.AlwaysPromoteAsHero.Value;
+        }
+
         if (podcastChangeRequest.MinimumDuration != null)
         {
             if (string.IsNullOrWhiteSpace(podcastChangeRequest.MinimumDuration))

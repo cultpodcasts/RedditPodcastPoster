@@ -118,6 +118,11 @@ internal static class FunctionHostTestSupport
             ["auth0:Domain"] = "test.auth0.com",
             ["auth0:Audience"] = "https://test-api",
             ["auth0:Issuer"] = "https://test.auth0.com/",
+            ["api:Endpoint"] = "https://api.test.example/",
+            ["auth0client:Domain"] = "test.auth0.com",
+            ["auth0client:Audience"] = "https://test-api",
+            ["auth0client:ClientId"] = "test-m2m-client-id",
+            ["auth0client:ClientSecret"] = "test-m2m-client-secret",
         };
 
         return new ConfigurationBuilder()

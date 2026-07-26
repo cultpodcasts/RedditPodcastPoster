@@ -12,6 +12,7 @@ using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
@@ -32,6 +33,7 @@ public class PodcastUpdater(
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
+    IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
@@ -176,6 +178,20 @@ public class PodcastUpdater(
             }
 
             await episodeRepository.Save(mergeResult.AddedEpisodes);
+
+            var heroIds = HeroAutoPromoteSelector.SelectEpisodeIds(
+                podcast,
+                mergeResult.AddedEpisodes,
+                DateTime.UtcNow);
+            if (heroIds.Count > 0)
+            {
+                logger.LogInformation(
+                    "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
+                    EpisodeCreationSource.Indexer,
+                    podcast.Id,
+                    string.Join(',', heroIds));
+                await heroEpisodePromoter.PromoteAsync(heroIds);
+            }
         }
 
         var discoveredYouTubeExpensiveQuery = !knownYouTubeExpensiveQuery && podcast.HasExpensiveYouTubePlaylistQuery();

@@ -61,6 +61,10 @@ public class Podcast
     [JsonPropertyOrder(60)]
     public bool? BypassShortEpisodeChecking { get; set; }
 
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    [JsonPropertyOrder(62)]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
     [JsonPropertyName("minimumDuration")]
     [JsonPropertyOrder(61)]
     public TimeSpan? MinimumDuration { get; set; }

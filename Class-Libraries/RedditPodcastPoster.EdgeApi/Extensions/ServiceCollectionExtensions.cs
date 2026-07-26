@@ -4,6 +4,8 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EdgeApi.Clients;
 using RedditPodcastPoster.EdgeApi.Configuration;
 using RedditPodcastPoster.EdgeApi.Extensions;
+using RedditPodcastPoster.EdgeApi.Heroes;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 
 namespace RedditPodcastPoster.EdgeApi.Extensions;
 
@@ -16,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddAuth0Client();
         services.BindConfiguration<ApiOptions>("api");
         services.AddScoped<IApiClient, ApiClient>();
+        services.AddScoped<IHeroEpisodePromoter, EdgeHeroEpisodePromoter>();
         if (bypassCertificateValidation)
         {
             services.AddHttpClient<IApiClient, ApiClient>()

@@ -13,6 +13,7 @@ using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Extensions;
+using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.People.Extensions;
@@ -46,6 +47,7 @@ public static class Ioc
             .AddAppleServices()
             .AddCommonServices()
             .AddPodcastServices()
+            .AddEdgeApiClient(bypassCertificateValidation: false)
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()

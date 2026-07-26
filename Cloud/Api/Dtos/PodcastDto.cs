@@ -23,6 +23,9 @@ public class PodcastDto
     [JsonPropertyName("bypassShortEpisodeChecking")]
     public bool? BypassShortEpisodeChecking { get; set; }
 
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
     [JsonPropertyName("releaseAuthority")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
