@@ -104,6 +104,22 @@ public static class EpisodeReleaseTolerance
             ? YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance
             : 1;
 
+    /// <summary>
+    /// Spotify catalogue releases are date-only (midnight UTC) and often land one or more calendar days
+    /// before the indexing <paramref name="indexingReleasedSince"/> floor derived from YouTube publish.
+    /// Widen the Spotify fetch window to match <see cref="GetToleranceTicks"/> acceptance so enrichment
+    /// candidates are not filtered out of <c>PaginateEpisodes</c> before the matcher runs.
+    /// </summary>
+    public static DateTime? GetSpotifyCatalogueFetchReleasedSince(DateTime? indexingReleasedSince)
+    {
+        if (!indexingReleasedSince.HasValue)
+        {
+            return null;
+        }
+
+        return indexingReleasedSince.Value.Date.Subtract(YouTubeAuthorityToAudioReleaseConsiderationThreshold);
+    }
+
     public static bool SpotifyCatalogueReleaseMatches(DateTime spotifyCatalogueRelease, DateTime expectedRelease) =>
         SpotifyCatalogueReleaseMatches(spotifyCatalogueRelease, expectedRelease, toleranceTicks: 0, podcast: null);
 

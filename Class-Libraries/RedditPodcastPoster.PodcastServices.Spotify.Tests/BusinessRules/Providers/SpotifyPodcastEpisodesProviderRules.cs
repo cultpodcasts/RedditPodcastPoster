@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify;
@@ -399,8 +400,61 @@ public class SpotifyPodcastEpisodesProviderRules
         capturedRequest!.Limit.Should().Be(50);
         result.Episodes.Select(x => x.Id).Should().Contain(recent.Id);
         paginator.Verify(
-            x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()),
+            x => x.PaginateEpisodes(
+                It.IsAny<IPaginatable<SimpleEpisode>?>(),
+                It.Is<IndexingContext>(ctx =>
+                    ctx.ReleasedSince == EpisodeReleaseTolerance.GetSpotifyCatalogueFetchReleasedSince(
+                        indexingContext.ReleasedSince))),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When GetEpisodes paginates with ReleasedSince, the Spotify fetch window is widened by the " +
+        "audio-release consideration threshold so a date-only Spotify row one day before the indexing floor " +
+        "remains a catalogue candidate for YouTube-discovered enrichment.")]
+    public async Task Known_id_path_widens_released_since_for_spotify_catalogue_fetch()
+    {
+        // Arrange
+        var showId = _fixture.CreateSpotifyId();
+        var indexingReleasedSince = DomainTestFixture.UtcDateDaysAgo(2);
+        var episodeJustBeforeFloor = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 3);
+        IndexingContext? capturedFetchContext = null;
+        var wrapper = new Mock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetShowEpisodes(
+                showId,
+                It.IsAny<ShowEpisodesRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Paging<SimpleEpisode>
+            {
+                Items = [episodeJustBeforeFloor],
+                Next = null
+            });
+
+        var paginator = new Mock<ISpotifyQueryPaginator>();
+        paginator
+            .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
+            .Callback<IPaginatable<SimpleEpisode>?, IndexingContext>((_, ctx) => capturedFetchContext = ctx)
+            .ReturnsAsync(new PodcastEpisodesResult([episodeJustBeforeFloor]));
+
+        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var indexingContext = new IndexingContext(
+            ReleasedSince: indexingReleasedSince,
+            SkipPodcastDiscovery: true,
+            SkipExpensiveSpotifyQueries: false);
+
+        // Act
+        var result = await sut.GetEpisodes(
+            new GetEpisodesRequest(new SpotifyPodcastId(showId), Market.CountryCode),
+            indexingContext);
+
+        // Assert
+        capturedFetchContext.Should().NotBeNull();
+        capturedFetchContext!.ReleasedSince.Should().Be(
+            EpisodeReleaseTolerance.GetSpotifyCatalogueFetchReleasedSince(indexingReleasedSince));
+        capturedFetchContext.ReleasedSince.Should().BeBefore(indexingReleasedSince.Date);
+        result.Episodes.Select(x => x.Id).Should().Contain(episodeJustBeforeFloor.Id);
     }
 
     [Fact(DisplayName =

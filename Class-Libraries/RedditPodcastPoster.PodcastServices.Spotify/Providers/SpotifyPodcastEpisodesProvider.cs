@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -92,7 +93,9 @@ public class SpotifyPodcastEpisodesProvider(
                         }
 
                         var paginateEpisodeResponse =
-                            await spotifyQueryPaginator.PaginateEpisodes(paging.Episodes, indexingContext);
+                            await spotifyQueryPaginator.PaginateEpisodes(
+                                paging.Episodes,
+                                WithSpotifyCatalogueFetchReleasedSince(indexingContext));
                         var result = paginateEpisodeResponse.Episodes.GroupBy(x => x.Id).Select(x => x.First());
                         allEpisodes.Add(result.ToList());
                         expensiveQueryFound = MergeExpensiveQueryFound(
@@ -130,7 +133,9 @@ public class SpotifyPodcastEpisodesProvider(
         GetEpisodesRequest request,
         IndexingContext indexingContext)
     {
-        if (_cache.TryGetValue(request.SpotifyPodcastId.PodcastId, out var episodes))
+        var fetchContext = WithSpotifyCatalogueFetchReleasedSince(indexingContext);
+        var cacheKey = GetCacheKey(request.SpotifyPodcastId.PodcastId, indexingContext.ReleasedSince);
+        if (_cache.TryGetValue(cacheKey, out var episodes))
         {
             return episodes;
         }
@@ -180,13 +185,25 @@ public class SpotifyPodcastEpisodesProvider(
                 nameof(GetEpisodes));
         }
 
-        var results = await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, indexingContext);
+        var results = await spotifyQueryPaginator.PaginateEpisodes(pagedEpisodes, fetchContext);
         var freeResults = new PodcastEpisodesResult(
             TakeFreeEpisodes(results.Episodes, market),
             results.ExpensiveQueryFound);
-        _cache[request.SpotifyPodcastId.PodcastId] = freeResults;
+        _cache[cacheKey] = freeResults;
         return freeResults;
     }
+
+    private static IndexingContext WithSpotifyCatalogueFetchReleasedSince(IndexingContext indexingContext) =>
+        indexingContext with
+        {
+            ReleasedSince = EpisodeReleaseTolerance.GetSpotifyCatalogueFetchReleasedSince(
+                indexingContext.ReleasedSince)
+        };
+
+    private static string GetCacheKey(string podcastId, DateTime? releasedSince) =>
+        releasedSince.HasValue
+            ? $"{podcastId}:{releasedSince.Value.Date:yyyy-MM-dd}"
+            : podcastId;
 
     private List<SimpleEpisode> TakeFreeEpisodes(IEnumerable<SimpleEpisode> episodes, string market)
     {
