@@ -70,7 +70,7 @@ public class PodcastController(
 
     [Function("PodcastGetWithEpisodeId")]
     public Task<HttpResponseData> GetWithEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastName}/{episodeId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastName}/{episodeId:guid}")]
         HttpRequestData req,
         string podcastName,
         Guid episodeId,
@@ -82,6 +82,26 @@ public class PodcastController(
             getPodcastHandler.Handle,
             Unauthorised,
             ct);
+
+    // Rare fallback: App Service decodes %2F to '/', so names with '/' become
+    // extra segments and miss the routes above (Azure/azure-functions-host#9290).
+    // Also stops Guid-bind 500s when a split name wrongly hits PodcastGetWithEpisodeId.
+    [Function("PodcastGetSlash")]
+    public Task<HttpResponseData> GetByIdentifierCatchAll(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{*podcastIdentifier}")]
+        HttpRequestData req,
+        string podcastIdentifier,
+        CancellationToken ct
+    )
+    {
+        if (PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
+                podcastIdentifier, out var podcastName, out var episodeId))
+        {
+            return GetWithEpisodeId(req, podcastName, episodeId, ct);
+        }
+
+        return GetByIdentifier(req, podcastIdentifier, ct);
+    }
 
     [Function("PodcastPost")]
     public Task<HttpResponseData> Post(
