@@ -8,6 +8,7 @@ using SubmitUrl;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
@@ -41,6 +42,7 @@ builder.Services
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()
+    .AddEdgeApiClient(bypassCertificateValidation: false)
     .AddSpotifyServices()
     .AddAppleServices()
     .AddYouTubeServices(ApplicationUsage.Cli)

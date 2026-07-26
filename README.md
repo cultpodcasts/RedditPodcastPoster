@@ -129,9 +129,18 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "twitter:AccessTokenSecret": "xxxx",
 
   "bluesky:Identifier": "xxxx",
-  "bluesky:Password": "xxxx"
+  "bluesky:Password": "xxxx",
+
+  "api:Endpoint": "https://api.cultpodcasts.com",
+
+  "auth0client:Domain": "xxxx.auth0.com",
+  "auth0client:Audience": "https://xxxx",
+  "auth0client:ClientId": "xxxx",
+  "auth0client:ClientSecret": "xxxx"
 }
 ```
+
+`Index` / `SubmitUrl` (and Cloud Indexer/Api) call the edge hero API via `AddEdgeApiClient`. Non-secret `api:Endpoint` is also in those consoles' `appsettings.json`; M2M Auth0 (`auth0client:*`) belongs in user-secrets (same shared `UserSecretsId`).
 
 Additional production-only settings (Auth0, YouTube, Listen Notes, Taddy, push notification keys, etc.) are in `Infrastructure/functions.bicep`. Production secrets are read from Key Vault at **deploy time** (`functions.bicepparam`) and written as **literal** app-setting values — the running app never calls Key Vault. For YouTube key layout, local user-secrets, and interim manual apply steps, see [docs/youtube-keys.md](docs/youtube-keys.md).
 

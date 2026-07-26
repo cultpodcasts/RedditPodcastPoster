@@ -7,6 +7,7 @@ using Index;
 using iTunesSearch.Library;
 using RedditPodcastPoster.Common.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
@@ -40,6 +41,7 @@ builder.Services
     .AddRepositories()
     .AddCommonServices()
     .AddPodcastServices()
+    .AddEdgeApiClient(bypassCertificateValidation: false)
     .AddAppleServices()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSpotifyServices()
