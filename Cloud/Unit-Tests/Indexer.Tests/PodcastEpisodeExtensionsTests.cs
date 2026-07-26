@@ -17,9 +17,12 @@ namespace Indexer.Tests;
 
 public class PodcastEpisodeExtensionsTests
 {
-    [Fact]
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord maps platform ids and podcast language, and wires YouTube image " +
+        "compaction through the youtubeId.")]
     public void Maps_service_ids_language_and_compacts_youtube_image()
     {
+        // Arrange
         var episode = CreateEpisode();
         episode.Images = new EpisodeImages
         {
@@ -35,8 +38,10 @@ public class PodcastEpisodeExtensionsTests
             SearchTerms = "podcast terms"
         };
 
+        // Act
         var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
 
+        // Assert
         result.SpotifyId.Should().Be("spotify-episode-id");
         result.YoutubeId.Should().Be("youtube-id");
         result.AppleId.Should().Be("987654321");
@@ -49,9 +54,11 @@ public class PodcastEpisodeExtensionsTests
         result.Duration.Should().Be("00:02:03");
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord omits blank platform ids and compacts a Spotify-only image.")]
     public void Compacts_spotify_image_and_omits_empty_ids()
     {
+        // Arrange
         var episode = CreateEpisode();
         episode.SpotifyId = " ";
         episode.YouTubeId = string.Empty;
@@ -61,55 +68,72 @@ public class PodcastEpisodeExtensionsTests
             Spotify = new Uri("https://i.scdn.co/image/opaque")
         };
 
+        // Act
         var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
             .ToEpisodeSearchRecord();
 
+        // Assert
         result.SpotifyId.Should().BeNull();
         result.YoutubeId.Should().BeNull();
         result.AppleId.Should().BeNull();
         result.Image.Should().Be("sopaque");
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord truncates long descriptions on a word boundary and appends an ellipsis.")]
     public void Truncates_long_description_on_word_boundary_with_ellipsis()
     {
+        // Arrange
         var episode = CreateEpisode();
         // 220 chars of complete words, then a partial token that would be mid-cut at 230.
-        episode.Description = new string('a', 10) + " " + new string('b', 209) + " Salt Lake City continues";
+        episode.Description = new string('a', 10) + " " + new string('b', 209) + " Alpha Bravo continues";
         episode.Description.Length.Should().BeGreaterThan(Constants.DescriptionSize);
 
+        // Act
         var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
             .ToEpisodeSearchRecord();
 
+        // Assert
         result.EpisodeDescription.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
         result.EpisodeDescription.Should().EndWith("\u2026");
-        result.EpisodeDescription.Should().Contain("Salt");
-        result.EpisodeDescription.Should().NotContain("Lake");
+        result.EpisodeDescription.Should().Contain("Alpha");
+        result.EpisodeDescription.Should().NotContain("Bravo");
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord trims short descriptions without truncating or appending an ellipsis.")]
     public void Leaves_short_description_unchanged()
     {
+        // Arrange
         var episode = CreateEpisode();
         episode.Description = "  Short description.  ";
 
+        // Act
         var result = new PodcastEpisode(new Podcast { Name = "Podcast" }, episode)
             .ToEpisodeSearchRecord();
 
+        // Assert
         result.EpisodeDescription.Should().Be("Short description.");
     }
 
-    [Fact]
-    public void Slim_schema_drops_explicit_and_hides_language()
+    [Fact(DisplayName =
+        "Slim EpisodeSearchRecord schema drops explicit, keeps platform ids, and leaves lang " +
+        "filterable+facetable and retrievable for search/flix language flags.")]
+    public void Slim_schema_drops_explicit_and_keeps_lang_retrievable()
     {
-        var fields = new FieldBuilder
+        // Arrange
+        var builder = new FieldBuilder
         {
             Serializer = new JsonObjectSerializer(new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             })
-        }.Build(typeof(EpisodeSearchRecord));
+        };
 
+        // Act
+        var fields = builder.Build(typeof(EpisodeSearchRecord));
+
+        // Assert
         fields.Should().NotContain(field => field.Name == "explicit");
         fields.Should().Contain(field => field.Name == "spotifyId");
         fields.Should().Contain(field => field.Name == "youtubeId");
@@ -119,7 +143,7 @@ public class PodcastEpisodeExtensionsTests
         var language = fields.Single(field => field.Name == "lang");
         language.IsFilterable.Should().BeTrue();
         language.IsFacetable.Should().BeTrue();
-        language.IsHidden.Should().BeTrue();
+        language.IsHidden.Should().BeFalse();
     }
 
     private static Episode CreateEpisode() => new()
@@ -127,7 +151,7 @@ public class PodcastEpisodeExtensionsTests
         Id = Guid.NewGuid(),
         Title = " Episode ",
         Description = "Description",
-        Release = new DateTime(2026, 7, 17, 12, 0, 0, DateTimeKind.Utc),
+        Release = DateTime.UtcNow.Date.AddDays(-9).AddHours(12),
         Length = TimeSpan.FromSeconds(123),
         SpotifyId = "spotify-episode-id",
         YouTubeId = "youtube-id",
