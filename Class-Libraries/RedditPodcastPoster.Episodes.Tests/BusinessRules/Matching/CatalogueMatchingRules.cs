@@ -1304,4 +1304,47 @@ public class CatalogueMatchingRules
         // Assert
         result.Should().BeSameAs(candidateWithoutRelease);
     }
+
+    [Fact(DisplayName =
+        "Incident (Jul 2026): when enriching a YouTube-discovered episode whose Spotify row is title-confident " +
+        "(editorial prefix + case variation) and whose duration is within five minutes, the match succeeds even " +
+        "though the date-only Spotify release sits two calendar days before the offset-adjusted probe date.")]
+    public void youtube_discovered_title_confident_duration_match_succeeds_when_spotify_date_two_days_before_probe()
+    {
+        // Arrange — probe body carries capitals; Spotify row is "<prefix> " + lowercased probe body,
+        // so the case-sensitive containment gate fails and matching must fall to title-confidence.
+        var probeTitle = "Nightshade: How The Victims Were Silenced";
+        var spotifyTitle = "Special Report " + probeTitle.ToLowerInvariant();
+        var probeLength = new TimeSpan(0, 25, 19);
+        var spotifyLength = new TimeSpan(0, 27, 58);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(9, 7, 30));
+        var spotifyRelease = probeRelease.Date.AddDays(-2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Length = probeLength;
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var spotifyCandidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = spotifyTitle;
+            e.Length = spotifyLength;
+            e.Release = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast(p =>
+            p.YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks);
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [spotifyCandidate],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(spotifyCandidate);
+    }
 }
