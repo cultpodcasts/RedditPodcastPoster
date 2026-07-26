@@ -14,6 +14,7 @@ public static class PodcastExtension
             Removed = podcast.Removed,
             IndexAllEpisodes = podcast.IndexAllEpisodes,
             BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            AlwaysPromoteAsHero = podcast.AlwaysPromoteAsHero,
             ReleaseAuthority = podcast.ReleaseAuthority,
             PrimaryPostService = podcast.PrimaryPostService,
             SpotifyId = podcast.SpotifyId,

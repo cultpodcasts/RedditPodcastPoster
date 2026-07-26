@@ -4,6 +4,7 @@ using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -388,14 +389,17 @@ public class UrlSubmissionPersistenceRules
         IPodcastProcessor podcastProcessor,
         InMemoryPodcastRepository podcastRepository,
         InMemoryEpisodeRepository episodeRepository,
-        IPodcastAndEpisodeFactory? factory = null)
+        IPodcastAndEpisodeFactory? factory = null,
+        IHeroEpisodePromoter? heroEpisodePromoter = null)
     {
         factory ??= new Mock<IPodcastAndEpisodeFactory>().Object;
+        heroEpisodePromoter ??= new Mock<IHeroEpisodePromoter>().Object;
         return new CategorisedItemProcessor(
             podcastProcessor,
             podcastRepository,
             episodeRepository,
             factory,
+            heroEpisodePromoter,
             NullLogger<CategorisedItem>.Instance);
     }
 }

@@ -18,6 +18,7 @@ using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Discovery.Services;
+using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
@@ -54,6 +55,7 @@ public static class Ioc
             .AddSpotifyServices()
             .AddAppleServices()
             .AddPodcastServices()
+            .AddEdgeApiClient(bypassCertificateValidation: false)
             .AddCommonServices()
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())

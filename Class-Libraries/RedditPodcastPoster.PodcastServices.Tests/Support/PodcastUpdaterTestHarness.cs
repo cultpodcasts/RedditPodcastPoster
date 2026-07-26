@@ -14,6 +14,7 @@ using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.PodcastServices.Enrichers;
@@ -40,6 +41,11 @@ internal sealed class PodcastUpdaterTestHarness
             .Setup(x => x.GetAsync())
             .ReturnsAsync(EliminationTermsProvider.Object);
 
+        HeroEpisodePromoter = new Mock<IHeroEpisodePromoter>();
+        HeroEpisodePromoter
+            .Setup(x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         Updater = new PodcastUpdater(
             PodcastRepository,
             EpisodeRepository,
@@ -50,6 +56,7 @@ internal sealed class PodcastUpdaterTestHarness
             eliminationTermsInstance.Object,
             Options.Create(DefaultPostingCriteria),
             YouTubeQuotaUsageTracker.Object,
+            HeroEpisodePromoter.Object,
             NullLogger<PodcastUpdater>.Instance);
 
         EpisodeEnricher
@@ -90,6 +97,8 @@ internal sealed class PodcastUpdaterTestHarness
     public Mock<IPodcastFilter> PodcastFilter { get; }
 
     public Mock<IYouTubeQuotaUsageTracker> YouTubeQuotaUsageTracker { get; }
+
+    public Mock<IHeroEpisodePromoter> HeroEpisodePromoter { get; }
 
     public Mock<IEliminationTermsProvider> EliminationTermsProvider { get; }
 

@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Episodes;
+using RedditPodcastPoster.Episodes.Logging;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Models;
-using RedditPodcastPoster.Episodes.Logging;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
 
@@ -13,6 +15,7 @@ public class CategorisedItemProcessor(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IPodcastAndEpisodeFactory podcastAndEpisodeFactory,
+    IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CategorisedItem> logger) : ICategorisedItemProcessor
 {
     public async Task<SubmitResult> ProcessCategorisedItem(CategorisedItem categorisedItem, SubmitOptions submitOptions)
@@ -102,9 +105,43 @@ public class CategorisedItemProcessor(
                 submitOptions.CreationSource,
                 categorisedItem.Authority,
                 caller: "CategorisedItemProcessor.ProcessCategorisedItem");
+
+            if (submitOptions.PersistToDatabase)
+            {
+                var podcast = submitResult.Podcast ?? categorisedItem.MatchingPodcast;
+                if (podcast != null)
+                {
+                    await PromoteCreatedEpisodeIfEligible(
+                        podcast,
+                        submitResult.Episode,
+                        submitOptions.CreationSource);
+                }
+            }
         }
 
         LogSubmitEpisodeState(submitResult);
         return submitResult;
+    }
+
+    private async Task PromoteCreatedEpisodeIfEligible(
+        Podcast podcast,
+        Episode episode,
+        EpisodeCreationSource creationSource)
+    {
+        var heroIds = HeroAutoPromoteSelector.SelectEpisodeIds(
+            podcast,
+            [episode],
+            DateTime.UtcNow);
+        if (heroIds.Count == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation(
+            "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
+            creationSource,
+            podcast.Id,
+            string.Join(',', heroIds));
+        await heroEpisodePromoter.PromoteAsync(heroIds);
     }
 }

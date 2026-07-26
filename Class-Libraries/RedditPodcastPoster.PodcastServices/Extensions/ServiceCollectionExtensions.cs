@@ -4,11 +4,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.PodcastServices.Enrichers;
 using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Handlers;
+using RedditPodcastPoster.PodcastServices.Heroes;
 using RedditPodcastPoster.PodcastServices.Matching;
 using RedditPodcastPoster.PodcastServices.Merging;
 using RedditPodcastPoster.PodcastServices.Models;
@@ -29,6 +31,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IPodcastPassApiCache, PodcastPassApiCache>()
                 .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
                 .AddScoped<IPodcastUpdater, PodcastUpdater>()
+                .AddScoped<IHeroEpisodePromoter, NullHeroEpisodePromoter>()
                 .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
                 .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
