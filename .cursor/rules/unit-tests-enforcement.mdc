@@ -22,6 +22,10 @@ alwaysApply: true
 | `throw new NotImplementedException` in `BusinessRules/**` test doubles | Prefer Moq / focused fakes that implement only used members |
 | Raw `new Podcast` / `new Episode` filler when `DomainTestFixture` applies | Use fixture factories |
 
+## Cursor stop hook (conversation-scoped)
+
+The `.cursor/hooks` stop follow-up only re-prompts **the conversation that edited** the violating test files. It does **not** scan the whole git working tree, so another agent sharing the workspace is not woken to fix this agent's tests. CI / manual checks may still use `-GitChanged`.
+
 ## Stop checklist
 
 Before claiming test work done:
