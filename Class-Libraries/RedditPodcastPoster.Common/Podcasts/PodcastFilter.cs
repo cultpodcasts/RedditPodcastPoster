@@ -10,7 +10,7 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
 {
     public FilterResult Filter(Podcast podcast, IEnumerable<Episode> episodes, List<string> eliminationTerms)
     {
-        logger.LogWarning(
+        logger.LogInformation(
             "{method}: Filtering episodes for podcast '{podcastName}'. Count: {Count}. Elimination-terms count: {EliminationTermsCount}. Episode-ids: {EpisodeIds}",
             nameof(Filter), podcast.Name, episodes.Count(), eliminationTerms.Count,
             episodes.Where(x => !x.Removed).Select(x => x.Id));
