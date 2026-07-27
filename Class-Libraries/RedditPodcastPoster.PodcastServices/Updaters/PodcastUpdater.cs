@@ -179,18 +179,42 @@ public class PodcastUpdater(
 
             await episodeRepository.Save(mergeResult.AddedEpisodes);
 
-            var heroIds = HeroAutoPromoteSelector.SelectEpisodeIds(
-                podcast,
-                mergeResult.AddedEpisodes,
-                DateTime.UtcNow);
-            if (heroIds.Count > 0)
+            if (podcast.AlwaysPromoteAsHero == true)
             {
-                logger.LogInformation(
-                    "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
-                    EpisodeCreationSource.Indexer,
-                    podcast.Id,
-                    string.Join(',', heroIds));
-                await heroEpisodePromoter.PromoteAsync(heroIds);
+                var utcNow = DateTime.UtcNow;
+                var cutoff = HeroAutoPromoteSelector.GetCutoff(utcNow);
+                var heroIds = new List<Guid>();
+                foreach (var added in mergeResult.AddedEpisodes)
+                {
+                    var skipReason = HeroAutoPromoteSelector.GetSkipReason(podcast, added, utcNow);
+                    if (skipReason != HeroAutoPromoteSkipReason.None)
+                    {
+                        HeroAutoPromoteLogger.LogSkipped(
+                            logger,
+                            skipReason,
+                            added.Id,
+                            podcast.Id,
+                            podcast.AlwaysPromoteAsHero,
+                            release: added.Release,
+                            cutoff: skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
+                                ? cutoff
+                                : null,
+                            episodeResult: "Created");
+                        continue;
+                    }
+
+                    heroIds.Add(added.Id);
+                }
+
+                if (heroIds.Count > 0)
+                {
+                    HeroAutoPromoteLogger.LogAttempt(
+                        logger,
+                        EpisodeCreationSource.Indexer,
+                        podcast.Id,
+                        heroIds);
+                    await heroEpisodePromoter.PromoteAsync(heroIds);
+                }
             }
         }
 

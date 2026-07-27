@@ -91,13 +91,13 @@ public class CategorisedItemProcessor(
             }
         }
 
+        var podcast = submitResult.Podcast ?? categorisedItem.MatchingPodcast;
+
         if (submitResult is { EpisodeResult: SubmitResultState.Created, Episode: not null })
         {
             var podcastId = submitResult.Episode.PodcastId != Guid.Empty
                 ? submitResult.Episode.PodcastId
-                : submitResult.Podcast?.Id
-                  ?? categorisedItem.MatchingPodcast?.Id
-                  ?? Guid.Empty;
+                : podcast?.Id ?? Guid.Empty;
             EpisodeCreationLogger.LogCreated(
                 logger,
                 submitResult.Episode,
@@ -106,17 +106,24 @@ public class CategorisedItemProcessor(
                 categorisedItem.Authority,
                 caller: "CategorisedItemProcessor.ProcessCategorisedItem");
 
-            if (submitOptions.PersistToDatabase)
+            if (submitOptions.PersistToDatabase && podcast != null)
             {
-                var podcast = submitResult.Podcast ?? categorisedItem.MatchingPodcast;
-                if (podcast != null)
-                {
-                    await PromoteCreatedEpisodeIfEligible(
-                        podcast,
-                        submitResult.Episode,
-                        submitOptions.CreationSource);
-                }
+                await PromoteCreatedEpisodeIfEligible(
+                    podcast,
+                    submitResult.Episode,
+                    submitOptions.CreationSource);
             }
+        }
+        else if (podcast is { AlwaysPromoteAsHero: true })
+        {
+            HeroAutoPromoteLogger.LogSkipped(
+                logger,
+                HeroAutoPromoteSkipReason.NotCreated,
+                submitResult.Episode?.Id ?? Guid.Empty,
+                podcast.Id,
+                podcast.AlwaysPromoteAsHero,
+                release: submitResult.Episode?.Release,
+                episodeResult: submitResult.EpisodeResult.ToString());
         }
 
         LogSubmitEpisodeState(submitResult);
@@ -128,20 +135,30 @@ public class CategorisedItemProcessor(
         Episode episode,
         EpisodeCreationSource creationSource)
     {
-        var heroIds = HeroAutoPromoteSelector.SelectEpisodeIds(
-            podcast,
-            [episode],
-            DateTime.UtcNow);
-        if (heroIds.Count == 0)
+        var utcNow = DateTime.UtcNow;
+        var skipReason = HeroAutoPromoteSelector.GetSkipReason(podcast, episode, utcNow);
+        if (skipReason != HeroAutoPromoteSkipReason.None)
         {
+            var cutoff = skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
+                ? HeroAutoPromoteSelector.GetCutoff(utcNow)
+                : (DateTime?)null;
+            HeroAutoPromoteLogger.LogSkipped(
+                logger,
+                skipReason,
+                episode.Id,
+                podcast.Id,
+                podcast.AlwaysPromoteAsHero,
+                release: episode.Release,
+                cutoff: cutoff,
+                episodeResult: SubmitResultState.Created.ToString());
             return;
         }
 
-        logger.LogInformation(
-            "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
+        HeroAutoPromoteLogger.LogAttempt(
+            logger,
             creationSource,
             podcast.Id,
-            string.Join(',', heroIds));
-        await heroEpisodePromoter.PromoteAsync(heroIds);
+            [episode.Id]);
+        await heroEpisodePromoter.PromoteAsync([episode.Id]);
     }
 }

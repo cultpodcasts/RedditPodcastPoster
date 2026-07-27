@@ -19,7 +19,7 @@ public sealed class EdgeHeroEpisodePromoter(
         try
         {
             await apiClient.AppendHeroEpisodes(episodeIds, cancellationToken);
-            logger.LogInformation(
+            logger.LogWarning(
                 "Hero auto-promote: posted {Count} episode(s) to edge hero curation. EpisodeIds: {EpisodeIds}.",
                 episodeIds.Count,
                 episodeIdList);

@@ -62,7 +62,7 @@ public class ApiClient(
             return;
         }
 
-        logger.LogInformation(
+        logger.LogWarning(
             "Hero auto-promote: AppendHeroEpisodes succeeded for {Count} episode(s). EpisodeIds: {EpisodeIds}.",
             episodeIds.Count,
             episodeIdList);
