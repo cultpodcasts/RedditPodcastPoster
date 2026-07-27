@@ -145,7 +145,7 @@ public class UrlSubmissionHeroAutoPromoteRules
     }
 
     [Fact(DisplayName =
-        "URL submit creates an episode when always-promote is off: promoter is not called and Warning logs FlagOff, because only flagged podcasts auto-append to heroes.")]
+        "URL submit creates an episode when always-promote is off: promoter is not called and Information logs FlagOff, because only flagged podcasts auto-append to heroes.")]
     public async Task created_when_flag_off_does_not_promote()
     {
         // Arrange
@@ -199,7 +199,7 @@ public class UrlSubmissionHeroAutoPromoteRules
         heroEpisodePromoter.Verify(
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        logger.Warnings.Should().Contain(m =>
+        logger.Informations.Should().Contain(m =>
             m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
             m.Contains("FlagOff") &&
             m.Contains(newEpisode.Id.ToString()));
@@ -261,7 +261,7 @@ public class UrlSubmissionHeroAutoPromoteRules
     }
 
     [Fact(DisplayName =
-        "URL submit enriches an existing episode on an always-promote podcast: promoter is not called and Warning logs NotCreated, because auto-promote is create-only and does not backfill.")]
+        "URL submit enriches an existing episode on an always-promote podcast: promoter is not called and Information logs NotCreated, because auto-promote is create-only and does not backfill.")]
     public async Task enriched_existing_episode_does_not_promote()
     {
         // Arrange
@@ -315,7 +315,7 @@ public class UrlSubmissionHeroAutoPromoteRules
         heroEpisodePromoter.Verify(
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        logger.Warnings.Should().Contain(m =>
+        logger.Informations.Should().Contain(m =>
             m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
             m.Contains("NotCreated") &&
             m.Contains(enrichedEpisode.Id.ToString()) &&
@@ -323,7 +323,7 @@ public class UrlSubmissionHeroAutoPromoteRules
     }
 
     [Fact(DisplayName =
-        "URL submit creates an always-promote episode outside the week window: promoter is not called and Warning logs OutsideWeekWindow with cutoff.")]
+        "URL submit creates an always-promote episode outside the week window: promoter is not called and Information logs OutsideWeekWindow with cutoff.")]
     public async Task created_outside_week_window_logs_skip()
     {
         // Arrange
@@ -377,7 +377,7 @@ public class UrlSubmissionHeroAutoPromoteRules
         heroEpisodePromoter.Verify(
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        logger.Warnings.Should().Contain(m =>
+        logger.Informations.Should().Contain(m =>
             m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
             m.Contains("OutsideWeekWindow") &&
             m.Contains(newEpisode.Id.ToString()) &&
@@ -405,7 +405,7 @@ public class UrlSubmissionHeroAutoPromoteRules
 
     private sealed class CapturingLogger : ILogger<CategorisedItem>
     {
-        public List<string> Warnings { get; } = [];
+        public List<string> Informations { get; } = [];
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -418,9 +418,9 @@ public class UrlSubmissionHeroAutoPromoteRules
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            if (logLevel == LogLevel.Warning)
+            if (logLevel == LogLevel.Information)
             {
-                Warnings.Add(formatter(state, exception));
+                Informations.Add(formatter(state, exception));
             }
         }
     }

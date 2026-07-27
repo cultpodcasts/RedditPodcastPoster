@@ -140,8 +140,8 @@ public class HeroAutoPromoteSelectorRules
     }
 
     [Fact(DisplayName =
-        "Hero auto-promote skip diagnostic: LogSkipped emits Warning with Hero auto-promote prefix and reason, because Information is sampled in production.")]
-    public void log_skipped_emits_warning_with_stable_prefix()
+        "Hero auto-promote skip diagnostic: LogSkipped emits Information with Hero auto-promote prefix and reason, because skip diagnostics are not elevated above attempt logs.")]
+    public void log_skipped_emits_information_with_stable_prefix()
     {
         // Arrange
         var logger = new CapturingLogger();
@@ -162,18 +162,18 @@ public class HeroAutoPromoteSelectorRules
             episodeResult: "Created");
 
         // Assert
-        logger.Warnings.Should().ContainSingle(m =>
+        logger.Informations.Should().ContainSingle(m =>
             m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
             m.Contains("skipped") &&
             m.Contains("OutsideWeekWindow") &&
             m.Contains(episodeId.ToString()) &&
             m.Contains(podcastId.ToString()));
-        logger.Informations.Should().BeEmpty();
+        logger.Warnings.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Hero auto-promote attempt diagnostic: LogAttempt emits Warning with source and episode ids, matching EpisodeCreationLogger severity.")]
-    public void log_attempt_emits_warning_with_stable_prefix()
+        "Hero auto-promote attempt diagnostic: LogAttempt emits Information with source and episode ids, because attempt diagnostics share severity with skip logs.")]
+    public void log_attempt_emits_information_with_stable_prefix()
     {
         // Arrange
         var logger = new CapturingLogger();
@@ -188,12 +188,12 @@ public class HeroAutoPromoteSelectorRules
             [episodeId]);
 
         // Assert
-        logger.Warnings.Should().ContainSingle(m =>
+        logger.Informations.Should().ContainSingle(m =>
             m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
             m.Contains("SubmitUrl") &&
             m.Contains(podcastId.ToString()) &&
             m.Contains(episodeId.ToString()));
-        logger.Informations.Should().BeEmpty();
+        logger.Warnings.Should().BeEmpty();
     }
 
     private sealed class CapturingLogger : ILogger

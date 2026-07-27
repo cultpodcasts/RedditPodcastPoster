@@ -82,8 +82,9 @@ public static class HeroAutoPromoteSelector
 }
 
 /// <summary>
-/// Stable Warning-level diagnostics for hero auto-promote (Information is sampled in production).
+/// Stable Information-level diagnostics for hero auto-promote.
 /// Prefix <c>Hero auto-promote</c> is the App Insights filter key.
+/// Cloudflare bot-challenge failures are logged separately at Error with an Exception in <c>ApiClient.AppendHeroEpisodes</c>.
 /// </summary>
 public static class HeroAutoPromoteLogger
 {
@@ -95,7 +96,7 @@ public static class HeroAutoPromoteLogger
         Guid podcastId,
         IReadOnlyList<Guid> episodeIds)
     {
-        logger.LogWarning(
+        logger.LogInformation(
             "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
             creationSource,
             podcastId,
@@ -112,7 +113,7 @@ public static class HeroAutoPromoteLogger
         DateTime? cutoff = null,
         string? episodeResult = null)
     {
-        logger.LogWarning(
+        logger.LogInformation(
             "Hero auto-promote: skipped reason={SkipReason}, episodeId={EpisodeId}, podcastId={PodcastId}, episodeResult={EpisodeResult}, alwaysPromoteAsHero={AlwaysPromoteAsHero}, release={Release}, cutoff={Cutoff}.",
             reason,
             episodeId,
