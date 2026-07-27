@@ -229,3 +229,30 @@ az functionapp function list -g AutomatedInfra -n discover-infra -o table
 ```
 
 Expected for discover: `DiscoveryTrigger`, `Discover`, `Orchestration`.
+
+## Edge API endpoint (`api__Endpoint`)
+
+Functions and consoles call the Cloudflare Api Worker for M2M hero auto-promote (`POST /hero-curation/episodes`).
+
+| Layer | Value |
+|-------|--------|
+| Committed source (`functions.bicep` param via KV, console `appsettings.json`) | Public host **`https://api.cultpodcasts.com`** as the documented default — **never** a personal `*.workers.dev` URL |
+| Key Vault `cultpodcasts-deployment` secret **`Api-Endpoint`** | Deploy-time source for `api__Endpoint` (same pattern as other `@secure()` params in `functions.bicepparam`) |
+| Live Azure app setting `api__Endpoint` | Literal string on `api-infra` / `indexer-infra` (and discover via core settings). May temporarily point at the Worker’s **workers.dev** host to bypass Free-plan **Bot Fight Mode**, which cannot be skipped with WAF custom rules on Free |
+
+### Operators — set / change without putting the host in git
+
+```powershell
+# 1) Store (or rotate) in Key Vault — value is NOT committed
+az keyvault secret set --vault-name cultpodcasts-deployment --name 'Api-Endpoint' --value 'https://api.cultpodcasts.com'
+# Free-plan M2M bypass (optional): use the Worker workers.dev URL from `wrangler deployments list` / dashboard — do not paste it into the repo.
+
+# 2a) Prefer next bicep provision (reads Api-Endpoint → literal app setting), or
+# 2b) Apply immediately without git:
+az functionapp config appsettings set -g AutomatedInfra -n api-infra --settings api__Endpoint="$(az keyvault secret show --vault-name cultpodcasts-deployment --name Api-Endpoint --query value -o tsv)"
+az functionapp config appsettings set -g AutomatedInfra -n indexer-infra --settings api__Endpoint="$(az keyvault secret show --vault-name cultpodcasts-deployment --name Api-Endpoint --query value -o tsv)"
+```
+
+Local console override (Bot Fight testing only): `dotnet user-secrets set "api:Endpoint" "<host>"` — not `appsettings.json`.
+
+**Long-term:** upgrade the zone to Pro and add a WAF skip for Bearer on `/hero-curation`, then set `Api-Endpoint` back to `https://api.cultpodcasts.com`. Detail: Api repo `docs/hero-curation-m2m-edge.md`.
