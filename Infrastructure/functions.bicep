@@ -12,6 +12,9 @@ param auth0ClientId string
 @secure()
 param auth0ClientSecret string
 @secure()
+@description('Edge API base URL written to api__Endpoint (deploy-time literal). Public default is https://api.cultpodcasts.com. Free-plan Bot Fight M2M bypass host lives only in Key Vault secret Api-Endpoint — never commit personal workers.dev domains.')
+param apiEndpoint string
+@secure()
 param blueskyPassword string
 @secure()
 param cloudflareAccountId string
@@ -158,7 +161,7 @@ var memoryProbe = {
 }
 
 var api= {
-    api__Endpoint: 'https://api.cultpodcasts.com'
+    api__Endpoint: apiEndpoint
 }
 
 var auth0StagingDomain= 'auth-staging.cultpodcasts.com'
