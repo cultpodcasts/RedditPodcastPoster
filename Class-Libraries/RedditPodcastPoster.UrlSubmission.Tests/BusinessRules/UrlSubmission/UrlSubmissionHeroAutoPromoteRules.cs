@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.Logging;
@@ -144,7 +145,7 @@ public class UrlSubmissionHeroAutoPromoteRules
     }
 
     [Fact(DisplayName =
-        "URL submit creates an episode when always-promote is off: promoter is not called, because only flagged podcasts auto-append to heroes.")]
+        "URL submit creates an episode when always-promote is off: promoter is not called and Information logs FlagOff, because only flagged podcasts auto-append to heroes.")]
     public async Task created_when_flag_off_does_not_promote()
     {
         // Arrange
@@ -171,11 +172,13 @@ public class UrlSubmissionHeroAutoPromoteRules
                 Podcast: podcast));
 
         var heroEpisodePromoter = new Mock<IHeroEpisodePromoter>();
+        var logger = new CapturingLogger();
         var processor = CreateProcessor(
             podcastProcessor.Object,
             podcastRepository,
             episodeRepository,
-            heroEpisodePromoter: heroEpisodePromoter.Object);
+            heroEpisodePromoter: heroEpisodePromoter.Object,
+            logger: logger);
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -196,6 +199,10 @@ public class UrlSubmissionHeroAutoPromoteRules
         heroEpisodePromoter.Verify(
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        logger.Informations.Should().Contain(m =>
+            m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
+            m.Contains("FlagOff") &&
+            m.Contains(newEpisode.Id.ToString()));
     }
 
     [Fact(DisplayName =
@@ -254,7 +261,7 @@ public class UrlSubmissionHeroAutoPromoteRules
     }
 
     [Fact(DisplayName =
-        "URL submit enriches an existing episode on an always-promote podcast: promoter is not called, because auto-promote is create-only and does not backfill.")]
+        "URL submit enriches an existing episode on an always-promote podcast: promoter is not called and Information logs NotCreated, because auto-promote is create-only and does not backfill.")]
     public async Task enriched_existing_episode_does_not_promote()
     {
         // Arrange
@@ -281,11 +288,13 @@ public class UrlSubmissionHeroAutoPromoteRules
                 Podcast: podcast));
 
         var heroEpisodePromoter = new Mock<IHeroEpisodePromoter>();
+        var logger = new CapturingLogger();
         var processor = CreateProcessor(
             podcastProcessor.Object,
             podcastRepository,
             episodeRepository,
-            heroEpisodePromoter: heroEpisodePromoter.Object);
+            heroEpisodePromoter: heroEpisodePromoter.Object,
+            logger: logger);
 
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -306,6 +315,73 @@ public class UrlSubmissionHeroAutoPromoteRules
         heroEpisodePromoter.Verify(
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
+        logger.Informations.Should().Contain(m =>
+            m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
+            m.Contains("NotCreated") &&
+            m.Contains(enrichedEpisode.Id.ToString()) &&
+            m.Contains(podcast.Id.ToString()));
+    }
+
+    [Fact(DisplayName =
+        "URL submit creates an always-promote episode outside the week window: promoter is not called and Information logs OutsideWeekWindow with cutoff.")]
+    public async Task created_outside_week_window_logs_skip()
+    {
+        // Arrange
+        var episodeRepository = new InMemoryEpisodeRepository();
+        var podcastRepository = new InMemoryPodcastRepository();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.AlwaysPromoteAsHero = true;
+        podcastRepository.Seed(podcast);
+
+        var newEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithDuration(_fixture.CreateDuration())
+            .WithRelease(DomainTestFixture.UtcDateDaysAgo(8)));
+        newEpisode.PodcastId = podcast.Id;
+        newEpisode.Ignored = false;
+        newEpisode.Removed = false;
+
+        var podcastProcessor = new Mock<IPodcastProcessor>();
+        podcastProcessor
+            .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Created,
+                SubmitResultState.None,
+                Episode: newEpisode,
+                Podcast: podcast));
+
+        var heroEpisodePromoter = new Mock<IHeroEpisodePromoter>();
+        var logger = new CapturingLogger();
+        var processor = CreateProcessor(
+            podcastProcessor.Object,
+            podcastRepository,
+            episodeRepository,
+            heroEpisodePromoter: heroEpisodePromoter.Object,
+            logger: logger);
+
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            null,
+            null,
+            null,
+            null,
+            null,
+            Service.Spotify);
+
+        // Act
+        await processor.ProcessCategorisedItem(
+            categorisedItem,
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
+
+        // Assert
+        heroEpisodePromoter.Verify(
+            x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        logger.Informations.Should().Contain(m =>
+            m.StartsWith(HeroAutoPromoteLogger.MessagePrefix) &&
+            m.Contains("OutsideWeekWindow") &&
+            m.Contains(newEpisode.Id.ToString()) &&
+            m.Contains("cutoff="));
     }
 
     private static CategorisedItemProcessor CreateProcessor(
@@ -313,7 +389,8 @@ public class UrlSubmissionHeroAutoPromoteRules
         InMemoryPodcastRepository podcastRepository,
         InMemoryEpisodeRepository episodeRepository,
         IPodcastAndEpisodeFactory? factory = null,
-        IHeroEpisodePromoter? heroEpisodePromoter = null)
+        IHeroEpisodePromoter? heroEpisodePromoter = null,
+        ILogger<CategorisedItem>? logger = null)
     {
         factory ??= new Mock<IPodcastAndEpisodeFactory>().Object;
         heroEpisodePromoter ??= new Mock<IHeroEpisodePromoter>().Object;
@@ -323,6 +400,28 @@ public class UrlSubmissionHeroAutoPromoteRules
             episodeRepository,
             factory,
             heroEpisodePromoter,
-            NullLogger<CategorisedItem>.Instance);
+            logger ?? NullLogger<CategorisedItem>.Instance);
+    }
+
+    private sealed class CapturingLogger : ILogger<CategorisedItem>
+    {
+        public List<string> Informations { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Information)
+            {
+                Informations.Add(formatter(state, exception));
+            }
+        }
     }
 }

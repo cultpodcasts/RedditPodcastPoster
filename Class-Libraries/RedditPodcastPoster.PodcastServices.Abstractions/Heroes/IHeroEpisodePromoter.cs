@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -13,6 +15,19 @@ public interface IHeroEpisodePromoter
 }
 
 /// <summary>
+/// Why a newly created/indexed episode was not auto-appended to heroes.
+/// </summary>
+public enum HeroAutoPromoteSkipReason
+{
+    None = 0,
+    FlagOff,
+    Ignored,
+    Removed,
+    OutsideWeekWindow,
+    NotCreated
+}
+
+/// <summary>
 /// Selects newly indexed episode IDs eligible for auto-hero when the podcast is flagged.
 /// </summary>
 public static class HeroAutoPromoteSelector
@@ -24,19 +39,88 @@ public static class HeroAutoPromoteSelector
         IEnumerable<Episode> addedEpisodes,
         DateTime utcNow)
     {
-        if (podcast.AlwaysPromoteAsHero != true)
-        {
-            return [];
-        }
-
-        var cutoff = utcNow - WeekWindow;
         return addedEpisodes
-            .Where(ep =>
-                !ep.Ignored &&
-                !ep.Removed &&
-                ep.Release >= cutoff)
+            .Where(ep => GetSkipReason(podcast, ep, utcNow) == HeroAutoPromoteSkipReason.None)
             .Select(ep => ep.Id)
             .Distinct()
             .ToArray();
+    }
+
+    /// <summary>
+    /// Explains why an episode would not be auto-promoted (or <see cref="HeroAutoPromoteSkipReason.None"/> if eligible).
+    /// </summary>
+    public static HeroAutoPromoteSkipReason GetSkipReason(
+        Podcast podcast,
+        Episode episode,
+        DateTime utcNow)
+    {
+        if (podcast.AlwaysPromoteAsHero != true)
+        {
+            return HeroAutoPromoteSkipReason.FlagOff;
+        }
+
+        if (episode.Ignored)
+        {
+            return HeroAutoPromoteSkipReason.Ignored;
+        }
+
+        if (episode.Removed)
+        {
+            return HeroAutoPromoteSkipReason.Removed;
+        }
+
+        var cutoff = utcNow - WeekWindow;
+        if (episode.Release < cutoff)
+        {
+            return HeroAutoPromoteSkipReason.OutsideWeekWindow;
+        }
+
+        return HeroAutoPromoteSkipReason.None;
+    }
+
+    public static DateTime GetCutoff(DateTime utcNow) => utcNow - WeekWindow;
+}
+
+/// <summary>
+/// Stable Information-level diagnostics for hero auto-promote.
+/// Prefix <c>Hero auto-promote</c> is the App Insights filter key.
+/// Cloudflare bot-challenge failures are logged separately at Error with an Exception in <c>ApiClient.AppendHeroEpisodes</c>.
+/// </summary>
+public static class HeroAutoPromoteLogger
+{
+    public const string MessagePrefix = "Hero auto-promote:";
+
+    public static void LogAttempt(
+        ILogger logger,
+        EpisodeCreationSource creationSource,
+        Guid podcastId,
+        IReadOnlyList<Guid> episodeIds)
+    {
+        logger.LogInformation(
+            "Hero auto-promote: source={CreationSource}, podcastId={PodcastId}, episodeIds={EpisodeIds}.",
+            creationSource,
+            podcastId,
+            string.Join(',', episodeIds));
+    }
+
+    public static void LogSkipped(
+        ILogger logger,
+        HeroAutoPromoteSkipReason reason,
+        Guid episodeId,
+        Guid podcastId,
+        bool? alwaysPromoteAsHero,
+        DateTime? release = null,
+        DateTime? cutoff = null,
+        string? episodeResult = null)
+    {
+        logger.LogInformation(
+            "Hero auto-promote: skipped reason={SkipReason}, episodeId={EpisodeId}, podcastId={PodcastId}, episodeResult={EpisodeResult}, alwaysPromoteAsHero={AlwaysPromoteAsHero}, release={Release}, cutoff={Cutoff}.",
+            reason,
+            episodeId,
+            podcastId,
+            episodeResult,
+            alwaysPromoteAsHero,
+            release,
+            cutoff);
     }
 }

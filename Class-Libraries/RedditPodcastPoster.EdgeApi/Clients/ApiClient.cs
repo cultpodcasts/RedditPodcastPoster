@@ -53,6 +53,19 @@ public class ApiClient(
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (CloudflareChallengeResponse.LooksLikeBotChallenge(response.StatusCode, body))
+            {
+                var truncatedBody = CloudflareChallengeResponse.TruncateBody(body);
+                var challengeException = CloudflareChallengeResponse.CreateException(response.StatusCode, body);
+                logger.LogError(
+                    challengeException,
+                    "Hero auto-promote: AppendHeroEpisodes blocked by Cloudflare bot-mode challenge. Status={StatusCode}. EpisodeIds: {EpisodeIds}. Body: {Body}",
+                    response.StatusCode,
+                    episodeIdList,
+                    truncatedBody);
+                throw challengeException;
+            }
+
             logger.LogError(
                 "Hero auto-promote: AppendHeroEpisodes failed with status {StatusCode}. EpisodeIds: {EpisodeIds}. Body: {Body}",
                 response.StatusCode,
