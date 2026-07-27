@@ -4,9 +4,8 @@ using RedditPodcastPoster.Models.Subjects;
 namespace RedditPodcastPoster.Subjects.Categorisation;
 
 /// <summary>
-/// Emits a stable Warning-level podcast categorise line so App Insights can show
+/// Emits a stable Information-level podcast categorise line so App Insights can show
 /// which episodes were categorised and the subject delta in one KQL-friendly message.
-/// Warning is intentional: Information is heavily sampled in production.
 /// </summary>
 public static class CategorisePodcastLogger
 {
@@ -18,11 +17,11 @@ public static class CategorisePodcastLogger
         string podcastName,
         IReadOnlyList<CategoriseEpisodeDelta> episodes)
     {
-        logger.LogWarning("{Message}", FormatMessage(podcastId, podcastName, episodes));
+        logger.LogInformation("{Message}", FormatMessage(podcastId, podcastName, episodes));
     }
 
     /// <summary>
-    /// Same content as the rendered Warning message (for unit tests / docs).
+    /// Same content as the rendered log message (for unit tests / docs).
     /// </summary>
     public static string FormatMessage(
         Guid podcastId,
