@@ -94,7 +94,12 @@ public class EnrichYouTubePodcastProcessor(
             podcast.YouTubePlaylistQueryIsExpensive.Value &&
             !request.AcknowledgeExpensiveYouTubePlaylistQuery)
         {
-            logger.LogError("Query for playlist '{podcastYouTubePlaylistId}' is expensive.", podcast.YouTubePlaylistId);
+            var playlistLabel = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
+                ? $"channel uploads for '{podcast.Name}'"
+                : $"'{podcast.YouTubePlaylistId}'";
+            logger.LogError(
+                "Query for playlist {playlistLabel} is expensive. Re-run with -a / --acknowledge-expensive-query.",
+                playlistLabel);
             return;
         }
 
