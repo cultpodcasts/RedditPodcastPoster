@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,12 +16,12 @@ using RedditPodcastPoster.Text.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
-
-builder.Configuration.SetBasePath(GetBasePath());
+var appDirectory = AppContext.BaseDirectory;
+builder.Environment.ContentRootPath = appDirectory;
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", false)
+    .AddJsonFile(Path.Combine(appDirectory, "appsettings.json"), true)
+    .AddJsonFile(Path.Combine(appDirectory, "EnrichYouTubeOnlyPodcasts.appsettings.json"), true)
     .AddEnvironmentVariables("RedditPodcastPoster_")
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
@@ -52,10 +51,4 @@ async Task<int> Run(EnrichYouTubePodcastRequest request)
     var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
     await processor!.Run(request);
     return 0;
-}
-
-string GetBasePath()
-{
-    using var processModule = Process.GetCurrentProcess().MainModule;
-    return Path.GetDirectoryName(processModule?.FileName) ?? throw new InvalidOperationException();
 }
