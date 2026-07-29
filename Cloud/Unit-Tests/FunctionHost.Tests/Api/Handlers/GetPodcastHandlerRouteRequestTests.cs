@@ -52,8 +52,8 @@ public class GetPodcastHandlerRouteRequestTests
     }
 
     [Fact(DisplayName =
-        "After PodcastGetSlash resolves name?/episodeGuid: GetPodcastHandler calls GetAsync with PodcastName + EpisodeId.")]
-    public async Task catch_all_name_and_episode_handler_passes_name_lookup_to_get_async()
+        "After PodcastGetSlash resolves podcast-name?/episodeId: GetPodcastHandler calls GetAsync with PodcastName + EpisodeId.")]
+    public async Task catch_all_question_mark_name_and_episode_handler_passes_name_lookup_to_get_async()
     {
         // Arrange
         const string podcastName = "Was I In A Cult?";
@@ -89,5 +89,39 @@ public class GetPodcastHandlerRouteRequestTests
                     r.PodcastName == podcastName && r.EpisodeId == episodeId && r.PodcastId == null),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "After PodcastGetSlash resolves slash-containing podcast-name/episodeId: GetPodcastHandler calls GetAsync with PodcastName + EpisodeId.")]
+    public async Task catch_all_slash_name_and_episode_handler_passes_name_lookup_to_get_async()
+    {
+        // Arrange
+        const string podcastName = "True Crime Show w/ Guest Host";
+        var episodeId = Guid.NewGuid();
+        var podcastId = Guid.NewGuid();
+        var resolution = PodcastGetRouteResolver.ForCatchAll($"{podcastName}/{episodeId:D}");
+        PodcastGetRequest? captured = null;
+        var service = new Mock<IPodcastGetService>();
+        service
+            .Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<PodcastGetRequest, CancellationToken>((request, _) => captured = request)
+            .ReturnsAsync(new PodcastGetResult(
+                PodcastGetStatus.Found,
+                new Podcast { Id = podcastId, Name = podcastName }));
+        var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            resolution.HandlerRequest,
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        captured.Should().NotBeNull();
+        captured!.PodcastId.Should().BeNull();
+        captured.PodcastName.Should().Be(podcastName);
+        captured.EpisodeId.Should().Be(episodeId);
     }
 }

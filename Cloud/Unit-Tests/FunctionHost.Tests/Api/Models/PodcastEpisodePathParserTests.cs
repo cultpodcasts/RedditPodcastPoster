@@ -6,21 +6,30 @@ namespace FunctionHost.Tests.Api.Models;
 
 public class PodcastEpisodePathParserTests
 {
-    [Fact(DisplayName =
-        "Trailing episode guid after a slash-containing podcast name: path splits into name + episode id, because hosts decode %2F into path separators.")]
-    public void splits_slash_containing_podcast_name_and_trailing_episode_id()
+    public static TheoryData<string> PodcastNamesWithSpecialCharacters() => new()
+    {
+        "Was I In A Cult?",
+        "True Crime Show w/ Guest Host",
+        "Cult? Show w/ Nested Slash",
+        "A/B Testing Podcast?"
+    };
+
+    [Theory(DisplayName =
+        "Trailing episode guid after a podcast name that contains ? and/or /: path splits into full name + episode id, because catch-all paths keep special characters in the name segment.")]
+    [MemberData(nameof(PodcastNamesWithSpecialCharacters))]
+    public void splits_special_character_podcast_name_and_trailing_episode_id(string podcastName)
     {
         // Arrange
         var episodeId = Guid.NewGuid();
-        var path = $"True Crime Show w/ Guest Host/{episodeId:D}";
+        var path = $"{podcastName}/{episodeId:D}";
 
         // Act
         var ok = PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
-            path, out var podcastName, out var parsedEpisodeId);
+            path, out var parsedName, out var parsedEpisodeId);
 
         // Assert
         ok.Should().BeTrue();
-        podcastName.Should().Be("True Crime Show w/ Guest Host");
+        parsedName.Should().Be(podcastName);
         parsedEpisodeId.Should().Be(episodeId);
     }
 
@@ -48,6 +57,23 @@ public class PodcastEpisodePathParserTests
     {
         // Arrange
         const string path = "True Crime Show w/ Guest Host";
+
+        // Act
+        var ok = PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
+            path, out var podcastName, out var parsedEpisodeId);
+
+        // Assert
+        ok.Should().BeFalse();
+        podcastName.Should().BeEmpty();
+        parsedEpisodeId.Should().Be(Guid.Empty);
+    }
+
+    [Fact(DisplayName =
+        "Question-mark podcast name without trailing episode guid: split fails so single-segment name lookup can run.")]
+    public void rejects_question_mark_name_without_trailing_guid()
+    {
+        // Arrange
+        const string path = "Was I In A Cult?";
 
         // Act
         var ok = PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
