@@ -98,12 +98,15 @@ public class SubjectEnricher(
                 options.DefaultSubject, episode.Title, episode.Id);
         }
 
-        SyncSubjectMatches(episode, subjectMatches);
+        SyncSubjectMatches(episode, subjectMatches, options?.DefaultSubject);
 
         return new EnrichSubjectsResult(additions.Select(x => x.Subject.Name).ToArray(), removals.ToArray());
     }
 
-    private static void SyncSubjectMatches(Episode episode, IList<SubjectMatch> subjectMatches)
+    private static void SyncSubjectMatches(
+        Episode episode,
+        IList<SubjectMatch> subjectMatches,
+        string? defaultSubject)
     {
         episode.Matches.RemoveAll(m => episode.IsSubjectRemovedByUser(m.Subject));
 
@@ -135,6 +138,46 @@ public class SubjectEnricher(
                 });
             }
         }
+
+        SyncPodcastDefaultMatch(episode, defaultSubject);
+    }
+
+    /// <summary>
+    /// When the podcast default subject is on the episode without title/description evidence,
+    /// record a <see cref="SubjectMatchSource.PodcastDefault"/> match so provenance is visible.
+    /// </summary>
+    private static void SyncPodcastDefaultMatch(Episode episode, string? defaultSubject)
+    {
+        episode.Matches.RemoveAll(m =>
+            m.Source == SubjectMatchSource.PodcastDefault &&
+            !episode.Subjects.Contains(m.Subject, StringComparer.OrdinalIgnoreCase));
+
+        if (string.IsNullOrWhiteSpace(defaultSubject) ||
+            episode.IsSubjectRemovedByUser(defaultSubject) ||
+            !episode.Subjects.Contains(defaultSubject, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var hasTermEvidence = episode.Matches.Any(m =>
+            m.Subject.Equals(defaultSubject, StringComparison.OrdinalIgnoreCase) &&
+            (m.Source == SubjectMatchSource.Title || m.Source == SubjectMatchSource.Description));
+
+        episode.Matches.RemoveAll(m =>
+            m.Subject.Equals(defaultSubject, StringComparison.OrdinalIgnoreCase) &&
+            m.Source == SubjectMatchSource.PodcastDefault);
+
+        if (hasTermEvidence)
+        {
+            return;
+        }
+
+        episode.Matches.Add(new EpisodeSubjectMatch
+        {
+            Subject = defaultSubject,
+            Term = string.Empty,
+            Source = SubjectMatchSource.PodcastDefault
+        });
     }
 
     private (IList<SubjectMatch>, IList<string>) CompareSubjects(

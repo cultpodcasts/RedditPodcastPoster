@@ -27,33 +27,39 @@ public class SubjectEnricherTests
         _fixture.Customize<Episode>(x => x.Without(o => o.Subjects).Without(o => o.Matches));
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When enrich finds no subject matches, it applies the podcast default subject.")]
     public async Task EnrichSubjects_WithNoMatches_AddsDefaultSubject()
     {
-        // arrange
+        // Arrange
         var episode = _fixture.Create<Episode>();
         var options = _fixture.Create<SubjectEnrichmentOptions>();
         _subjectMatches = new List<SubjectMatch>();
 
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         result.Additions.Should().ContainSingle();
         result.Additions.Should().Contain(options.DefaultSubject);
         result.Removals.Should().HaveCount(0);
+        episode.Matches.Should().ContainSingle(m =>
+            m.Subject == options.DefaultSubject && m.Source == SubjectMatchSource.PodcastDefault);
     }
 
-
-    [Fact]
+    [Fact(DisplayName =
+        "When enrich finds only invisible subject matches, it also applies the podcast default and records PodcastDefault provenance.")]
     public async Task EnrichSubjects_WithOnlyInvisibleMatches_AddsDefaultSubject()
     {
-        // arrange
+        // Arrange
         var invisibleSubjectName = "_invisible";
+        var defaultSubject = _fixture.Create<string>();
         var episode = _fixture.Create<Episode>();
-        var options = _fixture.Create<SubjectEnrichmentOptions>();
+        var options = _fixture.Build<SubjectEnrichmentOptions>()
+            .With(x => x.DefaultSubject, defaultSubject)
+            .Create();
         var invisibleSubject = new Subject(invisibleSubjectName);
         var subjectMatch = new SubjectMatch(
             invisibleSubject,
@@ -61,22 +67,27 @@ public class SubjectEnricherTests
         );
         _subjectMatches = [subjectMatch];
         var sut = _mocker.CreateInstance<SubjectEnricher>();
-        // act
+
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
-        // assert
+
+        // Assert
         result.Additions.Should().HaveCount(2);
-        result.Additions.Should().BeEquivalentTo([options.DefaultSubject, invisibleSubjectName]);
+        result.Additions.Should().BeEquivalentTo([defaultSubject, invisibleSubjectName]);
         result.Removals.Should().HaveCount(0);
-        episode.Subjects.Should().Contain(options.DefaultSubject);
+        episode.Subjects.Should().Contain(defaultSubject);
         episode.Subjects.Should().Contain(invisibleSubjectName);
+        episode.Matches.Should().ContainSingle(m =>
+            m.Subject == defaultSubject && m.Source == SubjectMatchSource.PodcastDefault);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When episode already has subjects covering matcher results (including invisible), enrich adds nothing.")]
     public async Task EnrichSubjects_WithExistingAndInvisibleMatchesEquallingPrematched_AddsDefaultSubject()
     {
-        // arrange
+        // Arrange
         var invisibleSubjectName = "_invisible";
-        var existing = "existing";
+        var existing = _fixture.Create<string>();
         var episode = _fixture.Build<Episode>().With(x => x.Subjects, [existing, invisibleSubjectName]).Create();
         var options = _fixture.Create<SubjectEnrichmentOptions>();
         var invisibleSubject = new Subject(invisibleSubjectName);
@@ -87,44 +98,53 @@ public class SubjectEnricherTests
         var existingSubjectMatch = new SubjectMatch(new Subject(existing), [new MatchResult(existing, 1)]);
         _subjectMatches = [invisibleSubjectMatch, existingSubjectMatch];
         var sut = _mocker.CreateInstance<SubjectEnricher>();
-        // act
+
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
-        // assert
+
+        // Assert
         result.Additions.Should().HaveCount(0);
         result.Removals.Should().HaveCount(0);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When enrich finds subject matches, those subject names are returned as additions.")]
     public async Task EnrichSubjects_WithMatches_AddsMatchedSubjects()
     {
-        // arrange
+        // Arrange
         var episode = _fixture.Create<Episode>();
         var options = _fixture.Create<SubjectEnrichmentOptions>();
         var sut = _mocker.CreateInstance<SubjectEnricher>();
-        // act
+
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
-        // assert
+
+        // Assert
         result.Additions.Should().BeEquivalentTo(_subjectMatches.Select(x => x.Subject.Name));
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When a matched subject is also the podcast default, enrich lists the default subject first among additions.")]
     public async Task EnrichSubjects_WithMatchesAndDefaultSubject_AddsDefaultSubjectFirst()
     {
-        // arrange
+        // Arrange
         var episode = _fixture.Create<Episode>();
         var options = _fixture.Build<SubjectEnrichmentOptions>()
             .With(x => x.DefaultSubject, _subjectMatches.First().Subject.Name).Create();
         var sut = _mocker.CreateInstance<SubjectEnricher>();
-        // act
+
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
-        // assert
+
+        // Assert
         result.Additions.Should().StartWith(options.DefaultSubject);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the user removed a subject, enrich does not re-add that subject from matcher results.")]
     public async Task EnrichSubjects_DoesNotReAddUserRemovedSubject()
     {
-        // arrange
+        // Arrange
         var removedSubject = _subjectMatches.First().Subject.Name;
         var episode = _fixture.Build<Episode>()
             .With(x => x.Subjects, [])
@@ -133,19 +153,20 @@ public class SubjectEnricherTests
         var options = _fixture.Create<SubjectEnrichmentOptions>();
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         result.Additions.Should().NotContain(removedSubject);
         episode.Subjects.Should().NotContain(removedSubject);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the user removed the podcast default subject, enrich does not apply that default.")]
     public async Task EnrichSubjects_DoesNotApplyDefaultSubjectWhenUserRemovedIt()
     {
-        // arrange
-        var defaultSubject = "Cults";
+        // Arrange
+        var defaultSubject = _fixture.Create<string>();
         var episode = _fixture.Build<Episode>()
             .With(x => x.Subjects, [])
             .With(x => x.RemovedSubjects, [defaultSubject])
@@ -156,47 +177,51 @@ public class SubjectEnricherTests
         _subjectMatches = [];
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         var result = await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         result.Additions.Should().BeEmpty();
         episode.Subjects.Should().BeEmpty();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When matcher returns title and description evidence, enrich populates episode matches from that evidence.")]
     public async Task EnrichSubjects_PopulatesMatchesForMatchedSubjects()
     {
-        // arrange
+        // Arrange
+        var subjectName = _fixture.Create<string>();
+        var term = _fixture.Create<string>();
         var episode = _fixture.Create<Episode>();
         var options = _fixture.Create<SubjectEnrichmentOptions>();
         _subjectMatches =
         [
             new SubjectMatch(
-                new Subject("Cults"),
+                new Subject(subjectName),
                 [
-                    new MatchResult("cult", 1, SubjectMatchSource.Title),
-                    new MatchResult("cult", 1, SubjectMatchSource.Description)
+                    new MatchResult(term, 1, SubjectMatchSource.Title),
+                    new MatchResult(term, 1, SubjectMatchSource.Description)
                 ])
         ];
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         episode.Matches.Should().HaveCount(2);
         episode.Matches.Should().Contain(m =>
-            m.Subject == "Cults" && m.Term == "cult" && m.Source == SubjectMatchSource.Title);
+            m.Subject == subjectName && m.Term == term && m.Source == SubjectMatchSource.Title);
         episode.Matches.Should().Contain(m =>
-            m.Subject == "Cults" && m.Term == "cult" && m.Source == SubjectMatchSource.Description);
+            m.Subject == subjectName && m.Term == term && m.Source == SubjectMatchSource.Description);
     }
 
-    [Fact]
-    public async Task EnrichSubjects_OmitsDefaultSubjectWithoutMatchEvidence()
+    [Fact(DisplayName =
+        "When enrich applies the podcast default subject with no title/description hits, matches records PodcastDefault provenance.")]
+    public async Task EnrichSubjects_RecordsPodcastDefaultMatchForDefaultSubject()
     {
-        // arrange
-        var defaultSubject = "Cults";
+        // Arrange
+        var defaultSubject = _fixture.Create<string>();
         var episode = _fixture.Create<Episode>();
         var options = _fixture.Build<SubjectEnrichmentOptions>()
             .With(x => x.DefaultSubject, defaultSubject)
@@ -204,19 +229,24 @@ public class SubjectEnricherTests
         _subjectMatches = [];
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         episode.Subjects.Should().Contain(defaultSubject);
-        episode.Matches.Should().BeEmpty();
+        episode.Matches.Should().ContainSingle(m =>
+            m.Subject == defaultSubject &&
+            m.Term == string.Empty &&
+            m.Source == SubjectMatchSource.PodcastDefault);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the user removed a subject, enrich does not populate match evidence for that subject.")]
     public async Task EnrichSubjects_DoesNotPopulateMatchesForUserRemovedSubject()
     {
-        // arrange
-        var removedSubject = "Cults";
+        // Arrange
+        var removedSubject = _fixture.Create<string>();
+        var term = _fixture.Create<string>();
         var episode = _fixture.Build<Episode>()
             .With(x => x.Subjects, [])
             .With(x => x.RemovedSubjects, [removedSubject])
@@ -226,17 +256,17 @@ public class SubjectEnricherTests
         {
             new(
                 new Subject(removedSubject),
-                [new MatchResult("cult", 1, SubjectMatchSource.Title)])
+                [new MatchResult(term, 1, SubjectMatchSource.Title)])
         };
         _mocker.GetMock<ISubjectMatcher>()
             .Setup(x => x.MatchSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(subjectMatches);
         var sut = _mocker.CreateInstance<SubjectEnricher>();
 
-        // act
+        // Act
         await sut.EnrichSubjects(episode, options);
 
-        // assert
+        // Assert
         episode.Matches.Should().NotContain(m =>
             m.Subject.Equals(removedSubject, StringComparison.OrdinalIgnoreCase));
         episode.Subjects.Should().NotContain(removedSubject);
