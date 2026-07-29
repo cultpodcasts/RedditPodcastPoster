@@ -60,13 +60,13 @@ public class PodcastController(
         HttpRequestData req,
         string podcastIdentifier,
         CancellationToken ct
-    )
-    {
-        var podcastGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
-            ? new PodcastGetRequest(podcastId)
-            : new PodcastGetRequest(podcastIdentifier, null);
-        return HandleRequest(req, ["curate"], podcastGetRequest, getPodcastHandler.Handle, Unauthorised, ct);
-    }
+    ) => HandleRequest(
+            req,
+            ["curate"],
+            PodcastGetRequest.FromRouteIdentifier(podcastIdentifier),
+            getPodcastHandler.Handle,
+            Unauthorised,
+            ct);
 
     [Function("PodcastGetWithEpisodeId")]
     public Task<HttpResponseData> GetWithEpisodeId(
@@ -78,7 +78,7 @@ public class PodcastController(
     ) => HandleRequest(
             req,
             ["curate"],
-            new PodcastGetRequest(podcastName, episodeId),
+            PodcastGetRequest.FromRouteIdentifier(podcastName, episodeId),
             getPodcastHandler.Handle,
             Unauthorised,
             ct);
