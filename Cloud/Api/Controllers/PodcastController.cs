@@ -60,13 +60,17 @@ public class PodcastController(
         HttpRequestData req,
         string podcastIdentifier,
         CancellationToken ct
-    ) => HandleRequest(
+    )
+    {
+        var resolution = PodcastGetRouteResolver.ForSingleSegment(podcastIdentifier);
+        return HandleRequest(
             req,
             ["curate"],
-            PodcastGetRequest.FromRouteIdentifier(podcastIdentifier),
+            resolution.HandlerRequest,
             getPodcastHandler.Handle,
             Unauthorised,
             ct);
+    }
 
     [Function("PodcastGetWithEpisodeId")]
     public Task<HttpResponseData> GetWithEpisodeId(
@@ -75,17 +79,22 @@ public class PodcastController(
         string podcastName,
         Guid episodeId,
         CancellationToken ct
-    ) => HandleRequest(
+    )
+    {
+        var resolution = PodcastGetRouteResolver.ForNameAndEpisodeId(podcastName, episodeId);
+        return HandleRequest(
             req,
             ["curate"],
-            PodcastGetRequest.FromRouteIdentifier(podcastName, episodeId),
+            resolution.HandlerRequest,
             getPodcastHandler.Handle,
             Unauthorised,
             ct);
+    }
 
     // Rare fallback: App Service decodes %2F to '/', so names with '/' become
     // extra segments and miss the routes above (Azure/azure-functions-host#9290).
     // Also stops Guid-bind 500s when a split name wrongly hits PodcastGetWithEpisodeId.
+    // Prod often selects this catch-all for podcast/{guid}/{episodeGuid} as well.
     [Function("PodcastGetSlash")]
     public Task<HttpResponseData> GetByIdentifierCatchAll(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{*podcastIdentifier}")]
@@ -94,10 +103,14 @@ public class PodcastController(
         CancellationToken ct
     )
     {
-        if (PodcastEpisodePathParser.TrySplitTrailingEpisodeId(
-                podcastIdentifier, out var podcastName, out var episodeId))
+        var resolution = PodcastGetRouteResolver.ForCatchAll(podcastIdentifier);
+        if (resolution.ContinuesAs == PodcastGetContinuation.GetWithEpisodeId)
         {
-            return GetWithEpisodeId(req, podcastName, episodeId, ct);
+            return GetWithEpisodeId(
+                req,
+                resolution.EpisodeRoutePodcastSegment!,
+                resolution.EpisodeRouteEpisodeId!.Value,
+                ct);
         }
 
         return GetByIdentifier(req, podcastIdentifier, ct);
