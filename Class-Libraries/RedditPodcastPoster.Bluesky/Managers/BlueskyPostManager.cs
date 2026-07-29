@@ -80,7 +80,7 @@ public class BlueskyPostManager(
                     logger.LogInformation("Bluesky Post init.");
                     try
                     {
-                        var status = await poster.Post(podcastEpisode, shortnerResult.Url);
+                        var status = await poster.Post(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                         logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
                         var posted = status == BlueskySendStatus.Success;
 

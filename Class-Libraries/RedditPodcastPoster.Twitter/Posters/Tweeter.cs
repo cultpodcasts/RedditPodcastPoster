@@ -55,7 +55,7 @@ public class Tweeter(
                         logger.LogError("Unsuccessful shortening-url.");
                     }
 
-                    var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                    var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                     tweeted = tweetStatus.TweetSendStatus == TweetSendStatus.Sent;
                     tooManyRequests = tweetStatus.TweetSendStatus == TweetSendStatus.TooManyRequests;
                 }
