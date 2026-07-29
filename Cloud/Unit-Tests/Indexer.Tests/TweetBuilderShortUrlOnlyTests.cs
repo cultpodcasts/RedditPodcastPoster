@@ -60,6 +60,34 @@ public class TweetBuilderShortUrlOnlyTests
         tweet.Should().Contain(platformUrl.ToString());
     }
 
+    [Fact(DisplayName =
+        "When shortener KV has a share image, the tweet title can be longer because only one URL is posted.")]
+    public async Task Has_share_image_allows_longer_tweet_title_than_dual_url_post()
+    {
+        // Arrange — length literal is the truncation boundary under test
+        var longTitle = new string('x', 220);
+        var podcast = _fixture.CreatePodcast(p => p.Name = "Show");
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, title: longTitle);
+        episode.Subjects = ["Subject"];
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var sut = CreateSut(withEpisodeUrl: true);
+
+        // Act
+        var shortOnly = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: true);
+        var dualUrl = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: false);
+
+        // Assert
+        QuotedTitleLength(shortOnly).Should().BeGreaterThan(QuotedTitleLength(dualUrl));
+    }
+
+    private static int QuotedTitleLength(string post)
+    {
+        var start = post.IndexOf('"') + 1;
+        var end = post.IndexOf('"', start);
+        return end - start;
+    }
+
     private TweetBuilder CreateSut(bool withEpisodeUrl)
     {
         var textSanitiser = new Mock<ITextSanitiser>();

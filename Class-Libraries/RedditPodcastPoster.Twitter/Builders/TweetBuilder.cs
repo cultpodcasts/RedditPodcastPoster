@@ -96,10 +96,12 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var reserveShortUrl = hasShareImage
-            || (_twitterOptions.WithEpisodeUrl &&
-                (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveShortUrl ? 26 : 0));
+        // 257 already budgets one t.co URL. Extra 26 only when a second (short) URL will also be appended.
+        // Share-image posts are short-URL-only — no second-URL reserve, so the title can be longer.
+        var reserveSecondUrl = !hasShareImage
+            && _twitterOptions.WithEpisodeUrl
+            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+        var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveSecondUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {

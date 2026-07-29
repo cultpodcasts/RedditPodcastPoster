@@ -80,6 +80,34 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         post.UrlService.Should().Be(Service.Spotify);
     }
 
+    [Fact(DisplayName =
+        "When shortener KV has a share image, the Bluesky title can be longer because only one URL is in the post text.")]
+    public async Task Has_share_image_allows_longer_bluesky_title_than_dual_url_budget()
+    {
+        // Arrange — length literal is the truncation boundary under test
+        var longTitle = new string('x', 280);
+        var podcast = _fixture.CreatePodcast(p => p.Name = "Show");
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, title: longTitle);
+        episode.Subjects = ["Subject"];
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var sut = CreateSut(withEpisodeUrl: true);
+
+        // Act
+        var shortOnly = await sut.Create(podcastEpisode, shortUrl, hasShareImage: true);
+        var withSecondUrlBudget = await sut.Create(podcastEpisode, shortUrl, hasShareImage: false);
+
+        // Assert
+        QuotedTitleLength(shortOnly.Text).Should().BeGreaterThan(QuotedTitleLength(withSecondUrlBudget.Text));
+    }
+
+    private static int QuotedTitleLength(string post)
+    {
+        var start = post.IndexOf('"') + 1;
+        var end = post.IndexOf('"', start);
+        return end - start;
+    }
+
     private BlueskyEmbedCardPostFactory CreateSut(bool withEpisodeUrl)
     {
         var textSanitiser = new Mock<ITextSanitiser>();

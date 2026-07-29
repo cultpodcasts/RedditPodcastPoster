@@ -104,7 +104,12 @@ public class BlueskyEmbedCardPostFactory(
             postBuilder.AppendLine($"{shortUrl}");
         }
 
-        var permittedTitleLength = 300 - (postBuilder.Length + (includeShortInText ? 26 : 0));
+        // Short URL is already in postBuilder when includeShortInText. Extra 26 was for dual-link
+        // budgeting; share-image posts are short-only so skip it and allow a longer title.
+        var reserveSecondUrlBudget = !hasShareImage
+            && _blueskyOptions.WithEpisodeUrl
+            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+        var permittedTitleLength = 300 - (postBuilder.Length + (reserveSecondUrlBudget ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
