@@ -123,12 +123,14 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 |------|---------|--------|
 | `languages` (default) | `--languages`, `-l` | `R2PublishProcessor` — languages list to R2 |
 | `people` | `--people`, `-p` | `R2PublishProcessor` — People register to R2 |
+| `search-suggestions` | `--search-suggestions`, `-s`, `suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
 | `flairs` | `--flairs`, `-f`, `flair` | `FlairPublishProcessor` — subject flairs to Reddit |
-| `all` | `--all`, `-a` | R2 languages+people, then flairs |
+| `all` | `--all`, `-a` | R2 languages+people+search-suggestions, then flairs |
 
 ```text
 PublishR2
 PublishR2 people
+PublishR2 search-suggestions
 PublishR2 --flairs
 PublishR2 all
 ```
@@ -399,7 +401,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### ExportSearchSuggestions
 
-**Purpose:** Read-only, narrow export for the flix search-typeahead prototype. Reads only Subjects (`name` + `aliases`, `associatedSubjects` deliberately excluded) and Podcasts (`name` only, non-removed) via the existing repository `GetAll()` abstractions, and projects straight to a single small **flat match-index** JSON file (`entries[]` with `type`, `canonical`, lowercase `searchText`, optional `alias`) — never writes to disk per-document like `CosmosDbDownloader`, never writes to Cosmos.
+**Purpose:** Read-only file export of the flix search-typeahead flat match index (same `SearchSuggestionsIndexBuilder` as R2 publish). Subjects (`name` + `aliases`; `associatedSubjects` excluded) and non-removed podcast names. Prefer `PublishR2 search-suggestions` for production refresh.
 
 **Run:** `dotnet run --project Console-Apps/ExportSearchSuggestions -- [output-path]` · PATH: `ExportSearchSuggestions`
 
@@ -407,7 +409,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 |-------|-------------|
 | `[output-path]` | Optional positional; JSON output path (default `search-suggestions.json`) |
 
-Consumed by the website repo (`cultpodcasts/docs/search-suggestions.md`) — copy the output into `src/assets/search-suggestions.json` on `design/visual-refresh-v1` and commit. If you still have a legacy nested `{ subjects, podcasts }` file, convert with `node scripts/flatten-search-suggestions.mjs` in `cultpodcasts/`.
+Production clients load the index from `GET /search-suggestions` (R2). See website `cultpodcasts/docs/search-suggestions.md`.
 
 ---
 

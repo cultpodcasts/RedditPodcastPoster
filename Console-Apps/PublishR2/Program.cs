@@ -86,6 +86,7 @@ static R2PublishTarget ToR2Target(PublishMode mode) => mode switch
 {
     PublishMode.Languages => R2PublishTarget.Languages,
     PublishMode.People => R2PublishTarget.People,
+    PublishMode.SearchSuggestions => R2PublishTarget.SearchSuggestions,
     _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
 };
 
@@ -111,6 +112,7 @@ static PublishMode? ParseMode(string[] args)
     {
         "languages" or "--languages" or "-l" => PublishMode.Languages,
         "people" or "--people" or "-p" => PublishMode.People,
+        "search-suggestions" or "--search-suggestions" or "-s" or "suggestions" => PublishMode.SearchSuggestions,
         "flairs" or "--flairs" or "-f" or "flair" => PublishMode.Flairs,
         "all" or "--all" or "-a" => PublishMode.All,
         "r2" => PublishMode.Languages,
@@ -127,18 +129,20 @@ static void PrintUsage()
         PublishR2 — publish static content to Cloudflare R2 and Reddit flairs.
 
         Usage:
-          PublishR2 [languages|people|flairs|all]
-          PublishR2 [--languages|-l|--people|-p|--flairs|-f|--all|-a]
+          PublishR2 [languages|people|search-suggestions|flairs|all]
+          PublishR2 [--languages|-l|--people|-p|--search-suggestions|-s|--flairs|-f|--all|-a]
 
         Modes:
-          languages (default)  R2PublishProcessor — languages list to R2
-          people               R2PublishProcessor — People register to R2
-          flairs               FlairPublishProcessor — subject flairs to Reddit
-          all                  R2 (languages+people), then flairs
+          languages (default)     R2PublishProcessor — languages list to R2
+          people                  R2PublishProcessor — People register to R2
+          search-suggestions      R2PublishProcessor — typeahead match index to R2
+          flairs                  FlairPublishProcessor — subject flairs to Reddit
+          all                     R2 (languages+people+search-suggestions), then flairs
 
         Examples:
           PublishR2
           PublishR2 people
+          PublishR2 search-suggestions
           PublishR2 --flairs
           PublishR2 all
         """);
@@ -148,6 +152,7 @@ enum PublishMode
 {
     Languages,
     People,
+    SearchSuggestions,
     Flairs,
     All
 }

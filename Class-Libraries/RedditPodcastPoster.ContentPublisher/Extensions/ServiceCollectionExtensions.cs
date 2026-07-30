@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.Builders;
 using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.People.Extensions;
@@ -17,12 +18,14 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddPeopleServices()
+            .AddScoped<ISearchSuggestionsIndexBuilder, SearchSuggestionsIndexBuilder>()
             .AddScoped<IHomepagePublisher, HomepagePublisher>()
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
             .AddScoped<IPeoplePublisher, PeoplePublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()
             .AddScoped<IDiscoveryInfoContentPublisher, DiscoveryInfoContentPublisher>()
             .AddScoped<ILanguagesPublisher, LanguagesPublisher>()
+            .AddScoped<ISearchSuggestionsPublisher, SearchSuggestionsPublisher>()
             .BindConfiguration<ContentOptions>("content")
             .AddCloudflareClients();
     }

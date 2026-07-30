@@ -87,6 +87,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.People.Tests/RedditPodcastPoster.People.Tests.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher.Tests/RedditPodcastPoster.ContentPublisher.Tests.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
