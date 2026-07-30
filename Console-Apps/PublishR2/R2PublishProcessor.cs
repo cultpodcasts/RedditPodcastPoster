@@ -23,7 +23,15 @@ public class R2PublishProcessor(
 
         if (success && request.Target is R2PublishTarget.SearchSuggestions or R2PublishTarget.All)
         {
-            success = await searchSuggestionsPublisher.PublishSearchSuggestions();
+            try
+            {
+                await searchSuggestionsPublisher.PublishSearchSuggestions();
+            }
+            catch
+            {
+                // Publisher already logged the exception; map to CLI failure.
+                success = false;
+            }
         }
 
         return success;

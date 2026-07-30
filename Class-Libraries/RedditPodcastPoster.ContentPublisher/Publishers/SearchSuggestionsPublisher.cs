@@ -23,7 +23,7 @@ public class SearchSuggestionsPublisher(
 
     private readonly ContentOptions _contentOptions = contentOptions.Value;
 
-    public async Task<bool> PublishSearchSuggestions(CancellationToken cancellationToken = default)
+    public async Task PublishSearchSuggestions(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -43,7 +43,6 @@ public class SearchSuggestionsPublisher(
                 nameof(PublishSearchSuggestions),
                 corpus.Entries.Length,
                 _contentOptions.SearchSuggestionsKey);
-            return true;
         }
         catch (Exception ex)
         {
@@ -52,7 +51,7 @@ public class SearchSuggestionsPublisher(
                 nameof(PublishSearchSuggestions),
                 _contentOptions.BucketName,
                 _contentOptions.SearchSuggestionsKey);
-            return false;
+            throw;
         }
     }
 }

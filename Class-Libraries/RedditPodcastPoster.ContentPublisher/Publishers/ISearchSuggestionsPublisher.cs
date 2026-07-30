@@ -2,5 +2,9 @@ namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public interface ISearchSuggestionsPublisher
 {
-    Task<bool> PublishSearchSuggestions(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Builds and uploads the typeahead index. Throws on failure so callers
+    /// (timer / CLI) surface an unsuccessful result.
+    /// </summary>
+    Task PublishSearchSuggestions(CancellationToken cancellationToken = default);
 }
