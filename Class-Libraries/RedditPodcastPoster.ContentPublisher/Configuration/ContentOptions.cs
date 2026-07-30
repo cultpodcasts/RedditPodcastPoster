@@ -10,4 +10,5 @@ public class ContentOptions
     public required string FlairsKey { get; set; }
     public required string LanguagesKey { get; set; }
     public required string DiscoveryInfoKey { get; set; }
+    public required string SearchSuggestionsKey { get; set; }
 }

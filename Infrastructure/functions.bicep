@@ -209,6 +209,7 @@ var content= {
     content__PreProcessedHomepageKey: 'homepage-ssr'
     content__SubjectsKey: 'subjects'
     content__PeopleKey: 'people'
+    content__SearchSuggestionsKey: 'search-suggestions'
 }
 
 var cosmosdb= {

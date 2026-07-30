@@ -63,6 +63,7 @@ internal static class FunctionHostTestSupport
             ["content:FlairsKey"] = "flairs.json",
             ["content:LanguagesKey"] = "languages.json",
             ["content:DiscoveryInfoKey"] = "discovery-info.json",
+            ["content:SearchSuggestionsKey"] = "search-suggestions.json",
             ["cloudflare:AccountId"] = "test-account-id",
             ["cloudflare:R2AccessKey"] = "test-r2-access-key",
             ["cloudflare:R2SecretKey"] = "test-r2-secret-key",
