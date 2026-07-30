@@ -10,6 +10,7 @@ public class SearchSuggestionsPublishTrigger(
 {
     /// <summary>
     /// Weekly refresh of the public typeahead match index on R2 (Sunday 07:07 UTC).
+    /// Failures throw so AppRequests records Success=false and exceptions appear in telemetry.
     /// </summary>
     [Function("SearchSuggestionsPublish")]
     public async Task Run(
@@ -25,14 +26,8 @@ public class SearchSuggestionsPublishTrigger(
             "SearchSuggestionsPublish initiated. ScheduleStatus.Next: '{Next}'.",
             timerInfo.ScheduleStatus?.Next);
 
-        var success = await searchSuggestionsPublisher.PublishSearchSuggestions(cancellationToken);
-        if (success)
-        {
-            logger.LogInformation("SearchSuggestionsPublish completed successfully.");
-        }
-        else
-        {
-            logger.LogError("SearchSuggestionsPublish failed.");
-        }
+        await searchSuggestionsPublisher.PublishSearchSuggestions(cancellationToken);
+
+        logger.LogInformation("SearchSuggestionsPublish completed successfully.");
     }
 }
