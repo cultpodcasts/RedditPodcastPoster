@@ -9,11 +9,11 @@ public class SearchSuggestionsPublishTrigger(
     ILogger<SearchSuggestionsPublishTrigger> logger)
 {
     /// <summary>
-    /// Weekly refresh of the public typeahead match index on R2 (Sunday 07:00 UTC).
+    /// Weekly refresh of the public typeahead match index on R2 (Sunday 07:07 UTC).
     /// </summary>
     [Function("SearchSuggestionsPublish")]
     public async Task Run(
-        [TimerTrigger("0 0 7 * * 0"
+        [TimerTrigger("0 7 7 * * 0"
 #if DEBUG
             , RunOnStartup = false
 #endif
