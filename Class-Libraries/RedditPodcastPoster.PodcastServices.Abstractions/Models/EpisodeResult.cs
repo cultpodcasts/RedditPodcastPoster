@@ -32,4 +32,9 @@ public class EpisodeResult(
     public PodcastServiceIds PodcastIds { get; set; } = new();
     public bool EnrichedTimeFromApple { get; set; }
     public bool EnrichedUrlFromSpotify { get; set; }
+
+    /// <summary>
+    /// YouTube altered/synthetic media disclosure (<c>status.containsSyntheticMedia</c>), when known.
+    /// </summary>
+    public bool? ContainsSyntheticMedia { get; set; }
 }

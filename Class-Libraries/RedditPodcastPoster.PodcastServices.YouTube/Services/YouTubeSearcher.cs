@@ -115,7 +115,8 @@ public class YouTubeSearcher(
     {
         var videoIds = results.Select(x => x.SearchResult.Id.VideoId);
         var videos =
-            await youTubeVideoService.GetVideoContentDetails(youTubeService, videoIds, indexingContext, true, true);
+            await youTubeVideoService.GetVideoContentDetails(
+                youTubeService, videoIds, indexingContext, withSnippets: true, withStatistics: true, withStatus: true);
         foreach (var result in results)
         {
             var video = videos?.FirstOrDefault(x => x.Id == result.SearchResult.Id.VideoId);
@@ -179,6 +180,7 @@ public class YouTubeSearcher(
         );
         episodeResult.Urls.YouTube = episode.ToYouTubeUrl();
         episodeResult.PodcastIds.YouTube = channel?.Id;
+        episodeResult.ContainsSyntheticMedia = video?.Status?.ContainsSyntheticMedia;
         return episodeResult;
     }
 

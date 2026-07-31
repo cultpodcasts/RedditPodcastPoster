@@ -19,6 +19,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
 using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
+using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 
@@ -33,6 +34,7 @@ public static class Ioc
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()
+            .AddPeopleServices()
             .AddDiscovery(ApplicationUsage.Discover)
             .AddScoped<Container>(s => s.GetRequiredService<ICosmosDbContainerFactory>().CreateActivitiesContainer())
             .AddScoped<IActivityMarshaller, ActivityMarshaller>()

@@ -23,7 +23,8 @@ public class YouTubeVideoService(
         IEnumerable<string> videoIds,
         IndexingContext? indexingContext,
         bool withSnippets = false,
-        bool withStatistics = false)
+        bool withStatistics = false,
+        bool withStatus = false)
     {
         if (indexingContext is {SkipYouTubeUrlResolving: true})
         {
@@ -51,6 +52,11 @@ public class YouTubeVideoService(
                 if (withStatistics)
                 {
                     contentDetails = "statistics," + contentDetails;
+                }
+
+                if (withStatus)
+                {
+                    contentDetails = "status," + contentDetails;
                 }
 
                 var request = youTubeService.YouTubeService.Videos.List(contentDetails);

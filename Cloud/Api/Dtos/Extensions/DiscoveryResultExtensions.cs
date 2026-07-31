@@ -56,6 +56,8 @@ public static class DiscoveryResultExtensions
         result.ShowName = item.ShowName;
         result.YouTubeChannelMembers = item.YouTubeChannelMembers;
         result.YouTubeViews = item.YouTubeViews;
+        result.ContainsSyntheticMedia = item.ContainsSyntheticMedia;
+        result.Guests = item.Guests;
         result.Subjects = item.Subjects;
         result.Sources = item.Sources
             .Select(x =>

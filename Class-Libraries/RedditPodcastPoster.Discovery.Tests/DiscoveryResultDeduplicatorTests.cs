@@ -307,6 +307,8 @@ public class DiscoveryResultDeduplicatorTests
             Subjects = source.Subjects.ToArray(),
             YouTubeViews = source.YouTubeViews,
             YouTubeChannelMembers = source.YouTubeChannelMembers,
+            ContainsSyntheticMedia = source.ContainsSyntheticMedia,
+            Guests = source.Guests.ToArray(),
             ImageUrl = source.ImageUrl,
             Sources = source.Sources.ToArray(),
             EnrichedTimeFromApple = source.EnrichedTimeFromApple,

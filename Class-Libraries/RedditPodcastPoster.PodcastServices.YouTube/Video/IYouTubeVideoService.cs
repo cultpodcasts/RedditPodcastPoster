@@ -11,5 +11,6 @@ public interface IYouTubeVideoService
         IEnumerable<string> videoIds,
         IndexingContext options,
         bool withSnippets = false,
-        bool withStatistics = false);
+        bool withStatistics = false,
+        bool withStatus = false);
 }
