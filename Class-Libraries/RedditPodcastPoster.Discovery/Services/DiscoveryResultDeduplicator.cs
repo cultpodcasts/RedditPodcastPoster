@@ -121,7 +121,15 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
             merged.Released = youTube.Released;
             merged.YouTubeViews = youTube.YouTubeViews;
             merged.YouTubeChannelMembers = youTube.YouTubeChannelMembers;
+            merged.ContainsSyntheticMedia = youTube.ContainsSyntheticMedia;
         }
+
+        merged.Guests = linkedItems
+            .Where(HasSameEpisodeIdentityWith(winner))
+            .SelectMany(x => x.Guests)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         var apple = linkedItems.FirstOrDefault(x =>
             x.EnrichedTimeFromApple && HasSameEpisodeIdentity(x, winner));
@@ -363,6 +371,8 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
             Subjects = source.Subjects.ToArray(),
             YouTubeViews = source.YouTubeViews,
             YouTubeChannelMembers = source.YouTubeChannelMembers,
+            ContainsSyntheticMedia = source.ContainsSyntheticMedia,
+            Guests = source.Guests.ToArray(),
             ImageUrl = source.ImageUrl,
             Sources = source.Sources.ToArray(),
             EnrichedTimeFromApple = source.EnrichedTimeFromApple,

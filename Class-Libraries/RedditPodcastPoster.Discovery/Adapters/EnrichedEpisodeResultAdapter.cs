@@ -2,12 +2,14 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.Subjects.Matching;
 
 namespace RedditPodcastPoster.Discovery.Adapters;
 
 public class EnrichedEpisodeResultAdapter(
     ISubjectMatcher subjectMatcher,
+    IEpisodeGuestEnricher guestEnricher,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<EnrichedEpisodeResultAdapter> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -20,8 +22,13 @@ public class EnrichedEpisodeResultAdapter(
             State = DiscoveryResultState.Unprocessed
         };
 
-        var subjects = await subjectMatcher.MatchSubjects(new Episode
-            { Title = episode.EpisodeResult.EpisodeName, Description = episode.EpisodeResult.Description });
+        var matchEpisode = new Episode
+        {
+            Title = episode.EpisodeResult.EpisodeName,
+            Description = episode.EpisodeResult.Description
+        };
+
+        var subjects = await subjectMatcher.MatchSubjects(matchEpisode);
 
         discoveryResult.Urls.Apple = episode.EpisodeResult.Urls.Apple;
         discoveryResult.Urls.Spotify = episode.EpisodeResult.Urls.Spotify;
@@ -59,7 +66,11 @@ public class EnrichedEpisodeResultAdapter(
             discoveryResult.YouTubeChannelMembers = episode.EpisodeResult.MemberCount;
         }
 
+        discoveryResult.ContainsSyntheticMedia = episode.EpisodeResult.ContainsSyntheticMedia;
         discoveryResult.ImageUrl = episode.EpisodeResult.ImageUrl;
+
+        await guestEnricher.EnrichGuests(matchEpisode);
+        discoveryResult.Guests = matchEpisode.Guests ?? [];
 
         discoveryResult.MatchingPodcastIds = episode.PodcastResults.Select(x => x.PodcastId).ToArray();
         return discoveryResult;

@@ -61,6 +61,14 @@ public class DiscoveryResponse
         [JsonPropertyOrder(100)]
         public ulong? YouTubeChannelMembers { get; set; }
 
+        [JsonPropertyName("containsSyntheticMedia")]
+        [JsonPropertyOrder(105)]
+        public bool? ContainsSyntheticMedia { get; set; }
+
+        [JsonPropertyName("guests")]
+        [JsonPropertyOrder(108)]
+        public string[] Guests { get; set; } = [];
+
         [JsonPropertyName("imageUrl")]
         [JsonPropertyOrder(110)]
         public Uri? ImageUrl { get; set; }
