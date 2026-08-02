@@ -5,7 +5,7 @@ Production checklist for deploying the **indexer** (`indexer-infra`) with the fl
 **Related docs:**
 
 - [youtube-keys.md](youtube-keys.md) — key vault naming, slot map, literal app settings
-- [indexing-app-insights-queries.md](indexing-app-insights-queries.md) — KQL validation at 06:00 / 18:00 UTC
+- [indexing-app-insights-queries.md](indexing-app-insights-queries.md) — KQL validation at YouTube-enabled hours
 - [interim-deployment.md](interim-deployment.md) — local deploy when GitHub Actions is offline
 
 ---
@@ -19,10 +19,10 @@ Pacific quota day
 Single flat indexer key ring (slots 1–4, 8–11, 13–16 — config order, deduped)
     │  persisted ring position; hour spread fallback when no state
     ▼
-YouTube enabled when hour % 6 == 0  →  00, 06, 12, 18 UTC
+YouTube enabled when hour % 3 == 0  →  00, 03, 06, 09, 12, 15, 18, 21 UTC
     │
-    ├─ Passes 1–2 at 00 / 12 UTC
-    └─ Passes 3–4 at 06 / 18 UTC
+    ├─ Passes 1–2 at even hours (00 / 06 / 12 / 18 UTC)
+    └─ Passes 3–4 at odd YouTube hours (03 / 09 / 15 / 21 UTC)
 ```
 
 - **Ring exhaustion:** if all keys are exhausted, later passes may run with `skip-youtube='True'`.
@@ -79,16 +79,16 @@ Deploy scripts do **not** change app settings.
 
 ---
 
-## 4. Verify — 06:00 or 18:00 UTC window
+## 4. Verify — YouTube-enabled hour window
 
 See [indexing-app-insights-queries.md](indexing-app-insights-queries.md) for full KQL.
 
 | Step | What to confirm |
 |------|-----------------|
-| Timer fired | `RunHourly initiated hour-utc='6'` or `'18'` |
-| Pass selection | `youtube-enabled-hour='True'` on YouTube hours |
+| Timer fired | `RunHourly initiated` on a YouTube hour (`hour % 3 == 0`) |
+| Pass selection | `youtube-enabled-hour='True'`; passes 1–2 on even hours, 3–4 on odd YouTube hours |
 | Key ring | No sustained `ring exhausted`; rotation only if quota hit |
-| Batch 4 | `skip-youtube='False'`, `success='True'` |
+| Batch 4 | At 03/09/15/21: `skip-youtube='False'`, `success='True'` |
 
 ---
 
