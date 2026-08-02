@@ -1,6 +1,6 @@
 # Indexing diagnostics — App Insights / Log Analytics KQL
 
-Operational query reference for diagnosing scheduled indexing failures on **`indexer-infra`**, especially **06:00 / 18:00 UTC** YouTube windows (batches 3–4) and the **Jakub Jahl** case study.
+Operational query reference for diagnosing scheduled indexing failures on **`indexer-infra`**, especially YouTube-enabled hours (`hour % 3 == 0`; batches 3–4 at **03 / 09 / 15 / 21 UTC**) and the **Jakub Jahl** case study.
 
 **Related:** [indexing-investigation-jun2026.md](../indexing-investigation-jun2026.md) — full decision tree, Cosmos checks, deploy notes.
 
@@ -140,9 +140,9 @@ Jakub Jahl is **usually not** YouTube-authority (Spotify/Apple discovery). For J
 
 ---
 
-## 1. Quick start — verify 06:00 / 18:00 run fired
+## 1. Quick start — verify YouTube-enabled upper-batch run fired
 
-YouTube-enabled scheduled indexing for **batch 4** runs only when **passes 3–4** execute at **06:00 or 18:00 UTC** (`hour % 6 == 0`).
+YouTube-enabled scheduled indexing for **batch 4** runs when **passes 3–4** execute at **03 / 09 / 15 / 21 UTC** (`hour % 3 == 0` and odd hour). Lower batches (1–2) get YouTube at **00 / 06 / 12 / 18 UTC**.
 
 ### A. Timer + orchestration scheduled (last 24h)
 
@@ -174,7 +174,7 @@ traces
 | order by timestamp desc
 ```
 
-### B. Pass selection at 06 / 18 (new Warning logs)
+### B. Pass selection at upper-batch YouTube hours (03 / 09 / 15 / 21)
 
 ```kusto
 AppTraces
@@ -185,12 +185,13 @@ AppTraces
 | extend firstPass = extract(@"first-pass='(\d+)'", 1, Message)
 | extend lastPass = extract(@"last-pass='(\d+)'", 1, Message)
 | extend youtubeEnabled = extract(@"youtube-enabled-hour='(True|False)'", 1, Message)
-| where hourUtc in (6, 18)
+| where hourUtc in (3, 9, 15, 21)
 | project TimeGenerated, hourUtc, firstPass, lastPass, youtubeEnabled, Message
 | order by TimeGenerated desc
 ```
 
-**Expect at 06/18:** `first-pass='3'`, `last-pass='4'`, `youtube-enabled-hour='True'`.
+**Expect at 03/09/15/21:** `first-pass='3'`, `last-pass='4'`, `youtube-enabled-hour='True'`.  
+**Expect at 00/06/12/18:** `first-pass='1'`, `last-pass='2'`, `youtube-enabled-hour='True'`.
 
 Legacy fallback (if Warning logs not yet deployed):
 
@@ -199,7 +200,7 @@ traces
 | where timestamp > ago(48h)
 | where cloud_RoleName == "indexer-infra"
 | where message has "Selected indexer passes 3-4"
-| where hourofday(timestamp) in (6, 18)
+| where hourofday(timestamp) in (3, 9, 15, 21)
 | project timestamp, message
 | order by timestamp desc
 ```
@@ -702,7 +703,7 @@ AppTraces
 | order by TimeGenerated asc
 ```
 
-- [ ] `first-pass='3'`, `last-pass='4'`, `youtube-enabled-hour='True'`
+- [ ] Under current cadence, upper-batch YouTube is at **03 / 09 / 15 / 21 UTC** (`first-pass='3'`, `last-pass='4'`, `youtube-enabled-hour='True'`). The Jun 20 06:00 window below is historical (pre every-3h change).
 - [ ] `batch-4-rollup` with `skip-youtube='False'`, `success='True'`, `youtube-error='False'`
 - [ ] Note `operation-id` from `batch-4-rollup` for deep-dive if failed
 
@@ -761,9 +762,9 @@ After 06:55 UTC, confirm prior day report saved (Section 6A) before concluding q
 
 ## 8. Key ring exhaustion — day-by-day comparison
 
-Indexer YouTube uses a **Cosmos-persisted key ring** (`YouTubeIndexerKeyState`) that **resumes within the same Pacific quota day**. Exhaustion at **12:00 UTC** (passes 1–2) leaves **18:00 UTC** (passes 3–4) with no keys. `Rotate indexer api-key` is **Information-level** and usually absent in production; use **`AppExceptions`** with `ring exhausted` and **`YouTubeAuthorityIndexingAudit`** instead.
+Indexer YouTube uses a **Cosmos-persisted key ring** (`YouTubeIndexerKeyState`) that **resumes within the same Pacific quota day**. Exhaustion mid-day leaves later YouTube hours with fewer keys. `Rotate indexer api-key` is **Information-level** and usually absent in production; use **`AppExceptions`** with `ring exhausted` and **`YouTubeAuthorityIndexingAudit`** instead.
 
-**YouTube windows:** hours **0 / 6 / 12 / 18 UTC** (`hour % 6 == 0`). Passes **1–2** at 0/12; passes **3–4** at 6/18.
+**YouTube windows:** hours **0 / 3 / 6 / 9 / 12 / 15 / 18 / 21 UTC** (`hour % 3 == 0`). Passes **1–2** at even YouTube hours (0/6/12/18); passes **3–4** at odd YouTube hours (3/9/15/21).
 
 ### A. Ring exhaustion heatmap (14d)
 

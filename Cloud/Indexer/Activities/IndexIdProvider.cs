@@ -53,17 +53,10 @@ public class IndexIdProvider(
                 DateTime.UtcNow, youtubeDiscoveryIds.Length, string.Join(",", youtubeDiscoveryIds));
         }
 
-        var batchSizes = allIndexablePodcastIds.Length / req.IndexPasses;
-        var batches = new List<Guid[]>();
-        for (var i = 0; i < req.IndexPasses; i++)
+        var batches = IndexPassBatchSplitter.Split(allIndexablePodcastIds, req.IndexPasses);
+        for (var i = 0; i < batches.Length; i++)
         {
-            var batch = allIndexablePodcastIds.Skip(i * batchSizes);
-            if (i < req.IndexPasses - 1)
-            {
-                batch = batch.Take(batchSizes);
-            }
-
-            var batchArray = batch.ToArray();
+            var batchArray = batches[i];
             logger.LogInformation("Batch {i}: {batch}", i + 1, batchArray);
             if (i == 3)
             {
@@ -71,17 +64,9 @@ public class IndexIdProvider(
                     "IndexIdProvider batch-4-summary podcast-count='{PodcastCount}'",
                     batchArray.Length);
             }
-            batches.Add(batchArray);
-        }
-
-        var batchSum = batches.Sum(batch => batch.Length);
-        if (batchSum != allIndexablePodcastIds.Length)
-        {
-            throw new InvalidOperationException(
-                $"Batch sum {batchSum} does not equal all indexable podcast ids {allIndexablePodcastIds.Length}.");
         }
 
         logger.LogInformation($"{nameof(RunAsync)} Completed.");
-        return new IndexIdProviderResponse(batches.ToArray());
+        return new IndexIdProviderResponse(batches);
     }
 }

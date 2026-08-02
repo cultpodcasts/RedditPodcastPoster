@@ -38,7 +38,7 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
 
         var hourUtc = context.CurrentUtcDateTime.Hour;
         var (firstPass, lastPass) = HourlyIndexingPassSelector.SelectPasses(hourUtc, indexPasses);
-        var youtubeEnabledHour = hourUtc % 6 == 0;
+        var youtubeEnabledHour = hourUtc % 3 == 0;
         logger.LogWarning(
             "HourlyOrchestration pass-selection hour-utc='{HourUtc}' first-pass='{FirstPass}' last-pass='{LastPass}' youtube-enabled-hour='{YouTubeEnabledHour}' orchestration-instance-id='{OrchestrationInstanceId}'",
             hourUtc, firstPass, lastPass, youtubeEnabledHour, context.InstanceId);
