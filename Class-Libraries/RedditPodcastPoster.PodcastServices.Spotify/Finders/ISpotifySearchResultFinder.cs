@@ -14,12 +14,16 @@ public interface ISpotifySearchResultFinder
         string podcastName,
         List<SimpleShow>? podcasts);
 
-    SimpleEpisode? FindMatchingEpisodeByLength(
+    Task<SimpleEpisode?> FindMatchingEpisodeByLength(
         string episodeTitle,
         TimeSpan episodeLength,
         IEnumerable<SimpleEpisode> episodeLists,
         Func<SimpleEpisode, bool>? reducer = null,
         Service? releaseAuthority = null,
         DateTime? released = null,
-        bool enrichingYouTubeDiscoveredEpisode = false);
+        bool enrichingYouTubeDiscoveredEpisode = false,
+        string? episodeDescription = null,
+        string? defaultSubject = null,
+        IReadOnlyList<string>? ignoredSubjects = null,
+        CancellationToken cancellationToken = default);
 }

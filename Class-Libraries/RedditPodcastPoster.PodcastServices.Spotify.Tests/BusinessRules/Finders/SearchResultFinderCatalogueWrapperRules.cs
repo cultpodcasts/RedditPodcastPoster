@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
+using RedditPodcastPoster.PodcastServices.Spotify.Tests.Fakes;
+using RedditPodcastPoster.Text.Sanitisers;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finders;
@@ -13,7 +16,10 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finder
 public class SearchResultFinderCatalogueWrapperRules
 {
     private readonly DomainTestFixture _fixture = new();
-    private readonly SpotifySearchResultFinder _sut = new(EpisodeDomainTestServices.CreatePlatformMatcher());
+    private readonly SpotifySearchResultFinder _sut = new(
+        EpisodeDomainTestServices.CreatePlatformMatcher(),
+        new StubSubjectMatcher(),
+        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
 
     [Fact(DisplayName =
         "When the Spotify finder resolves by release date, " +
@@ -46,7 +52,7 @@ public class SearchResultFinderCatalogueWrapperRules
     [Fact(DisplayName =
         "When the Spotify finder applies a reducer callback, " +
         "excluded SimpleEpisodes are not returned even when they would otherwise match.")]
-    public void find_by_length_passes_reducer_through_to_domain_matcher()
+    public async Task find_by_length_passes_reducer_through_to_domain_matcher()
     {
         // Arrange
         var sharedTitle = _fixture.CreateTitle();
@@ -73,7 +79,7 @@ public class SearchResultFinderCatalogueWrapperRules
         var assignedIds = new HashSet<string> { assignedId };
 
         // Act
-        var result = _sut.FindMatchingEpisodeByLength(
+        var result = await _sut.FindMatchingEpisodeByLength(
             sharedTitle,
             sharedLength,
             episodes,
@@ -88,11 +94,13 @@ public class SearchResultFinderCatalogueWrapperRules
         "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row " +
         "within five minutes of duration but outside the expanded release window and with a " +
         "disjoint title must not be selected.")]
-    public void find_by_length_youtube_enrichment_does_not_duration_snipe_disjoint_title()
+    public async Task find_by_length_youtube_enrichment_does_not_duration_snipe_disjoint_title()
     {
-        // Arrange — wrong-week YouTube must not claim a later Spotify row on duration alone
-        var youTubeTitle = _fixture.CreateLongTitle();
-        var spotifyTitle = _fixture.CreateLongTitle();
+        // Arrange - wrong-week YouTube must not claim a later Spotify row on duration alone
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var youTubeLength = _fixture.CreateDuration();
         var spotifyLength = youTubeLength + TimeSpan.FromMinutes(2) + TimeSpan.FromSeconds(59);
         var matchingId = _fixture.CreateSpotifyId();
@@ -110,7 +118,7 @@ public class SearchResultFinderCatalogueWrapperRules
         };
 
         // Act
-        var result = _sut.FindMatchingEpisodeByLength(
+        var result = await _sut.FindMatchingEpisodeByLength(
             youTubeTitle,
             youTubeLength,
             episodes,
@@ -123,13 +131,16 @@ public class SearchResultFinderCatalogueWrapperRules
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row " +
-        "with unique duration on the same calendar day is selected even when titles diverge.")]
-    public void find_by_length_youtube_enrichment_accepts_unique_duration_within_release_window()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode via the Spotify finder, a sole " +
+        "catalogue row with unique duration on the same calendar day must not be selected when titles diverge " +
+        "and no shared classified subjects lift the multi-criteria score to the threshold.")]
+    public async Task find_by_length_youtube_enrichment_rejects_unique_duration_without_title_confidence()
     {
-        // Arrange — YouTube title vs wholly different Spotify rename; same length, same calendar day
-        var youTubeTitle = _fixture.CreateLongTitle();
-        var spotifyTitle = _fixture.CreateLongTitle();
+        // Arrange - YouTube title vs wholly different Spotify rename; same length, same calendar day
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var length = _fixture.CreateDuration();
         var matchingId = _fixture.CreateSpotifyId();
         var spotifyReleaseDate = DomainTestFixture.UtcDateDaysAgo(2);
@@ -145,8 +156,8 @@ public class SearchResultFinderCatalogueWrapperRules
             }
         };
 
-        // Act — probe release within 12h of Spotify midnight UTC
-        var result = _sut.FindMatchingEpisodeByLength(
+        // Act
+        var result = await _sut.FindMatchingEpisodeByLength(
             youTubeTitle,
             length,
             episodes,
@@ -155,19 +166,20 @@ public class SearchResultFinderCatalogueWrapperRules
             enrichingYouTubeDiscoveredEpisode: true);
 
         // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(matchingId);
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode via the Spotify finder, a sole catalogue row with " +
-        "unique duration on the same calendar day is selected even when the YouTube publish is more than " +
-        "twelve hours after Spotify midnight, because Spotify catalogue releases are date-only.")]
-    public void find_by_length_youtube_enrichment_accepts_same_day_spotify_outside_twelve_hours()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode via the Spotify finder, a sole " +
+        "catalogue row with unique duration on the same calendar day must not match without title confidence " +
+        "even when the YouTube publish is more than twelve hours after Spotify midnight.")]
+    public async Task find_by_length_youtube_enrichment_rejects_same_day_spotify_outside_twelve_hours_without_title()
     {
-        // Arrange
-        var youTubeTitle = _fixture.CreateLongTitle();
-        var spotifyTitle = _fixture.CreateLongTitle();
+        // Arrange - explicit disjoint titles (random long titles can still clear fuzzy confidence)
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var length = _fixture.CreateDuration();
         var matchingId = _fixture.CreateSpotifyId();
         var afternoonPublish = TimeSpan.FromHours(17) + TimeSpan.FromMinutes(28);
@@ -185,7 +197,42 @@ public class SearchResultFinderCatalogueWrapperRules
         (probeRelease - probeRelease.Date).Should().BeGreaterThan(TimeSpan.FromHours(12));
 
         // Act
-        var result = _sut.FindMatchingEpisodeByLength(
+        var result = await _sut.FindMatchingEpisodeByLength(
+            youTubeTitle,
+            length,
+            episodes,
+            releaseAuthority: Service.Spotify,
+            released: probeRelease,
+            enrichingYouTubeDiscoveredEpisode: true);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode via the Spotify finder, a sole same-day catalogue " +
+        "row still matches when the Spotify title contains the YouTube title phrase.")]
+    public async Task find_by_length_youtube_enrichment_accepts_same_day_spotify_with_title_confidence()
+    {
+        // Arrange - Spotify title contains the YouTube title (containment confidence)
+        var youTubeTitle = _fixture.CreateTitle();
+        var length = _fixture.CreateDuration();
+        var matchingId = _fixture.CreateSpotifyId();
+        var afternoonPublish = TimeSpan.FromHours(17) + TimeSpan.FromMinutes(28);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, afternoonPublish);
+        var episodes = new List<SimpleEpisode>
+        {
+            new()
+            {
+                Id = matchingId,
+                Name = $"{youTubeTitle}: editorial rename and the exit that followed",
+                DurationMs = (int)length.TotalMilliseconds,
+                ReleaseDate = probeRelease.ToString("yyyy-MM-dd")
+            }
+        };
+
+        // Act
+        var result = await _sut.FindMatchingEpisodeByLength(
             youTubeTitle,
             length,
             episodes,
@@ -201,9 +248,9 @@ public class SearchResultFinderCatalogueWrapperRules
     [Fact(DisplayName =
         "The Spotify finder never enables AcceptUniqueDurationWithoutTitleMatch: a sole catalogue row " +
         "with matching duration but a title below catalogue fuzzy thresholds is rejected.")]
-    public void find_by_length_never_accepts_unique_duration_without_title_match()
+    public async Task find_by_length_never_accepts_unique_duration_without_title_match()
     {
-        // Arrange — titles chosen so FuzzySharp stays below CatalogueSameLengthMinFuzzyScore (35)
+        // Arrange - titles chosen so FuzzySharp stays below CatalogueSameLengthMinFuzzyScore (35)
         const string probeTitle = "aaaaaaaa";
         const string catalogueTitle = "zzzzzzzz";
         var episodeLength = TimeSpan.FromMinutes(45);
@@ -220,7 +267,7 @@ public class SearchResultFinderCatalogueWrapperRules
         };
 
         // Act
-        var result = _sut.FindMatchingEpisodeByLength(
+        var result = await _sut.FindMatchingEpisodeByLength(
             probeTitle,
             episodeLength,
             episodes,
@@ -233,7 +280,7 @@ public class SearchResultFinderCatalogueWrapperRules
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode via the Spotify finder, a catalogue row with " +
         "title confidence and duration within five minutes is still selected.")]
-    public void find_by_length_youtube_enrichment_accepts_title_confident_duration_match()
+    public async Task find_by_length_youtube_enrichment_accepts_title_confident_duration_match()
     {
         // Arrange
         var title = _fixture.CreateLongTitle();
@@ -253,7 +300,7 @@ public class SearchResultFinderCatalogueWrapperRules
         };
 
         // Act
-        var result = _sut.FindMatchingEpisodeByLength(
+        var result = await _sut.FindMatchingEpisodeByLength(
             title,
             length,
             episodes,

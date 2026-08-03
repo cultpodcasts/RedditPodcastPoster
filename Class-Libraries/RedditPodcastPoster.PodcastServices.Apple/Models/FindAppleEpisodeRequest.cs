@@ -11,4 +11,7 @@ public record FindAppleEpisodeRequest(
     Service? ReleaseAuthority,
     TimeSpan? EpisodeLength,
     TimeSpan? YouTubePublishingDelay,
-    bool EnrichingYouTubeDiscoveredEpisode = false);
+    bool EnrichingYouTubeDiscoveredEpisode = false,
+    string? EpisodeDescription = null,
+    string? DefaultSubject = null,
+    IReadOnlyList<string>? IgnoredSubjects = null);

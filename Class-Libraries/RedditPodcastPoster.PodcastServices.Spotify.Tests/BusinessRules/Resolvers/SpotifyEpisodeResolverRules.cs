@@ -159,7 +159,11 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<Func<SimpleEpisode, bool>?>(),
                 It.IsAny<Service?>(),
                 It.IsAny<DateTime?>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
         wrapper.Verify(
             x => x.GetFullEpisode(
@@ -281,8 +285,12 @@ public class SpotifyEpisodeResolverRules
                 reducer,
                 Service.YouTube,
                 released,
-                false))
-            .Returns(catalogueEpisode);
+                false,
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(catalogueEpisode);
         var sut = CreateSut(provider.Object, wrapper.Object, finder.Object);
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: _fixture.CreateSpotifyId(),
@@ -307,7 +315,11 @@ public class SpotifyEpisodeResolverRules
                 reducer,
                 Service.YouTube,
                 released,
-                false),
+                false,
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
         finder.Verify(
             x => x.FindMatchingEpisodeByDate(
@@ -360,8 +372,12 @@ public class SpotifyEpisodeResolverRules
                 null,
                 Service.Spotify,
                 released,
-                true))
-            .Returns(catalogueEpisode);
+                true,
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(catalogueEpisode);
         var sut = CreateSut(provider.Object, wrapper.Object, finder.Object);
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: _fixture.CreateSpotifyId(),
@@ -388,7 +404,11 @@ public class SpotifyEpisodeResolverRules
                 null,
                 Service.Spotify,
                 released,
-                true),
+                true,
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
         finder.Verify(
             x => x.FindMatchingEpisodeByDate(

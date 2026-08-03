@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
@@ -18,11 +19,12 @@ public class AppleEpisodeResolverCatalogueWrapperRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When the Apple resolver enriches a YouTube-discovered episode with a unique duration match, " +
-        "it returns the AppleEpisode mapped from the domain matcher result.")]
-    public async Task find_episode_delegates_youtube_discovered_unique_duration_to_domain_matcher()
+        "When the Apple resolver enriches a YouTube-discovered episode with title confidence and a unique " +
+        "duration match, it returns the AppleEpisode mapped from the domain matcher result.")]
+    public async Task find_episode_delegates_youtube_discovered_title_confident_match_to_domain_matcher()
     {
-        // Arrange
+        // Arrange — Apple title contains the YouTube episode title (containment confidence)
+        var youTubeTitle = _fixture.CreateTitle();
         var probeLength = _fixture.CreateDuration();
         var otherLength = probeLength + TimeSpan.FromMinutes(25);
         var probeRelease = DomainTestFixture.UtcAtTime(-3, _fixture.CreateNonMidnightTimeOfDay());
@@ -31,7 +33,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         {
             new AppleEpisode(
                 matchingAppleId,
-                _fixture.CreateTitle(),
+                $"{youTubeTitle}: editorial Apple rename",
                 probeRelease.AddHours(-1),
                 probeLength + TimeSpan.FromSeconds(20),
                 new Uri($"https://podcasts.apple.com/us/podcast/episode/id{_fixture.CreateAppleId()}?i={matchingAppleId}"),
@@ -50,7 +52,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
             _fixture.CreateAppleId(),
             _fixture.CreateTitle(),
             null,
-            _fixture.CreateTitle(),
+            youTubeTitle,
             probeRelease,
             null,
             probeLength,
@@ -60,6 +62,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new StubSubjectMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act

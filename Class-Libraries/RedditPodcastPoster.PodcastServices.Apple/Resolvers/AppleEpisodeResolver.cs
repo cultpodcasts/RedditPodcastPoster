@@ -7,12 +7,15 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Subjects.Matching;
+using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
 public class AppleEpisodeResolver(
     ICachedApplePodcastService applePodcastService,
     IEpisodePlatformMatcher platformMatcher,
+    ISubjectMatcher subjectMatcher,
     ILogger<AppleEpisodeResolver> logger)
     : IAppleEpisodeResolver
 {
@@ -58,6 +61,15 @@ public class AppleEpisodeResolver(
                     return source != null && reducer(source);
                 };
 
+            if (request.EnrichingYouTubeDiscoveredEpisode)
+            {
+                await ClassifySubjectsAsync(
+                    probe,
+                    candidates,
+                    request.DefaultSubject,
+                    request.IgnoredSubjects);
+            }
+
             var match = platformMatcher.FindCatalogueMatchByLength(
                 probe,
                 candidates,
@@ -66,7 +78,9 @@ public class AppleEpisodeResolver(
                 new CatalogueMatchByLengthOptions(
                     request.ReleaseAuthority,
                     AcceptUniqueDurationWithoutTitleMatch: false,
-                    request.EnrichingYouTubeDiscoveredEpisode),
+                    request.EnrichingYouTubeDiscoveredEpisode,
+                    request.DefaultSubject,
+                    request.IgnoredSubjects),
                 episodeReducer);
 
             matchingEpisode = match == null
@@ -82,10 +96,42 @@ public class AppleEpisodeResolver(
         return matchingEpisode;
     }
 
+    private async Task ClassifySubjectsAsync(
+        Episode probe,
+        IList<Episode> candidates,
+        string? defaultSubject,
+        IReadOnlyList<string>? ignoredSubjects)
+    {
+        var options = new SubjectEnrichmentOptions(
+            IgnoredAssociatedSubjects: null,
+            IgnoredSubjects: ignoredSubjects?.ToArray(),
+            DefaultSubject: defaultSubject,
+            DescriptionRegex: string.Empty);
+
+        probe.Subjects = await MatchSubjectNamesAsync(probe, options);
+        foreach (var candidate in candidates)
+        {
+            candidate.Subjects = await MatchSubjectNamesAsync(candidate, options);
+        }
+    }
+
+    private async Task<List<string>> MatchSubjectNamesAsync(
+        Episode episode,
+        SubjectEnrichmentOptions options)
+    {
+        var matches = await subjectMatcher.MatchSubjects(episode, options);
+        return matches
+            .Select(x => x.Subject.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private static Episode CreateProbeEpisode(FindAppleEpisodeRequest request) =>
         new()
         {
             Title = WebUtility.HtmlDecode(request.EpisodeTitle.Trim()),
+            Description = request.EpisodeDescription?.Trim() ?? string.Empty,
             Length = request.EpisodeLength ?? TimeSpan.Zero,
             Release = request.Released ?? DateTime.MinValue
         };
@@ -94,6 +140,7 @@ public class AppleEpisodeResolver(
         new()
         {
             Title = WebUtility.HtmlDecode(episode.Title.Trim()),
+            Description = episode.Description ?? string.Empty,
             Length = episode.Duration,
             Release = episode.Release,
             AppleId = episode.Id
