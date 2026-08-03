@@ -32,7 +32,10 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast?.YouTubePublishingDelay() ?? TimeSpan.Zero,
             podcast?.ReleaseAuthority,
             criteria.Duration,
-            EnrichingYouTubeDiscoveredEpisode: criteriaFromYouTube);
+            EnrichingYouTubeDiscoveredEpisode: criteriaFromYouTube,
+            EpisodeDescription: criteria.EpisodeDescription,
+            DefaultSubject: podcast?.DefaultSubject,
+            IgnoredSubjects: podcast?.IgnoredSubjects);
     }
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
@@ -51,7 +54,10 @@ public static class FindSpotifyEpisodeRequestFactory
             podcast.ReleaseAuthority,
             episode.Length,
             podcast.SpotifyMarket,
-            enrichingYouTubeDiscoveredEpisode);
+            enrichingYouTubeDiscoveredEpisode,
+            episode.Description,
+            podcast.DefaultSubject,
+            podcast.IgnoredSubjects);
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)

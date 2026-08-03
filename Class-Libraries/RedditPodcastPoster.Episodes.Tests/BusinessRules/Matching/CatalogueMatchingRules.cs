@@ -563,9 +563,10 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode and duration does not match any catalogue row, " +
-        "FindCatalogueMatchByLength may still select the sole title-aligned row whose release is within twelve hours.")]
-    public void youtube_discovered_release_only_match_within_twelve_hour_window()
+        "When enriching a YouTube-discovered episode and duration is outside the five-minute band, " +
+        "FindCatalogueMatchByLength returns null even when a typo-aligned title sits within twelve hours of release, " +
+        "because multi-criteria scoring requires duration within band before title or release can contribute.")]
+    public void youtube_discovered_release_only_outside_duration_band_returns_null()
     {
         // Arrange
         var sharedTitle = _fixture.CreateShortTitle();
@@ -596,7 +597,7 @@ public class CatalogueMatchingRules
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
-        result.Should().BeSameAs(releaseAlignedCandidate);
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -605,9 +606,10 @@ public class CatalogueMatchingRules
     public void youtube_discovered_enrichment_does_not_duration_snipe_disjoint_titles()
     {
         // Arrange — YouTube-authority enrichment: titles refer to different interviews; release is days apart
-        const string storedTitle = "My Buddhist Guru Convinced Me Her Ab*se Was Enlightenment";
+        const string storedTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
         const string catalogueTitle =
-            "Growing Up On SISTER WIVES: The Dark Side of Parenting No One Talks About (ft. Mykelti Brown)";
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var sharedLength = TimeSpan.FromMinutes(80);
         var probeRelease = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(7));
         var catalogueRelease = probeRelease.AddDays(-5);
@@ -640,14 +642,15 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "Incident (Aug 2026): when enriching a YouTube-discovered episode whose Spotify title is wholly different, " +
-        "FindCatalogueMatchByLength must not match the sole catalogue row on unique duration alone — " +
-        "that path attached the wrong Spotify episode after delay-aligned release windows.")]
-    public void youtube_discovered_unique_duration_within_release_window_rejects_without_title_confidence()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode, duration plus same-calendar-day release " +
+        "with disjoint titles and empty subjects scores below the multi-criteria threshold and must not match.")]
+    public void youtube_discovered_duration_and_day_with_disjoint_titles_and_empty_subjects_returns_null()
     {
-        // Arrange — wholly different titles; same length, same day (former no-title acceptance path)
-        var storedTitle = _fixture.CreateTitle();
-        var spotifyTitle = _fixture.CreateTitle();
+        // Arrange - duration+day alone is below MatchThreshold; explicit disjoint titles avoid fuzzy flukes
+        const string storedTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
         var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(19, 0, 0));
         var spotifyRelease = DomainTestFixture.SameCalendarDateWithTime(probeRelease, new TimeSpan(12, 0, 0));
@@ -657,6 +660,7 @@ public class CatalogueMatchingRules
             e.Length = sharedLength;
             e.Release = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
@@ -664,6 +668,7 @@ public class CatalogueMatchingRules
             e.Length = sharedLength;
             e.Release = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
         });
         var podcast = _fixture.CreatePodcast();
 
@@ -681,27 +686,34 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "Incident (Aug 2026): a date-only Spotify catalogue row from the same calendar day with unique " +
-        "duration but a wholly different title must not match a YouTube-discovered probe — title " +
-        "confidence is required even when midnight Spotify sits more than twelve hours from publish.")]
-    public void youtube_discovered_spotify_date_only_same_day_unique_duration_rejects_without_title_confidence()
+        "duration but disjoint titles and empty subjects must not match a YouTube-discovered probe - " +
+        "duration+day alone stays below the multi-criteria threshold even when midnight Spotify sits " +
+        "more than twelve hours from publish.")]
+    public void youtube_discovered_spotify_date_only_same_day_duration_without_extra_signals_returns_null()
     {
-        // Arrange — Spotify carries no time-of-day, so its midnight release is 21 hours from the video
+        // Arrange - Spotify carries no time-of-day, so its midnight release is 21 hours from the video
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var youTubePublish = DomainTestFixture.UtcAtTime(-3, new TimeSpan(21, 0, 0));
         var spotifyRelease = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubePublish, 0);
         var sharedLength = _fixture.CreateDuration();
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = youTubeTitle;
             e.Length = sharedLength;
             e.Release = youTubePublish;
             e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
         });
         var spotifyCatalogueItem = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = spotifyTitle;
             e.Length = sharedLength;
             e.Release = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
         });
         var podcast = _fixture.CreatePodcast();
 
@@ -720,10 +732,10 @@ public class CatalogueMatchingRules
     [Fact(DisplayName =
         "Incident (Aug 2026): when a negative YouTube publishing delay shifts an older YouTube probe " +
         "onto a newer Spotify catalogue day, a sole similar-duration Spotify row with a disjoint title " +
-        "must not attach — that is how the wrong Spotify URL landed on a prior Hassan episode.")]
-    public void youtube_discovered_delay_aligned_wrong_episode_rejects_without_title_confidence()
+        "and empty subjects must not attach - that is how the wrong Spotify URL landed on a prior episode.")]
+    public void youtube_discovered_delay_aligned_wrong_episode_rejects_without_multi_criteria_confidence()
     {
-        // Arrange — older YouTube episode vs later Spotify with similar length and unrelated title;
+        // Arrange - older YouTube episode vs later Spotify with similar length and unrelated title;
         // probe release is already delay-adjusted (as FindSpotifyEpisodeRequestFactory would set)
         const string olderYouTubeTitle =
             "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
@@ -739,6 +751,7 @@ public class CatalogueMatchingRules
             e.Length = olderYouTubeLength;
             e.Release = delayAdjustedProbeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
         });
         var wrongCatalogueItem = _fixture.CreateEpisode(e =>
         {
@@ -746,6 +759,7 @@ public class CatalogueMatchingRules
             e.Length = newerSpotifyLength;
             e.Release = newerSpotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
         });
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
 
@@ -759,6 +773,51 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode with duration plus same-calendar-day release and " +
+        "disjoint titles, a single shared classified subject on both Episode.Subjects lifts the score " +
+        "to the multi-criteria threshold and selects the catalogue row.")]
+    public void youtube_discovered_duration_day_and_shared_subject_matches()
+    {
+        // Arrange - duration+day alone is below threshold; one shared subject supplies the rest
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string spotifyTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
+        var sharedSubject = _fixture.CreateTitle(3);
+        var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(19, 0, 0));
+        var spotifyRelease = DomainTestFixture.SameCalendarDateWithTime(probeRelease, new TimeSpan(12, 0, 0));
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = sharedLength;
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [sharedSubject];
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = spotifyTitle;
+            e.Length = sharedLength;
+            e.Release = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [sharedSubject];
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [catalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(catalogueItem);
     }
 
     [Fact(DisplayName =
@@ -1272,10 +1331,11 @@ public class CatalogueMatchingRules
 
     [Fact(DisplayName =
         "When enriching a YouTube-discovered episode and multiple catalogue rows align on release " +
-        "within twelve hours but not on duration, FindCatalogueMatchByLength picks the closest release.")]
-    public void youtube_discovered_multiple_release_only_candidates_picks_closest_release()
+        "within twelve hours but all sit outside the duration band, FindCatalogueMatchByLength returns null " +
+        "because multi-criteria scoring requires duration within band.")]
+    public void youtube_discovered_multiple_release_only_candidates_outside_duration_band_returns_null()
     {
-        // Arrange
+        // Arrange - typo titles avoid early containment; durations outside five-minute band
         var sharedTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(60);
         var probeRelease = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
@@ -1286,6 +1346,7 @@ public class CatalogueMatchingRules
             e.Title = sharedTitle;
             e.Length = probeLength;
             e.Release = probeRelease;
+            e.Subjects = [];
         });
         var closerCandidate = _fixture.CreateEpisode(e =>
         {
@@ -1293,6 +1354,7 @@ public class CatalogueMatchingRules
             e.Length = TimeSpan.FromMinutes(30);
             e.Release = closerRelease;
             e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
         });
         var fartherCandidate = _fixture.CreateEpisode(e =>
         {
@@ -1300,6 +1362,7 @@ public class CatalogueMatchingRules
             e.Length = TimeSpan.FromMinutes(35);
             e.Release = fartherRelease;
             e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
         });
         var podcast = _fixture.CreatePodcast();
 
@@ -1312,7 +1375,7 @@ public class CatalogueMatchingRules
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
-        result.Should().BeSameAs(closerCandidate);
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -1387,14 +1450,16 @@ public class CatalogueMatchingRules
         result.Should().BeSameAs(candidateWithoutRelease);
     }
 
+
     [Fact(DisplayName =
-        "Incident (Jul 2026): when enriching a YouTube-discovered episode whose Spotify row is title-confident " +
-        "(editorial prefix + case variation) and whose duration is within five minutes, the match succeeds even " +
-        "though the date-only Spotify release sits two calendar days before the offset-adjusted probe date.")]
-    public void youtube_discovered_title_confident_duration_match_succeeds_when_spotify_date_two_days_before_probe()
+        "Incident (Jul 2026 / Aug 2026): when enriching a YouTube-discovered episode, title containment " +
+        "(editorial prefix + case variation) and duration within five minutes still fail when the date-only " +
+        "Spotify release sits two calendar days before the probe - multi-criteria scoring requires the " +
+        "Spotify catalogue release window before title points can contribute.")]
+    public void youtube_discovered_title_confident_duration_outside_spotify_release_window_returns_null()
     {
-        // Arrange — probe body carries capitals; Spotify row is "<prefix> " + lowercased probe body,
-        // so the case-sensitive containment gate fails and matching must fall to title-confidence.
+        // Arrange - probe body carries capitals; Spotify row is "<prefix> " + lowercased probe body,
+        // so the case-sensitive early containment gate fails and matching falls to CatalogueMatchScorer.
         var probeTitle = "Nightshade: How The Victims Were Silenced";
         var spotifyTitle = "Special Report " + probeTitle.ToLowerInvariant();
         var probeLength = new TimeSpan(0, 25, 19);
@@ -1407,6 +1472,7 @@ public class CatalogueMatchingRules
             e.Length = probeLength;
             e.Release = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
         });
         var spotifyCandidate = _fixture.CreateEpisode(e =>
         {
@@ -1414,6 +1480,7 @@ public class CatalogueMatchingRules
             e.Length = spotifyLength;
             e.Release = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
         });
         var podcast = _fixture.CreatePodcast(p =>
             p.YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks);
@@ -1427,6 +1494,6 @@ public class CatalogueMatchingRules
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
-        result.Should().BeSameAs(spotifyCandidate);
+        result.Should().BeNull();
     }
 }

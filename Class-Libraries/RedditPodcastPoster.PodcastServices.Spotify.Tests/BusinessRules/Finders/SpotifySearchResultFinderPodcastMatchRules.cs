@@ -2,6 +2,9 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
+using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.PodcastServices.Spotify.Tests.Fakes;
+using RedditPodcastPoster.Text.Sanitisers;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finders;
@@ -12,7 +15,10 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finder
 public class SpotifySearchResultFinderPodcastMatchRules
 {
     private readonly DomainTestFixture _fixture = new();
-    private readonly SpotifySearchResultFinder _sut = new(EpisodeDomainTestServices.CreatePlatformMatcher());
+    private readonly SpotifySearchResultFinder _sut = new(
+        EpisodeDomainTestServices.CreatePlatformMatcher(),
+        new StubSubjectMatcher(),
+        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
 
     [Fact(DisplayName =
         "When the podcasts list is null, FindMatchingPodcasts returns an empty sequence " +

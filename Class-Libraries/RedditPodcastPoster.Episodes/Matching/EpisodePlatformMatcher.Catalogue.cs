@@ -15,7 +15,6 @@ public sealed partial class EpisodePlatformMatcher
     private static readonly long CatalogueBroaderTimeDifferenceThreshold = TimeSpan.FromSeconds(90).Ticks;
     private static readonly long CatalogueYouTubeDiscoveredDurationThreshold = TimeSpan.FromMinutes(5).Ticks;
     private static readonly TimeSpan CatalogueSameReleaseThreshold = TimeSpan.FromHours(3);
-    private static readonly TimeSpan CatalogueYouTubeDiscoveredReleaseThreshold = TimeSpan.FromHours(12);
 
     /// <summary>
     /// Selects the best catalogue episode match by title and duration heuristics
@@ -56,10 +55,10 @@ public sealed partial class EpisodePlatformMatcher
         if (options.EnrichingYouTubeDiscoveredEpisode &&
             probe.Length > TimeSpan.Zero)
         {
-            // Title-confident YouTube-discovered path only. Do not fall through to
-            // same-release / low fuzzy-score matching - that reintroduces wrong-week
-            // Spotify attaches when titles are disjoint (Aug 2026 incident).
-            return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList);
+            // Multi-criteria score (duration, release, title, description, subjects).
+            // Do not fall through to same-release / low fuzzy-score matching — that
+            // reintroduces wrong-week Spotify attaches (Aug 2026 incident).
+            return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList, options);
         }
 
         if (probe.Length <= TimeSpan.Zero)
@@ -208,103 +207,13 @@ public sealed partial class EpisodePlatformMatcher
 
     private static Episode? FindYouTubeDiscoveredCatalogueMatch(
         Episode probe,
-        IList<Episode> sampleList)
-    {
-        var titleConfidentCandidates = sampleList
-            .Where(x => HasCatalogueTitleConfidence(probe.Title, x.Title))
-            .ToList();
-
-        if (titleConfidentCandidates.Count == 0)
-        {
-            // Incident (Aug 2026): unique-duration-within-release-window without title confidence
-            // attached a later Spotify episode to an older YouTube episode when negative YouTube
-            // publishing delay shifted the probe release onto the newer catalogue day. Require
-            // title confidence (exact/containment/fuzzy ≥ CatalogueMinFuzzyScore) for YouTube-
-            // discovered enrichment — editorial renames that share tokens still match.
-            return null;
-        }
-
-        return FindYouTubeDiscoveredCatalogueMatchByDuration(
-            titleConfidentCandidates,
-            probe.Length,
-            probe.Release);
-    }
-
-    /// <summary>
-    /// Spotify catalogue releases are date-only (midnight UTC), so a late-in-the-day YouTube publish
-    /// sits more than twelve hours from its own Spotify row. Compare Spotify rows with the shared
-    /// calendar-day tolerance instead. Apple/YouTube catalogue rows carry a publish time-of-day and
-    /// keep the twelve-hour tick window.
-    /// </summary>
-    private static bool IsWithinYouTubeDiscoveredReleaseWindow(DateTime probeRelease, Episode catalogueItem)
-    {
-        if (!string.IsNullOrWhiteSpace(catalogueItem.SpotifyId))
-        {
-            return EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
-                catalogueItem.Release,
-                probeRelease);
-        }
-
-        return Math.Abs((catalogueItem.Release - probeRelease).Ticks) <
-               CatalogueYouTubeDiscoveredReleaseThreshold.Ticks;
-    }
-
-    private static bool HasCatalogueTitleConfidence(string probeTitle, string candidateTitle)
-    {
-        var left = WebUtility.HtmlDecode(probeTitle.Trim());
-        var right = WebUtility.HtmlDecode(candidateTitle.Trim());
-
-        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
-        {
-            return false;
-        }
-
-        if (left.Equals(right, StringComparison.OrdinalIgnoreCase) ||
-            left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
-            right.Contains(left, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return FuzzyMatcher.IsMatch(left, new Episode { Title = right }, e => e.Title, CatalogueMinFuzzyScore);
-    }
-
-    private static Episode? FindYouTubeDiscoveredCatalogueMatchByDuration(
         IList<Episode> sampleList,
-        TimeSpan episodeLength,
-        DateTime released)
+        CatalogueMatchByLengthOptions options)
     {
-        var sameLength = sampleList
-            .Where(x => Math.Abs((x.Length - episodeLength).Ticks) < CatalogueYouTubeDiscoveredDurationThreshold)
-            .ToList();
-
-        if (sameLength.Count == 1)
-        {
-            return sameLength[0];
-        }
-
-        if (sameLength.Count > 1 && released != DateTime.MinValue)
-        {
-            return sameLength.MinBy(x => Math.Abs((x.Release - released).Ticks));
-        }
-
-        if (released != DateTime.MinValue)
-        {
-            var releaseMatches = sampleList
-                .Where(x => IsWithinYouTubeDiscoveredReleaseWindow(released, x))
-                .ToList();
-            if (releaseMatches.Count == 1)
-            {
-                return releaseMatches[0];
-            }
-
-            if (releaseMatches.Count > 1)
-            {
-                return releaseMatches.MinBy(x => Math.Abs((x.Release - released).Ticks));
-            }
-        }
-
-        return null;
+        var subjectFilters = new CatalogueSubjectScoreFilters(
+            options.DefaultSubject,
+            options.IgnoredSubjects);
+        return CatalogueMatchScorer.SelectBestMatch(probe, sampleList, subjectFilters);
     }
 
     private static long GetCatalogueDurationThresholdTicks(CatalogueMatchByLengthOptions options) =>

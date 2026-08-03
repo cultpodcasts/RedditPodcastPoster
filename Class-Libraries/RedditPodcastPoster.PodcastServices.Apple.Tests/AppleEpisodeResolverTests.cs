@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
@@ -64,6 +65,7 @@ public class AppleEpisodeResolverTests
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new StubSubjectMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -91,7 +93,7 @@ public class AppleEpisodeResolverTests
             _fixture.CreateNonMidnightTimeOfDay());
         var storedLength = _fixture.CreateDuration();
         var storedTitle = _fixture.CreateShortTitle();
-        var appleTitle = DomainTestFixture.CreateFuzzyTitleVariant(storedTitle);
+        var appleTitle = $"{storedTitle}: editorial Apple rename";
         var spotifyId = _fixture.CreateSpotifyId();
         var youTubeId = _fixture.CreateYouTubeId();
         var appleEpisodeId = _fixture.CreateAppleId();
@@ -129,6 +131,7 @@ public class AppleEpisodeResolverTests
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             matcher,
+            new StubSubjectMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act

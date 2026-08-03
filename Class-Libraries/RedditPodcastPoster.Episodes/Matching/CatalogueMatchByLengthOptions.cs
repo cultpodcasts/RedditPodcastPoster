@@ -8,4 +8,6 @@ namespace RedditPodcastPoster.Episodes.Matching;
 public sealed record CatalogueMatchByLengthOptions(
     Service? ReleaseAuthority = null,
     bool AcceptUniqueDurationWithoutTitleMatch = false,
-    bool EnrichingYouTubeDiscoveredEpisode = false);
+    bool EnrichingYouTubeDiscoveredEpisode = false,
+    string? DefaultSubject = null,
+    IReadOnlyList<string>? IgnoredSubjects = null);

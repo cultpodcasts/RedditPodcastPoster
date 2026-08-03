@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
@@ -61,6 +62,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new StubSubjectMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act

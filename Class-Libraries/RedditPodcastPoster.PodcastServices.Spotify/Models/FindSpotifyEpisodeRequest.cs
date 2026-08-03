@@ -9,8 +9,11 @@ public record FindSpotifyEpisodeRequest(
     string EpisodeTitle,
     DateTime? Released,
     bool HasExpensiveSpotifyEpisodesQuery,
-    TimeSpan? YouTubePublishingDelay= null,
+    TimeSpan? YouTubePublishingDelay = null,
     Service? ReleaseAuthority = null,
     TimeSpan? Length = null,
     string? Market = null,
-    bool EnrichingYouTubeDiscoveredEpisode = false);
+    bool EnrichingYouTubeDiscoveredEpisode = false,
+    string? EpisodeDescription = null,
+    string? DefaultSubject = null,
+    IReadOnlyList<string>? IgnoredSubjects = null);

@@ -51,14 +51,17 @@ public class SpotifyEpisodeResolver(
         if (request.Length is { } episodeLength && episodeLength > TimeSpan.Zero &&
             (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode))
         {
-            matchingEpisode = searchResultFinder.FindMatchingEpisodeByLength(
+            matchingEpisode = await searchResultFinder.FindMatchingEpisodeByLength(
                 request.EpisodeTitle,
                 episodeLength,
                 podcastEpisodes.Episodes,
                 reducer,
                 request.ReleaseAuthority,
                 request.Released,
-                request.EnrichingYouTubeDiscoveredEpisode);
+                request.EnrichingYouTubeDiscoveredEpisode,
+                request.EpisodeDescription,
+                request.DefaultSubject,
+                request.IgnoredSubjects);
         }
         else
         {
