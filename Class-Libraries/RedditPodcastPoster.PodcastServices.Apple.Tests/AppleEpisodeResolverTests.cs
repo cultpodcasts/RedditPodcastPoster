@@ -17,36 +17,44 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 public class AppleEpisodeResolverTests
 {
     private readonly DomainTestFixture _fixture = new();
-    [Fact]
-    public async Task FindEpisode_WhenYouTubeDiscoveredTitleDiffersButDurationAndReleaseAlign_ReturnsMatch()
+    [Fact(DisplayName =
+        "Incident (Aug 2026): when Apple enriches a YouTube-discovered episode, a sole similar-duration " +
+        "catalogue row with a wholly different title must not match.")]
+    public async Task FindEpisode_WhenYouTubeDiscoveredTitleDiffersButDurationAndReleaseAlign_ReturnsNull()
     {
-        var lookupRelease = new DateTime(2026, 7, 2, 7, 0, 12, DateTimeKind.Utc);
+        // Arrange - explicit disjoint titles (CreateTitle pairs can still clear fuzzy confidence)
+        const string youTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string appleTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
+        var lookupRelease = DomainTestFixture.UtcAtTime(-1, new TimeSpan(7, 0, 12));
         var episodeLength = TimeSpan.FromMinutes(54) + TimeSpan.FromSeconds(30);
+        var matchingAppleId = _fixture.CreateAppleId();
         var appleEpisodes = new[]
         {
             new AppleEpisode(
-                1000775078015,
-                "My Family Was America's Most Dangerous Cult",
-                new DateTime(2026, 7, 1, 23, 0, 0, DateTimeKind.Utc),
+                matchingAppleId,
+                appleTitle,
+                lookupRelease.AddHours(-8),
                 episodeLength + TimeSpan.FromMinutes(3),
-                new Uri("https://podcasts.apple.com/us/podcast/my-family-was-americas-most-dangerous-cult/id1860966643?i=1000775078015"),
+                new Uri($"https://podcasts.apple.com/us/podcast/episode/id{_fixture.CreateAppleId()}?i={matchingAppleId}"),
                 string.Empty,
                 false),
             new AppleEpisode(
-                1000757443994,
-                "Epstein's survivor: Jena-Lisa Jones Reveals all",
-                new DateTime(2026, 3, 26, 8, 0, 11, DateTimeKind.Utc),
+                _fixture.CreateAppleId(),
+                _fixture.CreateTitle(),
+                DomainTestFixture.UtcDateDaysAgo(90),
                 TimeSpan.FromMinutes(82),
-                new Uri("https://podcasts.apple.com/us/podcast/id1860966643?i=1000757443994"),
+                new Uri($"https://podcasts.apple.com/us/podcast/episode/id{_fixture.CreateAppleId()}?i={_fixture.CreateAppleId()}"),
                 string.Empty,
                 false)
         };
 
         var request = new FindAppleEpisodeRequest(
-            1860966643,
-            "The Shadow Sessions Podcast",
+            _fixture.CreateAppleId(),
+            _fixture.CreateTitle(),
             null,
-            "\"I Grew Up in a Murder Cult\" Cult Survivor Reveals What It's Like To Grow Up Inside It",
+            youTubeTitle,
             lookupRelease,
             null,
             episodeLength,
@@ -58,13 +66,14 @@ public class AppleEpisodeResolverTests
             EpisodeDomainTestServices.CreatePlatformMatcher(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
+        // Act
         var result = await sut.FindEpisode(
             request,
             new IndexingContext(),
             y => Math.Abs((y.Release - lookupRelease).Ticks) < TimeSpan.FromDays(14).Ticks);
 
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(1000775078015);
+        // Assert
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =

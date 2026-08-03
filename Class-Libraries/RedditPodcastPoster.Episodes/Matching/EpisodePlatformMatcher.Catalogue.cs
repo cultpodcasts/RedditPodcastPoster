@@ -56,11 +56,10 @@ public sealed partial class EpisodePlatformMatcher
         if (options.EnrichingYouTubeDiscoveredEpisode &&
             probe.Length > TimeSpan.Zero)
         {
-            var youTubeDiscoveredMatch = FindYouTubeDiscoveredCatalogueMatch(probe, sampleList);
-            if (youTubeDiscoveredMatch != null)
-            {
-                return youTubeDiscoveredMatch;
-            }
+            // Title-confident YouTube-discovered path only. Do not fall through to
+            // same-release / low fuzzy-score matching - that reintroduces wrong-week
+            // Spotify attaches when titles are disjoint (Aug 2026 incident).
+            return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList);
         }
 
         if (probe.Length <= TimeSpan.Zero)
@@ -215,41 +214,20 @@ public sealed partial class EpisodePlatformMatcher
             .Where(x => HasCatalogueTitleConfidence(probe.Title, x.Title))
             .ToList();
 
-        if (titleConfidentCandidates.Count > 0)
+        if (titleConfidentCandidates.Count == 0)
         {
-            var titleConfidentMatch = FindYouTubeDiscoveredCatalogueMatchByDuration(
-                titleConfidentCandidates,
-                probe.Length,
-                probe.Release);
-            if (titleConfidentMatch != null)
-            {
-                return titleConfidentMatch;
-            }
-        }
-
-        // Titles can diverge across platforms (e.g. editorial Spotify rename) while release and
-        // duration still uniquely identify the episode. Accept only a sole duration match that
-        // also falls inside the expanded YouTube-discovered release window — never a bare
-        // unique-duration snipe across weeks.
-        return FindUniqueDurationWithinReleaseWindow(probe, sampleList);
-    }
-
-    private static Episode? FindUniqueDurationWithinReleaseWindow(
-        Episode probe,
-        IList<Episode> sampleList)
-    {
-        if (probe.Release == DateTime.MinValue || probe.Length <= TimeSpan.Zero)
-        {
+            // Incident (Aug 2026): unique-duration-within-release-window without title confidence
+            // attached a later Spotify episode to an older YouTube episode when negative YouTube
+            // publishing delay shifted the probe release onto the newer catalogue day. Require
+            // title confidence (exact/containment/fuzzy ≥ CatalogueMinFuzzyScore) for YouTube-
+            // discovered enrichment — editorial renames that share tokens still match.
             return null;
         }
 
-        var matches = sampleList
-            .Where(x =>
-                Math.Abs((x.Length - probe.Length).Ticks) < CatalogueYouTubeDiscoveredDurationThreshold &&
-                IsWithinYouTubeDiscoveredReleaseWindow(probe.Release, x))
-            .ToList();
-
-        return matches.Count == 1 ? matches[0] : null;
+        return FindYouTubeDiscoveredCatalogueMatchByDuration(
+            titleConfidentCandidates,
+            probe.Length,
+            probe.Release);
     }
 
     /// <summary>

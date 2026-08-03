@@ -640,13 +640,12 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode whose Spotify title is wholly different, " +
-        "FindCatalogueMatchByLength still matches the sole catalogue row with unique duration " +
-        "inside the expanded twelve-hour release window.")]
-    public void youtube_discovered_unique_duration_within_release_window_matches_without_title_confidence()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode whose Spotify title is wholly different, " +
+        "FindCatalogueMatchByLength must not match the sole catalogue row on unique duration alone — " +
+        "that path attached the wrong Spotify episode after delay-aligned release windows.")]
+    public void youtube_discovered_unique_duration_within_release_window_rejects_without_title_confidence()
     {
-        // Arrange — serialised-narrative shape: Apple/YouTube title vs editorial Spotify rename;
-        // same length, same day
+        // Arrange — wholly different titles; same length, same day (former no-title acceptance path)
         var storedTitle = _fixture.CreateTitle();
         var spotifyTitle = _fixture.CreateTitle();
         var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
@@ -677,14 +676,14 @@ public class CatalogueMatchingRules
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
-        result.Should().BeSameAs(catalogueItem);
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "Incident (Jul 2026): when enriching a YouTube-discovered episode, a date-only Spotify catalogue " +
-        "row from the same calendar day must match on unique duration even though its midnight release " +
-        "sits more than twelve hours from a late-in-the-day YouTube publish.")]
-    public void youtube_discovered_spotify_date_only_same_day_unique_duration_matches_outside_twelve_hours()
+        "Incident (Aug 2026): a date-only Spotify catalogue row from the same calendar day with unique " +
+        "duration but a wholly different title must not match a YouTube-discovered probe — title " +
+        "confidence is required even when midnight Spotify sits more than twelve hours from publish.")]
+    public void youtube_discovered_spotify_date_only_same_day_unique_duration_rejects_without_title_confidence()
     {
         // Arrange — Spotify carries no time-of-day, so its midnight release is 21 hours from the video
         var youTubePublish = DomainTestFixture.UtcAtTime(-3, new TimeSpan(21, 0, 0));
@@ -700,6 +699,89 @@ public class CatalogueMatchingRules
         var spotifyCatalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
+            e.Length = sharedLength;
+            e.Release = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [spotifyCatalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Incident (Aug 2026): when a negative YouTube publishing delay shifts an older YouTube probe " +
+        "onto a newer Spotify catalogue day, a sole similar-duration Spotify row with a disjoint title " +
+        "must not attach — that is how the wrong Spotify URL landed on a prior Hassan episode.")]
+    public void youtube_discovered_delay_aligned_wrong_episode_rejects_without_title_confidence()
+    {
+        // Arrange — older YouTube episode vs later Spotify with similar length and unrelated title;
+        // probe release is already delay-adjusted (as FindSpotifyEpisodeRequestFactory would set)
+        const string olderYouTubeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string newerSpotifyTitle =
+            "The World Mission Society Church Of God With A Guest A Decade Inside An Arranged Marriage";
+        var olderYouTubeLength = TimeSpan.FromMinutes(64) + TimeSpan.FromSeconds(8);
+        var newerSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(48);
+        var delayAdjustedProbeRelease = DomainTestFixture.UtcDateDaysAgo(0);
+        var newerSpotifyRelease = DomainTestFixture.UtcDateDaysAgo(0);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = olderYouTubeTitle;
+            e.Length = olderYouTubeLength;
+            e.Release = delayAdjustedProbeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var wrongCatalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = newerSpotifyTitle;
+            e.Length = newerSpotifyLength;
+            e.Release = newerSpotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [wrongCatalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode, a sole same-day Spotify catalogue row whose title " +
+        "shares containment confidence still matches on unique duration despite midnight date-only release.")]
+    public void youtube_discovered_spotify_date_only_same_day_matches_with_title_confidence()
+    {
+        // Arrange — Spotify title contains the YouTube title (containment confidence);
+        // Spotify midnight vs late YouTube publish
+        var youTubeTitle = _fixture.CreateTitle(4);
+        var youTubePublish = DomainTestFixture.UtcAtTime(-3, new TimeSpan(21, 0, 0));
+        var spotifyRelease = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubePublish, 0);
+        var sharedLength = _fixture.CreateDuration();
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = sharedLength;
+            e.Release = youTubePublish;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var spotifyCatalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = $"{youTubeTitle}: a decade inside and the exit that followed";
             e.Length = sharedLength;
             e.Release = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
