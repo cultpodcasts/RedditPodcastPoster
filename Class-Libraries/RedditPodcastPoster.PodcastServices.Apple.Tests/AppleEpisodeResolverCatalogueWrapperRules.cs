@@ -73,6 +73,54 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         result!.Id.Should().Be(matchingAppleId);
     }
 
+    [Fact(DisplayName =
+        "When Apple returns a YouTube-discovered catalogue row with zero duration and a title that " +
+        "contains the probe title, the resolver still returns that Apple episode, " +
+        "because Apple omitting durationInMilliseconds must not block title-confident enrich.")]
+    public async Task find_episode_matches_youtube_discovered_when_apple_omits_duration()
+    {
+        // Arrange
+        var youTubeTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var probeRelease = DomainTestFixture.UtcAtTime(-3, _fixture.CreateNonMidnightTimeOfDay());
+        var matchingAppleId = _fixture.CreateAppleId();
+        var appleEpisodes = new[]
+        {
+            new AppleEpisode(
+                matchingAppleId,
+                $"{youTubeTitle}: editorial Apple rename",
+                probeRelease.AddHours(-1),
+                TimeSpan.Zero,
+                new Uri($"https://podcasts.apple.com/us/podcast/episode/id{_fixture.CreateAppleId()}?i={matchingAppleId}"),
+                string.Empty,
+                false)
+        };
+        var request = new FindAppleEpisodeRequest(
+            _fixture.CreateAppleId(),
+            _fixture.CreateTitle(),
+            null,
+            youTubeTitle,
+            probeRelease,
+            null,
+            probeLength,
+            null,
+            EnrichingYouTubeDiscoveredEpisode: true);
+
+        var sut = new AppleEpisodeResolver(
+            new StubApplePodcastService(appleEpisodes),
+            EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new StubSubjectMatcher(),
+            NullLogger<AppleEpisodeResolver>.Instance);
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(matchingAppleId);
+        result.Duration.Should().Be(TimeSpan.Zero);
+    }
+
     private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
     {
         public Task<AppleEpisode?> SingleUseGetEpisode(

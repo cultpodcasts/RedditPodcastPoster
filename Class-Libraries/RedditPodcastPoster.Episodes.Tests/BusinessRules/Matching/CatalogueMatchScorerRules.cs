@@ -210,4 +210,80 @@ public class CatalogueMatchScorerRules
         best.Should().BeSameAs(strong);
         none.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "When the catalogue row has no duration (Apple omitting durationInMilliseconds), " +
+        "same-calendar-day release and disjoint titles with empty subjects stay below the threshold, " +
+        "because missing duration must not revive release-only attaches.")]
+    public void missing_catalogue_duration_same_day_disjoint_titles_fails_threshold()
+    {
+        // Arrange
+        const string probeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string catalogueTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Description = string.Empty;
+            e.Length = _fixture.CreateDuration();
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = catalogueTitle;
+            e.Description = string.Empty;
+            e.Length = TimeSpan.Zero;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        score.Should().Be(CatalogueMatchScorer.SameCalendarDayReleasePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When the catalogue row has no duration, same-day release plus fuzzy title and one shared " +
+        "classified subject meet the match threshold, because title and subjects replace duration evidence.")]
+    public void missing_catalogue_duration_same_day_fuzzy_title_and_subject_meets_threshold()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var sharedSubject = _fixture.CreateTitle(3);
+        var baseTitle = _fixture.CreateTitle(5);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Length = _fixture.CreateDuration();
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [sharedSubject];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Length = TimeSpan.Zero;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [sharedSubject];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        score.Should().Be(
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints +
+            CatalogueMatchScorer.SingleSharedSubjectPoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
 }

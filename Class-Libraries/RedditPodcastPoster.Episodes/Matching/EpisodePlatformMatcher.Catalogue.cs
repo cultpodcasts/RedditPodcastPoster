@@ -52,12 +52,12 @@ public sealed partial class EpisodePlatformMatcher
             ? candidates.Where(reducer).ToList()
             : candidates.ToList();
 
-        if (options.EnrichingYouTubeDiscoveredEpisode &&
-            probe.Length > TimeSpan.Zero)
+        if (options.EnrichingYouTubeDiscoveredEpisode)
         {
             // Multi-criteria score (duration, release, title, description, subjects).
             // Do not fall through to same-release / low fuzzy-score matching — that
             // reintroduces wrong-week Spotify attaches (Aug 2026 incident).
+            // Probe/catalogue may lack duration (Apple catalogue gaps); scorer handles that.
             return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList, options);
         }
 
