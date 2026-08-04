@@ -11,6 +11,7 @@ using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Subjects.Repositories;
 using RedditPodcastPoster.Subjects.Services;
+using RedditPodcastPoster.Text.Extensions;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
 
@@ -18,9 +19,18 @@ public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)
     {
+        /// <summary>
+        /// Subject matching / categorisation graph.
+        /// Self-contained for <see cref="ISubjectMatcher"/> resolution once the host has
+        /// <c>AddRepositories()</c> (Cosmos container factory + KnownTerms for
+        /// <see cref="RedditPodcastPoster.Text.Sanitisers.ITextSanitiser"/>).
+        /// Called transitively by <c>AddSpotifyServices</c> / <c>AddAppleServices</c>.
+        /// </summary>
         public IServiceCollection AddSubjectServices()
         {
             return services
+                // SubjectService → ITextSanitiser (description extract for matching)
+                .AddTextSanitiser()
                 .AddSingleton<ISubjectRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
