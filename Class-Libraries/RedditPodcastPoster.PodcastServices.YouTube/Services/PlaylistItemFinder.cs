@@ -33,21 +33,26 @@ public partial class PlaylistItemFinder(
         EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
         TimeSpan? youTubePublishDelay,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast? podcast = null)
     {
+        var scoringPodcast = YouTubeEnrichmentCandidate.ScoringPodcast(podcast, youTubePublishDelay);
+
         playlistItems = await ExcludeLiveAndUpcoming(playlistItems, indexingContext);
         if (!playlistItems.Any())
         {
             return null;
         }
 
-        var exactTitleMatch = await MatchOnExactTitleWithDuration(episode, playlistItems, indexingContext);
+        var exactTitleMatch = await MatchOnExactTitleWithDuration(
+            episode, playlistItems, indexingContext, scoringPodcast);
         if (exactTitleMatch != null)
         {
             return exactTitleMatch;
         }
 
-        var episodeNumberMatch = await MatchOnEpisodeNumberWithDuration(episode, playlistItems, indexingContext);
+        var episodeNumberMatch = await MatchOnEpisodeNumberWithDuration(
+            episode, playlistItems, indexingContext, scoringPodcast);
         if (episodeNumberMatch != null)
         {
             return episodeNumberMatch;
@@ -57,7 +62,7 @@ public partial class PlaylistItemFinder(
         var videoDetails = await videoService.GetVideoContentDetails(youTubeService, videoIds, indexingContext);
 
 
-        var videoMatch = MatchOnEpisodeDuration(episode, playlistItems, videoDetails, indexingContext);
+        var videoMatch = MatchOnEpisodeDuration(episode, playlistItems, videoDetails, scoringPodcast);
         if (videoMatch != null)
         {
             return videoMatch;
@@ -83,7 +88,15 @@ public partial class PlaylistItemFinder(
                             if (matchingVideoLength > MinDurationForPublicationDate &&
                                 matchingVideoLengthDifferentTicks < VideoDurationToleranceForPublicationDate.Ticks)
                             {
-                                return new FindEpisodeResponse(PlaylistItem: match);
+                                var candidate = YouTubeEnrichmentCandidate.ToEpisode(match, videoDetail);
+                                if (YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+                                {
+                                    return new FindEpisodeResponse(PlaylistItem: match, Video: videoDetail);
+                                }
+
+                                logger.LogInformation(
+                                    "Rejected publish-delay match for '{episodeTitle}' because cross-platform score is below threshold.",
+                                    episode.Title);
                             }
                         }
                     }
@@ -91,14 +104,15 @@ public partial class PlaylistItemFinder(
             }
         }
 
-        return await MatchOnTextClosenessWithDuration(episode, playlistItems, indexingContext);
+        return await MatchOnTextClosenessWithDuration(
+            episode, playlistItems, indexingContext, scoringPodcast);
     }
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
         EpisodeModel episode,
         IList<PlaylistItem> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
-        IndexingContext indexingContext)
+        Podcast scoringPodcast)
     {
         var videosWithDuration = videoDetails?
             .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.GetLength()))
@@ -115,6 +129,15 @@ public partial class PlaylistItemFinder(
                 var matchingVideoLengthDifferentTicks = Math.Abs((matchingVideoLength - episode.Length).Ticks);
                 if (matchingVideoLengthDifferentTicks < VideoDurationTolerance.Ticks)
                 {
+                    var candidate = YouTubeEnrichmentCandidate.ToEpisode(searchResult, matchingPair.Video);
+                    if (!YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+                    {
+                        logger.LogInformation(
+                            "Rejected duration-closest match for '{episodeTitle}' because cross-platform score is below threshold.",
+                            episode.Title);
+                        return null;
+                    }
+
                     logger.LogInformation(
                         "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{videoLength:g}'.",
                         episode.Title, episode.Length, searchResult.Snippet?.Title,
@@ -185,7 +208,8 @@ public partial class PlaylistItemFinder(
     private async Task<FindEpisodeResponse?> MatchOnEpisodeNumberWithDuration(
         EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnEpisodeNumber(episode, playlistItems);
         if (match == null)
@@ -193,13 +217,15 @@ public partial class PlaylistItemFinder(
             return null;
         }
 
-        return await ValidatePlaylistMatchWithDuration(episode, match, "episode-number", indexingContext);
+        return await ValidatePlaylistMatchWithDuration(
+            episode, match, "episode-number", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private async Task<FindEpisodeResponse?> MatchOnTextClosenessWithDuration(
         EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnTextCloseness(episode, playlistItems);
         if (match == null)
@@ -207,13 +233,15 @@ public partial class PlaylistItemFinder(
             return null;
         }
 
-        return await ValidatePlaylistMatchWithDuration(episode, match, "fuzzy title", indexingContext);
+        return await ValidatePlaylistMatchWithDuration(
+            episode, match, "fuzzy title", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private async Task<FindEpisodeResponse?> MatchOnExactTitleWithDuration(
         EpisodeModel episode,
         IList<PlaylistItem> playlistItems,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnExactTitle(episode, playlistItems);
         if (match == null)
@@ -221,14 +249,17 @@ public partial class PlaylistItemFinder(
             return null;
         }
 
-        return await ValidatePlaylistMatchWithDuration(episode, match, "episode-title", indexingContext);
+        return await ValidatePlaylistMatchWithDuration(
+            episode, match, "episode-title", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private async Task<FindEpisodeResponse?> ValidatePlaylistMatchWithDuration(
         EpisodeModel episode,
         PlaylistItem match,
         string matchKind,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast? scoringPodcast,
+        bool requireStrongScore)
     {
         var videoDetails = await videoService.GetVideoContentDetails(
             youTubeService, [match.GetVideoId()], indexingContext);
@@ -244,6 +275,23 @@ public partial class PlaylistItemFinder(
                 "Rejected {matchKind} match '{episodeTitle}' (length '{episodeLength:g}') with video '{videoTitle}' (length '{videoLength:g}') due to duration mismatch.",
                 matchKind, episode.Title, episode.Length, match.Snippet.Title, video.GetLength());
             return null;
+        }
+
+        if (requireStrongScore)
+        {
+            if (scoringPodcast == null)
+            {
+                return null;
+            }
+
+            var candidate = YouTubeEnrichmentCandidate.ToEpisode(match, video);
+            if (!YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+            {
+                logger.LogInformation(
+                    "Rejected {matchKind} match '{episodeTitle}' because cross-platform score is below threshold.",
+                    matchKind, episode.Title);
+                return null;
+            }
         }
 
         logger.LogInformation("Matched on {matchKind} '{episodeTitle}'.", matchKind, episode.Title);

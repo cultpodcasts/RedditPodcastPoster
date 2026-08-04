@@ -23,7 +23,7 @@ Wrappers resolve Azure targets (JSON + interactive prompts via `Resolve-DeploySe
 1. **NEVER delete or rename `scripts/deploy-*.ps1`** without explicit user approval.
 2. **NEVER change the deploy mechanism** — OneDeploy modes (`FlexBlob` / `FunctionAppDeploy`), blob upload flow, app settings, Kudu/SAS paths — without explicit user approval.
 3. **Local deploy must stay 1:1 with CI** — compare changes to [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) and [`Infrastructure/function.bicep`](../../Infrastructure/function.bicep) / [`functions.bicep`](../../Infrastructure/functions.bicep) first. Justify as "CI equivalent on Windows", not a new Azure integration.
-4. **Do not run production deploy** (`az login` + deploy scripts, `az functionapp restart`, blob upload to `cultpodcastsstg`) unless the user explicitly asks.
+4. **Do not run production deploy** (`az login` + deploy scripts, `az functionapp restart`, blob upload to `cultpodcastsstg`) unless the user explicitly asks — **except** when they say **deploy functions & clis** (see [deploy-functions-and-clis.mdc](deploy-functions-and-clis.mdc)).
 5. **Never modify app settings** during code deploy — settings come from bicep only.
 6. **Document** behaviour changes in `docs/deployment.md`.
 

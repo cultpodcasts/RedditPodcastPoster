@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
+using RedditPodcastPoster.Subjects.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 
@@ -35,6 +36,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddSpotifyServices()
         {
             return services
+                .AddSubjectServices()
                 .AddSpotifyClient()
                 .AddScoped<ISpotifyEpisodeProvider, SpotifyEpisodeProvider>()
                 .AddScoped<ISpotifyEpisodeEnricher, SpotifyEpisodeEnricher>()

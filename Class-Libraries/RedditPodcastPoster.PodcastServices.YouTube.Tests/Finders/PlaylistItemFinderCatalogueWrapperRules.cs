@@ -39,11 +39,13 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id => CreateCompletedVideo(id, TimeSpan.FromHours(1))).ToList());
@@ -317,33 +319,30 @@ public class PlaylistItemFinderCatalogueWrapperRules
     // Episode-number and duration-only local heuristics (after exact-title path fails).
     // --------------------------------------------------------------------------------------------
 
-    [Theory(DisplayName =
-        "When exact title matching fails, each fuzzy title variant on a short title may still resolve " +
-        "via shared episode number and acceptable video duration.")]
-    [MemberData(nameof(AllFuzzyVariantStrategies))]
-    public async Task find_by_episode_number_for_each_fuzzy_variant_on_short_title(
-        FuzzyTitleVariantStrategy strategy)
+    [Fact(DisplayName =
+        "When exact title matching fails, a shared episode number with acceptable video duration " +
+        "still resolves the playlist item.")]
+    public async Task find_by_episode_number_with_divergent_titles_resolves()
     {
         // Arrange
-        const int episodeNumber = 42;
-        var episodeTitle = $"Series discussion part {episodeNumber} opening themes";
-        var catalogueTitle = DomainTestFixture.CreateFuzzyTitleVariant(
-            $"Series recap part {episodeNumber} closing thoughts",
-            strategy);
-
+        const int episodeNumber = 1042;
+        var episodeTitle = $"Series discussion Episode{episodeNumber} opening themes";
+        var catalogueTitle = $"Series recap Episode{episodeNumber} closing thoughts";
         var episodeLength = TimeSpan.FromHours(1);
         var catalogueVideoLength = episodeLength - TimeSpan.FromSeconds(30);
         var matchingVideoId = _fixture.CreateYouTubeId();
+        var release = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
         var episode = _fixture.BuildEpisode()
             .Customize(e =>
             {
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
+                e.Release = release;
             })
             .Create();
         var playlistItems = new List<PlaylistItem>
         {
-            CreatePlaylistItem(matchingVideoId, catalogueTitle, DomainTestFixture.UtcDaysAgo(1))
+            CreatePlaylistItem(matchingVideoId, catalogueTitle, release)
         };
         ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
 
@@ -396,28 +395,32 @@ public class PlaylistItemFinderCatalogueWrapperRules
     }
 
     [Theory(DisplayName =
-        "When exact title, episode number, and publish-delay paths fail, " +
-        "duration-only matching may still resolve a video within the two-minute tolerance.")]
+        "When exact title, episode number, and publish-delay paths fail and the closest-duration " +
+        "candidate has a wholly divergent title, the finder rejects it because the cross-platform " +
+        "score stays below threshold.")]
     [InlineData(0)]
     [InlineData(90)]
-    public async Task find_by_duration_only_within_two_minute_tolerance(long offsetSeconds)
+    public async Task find_by_duration_only_rejects_when_cross_platform_score_below_threshold(long offsetSeconds)
     {
         // Arrange
         var episodeLength = TimeSpan.FromHours(1);
         var catalogueVideoLength = episodeLength - TimeSpan.FromSeconds(offsetSeconds);
         var matchingVideoId = _fixture.CreateYouTubeId();
         var distractorVideoId = _fixture.CreateYouTubeId();
+        var release = DomainTestFixture.UtcAtTime(-10, TimeSpan.FromHours(12));
         var episode = _fixture.BuildEpisode()
             .Customize(e =>
             {
                 e.Title = "Quantum computing fundamentals overview";
                 e.Length = episodeLength;
+                e.Release = release;
+                e.Description = "Alpha-only notes about quantum fundamentals.";
             })
             .Create();
         var playlistItems = new List<PlaylistItem>
         {
-            CreatePlaylistItem(matchingVideoId, "Ancient pottery restoration techniques", DomainTestFixture.UtcDaysAgo(1)),
-            CreatePlaylistItem(distractorVideoId, "Modern urban gardening tips", DomainTestFixture.UtcDaysAgo(2))
+            CreatePlaylistItem(matchingVideoId, "Ancient pottery restoration techniques", release.AddDays(3)),
+            CreatePlaylistItem(distractorVideoId, "Modern urban gardening tips", release.AddDays(4))
         };
         ConfigureVideoDurations(
             (matchingVideoId, catalogueVideoLength),
@@ -431,8 +434,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             new IndexingContext());
 
         // Assert
-        result.Should().NotBeNull();
-        result!.PlaylistItem!.GetVideoId().Should().Be(matchingVideoId);
+        result.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -501,13 +503,15 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
                 bool _,
-                bool withSnippets) =>
+                bool _,
+                bool _) =>
             {
                 return videoIds.Select(id => id == liveVideoId
                     ? CreateVideo(id, episodeLength, liveBroadcastContent: "live")
@@ -581,11 +585,13 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id => CreateVideo(id, episode.Length, liveBroadcastContent: "live")).ToList());
@@ -899,6 +905,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.Is<IEnumerable<string>>(ids => ids.Single() == videoId),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync([]);
 
@@ -939,13 +946,15 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool withSnippets,
                 bool _,
-                bool withSnippets) =>
+                bool _) =>
             {
                 if (withSnippets)
                 {
@@ -978,11 +987,13 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id =>
@@ -1052,11 +1063,13 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 It.Is<IEnumerable<string>>(ids => ids.Contains(videoId)),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id => CreateCompletedVideo(id, id == videoId ? duration : TimeSpan.FromMinutes(20)))

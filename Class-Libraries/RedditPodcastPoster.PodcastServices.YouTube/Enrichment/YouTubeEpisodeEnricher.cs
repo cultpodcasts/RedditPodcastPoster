@@ -36,11 +36,6 @@ public class YouTubeEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (IsBypassedByDelayedYouTubePublishing(request, "YouTube", logger))
-        {
-            return;
-        }
-
         if (!string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube == null)
         {
             ApplyYouTubeLink(
@@ -77,8 +72,11 @@ public class YouTubeEpisodeEnricher(
                     youTubeItem.SearchResult.Snippet.Title,
                     youTubeItem.SearchResult.ToYouTubeUrl());
             }
+
+            return;
         }
-        else if (youTubeItem?.PlaylistItem != null)
+
+        if (youTubeItem?.PlaylistItem != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId) &&
                 request.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))

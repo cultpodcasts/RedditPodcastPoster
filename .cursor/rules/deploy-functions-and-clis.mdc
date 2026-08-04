@@ -1,0 +1,50 @@
+---
+description: When user says "deploy functions & clis" — non-interactive Function deploys then publish console apps
+alwaysApply: true
+---
+
+# Deploy functions & CLIs (phrase → actions)
+
+When the user says **deploy functions & clis** (or clearly equivalent: "deploy functions and CLIs", "deploy funcs & clis"), run this sequence from the **RedditPodcastPoster** repo root. Do **not** ask for confirmation beyond the phrase itself — that phrase is explicit deploy approval.
+
+## 1. Function apps (order is mandatory)
+
+Non-interactive: pass all four Azure target args so `Resolve-DeploySettings` skips `Read-Host`, and use `-Confirm:$false` for `ShouldProcess`.
+
+Load targets from the matching gitignored JSON under `scripts/` (`deploy-indexer.json`, `deploy-discover.json`, `deploy-api.json`) — or hardcode the known prod values below if JSON is missing.
+
+| Order | Script | App | Container |
+|------:|--------|-----|-----------|
+| 1 | `.\scripts\deploy-indexer.ps1` | `indexer-infra` | `indexer-deployment` |
+| 2 | `.\scripts\deploy-discover.ps1` | `discover-infra` | `discovery-deployment` |
+| 3 | `.\scripts\deploy-api.ps1` | `api-infra` | `api-deployment` |
+
+Shared: `-ResourceGroup AutomatedInfra` `-StorageAccount cultpodcastsstg` `-Confirm:$false`
+
+Example (Indexer; repeat pattern for Discover then Api):
+
+```powershell
+.\scripts\deploy-indexer.ps1 `
+  -ResourceGroup AutomatedInfra `
+  -AppName indexer-infra `
+  -StorageAccount cultpodcastsstg `
+  -DeploymentContainer indexer-deployment `
+  -Confirm:$false
+```
+
+Stop the sequence if a deploy exits non-zero; do not continue to the next app or to CLIs.
+
+## 2. Console apps
+
+```powershell
+.\scripts\publish-console-apps.ps1 -Confirm:$false
+```
+
+Publishes to `artifacts\tools\` (all console apps except `ThrowawayConsole`).
+
+## Do not
+
+- Prompt "Use these details? (Y/n)" — always pass explicit `-ResourceGroup` / `-AppName` / `-StorageAccount` / `-DeploymentContainer`
+- Reorder Function deploys (Indexer → Discover → Api only)
+- Use GitHub Actions / Kudu as the deploy path for this phrase
+- Skip console publish unless the user said only "deploy functions"

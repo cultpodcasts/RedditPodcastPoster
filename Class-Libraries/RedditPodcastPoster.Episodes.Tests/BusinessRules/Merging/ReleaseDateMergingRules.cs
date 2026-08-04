@@ -166,4 +166,63 @@ public class ReleaseDateMergingRules
         result.MergedEpisodes.Should().ContainSingle();
         stored.ShouldMatchExpectation(expected);
     }
+
+    [Fact(DisplayName =
+        "For Apple-authority podcasts, attaching Apple onto a YouTube-first episode with a timed release " +
+        "on a different calendar day adopts Apple's publish datetime as the episode release.")]
+    public void Apple_authority_adopts_Apple_release_over_timed_YouTube_release_on_different_day()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(2) + TimeSpan.FromHours(7);
+        var podcast = _fixture.CreateAppleReleaseAuthorityPodcast(
+            _fixture.CreateAppleId(),
+            youTubePublicationOffsetTicks: delay.Ticks);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-4, TimeSpan.FromHours(12));
+        var appleRelease = youTubeRelease + delay;
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast, youTubeRelease, sharedLength, sharedTitle);
+        var appleInput = _fixture.CreateAppleCatalogueInput(b => b
+            .WithTitle(sharedTitle)
+            .WithRelease(appleRelease)
+            .WithDuration(sharedLength));
+        var discovered = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithAppleId(appleInput.AppleId)
+            .WithTitle(sharedTitle)
+            .WithRelease(appleRelease)
+            .WithDuration(sharedLength));
+        var expected = EpisodeExpectation.From(stored)
+            .WithRelease(appleRelease)
+            .WithApple(appleInput.AppleId, appleInput.AppleUrl);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "For YouTube-authority podcasts with YouTube identity, Apple merge must not replace the " +
+        "YouTube publish datetime even when Apple is on a different calendar day.")]
+    public void YouTube_authority_preserves_YouTube_release_when_Apple_arrives_on_different_day()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+        var (stored, discovered, appleId) =
+            _fixture.CreateCrossPlatformYouTubeReleaseAuthorityApplePair(podcast);
+        var youTubeRelease = stored.Release;
+        var expected = EpisodeExpectation.From(stored)
+            .WithApple(appleId, discovered.Urls.Apple!);
+
+        // Act
+        var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
+
+        // Assert
+        result.MergedEpisodes.Should().ContainSingle();
+        stored.Release.Should().Be(youTubeRelease);
+        stored.ShouldMatchExpectation(expected);
+    }
 }

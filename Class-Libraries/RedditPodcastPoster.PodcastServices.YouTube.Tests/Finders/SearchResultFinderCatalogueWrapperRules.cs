@@ -38,11 +38,13 @@ public class SearchResultFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id => CreateCompletedVideo(id, TimeSpan.FromHours(1))).ToList());
@@ -259,6 +261,51 @@ public class SearchResultFinderCatalogueWrapperRules
         result!.SearchResult!.Id.VideoId.Should().Be(matchingVideoId);
     }
 
+    [Fact(DisplayName =
+        "When the closest-duration search result has a wholly divergent title and only weak release " +
+        "alignment, the finder rejects it because the cross-platform score stays below threshold.")]
+    public async Task duration_closest_match_rejects_when_cross_platform_score_below_threshold()
+    {
+        // Arrange
+        var episodeLength = TimeSpan.FromHours(1);
+        var matchingVideoId = _fixture.CreateYouTubeId();
+        var otherVideoId = _fixture.CreateYouTubeId();
+        var release = DomainTestFixture.UtcAtTime(-10, TimeSpan.FromHours(12));
+        var episode = _fixture.BuildEpisode()
+            .Customize(e =>
+            {
+                e.Title = "Alpha market briefing on early catalogue drift signals";
+                e.Length = episodeLength;
+                e.Release = release;
+                e.Description = "Alpha-only show notes about market briefing mechanics.";
+            })
+            .Create();
+        var searchResults = new List<SearchResult>
+        {
+            CreateSearchResult(
+                matchingVideoId,
+                "Omega wellness interview about unrelated guest journeys",
+                release.AddDays(3)),
+            CreateSearchResult(
+                otherVideoId,
+                "Zeta travel diary from a distant continent tour",
+                release.AddDays(4))
+        };
+        ConfigureVideoDurations(
+            (matchingVideoId, episodeLength - TimeSpan.FromSeconds(30)),
+            (otherVideoId, TimeSpan.FromMinutes(20)));
+
+        // Act
+        var result = await Sut.FindMatchingYouTubeVideo(
+            episode,
+            searchResults,
+            youTubePublishDelay: null,
+            new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+    }
+
     private (
         EpisodeModel Episode,
         string MatchingVideoId,
@@ -317,11 +364,13 @@ public class SearchResultFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id =>
@@ -340,11 +389,13 @@ public class SearchResultFinderCatalogueWrapperRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((
                 IYouTubeServiceWrapper _,
                 IEnumerable<string> videoIds,
                 IndexingContext _,
+                bool _,
                 bool _,
                 bool _) =>
                 videoIds.Select(id =>
