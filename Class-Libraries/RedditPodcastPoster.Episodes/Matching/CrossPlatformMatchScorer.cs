@@ -8,21 +8,33 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <summary>
 /// Composite confidence score for YouTube↔audio cross-platform merges.
 /// Signals add; match when total ≥ <see cref="MatchThreshold"/>.
+/// Release scoring prefers proximity of the YouTube publish to
+/// <c>audioRelease + YouTubePublishingDelay</c> (delay is a score signal, not a hard gate).
 /// Delay-aligned release + duration reaches threshold without title confidence.
-/// Weak catalogue-day (or early-within-negative-delay) release + duration alone does not
-/// (#869 protection). Matching episode descriptions supply the same confidence as a fuzzy title.
+/// Weak catalogue-day release + duration alone does not (#869 protection).
+/// Matching episode descriptions or shared subjects supply supporting confidence.
 /// </summary>
 public static class CrossPlatformMatchScorer
 {
     public const int MatchThreshold = 60;
 
     public const int DelayAlignedReleasePoints = 40;
+    public const int NearDelayAlignedReleasePoints = 25;
     public const int SameCalendarDayReleasePoints = 30;
     public const int WeakCatalogueReleasePoints = 15;
     public const int DurationWithinBandPoints = 30;
     public const int FuzzyTitlePoints = 25;
     public const int SubstringTitlePoints = 20;
     public const int FuzzyDescriptionPoints = FuzzyTitlePoints;
+    public const int SingleSharedSubjectPoints = CatalogueMatchScorer.SingleSharedSubjectPoints;
+    public const int MultipleSharedSubjectPoints = CatalogueMatchScorer.MultipleSharedSubjectPoints;
+
+    /// <summary>Full delay-alignment credit when YouTube is within this of expected publish.</summary>
+    public static readonly TimeSpan DelayAlignedWindow =
+        EpisodeReleaseTolerance.YouTubePublishDelayMatchThreshold;
+
+    /// <summary>Partial delay-proximity credit outside the full window but still near expected.</summary>
+    public static readonly TimeSpan NearDelayAlignedWindow = TimeSpan.FromDays(3);
 
     private const int MinFuzzyTitleScore = 70;
     private const int MinFuzzyDescriptionScore = 70;
@@ -30,7 +42,8 @@ public static class CrossPlatformMatchScorer
 
     /// <summary>
     /// Scores a YouTube↔audio pair that already passed a release-strategy match and
-    /// duration-within-band checks. Title is supporting evidence, not a hard veto.
+    /// duration-within-band checks. Title, description, shared subjects, and how close
+    /// YouTube’s publish is to <c>audio + YouTubePublishingDelay</c> are supporting evidence.
     /// </summary>
     public static int Score(
         Episode existingEpisode,
@@ -40,6 +53,7 @@ public static class CrossPlatformMatchScorer
         var score = DurationWithinBandPoints;
         score += ScoreReleaseStrength(existingEpisode, incomingEpisode, podcast);
         score += ScoreTitle(existingEpisode, incomingEpisode);
+        score += ScoreSubjects(existingEpisode, incomingEpisode, podcast);
         return score;
     }
 
@@ -59,24 +73,47 @@ public static class CrossPlatformMatchScorer
             return WeakCatalogueReleasePoints;
         }
 
-        var delay = podcast.YouTubePublishingDelay();
-        if (delay != TimeSpan.Zero &&
-            EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+        var delayProximityPoints = ScoreDelayProximity(
+            audioSide.Release,
+            youTubeSide.Release,
+            podcast.YouTubePublishingDelay());
+        var calendarDayPoints = EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
                 audioSide.Release,
-                youTubeSide.Release,
-                delay))
+                youTubeSide.Release)
+            ? SameCalendarDayReleasePoints
+            : 0;
+
+        var best = Math.Max(delayProximityPoints, calendarDayPoints);
+        return best > 0 ? best : WeakCatalogueReleasePoints;
+    }
+
+    /// <summary>
+    /// Points from |youTubeRelease − (audioRelease + delay)|. Zero delay configured → 0
+    /// (calendar-day / weak tiers apply instead).
+    /// </summary>
+    private static int ScoreDelayProximity(
+        DateTime audioRelease,
+        DateTime youTubeRelease,
+        TimeSpan publishingDelay)
+    {
+        if (publishingDelay == TimeSpan.Zero)
+        {
+            return 0;
+        }
+
+        var expectedPublish = audioRelease.Add(publishingDelay);
+        var delta = TimeSpan.FromTicks(Math.Abs((youTubeRelease - expectedPublish).Ticks));
+        if (delta < DelayAlignedWindow)
         {
             return DelayAlignedReleasePoints;
         }
 
-        if (EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
-                audioSide.Release,
-                youTubeSide.Release))
+        if (delta < NearDelayAlignedWindow)
         {
-            return SameCalendarDayReleasePoints;
+            return NearDelayAlignedReleasePoints;
         }
 
-        return WeakCatalogueReleasePoints;
+        return 0;
     }
 
     private static int ScoreTitle(Episode existingEpisode, Episode incomingEpisode)
@@ -103,6 +140,26 @@ public static class CrossPlatformMatchScorer
         }
 
         return 0;
+    }
+
+    private static int ScoreSubjects(
+        Episode existingEpisode,
+        Episode incomingEpisode,
+        Podcast podcast)
+    {
+        var filters = new CatalogueSubjectScoreFilters(
+            podcast.DefaultSubject,
+            podcast.IgnoredSubjects);
+        var shared = CatalogueMatchScorer.CountSharedSubjects(
+            existingEpisode.Subjects,
+            incomingEpisode.Subjects,
+            filters);
+        return shared switch
+        {
+            >= 2 => MultipleSharedSubjectPoints,
+            1 => SingleSharedSubjectPoints,
+            _ => 0
+        };
     }
 
     private static bool DescriptionsFuzzyMatch(string left, string right)

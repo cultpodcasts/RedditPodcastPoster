@@ -200,8 +200,29 @@ public static class EpisodeReleaseTolerance
         Podcast? podcast) =>
         SpotifyCatalogueReleaseMatches(catalogueRelease, expectedRelease, toleranceTicks, podcast);
 
-    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode) =>
-        GetAudioReleaseForPlatformLookup(podcast, episode.Release, HasYouTubeIdentity(episode));
+    public static DateTime GetAudioReleaseForPlatformLookup(Podcast podcast, Episode episode)
+    {
+        var delay = podcast.YouTubePublishingDelay();
+        if (delay == TimeSpan.Zero)
+        {
+            return episode.Release;
+        }
+
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            return episode.Release - delay;
+        }
+
+        // Release is still YouTube-shaped only while the release-authority audio id is missing.
+        if (HasYouTubeIdentity(episode) &&
+            IsReleaseAuthorityAudioIdentityMissing(podcast, episode) &&
+            HasAudioPlatformConfigured(podcast))
+        {
+            return episode.Release - delay;
+        }
+
+        return episode.Release;
+    }
 
     public static DateTime GetAudioReleaseForPlatformLookup(
         Podcast podcast,
@@ -259,6 +280,14 @@ public static class EpisodeReleaseTolerance
         var needsApple = podcast.AppleId is > 0 && episode.AppleId is null or 0;
         return needsSpotify || needsApple;
     }
+
+    private static bool IsReleaseAuthorityAudioIdentityMissing(Podcast podcast, Episode episode) =>
+        podcast.ReleaseAuthority switch
+        {
+            Service.Apple => episode.AppleId is null or 0,
+            Service.Spotify => string.IsNullOrWhiteSpace(episode.SpotifyId) && episode.Urls.Spotify == null,
+            _ => EpisodeMissingConfiguredPlatformIds(episode, podcast)
+        };
 
     private static bool HasYouTubeIdentity(Episode episode) =>
         !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;

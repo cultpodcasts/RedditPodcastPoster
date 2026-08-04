@@ -553,9 +553,9 @@ public class YouTubeEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
-        "When the episode is still inside the delayed YouTube publishing window, YouTube enrichment " +
-        "is bypassed and does not query the catalogue.")]
-    public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
+        "Enrichment always queries FindEpisode even while YouTubePublicationOffset is active; " +
+        "with no catalogue match, no YouTube URL is attached.")]
+    public async Task enrich_inside_delay_without_match_queries_but_does_not_attach()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
@@ -575,6 +575,9 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var resolver = new Mock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync((FindEpisodeResponse?)null);
         var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
         var enrichmentContext = new EnrichmentContext();
 
@@ -587,8 +590,61 @@ public class YouTubeEpisodeEnricherCatalogueRules
         // Assert
         resolver.Verify(
             x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()),
-            Times.Never);
+            Times.Once);
+        episode.YouTubeId.Should().BeNullOrWhiteSpace();
         enrichmentContext.YouTubeUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A scored catalogue match attaches YouTube identity even while YouTubePublicationOffset is active — " +
+        "offset does not gate enrichment; delay proximity is scored in the finder.")]
+    public async Task enrich_inside_delay_with_strong_match_attaches_youtube()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+            publishingDelay);
+        var sharedTitle = _fixture.CreateTitle();
+        var length = _fixture.CreateDuration();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var image = _fixture.Create<Uri>();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithRelease(inWindowRelease)
+            .WithLength(length)
+            .Customize(e =>
+            {
+                e.Title = sharedTitle;
+                e.YouTubeId = string.Empty;
+                e.Urls = new ServiceUrls();
+                e.Description = _fixture.CreateTitle();
+                e.Images = new EpisodeImages { YouTube = image };
+            })
+            .Create();
+        var resolver = new Mock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateSearchResultResponse(youTubeId, sharedTitle, inWindowRelease));
+        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var enrichmentContext = new EnrichmentContext();
+        var expected = EpisodeExpectation.From(episode)
+            .WithYouTube(youTubeId, SearchResultExtensions.ToYouTubeUrl(youTubeId), image);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        resolver.Verify(
+            x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()),
+            Times.Once);
+        enrichmentContext.YouTubeUrlUpdated.Should().BeTrue();
+        episode.ShouldMatchExpectation(expected);
     }
 
     private YouTubeEpisodeEnricher CreateEnricher(

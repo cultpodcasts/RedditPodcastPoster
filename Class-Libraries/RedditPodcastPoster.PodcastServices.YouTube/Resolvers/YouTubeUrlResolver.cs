@@ -79,7 +79,8 @@ public class YouTubeItemResolver(
                 request.Episode,
                 latestPlaylistItems.Result,
                 youTubePublishingDelay,
-                indexingContext);
+                indexingContext,
+                request.Podcast);
             return matchedYouTubeVideo;
         }
 
@@ -117,7 +118,8 @@ public class YouTubeItemResolver(
                 request.Episode,
                 searchListResponse,
                 youTubePublishingDelay,
-                indexingContext);
+                indexingContext,
+                request.Podcast);
         }
         catch (YouTubeChannelSearchForbiddenException ex)
         {
@@ -149,7 +151,8 @@ public class YouTubeItemResolver(
             request.Episode,
             playlistItems,
             youTubePublishingDelay,
-            indexingContext);
+            indexingContext,
+            request.Podcast);
     }
 
     private void LogRetrievedCount(string method, int count, IndexingContext indexingContext)

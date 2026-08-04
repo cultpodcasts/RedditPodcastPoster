@@ -455,6 +455,25 @@ public sealed class DomainTestFixture
       p.ReleaseAuthority = Service.Spotify;
     });
 
+  /// <summary>Podcast with Apple release authority (<see cref="Podcast.ReleaseAuthority"/> = <see cref="Service.Apple"/>).</summary>
+  public Podcast CreateAppleReleaseAuthorityPodcast(
+    long applePodcastId,
+    string? spotifyShowId = null,
+    long? youTubePublicationOffsetTicks = null,
+    Guid? id = null) =>
+    CreatePodcast(p =>
+    {
+      if (id.HasValue)
+        p.Id = id.Value;
+      p.Name = "Apple release authority podcast";
+      p.ReleaseAuthority = Service.Apple;
+      p.AppleId = applePodcastId;
+      p.SpotifyId = spotifyShowId ?? CreateSpotifyId();
+      p.YouTubeChannelId = CreateYouTubeChannelId();
+      if (youTubePublicationOffsetTicks.HasValue)
+        p.YouTubePublicationOffset = youTubePublicationOffsetTicks.Value;
+    });
+
   /// <summary>Podcast with YouTube release authority (<see cref="Podcast.ReleaseAuthority"/> = <see cref="Service.YouTube"/>).</summary>
   public Podcast CreateYouTubeReleaseAuthorityPodcast(
     string channelId,
@@ -654,8 +673,10 @@ public sealed class DomainTestFixture
     var delay = podcast.YouTubePublishingDelay();
     var youTubeRelease = UtcAtTime(-40, TimeSpan.FromHours(15));
     var expectedAudioRelease = youTubeRelease - delay;
-    // Three calendar days off expected audio — inside ±5 catalogue day tolerance, outside 1-day delay align.
-    var incomingRelease = expectedAudioRelease.Date.AddDays(3);
+    // Five calendar days off expected audio — outside ±3d near-delay proximity and ±1d full
+    // align, still inside ±5 catalogue-day tolerance for release strategies. Scoring must not
+    // reach the cross-platform match threshold (#869 false-positive shape).
+    var incomingRelease = expectedAudioRelease.Date.AddDays(5);
     var storedLength = CreateDuration();
     var incomingLength = storedLength - TimeSpan.FromSeconds(5);
 

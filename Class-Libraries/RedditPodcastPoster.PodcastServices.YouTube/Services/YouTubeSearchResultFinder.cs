@@ -33,15 +33,20 @@ public partial class YouTubeSearchResultFinder(
         EpisodeModel episode,
         IList<SearchResult> searchResults,
         TimeSpan? youTubePublishDelay,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast? podcast = null)
     {
-        var exactTitleMatch = await MatchOnExactTitleWithDuration(episode, searchResults, indexingContext);
+        var scoringPodcast = YouTubeEnrichmentCandidate.ScoringPodcast(podcast, youTubePublishDelay);
+
+        var exactTitleMatch = await MatchOnExactTitleWithDuration(
+            episode, searchResults, indexingContext, scoringPodcast);
         if (exactTitleMatch != null)
         {
             return exactTitleMatch;
         }
 
-        var episodeNumberMatch = await MatchOnEpisodeNumberWithDuration(episode, searchResults, indexingContext);
+        var episodeNumberMatch = await MatchOnEpisodeNumberWithDuration(
+            episode, searchResults, indexingContext, scoringPodcast);
         if (episodeNumberMatch != null)
         {
             return episodeNumberMatch;
@@ -52,7 +57,8 @@ public partial class YouTubeSearchResultFinder(
                 indexingContext);
 
 
-        var videoMatch = MatchOnEpisodeDuration(episode, searchResults, videoDetails, indexingContext);
+        var videoMatch = MatchOnEpisodeDuration(
+            episode, searchResults, videoDetails, scoringPodcast);
         if (videoMatch != null)
         {
             return videoMatch;
@@ -78,7 +84,15 @@ public partial class YouTubeSearchResultFinder(
                             if (matchingVideoLength > MinDurationForPublicationDate &&
                                 matchingVideoLengthDifferentTicks < VideoDurationToleranceForPublicationDate.Ticks)
                             {
-                                return new FindEpisodeResponse(match);
+                                var candidate = YouTubeEnrichmentCandidate.ToEpisode(match, videoDetail);
+                                if (YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+                                {
+                                    return new FindEpisodeResponse(match, Video: videoDetail);
+                                }
+
+                                logger.LogInformation(
+                                    "Rejected publish-delay match for '{episodeTitle}' because cross-platform score is below threshold.",
+                                    episode.Title);
                             }
                         }
                     }
@@ -86,14 +100,15 @@ public partial class YouTubeSearchResultFinder(
             }
         }
 
-        return await MatchOnTextClosenessWithDuration(episode, searchResults, indexingContext);
+        return await MatchOnTextClosenessWithDuration(
+            episode, searchResults, indexingContext, scoringPodcast);
     }
 
     private FindEpisodeResponse? MatchOnEpisodeDuration(
         EpisodeModel episode,
         IList<SearchResult> searchResults,
         IList<Google.Apis.YouTube.v3.Data.Video>? videoDetails,
-        IndexingContext indexingContext)
+        Podcast scoringPodcast)
     {
         var videosWithDuration = videoDetails?
             .Where(x => YouTubeVideoDurationMatcher.HasDuration(x.GetLength()))
@@ -109,6 +124,15 @@ public partial class YouTubeSearchResultFinder(
                 var video = matchingPair.Video!;
                 if (IsDurationMatch(episode, video))
                 {
+                    var candidate = YouTubeEnrichmentCandidate.ToEpisode(searchResult, video);
+                    if (!YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+                    {
+                        logger.LogInformation(
+                            "Rejected duration-closest match for '{episodeTitle}' because cross-platform score is below threshold.",
+                            episode.Title);
+                        return null;
+                    }
+
                     logger.LogInformation(
                         "Matched episode '{episodeTitle}' and length: '{episodeLength:g}' with episode '{snippetTitle}' having length: '{matchingPairVideoLength:g}'.",
                         episode.Title, episode.Length, matchingPair.SearchResult?.Snippet.Title,
@@ -138,7 +162,8 @@ public partial class YouTubeSearchResultFinder(
     private async Task<FindEpisodeResponse?> MatchOnEpisodeNumberWithDuration(
         EpisodeModel episode,
         IList<SearchResult> searchResults,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnEpisodeNumber(episode, searchResults);
         if (match == null)
@@ -146,13 +171,15 @@ public partial class YouTubeSearchResultFinder(
             return null;
         }
 
-        return await ValidateSearchMatchWithDuration(episode, match, "episode-number", indexingContext);
+        return await ValidateSearchMatchWithDuration(
+            episode, match, "episode-number", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private async Task<FindEpisodeResponse?> MatchOnTextClosenessWithDuration(
         EpisodeModel episode,
         IList<SearchResult> searchResults,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnTextCloseness(episode, searchResults);
         if (match == null)
@@ -160,7 +187,8 @@ public partial class YouTubeSearchResultFinder(
             return null;
         }
 
-        return await ValidateSearchMatchWithDuration(episode, match, "fuzzy title", indexingContext);
+        return await ValidateSearchMatchWithDuration(
+            episode, match, "fuzzy title", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private SearchResult? MatchOnEpisodeNumber(
@@ -216,7 +244,8 @@ public partial class YouTubeSearchResultFinder(
     private async Task<FindEpisodeResponse?> MatchOnExactTitleWithDuration(
         EpisodeModel episode,
         IList<SearchResult> searchResults,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast scoringPodcast)
     {
         var match = MatchOnExactTitle(episode, searchResults);
         if (match == null)
@@ -224,14 +253,17 @@ public partial class YouTubeSearchResultFinder(
             return null;
         }
 
-        return await ValidateSearchMatchWithDuration(episode, match, "episode-title", indexingContext);
+        return await ValidateSearchMatchWithDuration(
+            episode, match, "episode-title", indexingContext, scoringPodcast, requireStrongScore: true);
     }
 
     private async Task<FindEpisodeResponse?> ValidateSearchMatchWithDuration(
         EpisodeModel episode,
         SearchResult match,
         string matchKind,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext,
+        Podcast? scoringPodcast,
+        bool requireStrongScore)
     {
         var videoDetails =
             await videoService.GetVideoContentDetails(youTubeService, [match.Id.VideoId], indexingContext);
@@ -247,6 +279,23 @@ public partial class YouTubeSearchResultFinder(
                 "Rejected {matchKind} match '{episodeTitle}' (length '{episodeLength:g}') with video '{videoTitle}' (length '{videoLength:g}') due to duration mismatch.",
                 matchKind, episode.Title, episode.Length, match.Snippet.Title, video.GetLength());
             return null;
+        }
+
+        if (requireStrongScore)
+        {
+            if (scoringPodcast == null)
+            {
+                return null;
+            }
+
+            var candidate = YouTubeEnrichmentCandidate.ToEpisode(match, video);
+            if (!YouTubeEnrichmentCandidate.MeetsStrongMatch(episode, candidate, scoringPodcast))
+            {
+                logger.LogInformation(
+                    "Rejected {matchKind} match '{episodeTitle}' because cross-platform score is below threshold.",
+                    matchKind, episode.Title);
+                return null;
+            }
         }
 
         logger.LogInformation("Matched on {matchKind} '{episodeTitle}'.", matchKind, episode.Title);

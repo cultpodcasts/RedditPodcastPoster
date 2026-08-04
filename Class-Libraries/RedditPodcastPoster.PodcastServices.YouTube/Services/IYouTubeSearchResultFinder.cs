@@ -1,4 +1,5 @@
 ﻿using Google.Apis.YouTube.v3.Data;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -8,8 +9,10 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public interface IYouTubeSearchResultFinder
 {
-    Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(EpisodeModel episode,
+    Task<FindEpisodeResponse?> FindMatchingYouTubeVideo(
+        EpisodeModel episode,
         IList<SearchResult> searchResults,
         TimeSpan? youTubePublishDelay,
-        IndexingContext indexingContext);
+        IndexingContext indexingContext,
+        Podcast? podcast = null);
 }

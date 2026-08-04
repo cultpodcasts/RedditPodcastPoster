@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Handlers;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
+using RedditPodcastPoster.Subjects.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Extensions;
 
@@ -15,6 +16,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAppleServices(this IServiceCollection services)
     {
         return services
+            .AddSubjectServices()
             .AddScoped<IAppleEpisodeEnricher, AppleEpisodeEnricher>()
             .AddScoped<IApplePodcastResolver, ApplePodcastResolver>()
             .AddScoped<IEnrichedApplePodcastResolver, EnrichedApplePodcastResolver>()

@@ -31,8 +31,10 @@ public class SearchResultFinderTests
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
-            .ReturnsAsync((IYouTubeServiceWrapper _, IEnumerable<string> videoIds, IndexingContext _, bool _, bool _) =>
+            .ReturnsAsync((IYouTubeServiceWrapper _, IEnumerable<string> videoIds, IndexingContext _, bool _, bool _,
+                bool _) =>
                 videoIds.Select(CreateVideoWithMatchingDuration).ToList());
     }
 
@@ -44,14 +46,14 @@ public class SearchResultFinderTests
             Snippet = new VideoSnippet { LiveBroadcastContent = "none" }
         };
 
-    [Theory]
+    [Theory(DisplayName = "When release time is inaccurate, exact title prefers the title-matched video over a midnight-closer distractor.")]
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
     public async Task FindMatchingYouTubeVideo_WithInAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(
         long youTubePublishDelayTicks)
     {
-        // arrange
+        // Arrange
         var expectedTitle = "Matching Episode";
         var today = DateTime.UtcNow.Date;
         var episode = _fixture
@@ -77,24 +79,24 @@ public class SearchResultFinderTests
                 .With(x => x.PublishedAtDateTimeOffset, today)
                 .Create())
             .Create();
-        // act
+        // Act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
-        // assert
+        // Assert
         result?.SearchResult.Should().Be(expected);
     }
 
-    [Theory]
+    [Theory(DisplayName = "When release time is accurate, exact title prefers the title-matched video over a midnight-closer distractor.")]
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
     public async Task FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndUnmatchedVideoCloserToMidnight_IsCorrect(
         long youTubePublishDelayTicks)
     {
-        // arrange
+        // Arrange
         var expectedTitle = "Matching Episode";
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
@@ -120,17 +122,17 @@ public class SearchResultFinderTests
                 .With(x => x.PublishedAtDateTimeOffset, today)
                 .Create())
             .Create();
-        // act
+        // Act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
-        // assert
+        // Assert
         result?.SearchResult.Should().Be(expected);
     }
 
-    [Theory]
+    [Theory(DisplayName = "When YouTube published slightly before audio, exact title still prefers the title-matched video.")]
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
@@ -138,7 +140,7 @@ public class SearchResultFinderTests
         FindMatchingYouTubeVideo_WithAccurateReleaseTimeAndMatchingVideoReleasedOnYouTubeBeforeAudioAndUnmatchedVideoCloserToMidnight_IsCorrect(
             long youTubePublishDelayTicks)
     {
-        // arrange
+        // Arrange
         var expectedTitle = "Matching Episode";
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
@@ -164,23 +166,23 @@ public class SearchResultFinderTests
                 .With(x => x.PublishedAtDateTimeOffset, today)
                 .Create())
             .Create();
-        // act
+        // Act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
-        // assert
+        // Assert
         result?.SearchResult.Should().Be(expected);
     }
 
-    [Theory]
+    [Theory(DisplayName = "When titles diverge but share an episode number, the finder resolves by episode number and duration.")]
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(12)]
     public async Task FindMatchingYouTubeVideo_WithMatchingEpisodeNumber_IsCorrect(long youTubePublishDelayTicks)
     {
-        // arrange
+        // Arrange
         var episodeNumber = _fixture.Create<int>();
         var today = DateTime.UtcNow.Date;
         var release = DateTime.UtcNow.Date.AddHours(17);
@@ -205,13 +207,13 @@ public class SearchResultFinderTests
                 .With(x => x.PublishedAtDateTimeOffset, today)
                 .Create())
             .Create();
-        // act
+        // Act
         var result = await Sut.FindMatchingYouTubeVideo(
             episode,
             new List<SearchResult> {expected, incorrectResult},
             TimeSpan.FromTicks(youTubePublishDelayTicks),
             new IndexingContext());
-        // assert
+        // Assert
         result?.SearchResult.Should().Be(expected);
     }
 }

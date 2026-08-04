@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IReleaseMatchStrategy, YouTubePublishDelayMatchStrategy>();
 
             services.AddSingleton<IReleaseMergePolicy, YouTubeAuthoritativePreserveMergePolicy>();
+            services.AddSingleton<IReleaseMergePolicy, AppleAuthoritativeAdoptReleaseMergePolicy>();
             services.AddSingleton<IReleaseMergePolicy, YouTubeTimeBackfillMergePolicy>();
             services.AddSingleton<IReleaseMergePolicy, SpotifyNoTimeBackfillMergePolicy>();
             services.AddSingleton<IReleaseMergePolicy, AppleTimeBackfillMergePolicy>();
