@@ -35,13 +35,27 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
                 .AddScoped<ISubjectFactory, SubjectFactory>()
                 .AddScoped<IHashTagProvider, HashTagProvider>()
-                .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>();
+                .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>()
+                // SubjectService needs ISubjectsProvider; hosts that only get subjects via
+                // AddSpotifyServices/AddAppleServices must not omit the provider registration.
+                .AddCachedSubjectProvider();
         }
 
         public IServiceCollection AddCachedSubjectProvider()
         {
+            // Share the CachedSubjectProvider singleton with ICachedSubjectProvider when present
+            // (AddSubjectServices); otherwise create a standalone cached provider.
             return services
-                .AddSingleton<ISubjectsProvider, CachedSubjectProvider>();
+                .AddSingleton<ISubjectsProvider>(s =>
+                {
+                    var cached = s.GetService<ICachedSubjectProvider>();
+                    if (cached != null)
+                    {
+                        return cached;
+                    }
+
+                    return ActivatorUtilities.CreateInstance<CachedSubjectProvider>(s);
+                });
         }
 
         public IServiceCollection AddSubjectProvider()

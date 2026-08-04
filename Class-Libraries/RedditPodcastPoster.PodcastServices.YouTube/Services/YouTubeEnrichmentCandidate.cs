@@ -34,11 +34,11 @@ public static class YouTubeEnrichmentCandidate
                           ?? video?.Snippet?.Description
                           ?? string.Empty;
         return ToEpisode(
-            searchResult.Snippet.Title,
+            searchResult.Snippet?.Title ?? string.Empty,
             description,
-            searchResult.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
+            searchResult.Snippet?.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
             length,
-            searchResult.Id.VideoId);
+            searchResult.Id?.VideoId ?? string.Empty);
     }
 
     public static EpisodeModel ToEpisode(PlaylistItem playlistItem, Google.Apis.YouTube.v3.Data.Video? video)
@@ -48,9 +48,9 @@ public static class YouTubeEnrichmentCandidate
                           ?? video?.Snippet?.Description
                           ?? string.Empty;
         return ToEpisode(
-            playlistItem.Snippet.Title,
+            playlistItem.Snippet?.Title ?? string.Empty,
             description,
-            playlistItem.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
+            playlistItem.Snippet?.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
             length,
             playlistItem.GetVideoId());
     }
