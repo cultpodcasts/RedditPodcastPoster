@@ -9,6 +9,9 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// Signals add; match when total ≥ <see cref="MatchThreshold"/>.
 /// Duration + in-window release alone stays below threshold (Aug 2026 wrong-attach protection).
 /// Title, description, or subject similarity supply the remaining confidence.
+/// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
+/// duration points are skipped and duration band is not a hard fail — release window plus
+/// title/description/subjects must still clear the threshold (release alone cannot).
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -28,19 +31,28 @@ public static class CatalogueMatchScorer
     private const int DescriptionCompareMaxChars = 500;
 
     /// <summary>
-    /// Scores a probe against a catalogue candidate that is already within the duration band
-    /// and YouTube-discovered release window. Returns 0 when those preconditions are unmet.
+    /// Scores a probe against a catalogue candidate within the YouTube-discovered release window.
+    /// When both sides have duration, requires the ±5 minute band; otherwise scores without
+    /// duration points so Apple catalogue gaps can still match on title/subjects.
     /// </summary>
     public static int Score(
         Episode probe,
         Episode catalogueItem,
         CatalogueSubjectScoreFilters? subjectFilters = null)
     {
-        if (probe.Length <= TimeSpan.Zero ||
-            Math.Abs((catalogueItem.Length - probe.Length).Ticks) >=
-            TimeSpan.FromMinutes(5).Ticks)
+        var probeHasDuration = probe.Length > TimeSpan.Zero;
+        var catalogueHasDuration = catalogueItem.Length > TimeSpan.Zero;
+        var durationInBand = false;
+
+        if (probeHasDuration && catalogueHasDuration)
         {
-            return 0;
+            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) >=
+                TimeSpan.FromMinutes(5).Ticks)
+            {
+                return 0;
+            }
+
+            durationInBand = true;
         }
 
         if (probe.Release == DateTime.MinValue ||
@@ -49,7 +61,7 @@ public static class CatalogueMatchScorer
             return 0;
         }
 
-        var score = DurationWithinBandPoints;
+        var score = durationInBand ? DurationWithinBandPoints : 0;
         score += ScoreRelease(probe.Release, catalogueItem);
         score += ScoreTitle(probe.Title, catalogueItem.Title);
         score += ScoreDescription(probe.Description, catalogueItem.Description);

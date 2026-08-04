@@ -563,9 +563,9 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode and duration is outside the five-minute band, " +
+        "When enriching a YouTube-discovered episode and both sides have duration outside the five-minute band, " +
         "FindCatalogueMatchByLength returns null even when a typo-aligned title sits within twelve hours of release, " +
-        "because multi-criteria scoring requires duration within band before title or release can contribute.")]
+        "because multi-criteria scoring requires the duration band when both lengths are present.")]
     public void youtube_discovered_release_only_outside_duration_band_returns_null()
     {
         // Arrange
@@ -598,6 +598,46 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode and Apple omits catalogue duration, " +
+        "FindCatalogueMatchByLength still returns the title-containment candidate, " +
+        "because missing duration must not empty the match when titles align.")]
+    public void youtube_discovered_missing_catalogue_duration_title_containment_matches()
+    {
+        // Arrange
+        var youTubeTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var appleId = _fixture.CreateAppleId();
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = probeLength;
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+        });
+        var appleCandidate = _fixture.CreateEpisode(e =>
+        {
+            e.Title = $"{youTubeTitle}: editorial Apple rename";
+            e.Length = TimeSpan.Zero;
+            e.Release = probeRelease.AddHours(-1);
+            e.AppleId = appleId;
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [appleCandidate],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.AppleId.Should().Be(appleId);
     }
 
     [Fact(DisplayName =

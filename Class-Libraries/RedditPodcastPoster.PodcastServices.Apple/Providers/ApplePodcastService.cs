@@ -52,24 +52,25 @@ public class ApplePodcastService(
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             if (appleObject != null && appleObject.Records.Any())
             {
-                var itemsWithDuration = appleObject.Records.Where(x => x.Attributes.Duration > TimeSpan.Zero);
-                if (!itemsWithDuration.Any())
+                // Apple occasionally omits durationInMilliseconds (catalogue bug). Keep the
+                // episode so title/release/subject matching can still attach; do not require Duration > 0.
+                if (appleObject.Records.Count > 1)
                 {
                     logger.LogError(
-                        "Failure calling apple-api with url '{requestUri}'. No item returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
+                        "Failure calling apple-api with url '{requestUri}'. Multiple items returned for podcast-episode-query for episode-id '{episodeId}'.",
                         requestUri, episodeId);
                     return null;
                 }
 
-                if (itemsWithDuration.Count() > 1)
+                var record = appleObject.Records.Single();
+                if (record.Attributes.Duration <= TimeSpan.Zero)
                 {
-                    logger.LogError(
-                        "Failure calling apple-api with url '{requestUri}'. Multiple items returned for podcast-episode-query for episode-id '{episodeId}' with duration > 0.",
-                        requestUri, episodeId);
-                    return null;
+                    logger.LogWarning(
+                        "Apple episode '{episodeId}' has no duration; keeping for title/release matching.",
+                        episodeId);
                 }
 
-                appleEpisode = itemsWithDuration.Single().ToAppleEpisode();
+                appleEpisode = record.ToAppleEpisode();
             }
         }
         else
@@ -157,27 +158,26 @@ public class ApplePodcastService(
                 requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
         }
 
-        var appleEpisodes = podcastRecords
-            .Where(x => x.Attributes.Duration > TimeSpan.Zero)
-            .Select(x => x.ToAppleEpisode()).ToArray();
-        if (podcastRecords.Any() && !appleEpisodes.Any())
+        // Keep episodes even when Apple omits durationInMilliseconds. Matching uses title /
+        // release / subjects when length is missing; filtering them out emptied catalogues
+        // (Aug 2026 Unpacking 1619) while Apple still returned the correct episode ids.
+        var appleEpisodes = podcastRecords.Select(x => x.ToAppleEpisode()).ToArray();
+        var withDurationCount = appleEpisodes.Count(x => x.Duration > TimeSpan.Zero);
+        if (podcastRecords.Count > 0 && withDurationCount == 0)
         {
-            logger.LogError(
-                "Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId}'. podcast-records count:'{podcastRecordsCount}',  apple-episodes count:'{appleEpisodesCount}'.",
-                podcastId.PodcastId, podcastRecords.Count, appleEpisodes.Count());
+            logger.LogWarning(
+                "Missing duration-attribute on all apple-podcast episodes for podcast with apple-podcast-id '{podcastId}'. podcast-records count:'{podcastRecordsCount}'. Keeping episodes for title/release matching.",
+                podcastId.PodcastId, podcastRecords.Count);
             foreach (var json in collectedAppleJson)
             {
-                logger.LogError(json);
+                logger.LogWarning(json);
             }
         }
-        else
+        else if (podcastRecords.Count > 0)
         {
-            if (podcastRecords.Count > 0)
-            {
-                logger.LogInformation(
-                    "Successfully found podcast-episodes with duration. Apple-podcast-id '{podcastId}', items-with-duration: '{appleEpisodesCount}/{podcastRecordsCount}'.",
-                    podcastId.PodcastId, appleEpisodes.Count(), podcastRecords.Count);
-            }
+            logger.LogInformation(
+                "Successfully found podcast-episodes. Apple-podcast-id '{podcastId}', items-with-duration: '{withDurationCount}/{podcastRecordsCount}'.",
+                podcastId.PodcastId, withDurationCount, podcastRecords.Count);
         }
 
         return appleEpisodes;
