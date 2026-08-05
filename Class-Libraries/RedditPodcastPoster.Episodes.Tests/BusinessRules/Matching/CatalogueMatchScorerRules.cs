@@ -212,6 +212,81 @@ public class CatalogueMatchScorerRules
     }
 
     [Fact(DisplayName =
+        "An Apple catalogue row released in the early-morning audio slot matches a YouTube probe " +
+        "published later the same calendar day, even though the gap exceeds twelve hours.")]
+    public void apple_same_calendar_day_beyond_twelve_hours_meets_threshold()
+    {
+        // Arrange
+        var baseTitle = _fixture.CreateTitle(5);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(17) + TimeSpan.FromMinutes(15));
+        var appleRelease = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromMinutes(5));
+        var length = _fixture.CreateDuration();
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = length;
+            e.Release = youTubeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Description = string.Empty;
+            e.Length = length;
+            e.Release = appleRelease;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        (youTubeRelease - appleRelease).Should().BeGreaterThan(TimeSpan.FromHours(12));
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "An Apple catalogue row released more than a day either side of the probe scores zero, " +
+        "so widening to calendar-day tolerance does not admit wrong-week audio.")]
+    public void apple_outside_day_tolerance_scores_zero()
+    {
+        // Arrange
+        var baseTitle = _fixture.CreateTitle(5);
+        var length = _fixture.CreateDuration();
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = length;
+            e.Release = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(17));
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = length;
+            e.Release = DomainTestFixture.UtcAtTime(-4, TimeSpan.FromHours(17));
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        score.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
         "When the catalogue row has no duration (Apple omitting durationInMilliseconds), " +
         "same-calendar-day release and disjoint titles with empty subjects stay below the threshold, " +
         "because missing duration must not revive release-only attaches.")]

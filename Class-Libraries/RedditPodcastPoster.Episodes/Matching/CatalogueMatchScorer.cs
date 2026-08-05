@@ -12,6 +12,8 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
+/// Spotify and Apple catalogue items are both windowed on calendar days, not elapsed hours,
+/// because audio slots and YouTube publishes on the same day can be far more than twelve hours apart.
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -135,13 +137,23 @@ public static class CatalogueMatchScorer
         return best;
     }
 
+    /// <summary>
+    /// Spotify and Apple both publish audio on the show's own schedule, which routinely sits more than
+    /// twelve hours from the YouTube publish the probe is derived from (Aug 2026 The Indo Daily: audio at
+    /// 00:05, YouTube at 18:15 the same day). Both are compared on calendar days rather than elapsed hours.
+    /// </summary>
+    private static bool IsAudioCatalogueItem(Episode catalogueItem) =>
+        !string.IsNullOrWhiteSpace(catalogueItem.SpotifyId) || catalogueItem.AppleId is > 0;
+
     private static int ScoreRelease(DateTime probeRelease, Episode catalogueItem)
     {
-        if (!string.IsNullOrWhiteSpace(catalogueItem.SpotifyId))
+        if (IsAudioCatalogueItem(catalogueItem))
         {
-            if (EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            if (EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
                     catalogueItem.Release,
-                    probeRelease))
+                    probeRelease,
+                    toleranceTicks: 0,
+                    podcast: null))
             {
                 var probeDate = DateOnly.FromDateTime(probeRelease);
                 var catalogueDate = DateOnly.FromDateTime(catalogueItem.Release);
@@ -168,11 +180,13 @@ public static class CatalogueMatchScorer
 
     private static bool IsWithinReleaseWindow(DateTime probeRelease, Episode catalogueItem)
     {
-        if (!string.IsNullOrWhiteSpace(catalogueItem.SpotifyId))
+        if (IsAudioCatalogueItem(catalogueItem))
         {
-            return EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
                 catalogueItem.Release,
-                probeRelease);
+                probeRelease,
+                toleranceTicks: 0,
+                podcast: null);
         }
 
         return Math.Abs((catalogueItem.Release - probeRelease).Ticks) <
