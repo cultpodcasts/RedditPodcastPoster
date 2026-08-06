@@ -21,7 +21,7 @@ on page one:
 |-----------------|----------------------------|----------------|
 | Newest-first (reverse-chronological) | Head of the list | Page from offset/page 0; stop when items fall before `ReleasedSince` |
 | Oldest-first (ascending) | Tail of the list | Spotify: jump to last page and walk back. YouTube: no end-jump API → full walk (expensive) |
-| Arbitrary / curated | Either end, inconsistently | YouTube only: capped full walk + filter on added-at; never trust position |
+| Arbitrary / curated | Either end, inconsistently | YouTube only: capped full walk + filter on the indexing-window date; never trust position |
 
 Mis-classifying order causes either **missed episodes** (early-stop on a stale head) or
 **quota burn** (unbounded walks on news-channel-scale feeds). The system therefore:
@@ -38,8 +38,13 @@ Mis-classifying order causes either **missed episodes** (early-stop on a stale h
 
 Indexing windows pass `IndexingContext.ReleasedSince`. Date-scoped walks must stop (or
 filter) once items fall outside that window. Spotify truncates to **date-only** before
-comparing (catalogue releases have no reliable time-of-day). YouTube playlist items use
-`snippet.publishedAt` = **added-to-playlist** time for playlist walks.
+comparing (catalogue releases have no reliable time-of-day). YouTube playlist items window on
+`PlaylistItem.GetIndexingWindowDate()` — the **later** of `snippet.publishedAt`
+(added-to-playlist) and `contentDetails.videoPublishedAt` (video publication). A scheduled
+upload joins the playlist days before it goes public, so added-at alone drops it from the
+window; a backlog video added long after publication keeps added-at, which is the
+"new to this feed" signal. Playlist item requests therefore ask for `contentDetails` whenever
+`ReleasedSince` is set (same 1-unit page cost).
 
 ### Expensive-query flags (podcast document)
 
@@ -214,7 +219,7 @@ Continue while nextPageToken != null
   AND (not reverse-chrono OR last item still in ReleasedSince window)
         │
         ▼
-Filter results by ReleasedSince (added-at)
+Filter results by ReleasedSince (later of added-at and video-published-at)
 Discovery: YouTubeExpensiveQueryFlag.Apply (unless Arbitrary)
 ```
 
@@ -267,6 +272,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Head-order probe (incl. equal timestamps) | `YouTube.Tests/Playlist/PlaylistItemOrderingRules.cs` |
 | Flag Apply set / clear / inconclusive | `YouTube.Tests/Playlist/YouTubeExpensiveQueryFlagRules.cs` |
 | Discovery flag round-trip + Arbitrary | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerRules.cs` |
+| Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
 | `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
@@ -296,6 +302,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 |---------|--------------|-------|
 | Recent episode missing Spotify URL | Ascending catalogue + skip-expensive without window; or walk-back circuit breaker | Flag flip / circuit-breaker Error; `ReleasedSince` window |
 | Recent YouTube URL missing on curated show | Playlist not `Arbitrary`, or wrong playlist id, or Arbitrary cap tripped | `youTubePlaylistOrder`, playlist id / `youTubePlaylistIdHistory`, Arbitrary circuit-breaker Error |
+| YouTube episode public today but not indexed, and its playlist item was added days ago | Scheduled upload — added-at is outside the window, video-published-at is inside | `contentDetails.videoPublishedAt` vs `snippet.publishedAt` on the playlist item |
 | Expensive flag stuck `true` forever | Probe never returned conclusive newest-first (should not happen — Apply clears) | Flag-flip Warning history |
 | Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass |
 

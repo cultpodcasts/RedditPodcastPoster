@@ -28,7 +28,7 @@ public static class YouTubeCatalogueInputMapping
             playlistItemSnippet.Title.Trim(),
             videoDetails.Snippet.Description.Trim(),
             videoDetails.GetLength() ?? TimeSpan.Zero,
-            playlistItemSnippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+            playlistItemSnippet.GetIndexingWindowDate(videoDetails)!.Value.UtcDateTime,
             playlistItemSnippet.ToYouTubeUrl(),
             image);
 }

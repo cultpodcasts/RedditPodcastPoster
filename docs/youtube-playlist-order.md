@@ -34,6 +34,7 @@ Manually curated playlists break both assumptions:
 | No reverse/tail pagination — `nextPageToken` only walks forward | "Check both ends cheaply" is not possible positionally |
 | `playlistItems.list` accepts `playlistId` + `videoId` (~1 unit) and returns `snippet.position` | A known video's playlist position can be looked up without walking |
 | For playlist items, `snippet.publishedAt` = **added-to-playlist time** | On curated playlists, added-at is the "new to this feed" signal regardless of position |
+| A **scheduled** upload joins the playlist days before it goes public; `contentDetails.videoPublishedAt` carries the real publication | Windowing on added-at alone hides scheduled uploads. Window on `PlaylistItem.GetIndexingWindowDate()` — the later of added-at and video-published-at |
 
 ---
 
@@ -58,7 +59,8 @@ When `Arbitrary`:
   channel-scale playlist.
 - Head-order probe skipped; `IsExpensiveQuery` stays `null`; discovery never Applys the
   expensive flag.
-- `ReleasedSince` filter (added-at) still applies after the walk.
+- `ReleasedSince` filter still applies after the walk, on the indexing-window date
+  (later of added-at and `contentDetails.videoPublishedAt`).
 - `SkipExpensiveYouTubeQueries` does not degrade to a single page.
 
 Full decision tables, discovery vs enrichment, and hourly gates:
@@ -98,3 +100,4 @@ Critical YouTube-only cases:
 | Equal added-at timestamps count as reverse-chrono (curated failure mode) | `PlaylistItemOrderingRules` |
 | Arbitrary circuit breaker trips at MaxPages with next token remaining | `ArbitraryYouTubePlaylistWalkRules` |
 | Arbitrary leaves expensive flag untouched even if a probe value sneaks through | `YouTubeEpisodeRetrievalHandlerRules` |
+| Scheduled upload added before the window but published inside it is retained and dated by publication | `ScheduledUploadIndexingWindowRules`, `YouTubeEpisodeProviderScheduledUploadRules` |

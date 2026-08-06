@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -40,7 +41,7 @@ public class YouTubePlaylistService(
 
         // Curated playlists carry no date information in their positions: new items may appear at
         // either end. Walk at max batch size (1 quota unit per 50 items) with a hard page cap
-        // (see ArbitraryYouTubePlaylistWalk.MaxPages) and rely on the ReleasedSince added-at
+        // (see ArbitraryYouTubePlaylistWalk.MaxPages) and rely on the ReleasedSince window
         // filter below; skip the head-order probe entirely so the expensive-query flag is never
         // flipped by a meaningless head sample.
         var arbitraryOrder = playlistOrder == PlaylistOrder.Arbitrary;
@@ -61,8 +62,11 @@ public class YouTubePlaylistService(
         var knownToBeInReverseOrder = false;
         bool? isExpensiveQuery = null;
         var pagesFetched = 0;
+        // contentDetails is free on playlistItems.list (1 unit per page regardless of parts) and carries
+        // videoPublishedAt, which the ReleasedSince filter below needs to window scheduled uploads on
+        // their public release rather than the earlier added-to-playlist time.
         var requestScope = "snippet";
-        if (withContentDetails)
+        if (withContentDetails || indexingContext.ReleasedSince.HasValue)
         {
             requestScope += ",contentDetails";
         }
@@ -186,7 +190,7 @@ public class YouTubePlaylistService(
         if (result.Any() && indexingContext.ReleasedSince != null)
         {
             result = result.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+                x.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
         }
 
         return new GetPlaylistVideoSnippetsResponse(result, isExpensiveQuery);
