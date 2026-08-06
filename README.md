@@ -95,8 +95,8 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "cosmosdb:PushSubscriptionsContainer": "PushSubscriptions",
   "cosmosdb:UseGateway": false,
 
-  // Provision TitleCasingRules in Azure with partition key path /language before first use.
-  // Example: az cosmosdb sql container create ... --partition-key-path "/language" --name TitleCasingRules
+  // TitleCasingRules container (PK /language) is defined in Infrastructure/cosmos-db.bicep
+  // and already provisioned in prod; keep app setting in sync via functions.bicep.
 
   "spotify:ClientId": "xxxx",
   "spotify:ClientSecret": "xxxx",
