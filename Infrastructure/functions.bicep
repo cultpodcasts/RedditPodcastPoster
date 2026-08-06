@@ -223,6 +223,7 @@ var cosmosdb= {
     cosmosdb__ActivitiesContainer: 'Activity'
     cosmosdb__DiscoveryContainer: 'Discovery'
     cosmosdb__LookUpsContainer: 'LookUps'
+    cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
     cosmosdb__UseGateway: 'false'
 }

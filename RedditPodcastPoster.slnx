@@ -161,6 +161,10 @@
 
     <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
 
+    <Project Path="Console-Apps/SeedTitleCasingRules/SeedTitleCasingRules.csproj" />
+
+    <Project Path="Console-Apps/SeedSupportedLanguages/SeedSupportedLanguages.csproj" />
+
     <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
 
     <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />

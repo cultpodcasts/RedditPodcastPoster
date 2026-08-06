@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -25,6 +26,11 @@ public class LookupRepository(
         return GetById<DiscoveryScheduleConfig>(DiscoveryScheduleConfig._Id);
     }
 
+    public Task<SupportedLanguagesConfig?> GetSupportedLanguagesConfig()
+    {
+        return GetById<SupportedLanguagesConfig>(SupportedLanguagesConfig._Id);
+    }
+
     public Task<TKnownTerms?> GetKnownTerms<TKnownTerms>() where TKnownTerms : CosmosSelector
     {
         return GetBy<TKnownTerms>(x => x.ModelType == ModelType.KnownTerms);
@@ -41,6 +47,11 @@ public class LookupRepository(
     }
 
     public async Task SaveDiscoveryScheduleConfig(DiscoveryScheduleConfig config)
+    {
+        await lookupContainer.UpsertItemAsync(config, new PartitionKey(config.Id.ToString()));
+    }
+
+    public async Task SaveSupportedLanguagesConfig(SupportedLanguagesConfig config)
     {
         await lookupContainer.UpsertItemAsync(config, new PartitionKey(config.Id.ToString()));
     }

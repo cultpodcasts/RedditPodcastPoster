@@ -280,7 +280,8 @@ public class HomepagePublisher(
             podcastResult.EpisodeTitle,
             titleRegex,
             podcastResult.KnownTerms ?? [],
-            subjectKnownTerms);
+            subjectKnownTerms,
+            podcastResult.Language);
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))

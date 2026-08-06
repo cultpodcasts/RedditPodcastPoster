@@ -1,12 +1,11 @@
 using Microsoft.Azure.Functions.Worker.Http;
-using Api.Models;
 
-namespace Api.Handlers.Terms;
+namespace Api.Handlers.TitleCasingRules;
 
-public interface IPostTermsHandler
+public interface IGetTitleCasingRulesByLanguageHandler
 {
     Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TermSubmitRequest termSubmitRequest,
+        string language,
         CancellationToken c);
 }

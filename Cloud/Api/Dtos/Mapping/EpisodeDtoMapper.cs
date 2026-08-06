@@ -87,7 +87,8 @@ public class EpisodeDtoMapper(
                 episode.Title,
                 titleRegex,
                 podcast.KnownTerms ?? Array.Empty<string>(),
-                episodeSubjects),
+                episodeSubjects,
+                episode.Language),
             DisplayDescription = textSanitiser.SanitiseDescription(episode.Description, descriptionRegex)
         };
 

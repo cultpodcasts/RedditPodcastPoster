@@ -24,6 +24,7 @@ public class PostModelFactory(
             .SelectMany(x => x.Subjects).Distinct()
             .Select(x => subjects.SingleOrDefault(y => y.Name == x))
             .SelectMany(x => x?.KnownTerms ?? []).ToArray();
+        var firstEpisode = podcastEpisodes.Episodes.First();
         var postModel = new PostModel(
             podcastEpisodes.Podcast.Name,
             podcastEpisodes.Podcast.TitleRegex,
@@ -31,7 +32,8 @@ public class PostModelFactory(
             podcastEpisodes.Episodes.Select(ToBasicEpisode),
             preferYouTube ? Service.YouTube : podcastEpisodes.Podcast.PrimaryPostService,
             podcastEpisodes.Podcast.KnownTerms ?? [],
-            subjectKnownTerms
+            subjectKnownTerms,
+            firstEpisode.Language
         );
         return postModel;
     }

@@ -18,7 +18,6 @@ using Api.Handlers.PushSubscriptions;
 using Api.Handlers.SearchIndex;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
 using Api.Models;
 using Azure.Diagnostics;
 using RedditPodcastPoster.Auth0.Models;
@@ -31,6 +30,7 @@ public class PublicControllerAuthTests
     [Fact(DisplayName = "Public episode get allows any authenticated principal (no curate role)")]
     public async Task Public_get_allows_authenticated_without_curate()
     {
+        // Arrange
         var principal = new ClientPrincipal
         {
             Claims = [new ClientPrincipalClaim { Type = "permissions", Value = "submit" }]
@@ -66,6 +66,7 @@ public class PublicControllerAuthTests
     [Fact(DisplayName = "Public episode get returns 401 when principal missing")]
     public async Task Public_get_requires_principal()
     {
+        // Arrange
         var factory = new Mock<IClientPrincipalFactory>();
         factory.Setup(f => f.CreateAsync(It.IsAny<HttpRequestData>())).ReturnsAsync((ClientPrincipal?)null);
 

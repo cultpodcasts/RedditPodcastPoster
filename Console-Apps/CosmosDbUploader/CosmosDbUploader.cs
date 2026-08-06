@@ -2,9 +2,11 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.Notifications;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text.KnownTerms;
@@ -17,6 +19,7 @@ public class CosmosDbUploader(
     IEpisodeRepository episodeRepository,
     ISubjectRepository subjectRepository,
     ILookupRepository lookupRepository,
+    ILanguageTitleCasingRulesRepository titleCasingRulesRepository,
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
@@ -31,6 +34,8 @@ public class CosmosDbUploader(
         await UploadEpisodes();
         await UploadEliminationTerms();
         await UploadKnownTerms();
+        await UploadSupportedLanguages();
+        await UploadTitleCasingRules();
         await UploadSubjects();
         await UploadDiscoveryResultsDocuments();
         await UploadPushSubscriptions();
@@ -80,6 +85,25 @@ public class CosmosDbUploader(
         {
             logger.LogInformation("Uploading known terms.");
             await lookupRepository.SaveKnownTerms(knownTerms);
+        }
+    }
+
+    private async Task UploadSupportedLanguages()
+    {
+        var config = await fileRepository.GetAll<SupportedLanguagesConfig>().FirstOrDefaultAsync();
+        if (config != null)
+        {
+            logger.LogInformation("Uploading supported languages.");
+            await lookupRepository.SaveSupportedLanguagesConfig(config);
+        }
+    }
+
+    private async Task UploadTitleCasingRules()
+    {
+        foreach (var document in ReadFiles<LanguageTitleCasingRulesDocument>("titlecasing"))
+        {
+            logger.LogInformation("Uploading title-casing rules '{FileKey}'.", document.FileKey);
+            await titleCasingRulesRepository.Save(document);
         }
     }
 

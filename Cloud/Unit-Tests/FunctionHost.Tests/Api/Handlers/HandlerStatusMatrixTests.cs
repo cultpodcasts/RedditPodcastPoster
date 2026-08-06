@@ -11,7 +11,6 @@ using Api.Handlers.Podcasts;
 using Api.Handlers.Public;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
 using Api.Models;
 using Api.Services.Episodes;
 using Api.Services.People;
@@ -19,7 +18,6 @@ using Api.Services.Podcasts;
 using Api.Services.Public;
 using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
-using Api.Services.Terms;
 using Xunit;
 using Person = RedditPodcastPoster.Models.People.Person;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -50,6 +48,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPersonHandler maps Ok to 200")]
     public async Task GetPersonHandler_ok_returns_200()
     {
+        // Arrange
         var person = new Person("Ada Lovelace") { Id = Guid.NewGuid() };
         var service = new Mock<IPersonGetService>();
         service.Setup(s => s.GetAsync("Ada", It.IsAny<CancellationToken>()))
@@ -66,6 +65,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPersonHandler maps NotFound to 404")]
     public async Task GetPersonHandler_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IPersonGetService>();
         service.Setup(s => s.GetAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.NotFound));
@@ -81,6 +81,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPersonHandler maps Failed to 500 with error JSON body")]
     public async Task GetPersonHandler_failed_returns_500_with_error_body()
     {
+        // Arrange
         var service = new Mock<IPersonGetService>();
         service.Setup(s => s.GetAsync("Ada", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.Failed));
@@ -100,6 +101,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPodcastHandler maps Found to 200")]
     public async Task GetPodcastHandler_found_returns_200()
     {
+        // Arrange
         var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Show" };
         var service = new Mock<IPodcastGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
@@ -116,6 +118,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPodcastHandler maps NotFound to 404 with error JSON body")]
     public async Task GetPodcastHandler_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IPodcastGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.NotFound));
@@ -133,6 +136,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPodcastHandler maps Conflict with ambiguous podcasts to 409 with candidate list body")]
     public async Task GetPodcastHandler_conflict_with_ambiguous_returns_409()
     {
+        // Arrange
         var ambiguous = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var service = new Mock<IPodcastGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
@@ -151,6 +155,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPodcastHandler maps Failed to 500 with error JSON body")]
     public async Task GetPodcastHandler_failed_returns_500_with_error_body()
     {
+        // Arrange
         var service = new Mock<IPodcastGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.Failed));
@@ -170,6 +175,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetSubjectHandler maps Ok to 200")]
     public async Task GetSubjectHandler_ok_returns_200()
     {
+        // Arrange
         var subject = new Subject("News");
         var service = new Mock<ISubjectGetService>();
         service.Setup(s => s.GetAsync("News", It.IsAny<CancellationToken>()))
@@ -186,6 +192,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetSubjectHandler maps NotFound to 404")]
     public async Task GetSubjectHandler_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<ISubjectGetService>();
         service.Setup(s => s.GetAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectGetResult(SubjectGetStatus.NotFound));
@@ -201,6 +208,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetSubjectHandler maps Failed to 500 with error JSON body")]
     public async Task GetSubjectHandler_failed_returns_500_with_error_body()
     {
+        // Arrange
         var service = new Mock<ISubjectGetService>();
         service.Setup(s => s.GetAsync("News", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectGetResult(SubjectGetStatus.Failed));
@@ -220,6 +228,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "DeleteEpisodeHandler maps Deleted to 200")]
     public async Task DeleteEpisodeHandler_deleted_returns_200()
     {
+        // Arrange
         var service = new Mock<IEpisodeDeleteService>();
         service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted));
@@ -236,6 +245,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "DeleteEpisodeHandler maps NotFound to 404")]
     public async Task DeleteEpisodeHandler_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IEpisodeDeleteService>();
         service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound));
@@ -254,6 +264,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "DeleteEpisodeHandler maps PodcastConflict to 409")]
     public async Task DeleteEpisodeHandler_podcast_conflict_returns_409()
     {
+        // Arrange
         var service = new Mock<IEpisodeDeleteService>();
         service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.PodcastConflict));
@@ -272,6 +283,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "DeleteEpisodeHandler maps AlreadySocial to 400 with body")]
     public async Task DeleteEpisodeHandler_already_social_returns_400()
     {
+        // Arrange
         var service = new Mock<IEpisodeDeleteService>();
         service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: true, Tweeted: false));
@@ -289,67 +301,12 @@ public class HandlerStatusMatrixTests
         body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
-    // ----- PostTermsHandler -----
-
-    [Fact(DisplayName = "PostTermsHandler maps Ok to 200")]
-    public async Task PostTermsHandler_ok_returns_200()
-    {
-        var service = new Mock<ITermsSubmitService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<TermSubmitRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermsSubmitResult(TermsSubmitStatus.Ok));
-
-        var handler = new PostTermsHandler(service.Object, NullLogger<PostTermsHandler>.Instance);
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-
-        var result = await handler.Handle(
-            new HandlerContext(req.Object, null),
-            new TermSubmitRequest { Term = "cult" },
-            CancellationToken.None);
-
-        result.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact(DisplayName = "PostTermsHandler maps Conflict to 409")]
-    public async Task PostTermsHandler_conflict_returns_409()
-    {
-        var service = new Mock<ITermsSubmitService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<TermSubmitRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermsSubmitResult(TermsSubmitStatus.Conflict));
-
-        var handler = new PostTermsHandler(service.Object, NullLogger<PostTermsHandler>.Instance);
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-
-        var result = await handler.Handle(
-            new HandlerContext(req.Object, null),
-            new TermSubmitRequest { Term = "cult" },
-            CancellationToken.None);
-
-        result.StatusCode.Should().Be(HttpStatusCode.Conflict);
-    }
-
-    [Fact(DisplayName = "PostTermsHandler maps Failed to 500")]
-    public async Task PostTermsHandler_failed_returns_500()
-    {
-        var service = new Mock<ITermsSubmitService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<TermSubmitRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TermsSubmitResult(TermsSubmitStatus.Failed));
-
-        var handler = new PostTermsHandler(service.Object, NullLogger<PostTermsHandler>.Instance);
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-
-        var result = await handler.Handle(
-            new HandlerContext(req.Object, null),
-            new TermSubmitRequest { Term = "cult" },
-            CancellationToken.None);
-
-        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
-    }
-
     // ----- PostSubmitUrlHandler -----
 
     [Fact(DisplayName = "PostSubmitUrlHandler maps PodcastNotFound to 404")]
     public async Task PostSubmitUrlHandler_podcast_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<ISubmitUrlService>();
         service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "missing"));
@@ -368,6 +325,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "PostSubmitUrlHandler maps Failed to 500")]
     public async Task PostSubmitUrlHandler_failed_returns_500()
     {
+        // Arrange
         var service = new Mock<ISubmitUrlService>();
         service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.Failed, Message: "boom"));
@@ -388,6 +346,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPublicEpisodeHandler maps NotFound to 404")]
     public async Task GetPublicEpisodeHandler_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IPublicEpisodeGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.NotFound));
@@ -406,6 +365,7 @@ public class HandlerStatusMatrixTests
     [Fact(DisplayName = "GetPublicEpisodeHandler maps Failed to 500 with error JSON body")]
     public async Task GetPublicEpisodeHandler_failed_returns_500_with_error_body()
     {
+        // Arrange
         var service = new Mock<IPublicEpisodeGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.Failed));

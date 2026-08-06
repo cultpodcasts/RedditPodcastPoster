@@ -113,6 +113,21 @@ resource lookupContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
   }
 }
 
+resource titleCasingRulesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'TitleCasingRules'
+  properties: {
+    resource: {
+      id: 'TitleCasingRules'
+      partitionKey: {
+        paths: ['/language']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
 resource pushSubscriptionsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: database
   name: 'PushSubscriptions'

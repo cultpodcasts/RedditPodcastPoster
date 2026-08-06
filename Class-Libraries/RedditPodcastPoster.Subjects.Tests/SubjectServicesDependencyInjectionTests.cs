@@ -1,20 +1,19 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Moq;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Matching;
-using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Subjects.Tests;
 
 public class SubjectServicesDependencyInjectionTests
 {
     [Fact(DisplayName =
-        "AddSubjectServices self-containment: when host stubs Cosmos subjects provider and KnownTerms, then ISubjectMatcher resolves, because SubjectService needs ITextSanitiser + ISubjectsProvider.")]
+        "AddSubjectServices self-containment: when host stubs Cosmos subjects provider and title-casing rules, then ISubjectMatcher resolves, because SubjectService needs ITextSanitiser + ISubjectsProvider.")]
     public void AddSubjectServices_resolves_ISubjectMatcher_with_host_stubs()
     {
         // Arrange
@@ -22,7 +21,7 @@ public class SubjectServicesDependencyInjectionTests
         services.AddLogging();
         services.AddSubjectServices();
         ReplaceSubjectsProviderWithStub(services);
-        services.AddSingleton(Mock.Of<IAsyncInstance<IKnownTermsProvider>>());
+        services.AddSingleton(Mock.Of<IAsyncInstance<ITitleCasingRulesProvider>>());
 
         using var provider = services.BuildServiceProvider();
 
