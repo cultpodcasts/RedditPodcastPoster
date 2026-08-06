@@ -26,6 +26,7 @@ public class LowerCaseTermsTests
     [InlineData("EN-us", "en")]
     [InlineData("pl", "pl")]
     [InlineData("fr-FR", "fr")]
+    [InlineData("*", "*")]
     public void NormaliseLanguageKey_MapsAsExpected(string? language, string expected)
     {
         // Arrange

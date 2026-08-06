@@ -10,4 +10,7 @@ public interface ITitleCasingRulesProvider
     IDictionary<string, Regex> GetLowerCaseExpressions(string? language);
 
     IReadOnlyList<KnownTermEntry> GetKnownTerms(string? language);
+
+    /// <summary>Known terms that apply to every language (Cosmos language key <c>*</c>).</summary>
+    IReadOnlyList<KnownTermEntry> GetUniversalKnownTerms();
 }

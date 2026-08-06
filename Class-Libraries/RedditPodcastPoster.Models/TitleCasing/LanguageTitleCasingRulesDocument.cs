@@ -11,6 +11,9 @@ namespace RedditPodcastPoster.Models.TitleCasing;
 [CosmosSelector(ModelType.LanguageTitleCasingRules)]
 public sealed class LanguageTitleCasingRulesDocument : CosmosSelector
 {
+    /// <summary>Reserved partition key for known-terms that apply to every language.</summary>
+    public const string UniversalLanguageKey = "*";
+
     public LanguageTitleCasingRulesDocument()
     {
         ModelType = ModelType.LanguageTitleCasingRules;
@@ -23,7 +26,7 @@ public sealed class LanguageTitleCasingRulesDocument : CosmosSelector
         Id = IdForLanguage(normalised);
     }
 
-    /// <summary>ISO language code; Cosmos partition key.</summary>
+    /// <summary>ISO language code or <see cref="UniversalLanguageKey"/>; Cosmos partition key.</summary>
     [JsonPropertyName("language")]
     [JsonPropertyOrder(10)]
     public string Language { get; set; } = "";
@@ -38,9 +41,19 @@ public sealed class LanguageTitleCasingRulesDocument : CosmosSelector
 
     public override string FileKey => $"TitleCasingRules-{Language}";
 
+    public static bool IsUniversal(string? language) =>
+        !string.IsNullOrWhiteSpace(language) &&
+        NormaliseLanguage(language) == UniversalLanguageKey;
+
     public static string NormaliseLanguage(string language)
     {
-        var trimmed = language.Trim().ToLowerInvariant().Replace('_', '-');
+        var trimmed = language.Trim();
+        if (trimmed == UniversalLanguageKey)
+        {
+            return UniversalLanguageKey;
+        }
+
+        trimmed = trimmed.ToLowerInvariant().Replace('_', '-');
         var dash = trimmed.IndexOf('-');
         return dash > 0 ? trimmed[..dash] : trimmed;
     }
