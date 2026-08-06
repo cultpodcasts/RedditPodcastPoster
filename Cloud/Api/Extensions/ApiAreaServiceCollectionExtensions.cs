@@ -137,7 +137,6 @@ public static class ApiAreaServiceCollectionExtensions
         services
             .AddScoped<ITitleCasingRulesGetService, TitleCasingRulesGetService>()
             .AddScoped<ITitleCasingRulesUpdateService, TitleCasingRulesUpdateService>()
-            .AddScoped<IGetTitleCasingRulesHandler, GetTitleCasingRulesHandler>()
             .AddScoped<IGetTitleCasingRulesByLanguageHandler, GetTitleCasingRulesByLanguageHandler>()
             .AddScoped<IPutTitleCasingRulesHandler, PutTitleCasingRulesHandler>();
 }
