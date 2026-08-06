@@ -6,7 +6,8 @@ using CommandLine;
 using Poster;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
+using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
@@ -37,7 +38,8 @@ builder.Services
     .AddScoped<PostProcessor>()
     .AddEpisodesDomain()
     .AddRepositories()
-    .AddCommonServices()
+    .AddCatalogueServices()
+    .AddSocialPostingServices()
     .AddPodcastServices()
     .AddPeopleServices()
     .AddContentPublishing()

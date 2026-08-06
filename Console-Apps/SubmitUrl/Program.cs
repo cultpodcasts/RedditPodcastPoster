@@ -6,7 +6,7 @@ using CommandLine;
 using iTunesSearch.Library;
 using SubmitUrl;
 using RedditPodcastPoster.BBC.Extensions;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
@@ -40,7 +40,7 @@ builder.Services
     .AddLogging()
     .AddEpisodesDomain()
     .AddRepositories()
-    .AddCommonServices()
+    .AddCatalogueServices()
     .AddPodcastServices()
     .AddEdgeApiClient(bypassCertificateValidation: false)
     .AddSpotifyServices()

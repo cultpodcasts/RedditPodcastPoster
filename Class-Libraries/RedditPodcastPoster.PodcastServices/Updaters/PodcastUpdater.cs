@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Catalogue.Episodes;
+using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Logging;

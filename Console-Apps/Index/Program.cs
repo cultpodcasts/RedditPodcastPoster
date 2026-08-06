@@ -5,7 +5,8 @@ using Microsoft.Extensions.Hosting;
 using CommandLine;
 using Index;
 using iTunesSearch.Library;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
+using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
@@ -39,7 +40,8 @@ builder.Services
     .AddSingleton<IndexProcessor>()
     .AddEpisodesDomain()
     .AddRepositories()
-    .AddCommonServices()
+    .AddCatalogueServices()
+    .AddSocialPostingServices()
     .AddPodcastServices()
     .AddEdgeApiClient(bypassCertificateValidation: false)
     .AddAppleServices()

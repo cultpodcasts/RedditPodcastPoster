@@ -12,7 +12,8 @@ using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
+using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -56,7 +57,8 @@ public static class Ioc
             .AddAppleServices()
             .AddPodcastServices()
             .AddEdgeApiClient(bypassCertificateValidation: false)
-            .AddCommonServices()
+            .AddCatalogueServices()
+            .AddSocialPostingServices()
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddSubjectServices()

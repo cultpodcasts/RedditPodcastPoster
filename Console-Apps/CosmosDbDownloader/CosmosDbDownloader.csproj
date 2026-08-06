@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -15,7 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />

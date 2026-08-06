@@ -1,6 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 
 namespace Api.Services.Episodes;

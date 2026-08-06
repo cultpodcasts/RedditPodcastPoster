@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models.Episodes;

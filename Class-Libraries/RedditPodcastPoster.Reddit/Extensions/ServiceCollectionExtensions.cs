@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Reddit.Configuration;
+using RedditPodcastPoster.Reddit.Episodes;
 using RedditPodcastPoster.Reddit.Factories;
 using RedditPodcastPoster.Reddit.Managers;
 using RedditPodcastPoster.Reddit.Posters;
 using RedditPodcastPoster.Reddit.Resolvers;
+using RedditPodcastPoster.SocialPosting.Episodes;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
 
@@ -24,6 +26,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IPostManager, PostManager>()
                 .AddScoped<IPostResolver, PostResolver>()
                 .AddScoped<IFlareManager, FlareManager>()
+                .AddScoped<IEpisodePostManager, EpisodePostManager>()
                 .BindConfiguration<RedditSettings>("reddit")
                 .AddSubredditSettings();
         }

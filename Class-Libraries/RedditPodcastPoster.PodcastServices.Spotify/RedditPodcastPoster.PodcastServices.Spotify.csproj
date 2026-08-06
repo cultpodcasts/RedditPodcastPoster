@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
+        <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection.Abstractions\RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Episodes\RedditPodcastPoster.Episodes.csproj" />

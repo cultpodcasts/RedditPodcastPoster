@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using FluentAssertions;
 using Moq;
-using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Indexing.Models;

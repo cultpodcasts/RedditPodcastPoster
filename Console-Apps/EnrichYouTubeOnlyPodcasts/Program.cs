@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
 using EnrichYouTubeOnlyPodcasts;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
@@ -39,7 +39,7 @@ builder.Services
     .AddPostingCriteria()
     .AddEliminationTerms()
     .AddEpisodeSearchIndexerService()
-    .AddCommonServices();
+    .AddCatalogueServices();
 
 using var host = builder.Build();
 

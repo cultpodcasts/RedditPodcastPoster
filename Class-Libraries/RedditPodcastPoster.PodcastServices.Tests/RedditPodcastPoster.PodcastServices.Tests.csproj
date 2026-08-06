@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -24,7 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
+        <ProjectReference Include="..\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Episodes\RedditPodcastPoster.Episodes.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />

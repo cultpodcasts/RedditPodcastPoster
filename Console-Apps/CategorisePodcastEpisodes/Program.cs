@@ -4,7 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CategorisePodcastEpisodes;
 using CommandLine;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
+using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -28,7 +29,8 @@ builder.Services
     .AddCachedSubjectProvider()
     .AddSubjectServices()
     .AddTextSanitiser()
-    .AddCommonServices()
+    .AddCatalogueServices()
+    .AddSocialPostingServices()
     .AddEpisodeSearchIndexerService();
 
 using var host = builder.Build();

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using AddYouTubeChannelAsPodcast;
 using CommandLine;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -30,7 +30,7 @@ builder.Services
     .AddScoped<AddYouTubeChannelProcessor>()
     .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
     .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
-    .AddCommonServices()
+    .AddCatalogueServices()
     .AddHttpClient();
 
 using var host = builder.Build();

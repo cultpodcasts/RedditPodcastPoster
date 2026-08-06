@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,4 +21,8 @@
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
+  </ItemGroup>
 </Project>

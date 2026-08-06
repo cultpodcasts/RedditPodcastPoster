@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
 using Indexer.Models;
 using Indexer.Services;
-using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Configuration.Options;
 
