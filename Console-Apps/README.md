@@ -283,6 +283,18 @@ RemoveEpisodes restore removed-episodes-log.txt
 | `-a, --apply` | Write the document; without this flag, report only |
 | `-l, --language` | Language code (default `en`) |
 
+### SeedSupportedLanguages
+
+**Purpose:** Seed LookUps `SupportedLanguagesConfig`. Prefer `--from-r2` when R2 is the authority. Dry-run unless `--apply`. Skips if the document exists unless `--force`.
+
+**Run:** `dotnet run --project Console-Apps/SeedSupportedLanguages --` · PATH: `SeedSupportedLanguages`
+
+| Option | Description |
+|--------|-------------|
+| `-a, --apply` | Write the document; without this flag, report only |
+| `--from-r2` | Build from current R2 `languages` object instead of `CreateDefault()` |
+| `-f, --force` | Overwrite an existing LookUps document |
+
 ### FindDuplicateEpisodes
 
 **Purpose:** Find (and optionally fix) duplicate episodes.
