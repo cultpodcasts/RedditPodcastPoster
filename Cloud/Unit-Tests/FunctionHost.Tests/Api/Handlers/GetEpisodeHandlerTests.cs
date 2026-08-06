@@ -123,8 +123,9 @@ public class GetEpisodeHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<Regex?>(),
                 It.IsAny<string[]>(),
-                It.IsAny<string[]>()))
-            .ReturnsAsync((string title, Regex? _, string[] _, string[] _) => title);
+                It.IsAny<string[]>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
         sanitiser.Setup(s => s.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
             .Returns((string description, Regex? _) => description);
 

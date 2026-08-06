@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Azure;
 using Moq;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.HomePage;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
@@ -32,6 +34,7 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:ActivitiesContainer"] = "Activity",
             ["cosmosdb:DiscoveryContainer"] = "Discovery",
             ["cosmosdb:LookUpsContainer"] = "LookUps",
+            ["cosmosdb:TitleCasingRulesContainer"] = "TitleCasingRules",
             ["cosmosdb:PushSubscriptionsContainer"] = "PushSubscriptions",
             ["discover:DynamicLookbackOverlap"] = "00:10:00",
             ["discover:scorer:Enabled"] = "false",
@@ -139,6 +142,7 @@ internal static class FunctionHostTestSupport
         configure(services);
         ReplaceCosmosWithTestDoubles(services);
         ReplaceLookupRepositoryWithTestDouble(services);
+        ReplaceLanguageTitleCasingRulesRepositoryWithTestDouble(services);
         ReplaceSubjectsProviderWithTestDouble(services);
         return services;
     }
@@ -158,6 +162,7 @@ internal static class FunctionHostTestSupport
         mockContainerFactory.Setup(x => x.CreateActivitiesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateDiscoveryContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateLookUpsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateTitleCasingRulesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreatePushSubscriptionsContainer()).Returns(mockContainer.Object);
 
         services.AddSingleton(mockContainerFactory.Object);
@@ -172,10 +177,31 @@ internal static class FunctionHostTestSupport
         mockLookupRepository.Setup(x => x.GetYouTubeIndexerKeyState()).ReturnsAsync((YouTubeIndexerKeyState?)null);
         mockLookupRepository.Setup(x => x.GetYouTubeQuotaUsageState()).ReturnsAsync((YouTubeQuotaUsageState?)null);
         mockLookupRepository.Setup(x => x.GetEliminationTerms()).ReturnsAsync((EliminationTerms?)null);
+        mockLookupRepository.Setup(x => x.GetDiscoveryScheduleConfig()).ReturnsAsync((DiscoveryScheduleConfig?)null);
+        mockLookupRepository.Setup(x => x.GetSupportedLanguagesConfig()).ReturnsAsync((SupportedLanguagesConfig?)null);
+        mockLookupRepository.Setup(x => x.GetKnownTerms<RedditPodcastPoster.Text.KnownTerms.KnownTerms>())
+            .ReturnsAsync((RedditPodcastPoster.Text.KnownTerms.KnownTerms?)null);
         mockLookupRepository.Setup(x => x.GetHomePageCache()).ReturnsAsync((HomePageCache?)null);
         mockLookupRepository.Setup(x => x.GetYouTubeQuotaReport()).ReturnsAsync((YouTubeQuotaReport?)null);
 
         services.AddSingleton(mockLookupRepository.Object);
+    }
+
+    internal static void ReplaceLanguageTitleCasingRulesRepositoryWithTestDouble(IServiceCollection services)
+    {
+        RemoveService<ILanguageTitleCasingRulesRepository>(services);
+
+        var mockRepo = new Mock<ILanguageTitleCasingRulesRepository>();
+        mockRepo.Setup(x => x.GetAll()).Returns(EmptyTitleCasingRules());
+        mockRepo.Setup(x => x.Get(It.IsAny<string>()))
+            .ReturnsAsync((RedditPodcastPoster.Models.TitleCasing.LanguageTitleCasingRulesDocument?)null);
+
+        services.AddSingleton(mockRepo.Object);
+    }
+
+    private static async IAsyncEnumerable<RedditPodcastPoster.Models.TitleCasing.LanguageTitleCasingRulesDocument> EmptyTitleCasingRules()
+    {
+        yield break;
     }
 
     internal static void ReplaceSubjectsProviderWithTestDouble(IServiceCollection services)

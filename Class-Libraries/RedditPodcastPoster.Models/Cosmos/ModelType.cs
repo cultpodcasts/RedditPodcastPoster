@@ -50,5 +50,11 @@ public enum ModelType
     Person = 15,
 
     [JsonPropertyName(nameof(DiscoveryScheduleConfig))]
-    DiscoveryScheduleConfig = 16
+    DiscoveryScheduleConfig = 16,
+
+    [JsonPropertyName(nameof(SupportedLanguagesConfig))]
+    SupportedLanguagesConfig = 17,
+
+    [JsonPropertyName(nameof(LanguageTitleCasingRules))]
+    LanguageTitleCasingRules = 18
 }

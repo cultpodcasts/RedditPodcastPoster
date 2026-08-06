@@ -61,6 +61,11 @@ public class CosmosDbContainerFactory(
         return GetContainer(cosmosDbSettings.LookUpsContainer, "cosmosdb:LookUpsContainer");
     }
 
+    public Container CreateTitleCasingRulesContainer()
+    {
+        return GetContainer(cosmosDbSettings.TitleCasingRulesContainer, "cosmosdb:TitleCasingRulesContainer");
+    }
+
     public Container CreatePushSubscriptionsContainer()
     {
         return GetContainer(cosmosDbSettings.PushSubscriptionsContainer, "cosmosdb:PushSubscriptionsContainer");

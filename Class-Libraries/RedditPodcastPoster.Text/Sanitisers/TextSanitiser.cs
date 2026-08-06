@@ -3,17 +3,18 @@ using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Posting;
-using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Text.Models;
+using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Text.Sanitisers;
 
 public partial class TextSanitiser(
-    IAsyncInstance<IKnownTermsProvider> knownTermsProviderInstance)
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance)
     : ITextSanitiser
 {
     private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex RomanceElisionApostrophe = CreateRomanceElisionApostrophe();
+    private static readonly Regex McMacPrefix = CreateMcMacPrefix();
     private static readonly Regex HashtagOrAtSymbols = GenerateHashTagAtSymbolPatter();
     private static readonly Regex InQuotes = GenerateInQuotes();
     private static readonly Regex InvalidTitlePrefix = GenerateInvalidTitlePrefix();
@@ -25,7 +26,7 @@ public partial class TextSanitiser(
     public async Task<string> SanitiseTitle(PostModel postModel)
     {
         return await SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
-            postModel.SubjectKnownTerms);
+            postModel.SubjectKnownTerms, postModel.Language);
     }
 
     public string SanitisePodcastName(PostModel postModel)
@@ -39,7 +40,7 @@ public partial class TextSanitiser(
     }
 
     public async Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
-        string[] subjectKnownTerms)
+        string[] subjectKnownTerms, string? language = null)
     {
         if (regex != null)
         {
@@ -58,13 +59,16 @@ public partial class TextSanitiser(
         episodeTitle = TextInfo.ToTitleCase(episodeTitle.ToLower());
         episodeTitle = RaiseOfApostropheLetter(episodeTitle);
         episodeTitle = FixRomanceElisionApostrophe(episodeTitle);
+        episodeTitle = FixMcMacPrefix(episodeTitle);
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
-        foreach (var term in LowerCaseTerms.Expressions)
+
+        var rulesProvider = await titleCasingRulesProviderInstance.GetAsync();
+        foreach (var term in rulesProvider.GetLowerCaseExpressions(language))
         {
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
 
-        episodeTitle = await FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms);
+        episodeTitle = FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms, language, rulesProvider);
 
         episodeTitle = episodeTitle.Trim();
         var inQuotesMatch = InQuotes.Match(episodeTitle);
@@ -138,6 +142,31 @@ public partial class TextSanitiser(
             var post = match.Groups["post"].Value;
             text = text.Substring(0, index) + pre + "'" + TextInfo.ToTitleCase(post.ToLower()) +
                    text.Substring(index + length);
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// Recapitalises the letter after <c>Mc</c> always, and after <c>Mac</c> only when the
+    /// token is a known surname in <see cref="MacSurnames"/> (e.g. Mcewan → McEwan,
+    /// Macewan → MacEwan). Leaves English Mac* words alone (Machine, Machination, …).
+    /// </summary>
+    public string FixMcMacPrefix(string text)
+    {
+        var matches = McMacPrefix.Matches(text);
+        foreach (Match match in matches.Cast<Match>().OrderByDescending(m => m.Index))
+        {
+            var prefix = match.Groups["prefix"].Value;
+            var rest = match.Groups["rest"].Value;
+            if (prefix.Equals("Mac", StringComparison.Ordinal) &&
+                !MacSurnames.Names.Contains(match.Value))
+            {
+                continue;
+            }
+
+            var fixedWord = prefix + char.ToUpperInvariant(rest[0]) + rest[1..];
+            text = text.Substring(0, match.Index) + fixedWord + text.Substring(match.Index + match.Length);
         }
 
         return text;
@@ -217,17 +246,19 @@ public partial class TextSanitiser(
         return title.Trim();
     }
 
-    private async Task<string> FixCasing(string input, string[] podcastKnownTerms, string[] subjectKnownTerms)
+    private string FixCasing(
+        string input,
+        string[] podcastKnownTerms,
+        string[] subjectKnownTerms,
+        string? language,
+        ITitleCasingRulesProvider rulesProvider)
     {
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
-        var knowTermsProvider = await knownTermsProviderInstance.GetAsync();
-        var knownTerms = knowTermsProvider.GetKnownTerms();
 
-
-        foreach (var term in knownTerms.Terms)
+        foreach (var term in rulesProvider.GetKnownTerms(language))
         {
-            input = term.Value.Replace(input, term.Key);
+            input = term.ToRegex().Replace(input, term.Literal);
         }
 
         foreach (var term in podcastKnownTerms.Select(x =>
@@ -265,6 +296,10 @@ public partial class TextSanitiser(
 
     [GeneratedRegex(@"\b(?'pre'[LlDd])'\b(?'post'\w+)\b", RegexOptions.Compiled)]
     private static partial Regex CreateRomanceElisionApostrophe();
+
+    // Mac before Mc so "Macewan" matches Mac, not a leading Mc fragment.
+    [GeneratedRegex(@"\b(?'prefix'Mac|Mc)(?'rest'[a-z]\w*)\b", RegexOptions.Compiled)]
+    private static partial Regex CreateMcMacPrefix();
 
     [GeneratedRegex(@"\bS\d+ ?E\d+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex GenerateSeasonEpisode();

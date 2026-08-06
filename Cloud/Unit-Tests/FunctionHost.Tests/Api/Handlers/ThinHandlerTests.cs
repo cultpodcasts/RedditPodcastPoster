@@ -16,7 +16,6 @@ using Api.Handlers.PushSubscriptions;
 using Api.Handlers.SearchIndex;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
 using Api.Models;
 using Api.Services.People;
 using Api.Services.Public;
@@ -80,6 +79,7 @@ public class ThinHandlerTests
     [Fact(DisplayName = "GetPublicEpisodeHandler maps NotFound to 404")]
     public async Task Public_get_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IPublicEpisodeGetService>();
         service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.NotFound));
@@ -95,6 +95,7 @@ public class ThinHandlerTests
     [Fact(DisplayName = "GetPersonHandler maps Ok to 200")]
     public async Task Person_get_ok_returns_200()
     {
+        // Arrange
         var person = new Person("Ada") { Id = Guid.NewGuid() };
         var service = new Mock<IPersonGetService>();
         service.Setup(s => s.GetAsync("Ada", It.IsAny<CancellationToken>()))
@@ -111,6 +112,7 @@ public class ThinHandlerTests
     [Fact(DisplayName = "GetPersonHandler maps NotFound to 404")]
     public async Task Person_get_not_found_returns_404()
     {
+        // Arrange
         var service = new Mock<IPersonGetService>();
         service.Setup(s => s.GetAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.NotFound));

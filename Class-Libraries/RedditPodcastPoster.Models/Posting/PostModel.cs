@@ -13,7 +13,8 @@ public class PostModel
         IEnumerable<EpisodePost> episodes,
         Service? podcastPrimaryPostService,
         string[] podcastKnownTerms,
-        string[] subjectKnownTerms)
+        string[] subjectKnownTerms,
+        string? language = null)
     {
         var firstEpisode = episodes.First();
 
@@ -35,6 +36,7 @@ public class PostModel
         Subjects = firstEpisode.Subjects;
         PodcastKnownTerms = podcastKnownTerms;
         SubjectKnownTerms = subjectKnownTerms;
+        Language = language;
 
         if (!string.IsNullOrWhiteSpace(podcastTitleRegex))
         {
@@ -102,4 +104,9 @@ public class PostModel
     public Uri? Link { get; init; }
     public string[] SubjectKnownTerms { get; init; }
     public string[] PodcastKnownTerms { get; init; }
+
+    /// <summary>
+    /// IETF language tag for the first episode. Null means English (product default).
+    /// </summary>
+    public string? Language { get; init; }
 }

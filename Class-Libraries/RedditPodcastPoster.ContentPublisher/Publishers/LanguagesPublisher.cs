@@ -6,11 +6,14 @@ using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.ContentPublisher.Configuration;
+using RedditPodcastPoster.Models.Languages;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 public class LanguagesPublisher(
     IAmazonS3 client,
+    ILookupRepository lookupRepository,
     IOptions<ContentOptions> contentOptions,
     ILogger<LanguagesPublisher> logger) : ILanguagesPublisher
 {
@@ -20,37 +23,32 @@ public class LanguagesPublisher(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private static readonly string[] LanguageNames =
-    [
-        "English", "French", "Spanish", "German", "Portuguese", "Turkish", "Dutch", "Italian", "Japanese", "Chinese", "Korean",
-        "Hindi", "Russian", "Hebrew", "Arabic", "Bangla", "Indonesian", "Filipino", "Urdu", "Kiswahili",
-        "Vietnamese", "Slovak", "Czech", "Telugu", "Afrikaans", "Persian", "Malay", "Norwegian", "Polish", "Punjabi", "Thai",
-        "Ukrainian", "Marathi", "Finnish", "Danish", "Greek", "Hungarian", "Swedish", "Bulgarian", "Serbian", "Croatian", "Lithuanian", "Latvian", "Slovenian", "Bosnian", "Macedonian", "Albanian", "Estonian", "Catalan", "Sinhala", "Yiddish"
-    ];
-
     private readonly ContentOptions _contentOptions = contentOptions.Value;
 
     public async Task<bool> PublishLanguages()
     {
         try
         {
-            var languages = ResolveLanguages();
+            var config = await lookupRepository.GetSupportedLanguagesConfig()
+                         ?? SupportedLanguagesConfig.CreateDefault();
+            var map = config.Languages
+                .Where(x => !string.IsNullOrWhiteSpace(x.Code) && !string.IsNullOrWhiteSpace(x.Name))
+                .DistinctBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Code, x => x.Name, StringComparer.OrdinalIgnoreCase);
+
             var request = new PutObjectRequest
             {
                 BucketName = _contentOptions.BucketName,
                 Key = _contentOptions.LanguagesKey,
-                ContentBody = JsonSerializer.Serialize(
-                    languages.DistinctBy(x => x.TwoLetterISOLanguageName)
-                        .OrderBy(x => x.EnglishName)
-                        .ToDictionary(x => x.TwoLetterISOLanguageName, x => x.EnglishName),
-                    JsonSerializerOptions),
+                ContentBody = JsonSerializer.Serialize(map, JsonSerializerOptions),
                 ContentType = "application/json",
                 DisablePayloadSigning = true
             };
 
             await client.PutObjectAsync(request);
             logger.LogInformation("Completed '{MethodName}'. Published {LanguageCount} languages to '{Key}'.",
-                nameof(PublishLanguages), languages.Count, _contentOptions.LanguagesKey);
+                nameof(PublishLanguages), map.Count, _contentOptions.LanguagesKey);
             return true;
         }
         catch (Exception ex)
@@ -60,36 +58,5 @@ public class LanguagesPublisher(
                 nameof(PublishLanguages), _contentOptions.BucketName, _contentOptions.LanguagesKey);
             return false;
         }
-    }
-
-    private static List<CultureInfo> ResolveLanguages()
-    {
-        var neutralCultures = CultureInfo.GetCultures(CultureTypes.NeutralCultures);
-        var culturesByName = neutralCultures
-            .GroupBy(culture => culture.EnglishName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-
-        var resolved = new List<CultureInfo>();
-        var missing = new List<string>();
-
-        foreach (var languageName in LanguageNames)
-        {
-            if (culturesByName.TryGetValue(languageName, out var culture))
-            {
-                resolved.Add(culture);
-            }
-            else
-            {
-                missing.Add(languageName);
-            }
-        }
-
-        if (missing.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Unable to resolve neutral cultures for: {string.Join(", ", missing)}");
-        }
-
-        return resolved;
     }
 }

@@ -18,6 +18,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.KnownTerms;
+using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
 
@@ -48,6 +49,14 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepository>>();
                     return new LookupRepository(containerFactory.CreateLookUpsContainer(), logger);
                 })
+                .AddSingleton<ILanguageTitleCasingRulesRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LanguageTitleCasingRulesRepository>>();
+                    return new LanguageTitleCasingRulesRepository(
+                        containerFactory.CreateTitleCasingRulesContainer(),
+                        logger);
+                })
                 .AddSingleton<IEpisodeRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -72,6 +81,10 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
                 .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
                     new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
+                .AddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>()
+                .AddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
+                    new AsyncInstance<ITitleCasingRulesProvider>(
+                        s.GetRequiredService<ITitleCasingRulesProviderFactory>()))
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")

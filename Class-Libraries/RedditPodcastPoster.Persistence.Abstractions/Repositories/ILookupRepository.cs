@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Models.HomePage;
 
@@ -10,9 +11,11 @@ public interface ILookupRepository
 {
     Task<EliminationTerms?> GetEliminationTerms();
     Task<DiscoveryScheduleConfig?> GetDiscoveryScheduleConfig();
+    Task<SupportedLanguagesConfig?> GetSupportedLanguagesConfig();
     Task<TKnownTerms?> GetKnownTerms<TKnownTerms>() where TKnownTerms : CosmosSelector;
     Task SaveEliminationTerms(EliminationTerms eliminationTerms);
     Task SaveDiscoveryScheduleConfig(DiscoveryScheduleConfig config);
+    Task SaveSupportedLanguagesConfig(SupportedLanguagesConfig config);
     Task SaveKnownTerms<TKnownTerms>(TKnownTerms knownTerms) where TKnownTerms : CosmosSelector;
     Task<HomePageCache?> GetHomePageCache();
     Task SaveHomePageCache(HomePageCache homePageCache);

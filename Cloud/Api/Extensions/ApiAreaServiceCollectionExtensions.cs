@@ -11,7 +11,8 @@ using Api.Handlers.PushSubscriptions;
 using Api.Handlers.SearchIndex;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
+using Api.Handlers.SupportedLanguages;
+using Api.Handlers.TitleCasingRules;
 using Api.Resolvers;
 using Api.Services.Discovery;
 using Api.Services.DiscoverySchedule;
@@ -24,7 +25,8 @@ using Api.Services.PushSubscriptions;
 using Api.Services.SearchIndex;
 using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
-using Api.Services.Terms;
+using Api.Services.SupportedLanguages;
+using Api.Services.TitleCasingRules;
 
 namespace Api.Extensions;
 
@@ -110,11 +112,6 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostSubmitUrlHandler, PostSubmitUrlHandler>()
             .AddScoped<ISubmitUrlService, SubmitUrlService>();
 
-    public static IServiceCollection AddApiTerms(this IServiceCollection services) =>
-        services
-            .AddScoped<IPostTermsHandler, PostTermsHandler>()
-            .AddScoped<ITermsSubmitService, TermsSubmitService>();
-
     public static IServiceCollection AddApiDiscovery(this IServiceCollection services) =>
         services
             .AddScoped<IDiscoveryCurationGetService, DiscoveryCurationGetService>()
@@ -128,4 +125,19 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryScheduleUpdateService, DiscoveryScheduleUpdateService>()
             .AddScoped<IGetDiscoveryScheduleHandler, GetDiscoveryScheduleHandler>()
             .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>();
+
+    public static IServiceCollection AddApiSupportedLanguages(this IServiceCollection services) =>
+        services
+            .AddScoped<ISupportedLanguagesGetService, SupportedLanguagesGetService>()
+            .AddScoped<ISupportedLanguagesUpdateService, SupportedLanguagesUpdateService>()
+            .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
+            .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>();
+
+    public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
+        services
+            .AddScoped<ITitleCasingRulesGetService, TitleCasingRulesGetService>()
+            .AddScoped<ITitleCasingRulesUpdateService, TitleCasingRulesUpdateService>()
+            .AddScoped<IGetTitleCasingRulesHandler, GetTitleCasingRulesHandler>()
+            .AddScoped<IGetTitleCasingRulesByLanguageHandler, GetTitleCasingRulesByLanguageHandler>()
+            .AddScoped<IPutTitleCasingRulesHandler, PutTitleCasingRulesHandler>();
 }

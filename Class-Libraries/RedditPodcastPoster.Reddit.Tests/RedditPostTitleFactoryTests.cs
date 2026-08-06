@@ -6,11 +6,12 @@ using Moq.AutoMock;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
+using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Reddit.Factories;
-using RedditPodcastPoster.Text;
-using RedditPodcastPoster.Text.KnownTerms;
+using RedditPodcastPoster.Text.Models;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Reddit.Tests;
 
@@ -24,20 +25,23 @@ public class RedditPostTitleFactoryTests
         _fixture = new Fixture();
         _mocker = new AutoMocker();
 
-        var knownTermsProvider = _mocker.GetMock<IKnownTermsProvider>();
-        knownTermsProvider.Setup(x => x.GetKnownTerms()).Returns(new KnownTerms());
+        var rules = new TitleCasingRulesProvider(
+            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["en"] = LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+                    LowerCaseTerms.DefaultEnglishWords)
+            });
+        var rulesInstance = _mocker.GetMock<IAsyncInstance<ITitleCasingRulesProvider>>();
+        rulesInstance.Setup(x => x.GetAsync()).ReturnsAsync(rules);
+        _mocker.Use(rulesInstance.Object);
 
-        var knownTermsInstance = _mocker.GetMock<IAsyncInstance<IKnownTermsProvider>>();
-        knownTermsInstance.Setup(x => x.GetAsync()).ReturnsAsync(knownTermsProvider.Object);
-
-        _mocker.Use(knownTermsInstance.Object);
         _mocker.Use<ITextSanitiser>(_mocker.CreateInstance<TextSanitiser>());
         _mocker.Use(Options.Create(new SubredditSettings { SubredditTitleMaxLength = 300 }));
     }
 
     private RedditPostTitleFactory Sut => _mocker.CreateInstance<RedditPostTitleFactory>();
 
-    [Fact]
+    [Fact(DisplayName = "ConstructPostTitle_WithA_IsCorrect")]
     public async Task ConstructPostTitle_WithA_IsCorrect()
     {
         // arrange
@@ -57,7 +61,7 @@ public class RedditPostTitleFactoryTests
         result.Should().Contain(" with a ");
     }
 
-    [Fact]
+    [Fact(DisplayName = "ConstructPostTitle_WithLowerCaseTitle_IsCorrect")]
     public async Task ConstructPostTitle_WithLowerCaseTitle_IsCorrect()
     {
         // arrange
@@ -78,7 +82,7 @@ public class RedditPostTitleFactoryTests
         result.Should().Contain("Episode Title");
     }
 
-    [Fact]
+    [Fact(DisplayName = "ConstructPostTitle_WithAllUpperText_IsCorrect")]
     public async Task ConstructPostTitle_WithAllUpperText_IsCorrect()
     {
         // arrange
@@ -99,7 +103,7 @@ public class RedditPostTitleFactoryTests
         result.Should().Contain("Episode Title Upper Text");
     }
 
-    [Fact]
+    [Fact(DisplayName = "ConstructPostTitle_LowerCasePodCastTitle_IsCorrect")]
     public async Task ConstructPostTitle_LowerCasePodCastTitle_IsCorrect()
     {
         // arrange
@@ -121,7 +125,7 @@ public class RedditPostTitleFactoryTests
         result.Should().Contain(originalTitle);
     }
 
-    [Theory]
+    [Theory(DisplayName = "ConstructPostTitle_TitleBeginningWithNonWordCharacter_IsCorrect")]
     [InlineData(" - ")]
     [InlineData(" ")]
     [InlineData("-")]

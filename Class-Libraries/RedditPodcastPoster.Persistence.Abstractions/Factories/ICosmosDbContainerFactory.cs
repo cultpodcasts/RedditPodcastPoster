@@ -11,5 +11,6 @@ public interface ICosmosDbContainerFactory
     Container CreateActivitiesContainer();
     Container CreateDiscoveryContainer();
     Container CreateLookUpsContainer();
+    Container CreateTitleCasingRulesContainer();
     Container CreatePushSubscriptionsContainer();
 }

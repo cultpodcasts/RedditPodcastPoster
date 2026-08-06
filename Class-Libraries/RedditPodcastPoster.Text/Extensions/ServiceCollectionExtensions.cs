@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
         /// Text sanitisation services. Safe to call more than once (e.g. from
         /// <c>AddSubjectServices</c> and an explicit host registration).
         /// Requires <c>AddRepositories()</c> (Persistence) for
-        /// <see cref="KnownTerms.IKnownTermsProvider"/> via <c>IAsyncInstance&lt;IKnownTermsProvider&gt;</c>
+        /// <see cref="TitleCasing.ITitleCasingRulesProvider"/> via <c>IAsyncInstance&lt;ITitleCasingRulesProvider&gt;</c>
         /// when resolving <see cref="ITextSanitiser"/>.
         /// </summary>
         public IServiceCollection AddTextSanitiser()

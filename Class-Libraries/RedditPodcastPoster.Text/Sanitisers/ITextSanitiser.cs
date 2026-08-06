@@ -8,7 +8,8 @@ public interface ITextSanitiser
     Task<string> SanitiseTitle(PostModel postModel);
     string SanitisePodcastName(PostModel postModel);
     string SanitiseDescription(PostModel postModel);
-    Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms);
+    Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms,
+        string? language = null);
     string SanitisePodcastName(string podcastName);
     string SanitiseDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, Regex? descriptionRegex);

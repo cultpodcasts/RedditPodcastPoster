@@ -10,7 +10,8 @@ using Api.Handlers.PushSubscriptions;
 using Api.Handlers.SearchIndex;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
-using Api.Handlers.Terms;
+using Api.Handlers.SupportedLanguages;
+using Api.Handlers.TitleCasingRules;
 using FluentAssertions;
 using Xunit;
 
@@ -41,17 +42,22 @@ public class ApiIocTests
         [typeof(IGetPersonHandler)],
         [typeof(IPostPersonHandler)],
         [typeof(IPutPersonHandler)],
-        [typeof(IPostTermsHandler)],
         [typeof(IGetDiscoveryCurationHandler)],
         [typeof(IPostDiscoveryCurationHandler)],
         [typeof(IGetDiscoveryScheduleHandler)],
         [typeof(IPutDiscoveryScheduleHandler)],
+        [typeof(IGetSupportedLanguagesHandler)],
+        [typeof(IPutSupportedLanguagesHandler)],
+        [typeof(IGetTitleCasingRulesHandler)],
+        [typeof(IGetTitleCasingRulesByLanguageHandler)],
+        [typeof(IPutTitleCasingRulesHandler)],
     ];
 
-    [Theory]
+    [Theory(DisplayName = "Api_host_resolves_entry_point")]
     [MemberData(nameof(EntryPoints))]
     public async Task Api_host_resolves_entry_point(Type entryPointType)
     {
+        // Arrange
         var services = FunctionHostTestSupport.CreateServiceCollection(Ioc.ConfigureServices);
 
         var act = async () => await FunctionHostTestSupport.ValidateEntryPointAsync(services, entryPointType);

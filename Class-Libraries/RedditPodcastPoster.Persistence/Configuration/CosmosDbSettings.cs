@@ -12,6 +12,7 @@ public class CosmosDbSettings
     public required string ActivitiesContainer { get; set; }
     public required string DiscoveryContainer { get; set; }
     public required string LookUpsContainer { get; set; }
+    public required string TitleCasingRulesContainer { get; set; }
     public required string PushSubscriptionsContainer { get; set; }
     public bool? UseGateway { get; set; }
 }

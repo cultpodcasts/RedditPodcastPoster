@@ -272,6 +272,17 @@ RemoveEpisodes restore removed-episodes-log.txt
 |--------|-------------|
 | `-a, --apply` | Apply changes; without this flag, report only |
 
+### SeedTitleCasingRules
+
+**Purpose:** Seed a per-language `TitleCasingRules` document (default `en`) from static lower-case words + legacy LookUps KnownTerms. Dry-run unless `--apply`. Do not run `--apply` against production without explicit approval.
+
+**Run:** `dotnet run --project Console-Apps/SeedTitleCasingRules --` · PATH: `SeedTitleCasingRules`
+
+| Option | Description |
+|--------|-------------|
+| `-a, --apply` | Write the document; without this flag, report only |
+| `-l, --language` | Language code (default `en`) |
+
 ### FindDuplicateEpisodes
 
 **Purpose:** Find (and optionally fix) duplicate episodes.
@@ -383,7 +394,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### CosmosDbDownloader
 
-**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, known/elimination terms) to local JSON files. No CLI flags — runs the full download.
+**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, known/elimination terms, supported languages, title-casing rules) to local JSON files. No CLI flags — runs the full download.
 
 **Run:** `dotnet run --project Console-Apps/CosmosDbDownloader` · PATH: `CosmosDbDownloader`
 

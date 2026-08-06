@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Konsole;
 using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Languages;
+using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
@@ -16,6 +18,7 @@ public class CosmosDbDownloader(
     IEpisodeRepository episodeRepository,
     ISubjectRepository subjectRepository,
     ILookupRepository lookupRepository,
+    ILanguageTitleCasingRulesRepository titleCasingRulesRepository,
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPushSubscriptionRepository pushSubscriptionRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
@@ -33,6 +36,8 @@ public class CosmosDbDownloader(
         await DownloadEpisodes();
         await DownloadEliminationTerms();
         await DownloadKnownTerms();
+        await DownloadSupportedLanguages();
+        await DownloadTitleCasingRules();
         await DownloadSubjects();
         await DownloadDiscoveryResultsDocuments();
         await DownloadPushSubscriptions();
@@ -185,6 +190,24 @@ public class CosmosDbDownloader(
         if (knownTerms != null)
         {
             await fileWriter.Write(knownTerms);
+        }
+    }
+
+    private async Task DownloadSupportedLanguages()
+    {
+        var config = await lookupRepository.GetSupportedLanguagesConfig();
+        if (config != null)
+        {
+            await fileWriter.Write(config);
+        }
+    }
+
+    private async Task DownloadTitleCasingRules()
+    {
+        Directory.CreateDirectory("titlecasing");
+        await foreach (var document in titleCasingRulesRepository.GetAll())
+        {
+            await WriteJson("titlecasing", document.FileKey, document);
         }
     }
 
