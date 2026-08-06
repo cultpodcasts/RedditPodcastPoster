@@ -2,12 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class TitleCasingRulesListResponse
-{
-    [JsonPropertyName("languages")]
-    public required IReadOnlyList<LanguageTitleCasingRulesResponse> Languages { get; init; }
-}
-
 public class LanguageTitleCasingRulesResponse
 {
     [JsonPropertyName("language")]

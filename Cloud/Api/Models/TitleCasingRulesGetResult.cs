@@ -9,10 +9,6 @@ public enum TitleCasingRulesGetStatus
     Failed
 }
 
-public record TitleCasingRulesListGetResult(
-    TitleCasingRulesGetStatus Status,
-    IReadOnlyList<LanguageTitleCasingRulesDocument>? Documents = null);
-
 public record TitleCasingRulesGetResult(
     TitleCasingRulesGetStatus Status,
     LanguageTitleCasingRulesDocument? Document = null,

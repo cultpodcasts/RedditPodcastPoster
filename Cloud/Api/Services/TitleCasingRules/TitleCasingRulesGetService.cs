@@ -12,20 +12,6 @@ public class TitleCasingRulesGetService(
     ILookupRepository lookupRepository,
     ILogger<TitleCasingRulesGetService> logger) : ITitleCasingRulesGetService
 {
-    public async Task<TitleCasingRulesListGetResult> GetAllAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var documents = await titleCasingRulesRepository.GetAll().ToListAsync(cancellationToken);
-            return new TitleCasingRulesListGetResult(TitleCasingRulesGetStatus.Ok, documents);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failure to list title-casing rules.");
-            return new TitleCasingRulesListGetResult(TitleCasingRulesGetStatus.Failed);
-        }
-    }
-
     public async Task<TitleCasingRulesGetResult> GetAsync(string language, CancellationToken cancellationToken)
     {
         try

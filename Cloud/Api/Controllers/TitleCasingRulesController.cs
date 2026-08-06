@@ -12,7 +12,6 @@ using Azure.Diagnostics;
 namespace Api.Controllers;
 
 public class TitleCasingRulesController(
-    IGetTitleCasingRulesHandler getTitleCasingRulesHandler,
     IGetTitleCasingRulesByLanguageHandler getTitleCasingRulesByLanguageHandler,
     IPutTitleCasingRulesHandler putTitleCasingRulesHandler,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -21,21 +20,7 @@ public class TitleCasingRulesController(
     IMemoryProbeOrchestrator memoryProbeOrchestrator)
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
-    private const string ListRoute = "title-casing-rules";
     private const string LanguageRoute = "title-casing-rules/{language}";
-
-    [Function("TitleCasingRulesGet")]
-    public Task<HttpResponseData> Get(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ListRoute)]
-        HttpRequestData req,
-        FunctionContext _,
-        CancellationToken ct) =>
-        HandleRequest(
-            req,
-            ["curate"],
-            getTitleCasingRulesHandler.Handle,
-            Unauthorised,
-            ct);
 
     [Function("TitleCasingRulesGetByLanguage")]
     public Task<HttpResponseData> GetByLanguage(
