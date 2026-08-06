@@ -209,7 +209,7 @@ public class EnrichYouTubePodcastProcessor(
                             podcast.IgnoredSubjects,
                             podcast.DefaultSubject,
                             podcast.DescriptionRegex));
-                    episode.SetPodcastProperties(podcast);
+                    episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
                     addedEpisodes.Add(episode);
                 }
             }

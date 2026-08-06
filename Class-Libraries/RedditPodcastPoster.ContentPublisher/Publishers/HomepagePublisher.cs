@@ -158,7 +158,7 @@ public class HomepagePublisher(
                 Length = episode.Length,
                 Subjects = episode.Subjects,
                 Images = episode.Images,
-                Language = episode.Language ?? episode.PodcastLanguage
+                Language = episode.Language
             });
         }
 

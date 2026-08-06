@@ -74,7 +74,7 @@ public class PodcastAndEpisodeFactory(
             episode.Urls.InternetArchive != null,
             guestsResult.Additions,
             guestsResult.SkippedLowConfidence);
-        episode.SetPodcastProperties(newPodcast);
+        episode.SetPodcastProperties(newPodcast, inheritLanguageIfUnset: true);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
     }
 }

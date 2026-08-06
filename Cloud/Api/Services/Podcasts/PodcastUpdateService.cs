@@ -103,22 +103,18 @@ public class PodcastUpdateService(
 
     private async Task PropagatePodcastLanguageToEpisodes(DomainPodcast podcast, CancellationToken c)
     {
-        var podcastLanguage = podcast.Language?.Trim();
-        if (string.IsNullOrWhiteSpace(podcastLanguage))
-        {
-            return;
-        }
-
+        // Refresh denormalised PodcastLanguage only. Episode.Language null means English and must
+        // not be overwritten by the podcast default (new episodes inherit via SetPodcastProperties
+        // inheritLanguageIfUnset: true).
         var updatedEpisodeIds = new List<Guid>();
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
-            if (!string.IsNullOrWhiteSpace(episode.Language))
+            var (updated, _) = episode.SetPodcastProperties(podcast);
+            if (!updated)
             {
                 continue;
             }
 
-            episode.Language = podcastLanguage;
-            episode.SetPodcastProperties(podcast);
             await episodeRepository.Save(episode);
             updatedEpisodeIds.Add(episode.Id);
         }

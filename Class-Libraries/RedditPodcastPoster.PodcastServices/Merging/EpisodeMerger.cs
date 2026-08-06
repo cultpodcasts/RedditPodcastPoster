@@ -48,7 +48,7 @@ public class EpisodeMerger(
                 if (existingEpisode == null)
                 {
                     episodeToMerge.Id = Guid.NewGuid();
-                    episodeToMerge.SetPodcastProperties(podcast);
+                    episodeToMerge.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
                     addedEpisodes.Add(episodeToMerge);
                     episodesToSave.Add(episodeToMerge);
                     existingList.Add(episodeToMerge);

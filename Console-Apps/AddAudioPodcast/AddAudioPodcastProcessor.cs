@@ -112,7 +112,7 @@ public class AddAudioPodcastProcessor(
                         podcast.IgnoredSubjects,
                         podcast.DefaultSubject,
                         podcast.DescriptionRegex));
-                episode.SetPodcastProperties(podcast);
+                episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
             }
 
             if (episodes.Any())
