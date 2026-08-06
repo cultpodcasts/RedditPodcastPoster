@@ -8,7 +8,7 @@ using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.Common.Episodes;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;

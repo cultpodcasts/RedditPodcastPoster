@@ -5,7 +5,8 @@ using Microsoft.Extensions.Hosting;
 using CommandLine;
 using EnrichExistingEpisodesFromPodcastServices;
 using iTunesSearch.Library;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
+using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
@@ -34,7 +35,8 @@ builder.Services
     .AddRepositories()
     .AddScoped<EnrichPodcastEpisodesProcessor>()
     .AddUrlSubmission()
-    .AddCommonServices()
+    .AddCatalogueServices()
+    .AddSocialPostingServices()
     .AddSpotifyServices()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddAppleServices()

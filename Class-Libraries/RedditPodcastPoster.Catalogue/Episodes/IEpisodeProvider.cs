@@ -1,0 +1,14 @@
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+
+namespace RedditPodcastPoster.Catalogue.Episodes;
+
+public interface IEpisodeProvider
+{
+    Task<IList<Episode>> GetEpisodes(
+        Podcast podcast,
+        IEnumerable<Episode> episodes,
+        IndexingContext indexingContext);
+}

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using RedditPodcastPoster.Common.Episodes;
-using RedditPodcastPoster.Common.Podcasts;
+using RedditPodcastPoster.Catalogue.Episodes;
+using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.TestSupport;

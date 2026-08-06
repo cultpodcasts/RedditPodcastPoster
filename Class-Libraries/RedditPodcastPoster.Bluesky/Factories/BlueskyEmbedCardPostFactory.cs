@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
-using RedditPodcastPoster.Common.Factories;
+using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;

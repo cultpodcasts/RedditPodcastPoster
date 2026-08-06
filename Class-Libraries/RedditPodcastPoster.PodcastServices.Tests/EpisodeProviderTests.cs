@@ -9,14 +9,15 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 namespace RedditPodcastPoster.PodcastServices.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="Common.Episodes.EpisodeProvider"/> handler orchestration gates.
+/// Unit tests for <see cref="Catalogue.Episodes.EpisodeProvider"/> handler orchestration gates.
 /// Business-rule outcomes live in <see cref="BusinessRules.Indexing.EpisodeProviderRules"/>.
 /// </summary>
 public class EpisodeProviderTests
 {
     private readonly DomainTestFixture _fixture = new();
 
-    [Fact]
+    [Fact(DisplayName =
+        "EpisodeProvider gate: when release authority is Spotify, then the Apple negative-delay merge pass must not run, because Spotify-primary discovery already handled the podcast.")]
     public async Task GetEpisodes_does_not_run_apple_negative_delay_merge_pass_when_release_authority_is_spotify()
     {
         // Arrange
@@ -35,14 +36,15 @@ public class EpisodeProviderTests
         // Act
         var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
 
-        // Assert â€” Spotify-primary discovery handles the podcast; Apple merge pass must not run
+        // Assert — Spotify-primary discovery handles the podcast; Apple merge pass must not run
         harness.AppleHandler.Verify(
             x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>()),
             Times.Never);
         discovered.Should().ContainSingle().Which.Should().BeSameAs(spotifyEpisode);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "EpisodeProvider gate: when SkipSpotifyUrlResolving is set, then the Spotify merge pass must not run, because expensive Spotify resolving is opted out.")]
     public async Task GetEpisodes_skips_spotify_merge_pass_when_skip_spotify_url_resolving()
     {
         // Arrange
@@ -64,7 +66,8 @@ public class EpisodeProviderTests
             Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "EpisodeProvider gate: when the Apple handler returns no episodes, then discovered episodes stay empty, because an empty Apple merge must not invent rows.")]
     public async Task GetEpisodes_does_not_append_apple_episodes_when_apple_handler_returns_empty()
     {
         // Arrange

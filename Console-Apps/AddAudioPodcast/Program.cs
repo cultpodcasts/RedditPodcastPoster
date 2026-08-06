@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using AddAudioPodcast;
 using CommandLine;
 using iTunesSearch.Library;
-using RedditPodcastPoster.Common.Extensions;
+using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
@@ -36,7 +36,7 @@ builder.Services
     .AddScoped<AddAudioPodcastProcessor>()
     .AddEpisodesDomain()
     .AddRepositories()
-    .AddCommonServices()
+    .AddCatalogueServices()
     .AddPodcastServices()
     .AddAppleServices()
     .AddSpotifyServices()

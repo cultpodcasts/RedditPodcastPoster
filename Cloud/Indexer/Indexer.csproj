@@ -35,9 +35,10 @@
     <PackageReference Include="Microsoft.DurableTask.Generators" Version="2.1.0-preview.2" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+        <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Cloudflare\RedditPodcastPoster.Cloudflare.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Common\RedditPodcastPoster.Common.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.ContentPublisher\RedditPodcastPoster.ContentPublisher.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.EdgeApi\RedditPodcastPoster.EdgeApi.csproj" />

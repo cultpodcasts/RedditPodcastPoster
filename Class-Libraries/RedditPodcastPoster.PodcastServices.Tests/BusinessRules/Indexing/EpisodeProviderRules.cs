@@ -10,7 +10,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 /// <summary>
-/// Characterizes <see cref="Common.Episodes.EpisodeProvider"/> indexing discovery orchestration.
+/// Characterizes <see cref="Catalogue.Episodes.EpisodeProvider"/> indexing discovery orchestration.
 /// YouTube release authority must discover via YouTube only — Spotify/Apple catalogue is enrichment, not seed.
 /// </summary>
 public class EpisodeProviderRules

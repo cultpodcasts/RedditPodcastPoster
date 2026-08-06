@@ -1,0 +1,53 @@
+using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+
+namespace RedditPodcastPoster.Catalogue.Podcasts;
+
+public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
+{
+    public FilterResult Filter(Podcast podcast, IEnumerable<Episode> episodes, List<string> eliminationTerms)
+    {
+        logger.LogInformation(
+            "{method}: Filtering episodes for podcast '{podcastName}'. Count: {Count}. Elimination-terms count: {EliminationTermsCount}. Episode-ids: {EpisodeIds}",
+            nameof(Filter), podcast.Name, episodes.Count(), eliminationTerms.Count,
+            episodes.Where(x => !x.Removed).Select(x => x.Id));
+        var filteredEpisodes = new List<FilteredEpisode>();
+        var episodesToRemove = new List<Episode>();
+        foreach (var podcastEpisode in episodes.Where(x => !x.Removed))
+        {
+            var remove = false;
+            var titleLower = podcastEpisode.Title.ToLower();
+            var descriptionLower = podcastEpisode.Description.ToLower();
+            var matchedTerms = new List<string>();
+            foreach (var eliminationTerm in eliminationTerms)
+            {
+                var removeForTerm = titleLower.Contains(eliminationTerm) || descriptionLower.Contains(eliminationTerm);
+                if (removeForTerm)
+                {
+                    matchedTerms.Add(eliminationTerm);
+                    logger.LogWarning(
+                        "Removing episode '{episodeTitle}' of podcast '{podcastName}' due to match with '{eliminationTerm}'.",
+                        podcastEpisode.Title, podcast.Name, eliminationTerm);
+                }
+
+                remove |= removeForTerm;
+            }
+
+            if (remove)
+            {
+                filteredEpisodes.Add(new FilteredEpisode(podcastEpisode, matchedTerms.ToArray()));
+                episodesToRemove.Add(podcastEpisode);
+            }
+        }
+
+        foreach (var episodeToRemove in episodesToRemove)
+        {
+            episodeToRemove.Removed = true;
+        }
+
+        return new FilterResult(filteredEpisodes);
+    }
+}
