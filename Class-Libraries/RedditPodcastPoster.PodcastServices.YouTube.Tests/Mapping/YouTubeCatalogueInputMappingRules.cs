@@ -74,6 +74,29 @@ public class YouTubeCatalogueInputMappingRules
             .ComparingByMembers<YouTubeCatalogueInput>());
     }
 
+    [Fact(DisplayName =
+        "When a playlist item's video published after the item joined the playlist, catalogue mapping releases the " +
+        "episode on the video's publication, because a scheduled upload joins the playlist before it goes public.")]
+    public void Playlist_item_release_uses_video_publication_when_it_is_later()
+    {
+        // Arrange
+        var catalogueInput = _fixture.CreateYouTubeCatalogueInput();
+        var addedToPlaylistAt = DomainTestFixture.UtcAtTime(-5, TimeSpan.FromHours(14));
+        var videoPublishedAt = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(15));
+        var playlistItemSnippet = CreatePlaylistItemSnippet(catalogueInput);
+        playlistItemSnippet.PublishedAtDateTimeOffset = new DateTimeOffset(addedToPlaylistAt, TimeSpan.Zero);
+        var videoDetails = CreateVideoDetails(
+            catalogueInput,
+            durationIso8601: XmlConvert.ToString(catalogueInput.Duration));
+        videoDetails.Snippet.PublishedAtDateTimeOffset = new DateTimeOffset(videoPublishedAt, TimeSpan.Zero);
+
+        // Act
+        var input = playlistItemSnippet.ToCatalogueInput(videoDetails, catalogueInput.Image);
+
+        // Assert
+        input.Release.Should().Be(videoPublishedAt);
+    }
+
     private SearchResult CreateSearchResult(YouTubeCatalogueInput catalogueInput) =>
         new()
         {

@@ -117,7 +117,7 @@ public class YouTubeEpisodeProvider(
         if (indexingContext.ReleasedSince.HasValue)
         {
             playlistItems = playlistItems
-                .Where(x => x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince))
+                .Where(x => x.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince))
                 .ToList();
         }
 
@@ -197,7 +197,7 @@ public class YouTubeEpisodeProvider(
         if (indexingContext.ReleasedSince.HasValue)
         {
             results = results.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset.ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+                x.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
         }
 
         var videoDetails =
