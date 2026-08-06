@@ -18,7 +18,7 @@ namespace Indexer.Tests;
 public class PodcastEpisodeExtensionsTests
 {
     [Fact(DisplayName =
-        "ToEpisodeSearchRecord maps platform ids and podcast language, and wires YouTube image " +
+        "ToEpisodeSearchRecord maps platform ids from the episode language only, and wires YouTube image " +
         "compaction through the youtubeId.")]
     public void Maps_service_ids_language_and_compacts_youtube_image()
     {
@@ -29,12 +29,12 @@ public class PodcastEpisodeExtensionsTests
             YouTube = new Uri($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg"),
             Spotify = new Uri("https://i.scdn.co/image/opaque")
         };
-        episode.Language = null;
+        episode.Language = "es";
         var podcast = new Podcast
         {
             Name = " Podcast ",
             AppleId = 1234567890,
-            Language = "es",
+            Language = "fr",
             SearchTerms = "podcast terms"
         };
 
@@ -52,6 +52,23 @@ public class PodcastEpisodeExtensionsTests
         // thumbnail is loss-lessly compacted to the "yx" token.
         result.Image.Should().Be("yx");
         result.Duration.Should().Be("00:02:03");
+    }
+
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord leaves Lang null when the episode language is unset, even if the " +
+        "podcast has a default language, because null means English.")]
+    public void Leaves_lang_null_when_episode_language_unset_despite_podcast_default()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Language = null;
+        var podcast = new Podcast { Name = "Podcast", Language = "fil" };
+
+        // Act
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        // Assert
+        result.Lang.Should().BeNull();
     }
 
     [Fact(DisplayName =

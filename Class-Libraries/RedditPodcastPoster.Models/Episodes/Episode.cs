@@ -215,7 +215,12 @@ public class Episode
         return episode;
     }
 
-    public (bool, bool) SetPodcastProperties(Podcast podcast)
+    /// <param name="inheritLanguageIfUnset">
+    /// When true (new episodes only), copy <see cref="Podcast.Language"/> onto this episode if
+    /// <see cref="Language"/> is unset. Never pass true for existing episodes — null language means
+    /// English and must not be overwritten by the podcast default.
+    /// </param>
+    public (bool, bool) SetPodcastProperties(Podcast podcast, bool inheritLanguageIfUnset = false)
     {
         var updated = false;
         if (PodcastId != podcast.Id)
@@ -258,7 +263,7 @@ public class Episode
             updatedMetadata = true;
         }
 
-        if (InheritLanguageFromPodcastIfUnset(podcast))
+        if (inheritLanguageIfUnset && InheritLanguageFromPodcastIfUnset(podcast))
         {
             updated = true;
         }

@@ -276,8 +276,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 
         if (episodeChangeRequest.Language != null)
         {
-            episode.Language =
-                episodeChangeRequest.Language == string.Empty ? null : episodeChangeRequest.Language;
+            episode.Language = NormaliseEpisodeLanguage(episodeChangeRequest.Language);
         }
 
         if (episodeChangeRequest.HasChange && inPastWeek)
@@ -296,5 +295,25 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
+    }
+
+    /// <summary>
+    /// Empty and English codes are stored as null (product English/default).
+    /// </summary>
+    internal static string? NormaliseEpisodeLanguage(string language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var trimmed = language.Trim();
+        var lower = trimmed.ToLowerInvariant().Replace('_', '-');
+        if (lower is "en" || lower.StartsWith("en-", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return trimmed;
     }
 }

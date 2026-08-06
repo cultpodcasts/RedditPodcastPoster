@@ -466,7 +466,7 @@ public partial class CreateSearchIndexProcessor(
                                 IIF({isSpotifyToken}, {spotifyToken},
                                     IIF({isAppleToken}, {appleToken},
                                         (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """"))) as image,
-                            e.lang ?? e.podcastLanguage as lang,
+                            e.lang as lang,
                             e._ts
                             FROM episodes e
                             WHERE {ActiveEpisodesFilter}

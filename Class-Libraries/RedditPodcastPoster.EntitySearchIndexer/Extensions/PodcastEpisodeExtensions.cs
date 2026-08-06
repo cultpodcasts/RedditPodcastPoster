@@ -26,7 +26,9 @@ public static class PodcastEpisodeExtensions
             InternetArchive = podcastEpisode.Episode.Urls.InternetArchive != null
                 ? podcastEpisode.Episode.Urls.InternetArchive.ToString()
                 : string.Empty,
-            Lang = podcastEpisode.Episode.Language ?? podcastEpisode.Podcast.Language,
+            // Episode.Language only — null means English. Do not fall back to podcast language
+            // (that undid curator "English" / "No Language" clears on non-English shows).
+            Lang = NullIfWhiteSpace(podcastEpisode.Episode.Language),
             PodcastAppleId = podcastEpisode.Podcast.AppleId?.ToString(),
             PodcastName = podcastEpisode.Podcast.Name.Trim(),
             PodcastSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
@@ -37,6 +39,6 @@ public static class PodcastEpisodeExtensions
         };
     }
 
-    private static string? NullIfWhiteSpace(string value) =>
+    private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
 }

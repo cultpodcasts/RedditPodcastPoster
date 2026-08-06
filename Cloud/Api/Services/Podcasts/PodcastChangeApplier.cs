@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using Api.Models;
+using Api.Services.Episodes;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 namespace Api.Services.Podcasts;
@@ -191,7 +192,7 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
 
         if (podcastChangeRequest.Language != null)
         {
-            podcast.Language = podcastChangeRequest.Language == string.Empty ? null : podcastChangeRequest.Language;
+            podcast.Language = EpisodeChangeApplier.NormaliseEpisodeLanguage(podcastChangeRequest.Language);
         }
 
         if (podcastChangeRequest.KnownTerms != null)
