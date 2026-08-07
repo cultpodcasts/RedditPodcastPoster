@@ -42,6 +42,7 @@ public static class Ioc
         serviceCollection
             .AddEpisodesDomain()
             .AddRepositories()
+            .AddTitleCasingRulesWarmup()
             .AddTextSanitiser()
             .AddYouTubeServices(ApplicationUsage.Indexer)
             .AddSpotifyServices()

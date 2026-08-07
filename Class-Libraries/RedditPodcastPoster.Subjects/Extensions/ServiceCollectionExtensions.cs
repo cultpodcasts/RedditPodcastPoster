@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Categorisation;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
@@ -24,15 +25,18 @@ public static class ServiceCollectionExtensions
         /// <summary>
         /// Subject matching / categorisation graph.
         /// Self-contained for <see cref="ISubjectMatcher"/> resolution once the host has
-        /// <c>AddRepositories()</c> (Cosmos container factory + title-casing rules for
-        /// <see cref="RedditPodcastPoster.Text.Sanitisers.ITextSanitiser"/>).
+        /// <c>AddRepositories()</c> (Cosmos) and registers title-casing rules via
+        /// <c>AddTitleCasingRules()</c> for <see cref="RedditPodcastPoster.Text.Sanitisers.ITextSanitiser"/>.
         /// Called transitively by <c>AddSpotifyServices</c> / <c>AddAppleServices</c>.
+        /// Does not preload title-casing at startup — hosts that <c>SanitiseTitle</c> should call
+        /// <c>AddTitleCasingRulesWarmup()</c>.
         /// </summary>
         public IServiceCollection AddSubjectServices()
         {
             return services
                 // SubjectService → ITextSanitiser (description extract for matching)
                 .AddTextSanitiser()
+                .AddTitleCasingRules()
                 .AddSingleton<ISubjectRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

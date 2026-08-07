@@ -1,5 +1,6 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
@@ -76,17 +77,36 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .AddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>()
-                .AddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
-                    new AsyncInstance<ITitleCasingRulesProvider>(
-                        s.GetRequiredService<ITitleCasingRulesProviderFactory>()))
-                .AddStartupWarmer<TitleCasingRulesStartupWarmer>()
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();
             return services;
+        }
+
+        /// <summary>
+        /// Lazy title-casing rules provider (required by <c>ITextSanitiser</c> for <c>SanitiseTitle</c>).
+        /// Does not preload at host start — call <see cref="AddTitleCasingRulesWarmup"/> from hosts
+        /// that sanitise titles on a hot path (Api, Indexer). Requires <see cref="AddRepositories"/>
+        /// for <see cref="ILanguageTitleCasingRulesRepository"/>.
+        /// </summary>
+        public IServiceCollection AddTitleCasingRules()
+        {
+            services.TryAddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>();
+            services.TryAddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
+                new AsyncInstance<ITitleCasingRulesProvider>(
+                    s.GetRequiredService<ITitleCasingRulesProviderFactory>()));
+            return services;
+        }
+
+        /// <summary>
+        /// Preloads title-casing rules at host start. Call only from Function apps that use
+        /// <c>SanitiseTitle</c> (Api homepage/episode display, Indexer social posts).
+        /// </summary>
+        public IServiceCollection AddTitleCasingRulesWarmup()
+        {
+            return services.AddStartupWarmer<TitleCasingRulesStartupWarmer>();
         }
 
         public IServiceCollection AddEliminationTerms()
