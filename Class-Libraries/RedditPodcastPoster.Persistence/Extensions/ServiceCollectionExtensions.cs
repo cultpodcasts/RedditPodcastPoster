@@ -17,7 +17,6 @@ using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.Text.EliminationTerms;
-using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -77,15 +76,11 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
-                .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
-                .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
-                    new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
                 .AddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>()
                 .AddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
                     new AsyncInstance<ITitleCasingRulesProvider>(
                         s.GetRequiredService<ITitleCasingRulesProviderFactory>()))
-                .AddHostedService<TitleCasingRulesWarmupHostedService>()
+                .AddStartupWarmer<TitleCasingRulesStartupWarmer>()
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
@@ -99,7 +94,8 @@ public static class ServiceCollectionExtensions
             return services
                 .AddSingleton<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
                 .AddSingleton<IAsyncInstance<IEliminationTermsProvider>>(s =>
-                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()));
+                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()))
+                .AddStartupWarmer<EliminationTermsStartupWarmer>();
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

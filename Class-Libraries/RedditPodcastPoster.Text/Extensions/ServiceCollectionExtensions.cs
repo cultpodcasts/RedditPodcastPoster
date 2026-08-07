@@ -1,10 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using RedditPodcastPoster.Text.EliminationTerms;
 using RedditPodcastPoster.Text.Enrichers;
-using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.Text.KnownTerms;
-using RedditPodcastPoster.Text.Matchers;
-using RedditPodcastPoster.Text.Models;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Text.Extensions;

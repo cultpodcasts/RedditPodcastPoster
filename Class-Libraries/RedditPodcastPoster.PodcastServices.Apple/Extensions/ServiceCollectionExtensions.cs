@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Apple.Handlers;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
+using RedditPodcastPoster.PodcastServices.Apple.Warmup;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.Subjects.Extensions;
 
@@ -31,6 +32,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IApplePodcastHttpClientFactory, ApplePodcastHttpClientFactory>()
             .AddSingleton<IAsyncInstance<HttpClient>>(x => 
                 new AsyncInstance<HttpClient>(x.GetService<IApplePodcastHttpClientFactory>()!))
+            .AddStartupWarmer<AppleHttpClientStartupWarmer>()
             .AddScoped<IAppleEpisodeRetrievalHandler, AppleEpisodeRetrievalHandler>();
     }
 }
