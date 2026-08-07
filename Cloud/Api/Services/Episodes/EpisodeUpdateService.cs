@@ -35,6 +35,9 @@ public class EpisodeUpdateService(
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<EpisodeUpdateService> logger) : IEpisodeUpdateService
 {
+    // Flip to true to emit EpisodeUpdateTiming App Insights warnings (investigation only).
+    private const bool EnableDiagnosticTiming = false;
+
     public async Task<EpisodeUpdateResult> UpdateAsync(
         EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
         CancellationToken cancellationToken)
@@ -279,6 +282,11 @@ public class EpisodeUpdateService(
         bool removed,
         EpisodeUpdateStatus status)
     {
+        if (!EnableDiagnosticTiming)
+        {
+            return;
+        }
+
         logger.LogWarning(
             "EpisodeUpdateTiming episode-id='{EpisodeId}' status='{Status}' total-ms='{TotalMs}' resolve-ms='{ResolveMs}' apply-ms='{ApplyMs}' update-images-ms='{UpdateImagesMs}' save-ms='{SaveMs}' social-ms='{SocialMs}' search-delete-ms='{SearchDeleteMs}' shortner-delete-ms='{ShortnerDeleteMs}' index-ms='{IndexMs}' homepage-ms='{HomepageMs}' publish-homepage='{PublishHomepage}' update-images='{UpdateImages}' removed='{Removed}'.",
             episodeId,

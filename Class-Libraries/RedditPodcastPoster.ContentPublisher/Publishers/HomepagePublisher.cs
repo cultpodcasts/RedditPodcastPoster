@@ -33,6 +33,9 @@ public class HomepagePublisher(
     ILogger<HomepagePublisher> logger)
     : IHomepagePublisher
 {
+    // Flip to true to emit HomepagePublishTiming App Insights warnings + per-phase sanitise sums.
+    private const bool EnableDiagnosticTiming = false;
+
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -44,13 +47,20 @@ public class HomepagePublisher(
 
     public async Task<PublishHomepageResult> PublishHomepage()
     {
+        if (!EnableDiagnosticTiming)
+        {
+            var (homepageContent, _) = await GetHomePage(CancellationToken.None);
+            var published = await PublishHomepageToR2(homepageContent);
+            return new PublishHomepageResult(published);
+        }
+
         var total = Stopwatch.StartNew();
         var buildSw = Stopwatch.StartNew();
-        var (homepageContent, buildBreakdown) = await GetHomePage(CancellationToken.None);
+        var (timedContent, buildBreakdown) = await GetHomePage(CancellationToken.None);
         buildSw.Stop();
 
         var uploadSw = Stopwatch.StartNew();
-        var homepagePublished = await PublishHomepageToR2(homepageContent);
+        var homepagePublished = await PublishHomepageToR2(timedContent);
         uploadSw.Stop();
         total.Stop();
 
@@ -157,10 +167,10 @@ public class HomepagePublisher(
             .OrderByDescending(x => x.Release)
             .ToList();
 
-        var sanitiseSw = Stopwatch.StartNew();
-        var sanitiseAgg = new SanitiseTimingAggregator();
+        SanitiseTimingAggregator? sanitiseAgg = EnableDiagnosticTiming ? new SanitiseTimingAggregator() : null;
+        var sanitiseSw = EnableDiagnosticTiming ? Stopwatch.StartNew() : null;
         var sanitizedPodcasts = await Task.WhenAll(orderedPodcasts.Select(p => Sanitise(p, sanitiseAgg)));
-        sanitiseSw.Stop();
+        sanitiseSw?.Stop();
 
         var model = new HomePageModel
         {
@@ -169,11 +179,16 @@ public class HomepagePublisher(
             TotalDuration = homePageCache.TotalDuration
         };
 
+        if (!EnableDiagnosticTiming || sanitiseAgg is null)
+        {
+            return (model, default);
+        }
+
         var breakdown = new HomepageBuildTiming(
             recentPodcastsSw.ElapsedMilliseconds,
             recentEpisodesSw.ElapsedMilliseconds,
             cacheSw.ElapsedMilliseconds,
-            sanitiseSw.ElapsedMilliseconds,
+            sanitiseSw!.ElapsedMilliseconds,
             TitleSanitiseTiming.TicksToMs(sanitiseAgg.PrepTicks),
             TitleSanitiseTiming.TicksToMs(sanitiseAgg.RulesResolveTicks),
             TitleSanitiseTiming.TicksToMs(sanitiseAgg.LowerCaseTicks),
@@ -345,7 +360,7 @@ public class HomepagePublisher(
         return trimmed;
     }
 
-    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult, SanitiseTimingAggregator agg)
+    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult, SanitiseTimingAggregator? agg)
     {
         Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
@@ -358,14 +373,26 @@ public class HomepagePublisher(
             .SelectMany(x => x?.KnownTerms ?? [])
             .ToArray();
 
-        var (title, titleTiming) = await textSanitiser.SanitiseTitleTimed(
-            podcastResult.EpisodeTitle,
-            titleRegex,
-            podcastResult.KnownTerms ?? [],
-            subjectKnownTerms,
-            podcastResult.Language);
-        podcastResult.EpisodeTitle = title;
-        agg.AddTitle(titleTiming);
+        if (agg is null)
+        {
+            podcastResult.EpisodeTitle = await textSanitiser.SanitiseTitle(
+                podcastResult.EpisodeTitle,
+                titleRegex,
+                podcastResult.KnownTerms ?? [],
+                subjectKnownTerms,
+                podcastResult.Language);
+        }
+        else
+        {
+            var (title, titleTiming) = await textSanitiser.SanitiseTitleTimed(
+                podcastResult.EpisodeTitle,
+                titleRegex,
+                podcastResult.KnownTerms ?? [],
+                subjectKnownTerms,
+                podcastResult.Language);
+            podcastResult.EpisodeTitle = title;
+            agg.AddTitle(titleTiming);
+        }
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
@@ -373,10 +400,19 @@ public class HomepagePublisher(
             descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
         }
 
-        var descStart = Stopwatch.GetTimestamp();
-        podcastResult.EpisodeDescription =
-            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
-        agg.AddDescription(Stopwatch.GetTimestamp() - descStart);
+        if (agg is null)
+        {
+            podcastResult.EpisodeDescription =
+                textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+        }
+        else
+        {
+            var descStart = Stopwatch.GetTimestamp();
+            podcastResult.EpisodeDescription =
+                textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+            agg.AddDescription(Stopwatch.GetTimestamp() - descStart);
+        }
+
         return podcastResult;
     }
 
