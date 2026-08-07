@@ -44,10 +44,12 @@ public class PodcastUpdateService(
                 podcastChangeRequestWrapper.PodcastId);
 
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);
+            var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))
             {
                 await UpdateName(podcast, podcastChangeRequestWrapper.Podcast.Name);
+                nameChanged = true;
             }
 
             await podcastRepository.Save(podcast);
@@ -57,7 +59,7 @@ public class PodcastUpdateService(
                 await PropagatePodcastLanguageToEpisodes(podcast, c);
             }
 
-            if (podcastChangeRequestWrapper.Podcast.Removed == true)
+            if (podcastChangeRequestWrapper.Podcast.Removed == true || nameChanged)
             {
                 await episodeProjectionHelper.HydrateDetachedEpisodePodcastProjection(podcast, c);
             }
@@ -70,7 +72,7 @@ public class PodcastUpdateService(
                 failureDeletingFromIndex = !await DeleteEpisodesFromSearchIndex(c, podcast);
                 await DeleteEpisodesFromShortner(podcast, c);
             }
-            else if (podcastChangeRequestWrapper.AllowNameChange)
+            else if (nameChanged)
             {
                 var episodeIds = await episodeProjectionHelper.GetEpisodeIdsByPodcastId(podcast.Id, c);
                 if (episodeIds.Count > 0)
