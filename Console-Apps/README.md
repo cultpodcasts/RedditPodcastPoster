@@ -450,28 +450,6 @@ Production clients load the index from `GET /search-suggestions` (R2). See websi
 | `-e, --episode-guid` / `-d, --dry-run` | Single episode shortener create |
 | `-r, --read` | Read by short-guid |
 
-### EpisodeUpdateTimingProbe
-
-**Purpose:** Local integration timing probe for the expensive EpisodeUpdate tail steps: Cosmos resolve, Azure Search `IndexEpisode`, and `PublishHomepage` (build + R2). Does **not** Save episodes. `IndexEpisode` and `PublishHomepage` still perform their normal external writes.
-
-**Run:** `dotnet run --project Console-Apps/EpisodeUpdateTimingProbe --` · PATH: `EpisodeUpdateTimingProbe`
-
-| Option | Description |
-|--------|-------------|
-| `-e, --episode-id` | Episode GUID (required) |
-| `-p, --podcast-id` | Podcast GUID (optional; matches API resolve path) |
-| `--skip-index` | Skip Azure Search index |
-| `--skip-homepage` | Skip homepage publish |
-| `--parallel` | Second pass timing Index + Homepage under `Task.WhenAll` (repeats side effects) |
-
-Homepage wall-clock timing (optional): set `TimedHomepagePublisher.EnableDiagnosticTiming = true` so IoC wraps `IHomepagePublisher` and logs `HomepagePublishTiming`. Same pattern for `TimedEpisodeUpdateService` / `IEpisodeUpdateService`.
-
-Example:
-
-```powershell
-dotnet run --project Console-Apps/EpisodeUpdateTimingProbe -- -e <episode-guid> -p <podcast-guid>
-```
-
 ### ThrowawayConsole
 
 **Purpose:** Ad-hoc scratch tool (currently probes a YouTube video from an Internet Archive-style URL argument). **Excluded from** `publish-console-apps.ps1`.
@@ -484,3 +462,4 @@ dotnet run --project Console-Apps/EpisodeUpdateTimingProbe -- -e <episode-guid> 
 
 - Root README — [Useful console apps](../README.md#useful-console-apps) and [Published CLI tools](../README.md#published-cli-tools-path)
 - Publish script: [`scripts/publish-console-apps.ps1`](../scripts/publish-console-apps.ps1)
+- Optional diagnostic timing: set `TimedHomepagePublisher.EnableDiagnosticTiming` / `TimedEpisodeUpdateService.EnableDiagnosticTiming` so IoC wraps those services and logs `HomepagePublishTiming` / `EpisodeUpdateTiming`.
