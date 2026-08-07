@@ -9,8 +9,8 @@ namespace RedditPodcastPoster.Text.Tests;
 public class TextSanitiserUniversalKnownTermsTests
 {
     [Fact(DisplayName =
-        "Universal known-terms apply for a non-English language even when that language has no known terms.")]
-    public async Task SanitiseTitle_WithUniversalKnownTerm_AppliesForNonEnglishLanguage()
+        "Universal known-terms apply for a non-English language even when that language has an empty known-terms list.")]
+    public async Task SanitiseTitle_WithUniversalKnownTerm_AppliesWhenLanguageKnownTermsEmpty()
     {
         // Arrange
         var mocker = new AutoMocker();
@@ -45,7 +45,38 @@ public class TextSanitiserUniversalKnownTermsTests
     }
 
     [Fact(DisplayName =
-        "Language known-terms apply after universal when both match the same text.")]
+        "Universal known-terms still apply when the requested language has no rules document at all.")]
+    public async Task SanitiseTitle_WithUniversalKnownTerm_AppliesWhenLanguageDocumentMissing()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        TitleCasingTestSupport.UseRules(
+            mocker,
+            TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
+            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            {
+                LowerCaseTerms = [],
+                KnownTerms =
+                [
+                    new KnownTermEntry
+                    {
+                        Literal = "BBC",
+                        Pattern = @"\bBBC\b",
+                        Options = "IgnoreCase, Compiled"
+                    }
+                ]
+            });
+        var sut = mocker.CreateInstance<TextSanitiser>();
+
+        // Act
+        var result = await sut.SanitiseTitle("Interview With Bbc Guest", null, [], [], "de");
+
+        // Assert
+        result.Should().Be("Interview With BBC Guest");
+    }
+
+    [Fact(DisplayName =
+        "Language known-terms apply after universal when both match the same text, so the language literal wins.")]
     public async Task SanitiseTitle_WithUniversalAndLanguageKnownTerms_AppliesLanguageAfterUniversal()
     {
         // Arrange
@@ -86,6 +117,50 @@ public class TextSanitiserUniversalKnownTermsTests
 
         // Assert
         result.Should().Be("Talk About Org Fr Tonight");
+    }
+
+    [Fact(DisplayName =
+        "Universal then language known-terms both apply when they match different tokens in the same title.")]
+    public async Task SanitiseTitle_WithNonOverlappingUniversalAndLanguageKnownTerms_AppliesBoth()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        TitleCasingTestSupport.UseRules(
+            mocker,
+            TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
+            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            {
+                LowerCaseTerms = [],
+                KnownTerms =
+                [
+                    new KnownTermEntry
+                    {
+                        Literal = "BBC",
+                        Pattern = @"\bBBC\b",
+                        Options = "IgnoreCase, Compiled"
+                    }
+                ]
+            },
+            new LanguageTitleCasingRulesDocument("fr")
+            {
+                LowerCaseTerms = [],
+                KnownTerms =
+                [
+                    new KnownTermEntry
+                    {
+                        Literal = "ONU",
+                        Pattern = @"\bONU\b",
+                        Options = "IgnoreCase, Compiled"
+                    }
+                ]
+            });
+        var sut = mocker.CreateInstance<TextSanitiser>();
+
+        // Act
+        var result = await sut.SanitiseTitle("Bbc Meets Onu Today", null, [], [], "fr");
+
+        // Assert
+        result.Should().Be("BBC Meets ONU Today");
     }
 
     [Fact(DisplayName = "Missing universal document yields empty universal known-terms.")]
