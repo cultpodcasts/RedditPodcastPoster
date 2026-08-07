@@ -464,7 +464,7 @@ Production clients load the index from `GET /search-suggestions` (R2). See websi
 | `--skip-homepage` | Skip homepage publish |
 | `--parallel` | Second pass timing Index + Homepage under `Task.WhenAll` (repeats side effects) |
 
-Homepage wall-clock timing (optional) is a decorator: set `TimedHomepagePublisher.EnableDiagnosticTiming = true` to log `HomepagePublishTiming`.
+Homepage wall-clock timing (optional): set `TimedHomepagePublisher.EnableDiagnosticTiming = true` so IoC wraps `IHomepagePublisher` and logs `HomepagePublishTiming`. Same pattern for `TimedEpisodeUpdateService` / `IEpisodeUpdateService`.
 
 Example:
 

@@ -21,9 +21,15 @@ public static class ServiceCollectionExtensions
             .AddPeopleServices()
             .AddScoped<ISearchSuggestionsIndexBuilder, SearchSuggestionsIndexBuilder>()
             .AddScoped<HomepagePublisher>()
-            .AddScoped<IHomepagePublisher>(sp => new TimedHomepagePublisher(
-                sp.GetRequiredService<HomepagePublisher>(),
-                sp.GetRequiredService<ILogger<TimedHomepagePublisher>>()))
+            .AddScoped<IHomepagePublisher>(sp =>
+            {
+                var inner = sp.GetRequiredService<HomepagePublisher>();
+                return TimedHomepagePublisher.EnableDiagnosticTiming
+                    ? new TimedHomepagePublisher(
+                        inner,
+                        sp.GetRequiredService<ILogger<TimedHomepagePublisher>>())
+                    : inner;
+            })
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
             .AddScoped<IPeoplePublisher, PeoplePublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()

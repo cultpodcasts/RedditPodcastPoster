@@ -46,9 +46,15 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IEpisodeGetService, EpisodeGetService>()
             .AddScoped<IEpisodeOutgoingService, EpisodeOutgoingService>()
             .AddScoped<EpisodeUpdateService>()
-            .AddScoped<IEpisodeUpdateService>(sp => new TimedEpisodeUpdateService(
-                sp.GetRequiredService<EpisodeUpdateService>(),
-                sp.GetRequiredService<ILogger<TimedEpisodeUpdateService>>()))
+            .AddScoped<IEpisodeUpdateService>(sp =>
+            {
+                var inner = sp.GetRequiredService<EpisodeUpdateService>();
+                return TimedEpisodeUpdateService.EnableDiagnosticTiming
+                    ? new TimedEpisodeUpdateService(
+                        inner,
+                        sp.GetRequiredService<ILogger<TimedEpisodeUpdateService>>())
+                    : inner;
+            })
             .AddScoped<IEpisodePublishService, EpisodePublishService>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()

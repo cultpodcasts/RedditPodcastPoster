@@ -5,23 +5,18 @@ using RedditPodcastPoster.ContentPublisher.Models;
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
 /// <summary>
-/// Optional diagnostic wrapper around <see cref="IHomepagePublisher"/>.
-/// Flip <see cref="EnableDiagnosticTiming"/> to emit <c>HomepagePublishTiming</c> App Insights warnings.
+/// Optional diagnostic wrapper around <see cref="HomepagePublisher"/>.
+/// Registered only when <see cref="EnableDiagnosticTiming"/> is true (see content-publishing DI).
 /// </summary>
 public sealed class TimedHomepagePublisher(
     HomepagePublisher inner,
     ILogger<TimedHomepagePublisher> logger) : IHomepagePublisher
 {
-    // Flip to true to emit HomepagePublishTiming App Insights warnings (investigation only).
+    // Flip to true to wrap IHomepagePublisher with this decorator and emit HomepagePublishTiming.
     public const bool EnableDiagnosticTiming = false;
 
     public async Task<PublishHomepageResult> PublishHomepage()
     {
-        if (!EnableDiagnosticTiming)
-        {
-            return await inner.PublishHomepage();
-        }
-
         var total = Stopwatch.StartNew();
         var result = await inner.PublishHomepage();
         total.Stop();

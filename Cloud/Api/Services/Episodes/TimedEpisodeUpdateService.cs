@@ -6,24 +6,19 @@ namespace Api.Services.Episodes;
 
 /// <summary>
 /// Optional diagnostic wrapper around <see cref="EpisodeUpdateService"/>.
-/// Flip <see cref="EnableDiagnosticTiming"/> to emit <c>EpisodeUpdateTiming</c> App Insights warnings.
+/// Registered only when <see cref="EnableDiagnosticTiming"/> is true (see Api episode DI).
 /// </summary>
 public sealed class TimedEpisodeUpdateService(
     EpisodeUpdateService inner,
     ILogger<TimedEpisodeUpdateService> logger) : IEpisodeUpdateService
 {
-    // Flip to true to emit EpisodeUpdateTiming App Insights warnings (investigation only).
+    // Flip to true to wrap IEpisodeUpdateService with this decorator and emit EpisodeUpdateTiming.
     public const bool EnableDiagnosticTiming = false;
 
     public async Task<EpisodeUpdateResult> UpdateAsync(
         EpisodeChangeRequestWrapper episodeChangeRequestWrapper,
         CancellationToken cancellationToken)
     {
-        if (!EnableDiagnosticTiming)
-        {
-            return await inner.UpdateAsync(episodeChangeRequestWrapper, cancellationToken);
-        }
-
         var total = Stopwatch.StartNew();
         EpisodeUpdateResult result;
         try
