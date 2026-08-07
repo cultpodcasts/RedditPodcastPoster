@@ -27,12 +27,43 @@ param(
 
     [switch]$SkipPackaging,
 
-    [switch]$RemoveUnsupportedRunFromPackageSetting
+    [switch]$RemoveUnsupportedRunFromPackageSetting,
+
+    # Opt into single-node MSBuild when CS2012 bin/obj locks persist despite retries.
+    [switch]$SingleNodeMsBuild,
+
+    [ValidateRange(1, 10)]
+    [int]$PublishMaxAttempts = 3
 )
 
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'AzureWebAppDeploy.ps1')
+
+function Invoke-DotNetPublishWithRetry {
+    param(
+        [string]$Label,
+        [string[]]$DotNetArgs,
+        [int]$MaxAttempts
+    )
+
+    $attempt = 0
+    $exitCode = 1
+    do {
+        $attempt++
+        & dotnet @DotNetArgs
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            return
+        }
+        if ($attempt -lt $MaxAttempts) {
+            Write-Host "Retrying $Label publish (attempt $($attempt + 1)/$MaxAttempts) after failure (exit $exitCode)..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
+        }
+    } while ($attempt -lt $MaxAttempts)
+
+    throw "dotnet publish failed with exit code $exitCode after $MaxAttempts attempt(s)."
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $projectMap = @{
@@ -129,12 +160,15 @@ if ($SkipPackaging) {
     if ($NoRestore) {
         $publishArgs += '--no-restore'
     }
+    # Default: parallel MSBuild (fast). Large ProjectReference graphs can rarely hit CS2012 on
+    # shared Class-Libraries/*/obj/Release — PublishMaxAttempts retries; use -SingleNodeMsBuild if needed.
+    if ($SingleNodeMsBuild) {
+        $publishArgs += '-m:1'
+        Write-Host 'MSBuild: single-node (-m:1) to reduce ProjectReference bin/obj lock risk.'
+    }
 
     Write-Host "Publishing $FunctionName..."
-    & dotnet @publishArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet publish failed with exit code $LASTEXITCODE."
-    }
+    Invoke-DotNetPublishWithRetry -Label $FunctionName -DotNetArgs $publishArgs -MaxAttempts $PublishMaxAttempts
 
     Write-Host "Creating package $zipPath..."
     New-LinuxFunctionAppZip -SourceDirectory $publishDir -DestinationZip $zipPath

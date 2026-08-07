@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
@@ -12,6 +14,7 @@ public partial class TextSanitiser(
     IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance)
     : ITextSanitiser
 {
+    private static readonly ConcurrentDictionary<string, Regex> BoundaryWordCache = new(StringComparer.Ordinal);
     private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex RomanceElisionApostrophe = CreateRomanceElisionApostrophe();
     private static readonly Regex McMacPrefix = CreateMcMacPrefix();
@@ -42,6 +45,18 @@ public partial class TextSanitiser(
     public async Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
         string[] subjectKnownTerms, string? language = null)
     {
+        var (title, _) = await SanitiseTitleTimed(episodeTitle, regex, podcastKnownTerms, subjectKnownTerms, language);
+        return title;
+    }
+
+    public async Task<(string Title, TitleSanitiseTiming Timing)> SanitiseTitleTimed(
+        string episodeTitle,
+        Regex? regex,
+        string[] podcastKnownTerms,
+        string[] subjectKnownTerms,
+        string? language = null)
+    {
+        var prepStart = Stopwatch.GetTimestamp();
         if (regex != null)
         {
             episodeTitle = ExtractTitle(episodeTitle, regex);
@@ -61,23 +76,47 @@ public partial class TextSanitiser(
         episodeTitle = FixRomanceElisionApostrophe(episodeTitle);
         episodeTitle = FixMcMacPrefix(episodeTitle);
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
+        var prepTicks = Stopwatch.GetTimestamp() - prepStart;
 
+        var rulesStart = Stopwatch.GetTimestamp();
         var rulesProvider = await titleCasingRulesProviderInstance.GetAsync();
-        foreach (var term in rulesProvider.GetLowerCaseExpressions(language))
+        var rulesTicks = Stopwatch.GetTimestamp() - rulesStart;
+
+        var lowerStart = Stopwatch.GetTimestamp();
+        var lowerExpressions = rulesProvider.GetLowerCaseExpressions(language);
+        foreach (var term in lowerExpressions)
         {
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
+        var lowerTicks = Stopwatch.GetTimestamp() - lowerStart;
 
-        episodeTitle = FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms, language, rulesProvider);
+        var (cased, universalTicks, languageTicks, podcastTicks, subjectTicks, universalCount, languageCount) =
+            FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms, language, rulesProvider);
+        episodeTitle = cased;
 
+        var finishStart = Stopwatch.GetTimestamp();
         episodeTitle = episodeTitle.Trim();
         var inQuotesMatch = InQuotes.Match(episodeTitle);
         if (inQuotesMatch.Success)
         {
             episodeTitle = inQuotesMatch.Groups["inquotes"].Value;
         }
+        var finishTicks = Stopwatch.GetTimestamp() - finishStart;
 
-        return episodeTitle;
+        var timing = new TitleSanitiseTiming(
+            prepTicks,
+            rulesTicks,
+            lowerTicks,
+            universalTicks,
+            languageTicks,
+            podcastTicks,
+            subjectTicks,
+            finishTicks,
+            universalCount,
+            languageCount,
+            lowerExpressions.Count);
+
+        return (episodeTitle, timing);
     }
 
     public string SanitisePodcastName(string podcastName)
@@ -246,7 +285,14 @@ public partial class TextSanitiser(
         return title.Trim();
     }
 
-    private string FixCasing(
+    private static (
+        string Input,
+        long UniversalTicks,
+        long LanguageTicks,
+        long PodcastTicks,
+        long SubjectTicks,
+        int UniversalCount,
+        int LanguageCount) FixCasing(
         string input,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
@@ -256,30 +302,61 @@ public partial class TextSanitiser(
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
 
-        foreach (var term in rulesProvider.GetUniversalKnownTerms())
+        var universalTerms = rulesProvider.GetUniversalKnownTermReplacements();
+        var universalStart = Stopwatch.GetTimestamp();
+        foreach (var term in universalTerms)
         {
-            input = term.ToRegex().Replace(input, term.Literal);
+            input = term.Pattern.Replace(input, term.Literal);
         }
+        var universalTicks = Stopwatch.GetTimestamp() - universalStart;
 
-        foreach (var term in rulesProvider.GetKnownTerms(language))
+        var languageTerms = rulesProvider.GetKnownTermReplacements(language);
+        var languageStart = Stopwatch.GetTimestamp();
+        foreach (var term in languageTerms)
         {
-            input = term.ToRegex().Replace(input, term.Literal);
+            input = term.Pattern.Replace(input, term.Literal);
         }
+        var languageTicks = Stopwatch.GetTimestamp() - languageStart;
 
-        foreach (var term in podcastKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
+        var podcastStart = Stopwatch.GetTimestamp();
+        foreach (var term in podcastKnownTerms)
         {
-            input = term.Value.Replace(input, term.Key);
-        }
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                continue;
+            }
 
-        foreach (var term in subjectKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
+            input = BoundaryWordRegex(term).Replace(input, term);
+        }
+        var podcastTicks = Stopwatch.GetTimestamp() - podcastStart;
+
+        var subjectStart = Stopwatch.GetTimestamp();
+        foreach (var term in subjectKnownTerms)
         {
-            input = term.Value.Replace(input, term.Key);
-        }
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                continue;
+            }
 
-        return input;
+            input = BoundaryWordRegex(term).Replace(input, term);
+        }
+        var subjectTicks = Stopwatch.GetTimestamp() - subjectStart;
+
+        return (
+            input,
+            universalTicks,
+            languageTicks,
+            podcastTicks,
+            subjectTicks,
+            universalTerms.Count,
+            languageTerms.Count);
     }
+
+    private static Regex BoundaryWordRegex(string term) =>
+        BoundaryWordCache.GetOrAdd(
+            term,
+            static t => new Regex($@"\b{t}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled));
+
 
     [GeneratedRegex(@"(?'prefix'^[^\p{L}\p{N}""\$\u00A3\'\(]+)(?'after'.*$)", RegexOptions.Compiled)]
     private static partial Regex GenerateInvalidTitlePrefix();

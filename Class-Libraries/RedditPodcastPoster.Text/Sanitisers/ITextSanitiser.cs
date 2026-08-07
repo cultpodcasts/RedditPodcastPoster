@@ -10,6 +10,14 @@ public interface ITextSanitiser
     string SanitiseDescription(PostModel postModel);
     Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms, string[] subjectKnownTerms,
         string? language = null);
+
+    /// <summary>Same as <see cref="SanitiseTitle"/> with per-phase timings for homepage diagnostics.</summary>
+    Task<(string Title, TitleSanitiseTiming Timing)> SanitiseTitleTimed(
+        string episodeTitle,
+        Regex? regex,
+        string[] podcastKnownTerms,
+        string[] subjectKnownTerms,
+        string? language = null);
     string SanitisePodcastName(string podcastName);
     string SanitiseDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, Regex? descriptionRegex);

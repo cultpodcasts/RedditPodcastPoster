@@ -85,6 +85,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
                     new AsyncInstance<ITitleCasingRulesProvider>(
                         s.GetRequiredService<ITitleCasingRulesProviderFactory>()))
+                .AddHostedService<TitleCasingRulesWarmupHostedService>()
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")

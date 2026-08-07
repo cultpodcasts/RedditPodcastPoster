@@ -450,6 +450,28 @@ Production clients load the index from `GET /search-suggestions` (R2). See websi
 | `-e, --episode-guid` / `-d, --dry-run` | Single episode shortener create |
 | `-r, --read` | Read by short-guid |
 
+### EpisodeUpdateTimingProbe
+
+**Purpose:** Local integration timing probe for the expensive EpisodeUpdate tail steps: Cosmos resolve, Azure Search `IndexEpisode`, and `PublishHomepage` (build + R2). Does **not** Save episodes. `IndexEpisode` and `PublishHomepage` still perform their normal external writes.
+
+**Run:** `dotnet run --project Console-Apps/EpisodeUpdateTimingProbe --` · PATH: `EpisodeUpdateTimingProbe`
+
+| Option | Description |
+|--------|-------------|
+| `-e, --episode-id` | Episode GUID (required) |
+| `-p, --podcast-id` | Podcast GUID (optional; matches API resolve path) |
+| `--skip-index` | Skip Azure Search index |
+| `--skip-homepage` | Skip homepage publish |
+| `--parallel` | Second pass timing Index + Homepage under `Task.WhenAll` (repeats side effects) |
+
+Homepage sub-step timings also log with prefix `HomepagePublishTiming` (recent podcasts / episodes / cache / sanitise / R2 upload). Sanitise also logs per-phase CPU sums (`sanitise-*-sum-ms`: prep / rules-resolve / lower / universal-kt / lang-kt / podcast-kt / subject-kt / finish / desc) plus `sanitise-title-max-ms` and known-term counts — sums can exceed wall `sanitise-ms` because titles run in parallel.
+
+Example:
+
+```powershell
+dotnet run --project Console-Apps/EpisodeUpdateTimingProbe -- -e <episode-guid> -p <podcast-guid>
+```
+
 ### ThrowawayConsole
 
 **Purpose:** Ad-hoc scratch tool (currently probes a YouTube video from an Internet Archive-style URL argument). **Excluded from** `publish-console-apps.ps1`.
