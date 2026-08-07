@@ -256,6 +256,11 @@ public partial class TextSanitiser(
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
 
+        foreach (var term in rulesProvider.GetUniversalKnownTerms())
+        {
+            input = term.ToRegex().Replace(input, term.Literal);
+        }
+
         foreach (var term in rulesProvider.GetKnownTerms(language))
         {
             input = term.ToRegex().Replace(input, term.Literal);

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models.TitleCasing;
 
 namespace RedditPodcastPoster.Text.Models;
 
@@ -78,9 +79,15 @@ public static class LowerCaseTerms
         return BuildExpressions(words, includeOrdinals: IsEnglish(language));
     }
 
-    /// <summary>Null/whitespace and English IETF tags map to <c>en</c>.</summary>
+    /// <summary>Null/whitespace and English IETF tags map to <c>en</c>. Preserves universal key <c>*</c>.</summary>
     public static string NormaliseLanguageKey(string? language)
     {
+        if (!string.IsNullOrWhiteSpace(language) &&
+            language.Trim() == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        {
+            return LanguageTitleCasingRulesDocument.UniversalLanguageKey;
+        }
+
         if (IsEnglish(language))
         {
             return "en";
@@ -96,6 +103,11 @@ public static class LowerCaseTerms
         if (string.IsNullOrWhiteSpace(language))
         {
             return true;
+        }
+
+        if (language.Trim() == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        {
+            return false;
         }
 
         var lower = language.Trim().ToLowerInvariant().Replace('_', '-');

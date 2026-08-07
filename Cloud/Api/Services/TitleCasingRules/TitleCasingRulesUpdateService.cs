@@ -24,9 +24,14 @@ public class TitleCasingRulesUpdateService(
                     Error: "Language code must be non-empty.");
             }
 
+            var isUniversal = normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey;
             var document = new LanguageTitleCasingRulesDocument(normalised);
 
-            if (body.LowerCaseTerms is { Count: > 0 })
+            if (isUniversal)
+            {
+                document.LowerCaseTerms = [];
+            }
+            else if (body.LowerCaseTerms is { Count: > 0 })
             {
                 document.LowerCaseTerms = body.LowerCaseTerms
                     .Select(term => term.Trim())

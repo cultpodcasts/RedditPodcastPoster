@@ -36,7 +36,18 @@ public class TitleCasingRulesProvider(
     public IReadOnlyList<KnownTermEntry> GetKnownTerms(string? language)
     {
         var key = LowerCaseTerms.NormaliseLanguageKey(language);
-        if (!byLanguage.TryGetValue(key, out var rules))
+        if (key == LanguageTitleCasingRulesDocument.UniversalLanguageKey ||
+            !byLanguage.TryGetValue(key, out var rules))
+        {
+            return [];
+        }
+
+        return rules.KnownTerms;
+    }
+
+    public IReadOnlyList<KnownTermEntry> GetUniversalKnownTerms()
+    {
+        if (!byLanguage.TryGetValue(LanguageTitleCasingRulesDocument.UniversalLanguageKey, out var rules))
         {
             return [];
         }

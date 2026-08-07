@@ -212,6 +212,10 @@ var content= {
     content__SearchSuggestionsKey: 'search-suggestions'
 }
 
+// Shared Cosmos settings for ALL function apps (api / discover / indexer) via coreSettings.
+// CosmosDbSettingsValidator fails host start if any container key is blank
+// (e.g. missing cosmosdb__TitleCasingRulesContainer → OptionsValidationException / exit 134).
+// Keep this object complete whenever CosmosDbSettings gains a required property.
 var cosmosdb= {
     cosmosdb__AuthKeyOrResourceToken: cosmosdbAuthKeyOrResourceToken
     cosmosdb__DatabaseId: 'cultpodcasts-db'
@@ -466,7 +470,7 @@ var coreSettings= union(
     bluesky, 
     cloudflare, 
     content,
-    cosmosdb,
+    cosmosdb, // required cosmosdb__* containers for every app — do not omit
     delayedPublication,
     pushSubscriptions, 
     reddit, 
@@ -736,6 +740,8 @@ module apiFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Api: 'Information'
+        // Explicit: OptionsValidationException if missing after code that binds TitleCasingRules.
+        cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     }, apiSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -757,6 +763,7 @@ module discoveryFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
+        cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     }, discoverySettings, discoverScorer)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
@@ -778,6 +785,7 @@ module indexerFunction 'function.bicep' = {
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Indexer: 'Information'
+        cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     }, indexerSettings)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId

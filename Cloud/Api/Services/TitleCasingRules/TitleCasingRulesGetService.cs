@@ -31,6 +31,14 @@ public class TitleCasingRulesGetService(
                     IsDefault: false);
             }
 
+            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            {
+                return new TitleCasingRulesGetResult(
+                    TitleCasingRulesGetStatus.Ok,
+                    new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey),
+                    IsDefault: true);
+            }
+
             if (normalised == "en")
             {
                 var defaults = await BuildEnglishDefaultAsync();
