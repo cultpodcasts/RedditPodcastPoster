@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,9 +32,6 @@ public class HomepagePublisher(
     ILogger<HomepagePublisher> logger)
     : IHomepagePublisher
 {
-    // Flip to true to emit HomepagePublishTiming App Insights warnings + per-phase sanitise sums.
-    private const bool EnableDiagnosticTiming = false;
-
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -47,51 +43,8 @@ public class HomepagePublisher(
 
     public async Task<PublishHomepageResult> PublishHomepage()
     {
-        if (!EnableDiagnosticTiming)
-        {
-            var (homepageContent, _) = await GetHomePage(CancellationToken.None);
-            var published = await PublishHomepageToR2(homepageContent);
-            return new PublishHomepageResult(published);
-        }
-
-        var total = Stopwatch.StartNew();
-        var buildSw = Stopwatch.StartNew();
-        var (timedContent, buildBreakdown) = await GetHomePage(CancellationToken.None);
-        buildSw.Stop();
-
-        var uploadSw = Stopwatch.StartNew();
-        var homepagePublished = await PublishHomepageToR2(timedContent);
-        uploadSw.Stop();
-        total.Stop();
-
-        // Stable App Insights / console search key: Message startswith "HomepagePublishTiming".
-        // sanitise-*-sum-ms are CPU sums across parallel titles (can exceed wall sanitise-ms).
-        logger.LogWarning(
-            "HomepagePublishTiming total-ms='{TotalMs}' build-ms='{BuildMs}' upload-ms='{UploadMs}' recent-podcasts-ms='{RecentPodcastsMs}' recent-episodes-ms='{RecentEpisodesMs}' cache-ms='{CacheMs}' sanitise-ms='{SanitiseMs}' sanitise-prep-sum-ms='{SanitisePrepSumMs}' sanitise-rules-resolve-sum-ms='{SanitiseRulesResolveSumMs}' sanitise-lower-sum-ms='{SanitiseLowerSumMs}' sanitise-universal-kt-sum-ms='{SanitiseUniversalKtSumMs}' sanitise-lang-kt-sum-ms='{SanitiseLangKtSumMs}' sanitise-podcast-kt-sum-ms='{SanitisePodcastKtSumMs}' sanitise-subject-kt-sum-ms='{SanitiseSubjectKtSumMs}' sanitise-finish-sum-ms='{SanitiseFinishSumMs}' sanitise-desc-sum-ms='{SanitiseDescSumMs}' sanitise-title-max-ms='{SanitiseTitleMaxMs}' universal-kt-count='{UniversalKtCount}' en-kt-count='{EnKtCount}' en-lower-count='{EnLowerCount}' recent-episode-count='{RecentEpisodeCount}' recent-podcast-count='{RecentPodcastCount}' published='{Published}'.",
-            total.ElapsedMilliseconds,
-            buildSw.ElapsedMilliseconds,
-            uploadSw.ElapsedMilliseconds,
-            buildBreakdown.RecentPodcastsMs,
-            buildBreakdown.RecentEpisodesMs,
-            buildBreakdown.CacheMs,
-            buildBreakdown.SanitiseMs,
-            buildBreakdown.SanitisePrepSumMs,
-            buildBreakdown.SanitiseRulesResolveSumMs,
-            buildBreakdown.SanitiseLowerSumMs,
-            buildBreakdown.SanitiseUniversalKtSumMs,
-            buildBreakdown.SanitiseLangKtSumMs,
-            buildBreakdown.SanitisePodcastKtSumMs,
-            buildBreakdown.SanitiseSubjectKtSumMs,
-            buildBreakdown.SanitiseFinishSumMs,
-            buildBreakdown.SanitiseDescSumMs,
-            buildBreakdown.SanitiseTitleMaxMs,
-            buildBreakdown.UniversalKtCount,
-            buildBreakdown.EnKtCount,
-            buildBreakdown.EnLowerCount,
-            buildBreakdown.RecentEpisodeCount,
-            buildBreakdown.RecentPodcastCount,
-            homepagePublished);
-
+        var homepageContent = await GetHomePage(CancellationToken.None);
+        var homepagePublished = await PublishHomepageToR2(homepageContent);
         return new PublishHomepageResult(homepagePublished);
     }
 
@@ -101,14 +54,13 @@ public class HomepagePublisher(
         return utcNow is { DayOfWeek: DayOfWeek.Monday, Hour: 0, Minute: < 20 };
     }
 
-    private async Task<(HomePageModel Model, HomepageBuildTiming Breakdown)> GetHomePage(CancellationToken ct)
+    private async Task<HomePageModel> GetHomePage(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         var recentCutoff = DateTime.UtcNow.AddDays(-7);
 
-        var recentPodcastsSw = Stopwatch.StartNew();
-        var recentPodcasts = await podcastRepository
+        var recentPodcastsTask = podcastRepository
             .GetAllBy(
                 x => (!x.Removed.IsDefined() || x.Removed == false) &&
                      x.LatestReleased.IsDefined() &&
@@ -122,22 +74,16 @@ public class HomepagePublisher(
                     DescriptionRegex = x.DescriptionRegex,
                     KnownTerms = x.KnownTerms
                 })
-            .ToListAsync(ct);
-        recentPodcastsSw.Stop();
+            .ToListAsync(ct)
+            .AsTask();
 
-        // Episode loads run in parallel with optional homepage-cache full scans inside ResolveHomePageCache.
-        var recentEpisodesSw = Stopwatch.StartNew();
-        var recentEpisodesTask = MeasureAsync(
-            () => GetRecentEpisodes(recentPodcasts, recentCutoff, ct),
-            recentEpisodesSw);
+        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
 
-        var cacheSw = Stopwatch.StartNew();
         var homePageCache = await ResolveHomePageCache(recentEpisodesTask, ct);
-        cacheSw.Stop();
-
-        var recentEpisodes = await recentEpisodesTask;
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
-        var podcasts = recentPodcasts.ToDictionary(x => x.Id);
+
+        var recentEpisodes = recentEpisodesTask.Result;
+        var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
             .Select(episode =>
@@ -167,65 +113,22 @@ public class HomepagePublisher(
             .OrderByDescending(x => x.Release)
             .ToList();
 
-        SanitiseTimingAggregator? sanitiseAgg = EnableDiagnosticTiming ? new SanitiseTimingAggregator() : null;
-        var sanitiseSw = EnableDiagnosticTiming ? Stopwatch.StartNew() : null;
-        var sanitizedPodcasts = await Task.WhenAll(orderedPodcasts.Select(p => Sanitise(p, sanitiseAgg)));
-        sanitiseSw?.Stop();
+        var sanitizedPodcasts = await Task.WhenAll(orderedPodcasts.Select(Sanitise));
 
-        var model = new HomePageModel
+        return new HomePageModel
         {
             EpisodeCount = activeEpisodeCount,
             RecentEpisodes = sanitizedPodcasts.Select(ToRecentEpisode),
             TotalDuration = homePageCache.TotalDuration
         };
-
-        if (!EnableDiagnosticTiming || sanitiseAgg is null)
-        {
-            return (model, default);
-        }
-
-        var breakdown = new HomepageBuildTiming(
-            recentPodcastsSw.ElapsedMilliseconds,
-            recentEpisodesSw.ElapsedMilliseconds,
-            cacheSw.ElapsedMilliseconds,
-            sanitiseSw!.ElapsedMilliseconds,
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.PrepTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.RulesResolveTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.LowerCaseTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.UniversalKnownTermsTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.LanguageKnownTermsTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.PodcastKnownTermsTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.SubjectKnownTermsTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.FinishTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.DescriptionTicks),
-            TitleSanitiseTiming.TicksToMs(sanitiseAgg.TitleMaxTicks),
-            sanitiseAgg.UniversalKtCount,
-            sanitiseAgg.EnKtCount,
-            sanitiseAgg.EnLowerCount,
-            recentEpisodes.Count,
-            podcasts.Count);
-
-        return (model, breakdown);
-    }
-
-    private static async Task<T> MeasureAsync<T>(Func<Task<T>> work, Stopwatch stopwatch)
-    {
-        stopwatch.Restart();
-        try
-        {
-            return await work();
-        }
-        finally
-        {
-            stopwatch.Stop();
-        }
     }
 
     private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
-        IReadOnlyList<PodcastEntry> podcasts,
+        Task<List<PodcastEntry>> recentPodcastsTask,
         DateTime recentCutoff,
         CancellationToken ct)
     {
+        var podcasts = await recentPodcastsTask;
         var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct)));
         return episodeLists.SelectMany(x => x).ToList();
     }
@@ -360,7 +263,7 @@ public class HomepagePublisher(
         return trimmed;
     }
 
-    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult, SanitiseTimingAggregator? agg)
+    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
         Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
@@ -373,26 +276,12 @@ public class HomepagePublisher(
             .SelectMany(x => x?.KnownTerms ?? [])
             .ToArray();
 
-        if (agg is null)
-        {
-            podcastResult.EpisodeTitle = await textSanitiser.SanitiseTitle(
-                podcastResult.EpisodeTitle,
-                titleRegex,
-                podcastResult.KnownTerms ?? [],
-                subjectKnownTerms,
-                podcastResult.Language);
-        }
-        else
-        {
-            var (title, titleTiming) = await textSanitiser.SanitiseTitleTimed(
-                podcastResult.EpisodeTitle,
-                titleRegex,
-                podcastResult.KnownTerms ?? [],
-                subjectKnownTerms,
-                podcastResult.Language);
-            podcastResult.EpisodeTitle = title;
-            agg.AddTitle(titleTiming);
-        }
+        podcastResult.EpisodeTitle = await textSanitiser.SanitiseTitle(
+            podcastResult.EpisodeTitle,
+            titleRegex,
+            podcastResult.KnownTerms ?? [],
+            subjectKnownTerms,
+            podcastResult.Language);
 
         Regex? descRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
@@ -400,19 +289,8 @@ public class HomepagePublisher(
             descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
         }
 
-        if (agg is null)
-        {
-            podcastResult.EpisodeDescription =
-                textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
-        }
-        else
-        {
-            var descStart = Stopwatch.GetTimestamp();
-            podcastResult.EpisodeDescription =
-                textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
-            agg.AddDescription(Stopwatch.GetTimestamp() - descStart);
-        }
-
+        podcastResult.EpisodeDescription =
+            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
         return podcastResult;
     }
 
@@ -440,96 +318,6 @@ public class HomepagePublisher(
                 nameof(PublishHomepage), _contentOptions.BucketName, _contentOptions.HomepageKey);
             return false;
         }
-    }
-
-    private sealed record HomepageBuildTiming(
-        long RecentPodcastsMs,
-        long RecentEpisodesMs,
-        long CacheMs,
-        long SanitiseMs,
-        long SanitisePrepSumMs,
-        long SanitiseRulesResolveSumMs,
-        long SanitiseLowerSumMs,
-        long SanitiseUniversalKtSumMs,
-        long SanitiseLangKtSumMs,
-        long SanitisePodcastKtSumMs,
-        long SanitiseSubjectKtSumMs,
-        long SanitiseFinishSumMs,
-        long SanitiseDescSumMs,
-        long SanitiseTitleMaxMs,
-        int UniversalKtCount,
-        int EnKtCount,
-        int EnLowerCount,
-        int RecentEpisodeCount,
-        int RecentPodcastCount);
-
-    /// <summary>Thread-safe sum of title-sanitise phase ticks across parallel homepage titles.</summary>
-    private sealed class SanitiseTimingAggregator
-    {
-        private long _prepTicks;
-        private long _rulesResolveTicks;
-        private long _lowerCaseTicks;
-        private long _universalKnownTermsTicks;
-        private long _languageKnownTermsTicks;
-        private long _podcastKnownTermsTicks;
-        private long _subjectKnownTermsTicks;
-        private long _finishTicks;
-        private long _descriptionTicks;
-        private long _titleMaxTicks;
-        private int _universalKtCount;
-        private int _enKtCount;
-        private int _enLowerCount;
-
-        public long PrepTicks => Volatile.Read(ref _prepTicks);
-        public long RulesResolveTicks => Volatile.Read(ref _rulesResolveTicks);
-        public long LowerCaseTicks => Volatile.Read(ref _lowerCaseTicks);
-        public long UniversalKnownTermsTicks => Volatile.Read(ref _universalKnownTermsTicks);
-        public long LanguageKnownTermsTicks => Volatile.Read(ref _languageKnownTermsTicks);
-        public long PodcastKnownTermsTicks => Volatile.Read(ref _podcastKnownTermsTicks);
-        public long SubjectKnownTermsTicks => Volatile.Read(ref _subjectKnownTermsTicks);
-        public long FinishTicks => Volatile.Read(ref _finishTicks);
-        public long DescriptionTicks => Volatile.Read(ref _descriptionTicks);
-        public long TitleMaxTicks => Volatile.Read(ref _titleMaxTicks);
-        public int UniversalKtCount => Volatile.Read(ref _universalKtCount);
-        public int EnKtCount => Volatile.Read(ref _enKtCount);
-        public int EnLowerCount => Volatile.Read(ref _enLowerCount);
-
-        public void AddTitle(TitleSanitiseTiming timing)
-        {
-            Interlocked.Add(ref _prepTicks, timing.PrepTicks);
-            Interlocked.Add(ref _rulesResolveTicks, timing.RulesResolveTicks);
-            Interlocked.Add(ref _lowerCaseTicks, timing.LowerCaseTicks);
-            Interlocked.Add(ref _universalKnownTermsTicks, timing.UniversalKnownTermsTicks);
-            Interlocked.Add(ref _languageKnownTermsTicks, timing.LanguageKnownTermsTicks);
-            Interlocked.Add(ref _podcastKnownTermsTicks, timing.PodcastKnownTermsTicks);
-            Interlocked.Add(ref _subjectKnownTermsTicks, timing.SubjectKnownTermsTicks);
-            Interlocked.Add(ref _finishTicks, timing.FinishTicks);
-
-            // Prefer English term counts (null lang → en); keep the largest seen.
-            if (timing.LanguageKnownTermCount >= Volatile.Read(ref _enKtCount))
-            {
-                Interlocked.Exchange(ref _enKtCount, timing.LanguageKnownTermCount);
-            }
-
-            if (timing.LowerCaseTermCount >= Volatile.Read(ref _enLowerCount))
-            {
-                Interlocked.Exchange(ref _enLowerCount, timing.LowerCaseTermCount);
-            }
-
-            if (timing.UniversalKnownTermCount >= Volatile.Read(ref _universalKtCount))
-            {
-                Interlocked.Exchange(ref _universalKtCount, timing.UniversalKnownTermCount);
-            }
-
-            var total = timing.TotalTicks;
-            long current;
-            while (total > (current = Volatile.Read(ref _titleMaxTicks)) &&
-                   Interlocked.CompareExchange(ref _titleMaxTicks, total, current) != current)
-            {
-            }
-        }
-
-        public void AddDescription(long ticks) => Interlocked.Add(ref _descriptionTicks, ticks);
     }
 
     private sealed record PodcastEntry

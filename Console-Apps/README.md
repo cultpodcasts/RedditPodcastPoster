@@ -464,7 +464,7 @@ Production clients load the index from `GET /search-suggestions` (R2). See websi
 | `--skip-homepage` | Skip homepage publish |
 | `--parallel` | Second pass timing Index + Homepage under `Task.WhenAll` (repeats side effects) |
 
-Homepage sub-step timings also log with prefix `HomepagePublishTiming` (recent podcasts / episodes / cache / sanitise / R2 upload). Sanitise also logs per-phase CPU sums (`sanitise-*-sum-ms`: prep / rules-resolve / lower / universal-kt / lang-kt / podcast-kt / subject-kt / finish / desc) plus `sanitise-title-max-ms` and known-term counts — sums can exceed wall `sanitise-ms` because titles run in parallel.
+Homepage wall-clock timing (optional) is a decorator: set `TimedHomepagePublisher.EnableDiagnosticTiming = true` to log `HomepagePublishTiming`.
 
 Example:
 

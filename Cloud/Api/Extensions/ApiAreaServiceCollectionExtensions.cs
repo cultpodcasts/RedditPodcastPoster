@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
@@ -44,7 +45,10 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IEpisodeDeleteService, EpisodeDeleteService>()
             .AddScoped<IEpisodeGetService, EpisodeGetService>()
             .AddScoped<IEpisodeOutgoingService, EpisodeOutgoingService>()
-            .AddScoped<IEpisodeUpdateService, EpisodeUpdateService>()
+            .AddScoped<EpisodeUpdateService>()
+            .AddScoped<IEpisodeUpdateService>(sp => new TimedEpisodeUpdateService(
+                sp.GetRequiredService<EpisodeUpdateService>(),
+                sp.GetRequiredService<ILogger<TimedEpisodeUpdateService>>()))
             .AddScoped<IEpisodePublishService, EpisodePublishService>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()

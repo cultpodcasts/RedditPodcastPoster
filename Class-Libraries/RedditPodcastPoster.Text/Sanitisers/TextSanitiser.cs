@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
@@ -45,18 +44,6 @@ public partial class TextSanitiser(
     public async Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
         string[] subjectKnownTerms, string? language = null)
     {
-        var (title, _) = await SanitiseTitleTimed(episodeTitle, regex, podcastKnownTerms, subjectKnownTerms, language);
-        return title;
-    }
-
-    public async Task<(string Title, TitleSanitiseTiming Timing)> SanitiseTitleTimed(
-        string episodeTitle,
-        Regex? regex,
-        string[] podcastKnownTerms,
-        string[] subjectKnownTerms,
-        string? language = null)
-    {
-        var prepStart = Stopwatch.GetTimestamp();
         if (regex != null)
         {
             episodeTitle = ExtractTitle(episodeTitle, regex);
@@ -76,47 +63,23 @@ public partial class TextSanitiser(
         episodeTitle = FixRomanceElisionApostrophe(episodeTitle);
         episodeTitle = FixMcMacPrefix(episodeTitle);
         episodeTitle = LowerPostAsteriskLetters(episodeTitle);
-        var prepTicks = Stopwatch.GetTimestamp() - prepStart;
 
-        var rulesStart = Stopwatch.GetTimestamp();
         var rulesProvider = await titleCasingRulesProviderInstance.GetAsync();
-        var rulesTicks = Stopwatch.GetTimestamp() - rulesStart;
-
-        var lowerStart = Stopwatch.GetTimestamp();
-        var lowerExpressions = rulesProvider.GetLowerCaseExpressions(language);
-        foreach (var term in lowerExpressions)
+        foreach (var term in rulesProvider.GetLowerCaseExpressions(language))
         {
             episodeTitle = term.Value.Replace(episodeTitle, term.Key);
         }
-        var lowerTicks = Stopwatch.GetTimestamp() - lowerStart;
 
-        var (cased, universalTicks, languageTicks, podcastTicks, subjectTicks, universalCount, languageCount) =
-            FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms, language, rulesProvider);
-        episodeTitle = cased;
+        episodeTitle = FixCasing(episodeTitle, podcastKnownTerms, subjectKnownTerms, language, rulesProvider);
 
-        var finishStart = Stopwatch.GetTimestamp();
         episodeTitle = episodeTitle.Trim();
         var inQuotesMatch = InQuotes.Match(episodeTitle);
         if (inQuotesMatch.Success)
         {
             episodeTitle = inQuotesMatch.Groups["inquotes"].Value;
         }
-        var finishTicks = Stopwatch.GetTimestamp() - finishStart;
 
-        var timing = new TitleSanitiseTiming(
-            prepTicks,
-            rulesTicks,
-            lowerTicks,
-            universalTicks,
-            languageTicks,
-            podcastTicks,
-            subjectTicks,
-            finishTicks,
-            universalCount,
-            languageCount,
-            lowerExpressions.Count);
-
-        return (episodeTitle, timing);
+        return episodeTitle;
     }
 
     public string SanitisePodcastName(string podcastName)
@@ -285,14 +248,7 @@ public partial class TextSanitiser(
         return title.Trim();
     }
 
-    private static (
-        string Input,
-        long UniversalTicks,
-        long LanguageTicks,
-        long PodcastTicks,
-        long SubjectTicks,
-        int UniversalCount,
-        int LanguageCount) FixCasing(
+    private static string FixCasing(
         string input,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
@@ -302,23 +258,16 @@ public partial class TextSanitiser(
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
 
-        var universalTerms = rulesProvider.GetUniversalKnownTermReplacements();
-        var universalStart = Stopwatch.GetTimestamp();
-        foreach (var term in universalTerms)
+        foreach (var term in rulesProvider.GetUniversalKnownTermReplacements())
         {
             input = term.Pattern.Replace(input, term.Literal);
         }
-        var universalTicks = Stopwatch.GetTimestamp() - universalStart;
 
-        var languageTerms = rulesProvider.GetKnownTermReplacements(language);
-        var languageStart = Stopwatch.GetTimestamp();
-        foreach (var term in languageTerms)
+        foreach (var term in rulesProvider.GetKnownTermReplacements(language))
         {
             input = term.Pattern.Replace(input, term.Literal);
         }
-        var languageTicks = Stopwatch.GetTimestamp() - languageStart;
 
-        var podcastStart = Stopwatch.GetTimestamp();
         foreach (var term in podcastKnownTerms)
         {
             if (string.IsNullOrWhiteSpace(term))
@@ -328,9 +277,7 @@ public partial class TextSanitiser(
 
             input = BoundaryWordRegex(term).Replace(input, term);
         }
-        var podcastTicks = Stopwatch.GetTimestamp() - podcastStart;
 
-        var subjectStart = Stopwatch.GetTimestamp();
         foreach (var term in subjectKnownTerms)
         {
             if (string.IsNullOrWhiteSpace(term))
@@ -340,16 +287,8 @@ public partial class TextSanitiser(
 
             input = BoundaryWordRegex(term).Replace(input, term);
         }
-        var subjectTicks = Stopwatch.GetTimestamp() - subjectStart;
 
-        return (
-            input,
-            universalTicks,
-            languageTicks,
-            podcastTicks,
-            subjectTicks,
-            universalTerms.Count,
-            languageTerms.Count);
+        return input;
     }
 
     private static Regex BoundaryWordRegex(string term) =>
