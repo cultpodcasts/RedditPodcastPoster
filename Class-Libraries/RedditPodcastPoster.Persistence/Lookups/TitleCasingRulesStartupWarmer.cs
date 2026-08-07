@@ -9,5 +9,5 @@ public sealed class TitleCasingRulesStartupWarmer(
     public string Name => nameof(ITitleCasingRulesProvider);
 
     public Task WarmAsync(CancellationToken cancellationToken) =>
-        titleCasingRulesProvider.GetAsync();
+        titleCasingRulesProvider.GetAsync(cancellationToken);
 }

@@ -11,14 +11,15 @@ public class AppleBearerTokenProvider(
 #pragma warning restore CS9113 // Parameter is unread.
     : IAppleBearerTokenProvider
 {
-    public async Task<AuthenticationHeaderValue> GetHeader()
+    public async Task<AuthenticationHeaderValue> GetHeader(CancellationToken cancellationToken = default)
     {
         var httpClient = httpClientFactory.CreateClient();
-        var podcastsHomepageContent = await httpClient.GetAsync("https://www.apple.com/apple-podcasts/");
+        var podcastsHomepageContent =
+            await httpClient.GetAsync("https://www.apple.com/apple-podcasts/", cancellationToken);
         podcastsHomepageContent.EnsureSuccessStatusCode();
 
         var document = new HtmlDocument();
-        document.Load(await podcastsHomepageContent.Content.ReadAsStreamAsync());
+        document.Load(await podcastsHomepageContent.Content.ReadAsStreamAsync(cancellationToken));
         var applePodcastTokenNodes =
             document.DocumentNode.SelectNodes("//meta[@property=\"apple-podcast-token\"]/@content");
 

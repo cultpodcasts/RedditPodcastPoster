@@ -11,11 +11,11 @@ public class ApplePodcastHttpClientFactory(
 #pragma warning restore CS9113 // Parameter is unread.
     : IApplePodcastHttpClientFactory
 {
-    public async Task<HttpClient> Create()
+    public async Task<HttpClient> Create(CancellationToken cancellationToken = default)
     {
         var httpClient = httpClientFactory.CreateClient();
         httpClient.BaseAddress = new Uri("https://amp-api.podcasts.apple.com/");
-        var token = await appleBearerTokenProvider!.GetHeader();
+        var token = await appleBearerTokenProvider!.GetHeader(cancellationToken);
         httpClient.DefaultRequestHeaders.Authorization = token;
         httpClient.DefaultRequestHeaders.Accept.Clear();
         httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));

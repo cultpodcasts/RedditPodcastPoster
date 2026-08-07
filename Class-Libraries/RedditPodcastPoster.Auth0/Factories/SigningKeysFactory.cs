@@ -13,17 +13,18 @@ public class SigningKeysFactory(IOptions<Auth0ValidationOptions> auth0Validation
                                                        throw new ArgumentNullException(
                                                            $"Missing '{nameof(Auth0ValidationOptions)}'.");
 
-    public async Task<ICollection<SecurityKey>?> Create()
+    public async Task<ICollection<SecurityKey>?> Create(CancellationToken cancellationToken = default)
     {
         var keys = new List<SecurityKey>();
         foreach (var domain in _options.GetTrustedDomains())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
                 $"https://{domain}/.well-known/openid-configuration",
                 new OpenIdConnectConfigurationRetriever(),
                 new HttpDocumentRetriever());
 
-            var discoveryDocument = await configurationManager.GetConfigurationAsync();
+            var discoveryDocument = await configurationManager.GetConfigurationAsync(cancellationToken);
             keys.AddRange(discoveryDocument.SigningKeys);
         }
 

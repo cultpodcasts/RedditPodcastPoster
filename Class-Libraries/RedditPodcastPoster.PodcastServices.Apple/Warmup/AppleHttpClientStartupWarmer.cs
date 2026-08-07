@@ -9,5 +9,5 @@ public sealed class AppleHttpClientStartupWarmer(IAsyncInstance<HttpClient> appl
 {
     public string Name => "ApplePodcastHttpClient";
 
-    public Task WarmAsync(CancellationToken cancellationToken) => appleHttpClient.GetAsync();
+    public Task WarmAsync(CancellationToken cancellationToken) => appleHttpClient.GetAsync(cancellationToken);
 }

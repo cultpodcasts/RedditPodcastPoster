@@ -10,8 +10,9 @@ public class SpotifyClientFactory(
 #pragma warning restore CS9113 // Parameter is unread.
     : ISpotifyClientFactory
 {
-    public async Task<ISpotifyClient> Create()
+    public async Task<ISpotifyClient> Create(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var config = await configFactory.Create();
         if (config == null)
         {

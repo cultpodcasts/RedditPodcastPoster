@@ -9,5 +9,5 @@ public sealed class EliminationTermsStartupWarmer(
     public string Name => nameof(IEliminationTermsProvider);
 
     public Task WarmAsync(CancellationToken cancellationToken) =>
-        eliminationTermsProvider.GetAsync();
+        eliminationTermsProvider.GetAsync(cancellationToken);
 }

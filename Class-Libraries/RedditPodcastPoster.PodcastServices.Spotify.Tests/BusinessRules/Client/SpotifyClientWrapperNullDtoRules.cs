@@ -40,7 +40,7 @@ public class SpotifyClientWrapperNullDtoRules
             .Setup(x => x.Search.Item(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(searchResponse);
         var provider = new Mock<IAsyncInstance<ISpotifyClient>>();
-        provider.Setup(x => x.GetAsync()).ReturnsAsync(spotifyClient.Object);
+        provider.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(spotifyClient.Object);
         var sut = new SpotifyClientWrapper(provider.Object, NullLogger<SpotifyClientWrapper>.Instance);
 
         // Act
@@ -67,7 +67,7 @@ public class SpotifyClientWrapperNullDtoRules
             .Setup(x => x.Search.Item(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(searchResponse);
         var provider = new Mock<IAsyncInstance<ISpotifyClient>>();
-        provider.Setup(x => x.GetAsync()).ReturnsAsync(spotifyClient.Object);
+        provider.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(spotifyClient.Object);
         var sut = new SpotifyClientWrapper(provider.Object, NullLogger<SpotifyClientWrapper>.Instance);
 
         // Act

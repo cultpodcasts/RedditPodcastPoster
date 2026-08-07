@@ -13,12 +13,12 @@ public class TitleCasingRulesProviderFactory(
     ILogger<TitleCasingRulesProviderFactory> logger)
     : ITitleCasingRulesProviderFactory
 {
-    public async Task<ITitleCasingRulesProvider> Create()
+    public async Task<ITitleCasingRulesProvider> Create(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("{Method}: Creating {Provider}.", nameof(Create), nameof(TitleCasingRulesProvider));
 
         var byLanguage = new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase);
-        await foreach (var document in titleCasingRulesRepository.GetAll())
+        await foreach (var document in titleCasingRulesRepository.GetAll().WithCancellation(cancellationToken))
         {
             var key = LanguageTitleCasingRulesDocument.NormaliseLanguage(document.Language);
             if (!string.IsNullOrEmpty(key))
@@ -29,14 +29,16 @@ public class TitleCasingRulesProviderFactory(
 
         if (!byLanguage.ContainsKey("en"))
         {
-            byLanguage["en"] = await BuildEnglishDefaultAsync();
+            byLanguage["en"] = await BuildEnglishDefaultAsync(cancellationToken);
         }
 
         return new TitleCasingRulesProvider(byLanguage);
     }
 
-    private async Task<LanguageTitleCasingRulesDocument> BuildEnglishDefaultAsync()
+    private async Task<LanguageTitleCasingRulesDocument> BuildEnglishDefaultAsync(
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var knownTerms = new List<KnownTermEntry>();
         var legacy = await lookupRepository.GetKnownTerms<KnownTermsModel>();
         if (legacy?.Terms is { Count: > 0 })

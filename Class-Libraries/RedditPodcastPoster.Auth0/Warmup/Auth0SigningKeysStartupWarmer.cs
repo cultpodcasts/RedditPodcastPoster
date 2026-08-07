@@ -11,5 +11,5 @@ public sealed class Auth0SigningKeysStartupWarmer(
 {
     public string Name => "Auth0SigningKeys";
 
-    public Task WarmAsync(CancellationToken cancellationToken) => signingKeys.GetAsync();
+    public Task WarmAsync(CancellationToken cancellationToken) => signingKeys.GetAsync(cancellationToken);
 }

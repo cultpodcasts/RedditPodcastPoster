@@ -4,5 +4,5 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Clients;
 
 public interface IAppleBearerTokenProvider
 {
-    Task<AuthenticationHeaderValue> GetHeader();
+    Task<AuthenticationHeaderValue> GetHeader(CancellationToken cancellationToken = default);
 }
