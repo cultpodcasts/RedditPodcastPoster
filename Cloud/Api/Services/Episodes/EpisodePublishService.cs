@@ -75,7 +75,7 @@ public class EpisodePublishService(
                 {
                     try
                     {
-                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
@@ -100,7 +100,7 @@ public class EpisodePublishService(
                 {
                     try
                     {
-                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
+                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);

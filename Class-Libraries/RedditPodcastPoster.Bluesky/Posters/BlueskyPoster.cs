@@ -17,9 +17,9 @@ public class BlueskyPoster(
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
-    public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
-        var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl);
+        var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl, hasShareImage);
         BlueskySendStatus sendStatus;
         var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)

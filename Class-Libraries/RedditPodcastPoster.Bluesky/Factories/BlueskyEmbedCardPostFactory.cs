@@ -33,7 +33,7 @@ public class BlueskyEmbedCardPostFactory(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
 
-    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<BlueskyEmbedCardPost> Create(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
         var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
@@ -96,15 +96,20 @@ public class BlueskyEmbedCardPostFactory(
             postBuilder.AppendLine(endHashTags);
         }
 
-        if (shortUrl != null &&
-            _blueskyOptions.WithEpisodeUrl &&
-            (podcastEpisode.HasMultipleServices() ||
-             podcastEpisode.Episode.Subjects.Any()))
+        var includeShortInText = hasShareImage
+            || (_blueskyOptions.WithEpisodeUrl &&
+                (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
+        if (shortUrl != null && includeShortInText)
         {
             postBuilder.AppendLine($"{shortUrl}");
         }
 
-        var permittedTitleLength = 300 - (postBuilder.Length + (_blueskyOptions.WithEpisodeUrl ? 26 : 0));
+        // Short URL is already in postBuilder when includeShortInText. Extra 26 was for dual-link
+        // budgeting; share-image posts are short-only so skip it and allow a longer title.
+        var reserveSecondUrlBudget = !hasShareImage
+            && _blueskyOptions.WithEpisodeUrl
+            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+        var permittedTitleLength = 300 - (postBuilder.Length + (reserveSecondUrlBudget ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
@@ -149,7 +154,13 @@ public class BlueskyEmbedCardPostFactory(
         else
         {
             throw new InvalidOperationException(
-                $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Images}'.");
+                $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Id}'.");
+        }
+
+        // Share-image shorts: card opens s.cultpodcasts.com; UrlService still drives thumb fetch.
+        if (hasShareImage && shortUrl != null)
+        {
+            url = shortUrl;
         }
 
         var tweet = postBuilder.ToString();

@@ -141,12 +141,12 @@ public class PostProcessor(
 
             if (!request.SkipTweet)
             {
-                await TweetEpisode(podcastEpisode, shortnerResult.Url);
+                await TweetEpisode(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
             }
 
             if (!request.SkipBluesky)
             {
-                await PostBluesky(podcastEpisode, shortnerResult.Url);
+                await PostBluesky(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
             }
         }
         else
@@ -200,7 +200,7 @@ public class PostProcessor(
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await TweetEpisode(mostRecent, shortnerResult.Url);
+                        await TweetEpisode(mostRecent, shortnerResult.Url, shortnerResult.HasShareImage);
                     }
                 }
 
@@ -218,7 +218,7 @@ public class PostProcessor(
                             logger.LogError("Unsuccessful shortening-url.");
                         }
 
-                        await PostBluesky(mostRecent, shortnerResult.Url);
+                        await PostBluesky(mostRecent, shortnerResult.Url, shortnerResult.HasShareImage);
                     }
                 }
             }
@@ -237,18 +237,18 @@ public class PostProcessor(
         }
     }
 
-    private async Task PostBluesky(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    private async Task PostBluesky(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
-        var result = await blueSkyPoster.Post(podcastEpisode, shortUrl);
+        var result = await blueSkyPoster.Post(podcastEpisode, shortUrl, hasShareImage);
         if (result != BlueskySendStatus.Success)
         {
             logger.LogError("Error sending bluesky post. Reason: '{reason}'.", result);
         }
     }
 
-    private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    private async Task TweetEpisode(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
-        var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl);
+        var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
         if (result.TweetSendStatus != TweetSendStatus.Sent)
         {
             switch (result.TweetSendStatus)
