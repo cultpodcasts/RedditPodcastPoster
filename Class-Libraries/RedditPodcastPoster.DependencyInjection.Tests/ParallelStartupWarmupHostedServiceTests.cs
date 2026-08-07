@@ -66,6 +66,66 @@ public class ParallelStartupWarmupHostedServiceTests
         VerifyErrorLoggedContaining(logger, "count='2'");
     }
 
+    [Fact(DisplayName =
+        "Startup warm cancel: when host StartAsync token is cancelled, then warmers observe that token and host start fails, because shutdown must abort warmup I/O.")]
+    public async Task StartAsync_when_cancelled_forwards_token_to_warmers_and_fails()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        CancellationToken? seen = null;
+        var warmers = new IStartupWarmer[]
+        {
+            new ObservingWarmer("token-warmer", ct =>
+            {
+                seen = ct;
+                ct.ThrowIfCancellationRequested();
+                return Task.CompletedTask;
+            })
+        };
+        var logger = new Mock<ILogger<ParallelStartupWarmupHostedService>>();
+        var sut = new ParallelStartupWarmupHostedService(warmers, logger.Object);
+
+        // Act
+        var act = async () => await sut.StartAsync(cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        seen.Should().Be(cts.Token);
+    }
+
+    [Fact(DisplayName =
+        "Startup warm cancel: when warmer uses AsyncInstance.GetAsync with host token, then factory Create sees that token, because warm must plumb cancel into lazy init.")]
+    public async Task StartAsync_when_warmer_uses_AsyncInstance_forwards_host_token_to_Create()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        CancellationToken? seenByFactory = null;
+        var factory = new Mock<IAsyncFactory<string>>();
+        factory.Setup(x => x.Create(It.IsAny<CancellationToken>()))
+            .Returns<CancellationToken>(ct =>
+            {
+                seenByFactory = ct;
+                ct.ThrowIfCancellationRequested();
+                return Task.FromResult("unused");
+            });
+        var instance = new AsyncInstance<string>(factory.Object);
+        var warmers = new IStartupWarmer[]
+        {
+            new ObservingWarmer("async-instance-warmer", ct => instance.GetAsync(ct))
+        };
+        var logger = new Mock<ILogger<ParallelStartupWarmupHostedService>>();
+        var sut = new ParallelStartupWarmupHostedService(warmers, logger.Object);
+        await cts.CancelAsync();
+
+        // Act
+        var act = async () => await sut.StartAsync(cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        seenByFactory.Should().Be(cts.Token);
+    }
+
     private static void VerifyErrorLoggedContaining(
         Mock<ILogger<ParallelStartupWarmupHostedService>> logger,
         string fragment)
@@ -86,5 +146,14 @@ public class ParallelStartupWarmupHostedServiceTests
 
         public Task WarmAsync(CancellationToken cancellationToken) =>
             failWith is null ? Task.CompletedTask : Task.FromException(failWith);
+    }
+
+    private sealed class ObservingWarmer(
+        string name,
+        Func<CancellationToken, Task> warm) : IStartupWarmer
+    {
+        public string Name => name;
+
+        public Task WarmAsync(CancellationToken cancellationToken) => warm(cancellationToken);
     }
 }
