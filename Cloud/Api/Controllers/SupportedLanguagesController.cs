@@ -30,7 +30,7 @@ public class SupportedLanguagesController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["curate", "admin"],
             getSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);
@@ -44,7 +44,7 @@ public class SupportedLanguagesController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["curate", "admin"],
             body,
             putSupportedLanguagesHandler.Handle,
             Unauthorised,

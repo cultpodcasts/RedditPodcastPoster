@@ -22,7 +22,20 @@ public class ClientPrincipal
 
     public bool HasScope(string scope)
     {
-        var scopeClaim = Claims.SingleOrDefault(x => x.Type == "permissions" && x.Value == scope);
-        return scopeClaim != null;
+        if (Claims.Any(x => x.Type == "permissions" && x.Value == scope))
+        {
+            return true;
+        }
+
+        // Auth0 also puts granted APIs in the space-delimited OAuth `scope` claim
+        // (same parity as the Cloudflare Worker hasPermission helper).
+        var oauthScope = Claims.FirstOrDefault(x => x.Type is "scope" or "scp")?.Value;
+        if (string.IsNullOrWhiteSpace(oauthScope))
+        {
+            return false;
+        }
+
+        return oauthScope.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(scope);
     }
 }
