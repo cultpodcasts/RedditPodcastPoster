@@ -40,4 +40,9 @@ public class IndexRequest
 
     [Option('o', "force-index", Default = false, HelpText = "Force index-all-episodes")]
     public bool ForceIndex { get; set; }
+
+    [Option("reindex-search", Default = false,
+        HelpText =
+            "Skip podcast/platform update; re-push all episodes for the selected podcast(s) to Azure Search from Cosmos.")]
+    public bool ReindexSearch { get; set; }
 }

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
@@ -94,6 +96,41 @@ public class LookupRepository(
     public async Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state)
     {
         await lookupContainer.UpsertItemAsync(state, new PartitionKey(state.Id.ToString()));
+    }
+
+    public async IAsyncEnumerable<string> GetAllDocumentJson(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var iterator = lookupContainer.GetItemQueryStreamIterator(
+            new QueryDefinition("SELECT * FROM c"),
+            requestOptions: new QueryRequestOptions { MaxItemCount = 100 });
+
+        while (iterator.HasMoreResults)
+        {
+            using var response = await iterator.ReadNextAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError(
+                    "{method}: LookUps query failed with status {Status} ({Error}).",
+                    nameof(GetAllDocumentJson),
+                    response.StatusCode,
+                    response.ErrorMessage);
+                throw new InvalidOperationException(
+                    $"LookUps container query failed: {(int)response.StatusCode} {response.ErrorMessage}");
+            }
+
+            using var document = await JsonDocument.ParseAsync(response.Content, cancellationToken: cancellationToken);
+            if (!document.RootElement.TryGetProperty("Documents", out var documents) ||
+                documents.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var item in documents.EnumerateArray())
+            {
+                yield return item.GetRawText();
+            }
+        }
     }
 
     public async Task IncrementHomePageActiveEpisodeCount(int delta)

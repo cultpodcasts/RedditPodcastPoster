@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using CommandLine;
+using CosmosDbDownloader;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -30,7 +32,11 @@ builder.Services
 
 using var host = builder.Build();
 
-var downloader = host.Services.GetRequiredService<CosmosDbDownloader.CosmosDbDownloader>();
-await downloader.Run();
-
-return 0;
+return await Parser.Default.ParseArguments<CosmosDbDownloaderRequest>(args)
+    .MapResult(async request =>
+    {
+        var downloader = host.Services.GetRequiredService<CosmosDbDownloader.CosmosDbDownloader>();
+        await downloader.Run(request);
+        return 0;
+    },
+    _ => Task.FromResult(1));
