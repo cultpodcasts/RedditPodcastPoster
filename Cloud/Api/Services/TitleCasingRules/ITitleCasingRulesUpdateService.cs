@@ -4,8 +4,23 @@ namespace Api.Services.TitleCasingRules;
 
 public interface ITitleCasingRulesUpdateService
 {
-    Task<TitleCasingRulesUpdateResult> UpdateAsync(
+    Task<TitleCasingRulesUpdateResult> AddLowerCaseTermAsync(
         string language,
-        LanguageTitleCasingRulesUpdateRequest body,
+        TitleCasingRulesAddLowerCaseTermRequest body,
+        CancellationToken cancellationToken);
+
+    Task<TitleCasingRulesUpdateResult> DeleteLowerCaseTermAsync(
+        string language,
+        string term,
+        CancellationToken cancellationToken);
+
+    Task<TitleCasingRulesUpdateResult> UpsertKnownTermAsync(
+        string language,
+        KnownTermUpdate body,
+        CancellationToken cancellationToken);
+
+    Task<TitleCasingRulesUpdateResult> DeleteKnownTermAsync(
+        string language,
+        string literal,
         CancellationToken cancellationToken);
 }

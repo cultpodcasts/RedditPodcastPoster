@@ -44,10 +44,12 @@ public class PodcastUpdateService(
                 podcastChangeRequestWrapper.PodcastId);
 
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);
+            var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))
             {
                 await UpdateName(podcast, podcastChangeRequestWrapper.Podcast.Name);
+                nameChanged = true;
             }
 
             await podcastRepository.Save(podcast);
@@ -57,7 +59,7 @@ public class PodcastUpdateService(
                 await PropagatePodcastLanguageToEpisodes(podcast, c);
             }
 
-            if (podcastChangeRequestWrapper.Podcast.Removed == true)
+            if (podcastChangeRequestWrapper.Podcast.Removed == true || nameChanged)
             {
                 await episodeProjectionHelper.HydrateDetachedEpisodePodcastProjection(podcast, c);
             }
@@ -70,7 +72,7 @@ public class PodcastUpdateService(
                 failureDeletingFromIndex = !await DeleteEpisodesFromSearchIndex(c, podcast);
                 await DeleteEpisodesFromShortner(podcast, c);
             }
-            else if (podcastChangeRequestWrapper.AllowNameChange)
+            else if (nameChanged)
             {
                 var episodeIds = await episodeProjectionHelper.GetEpisodeIdsByPodcastId(podcast.Id, c);
                 if (episodeIds.Count > 0)
@@ -103,13 +105,13 @@ public class PodcastUpdateService(
 
     private async Task PropagatePodcastLanguageToEpisodes(DomainPodcast podcast, CancellationToken c)
     {
-        // Refresh denormalised PodcastLanguage only. Episode.Language null means English and must
-        // not be overwritten by the podcast default (new episodes inherit via SetPodcastProperties
-        // inheritLanguageIfUnset: true).
+        // Refresh denormalised PodcastLanguage and fill Episode.Language when unset
+        // (null/blank). Explicit episode languages are left alone. Empty podcast language
+        // only clears the denormalised field — it does not invent an episode lang.
         var updatedEpisodeIds = new List<Guid>();
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
-            var (updated, _) = episode.SetPodcastProperties(podcast);
+            var (updated, _) = episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
             if (!updated)
             {
                 continue;

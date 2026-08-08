@@ -11,9 +11,10 @@ public class EliminationTermsProviderFactory(
     ILogger<EliminationTermsProviderFactory> logger)
     : IEliminationTermsProviderFactory
 {
-    public async Task<IEliminationTermsProvider> Create()
+    public async Task<IEliminationTermsProvider> Create(CancellationToken cancellationToken = default)
     {
         logger.LogInformation($"{nameof(Create)} - Creating {nameof(EliminationTermsProvider)}");
+        cancellationToken.ThrowIfCancellationRequested();
         var terms = await eliminationTermsRepository.Get();
         return new EliminationTermsProvider(terms ?? new EliminationTermsModel());
     }

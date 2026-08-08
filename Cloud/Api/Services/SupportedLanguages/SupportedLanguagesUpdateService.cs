@@ -11,80 +11,70 @@ public class SupportedLanguagesUpdateService(
     ILanguagesPublisher languagesPublisher,
     ILogger<SupportedLanguagesUpdateService> logger) : ISupportedLanguagesUpdateService
 {
-    public async Task<SupportedLanguagesUpdateResult> UpdateAsync(
-        SupportedLanguagesUpdateRequest body,
+    public async Task<SupportedLanguagesUpdateResult> AddAsync(
+        SupportedLanguageAddRequest body,
         CancellationToken cancellationToken)
     {
         try
         {
-            if (body.Languages is null || body.Languages.Count == 0)
+            var existing = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
+            var validation = SupportedLanguagesMutationRules.TryAdd(existing.Languages, body.Name);
+
+            if (!validation.IsValid)
             {
                 return new SupportedLanguagesUpdateResult(
                     SupportedLanguagesUpdateStatus.BadRequest,
-                    Error: "languages must contain at least one entry.");
+                    Error: validation.Error);
             }
 
-            var languages = new List<SupportedLanguage>();
-            var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var entry in body.Languages)
-            {
-                var code = entry.Code?.Trim();
-                var name = entry.Name?.Trim();
-
-                if (string.IsNullOrEmpty(code))
-                {
-                    return new SupportedLanguagesUpdateResult(
-                        SupportedLanguagesUpdateStatus.BadRequest,
-                        Error: "Each language must have a non-empty code.");
-                }
-
-                if (string.IsNullOrEmpty(name))
-                {
-                    return new SupportedLanguagesUpdateResult(
-                        SupportedLanguagesUpdateStatus.BadRequest,
-                        Error: "Each language must have a non-empty name.");
-                }
-
-                if (!seenCodes.Add(code))
-                {
-                    continue;
-                }
-
-                languages.Add(new SupportedLanguage
-                {
-                    Code = code,
-                    Name = name
-                });
-            }
-
-            if (languages.Count == 0)
-            {
-                return new SupportedLanguagesUpdateResult(
-                    SupportedLanguagesUpdateStatus.BadRequest,
-                    Error: "languages must contain at least one unique code.");
-            }
-
-            var config = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
-            config.Languages = languages
-                .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            await lookupRepository.SaveSupportedLanguagesConfig(config);
-
-            var published = await languagesPublisher.PublishLanguages();
-            if (!published)
-            {
-                logger.LogError("SupportedLanguagesConfig saved but R2 languages publish failed.");
-                return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
-            }
-
-            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok, config);
+            return await SaveAndPublishAsync(existing, validation.Languages);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failure to update SupportedLanguagesConfig.");
+            logger.LogError(ex, "Failure to add supported language.");
             return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
         }
+    }
+
+    public async Task<SupportedLanguagesUpdateResult> DeleteAsync(
+        string code,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var existing = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
+            var validation = SupportedLanguagesMutationRules.TryRemove(existing.Languages, code);
+
+            if (!validation.IsValid)
+            {
+                return new SupportedLanguagesUpdateResult(
+                    SupportedLanguagesUpdateStatus.BadRequest,
+                    Error: validation.Error);
+            }
+
+            return await SaveAndPublishAsync(existing, validation.Languages);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure to delete supported language '{Code}'.", code);
+            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
+        }
+    }
+
+    private async Task<SupportedLanguagesUpdateResult> SaveAndPublishAsync(
+        SupportedLanguagesConfig existing,
+        IReadOnlyList<SupportedLanguage> languages)
+    {
+        existing.Languages = languages.ToList();
+        await lookupRepository.SaveSupportedLanguagesConfig(existing);
+
+        var published = await languagesPublisher.PublishLanguages();
+        if (!published)
+        {
+            logger.LogError("SupportedLanguagesConfig saved but R2 languages publish failed.");
+            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
+        }
+
+        return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok, existing);
     }
 }

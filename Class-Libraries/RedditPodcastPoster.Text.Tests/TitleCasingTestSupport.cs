@@ -24,7 +24,7 @@ internal static class TitleCasingTestSupport
             StringComparer.OrdinalIgnoreCase);
         var provider = new TitleCasingRulesProvider(byLanguage);
         var instance = mocker.GetMock<IAsyncInstance<ITitleCasingRulesProvider>>();
-        instance.Setup(x => x.GetAsync()).ReturnsAsync(provider);
+        instance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(provider);
         mocker.Use(instance.Object);
     }
 

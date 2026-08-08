@@ -1,22 +1,25 @@
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Services.TitleCasingRules;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace Api.Handlers.TitleCasingRules;
 
-public class PutTitleCasingRulesHandler(
+public class PostTitleCasingRulesLowerCaseTermHandler(
     ITitleCasingRulesUpdateService titleCasingRulesUpdateService,
-    ILogger<PutTitleCasingRulesHandler> logger) : IPutTitleCasingRulesHandler
+    ILogger<PostTitleCasingRulesLowerCaseTermHandler> logger) : IPostTitleCasingRulesLowerCaseTermHandler
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageUpdate body,
+        TitleCasingRulesLanguageTerm body,
         CancellationToken c)
     {
-        var result = await titleCasingRulesUpdateService.UpdateAsync(body.Language, body.Request, c);
+        var result = await titleCasingRulesUpdateService.AddLowerCaseTermAsync(
+            body.Language,
+            new TitleCasingRulesAddLowerCaseTermRequest { Term = body.Term },
+            c);
         return result.Status switch
         {
             TitleCasingRulesUpdateStatus.Ok =>
@@ -33,7 +36,7 @@ public class PutTitleCasingRulesHandler(
 
     private HttpResponseData LogAndFail(IHandlerContext ctx)
     {
-        logger.LogError("Title casing rules put failed with unexpected status.");
+        logger.LogError("Title casing rules lower-case term add failed with unexpected status.");
         return ctx.InternalError();
     }
 }

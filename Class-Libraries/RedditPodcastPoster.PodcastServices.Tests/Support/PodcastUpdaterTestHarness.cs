@@ -38,7 +38,7 @@ internal sealed class PodcastUpdaterTestHarness
 
         var eliminationTermsInstance = new Mock<IAsyncInstance<IEliminationTermsProvider>>();
         eliminationTermsInstance
-            .Setup(x => x.GetAsync())
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(EliminationTermsProvider.Object);
 
         HeroEpisodePromoter = new Mock<IHeroEpisodePromoter>();

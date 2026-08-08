@@ -14,9 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-        <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
   </ItemGroup>
 

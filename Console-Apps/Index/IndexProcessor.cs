@@ -10,15 +10,19 @@ namespace Index;
 
 internal class IndexProcessor(
     IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
     IIndexer indexer,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<IndexProcessor> logger
-#pragma warning restore CS9113 // Parameter is unread.
-)
+    ILogger<IndexProcessor> logger)
 {
     public async Task Run(IndexRequest request)
     {
+        if (request.ReindexSearch)
+        {
+            await ReindexSearchAsync(request);
+            return;
+        }
+
         DateTime? releasedSince = null;
         if (request.ReleasedSince > 0)
         {
@@ -46,24 +50,7 @@ internal class IndexProcessor(
         }
         else
         {
-            IEnumerable<Guid> podcastIds;
-            if (request.PodcastId.HasValue)
-            {
-                podcastIds = [request.PodcastId.Value];
-            }
-            else if (request.PodcastName != null)
-            {
-                podcastIds = await podcastRepository
-                    .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
-                    .Select(x => x.Id)
-                    .ToListAsync();
-                logger.LogInformation("Found {podcastIdsCount} podcasts.", podcastIds.Count());
-            }
-            else
-            {
-                podcastIds = await podcastRepository.GetAll().Select(x => x.Id).ToArrayAsync();
-            }
-
+            var podcastIds = await ResolvePodcastIds(request);
             foreach (var podcastId in podcastIds)
             {
                 var response = await indexer.Index(podcastId, indexingContext, request.ForceIndex);
@@ -74,10 +61,71 @@ internal class IndexProcessor(
             }
         }
 
-
         if (!request.NoIndex && updatedEpisodeIds.Any())
         {
             await episodeSearchIndexerService.IndexEpisodes(updatedEpisodeIds, CancellationToken.None);
         }
+    }
+
+    private async Task ReindexSearchAsync(IndexRequest request)
+    {
+        if (request.NoIndex)
+        {
+            throw new InvalidOperationException("Cannot combine --reindex-search with --no-index.");
+        }
+
+        var podcastIds = await ResolvePodcastIds(request);
+        if (podcastIds.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No podcasts matched. Pass --podcast-id or --podcast-name with --reindex-search.");
+        }
+
+        var episodeIds = new List<Guid>();
+        foreach (var podcastId in podcastIds)
+        {
+            await foreach (var episode in episodeRepository.GetByPodcastId(podcastId))
+            {
+                episodeIds.Add(episode.Id);
+            }
+        }
+
+        logger.LogInformation(
+            "Reindexing {EpisodeCount} episode(s) across {PodcastCount} podcast(s) into Azure Search.",
+            episodeIds.Count,
+            podcastIds.Count);
+
+        if (episodeIds.Count == 0)
+        {
+            return;
+        }
+
+        var result = await episodeSearchIndexerService.IndexEpisodes(episodeIds, CancellationToken.None);
+        logger.LogInformation("Search reindex result: {Result}", result);
+    }
+
+    private async Task<List<Guid>> ResolvePodcastIds(IndexRequest request)
+    {
+        if (request.PodcastId.HasValue)
+        {
+            return [request.PodcastId.Value];
+        }
+
+        if (request.PodcastName != null)
+        {
+            var ids = await podcastRepository
+                .GetAllBy(x => x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
+                .Select(x => x.Id)
+                .ToListAsync();
+            logger.LogInformation("Found {podcastIdsCount} podcasts.", ids.Count);
+            return ids;
+        }
+
+        if (request.ReindexSearch)
+        {
+            return [];
+        }
+
+        return await podcastRepository.GetAll().Select(x => x.Id).ToListAsync();
     }
 }

@@ -2,15 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Api.Models;
 
-public class LanguageTitleCasingRulesUpdateRequest
-{
-    [JsonPropertyName("lowerCaseTerms")]
-    public List<string>? LowerCaseTerms { get; init; }
-
-    [JsonPropertyName("knownTerms")]
-    public List<KnownTermUpdate>? KnownTerms { get; init; }
-}
-
 public class KnownTermUpdate
 {
     [JsonPropertyName("literal")]

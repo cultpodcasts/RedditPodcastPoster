@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
@@ -44,7 +45,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IEpisodeDeleteService, EpisodeDeleteService>()
             .AddScoped<IEpisodeGetService, EpisodeGetService>()
             .AddScoped<IEpisodeOutgoingService, EpisodeOutgoingService>()
-            .AddScoped<IEpisodeUpdateService, EpisodeUpdateService>()
+            .AddScoped<EpisodeUpdateService>()
+            .AddScoped<IEpisodeUpdateService>(sp =>
+            {
+                var inner = sp.GetRequiredService<EpisodeUpdateService>();
+                return TimedEpisodeUpdateService.EnableDiagnosticTiming
+                    ? new TimedEpisodeUpdateService(
+                        inner,
+                        sp.GetRequiredService<ILogger<TimedEpisodeUpdateService>>())
+                    : inner;
+            })
             .AddScoped<IEpisodePublishService, EpisodePublishService>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
@@ -131,12 +141,17 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<ISupportedLanguagesGetService, SupportedLanguagesGetService>()
             .AddScoped<ISupportedLanguagesUpdateService, SupportedLanguagesUpdateService>()
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
-            .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>();
+            .AddScoped<IPostSupportedLanguagesHandler, PostSupportedLanguagesHandler>()
+            .AddScoped<IDeleteSupportedLanguagesHandler, DeleteSupportedLanguagesHandler>()
+            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
 
     public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
         services
             .AddScoped<ITitleCasingRulesGetService, TitleCasingRulesGetService>()
             .AddScoped<ITitleCasingRulesUpdateService, TitleCasingRulesUpdateService>()
             .AddScoped<IGetTitleCasingRulesByLanguageHandler, GetTitleCasingRulesByLanguageHandler>()
-            .AddScoped<IPutTitleCasingRulesHandler, PutTitleCasingRulesHandler>();
+            .AddScoped<IPostTitleCasingRulesLowerCaseTermHandler, PostTitleCasingRulesLowerCaseTermHandler>()
+            .AddScoped<IDeleteTitleCasingRulesLowerCaseTermHandler, DeleteTitleCasingRulesLowerCaseTermHandler>()
+            .AddScoped<IPostTitleCasingRulesKnownTermHandler, PostTitleCasingRulesKnownTermHandler>()
+            .AddScoped<IDeleteTitleCasingRulesKnownTermHandler, DeleteTitleCasingRulesKnownTermHandler>();
 }

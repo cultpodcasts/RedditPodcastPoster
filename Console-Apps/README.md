@@ -48,6 +48,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `-i, --skip-spotify-indexing` | Skip Spotify indexing |
 | `-x, --no-index` | Do not reindex search index |
 | `-o, --force-index` | Force index-all-episodes |
+| `--reindex-search` | Skip platform update; re-push all episodes for `--podcast-id` / `--podcast-name` to Azure Search from Cosmos |
 
 ### Discover
 
@@ -406,13 +407,34 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### CosmosDbDownloader
 
-**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, known/elimination terms, supported languages, title-casing rules) to local JSON files. No CLI flags — runs the full download.
+**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, LookUps, title-casing rules) to local JSON files.
 
-**Run:** `dotnet run --project Console-Apps/CosmosDbDownloader` · PATH: `CosmosDbDownloader`
+LookUps are written under `lookups/` via typed getters (elimination terms, discovery schedule, supported languages, homepage cache, YouTube quota/state, plus legacy KnownTerms if still present). Title-casing known terms live in the TitleCasingRules container (`titlecasing/`), not LookUps.
+
+**Parallelism:** Selected containers download concurrently (`Task.WhenAll`). Large containers (podcasts/episodes) use a single Cosmos feed reader plus bounded parallel disk writers (4–16, based on CPU). Progress uses Spectre.Console multi-task bars (`ProgressTask.Increment` is safe across writers).
+
+**Run:** `dotnet run --project Console-Apps/CosmosDbDownloader --` · PATH: `CosmosDbDownloader`
+
+| Option | Description |
+|--------|-------------|
+| `--only a,b,…` | Download only these containers (default: all) |
+| `--skip a,b,…` | Skip these containers (cannot combine with `--only`) |
+| `-o, --overwrite` | Replace existing local JSON files (default: fail if a file already exists) |
+
+Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions` (aliases like `title-casing`, `push` accepted).
+
+Examples:
+
+```text
+CosmosDbDownloader
+CosmosDbDownloader --only lookups,titlecasing
+CosmosDbDownloader --only lookups,titlecasing --overwrite
+CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
+```
 
 ### CosmosDbUploader
 
-**Purpose:** Upload local JSON entity files back into Cosmos. No CLI flags — runs the full upload.
+**Purpose:** Upload local JSON entity files back into Cosmos. No CLI flags — runs the full upload. Expects `lookups/` from a current downloader run (falls back to legacy singleton files if that folder is missing).
 
 **Run:** `dotnet run --project Console-Apps/CosmosDbUploader` · PATH: `CosmosDbUploader`
 
@@ -462,3 +484,4 @@ Production clients load the index from `GET /search-suggestions` (R2). See websi
 
 - Root README — [Useful console apps](../README.md#useful-console-apps) and [Published CLI tools](../README.md#published-cli-tools-path)
 - Publish script: [`scripts/publish-console-apps.ps1`](../scripts/publish-console-apps.ps1)
+- Optional diagnostic timing: set `TimedHomepagePublisher.EnableDiagnosticTiming` / `TimedEpisodeUpdateService.EnableDiagnosticTiming` so IoC wraps those services and logs `HomepagePublishTiming` / `EpisodeUpdateTiming`.

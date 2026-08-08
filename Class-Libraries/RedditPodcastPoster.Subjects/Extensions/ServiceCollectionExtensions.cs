@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Categorisation;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
@@ -11,6 +13,7 @@ using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Subjects.Repositories;
 using RedditPodcastPoster.Subjects.Services;
+using RedditPodcastPoster.Subjects.Warmup;
 using RedditPodcastPoster.Text.Extensions;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
@@ -22,15 +25,18 @@ public static class ServiceCollectionExtensions
         /// <summary>
         /// Subject matching / categorisation graph.
         /// Self-contained for <see cref="ISubjectMatcher"/> resolution once the host has
-        /// <c>AddRepositories()</c> (Cosmos container factory + KnownTerms for
-        /// <see cref="RedditPodcastPoster.Text.Sanitisers.ITextSanitiser"/>).
+        /// <c>AddRepositories()</c> (Cosmos) and registers title-casing rules via
+        /// <c>AddTitleCasingRules()</c> for <see cref="RedditPodcastPoster.Text.Sanitisers.ITextSanitiser"/>.
         /// Called transitively by <c>AddSpotifyServices</c> / <c>AddAppleServices</c>.
+        /// Does not preload title-casing at startup — hosts that <c>SanitiseTitle</c> should call
+        /// <c>AddTitleCasingRulesWarmup()</c>.
         /// </summary>
         public IServiceCollection AddSubjectServices()
         {
             return services
                 // SubjectService → ITextSanitiser (description extract for matching)
                 .AddTextSanitiser()
+                .AddTitleCasingRules()
                 .AddSingleton<ISubjectRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -48,7 +54,8 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>()
                 // SubjectService needs ISubjectsProvider; hosts that only get subjects via
                 // AddSpotifyServices/AddAppleServices must not omit the provider registration.
-                .AddCachedSubjectProvider();
+                .AddCachedSubjectProvider()
+                .AddStartupWarmer<CachedSubjectsStartupWarmer>();
         }
 
         public IServiceCollection AddCachedSubjectProvider()

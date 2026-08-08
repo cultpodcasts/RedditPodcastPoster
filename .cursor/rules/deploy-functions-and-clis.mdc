@@ -5,7 +5,23 @@ alwaysApply: true
 
 # Deploy functions & CLIs (phrase → actions)
 
-When the user says **deploy functions & clis** (or clearly equivalent: "deploy functions and CLIs", "deploy funcs & clis"), run this sequence from the **RedditPodcastPoster** repo root. Do **not** ask for confirmation beyond the phrase itself — that phrase is explicit deploy approval.
+When the user says **deploy functions & clis** (or any equivalent below), run this sequence from the **RedditPodcastPoster** repo root. **The phrase alone is full, explicit deploy approval.** Do **not** ask for confirmation of any kind — proceed immediately.
+
+## Trigger phrase (match generously — casing & punctuation are irrelevant)
+
+Treat **all** of these (and obvious variants) as the same command. Matching is **case-insensitive** and ignores punctuation, so `&` / `and` / `+`, `clis` / `CLIs`, `functions` / `funcs`, and `deploy` / `redeploy` are interchangeable:
+
+- `deploy functions & clis`
+- `deploy Functions & clis`
+- `deploy functions and CLIs`
+- `deploy funcs & clis`
+- `deploy functions + clis`
+- `redeploy functions and publish clis`
+- `deploy functions and publish clis`
+
+It is **still this command** when the user first does git housekeeping in the same or a prior message — e.g. "merged", "switch to main, pull", "pull main" — and then says any trigger phrase. In that case: sync `main` if needed, then start the deploy sequence.
+
+**MANDATORY:** On any match, proceed **without asking a single clarifying question**. Do **not** ask which model, which apps, whether to run the scripts, or "Use these details? (Y/n)". The phrase is the approval. Your **first action** is to sync `main` if needed and then run `.\scripts\deploy-indexer.ps1` immediately (see §1).
 
 ## 1. Function apps (order is mandatory)
 
@@ -34,6 +50,8 @@ Example (Indexer; repeat pattern for Discover then Api):
 
 Stop the sequence if a deploy exits non-zero; do not continue to the next app or to CLIs.
 
+**Resuming mid-sequence:** if some apps are already deployed in this conversation (e.g. Indexer + Discover done), continue from the **next** app (Api) — do **not** restart from Indexer.
+
 ## 2. Console apps
 
 ```powershell
@@ -44,6 +62,9 @@ Publishes to `artifacts\tools\` (all console apps except `ThrowawayConsole`).
 
 ## Do not
 
+- **Do NOT treat the phrase as a question or ask the user to confirm scope** — it is a command, not a request for clarification.
+- **Do NOT pause to read Azure best-practices / MCP tooling** (e.g. `get_azure_bestpractices`, `azd`, Azure MCP `bestpractices`/`deploy` tools) before running the scripts. The scripts are the deploy path; go straight to them.
+- **Do NOT ask which model, which apps, or whether to run the scripts.** All of that is already answered by this rule.
 - Prompt "Use these details? (Y/n)" — always pass explicit `-ResourceGroup` / `-AppName` / `-StorageAccount` / `-DeploymentContainer`
 - Reorder Function deploys (Indexer → Discover → Api only)
 - Use GitHub Actions / Kudu as the deploy path for this phrase
