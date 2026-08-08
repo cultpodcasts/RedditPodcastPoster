@@ -141,6 +141,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<ISupportedLanguagesGetService, SupportedLanguagesGetService>()
             .AddScoped<ISupportedLanguagesUpdateService, SupportedLanguagesUpdateService>()
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
+            .AddScoped<IPostSupportedLanguagesHandler, PostSupportedLanguagesHandler>()
+            .AddScoped<IDeleteSupportedLanguagesHandler, DeleteSupportedLanguagesHandler>()
             .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>()
             .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
 

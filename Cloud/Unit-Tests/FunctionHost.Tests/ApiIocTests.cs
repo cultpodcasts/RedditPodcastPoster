@@ -47,6 +47,8 @@ public class ApiIocTests
         [typeof(IGetDiscoveryScheduleHandler)],
         [typeof(IPutDiscoveryScheduleHandler)],
         [typeof(IGetSupportedLanguagesHandler)],
+        [typeof(IPostSupportedLanguagesHandler)],
+        [typeof(IDeleteSupportedLanguagesHandler)],
         [typeof(IPutSupportedLanguagesHandler)],
         [typeof(IGetNeutralCulturesHandler)],
         [typeof(IGetTitleCasingRulesByLanguageHandler)],

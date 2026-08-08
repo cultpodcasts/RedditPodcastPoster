@@ -334,3 +334,163 @@ public class SupportedLanguagesUpdateRulesTests
         result.Error.Should().Contain("Klingon Cult Dialect");
     }
 }
+
+public class SupportedLanguagesMutationRulesTests
+{
+    [Fact(DisplayName =
+        "Supported language admin POST: adding by a known name appends the derived code and canonical English name, because the client only sends the name.")]
+    public void add_by_known_name_appends_derived_code()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryAdd(existing, "Dutch");
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Languages.Should().HaveCount(2);
+        result.Languages.Should().Contain(l => l.Code == "nl" && l.Name == "Dutch");
+        result.Languages.Should().Contain(l => l.Code == "en" && l.Name == "English");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin POST: adding an unknown name fails, because the name must exist in .NET culture data.")]
+    public void add_by_unknown_name_fails()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryAdd(existing, "Klingon Cult Dialect");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Unknown language name");
+        result.Error.Should().Contain("Klingon Cult Dialect");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin POST: adding a language already present is idempotent and keeps the existing list, because duplicates are not stored.")]
+    public void add_existing_language_is_idempotent()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" },
+            new SupportedLanguage { Code = "nl", Name = "Dutch" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryAdd(existing, "dutch");
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Languages.Should().HaveCount(2);
+        result.Languages.Should().Contain(l => l.Code == "nl" && l.Name == "Dutch");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin POST: an empty name fails, because Add requires a culture English or native name.")]
+    public void add_empty_name_fails()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryAdd(existing, "   ");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("required");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin DELETE: removing by code drops that row and keeps the rest ordered by name, because deletes are targeted deltas.")]
+    public void delete_by_code_removes_row()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" },
+            new SupportedLanguage { Code = "nl", Name = "Dutch" },
+            new SupportedLanguage { Code = "fr", Name = "French" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryRemove(existing, "nl");
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Languages.Should().HaveCount(2);
+        result.Languages.Should().NotContain(l => l.Code == "nl");
+        result.Languages.Should().Contain(l => l.Code == "en");
+        result.Languages.Should().Contain(l => l.Code == "fr");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin DELETE: removing an unknown code fails, because only registered languages can be deleted.")]
+    public void delete_unknown_code_fails()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryRemove(existing, "xx");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("xx");
+        result.Error.Should().Contain("not in the supported list");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin DELETE: removing the last remaining language fails, because at least one supported language is required.")]
+    public void delete_last_language_fails()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryRemove(existing, "en");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("last supported language");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin DELETE: code matching is case-insensitive, because culture codes are compared without regard to case.")]
+    public void delete_code_matching_is_case_insensitive()
+    {
+        // Arrange
+        var existing = new[]
+        {
+            new SupportedLanguage { Code = "en", Name = "English" },
+            new SupportedLanguage { Code = "FR", Name = "French" }
+        };
+
+        // Act
+        var result = SupportedLanguagesMutationRules.TryRemove(existing, "fr");
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Languages.Should().ContainSingle();
+        result.Languages[0].Code.Should().Be("en");
+    }
+}

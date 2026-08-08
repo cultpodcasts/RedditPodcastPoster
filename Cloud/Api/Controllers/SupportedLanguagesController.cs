@@ -14,6 +14,8 @@ namespace Api.Controllers;
 public class SupportedLanguagesController(
     IGetSupportedLanguagesHandler getSupportedLanguagesHandler,
     IPutSupportedLanguagesHandler putSupportedLanguagesHandler,
+    IPostSupportedLanguagesHandler postSupportedLanguagesHandler,
+    IDeleteSupportedLanguagesHandler deleteSupportedLanguagesHandler,
     IGetNeutralCulturesHandler getNeutralCulturesHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SupportedLanguagesController> logger,
@@ -23,6 +25,7 @@ public class SupportedLanguagesController(
 {
     private const string? Route = "supported-languages";
     private const string? CulturesRoute = "supported-languages/cultures";
+    private const string CodeRoute = "supported-languages/{code}";
 
     [Function("SupportedLanguagesGet")]
     public Task<HttpResponseData> Get(
@@ -47,6 +50,36 @@ public class SupportedLanguagesController(
             req,
             ["admin"],
             getNeutralCulturesHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("SupportedLanguagesPost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
+        HttpRequestData req,
+        FunctionContext _,
+        [FromBody] SupportedLanguageAddRequest body,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            body,
+            postSupportedLanguagesHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("SupportedLanguagesDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = CodeRoute)]
+        HttpRequestData req,
+        string code,
+        FunctionContext _,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            code,
+            deleteSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);
 
