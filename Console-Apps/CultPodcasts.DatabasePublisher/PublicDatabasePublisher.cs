@@ -1,10 +1,10 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using CultPodcasts.DatabasePublisher.PublicModels;
-using Konsole;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
+using Spectre.Console;
 
 namespace CultPodcasts.DatabasePublisher;
 
@@ -28,37 +28,42 @@ public class PublicDatabasePublisher(
 
     public async Task Run()
     {
-        var init = new ProgressBar(1);
-        var c = 0;
-        init.Refresh(c, "Testing Podcast File-keys");
-        var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
-        await AreUnique(allFileKeys, "Podcasts");
-        init.Refresh(++c, "Tested Podcast File-keys");
+        AnsiConsole.MarkupLine(
+            $"[grey]Publish parallelism:[/] {PublishParallelism} (podcast feed sequential; episode fetch + write parallel)");
 
-        var podcastCount = await podcastRepository.Count();
-        Console.WriteLine(
-            $"Publish parallelism: {PublishParallelism} (podcast feed sequential; episode fetch + write parallel)");
-
-        var progress = new ProgressBar(Math.Max(podcastCount, 1));
-        var ctr = 0;
-        var progressLock = new object();
-
-        var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
-        await PublishAllParallelAsync(
-            podcasts,
-            async podcast =>
+        await AnsiConsole.Progress()
+            .AutoClear(false)
+            .HideCompleted(false)
+            .Columns(
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new RemainingTimeColumn(),
+                new SpinnerColumn())
+            .StartAsync(async ctx =>
             {
-                await PublishPodcastAsync(podcast);
-                var done = Interlocked.Increment(ref ctr);
-                lock (progressLock)
+                var fileKeyCheck = ctx.AddTask("File-key check: Podcasts", maxValue: 1);
+                var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
+                await AreUnique(allFileKeys, "Podcasts");
+                fileKeyCheck.Increment(1);
+                fileKeyCheck.StopTask();
+
+                var podcastCount = await podcastRepository.Count();
+                var progress = ctx.AddTask("Podcasts", maxValue: Math.Max(podcastCount, 1));
+
+                if (podcastCount == 0)
                 {
-                    progress.Refresh(
-                        done,
-                        done >= podcastCount ? "Finished" : $"Processed {podcast.FileKey}");
+                    progress.Increment(1);
+                    progress.StopTask();
+                    return;
                 }
+
+                var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
+                await PublishAllParallelAsync(podcasts, PublishPodcastAsync, progress);
+                progress.StopTask();
             });
 
-        Console.WriteLine();
+        AnsiConsole.MarkupLine("[green]Finished publishing public database.[/]");
     }
 
     private async Task PublishPodcastAsync(Podcast podcast)
@@ -123,7 +128,8 @@ public class PublicDatabasePublisher(
     /// </summary>
     private static async Task PublishAllParallelAsync(
         IAsyncEnumerable<Podcast> source,
-        Func<Podcast, Task> publishAsync)
+        Func<Podcast, Task> publishAsync,
+        ProgressTask progress)
     {
         var channel = Channel.CreateBounded<Podcast>(new BoundedChannelOptions(PublishParallelism * 2)
         {
@@ -137,6 +143,7 @@ public class PublicDatabasePublisher(
             await foreach (var podcast in channel.Reader.ReadAllAsync())
             {
                 await publishAsync(podcast);
+                progress.Increment(1);
             }
         }).ToArray();
 
