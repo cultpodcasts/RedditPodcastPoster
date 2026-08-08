@@ -11,6 +11,7 @@ public interface IAsyncInstance<T>
     /// <summary>
     /// Gets the instance. On first call, triggers async initialization.
     /// Subsequent calls return the cached result.
+    /// Failed or cancelled initialization is not cached and may be retried.
     /// </summary>
-    Task<T> GetAsync();
+    Task<T> GetAsync(CancellationToken cancellationToken = default);
 }

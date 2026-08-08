@@ -45,6 +45,8 @@ az login
 
 Each wrapper resolves Azure target details (resource group, app name, storage account, deployment container) then forwards to `deploy-function-local.ps1` with the matching `-FunctionName`. Other parameters (`-SkipPackaging`, `-NoRestore`, `-DeploymentMode`, etc.) pass through unchanged.
 
+Publish uses parallel MSBuild by default (normal `dotnet publish` speed) and retries up to 3 times on failure, which covers occasional CS2012 locks on shared `Class-Libraries/*/obj/Release` from the ProjectReference graph. Pass `-SingleNodeMsBuild` on `deploy-function-local.ps1` if locks persist.
+
 ### Saved JSON config (per app)
 
 | Wrapper | Config file (gitignored) |

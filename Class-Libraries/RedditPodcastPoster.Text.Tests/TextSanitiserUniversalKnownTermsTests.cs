@@ -163,6 +163,29 @@ public class TextSanitiserUniversalKnownTermsTests
         result.Should().Be("BBC Meets ONU Today");
     }
 
+    [Fact(DisplayName =
+        "Podcast known-terms are applied via the shared boundary-word regex cache.")]
+    public async Task SanitiseTitle_WithPodcastKnownTerm_PreservesCasing()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        TitleCasingTestSupport.UseRules(
+            mocker,
+            TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []));
+        var sut = mocker.CreateInstance<TextSanitiser>();
+
+        // Act
+        var result = await sut.SanitiseTitle(
+            "Interview With Nasa Today",
+            null,
+            ["NASA"],
+            [],
+            "en");
+
+        // Assert
+        result.Should().Be("Interview With NASA Today");
+    }
+
     [Fact(DisplayName = "Missing universal document yields empty universal known-terms.")]
     public void GetUniversalKnownTerms_WhenDocumentMissing_ReturnsEmpty()
     {

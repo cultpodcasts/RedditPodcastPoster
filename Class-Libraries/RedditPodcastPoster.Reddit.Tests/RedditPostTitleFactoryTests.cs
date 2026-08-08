@@ -32,7 +32,7 @@ public class RedditPostTitleFactoryTests
                     LowerCaseTerms.DefaultEnglishWords)
             });
         var rulesInstance = _mocker.GetMock<IAsyncInstance<ITitleCasingRulesProvider>>();
-        rulesInstance.Setup(x => x.GetAsync()).ReturnsAsync(rules);
+        rulesInstance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rules);
         _mocker.Use(rulesInstance.Object);
 
         _mocker.Use<ITextSanitiser>(_mocker.CreateInstance<TextSanitiser>());

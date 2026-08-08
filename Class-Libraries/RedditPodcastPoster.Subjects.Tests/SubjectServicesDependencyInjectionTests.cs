@@ -35,7 +35,7 @@ public class SubjectServicesDependencyInjectionTests
     }
 
     [Fact(DisplayName =
-        "AddSubjectServices registration: when called alone, then ITextSanitiser and ISubjectsProvider are registered, because Spotify/Apple hosts must not omit those deps.")]
+        "AddSubjectServices registration: when called alone, then ITextSanitiser, title-casing provider, and ISubjectsProvider are registered, because Spotify/Apple hosts must not omit those deps.")]
     public void AddSubjectServices_registers_text_sanitiser_and_subjects_provider()
     {
         // Arrange
@@ -48,6 +48,7 @@ public class SubjectServicesDependencyInjectionTests
         services.Should().Contain(d => d.ServiceType == typeof(ITextSanitiser));
         services.Should().Contain(d => d.ServiceType == typeof(ISubjectsProvider));
         services.Should().Contain(d => d.ServiceType == typeof(ISubjectMatcher));
+        services.Should().Contain(d => d.ServiceType == typeof(IAsyncInstance<ITitleCasingRulesProvider>));
     }
 
     private static void ReplaceSubjectsProviderWithStub(IServiceCollection services)

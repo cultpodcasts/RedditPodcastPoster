@@ -1,5 +1,6 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
@@ -17,7 +18,6 @@ using RedditPodcastPoster.Persistence.Writers;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.Text.EliminationTerms;
-using RedditPodcastPoster.Text.KnownTerms;
 using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Persistence.Extensions;
@@ -77,14 +77,6 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IJsonSerializerOptionsProvider, JsonSerializerOptionsProvider>()
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
-                .AddSingleton<IKnownTermsRepository, KnownTermsRepository>()
-                .AddSingleton<IKnownTermsProviderFactory, KnownTermsProviderFactory>()
-                .AddSingleton<IAsyncInstance<IKnownTermsProvider>>(s =>
-                    new AsyncInstance<IKnownTermsProvider>(s.GetRequiredService<IKnownTermsProviderFactory>()))
-                .AddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>()
-                .AddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
-                    new AsyncInstance<ITitleCasingRulesProvider>(
-                        s.GetRequiredService<ITitleCasingRulesProviderFactory>()))
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
@@ -93,12 +85,37 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
+        /// <summary>
+        /// Lazy title-casing rules provider (required by <c>ITextSanitiser</c> for <c>SanitiseTitle</c>).
+        /// Does not preload at host start — call <see cref="AddTitleCasingRulesWarmup"/> from hosts
+        /// that sanitise titles on a hot path (Api, Indexer). Requires <see cref="AddRepositories"/>
+        /// for <see cref="ILanguageTitleCasingRulesRepository"/>.
+        /// </summary>
+        public IServiceCollection AddTitleCasingRules()
+        {
+            services.TryAddSingleton<ITitleCasingRulesProviderFactory, TitleCasingRulesProviderFactory>();
+            services.TryAddSingleton<IAsyncInstance<ITitleCasingRulesProvider>>(s =>
+                new AsyncInstance<ITitleCasingRulesProvider>(
+                    s.GetRequiredService<ITitleCasingRulesProviderFactory>()));
+            return services;
+        }
+
+        /// <summary>
+        /// Preloads title-casing rules at host start. Call only from Function apps that use
+        /// <c>SanitiseTitle</c> (Api homepage/episode display, Indexer social posts).
+        /// </summary>
+        public IServiceCollection AddTitleCasingRulesWarmup()
+        {
+            return services.AddStartupWarmer<TitleCasingRulesStartupWarmer>();
+        }
+
         public IServiceCollection AddEliminationTerms()
         {
             return services
                 .AddSingleton<IEliminationTermsProviderFactory, EliminationTermsProviderFactory>()
                 .AddSingleton<IAsyncInstance<IEliminationTermsProvider>>(s =>
-                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()));
+                    new AsyncInstance<IEliminationTermsProvider>(s.GetRequiredService<IEliminationTermsProviderFactory>()))
+                .AddStartupWarmer<EliminationTermsStartupWarmer>();
         }
 
         public IServiceCollection AddFileRepository(string containerName = "",

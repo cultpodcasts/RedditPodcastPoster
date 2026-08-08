@@ -1,12 +1,12 @@
-using Microsoft.Azure.Functions.Worker.Http;
 using Api.Models;
+using Microsoft.Azure.Functions.Worker.Http;
 
 namespace Api.Handlers.TitleCasingRules;
 
-public interface IPutTitleCasingRulesHandler
+public interface IPostTitleCasingRulesLowerCaseTermHandler
 {
     Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageUpdate body,
+        TitleCasingRulesLanguageTerm body,
         CancellationToken c);
 }

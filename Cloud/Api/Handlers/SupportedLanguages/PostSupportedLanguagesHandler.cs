@@ -6,16 +6,16 @@ using Api.Services.SupportedLanguages;
 
 namespace Api.Handlers.SupportedLanguages;
 
-public class PutSupportedLanguagesHandler(
+public class PostSupportedLanguagesHandler(
     ISupportedLanguagesUpdateService supportedLanguagesUpdateService,
-    ILogger<PutSupportedLanguagesHandler> logger) : IPutSupportedLanguagesHandler
+    ILogger<PostSupportedLanguagesHandler> logger) : IPostSupportedLanguagesHandler
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        SupportedLanguagesUpdateRequest body,
+        SupportedLanguageAddRequest body,
         CancellationToken c)
     {
-        var result = await supportedLanguagesUpdateService.UpdateAsync(body, c);
+        var result = await supportedLanguagesUpdateService.AddAsync(body, c);
         return result.Status switch
         {
             SupportedLanguagesUpdateStatus.Ok =>
@@ -32,7 +32,7 @@ public class PutSupportedLanguagesHandler(
 
     private HttpResponseData LogAndFail(IHandlerContext ctx)
     {
-        logger.LogError("Supported languages update failed with unexpected status.");
+        logger.LogError("Supported languages add failed with unexpected status.");
         return ctx.InternalError();
     }
 }

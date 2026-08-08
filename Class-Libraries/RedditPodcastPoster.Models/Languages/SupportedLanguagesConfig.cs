@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
 
@@ -46,22 +45,17 @@ public sealed class SupportedLanguagesConfig : CosmosSelector
 
     public static List<SupportedLanguage> ResolveDefaultLanguages()
     {
-        var neutralCultures = CultureInfo.GetCultures(CultureTypes.NeutralCultures);
-        var culturesByName = neutralCultures
-            .GroupBy(culture => culture.EnglishName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-
         var resolved = new List<SupportedLanguage>();
         var missing = new List<string>();
 
         foreach (var languageName in DefaultLanguageNames)
         {
-            if (culturesByName.TryGetValue(languageName, out var culture))
+            if (NeutralCultureLanguageLookup.TryResolveByEnglishName(languageName, out var code, out var canonicalName))
             {
                 resolved.Add(new SupportedLanguage
                 {
-                    Code = culture.TwoLetterISOLanguageName,
-                    Name = culture.EnglishName
+                    Code = code,
+                    Name = canonicalName
                 });
             }
             else

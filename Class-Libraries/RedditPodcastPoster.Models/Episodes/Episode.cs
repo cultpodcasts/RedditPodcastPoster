@@ -216,9 +216,11 @@ public class Episode
     }
 
     /// <param name="inheritLanguageIfUnset">
-    /// When true (new episodes only), copy <see cref="Podcast.Language"/> onto this episode if
-    /// <see cref="Language"/> is unset. Never pass true for existing episodes — null language means
-    /// English and must not be overwritten by the podcast default.
+    /// When true, copy <see cref="Podcast.Language"/> onto this episode if
+    /// <see cref="Language"/> is unset. Used for new episodes and for podcast-update
+    /// propagation so a newly set podcast default fills null episode langs. Episodes that
+    /// already have an explicit <see cref="Language"/> are never overwritten. Pass false
+    /// (default) when only denormalised podcast projection fields should sync.
     /// </param>
     public (bool, bool) SetPodcastProperties(Podcast podcast, bool inheritLanguageIfUnset = false)
     {

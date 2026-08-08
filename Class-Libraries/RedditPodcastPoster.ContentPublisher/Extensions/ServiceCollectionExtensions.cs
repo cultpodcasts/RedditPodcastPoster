@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Builders;
@@ -19,7 +20,16 @@ public static class ServiceCollectionExtensions
         return services
             .AddPeopleServices()
             .AddScoped<ISearchSuggestionsIndexBuilder, SearchSuggestionsIndexBuilder>()
-            .AddScoped<IHomepagePublisher, HomepagePublisher>()
+            .AddScoped<HomepagePublisher>()
+            .AddScoped<IHomepagePublisher>(sp =>
+            {
+                var inner = sp.GetRequiredService<HomepagePublisher>();
+                return TimedHomepagePublisher.EnableDiagnosticTiming
+                    ? new TimedHomepagePublisher(
+                        inner,
+                        sp.GetRequiredService<ILogger<TimedHomepagePublisher>>())
+                    : inner;
+            })
             .AddScoped<ISubjectsPublisher, SubjectsPublisher>()
             .AddScoped<IPeoplePublisher, PeoplePublisher>()
             .AddScoped<IDiscoveryPublisher, DiscoveryPublisher>()

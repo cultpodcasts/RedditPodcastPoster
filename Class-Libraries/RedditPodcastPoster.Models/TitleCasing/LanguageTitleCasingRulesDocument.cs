@@ -39,7 +39,9 @@ public sealed class LanguageTitleCasingRulesDocument : CosmosSelector
     [JsonPropertyOrder(30)]
     public List<KnownTermEntry> KnownTerms { get; set; } = [];
 
-    public override string FileKey => $"TitleCasingRules-{Language}";
+    public override string FileKey => IsUniversal(Language)
+        ? "TitleCasingRules-universal"
+        : $"TitleCasingRules-{Language}";
 
     public static bool IsUniversal(string? language) =>
         !string.IsNullOrWhiteSpace(language) &&

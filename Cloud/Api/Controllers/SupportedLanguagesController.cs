@@ -13,7 +13,9 @@ namespace Api.Controllers;
 
 public class SupportedLanguagesController(
     IGetSupportedLanguagesHandler getSupportedLanguagesHandler,
-    IPutSupportedLanguagesHandler putSupportedLanguagesHandler,
+    IPostSupportedLanguagesHandler postSupportedLanguagesHandler,
+    IDeleteSupportedLanguagesHandler deleteSupportedLanguagesHandler,
+    IGetNeutralCulturesHandler getNeutralCulturesHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SupportedLanguagesController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -21,6 +23,8 @@ public class SupportedLanguagesController(
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     private const string? Route = "supported-languages";
+    private const string? CulturesRoute = "supported-languages/cultures";
+    private const string CodeRoute = "supported-languages/{code}";
 
     [Function("SupportedLanguagesGet")]
     public Task<HttpResponseData> Get(
@@ -30,23 +34,51 @@ public class SupportedLanguagesController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["admin"],
             getSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);
 
-    [Function("SupportedLanguagesPut")]
-    public Task<HttpResponseData> Put(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = Route)]
+    [Function("SupportedLanguagesCulturesGet")]
+    public Task<HttpResponseData> GetCultures(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = CulturesRoute)]
         HttpRequestData req,
         FunctionContext _,
-        [FromBody] SupportedLanguagesUpdateRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["admin"],
+            getNeutralCulturesHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("SupportedLanguagesPost")]
+    public Task<HttpResponseData> Post(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
+        HttpRequestData req,
+        FunctionContext _,
+        [FromBody] SupportedLanguageAddRequest body,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
             body,
-            putSupportedLanguagesHandler.Handle,
+            postSupportedLanguagesHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("SupportedLanguagesDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = CodeRoute)]
+        HttpRequestData req,
+        string code,
+        FunctionContext _,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            code,
+            deleteSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);
 }

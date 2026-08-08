@@ -14,8 +14,9 @@ public class BlueskyAgentFactory(
 {
     private readonly BlueskyOptions _options = options.Value;
 
-    public async Task<BlueskyAgent> Create()
+    public async Task<BlueskyAgent> Create(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var agent = new BlueskyAgent(new BlueskyAgentOptions(loggerFactory));
         var result = await agent.Login(_options.Identifier, _options.Password);
         if (!result.Succeeded)

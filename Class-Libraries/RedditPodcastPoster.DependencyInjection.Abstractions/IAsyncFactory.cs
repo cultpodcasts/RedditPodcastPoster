@@ -10,5 +10,5 @@ public interface IAsyncFactory<T>
     /// <summary>
     /// Asynchronously creates and initializes an instance of T.
     /// </summary>
-    Task<T> Create();
+    Task<T> Create(CancellationToken cancellationToken = default);
 }

@@ -712,6 +712,66 @@ resource failedExecutionAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01
   }
 }
 
+// Hourly pipeline miss (AppRequests): timer fires ~:03 UTC; allow until :20 of the next hour
+// before declaring the previous full UTC hour a miss (pipeline finish + ingestion lag).
+// Window PT2H so evaluations at :20–:59 still include the full previous hour [H-1:00, H:00).
+// Fires when neither successful orchestration:HourlyOrchestration nor activity:Indexer
+// appears for AppRoleName indexer-${suffix}. See docs/indexing-app-insights-queries.md.
+// bin(..., 1h) is equivalent to startofhour(); scheduled-query rule validation rejects startofhour.
+// Use join() of single-quoted strings so ${suffix} interpolates (''' multiline strings do not).
+var indexerHourlyMissAlertQuery = join([
+  'let hourStart = bin(ago(1h), 1h);'
+  'let hourEnd = hourStart + 1h;'
+  'AppRequests'
+  '| where TimeGenerated between (hourStart .. hourEnd)'
+  '| where AppRoleName == "indexer-${suffix}"'
+  '| where Success == true'
+  '| where Name startswith "orchestration:HourlyOrchestration" or Name == "activity:Indexer"'
+  '| summarize SuccessfulSignals = count()'
+  '| extend ReadyToJudge = datetime_part("minute", now()) >= 20'
+  '| where ReadyToJudge and SuccessfulSignals == 0'
+  '| project TimeGenerated = hourStart'
+], '\n')
+
+resource indexerHourlyAppRequestsMissAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (enableAlerts) {
+  name: 'functions-hourly-apprequests-miss-alert-${suffix}'
+  location: location
+  properties: {
+    displayName: 'Indexer hourly AppRequests miss'
+    description: 'No successful HourlyOrchestration or Indexer AppRequests for the previous full UTC hour (judged from :20 UTC onward). Uses AppRequests only — not AppTraces.'
+    enabled: true
+    scopes: [
+      logAnalyticsWorkspace.id
+    ]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT2H'
+    severity: 2
+    autoMitigate: true
+    criteria: {
+      allOf: [
+        {
+          query: indexerHourlyMissAlertQuery
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [
+        monitoringActionGroup.id
+      ]
+      customProperties: {
+        category: 'HourlyAppRequestsMiss'
+      }
+    }
+  }
+}
+
 var storageAccountName = storage.name
 var applicationInsightsConnectionString = applicationInsights.properties.ConnectionString
 var userAssignedIdentityId = userAssignedIdentity.id

@@ -1,8 +1,10 @@
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using CultPodcasts.DatabasePublisher.PublicModels;
-using Konsole;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
+using Spectre.Console;
 
 namespace CultPodcasts.DatabasePublisher;
 
@@ -15,83 +17,160 @@ public class PublicDatabasePublisher(
 #pragma warning restore CS9113 // Parameter is unread.
 )
 {
+    /// <summary>
+    /// Bounded concurrency for per-podcast episode fetch + disk write.
+    /// Podcast FeedIterator iteration stays single-threaded (MoveNext is not safe concurrently).
+    /// Episode queries are independent per podcast partition and may run in parallel.
+    /// Publish order across podcasts is not guaranteed; episodes within a podcast remain
+    /// ordered by Release descending.
+    /// </summary>
+    private static readonly int PublishParallelism = Math.Clamp(Environment.ProcessorCount * 2, 4, 16);
+
     public async Task Run()
     {
-        var init = new ProgressBar(1);
-        var c = 0;
-        init.Refresh(c, "Testing Podcast File-keys");
-        var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
-        await AreUnique(allFileKeys, "Podcasts");
-        init.Refresh(++c, "Tested Podcast File-keys");
+        AnsiConsole.MarkupLine(
+            $"[grey]Publish parallelism:[/] {PublishParallelism} (podcast feed sequential; episode fetch + write parallel)");
 
-
-        var podcastCount = await podcastRepository.Count();
-        var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
-        var progress = new ProgressBar(podcastCount);
-        var ctr = 0;
-
-        await foreach (var podcast in podcasts)
-        {
-            progress.Refresh(ctr, $"Processing {podcast.FileKey}");
-            var episodeCount = await episodeRepository.Count(podcast.Id);
-
-            if (episodeCount > 0)
+        await AnsiConsole.Progress()
+            .AutoClear(false)
+            .HideCompleted(false)
+            .Columns(
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new RemainingTimeColumn(),
+                new SpinnerColumn())
+            .StartAsync(async ctx =>
             {
-                var publicPodcast = new PublicPodcast(podcast.Id)
+                var fileKeyCheck = ctx.AddTask("File-key check: Podcasts", maxValue: 1);
+                var allFileKeys = podcastRepository.GetAll().Select(p => (Id: p.Id, FileKey: p.FileKey));
+                await AreUnique(allFileKeys, "Podcasts");
+                fileKeyCheck.Increment(1);
+                fileKeyCheck.StopTask();
+
+                var podcastCount = await podcastRepository.Count();
+                var progress = ctx.AddTask("Podcasts", maxValue: Math.Max(podcastCount, 1));
+
+                if (podcastCount == 0)
                 {
-                    FileKey = podcast.FileKey,
-                    AppleId = podcast.AppleId,
-                    Name = podcast.Name,
-                    SpotifyId = string.IsNullOrWhiteSpace(podcast.SpotifyId) ? null : podcast.SpotifyId,
-                    YouTubeChannelId = string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)
-                        ? null
-                        : podcast.YouTubeChannelId,
-                    YouTubePlaylistId = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
-                        ? null
-                        : podcast.YouTubePlaylistId
-                };
-
-                var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => !e.Removed);
-
-                var publicEpisodes = new List<PublicEpisode>();
-
-                await foreach (var episode in episodes)
-                {
-                    var publicEpisode = new PublicEpisode
-                    {
-                        Id = episode.Id,
-                        AppleId = episode.AppleId,
-                        Description = string.IsNullOrWhiteSpace(episode.Description) ? null : episode.Description,
-                        Explicit = episode.Explicit,
-                        Length = episode.Length,
-                        Release = episode.Release,
-                        SpotifyId = string.IsNullOrWhiteSpace(episode.SpotifyId) ? null : episode.SpotifyId,
-                        Title = episode.Title,
-                        YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId,
-                        Urls = new PublicServiceUrls
-                        {
-                            Apple = episode.Urls.Apple,
-                            Spotify = episode.Urls.Spotify,
-                            YouTube = episode.Urls.YouTube,
-                            BBC = episode.Urls.BBC,
-                            InternetArchive = episode.Urls.InternetArchive
-                        },
-                        Subjects = episode.Subjects.Any() ? episode.Subjects : null
-                    };
-                    publicEpisodes.Add(publicEpisode);
+                    progress.Increment(1);
+                    progress.StopTask();
+                    return;
                 }
 
-                publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
-                await safeFileEntityWriter.Write(publicPodcast);
-            }
+                var podcasts = podcastRepository.GetAllBy(p => !(p.Removed ?? false));
+                await PublishAllParallelAsync(podcasts, PublishPodcastAsync, progress);
+                progress.StopTask();
+            });
 
-            if (++ctr == podcastCount)
-            {
-                progress.Refresh(ctr, "Finished");
-            }
+        AnsiConsole.MarkupLine("[green]Finished publishing public database.[/]");
+    }
+
+    private async Task PublishPodcastAsync(Podcast podcast)
+    {
+        var episodeCount = await episodeRepository.Count(podcast.Id);
+        if (episodeCount <= 0)
+        {
+            return;
         }
 
-        Console.WriteLine();
+        var publicPodcast = new PublicPodcast(podcast.Id)
+        {
+            FileKey = podcast.FileKey,
+            AppleId = podcast.AppleId,
+            Name = podcast.Name,
+            SpotifyId = string.IsNullOrWhiteSpace(podcast.SpotifyId) ? null : podcast.SpotifyId,
+            YouTubeChannelId = string.IsNullOrWhiteSpace(podcast.YouTubeChannelId)
+                ? null
+                : podcast.YouTubeChannelId,
+            YouTubePlaylistId = string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId)
+                ? null
+                : podcast.YouTubePlaylistId
+        };
+
+        var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => !e.Removed);
+        var publicEpisodes = new List<PublicEpisode>();
+
+        // Episode FeedIterator for this podcast stays sequential (per-iterator MoveNext).
+        await foreach (var episode in episodes)
+        {
+            publicEpisodes.Add(new PublicEpisode
+            {
+                Id = episode.Id,
+                AppleId = episode.AppleId,
+                Description = string.IsNullOrWhiteSpace(episode.Description) ? null : episode.Description,
+                Explicit = episode.Explicit,
+                Length = episode.Length,
+                Release = episode.Release,
+                SpotifyId = string.IsNullOrWhiteSpace(episode.SpotifyId) ? null : episode.SpotifyId,
+                Title = episode.Title,
+                YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId,
+                Urls = new PublicServiceUrls
+                {
+                    Apple = episode.Urls.Apple,
+                    Spotify = episode.Urls.Spotify,
+                    YouTube = episode.Urls.YouTube,
+                    BBC = episode.Urls.BBC,
+                    InternetArchive = episode.Urls.InternetArchive
+                },
+                Subjects = episode.Subjects.Any() ? episode.Subjects : null
+            });
+        }
+
+        publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
+        await safeFileEntityWriter.Write(publicPodcast);
+    }
+
+    /// <summary>
+    /// Single Cosmose reader + N publishers via a bounded channel. Avoids concurrent
+    /// FeedIterator.MoveNext on the podcast query while overlapping episode fetch/write
+    /// with the next podcast page fetch.
+    /// </summary>
+    private static async Task PublishAllParallelAsync(
+        IAsyncEnumerable<Podcast> source,
+        Func<Podcast, Task> publishAsync,
+        ProgressTask progress)
+    {
+        var channel = Channel.CreateBounded<Podcast>(new BoundedChannelOptions(PublishParallelism * 2)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = true
+        });
+
+        var workers = Enumerable.Range(0, PublishParallelism).Select(async _ =>
+        {
+            await foreach (var podcast in channel.Reader.ReadAllAsync())
+            {
+                await publishAsync(podcast);
+                progress.Increment(1);
+            }
+        }).ToArray();
+
+        try
+        {
+            await foreach (var podcast in source)
+            {
+                await channel.Writer.WriteAsync(podcast);
+            }
+
+            channel.Writer.Complete();
+            await Task.WhenAll(workers);
+        }
+        catch (Exception)
+        {
+            channel.Writer.TryComplete();
+            try
+            {
+                await Task.WhenAll(workers);
+            }
+            catch
+            {
+                // Prefer the producer/publish failure that started the shutdown.
+            }
+
+            throw;
+        }
     }
 
     private static async Task AreUnique(IAsyncEnumerable<(Guid, string)> allFileKeys, string name)

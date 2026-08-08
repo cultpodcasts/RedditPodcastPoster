@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
@@ -12,6 +13,7 @@ public partial class TextSanitiser(
     IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance)
     : ITextSanitiser
 {
+    private static readonly ConcurrentDictionary<string, Regex> BoundaryWordCache = new(StringComparer.Ordinal);
     private static readonly Regex OApostrophe = CreateOApostrophe();
     private static readonly Regex RomanceElisionApostrophe = CreateRomanceElisionApostrophe();
     private static readonly Regex McMacPrefix = CreateMcMacPrefix();
@@ -246,7 +248,7 @@ public partial class TextSanitiser(
         return title.Trim();
     }
 
-    private string FixCasing(
+    private static string FixCasing(
         string input,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
@@ -256,30 +258,44 @@ public partial class TextSanitiser(
         input = SeasonEpisode.Replace(input, m => m.Value.ToUpper());
         input = input.Replace("W/", "w/");
 
-        foreach (var term in rulesProvider.GetUniversalKnownTerms())
+        foreach (var term in rulesProvider.GetUniversalKnownTermReplacements())
         {
-            input = term.ToRegex().Replace(input, term.Literal);
+            input = term.Pattern.Replace(input, term.Literal);
         }
 
-        foreach (var term in rulesProvider.GetKnownTerms(language))
+        foreach (var term in rulesProvider.GetKnownTermReplacements(language))
         {
-            input = term.ToRegex().Replace(input, term.Literal);
+            input = term.Pattern.Replace(input, term.Literal);
         }
 
-        foreach (var term in podcastKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
+        foreach (var term in podcastKnownTerms)
         {
-            input = term.Value.Replace(input, term.Key);
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                continue;
+            }
+
+            input = BoundaryWordRegex(term).Replace(input, term);
         }
 
-        foreach (var term in subjectKnownTerms.Select(x =>
-                     new KeyValuePair<string, Regex>(x, new Regex($@"\b{x}\b", RegexOptions.IgnoreCase))))
+        foreach (var term in subjectKnownTerms)
         {
-            input = term.Value.Replace(input, term.Key);
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                continue;
+            }
+
+            input = BoundaryWordRegex(term).Replace(input, term);
         }
 
         return input;
     }
+
+    private static Regex BoundaryWordRegex(string term) =>
+        BoundaryWordCache.GetOrAdd(
+            term,
+            static t => new Regex($@"\b{t}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled));
+
 
     [GeneratedRegex(@"(?'prefix'^[^\p{L}\p{N}""\$\u00A3\'\(]+)(?'after'.*$)", RegexOptions.Compiled)]
     private static partial Regex GenerateInvalidTitlePrefix();
