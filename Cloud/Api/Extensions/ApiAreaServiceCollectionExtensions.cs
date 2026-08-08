@@ -143,7 +143,6 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
             .AddScoped<IPostSupportedLanguagesHandler, PostSupportedLanguagesHandler>()
             .AddScoped<IDeleteSupportedLanguagesHandler, DeleteSupportedLanguagesHandler>()
-            .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>()
             .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
 
     public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
@@ -151,5 +150,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<ITitleCasingRulesGetService, TitleCasingRulesGetService>()
             .AddScoped<ITitleCasingRulesUpdateService, TitleCasingRulesUpdateService>()
             .AddScoped<IGetTitleCasingRulesByLanguageHandler, GetTitleCasingRulesByLanguageHandler>()
-            .AddScoped<IPutTitleCasingRulesHandler, PutTitleCasingRulesHandler>();
+            .AddScoped<IPostTitleCasingRulesLowerCaseTermHandler, PostTitleCasingRulesLowerCaseTermHandler>()
+            .AddScoped<IDeleteTitleCasingRulesLowerCaseTermHandler, DeleteTitleCasingRulesLowerCaseTermHandler>()
+            .AddScoped<IPostTitleCasingRulesKnownTermHandler, PostTitleCasingRulesKnownTermHandler>()
+            .AddScoped<IDeleteTitleCasingRulesKnownTermHandler, DeleteTitleCasingRulesKnownTermHandler>();
 }

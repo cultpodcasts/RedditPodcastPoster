@@ -49,10 +49,12 @@ public class ApiIocTests
         [typeof(IGetSupportedLanguagesHandler)],
         [typeof(IPostSupportedLanguagesHandler)],
         [typeof(IDeleteSupportedLanguagesHandler)],
-        [typeof(IPutSupportedLanguagesHandler)],
         [typeof(IGetNeutralCulturesHandler)],
         [typeof(IGetTitleCasingRulesByLanguageHandler)],
-        [typeof(IPutTitleCasingRulesHandler)],
+        [typeof(IPostTitleCasingRulesLowerCaseTermHandler)],
+        [typeof(IDeleteTitleCasingRulesLowerCaseTermHandler)],
+        [typeof(IPostTitleCasingRulesKnownTermHandler)],
+        [typeof(IDeleteTitleCasingRulesKnownTermHandler)],
     ];
 
     [Theory(DisplayName = "Api_host_resolves_entry_point")]

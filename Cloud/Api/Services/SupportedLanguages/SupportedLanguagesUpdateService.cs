@@ -11,42 +11,6 @@ public class SupportedLanguagesUpdateService(
     ILanguagesPublisher languagesPublisher,
     ILogger<SupportedLanguagesUpdateService> logger) : ISupportedLanguagesUpdateService
 {
-    public async Task<SupportedLanguagesUpdateResult> UpdateAsync(
-        SupportedLanguagesUpdateRequest body,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (body.Languages is null)
-            {
-                return new SupportedLanguagesUpdateResult(
-                    SupportedLanguagesUpdateStatus.BadRequest,
-                    Error: "languages must contain at least one entry.");
-            }
-
-            var existing = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
-            var proposed = body.Languages
-                .Select(entry => new SupportedLanguageProposal(entry.Code, entry.Name))
-                .ToList();
-
-            var validation = SupportedLanguagesUpdateRules.ValidateAndBuild(proposed);
-
-            if (!validation.IsValid)
-            {
-                return new SupportedLanguagesUpdateResult(
-                    SupportedLanguagesUpdateStatus.BadRequest,
-                    Error: validation.Error);
-            }
-
-            return await SaveAndPublishAsync(existing, validation.Languages);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failure to update SupportedLanguagesConfig.");
-            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
-        }
-    }
-
     public async Task<SupportedLanguagesUpdateResult> AddAsync(
         SupportedLanguageAddRequest body,
         CancellationToken cancellationToken)

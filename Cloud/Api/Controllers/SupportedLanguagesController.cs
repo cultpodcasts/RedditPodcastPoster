@@ -13,7 +13,6 @@ namespace Api.Controllers;
 
 public class SupportedLanguagesController(
     IGetSupportedLanguagesHandler getSupportedLanguagesHandler,
-    IPutSupportedLanguagesHandler putSupportedLanguagesHandler,
     IPostSupportedLanguagesHandler postSupportedLanguagesHandler,
     IDeleteSupportedLanguagesHandler deleteSupportedLanguagesHandler,
     IGetNeutralCulturesHandler getNeutralCulturesHandler,
@@ -80,21 +79,6 @@ public class SupportedLanguagesController(
             ["admin"],
             code,
             deleteSupportedLanguagesHandler.Handle,
-            Unauthorised,
-            ct);
-
-    [Function("SupportedLanguagesPut")]
-    public Task<HttpResponseData> Put(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = Route)]
-        HttpRequestData req,
-        FunctionContext _,
-        [FromBody] SupportedLanguagesUpdateRequest body,
-        CancellationToken ct) =>
-        HandleRequest(
-            req,
-            ["admin"],
-            body,
-            putSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);
 }
