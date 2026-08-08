@@ -17,60 +17,29 @@ public class SupportedLanguagesUpdateService(
     {
         try
         {
-            if (body.Languages is null || body.Languages.Count == 0)
+            if (body.Languages is null)
             {
                 return new SupportedLanguagesUpdateResult(
                     SupportedLanguagesUpdateStatus.BadRequest,
                     Error: "languages must contain at least one entry.");
             }
 
-            var languages = new List<SupportedLanguage>();
-            var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var existing = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
+            var proposed = body.Languages
+                .Select(entry => new SupportedLanguageProposal(entry.Code, entry.Name))
+                .ToList();
 
-            foreach (var entry in body.Languages)
-            {
-                var code = entry.Code?.Trim();
-                var name = entry.Name?.Trim();
+            var validation = SupportedLanguagesUpdateRules.ValidateAndBuild(proposed);
 
-                if (string.IsNullOrEmpty(code))
-                {
-                    return new SupportedLanguagesUpdateResult(
-                        SupportedLanguagesUpdateStatus.BadRequest,
-                        Error: "Each language must have a non-empty code.");
-                }
-
-                if (string.IsNullOrEmpty(name))
-                {
-                    return new SupportedLanguagesUpdateResult(
-                        SupportedLanguagesUpdateStatus.BadRequest,
-                        Error: "Each language must have a non-empty name.");
-                }
-
-                if (!seenCodes.Add(code))
-                {
-                    continue;
-                }
-
-                languages.Add(new SupportedLanguage
-                {
-                    Code = code,
-                    Name = name
-                });
-            }
-
-            if (languages.Count == 0)
+            if (!validation.IsValid)
             {
                 return new SupportedLanguagesUpdateResult(
                     SupportedLanguagesUpdateStatus.BadRequest,
-                    Error: "languages must contain at least one unique code.");
+                    Error: validation.Error);
             }
 
-            var config = await lookupRepository.GetSupportedLanguagesConfig() ?? new SupportedLanguagesConfig();
-            config.Languages = languages
-                .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            await lookupRepository.SaveSupportedLanguagesConfig(config);
+            existing.Languages = validation.Languages.ToList();
+            await lookupRepository.SaveSupportedLanguagesConfig(existing);
 
             var published = await languagesPublisher.PublishLanguages();
             if (!published)
@@ -79,7 +48,7 @@ public class SupportedLanguagesUpdateService(
                 return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
             }
 
-            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok, config);
+            return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok, existing);
         }
         catch (Exception ex)
         {
