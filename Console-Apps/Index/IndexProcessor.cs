@@ -82,18 +82,25 @@ internal class IndexProcessor(
         }
 
         var episodeIds = new List<Guid>();
+        var removedCount = 0;
         foreach (var podcastId in podcastIds)
         {
             await foreach (var episode in episodeRepository.GetByPodcastId(podcastId))
             {
                 episodeIds.Add(episode.Id);
+                if (episode.Removed)
+                {
+                    removedCount++;
+                }
             }
         }
 
+        // IndexEpisodes uploads active docs and deletes Removed / podcast-removed ones.
         logger.LogInformation(
-            "Reindexing {EpisodeCount} episode(s) across {PodcastCount} podcast(s) into Azure Search.",
+            "Reindexing {EpisodeCount} episode(s) across {PodcastCount} podcast(s) into Azure Search ({RemovedCount} Removed — will be deleted from the index).",
             episodeIds.Count,
-            podcastIds.Count);
+            podcastIds.Count,
+            removedCount);
 
         if (episodeIds.Count == 0)
         {
