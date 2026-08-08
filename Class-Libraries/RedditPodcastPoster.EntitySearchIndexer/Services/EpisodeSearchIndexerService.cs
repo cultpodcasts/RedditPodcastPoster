@@ -56,10 +56,23 @@ public class EpisodeSearchIndexerService(
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var document = podcastEpisode.ToEpisodeSearchRecord();
-
         try
         {
+            if (EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(
+                    podcastEpisode.Podcast, podcastEpisode.Episode))
+            {
+                await searchClient.DeleteDocumentsAsync(
+                    "id",
+                    [episodeId.ToString()],
+                    new IndexDocumentsOptions { ThrowOnAnyError = true },
+                    c);
+                logger.LogInformation(
+                    "Removed excluded episode '{episodeId}' (podcast '{podcastName}') from search-index.",
+                    episodeId, podcastEpisode.Podcast.Name);
+                return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
+            }
+
+            var document = podcastEpisode.ToEpisodeSearchRecord();
             await searchClient.MergeOrUploadDocumentsAsync([document],
                 new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
@@ -76,6 +89,7 @@ public class EpisodeSearchIndexerService(
     public async Task<EntitySearchIndexerResponse> IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken c)
     {
         var documents = new List<EpisodeSearchRecord>();
+        var deleteIds = new List<string>();
         var podcasts = new Dictionary<Guid, Podcast>();
 
         foreach (var episodeId in episodeIds)
@@ -99,13 +113,52 @@ public class EpisodeSearchIndexerService(
                 podcasts.Add(episode.PodcastId, podcast);
             }
 
-            var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
-            documents.Add(document);
+            if (EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+            {
+                deleteIds.Add(episodeId.ToString());
+                continue;
+            }
+
+            documents.Add(new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord());
         }
 
-        if (documents.Count > 0)
+        if (documents.Count == 0 && deleteIds.Count == 0)
         {
-            try
+            logger.LogWarning("No documents to update in search-index");
+            return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
+        }
+
+        try
+        {
+            if (deleteIds.Count > 0)
+            {
+                var deleteResult = await searchClient.DeleteDocumentsAsync(
+                    "id",
+                    deleteIds,
+                    new IndexDocumentsOptions { ThrowOnAnyError = false },
+                    c);
+                var deleteFailures = deleteResult.Value.Results.Where(x => !x.Succeeded).ToArray();
+                foreach (var failure in deleteFailures)
+                {
+                    logger.LogError("Failed to delete search document '{Key}': {ErrorMessage}", failure.Key,
+                        failure.ErrorMessage);
+                }
+
+                if (deleteFailures.Length > 0)
+                {
+                    var ex = new RequestFailedException(deleteResult.GetRawResponse());
+                    logger.LogError(ex,
+                        "Failed to delete {count} removed/excluded episode(s) from search-index.",
+                        deleteFailures.Length);
+                    return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
+                }
+
+                logger.LogInformation(
+                    "Deleted {count} removed/excluded episode(s) from search-index.",
+                    deleteIds.Count);
+            }
+
+            if (documents.Count > 0)
             {
                 var result =
                     await searchClient.MergeOrUploadDocumentsAsync(documents,
@@ -125,20 +178,17 @@ public class EpisodeSearchIndexerService(
                         string.Join(", ", failures.Select(x => $"'{x.Key}'")), ex.Status, ex.Message);
                     return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
                 }
+            }
 
-                return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
-            }
-            catch (RequestFailedException ex)
-            {
-                logger.LogError(ex,
-                    "Failed to index episodes. Status-code: {statusCode}, message: '{message}'.",
-                    ex.Status, ex.Message);
-                return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
-            }
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
         }
-
-        logger.LogWarning("No documents to update in search-index");
-        return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
+        catch (RequestFailedException ex)
+        {
+            logger.LogError(ex,
+                "Failed to index episodes. Status-code: {statusCode}, message: '{message}'.",
+                ex.Status, ex.Message);
+            return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
+        }
     }
 
     private static IndexerState MapRequestFailedException(RequestFailedException ex) =>

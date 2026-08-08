@@ -104,6 +104,13 @@ public class Indexer(
                         x.EnrichmentContext.SpotifyUrlUpdated,
                         x.EnrichmentContext.AppleUrlUpdated,
                         x.EnrichmentContext.YouTubeUrlUpdated)))
+                // Elimination marks Removed in Cosmos; include those IDs so search push deletes them.
+                .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
+                    new IndexedEpisode(
+                        x.Episode,
+                        x.Episode.Urls.Spotify != null,
+                        x.Episode.Urls.Apple != null,
+                        x.Episode.Urls.YouTube != null)))
                 .Distinct()
                 .ToArray();
 
@@ -119,7 +126,7 @@ public class Indexer(
                 logger.LogInformation(resultsMessage);
             }
 
-            foreach (var indexedEpisode in updatedEpisodes)
+            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.Removed))
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     indexedEpisode.Episode,
