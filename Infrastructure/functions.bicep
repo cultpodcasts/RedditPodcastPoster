@@ -717,19 +717,21 @@ resource failedExecutionAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01
 // Window PT2H so evaluations at :20–:59 still include the full previous hour [H-1:00, H:00).
 // Fires when neither successful orchestration:HourlyOrchestration nor activity:Indexer
 // appears for AppRoleName indexer-${suffix}. See docs/indexing-app-insights-queries.md.
-var indexerHourlyMissAlertQuery = '''
-let hourStart = startofhour(ago(1h));
-let hourEnd = hourStart + 1h;
-AppRequests
-| where TimeGenerated between (hourStart .. hourEnd)
-| where AppRoleName == "indexer-${suffix}"
-| where Success == true
-| where Name startswith "orchestration:HourlyOrchestration" or Name == "activity:Indexer"
-| summarize SuccessfulSignals = count()
-| extend ReadyToJudge = datetime_part("minute", now()) >= 20
-| where ReadyToJudge and SuccessfulSignals == 0
-| project TimeGenerated = hourStart
-'''
+// bin(..., 1h) is equivalent to startofhour(); scheduled-query rule validation rejects startofhour.
+// Use join() of single-quoted strings so ${suffix} interpolates (''' multiline strings do not).
+var indexerHourlyMissAlertQuery = join([
+  'let hourStart = bin(ago(1h), 1h);'
+  'let hourEnd = hourStart + 1h;'
+  'AppRequests'
+  '| where TimeGenerated between (hourStart .. hourEnd)'
+  '| where AppRoleName == "indexer-${suffix}"'
+  '| where Success == true'
+  '| where Name startswith "orchestration:HourlyOrchestration" or Name == "activity:Indexer"'
+  '| summarize SuccessfulSignals = count()'
+  '| extend ReadyToJudge = datetime_part("minute", now()) >= 20'
+  '| where ReadyToJudge and SuccessfulSignals == 0'
+  '| project TimeGenerated = hourStart'
+], '\n')
 
 resource indexerHourlyAppRequestsMissAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (enableAlerts) {
   name: 'functions-hourly-apprequests-miss-alert-${suffix}'
