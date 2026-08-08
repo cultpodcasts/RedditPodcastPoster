@@ -104,17 +104,6 @@ AppRequests
 
 Cursor rule: [`.cursor/rules/production-execution-truth.mdc`](../.cursor/rules/production-execution-truth.mdc) (`alwaysApply: true`).
 
-### Automated miss alert (infra)
-
-Bicep scheduled query rule **`functions-hourly-apprequests-miss-alert-${suffix}`** (`Indexer hourly AppRequests miss` in [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep)):
-
-- **Table:** `AppRequests` on `loganalytics-${suffix}` (not AppTraces alone).
-- **Role:** `AppRoleName == "indexer-${suffix}"` (prod: `indexer-infra`).
-- **Success signals:** `orchestration:HourlyOrchestration` or `activity:Indexer` with `Success == true`.
-- **Window:** previous full UTC hour `[H-1:00, H:00)`; judged only when `minute(now()) >= 20` so the ~`:03` timer + pipeline + ingestion can finish (~10–15 min grace after hour start).
-- **Cadence:** evaluate every **15 min**, query window **2h** (covers the prior hour when evaluating late in the current hour).
-- **Action group:** `functions-alerts-${suffix}` (same as OOM / host-drain / failed-execution alerts; optional `alertEmailAddress` + Owner role receivers).
-
 ---
 
 ## Warning-level diagnostic log catalog
