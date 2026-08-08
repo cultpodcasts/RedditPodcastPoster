@@ -409,7 +409,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 **Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, LookUps, title-casing rules) to local JSON files.
 
-LookUps are written under `lookups/` (full container dump: elimination terms, discovery schedule, supported languages, homepage cache, YouTube quota/state, plus any legacy KnownTerms still present). Title-casing known terms live in the TitleCasingRules container (`titlecasing/`), not LookUps.
+LookUps are written under `lookups/` via typed getters (elimination terms, discovery schedule, supported languages, homepage cache, YouTube quota/state, plus legacy KnownTerms if still present). Title-casing known terms live in the TitleCasingRules container (`titlecasing/`), not LookUps.
 
 **Parallelism:** Selected containers download concurrently (`Task.WhenAll`). Large containers (podcasts/episodes) use a single Cosmos feed reader plus bounded parallel disk writers (4–16, based on CPU). Progress uses Spectre.Console multi-task bars (`ProgressTask.Increment` is safe across writers).
 

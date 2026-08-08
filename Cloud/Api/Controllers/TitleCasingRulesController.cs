@@ -31,7 +31,7 @@ public class TitleCasingRulesController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate", "admin"],
+            ["admin"],
             language,
             getTitleCasingRulesByLanguageHandler.Handle,
             Unauthorised,
@@ -47,7 +47,7 @@ public class TitleCasingRulesController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate", "admin"],
+            ["admin"],
             new TitleCasingRulesLanguageUpdate(language, body),
             putTitleCasingRulesHandler.Handle,
             Unauthorised,

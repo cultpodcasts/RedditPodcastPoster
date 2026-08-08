@@ -26,9 +26,4 @@ public interface ILookupRepository
     Task SaveYouTubeIndexerKeyState(YouTubeIndexerKeyState state);
     Task<YouTubeQuotaUsageState?> GetYouTubeQuotaUsageState();
     Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state);
-
-    /// <summary>
-    /// Streams every LookUps document as raw JSON (preserves unknown/legacy shapes such as KnownTerms).
-    /// </summary>
-    IAsyncEnumerable<string> GetAllDocumentJson(CancellationToken cancellationToken = default);
 }

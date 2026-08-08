@@ -3,10 +3,12 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace CosmosDbDownloader;
 
@@ -158,10 +160,9 @@ public class CosmosDbDownloader(
     private async Task ValidateLookUpFileKeys(ProgressTask progress)
     {
         var keys = new List<string>();
-        await foreach (var json in lookupRepository.GetAllDocumentJson())
+        foreach (var item in await LoadLookUpDocuments())
         {
-            using var document = JsonDocument.Parse(json);
-            keys.Add(ResolveLookUpFileName(document.RootElement));
+            keys.Add(item.FileKey);
         }
 
         ValidateFileKeyList(keys, "LookUps");
@@ -375,36 +376,13 @@ public class CosmosDbDownloader(
     }
 
     /// <summary>
-    /// Full LookUps container dump (elimination terms, discovery schedule, supported languages,
-    /// homepage cache, YouTube quota/state, and any legacy KnownTerms still present).
-    /// Known-terms title casing lives in the TitleCasingRules container now.
+    /// Downloads known LookUps document types via typed repository getters into <c>lookups/</c>.
+    /// Title-casing known terms live in the TitleCasingRules container (<c>titlecasing/</c>).
     /// </summary>
     private async Task DownloadLookUps(ProgressTask progress)
     {
         Directory.CreateDirectory("lookups");
-        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var items = new List<(string FileName, string Json)>();
-
-        await foreach (var json in lookupRepository.GetAllDocumentJson())
-        {
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            var fileName = ResolveLookUpFileName(root);
-            if (!usedNames.Add(fileName))
-            {
-                var id = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : null;
-                fileName = string.IsNullOrWhiteSpace(id)
-                    ? $"{fileName}_{items.Count}"
-                    : $"{fileName}_{id}";
-                if (!usedNames.Add(fileName))
-                {
-                    throw new InvalidOperationException(
-                        $"Duplicate LookUps export file name '{fileName}' after id suffix.");
-                }
-            }
-
-            items.Add((fileName, json));
-        }
+        var items = await LoadLookUpDocuments();
 
         progress.MaxValue = Math.Max(items.Count, 1);
         if (items.Count == 0)
@@ -419,43 +397,29 @@ public class CosmosDbDownloader(
             new ParallelOptions { MaxDegreeOfParallelism = WriteParallelism },
             async (item, _) =>
             {
-                await WriteRawJson("lookups", item.FileName, item.Json);
+                // Serialize the runtime type — CosmoSelector would drop derived members.
+                await WriteJson(item.GetType(), "lookups", item.FileKey, item);
                 progress.Increment(1);
             });
 
         progress.StopTask();
     }
 
-    private static string ResolveLookUpFileName(JsonElement root)
+    private async Task<List<CosmosSelector>> LoadLookUpDocuments()
     {
-        if (root.TryGetProperty("fileKey", out var fileKeyElement))
-        {
-            var fileKey = fileKeyElement.GetString();
-            if (!string.IsNullOrWhiteSpace(fileKey))
-            {
-                return fileKey;
-            }
-        }
+        CosmosSelector?[] candidates =
+        [
+            await lookupRepository.GetEliminationTerms(),
+            await lookupRepository.GetDiscoveryScheduleConfig(),
+            await lookupRepository.GetSupportedLanguagesConfig(),
+            await lookupRepository.GetKnownTerms<KnownTerms>(),
+            await lookupRepository.GetHomePageCache(),
+            await lookupRepository.GetYouTubeQuotaReport(),
+            await lookupRepository.GetYouTubeIndexerKeyState(),
+            await lookupRepository.GetYouTubeQuotaUsageState(),
+        ];
 
-        if (root.TryGetProperty("type", out var typeElement))
-        {
-            var type = typeElement.GetString();
-            if (!string.IsNullOrWhiteSpace(type))
-            {
-                return type;
-            }
-        }
-
-        if (root.TryGetProperty("id", out var idElement))
-        {
-            var id = idElement.GetString();
-            if (!string.IsNullOrWhiteSpace(id))
-            {
-                return id;
-            }
-        }
-
-        throw new InvalidOperationException("LookUps document missing fileKey, type, and id.");
+        return candidates.OfType<CosmosSelector>().ToList();
     }
 
     private async Task DownloadTitleCasingRules(ProgressTask progress)
@@ -602,28 +566,19 @@ public class CosmosDbDownloader(
         File.Delete(path);
     }
 
-    private async Task WriteJson<T>(string folder, string fileName, T item)
+    private async Task WriteJson<T>(string folder, string fileName, T item) where T : notnull
     {
-        var safeName = ToSafeFileName(fileName);
-        var path = Path.Combine(folder, $"{safeName}{FileExtension}");
-        Directory.CreateDirectory(folder);
-        EnsureWritable(path, safeName);
-
-        var json = JsonSerializer.Serialize(item, _jsonOptions);
-        await File.WriteAllTextAsync(path, json);
+        await WriteJson(typeof(T), folder, fileName, item);
     }
 
-    private async Task WriteRawJson(string folder, string fileName, string json)
+    private async Task WriteJson(Type runtimeType, string folder, string fileName, object item)
     {
         var safeName = ToSafeFileName(fileName);
         var path = Path.Combine(folder, $"{safeName}{FileExtension}");
         Directory.CreateDirectory(folder);
         EnsureWritable(path, safeName);
 
-        // Pretty-print for readable local dumps without re-typing polymorphic LookUps docs.
-        using var document = JsonDocument.Parse(json);
-        await using var stream = File.Create(path);
-        await using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-        document.RootElement.WriteTo(writer);
+        var json = JsonSerializer.Serialize(item, runtimeType, _jsonOptions);
+        await File.WriteAllTextAsync(path, json);
     }
 }
