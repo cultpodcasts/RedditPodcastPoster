@@ -4,7 +4,10 @@ namespace Api.Services.SupportedLanguages;
 
 /// <summary>
 /// Pure business rules for admin supported-language PUT payloads.
-/// Codes are always derived from .NET neutral culture English names; clients cannot invent or edit codes/names in place.
+/// Codes are derived from .NET neutral culture names (EnglishName / NativeName / ASCII-fold).
+/// Clients cannot invent codes or rename in place by keeping an old code.
+/// Existing registered rows are not filtered or dropped here — the proposed list is what the client sends
+/// (deletes are omissions the user made). Validation never removes a resolvable existing entry.
 /// </summary>
 public static class SupportedLanguagesUpdateRules
 {
@@ -19,6 +22,7 @@ public static class SupportedLanguagesUpdateRules
 
         var languages = new List<SupportedLanguage>();
         var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var unknownNames = new List<string>();
 
         foreach (var entry in proposed)
         {
@@ -29,10 +33,10 @@ public static class SupportedLanguagesUpdateRules
                     "Each language must have a non-empty name.");
             }
 
-            if (!NeutralCultureLanguageLookup.TryResolveByEnglishName(name, out var derivedCode, out var canonicalName))
+            if (!NeutralCultureLanguageLookup.TryResolveByEnglishName(name, out var derivedCode, out var displayName))
             {
-                return SupportedLanguagesUpdateValidationResult.Fail(
-                    $"Unknown language name '{name}'. The name must match a .NET neutral culture English name.");
+                unknownNames.Add(name);
+                continue;
             }
 
             var providedCode = entry.Code?.Trim();
@@ -52,8 +56,17 @@ public static class SupportedLanguagesUpdateRules
             languages.Add(new SupportedLanguage
             {
                 Code = derivedCode,
-                Name = canonicalName
+                Name = displayName
             });
+        }
+
+        if (unknownNames.Count > 0)
+        {
+            var listed = string.Join(", ", unknownNames.Select(n => $"'{n}'"));
+            return SupportedLanguagesUpdateValidationResult.Fail(
+                unknownNames.Count == 1
+                    ? $"Unknown language name {listed}. The name must match a .NET neutral culture English or native name."
+                    : $"Unknown language names: {listed}. Each name must match a .NET neutral culture English or native name.");
         }
 
         if (languages.Count == 0)

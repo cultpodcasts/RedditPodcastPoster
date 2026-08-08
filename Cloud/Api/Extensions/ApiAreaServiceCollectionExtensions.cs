@@ -141,7 +141,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<ISupportedLanguagesGetService, SupportedLanguagesGetService>()
             .AddScoped<ISupportedLanguagesUpdateService, SupportedLanguagesUpdateService>()
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
-            .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>();
+            .AddScoped<IPutSupportedLanguagesHandler, PutSupportedLanguagesHandler>()
+            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
 
     public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
         services

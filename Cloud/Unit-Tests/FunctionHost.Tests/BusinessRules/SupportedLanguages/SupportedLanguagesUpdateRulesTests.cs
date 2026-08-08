@@ -47,7 +47,7 @@ public class NeutralCultureLanguageLookupRules
     }
 
     [Fact(DisplayName =
-        "Supported language admin: an unknown language name does not resolve, because only .NET neutral culture English names are valid.")]
+        "Supported language admin: an unknown language name does not resolve, because only .NET neutral culture names (and known aliases) are valid.")]
     public void unknown_english_name_does_not_resolve()
     {
         // Arrange
@@ -82,6 +82,57 @@ public class NeutralCultureLanguageLookupRules
         resolved.Should().BeTrue();
         code.Should().Be("es");
         canonicalName.Should().Be("Spanish");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin: Kiswahili resolves to code 'sw' and keeps the Kiswahili spelling, because registered/R2 data uses that name and ICU hosts may expose EnglishName as Swahili.")]
+    public void kiswahili_resolves_without_dropping_registered_spelling()
+    {
+        // Arrange
+        const string languageName = "Kiswahili";
+
+        // Act
+        var resolved = NeutralCultureLanguageLookup.TryResolveByEnglishName(
+            languageName,
+            out var code,
+            out var canonicalName);
+
+        // Assert
+        resolved.Should().BeTrue();
+        code.Should().Be("sw");
+        canonicalName.Should().Be("Kiswahili");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin: ASCII 'maori' resolves to Māori / mi, because diacritic-insensitive matching is required for Add UX.")]
+    public void maori_without_macron_resolves()
+    {
+        // Arrange
+        const string languageName = "maori";
+
+        // Act
+        var resolved = NeutralCultureLanguageLookup.TryResolveByEnglishName(
+            languageName,
+            out var code,
+            out var canonicalName);
+
+        // Assert
+        resolved.Should().BeTrue();
+        code.Should().Be("mi");
+        canonicalName.Should().Be("Māori");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin: ListAll includes Kiswahili so the website Add control can resolve the same spelling as Save.")]
+    public void list_all_includes_kiswahili_alias_spelling()
+    {
+        // Arrange / Act
+        var cultures = NeutralCultureLanguageLookup.ListAll();
+
+        // Assert
+        cultures.Should().Contain(c =>
+            c.Code.Equals("sw", StringComparison.OrdinalIgnoreCase) &&
+            c.Name.Equals("Kiswahili", StringComparison.OrdinalIgnoreCase));
     }
 }
 
@@ -239,5 +290,47 @@ public class SupportedLanguagesUpdateRulesTests
         result.Languages.Should().ContainSingle();
         result.Languages[0].Code.Should().Be("it");
         result.Languages[0].Name.Should().Be("Italian");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin PUT: putting Kiswahili with code sw succeeds and keeps Kiswahili, because the register must not drop or rename that existing language.")]
+    public void kiswahili_existing_row_survives_put()
+    {
+        // Arrange
+        var proposed = new[]
+        {
+            new SupportedLanguageProposal(Code: "sw", Name: "Kiswahili"),
+            new SupportedLanguageProposal(Code: "en", Name: "English")
+        };
+
+        // Act
+        var result = SupportedLanguagesUpdateRules.ValidateAndBuild(proposed);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Languages.Should().HaveCount(2);
+        result.Languages.Should().Contain(l => l.Code == "sw" && l.Name == "Kiswahili");
+        result.Languages.Should().Contain(l => l.Code == "en" && l.Name == "English");
+    }
+
+    [Fact(DisplayName =
+        "Supported language admin PUT: unknown new names are all reported when mixed with valid rows, because Save must not fail only on the first invalid while silently ignoring others.")]
+    public void multiple_unknown_names_are_listed()
+    {
+        // Arrange
+        var proposed = new[]
+        {
+            new SupportedLanguageProposal(Code: "en", Name: "English"),
+            new SupportedLanguageProposal(Code: "", Name: "xyz"),
+            new SupportedLanguageProposal(Code: "", Name: "Klingon Cult Dialect")
+        };
+
+        // Act
+        var result = SupportedLanguagesUpdateRules.ValidateAndBuild(proposed);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("xyz");
+        result.Error.Should().Contain("Klingon Cult Dialect");
     }
 }

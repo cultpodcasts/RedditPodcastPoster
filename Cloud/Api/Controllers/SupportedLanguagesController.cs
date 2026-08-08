@@ -14,6 +14,7 @@ namespace Api.Controllers;
 public class SupportedLanguagesController(
     IGetSupportedLanguagesHandler getSupportedLanguagesHandler,
     IPutSupportedLanguagesHandler putSupportedLanguagesHandler,
+    IGetNeutralCulturesHandler getNeutralCulturesHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SupportedLanguagesController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -21,6 +22,7 @@ public class SupportedLanguagesController(
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     private const string? Route = "supported-languages";
+    private const string? CulturesRoute = "supported-languages/cultures";
 
     [Function("SupportedLanguagesGet")]
     public Task<HttpResponseData> Get(
@@ -32,6 +34,19 @@ public class SupportedLanguagesController(
             req,
             ["admin"],
             getSupportedLanguagesHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("SupportedLanguagesCulturesGet")]
+    public Task<HttpResponseData> GetCultures(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = CulturesRoute)]
+        HttpRequestData req,
+        FunctionContext _,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            getNeutralCulturesHandler.Handle,
             Unauthorised,
             ct);
 
