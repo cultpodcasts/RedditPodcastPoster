@@ -84,10 +84,38 @@ public class EpisodeUpdateService(
                     indexingContext);
             }
 
-            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
-
             var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
                 podcastEpisodeResolverResponse.Episode);
+
+            var removeBlueskyPostResult = RemovePostState.Unknown;
+            if (changeState.UnBlueskyPost)
+            {
+                try
+                {
+                    // Delete first while BlueskyPost AT URI is still on the episode.
+                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
+                    if (removeBlueskyPostResult != RemovePostState.Deleted)
+                    {
+                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
+                            removeBlueskyPostResult);
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e,
+                        "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
+                        podcastEpisodeResolverResponse.Episode.Id);
+                    removeBlueskyPostResult = RemovePostState.Other;
+                }
+
+                // Only flip Cosmostate when the remote post is gone (or already absent).
+                if (removeBlueskyPostResult is RemovePostState.Deleted or RemovePostState.NotFound)
+                {
+                    podcastEpisode.Episode.ClearBlueskyPostState();
+                }
+            }
+
+            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
 
             if (changeState.UnPost)
             {
@@ -119,35 +147,6 @@ public class EpisodeUpdateService(
                 }
             }
 
-            var removeBlueskyPostResult = RemovePostState.Unknown;
-            if (changeState.UnBlueskyPost)
-            {
-                try
-                {
-                    // Apply cleared BlueskyPost before Save; restore stashed AT URI for delete-by-rkey.
-                    if (!string.IsNullOrWhiteSpace(changeState.BlueskyPostUriToRemove))
-                    {
-                        podcastEpisode.Episode.BlueskyPost = changeState.BlueskyPostUriToRemove;
-                    }
-
-                    removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
-                    podcastEpisode.Episode.ClearBlueskyPostState();
-                    if (removeBlueskyPostResult != RemovePostState.Deleted)
-                    {
-                        logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
-                            removeBlueskyPostResult);
-                    }
-                }
-                catch (Exception e)
-                {
-                    podcastEpisode.Episode.ClearBlueskyPostState();
-                    logger.LogError(e,
-                        "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
-                        podcastEpisodeResolverResponse.Episode.Id);
-                    removeBlueskyPostResult = RemovePostState.Other;
-                }
-            }
-
             var outcome = new EpisodeUpdateOutcome();
             if (changeState.UnTweet)
             {
@@ -156,7 +155,8 @@ public class EpisodeUpdateService(
 
             if (changeState.UnBlueskyPost)
             {
-                outcome.BlueskyPostDeleted = removeBlueskyPostResult == RemovePostState.Deleted;
+                outcome.BlueskyPostDeleted = removeBlueskyPostResult is RemovePostState.Deleted
+                    or RemovePostState.NotFound;
             }
 
             if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&

@@ -164,8 +164,8 @@ public class EpisodeUpdateServiceTests
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when UnBluesky is requested for an episode with a stored AT URI, then RemovePost is called with that URI restored on the episode, because delete-by-rkey must not fall back to list-records search after Cosmostate clear.")]
-    public async Task update_unbluesky_restores_at_uri_for_remove_post()
+        "Plain English rule: when UnBluesky succeeds, then RemovePost sees the AT URI on the episode and Cosmostate is cleared before Save, because delete-before-clear keeps retry possible on failure.")]
+    public async Task update_unbluesky_deletes_then_clears_on_success()
     {
         // Arrange
         var episodeId = Guid.NewGuid();
@@ -216,6 +216,58 @@ public class EpisodeUpdateServiceTests
         uriSeenByRemove.Should().Be(atUri);
         episode.BlueskyPost.Should().BeNull();
         blueskyPostManager.Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when UnBluesky delete fails, then Cosmostate keeps BlueskyPost, because a failed remote delete must not flip posted state and block retries.")]
+    public async Task update_unbluesky_keeps_at_uri_when_delete_fails()
+    {
+        // Arrange
+        var episodeId = Guid.NewGuid();
+        var podcastId = Guid.NewGuid();
+        const string atUri = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+        var episode = new Episode
+        {
+            Id = episodeId,
+            PodcastId = podcastId,
+            Title = "Original",
+            BlueskyPost = atUri,
+            Release = DateTime.UtcNow.AddDays(-30)
+        };
+        var podcast = new Podcast { Id = podcastId, Name = "Show" };
+
+        var resolver = new Mock<IPodcastEpisodeResolver>();
+        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
+
+        var episodeRepo = new Mock<IEpisodeRepository>();
+        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
+
+        var blueskyPostManager = new Mock<IBlueskyPostManager>(MockBehavior.Strict);
+        blueskyPostManager
+            .Setup(m => m.RemovePost(It.IsAny<PodcastEpisode>()))
+            .ReturnsAsync(RemovePostState.Other);
+
+        var indexer = new Mock<IEpisodeSearchIndexerService>();
+        indexer.Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
+
+        var service = CreateService(
+            resolver.Object,
+            episodeRepo.Object,
+            blueskyPostManager: blueskyPostManager.Object,
+            indexer: indexer.Object);
+
+        // Act
+        var result = await service.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { UnBluesky = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        result.Outcome!.BlueskyPostDeleted.Should().BeFalse();
+        episode.BlueskyPost.Should().Be(atUri);
+        episode.BlueskyPosted.Should().BeTrue();
     }
 
     private static EpisodeUpdateService CreateService(

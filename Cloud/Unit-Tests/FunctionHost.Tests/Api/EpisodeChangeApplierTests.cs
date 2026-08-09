@@ -255,7 +255,7 @@ public class EpisodeChangeApplierTests
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when UnBluesky is requested for an AT-URI episode, then clear Cosmostate but stash the URI on change state, because RemovePost must delete by rkey after Save.")]
+        "Plain English rule: when UnBluesky is requested for an AT-URI episode, then set UnBlueskyPost but leave BlueskyPost on the episode, because delete must run before Cosmostate is cleared.")]
     public void Apply_sets_unbluesky_post_flag_and_nulls_field()
     {
         // Arrange
@@ -268,10 +268,8 @@ public class EpisodeChangeApplierTests
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
-        state.BlueskyPostUriToRemove.Should().Be(atUri);
-        episode.BlueskyPosted.Should().BeFalse();
-        episode.BlueskyPost.Should().BeNull();
-        episode.OldBlueskyPosted.Should().BeNull();
+        episode.BlueskyPosted.Should().BeTrue();
+        episode.BlueskyPost.Should().Be(atUri);
     }
 
     [Fact(DisplayName = "Apply does not set UnBlueskyPost when UnBluesky is requested but episode is not Bluesky-posted")]
@@ -290,7 +288,7 @@ public class EpisodeChangeApplierTests
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when UnBluesky is requested for a legacy bluesky-flag episode, then clear the flag and leave BlueskyPostUriToRemove null, because RemovePost falls back to list-records search.")]
+        "Plain English rule: when UnBluesky is requested for a legacy bluesky-flag episode, then set UnBlueskyPost but leave OldBlueskyPosted, because EpisodeUpdateService clears only after a successful delete.")]
     public void Apply_clears_legacy_old_bluesky_posted_on_unpost()
     {
         // Arrange
@@ -302,9 +300,8 @@ public class EpisodeChangeApplierTests
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
-        state.BlueskyPostUriToRemove.Should().BeNull();
-        episode.BlueskyPosted.Should().BeFalse();
-        episode.OldBlueskyPosted.Should().BeNull();
+        episode.BlueskyPosted.Should().BeTrue();
+        episode.OldBlueskyPosted.Should().BeTrue();
     }
 
     // ----- Subjects -----
