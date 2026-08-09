@@ -41,9 +41,54 @@ public class Episode
     [JsonPropertyOrder(41)]
     public bool Tweeted { get; set; }
 
+    /// <summary>
+    /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
+    /// documents. Do not set to <c>true</c> in application code — store
+    /// <see cref="BlueskyPost"/> after a network post. Clear via
+    /// <see cref="ClearBlueskyPostState"/>.
+    /// </summary>
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
-    public bool? BlueskyPosted { get; set; }
+    public bool? OldBlueskyPosted { get; set; }
+
+    /// <summary>
+    /// AT URI of the Bluesky post (<c>at://{did}/app.bsky.feed.post/{rkey}</c>).
+    /// Stored as string because <see cref="Uri"/> rejects AT Protocol DIDs (colons).
+    /// </summary>
+    [JsonPropertyName("blueskyPost")]
+    [JsonPropertyOrder(42)]
+    public string? BlueskyPost { get; set; }
+
+    /// <summary>
+    /// Whether this episode is considered Bluesky-posted (legacy flag or stored AT URI).
+    /// Not serialized — Cosmos must query <c>bluesky</c> / <c>blueskyPost</c> with
+    /// <c>IS_DEFINED</c> (see <see cref="CosmosIsBlueskyPostedSql"/>).
+    /// </summary>
+    [JsonIgnore]
+    public bool BlueskyPosted =>
+        (OldBlueskyPosted.HasValue && OldBlueskyPosted.Value) || !string.IsNullOrWhiteSpace(BlueskyPost);
+
+    /// <summary>
+    /// Cosmos SQL: episode is Bluesky-posted. Do not use null-only checks — combine
+    /// <c>IS_DEFINED</c> with value comparison.
+    /// </summary>
+    public const string CosmosIsBlueskyPostedSql =
+        "((IS_DEFINED(e.bluesky) AND e.bluesky = true) OR (IS_DEFINED(e.blueskyPost) AND NOT IS_NULL(e.blueskyPost)))";
+
+    /// <summary>
+    /// Cosmos SQL: episode is not Bluesky-posted.
+    /// </summary>
+    public const string CosmosIsNotBlueskyPostedSql =
+        "((NOT IS_DEFINED(e.bluesky) OR e.bluesky != true) AND (NOT IS_DEFINED(e.blueskyPost) OR IS_NULL(e.blueskyPost)))";
+
+    /// <summary>
+    /// Clears both the legacy flag and stored AT URI (e.g. after un-post).
+    /// </summary>
+    public void ClearBlueskyPostState()
+    {
+        BlueskyPost = null;
+        OldBlueskyPosted = null;
+    }
 
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(43)]

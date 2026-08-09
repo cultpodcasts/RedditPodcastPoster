@@ -51,7 +51,7 @@ public class EpisodeOutgoingService(
                     continue;
                 }
 
-                if (episode.BlueskyPosted.HasValue && episode.BlueskyPosted.Value && !query.BlueskyPosted)
+                if (episode.BlueskyPosted && !query.BlueskyPosted)
                 {
                     continue;
                 }

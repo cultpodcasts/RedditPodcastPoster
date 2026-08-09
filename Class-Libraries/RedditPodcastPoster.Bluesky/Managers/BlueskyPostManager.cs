@@ -165,37 +165,39 @@ public class BlueskyPostManager(
     {
         var agent = await blueskyAgent.GetAsync();
         var collection = new Nsid("app.bsky.feed.post");
-        var posts = await agent.ListRecords<AtProtoRecord>(collection, 100);
-        if (!posts.Succeeded)
+
+        RecordKey? recordKey;
+        if (!string.IsNullOrWhiteSpace(podcastEpisode.Episode.BlueskyPost))
         {
-            logger.LogError(
-                "Bluesky list-records failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
-                posts.StatusCode, posts.AtErrorDetail?.Error, posts.AtErrorDetail?.Message);
+            if (!AtUri.TryParse(podcastEpisode.Episode.BlueskyPost, out var atUri) ||
+                atUri.RecordKey is null)
+            {
+                logger.LogError(
+                    "Episode '{EpisodeId}' has BlueskyPost '{BlueskyPost}' that could not be parsed as an AT URI.",
+                    podcastEpisode.Episode.Id,
+                    podcastEpisode.Episode.BlueskyPost);
+                return RemovePostState.Other;
+            }
+
+            recordKey = atUri.RecordKey;
+        }
+        else
+        {
+            var legacy = await ResolveRecordKeyByLegacySearch(agent, collection, podcastEpisode);
+            if (legacy.Status == LegacyRecordKeyStatus.NotFound)
+            {
+                return RemovePostState.NotFound;
+            }
+
+            if (legacy.Status == LegacyRecordKeyStatus.Ambiguous)
+            {
+                return RemovePostState.Other;
+            }
+
+            recordKey = legacy.RecordKey;
         }
 
-        var matchingPosts = posts.Result!.Where(x =>
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
-                BlueskyEmbedCardPostFactory.LengthFormat,
-                CultureInfo.InvariantCulture)) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(
-                podcastEpisode.Episode.Release.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
-        ).ToArray();
-
-        if (!matchingPosts.Any())
-        {
-            return RemovePostState.NotFound;
-        }
-
-        if (matchingPosts.Length > 1)
-        {
-            logger.LogError(
-                "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Length,
-                podcastEpisode.Episode.Id);
-            return RemovePostState.Other;
-        }
-
-        var deleted = await agent.DeleteRecord(collection, matchingPosts.Single().Uri.RecordKey!);
+        var deleted = await agent.DeleteRecord(collection, recordKey!);
 
         if (deleted.Succeeded)
         {
@@ -206,5 +208,55 @@ public class BlueskyPostManager(
             "Bluesky delete-record failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
             deleted.StatusCode, deleted.AtErrorDetail?.Error, deleted.AtErrorDetail?.Message);
         return RemovePostState.Other;
+    }
+
+    private async Task<(LegacyRecordKeyStatus Status, RecordKey? RecordKey)> ResolveRecordKeyByLegacySearch(
+        BlueskyAgent agent,
+        Nsid collection,
+        PodcastEpisode podcastEpisode)
+    {
+        var posts = await agent.ListRecords<AtProtoRecord>(collection, 100);
+        if (!posts.Succeeded)
+        {
+            logger.LogError(
+                "Bluesky list-records failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
+                posts.StatusCode, posts.AtErrorDetail?.Error, posts.AtErrorDetail?.Message);
+        }
+
+        if (posts.Result == null)
+        {
+            return (LegacyRecordKeyStatus.NotFound, null);
+        }
+
+        var matchingPosts = posts.Result.Where(x =>
+            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
+            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
+                BlueskyEmbedCardPostFactory.LengthFormat,
+                CultureInfo.InvariantCulture)) &&
+            x.Value.ExtensionData["text"].GetString()!.Contains(
+                podcastEpisode.Episode.Release.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
+        ).ToArray();
+
+        if (!matchingPosts.Any())
+        {
+            return (LegacyRecordKeyStatus.NotFound, null);
+        }
+
+        if (matchingPosts.Length > 1)
+        {
+            logger.LogError(
+                "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Length,
+                podcastEpisode.Episode.Id);
+            return (LegacyRecordKeyStatus.Ambiguous, null);
+        }
+
+        return (LegacyRecordKeyStatus.Found, matchingPosts.Single().Uri.RecordKey);
+    }
+
+    private enum LegacyRecordKeyStatus
+    {
+        Found,
+        NotFound,
+        Ambiguous
     }
 }

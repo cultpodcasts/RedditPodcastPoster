@@ -142,7 +142,7 @@ public class PodcastEpisodeFilter(
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
                 x.Episode.Release >= since &&
-                x.Episode.BlueskyPosted is null or false &&
+                !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
@@ -178,7 +178,7 @@ public class PodcastEpisodeFilter(
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
                 x.Episode.Release >= since &&
-                x.Episode.BlueskyPosted is null or false &&
+                !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))

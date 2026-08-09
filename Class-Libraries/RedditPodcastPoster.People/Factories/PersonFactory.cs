@@ -33,7 +33,7 @@ public class PersonFactory : IPersonFactory
         {
             IsOrganization = isOrganization,
             SortName = PersonSortNameResolver.ResolveForPersist(name.Trim(), sortName, isOrganization),
-            Aliases = aliases?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToArray(),
+            Aliases = NormalizeAliases(aliases),
             TwitterHandle = NormalizeHandle(twitterHandle),
             BlueskyHandle = NormalizeHandle(blueskyHandle)
         };
@@ -56,5 +56,19 @@ public class PersonFactory : IPersonFactory
             .ToArray();
 
         return parts.Length == 0 ? null : string.Join(' ', parts);
+    }
+
+    private static string[]? NormalizeAliases(string[]? aliases)
+    {
+        if (aliases == null)
+        {
+            return null;
+        }
+
+        var normalized = aliases
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .ToArray();
+        return normalized.Length == 0 ? null : normalized;
     }
 }

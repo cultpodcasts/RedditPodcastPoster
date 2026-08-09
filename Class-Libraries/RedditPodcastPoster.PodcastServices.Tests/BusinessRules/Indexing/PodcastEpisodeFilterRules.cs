@@ -73,6 +73,44 @@ public class PodcastEpisodeFilterRules
     }
 
     [Fact(DisplayName =
+        "Episodes with a stored BlueskyPost AT URI are not Bluesky-ready.")]
+    public async Task bluesky_post_uri_excludes_from_bluesky_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(
+            podcast,
+            release: DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()));
+        episode.BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+
+        // Act
+        var ready = await sut.GetMostRecentBlueskyReadyEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Episodes with legacy OldBlueskyPosted true are not Bluesky-ready.")]
+    public async Task legacy_old_bluesky_posted_excludes_from_bluesky_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(
+            podcast,
+            release: DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()));
+        episode.OldBlueskyPosted = true;
+
+        // Act
+        var ready = await sut.GetMostRecentBlueskyReadyEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "YouTube release-authority episodes with Spotify but no YouTube URL are not tweet-ready.")]
     public async Task youtube_ra_spotify_only_not_tweet_ready()
     {
