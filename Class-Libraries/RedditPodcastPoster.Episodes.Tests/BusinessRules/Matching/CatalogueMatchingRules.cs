@@ -563,12 +563,12 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When enriching a YouTube-discovered episode and both sides have duration outside the five-minute band, " +
+        "When enriching a YouTube-discovered episode and both sides have duration outside the proportional band, " +
         "FindCatalogueMatchByLength returns null even when a typo-aligned title sits within twelve hours of release, " +
         "because multi-criteria scoring requires the duration band when both lengths are present.")]
     public void youtube_discovered_release_only_outside_duration_band_returns_null()
     {
-        // Arrange
+        // Arrange — 20m gap >> max(5m, 10% of 40m)
         var sharedTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(60);
         var mismatchedLength = TimeSpan.FromMinutes(40);
@@ -1375,7 +1375,7 @@ public class CatalogueMatchingRules
         "because multi-criteria scoring requires duration within band.")]
     public void youtube_discovered_multiple_release_only_candidates_outside_duration_band_returns_null()
     {
-        // Arrange - typo titles avoid early containment; durations outside five-minute band
+        // Arrange - typo titles avoid early containment; durations far outside proportional band
         var sharedTitle = _fixture.CreateShortTitle();
         var probeLength = TimeSpan.FromMinutes(60);
         var probeRelease = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());

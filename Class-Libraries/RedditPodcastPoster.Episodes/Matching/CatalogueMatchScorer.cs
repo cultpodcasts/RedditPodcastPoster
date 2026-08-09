@@ -12,6 +12,10 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
+/// When both sides have duration, the allowed gap is
+/// <c>max(<see cref="DurationBandFloor"/>, <see cref="DurationBandProportionOfShorter"/> × shorter)</c>
+/// so long Apple cuts with a few minutes of ads still match while short episodes keep a
+/// five-minute floor (Aug 2026: long YouTube cut vs slightly longer Apple audio).
 /// Spotify and Apple catalogue items are both windowed on calendar days, not elapsed hours,
 /// because audio slots and YouTube publishes on the same day can be far more than twelve hours apart.
 /// </summary>
@@ -28,13 +32,37 @@ public static class CatalogueMatchScorer
     public const int SingleSharedSubjectPoints = 15;
     public const int MultipleSharedSubjectPoints = 25;
 
+    /// <summary>Minimum absolute duration gap allowed when both sides report length.</summary>
+    public static readonly TimeSpan DurationBandFloor = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Fraction of the shorter duration added on top of <see cref="DurationBandFloor"/> for long episodes.
+    /// </summary>
+    public const double DurationBandProportionOfShorter = 0.10;
+
     private const int MinFuzzyTitleScore = 65;
     private const int MinFuzzyDescriptionScore = 70;
     private const int DescriptionCompareMaxChars = 500;
 
     /// <summary>
+    /// Allowed absolute duration delta when both sides have length:
+    /// <c>max(DurationBandFloor, DurationBandProportionOfShorter × shorter)</c>.
+    /// </summary>
+    public static TimeSpan GetDurationBand(TimeSpan left, TimeSpan right)
+    {
+        var shorter = left <= right ? left : right;
+        if (shorter <= TimeSpan.Zero)
+        {
+            return DurationBandFloor;
+        }
+
+        var proportional = TimeSpan.FromTicks((long)(shorter.Ticks * DurationBandProportionOfShorter));
+        return proportional > DurationBandFloor ? proportional : DurationBandFloor;
+    }
+
+    /// <summary>
     /// Scores a probe against a catalogue candidate within the YouTube-discovered release window.
-    /// When both sides have duration, requires the ±5 minute band; otherwise scores without
+    /// When both sides have duration, requires the proportional duration band; otherwise scores without
     /// duration points so Apple catalogue gaps can still match on title/subjects.
     /// </summary>
     public static int Score(
@@ -48,8 +76,8 @@ public static class CatalogueMatchScorer
 
         if (probeHasDuration && catalogueHasDuration)
         {
-            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) >=
-                TimeSpan.FromMinutes(5).Ticks)
+            var band = GetDurationBand(probe.Length, catalogueItem.Length);
+            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) >= band.Ticks)
             {
                 return 0;
             }
