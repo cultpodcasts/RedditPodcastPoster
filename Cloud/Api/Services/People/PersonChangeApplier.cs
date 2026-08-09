@@ -45,9 +45,11 @@ public static class PersonChangeApplier
 
         if (change.Aliases != null)
         {
-            entity.Aliases = change.Aliases.Length == 0
-                ? null
-                : change.Aliases.Select(x => x.Trim()).ToArray();
+            var aliases = change.Aliases
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToArray();
+            entity.Aliases = aliases.Length == 0 ? null : aliases;
         }
 
         if (change.TwitterHandle != null)
