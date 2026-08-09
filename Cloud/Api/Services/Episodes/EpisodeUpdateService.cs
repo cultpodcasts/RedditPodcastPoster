@@ -124,7 +124,14 @@ public class EpisodeUpdateService(
             {
                 try
                 {
+                    // Apply cleared BlueskyPost before Save; restore stashed AT URI for delete-by-rkey.
+                    if (!string.IsNullOrWhiteSpace(changeState.BlueskyPostUriToRemove))
+                    {
+                        podcastEpisode.Episode.BlueskyPost = changeState.BlueskyPostUriToRemove;
+                    }
+
                     removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
+                    podcastEpisode.Episode.ClearBlueskyPostState();
                     if (removeBlueskyPostResult != RemovePostState.Deleted)
                     {
                         logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
@@ -133,6 +140,7 @@ public class EpisodeUpdateService(
                 }
                 catch (Exception e)
                 {
+                    podcastEpisode.Episode.ClearBlueskyPostState();
                     logger.LogError(e,
                         "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
                         podcastEpisodeResolverResponse.Episode.Id);

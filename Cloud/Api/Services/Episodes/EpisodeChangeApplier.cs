@@ -87,6 +87,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         if (episodeChangeRequest.UnBluesky == true && episode.BlueskyPosted)
         {
             changeState.UnBlueskyPost = true;
+            // Keep AT URI for RemovePost — Save clears Cosmostate first; delete needs the rkey.
+            changeState.BlueskyPostUriToRemove = episode.BlueskyPost;
             episode.ClearBlueskyPostState();
         }
 

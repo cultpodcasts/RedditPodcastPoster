@@ -254,12 +254,13 @@ public class EpisodeChangeApplierTests
         state.UnTweet.Should().BeTrue();
     }
 
-    [Fact(DisplayName = "Apply sets UnBlueskyPost when UnBluesky is requested and episode is Bluesky-posted, and clears Bluesky post state")]
+    [Fact(DisplayName =
+        "Plain English rule: when UnBluesky is requested for an AT-URI episode, then clear Cosmostate but stash the URI on change state, because RemovePost must delete by rkey after Save.")]
     public void Apply_sets_unbluesky_post_flag_and_nulls_field()
     {
         // Arrange
-        var episode = CreateEpisode(e =>
-            e.BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2");
+        const string atUri = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+        var episode = CreateEpisode(e => e.BlueskyPost = atUri);
         var sut = CreateSut();
 
         // Act
@@ -267,6 +268,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
+        state.BlueskyPostUriToRemove.Should().Be(atUri);
         episode.BlueskyPosted.Should().BeFalse();
         episode.BlueskyPost.Should().BeNull();
         episode.OldBlueskyPosted.Should().BeNull();
@@ -287,7 +289,8 @@ public class EpisodeChangeApplierTests
         episode.BlueskyPosted.Should().BeFalse();
     }
 
-    [Fact(DisplayName = "Apply clears legacy OldBlueskyPosted when UnBluesky is requested for a pre-migration episode")]
+    [Fact(DisplayName =
+        "Plain English rule: when UnBluesky is requested for a legacy bluesky-flag episode, then clear the flag and leave BlueskyPostUriToRemove null, because RemovePost falls back to list-records search.")]
     public void Apply_clears_legacy_old_bluesky_posted_on_unpost()
     {
         // Arrange
@@ -299,6 +302,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
+        state.BlueskyPostUriToRemove.Should().BeNull();
         episode.BlueskyPosted.Should().BeFalse();
         episode.OldBlueskyPosted.Should().BeNull();
     }
