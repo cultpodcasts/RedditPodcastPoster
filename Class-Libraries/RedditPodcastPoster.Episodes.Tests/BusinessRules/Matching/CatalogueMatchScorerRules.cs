@@ -180,6 +180,7 @@ public class CatalogueMatchScorerRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = youTubeTitle;
+            e.Description = string.Empty;
             e.Length = length;
             e.Release = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
@@ -187,7 +188,10 @@ public class CatalogueMatchScorerRules
         });
         var weak = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            // Disjoint title + empty description so duration+day alone stay below threshold
+            e.Title =
+                "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+            e.Description = string.Empty;
             e.Length = length;
             e.Release = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
@@ -196,6 +200,7 @@ public class CatalogueMatchScorerRules
         var strong = _fixture.CreateEpisode(e =>
         {
             e.Title = $"{youTubeTitle}: editorial rename";
+            e.Description = string.Empty;
             e.Length = length;
             e.Release = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
@@ -360,5 +365,167 @@ public class CatalogueMatchScorerRules
             CatalogueMatchScorer.FuzzyTitlePoints +
             CatalogueMatchScorer.SingleSharedSubjectPoints);
         CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "For a long YouTube-discovered episode, an Apple catalogue row a little over five minutes longer " +
+        "still awards duration points and meets the threshold with same-day release and a fuzzy title, " +
+        "because the duration band is max(five minutes, ten percent of the shorter length).")]
+    public void long_episode_apple_slightly_longer_than_five_minutes_meets_threshold()
+    {
+        // Arrange — ~97m YouTube vs ~102.5m Apple (~5.5m gap); 10% of shorter ≈ 9.7m
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var baseTitle = _fixture.CreateTitle(6);
+        var youTubeLength = TimeSpan.FromMinutes(97);
+        var appleLength = youTubeLength + TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(30);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = youTubeLength;
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Description = string.Empty;
+            e.Length = appleLength;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+        var band = CatalogueMatchScorer.GetDurationBand(youTubeLength, appleLength);
+
+        // Assert
+        (appleLength - youTubeLength).Should().BeGreaterThan(CatalogueMatchScorer.DurationBandFloor);
+        (appleLength - youTubeLength).Should().BeLessThan(band);
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When both sides have duration and the gap equals the proportional band for a long episode, " +
+        "the score is zero because the duration hard-fail uses a strict less-than band edge.")]
+    public void long_episode_duration_gap_exactly_at_proportional_band_scores_zero()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var baseTitle = _fixture.CreateTitle(6);
+        var shorter = TimeSpan.FromMinutes(100);
+        var band = CatalogueMatchScorer.GetDurationBand(shorter, shorter);
+        var longer = shorter + band;
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = shorter;
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Description = string.Empty;
+            e.Length = longer;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        band.Should().BeGreaterThan(CatalogueMatchScorer.DurationBandFloor);
+        score.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When both sides have duration and the gap is just inside the proportional band for a long episode, " +
+        "duration points are awarded so same-day release plus fuzzy title can meet the threshold.")]
+    public void long_episode_duration_gap_just_inside_proportional_band_meets_threshold()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var baseTitle = _fixture.CreateTitle(6);
+        var shorter = TimeSpan.FromMinutes(100);
+        var band = CatalogueMatchScorer.GetDurationBand(shorter, shorter);
+        var longer = shorter + band - TimeSpan.FromTicks(1);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = shorter;
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Description = string.Empty;
+            e.Length = longer;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        band.Should().BeGreaterThan(CatalogueMatchScorer.DurationBandFloor);
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "For a short episode the duration band stays at the five-minute floor, so a gap of exactly " +
+        "five minutes still hard-fails even though ten percent of the shorter length is smaller.")]
+    public void short_episode_duration_band_keeps_five_minute_floor()
+    {
+        // Arrange — 20m → 10% = 2m; floor remains 5m
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var baseTitle = _fixture.CreateTitle(6);
+        var shorter = TimeSpan.FromMinutes(20);
+        var longer = shorter + CatalogueMatchScorer.DurationBandFloor;
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = baseTitle;
+            e.Description = string.Empty;
+            e.Length = shorter;
+            e.Release = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
+            e.Description = string.Empty;
+            e.Length = longer;
+            e.Release = release;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var band = CatalogueMatchScorer.GetDurationBand(shorter, longer);
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        band.Should().Be(CatalogueMatchScorer.DurationBandFloor);
+        score.Should().Be(0);
     }
 }
