@@ -22,7 +22,7 @@ public class FindDuplicateEpisodesProcessor(
         "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
-        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "description" };
+        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "blueskyPost", "description" };
 
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
     private readonly JsonSerializerOptions _jsonSerializerOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();
@@ -158,8 +158,8 @@ public class FindDuplicateEpisodesProcessor(
             : await podcastRepository.GetPodcast(secondPodcastId);
 
         // Canonical = has been publicly posted/tweeted/bluesky'd
-        var firstIsCanonical = firstEpisode.Posted || firstEpisode.Tweeted || firstEpisode.BlueskyPosted == true;
-        var secondIsCanonical = secondEpisode.Posted || secondEpisode.Tweeted || secondEpisode.BlueskyPosted == true;
+        var firstIsCanonical = firstEpisode.Posted || firstEpisode.Tweeted || firstEpisode.BlueskyPosted;
+        var secondIsCanonical = secondEpisode.Posted || secondEpisode.Tweeted || secondEpisode.BlueskyPosted;
 
         // Override: when episodes span different podcasts, the episode under a removed podcast
         // must always be the duplicate — podcast.Removed is the authoritative flag.

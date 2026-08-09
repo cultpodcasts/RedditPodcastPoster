@@ -25,6 +25,7 @@ public class BlueskyPoster(
         var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)
             ? "en"
             : podcastEpisode.Episode.Language.Trim();
+        string blueskyPostUri;
         try
         {
             if (embedCardRequest != null)
@@ -32,13 +33,14 @@ public class BlueskyPoster(
                 logger.LogInformation(
                     "Non-Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
                     nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                await blueSkyClient.Post(embedPost.Text, embedCardRequest, language);
+                blueskyPostUri = await blueSkyClient.Post(embedPost.Text, embedCardRequest, language);
             }
             else
             {
                 logger.LogError("Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
                     nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}", language);
+                blueskyPostUri =
+                    await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}", language);
             }
 
             sendStatus = BlueskySendStatus.Success;
@@ -46,7 +48,10 @@ public class BlueskyPoster(
                 logger,
                 podcastEpisode,
                 caller: nameof(BlueskyPoster) + "." + nameof(Post));
-            logger.LogInformation("Posted to bluesky: '{EmbedPostText}'.", embedPost.Text);
+            logger.LogInformation(
+                "Posted to bluesky: '{EmbedPostText}'. AT-URI: '{BlueskyPostUri}'.",
+                embedPost.Text,
+                blueskyPostUri);
         }
         catch (HttpRequestException ex)
         {
@@ -70,7 +75,7 @@ public class BlueskyPoster(
             return BlueskySendStatus.Failure;
         }
 
-        podcastEpisode.Episode.BlueskyPosted = true;
+        podcastEpisode.Episode.BlueskyPost = blueskyPostUri;
         try
         {
             await episodeRepository.Save(podcastEpisode.Episode);

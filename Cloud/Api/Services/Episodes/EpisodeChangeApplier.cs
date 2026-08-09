@@ -87,23 +87,25 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 
         if (episodeChangeRequest.BlueskyPosted != null)
         {
-            if (!episodeChangeRequest.BlueskyPosted.Value && episode.BlueskyPosted.HasValue &&
-                episode.BlueskyPosted.Value)
+            if (!episodeChangeRequest.BlueskyPosted.Value && episode.BlueskyPosted)
             {
                 changeState.UnBlueskyPost = true;
             }
 
-            var settingFlagWithoutPost = episodeChangeRequest.BlueskyPosted.Value &&
-                                         episode.BlueskyPosted != true;
-            episode.BlueskyPosted =
-                episodeChangeRequest.BlueskyPosted.HasValue && episodeChangeRequest.BlueskyPosted.Value ? true : null;
-            if (settingFlagWithoutPost)
+            if (episodeChangeRequest.BlueskyPosted.Value)
             {
-                BlueskyPostLogger.LogFlagSetWithoutPost(
-                    logger,
-                    episode,
-                    episode.PodcastId,
-                    caller: nameof(EpisodeChangeApplier) + "." + nameof(Apply));
+                if (!episode.BlueskyPosted)
+                {
+                    BlueskyPostLogger.LogFlagSetWithoutPost(
+                        logger,
+                        episode,
+                        episode.PodcastId,
+                        caller: nameof(EpisodeChangeApplier) + "." + nameof(Apply));
+                }
+            }
+            else
+            {
+                episode.ClearBlueskyPostState();
             }
         }
 

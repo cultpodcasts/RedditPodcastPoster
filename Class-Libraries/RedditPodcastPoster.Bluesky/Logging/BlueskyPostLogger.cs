@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Bluesky.Logging;
 
 /// <summary>
 /// Emits a stable Warning-level line when an episode is posted to Bluesky
-/// (or when the BlueskyPosted flag is set without a network post) so App Insights
+/// (or when a curator requests BlueskyPosted without a network post) so App Insights
 /// can answer provenance by episode-id. Warning is intentional: Information is sampled away.
 /// </summary>
 public static class BlueskyPostLogger

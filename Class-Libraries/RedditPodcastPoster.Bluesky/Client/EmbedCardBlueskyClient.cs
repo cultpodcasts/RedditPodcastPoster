@@ -48,17 +48,17 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         _authorizationClient = new AuthorizationClient(httpClientFactory, identifier, password, reuseSession, uri);
     }
 
-    public Task Post(string text, EmbedCardRequest embedCard)
+    public Task<string> Post(string text, EmbedCardRequest embedCard)
     {
         return Post(text, embedCard, _languages);
     }
 
-    public Task Post(string text, EmbedCardRequest embedCard, string language)
+    public Task<string> Post(string text, EmbedCardRequest embedCard, string language)
     {
         return Post(text, embedCard, [language]);
     }
 
-    private async Task Post(string text, EmbedCardRequest embedCard, IEnumerable<string> languages)
+    private async Task<string> Post(string text, EmbedCardRequest embedCard, IEnumerable<string> languages)
     {
         var session = await _authorizationClient.GetSession();
 
@@ -76,20 +76,20 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
             External = await embedCardBuilder.GetEmbedCard(embedCard)
         };
 
-        await Post(session, post);
+        return await Post(session, post);
     }
 
     public Task Post(string text)
     {
-        return Post(text, _languages);
+        return PostReturningUri(text, _languages);
     }
 
-    public Task Post(string text, string language)
+    public Task<string> Post(string text, string language)
     {
-        return Post(text, [language]);
+        return PostReturningUri(text, [language]);
     }
 
-    private async Task Post(string text, IEnumerable<string> languages)
+    private async Task<string> PostReturningUri(string text, IEnumerable<string> languages)
     {
         var session = await _authorizationClient.GetSession();
 
@@ -100,7 +100,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
 
         var (_, post) = await CreatePostAndFacets(text, languages);
 
-        await Post(session, post);
+        return await Post(session, post);
     }
 
     public Task Post(string text, Uri uri)
@@ -184,7 +184,7 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         return Encoding.UTF8.GetByteCount(text[..index]);
     }
 
-    private async Task Post(Session session, Post post)
+    private async Task<string> Post(Session session, Post post)
     {
         var requestUri = "https://bsky.social/xrpc/com.atproto.repo.createRecord";
 
@@ -210,15 +210,32 @@ public class EmbedCardBlueskyClient : IEmbedCardBlueskyClient
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessJwt);
 
         var response = await httpClient.PostAsync(requestUri, content);
+        var responseContent = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
-            var responseContent = await response.Content.ReadAsStringAsync();
-
             _logger.LogError("Error: {ResponseContent}", responseContent);
         }
 
         // This throws an exception if the HTTP response status is an error code.
         response.EnsureSuccessStatusCode();
+
+        var created = JsonConvert.DeserializeObject<CreateRecordResponse>(responseContent);
+        if (string.IsNullOrWhiteSpace(created?.Uri))
+        {
+            throw new InvalidOperationException(
+                "Bluesky createRecord succeeded but response did not include an AT URI.");
+        }
+
+        return created.Uri;
+    }
+
+    private sealed class CreateRecordResponse
+    {
+        [JsonProperty("uri")]
+        public string? Uri { get; set; }
+
+        [JsonProperty("cid")]
+        public string? Cid { get; set; }
     }
 }

@@ -124,7 +124,8 @@ public class EpisodeUpdateServiceTests
             PodcastId = podcastId,
             Title = "Original",
             Tweeted = true,
-            BlueskyPosted = true,
+            BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2",
+            Ignored = false,
             Release = DateTime.UtcNow.AddDays(-30)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
