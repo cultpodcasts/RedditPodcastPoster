@@ -1,7 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
-using RedditPodcastPoster.Bluesky.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple;
@@ -85,28 +84,10 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             episode.Tweeted = episodeChangeRequest.Tweeted.Value;
         }
 
-        if (episodeChangeRequest.BlueskyPosted != null)
+        if (episodeChangeRequest.UnBluesky == true && episode.BlueskyPosted)
         {
-            if (!episodeChangeRequest.BlueskyPosted.Value && episode.BlueskyPosted)
-            {
-                changeState.UnBlueskyPost = true;
-            }
-
-            if (episodeChangeRequest.BlueskyPosted.Value)
-            {
-                if (!episode.BlueskyPosted)
-                {
-                    BlueskyPostLogger.LogFlagSetWithoutPost(
-                        logger,
-                        episode,
-                        episode.PodcastId,
-                        caller: nameof(EpisodeChangeApplier) + "." + nameof(Apply));
-                }
-            }
-            else
-            {
-                episode.ClearBlueskyPostState();
-            }
+            changeState.UnBlueskyPost = true;
+            episode.ClearBlueskyPostState();
         }
 
         if (episodeChangeRequest.Subjects != null && episode.ApplyUserSubjects(episodeChangeRequest.Subjects))

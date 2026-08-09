@@ -17,8 +17,12 @@ public class EpisodeChangeRequest
     [JsonPropertyName("tweeted")]
     public bool? Tweeted { get; set; }
 
-    [JsonPropertyName("bluesky")]
-    public bool? BlueskyPosted { get; set; }
+    /// <summary>
+    /// When true, clear Bluesky post state and delete the remote post.
+    /// Bluesky posted state is not settable via episode change — only via publish/indexer.
+    /// </summary>
+    [JsonPropertyName("unBluesky")]
+    public bool? UnBluesky { get; set; }
 
     [JsonPropertyName("ignored")]
     public bool? Ignored { get; set; }
@@ -59,7 +63,7 @@ public class EpisodeChangeRequest
         Description != null ||
         Posted != null ||
         Tweeted != null ||
-        BlueskyPosted != null ||
+        UnBluesky != null ||
         Ignored != null ||
         Removed != null ||
         Explicit != null ||

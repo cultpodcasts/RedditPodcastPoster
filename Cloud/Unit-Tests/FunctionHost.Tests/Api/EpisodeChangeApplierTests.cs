@@ -254,7 +254,7 @@ public class EpisodeChangeApplierTests
         state.UnTweet.Should().BeTrue();
     }
 
-    [Fact(DisplayName = "Apply sets UnBlueskyPost when BlueskyPosted transitions from true to false, and clears Bluesky post state")]
+    [Fact(DisplayName = "Apply sets UnBlueskyPost when UnBluesky is requested and episode is Bluesky-posted, and clears Bluesky post state")]
     public void Apply_sets_unbluesky_post_flag_and_nulls_field()
     {
         // Arrange
@@ -263,7 +263,7 @@ public class EpisodeChangeApplierTests
         var sut = CreateSut();
 
         // Act
-        var state = sut.Apply(episode, new EpisodeChangeRequest { BlueskyPosted = false });
+        var state = sut.Apply(episode, new EpisodeChangeRequest { UnBluesky = true });
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
@@ -272,23 +272,22 @@ public class EpisodeChangeApplierTests
         episode.OldBlueskyPosted.Should().BeNull();
     }
 
-    [Fact(DisplayName = "Apply does not set OldBlueskyPosted when BlueskyPosted true is requested without a network post")]
-    public void Apply_does_not_set_legacy_bluesky_flag_when_true_requested()
+    [Fact(DisplayName = "Apply does not set UnBlueskyPost when UnBluesky is requested but episode is not Bluesky-posted")]
+    public void Apply_does_not_unbluesky_when_not_posted()
     {
         // Arrange
         var episode = CreateEpisode();
         var sut = CreateSut();
 
         // Act
-        sut.Apply(episode, new EpisodeChangeRequest { BlueskyPosted = true });
+        var state = sut.Apply(episode, new EpisodeChangeRequest { UnBluesky = true });
 
         // Assert
+        state.UnBlueskyPost.Should().BeFalse();
         episode.BlueskyPosted.Should().BeFalse();
-        episode.OldBlueskyPosted.Should().BeNull();
-        episode.BlueskyPost.Should().BeNull();
     }
 
-    [Fact(DisplayName = "Apply clears legacy OldBlueskyPosted when un-blueskying a pre-migration episode")]
+    [Fact(DisplayName = "Apply clears legacy OldBlueskyPosted when UnBluesky is requested for a pre-migration episode")]
     public void Apply_clears_legacy_old_bluesky_posted_on_unpost()
     {
         // Arrange
@@ -296,7 +295,7 @@ public class EpisodeChangeApplierTests
         var sut = CreateSut();
 
         // Act
-        var state = sut.Apply(episode, new EpisodeChangeRequest { BlueskyPosted = false });
+        var state = sut.Apply(episode, new EpisodeChangeRequest { UnBluesky = true });
 
         // Assert
         state.UnBlueskyPost.Should().BeTrue();
