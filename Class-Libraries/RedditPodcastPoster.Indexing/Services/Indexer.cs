@@ -8,7 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 
 namespace RedditPodcastPoster.Indexing.Services;
 
@@ -17,6 +17,7 @@ public class Indexer(
     IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
     ILogger<Indexer> logger
 ) : IIndexer
@@ -48,8 +49,7 @@ public class Indexer(
         }
 
         var podcast = canIndex.Single();
-        return await Index(podcast.Id,
-            indexingContext with { SkipShortEpisodes = !podcast.BypassShortEpisodeChecking ?? false });
+        return await Index(podcast.Id, indexingContext);
     }
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)
@@ -67,6 +67,13 @@ public class Indexer(
                 podcast.Id);
             return new IndexResponse(IndexStatus.NotPerformed);
         }
+
+        // Only include shorts when the podcast explicitly bypasses short-episode checking.
+        // Unset (null) or false must skip shorts — do not use `!flag ?? false` (operator precedence).
+        indexingContext = indexingContext with
+        {
+            SkipShortEpisodes = podcast.BypassShortEpisodeChecking != true
+        };
 
         IndexStatus status;
         IndexedEpisode[]? updatedEpisodes = null;
@@ -130,11 +137,7 @@ public class Indexer(
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     indexedEpisode.Episode,
-                    new SubjectEnrichmentOptions(
-                        podcast.IgnoredAssociatedSubjects,
-                        podcast.IgnoredSubjects,
-                        podcast.DefaultSubject,
-                        podcast.DescriptionRegex));
+                    await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
 
                 var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
 

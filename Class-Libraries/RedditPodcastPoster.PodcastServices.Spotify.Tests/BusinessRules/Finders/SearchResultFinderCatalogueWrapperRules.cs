@@ -1,11 +1,15 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Tests.Fakes;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Text.TitleCasing;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finders;
@@ -19,7 +23,8 @@ public class SearchResultFinderCatalogueWrapperRules
     private readonly SpotifySearchResultFinder _sut = new(
         EpisodeDomainTestServices.CreatePlatformMatcher(),
         new StubSubjectMatcher(),
-        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
+        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance),
+        EmptyTitleCasingProvider());
 
     [Fact(DisplayName =
         "When the Spotify finder resolves by release date, " +
@@ -311,5 +316,14 @@ public class SearchResultFinderCatalogueWrapperRules
         // Assert
         result.Should().NotBeNull();
         result!.Id.Should().Be(matchingId);
+    }
+
+    private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider()
+    {
+        var instance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
+        instance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TitleCasingRulesProvider(
+                new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)));
+        return instance.Object;
     }
 }

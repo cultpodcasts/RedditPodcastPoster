@@ -16,10 +16,10 @@ internal static class TitleCasingTestSupport
 
     public static void UseRules(
         AutoMocker mocker,
-        params LanguageTitleCasingRulesDocument[] documents)
+        params TitleCasingRulesDocument[] documents)
     {
         var byLanguage = documents.ToDictionary(
-            d => LanguageTitleCasingRulesDocument.NormaliseLanguage(d.Language),
+            d => TitleCasingRulesDocument.NormaliseLanguage(d.Language),
             d => d,
             StringComparer.OrdinalIgnoreCase);
         var provider = new TitleCasingRulesProvider(byLanguage);
@@ -28,10 +28,10 @@ internal static class TitleCasingTestSupport
         mocker.Use(instance.Object);
     }
 
-    public static LanguageTitleCasingRulesDocument CreateEnglishDefault(
+    public static EnglishTitleCasingRulesDocument CreateEnglishDefault(
         IReadOnlyList<string>? lowerCaseTerms = null,
         IReadOnlyList<KnownTermEntry>? knownTerms = null) =>
-        LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+        TitleCasingRulesDocument.CreateEnglishDefault(
             lowerCaseTerms ?? LowerCaseTerms.DefaultEnglishWords,
             knownTerms);
 }

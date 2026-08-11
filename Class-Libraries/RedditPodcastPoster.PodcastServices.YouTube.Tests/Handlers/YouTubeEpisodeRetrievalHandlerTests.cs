@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -149,6 +151,51 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 new YouTubeChannelId(channelId),
                 indexingContext,
                 true),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When playlist discovery reports NotFound, GetEpisodes logs the podcast name and playlist id " +
+        "because a deleted or private playlist needs a new YouTubePlaylistId on that podcast.")]
+    public async Task Playlist_not_found_logs_podcast_name_and_playlist_id()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+        });
+        var indexingContext = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var youTubeEpisodeProvider = new Mock<IYouTubeEpisodeProvider>();
+        youTubeEpisodeProvider
+            .Setup(x => x.GetPlaylistEpisodes(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<YouTubeChannelId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync(new GetPlaylistEpisodesResponse(
+                null,
+                Failure: YouTubePlaylistFetchFailure.NotFound));
+        var logger = new Mock<ILogger<YouTubeEpisodeRetrievalHandler>>();
+        var sut = new YouTubeEpisodeRetrievalHandler(youTubeEpisodeProvider.Object, logger.Object);
+
+        // Act
+        await sut.GetEpisodes(podcast, [], indexingContext);
+
+        // Assert
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains(podcast.Name) &&
+                    state.ToString()!.Contains(playlistId) &&
+                    state.ToString()!.Contains("not found", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
 }

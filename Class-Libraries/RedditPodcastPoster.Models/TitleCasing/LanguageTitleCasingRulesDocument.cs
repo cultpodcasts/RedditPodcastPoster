@@ -1,81 +1,19 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.TitleCasing;
 
-/// <summary>
-/// One document per language in the TitleCasingRules container (partition key <c>/language</c>).
-/// </summary>
-[CosmosSelector(ModelType.LanguageTitleCasingRules)]
-public sealed class LanguageTitleCasingRulesDocument : CosmosSelector
+/// <summary>Per-language title-casing rules that include mid-title lower-case terms.</summary>
+public abstract class LanguageTitleCasingRulesDocument : TitleCasingRulesDocument
 {
-    /// <summary>Reserved partition key for known-terms that apply to every language.</summary>
-    public const string UniversalLanguageKey = "*";
-
-    public LanguageTitleCasingRulesDocument()
+    protected LanguageTitleCasingRulesDocument()
     {
-        ModelType = ModelType.LanguageTitleCasingRules;
     }
 
-    public LanguageTitleCasingRulesDocument(string language) : this()
+    protected LanguageTitleCasingRulesDocument(string language) : base(language)
     {
-        var normalised = NormaliseLanguage(language);
-        Language = normalised;
-        Id = IdForLanguage(normalised);
     }
-
-    /// <summary>ISO language code or <see cref="UniversalLanguageKey"/>; Cosmos partition key.</summary>
-    [JsonPropertyName("language")]
-    [JsonPropertyOrder(10)]
-    public string Language { get; set; } = "";
 
     [JsonPropertyName("lowerCaseTerms")]
     [JsonPropertyOrder(20)]
     public List<string> LowerCaseTerms { get; set; } = [];
-
-    [JsonPropertyName("knownTerms")]
-    [JsonPropertyOrder(30)]
-    public List<KnownTermEntry> KnownTerms { get; set; } = [];
-
-    public override string FileKey => IsUniversal(Language)
-        ? "TitleCasingRules-universal"
-        : $"TitleCasingRules-{Language}";
-
-    public static bool IsUniversal(string? language) =>
-        !string.IsNullOrWhiteSpace(language) &&
-        NormaliseLanguage(language) == UniversalLanguageKey;
-
-    public static string NormaliseLanguage(string language)
-    {
-        var trimmed = language.Trim();
-        if (trimmed == UniversalLanguageKey)
-        {
-            return UniversalLanguageKey;
-        }
-
-        trimmed = trimmed.ToLowerInvariant().Replace('_', '-');
-        var dash = trimmed.IndexOf('-');
-        return dash > 0 ? trimmed[..dash] : trimmed;
-    }
-
-    public static Guid IdForLanguage(string language)
-    {
-        var normalised = NormaliseLanguage(language);
-        var hash = MD5.HashData(Encoding.UTF8.GetBytes("cultpodcasts:title-casing-rules:" + normalised));
-        var bytes = hash.AsSpan(0, 16).ToArray();
-        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x30);
-        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
-        return new Guid(bytes);
-    }
-
-    public static LanguageTitleCasingRulesDocument CreateEnglishDefault(
-        IReadOnlyList<string>? lowerCaseTerms = null,
-        IReadOnlyList<KnownTermEntry>? knownTerms = null) =>
-        new("en")
-        {
-            LowerCaseTerms = lowerCaseTerms?.ToList() ?? [],
-            KnownTerms = knownTerms?.ToList() ?? []
-        };
 }

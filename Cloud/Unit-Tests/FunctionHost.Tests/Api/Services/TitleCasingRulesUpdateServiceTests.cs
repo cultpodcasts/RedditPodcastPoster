@@ -18,8 +18,8 @@ public class TitleCasingRulesUpdateServiceTests
     public async Task upsert_known_term_on_universal_keeps_lower_case_empty()
     {
         // Arrange
-        LanguageTitleCasingRulesDocument? saved = null;
-        var existing = new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        TitleCasingRulesDocument? saved = null;
+        var existing = new UniversalTitleCasingRulesDocument()
         {
             KnownTerms =
             [
@@ -32,10 +32,10 @@ public class TitleCasingRulesUpdateServiceTests
             ]
         };
         var repo = new Mock<ILanguageTitleCasingRulesRepository>();
-        repo.Setup(x => x.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey))
+        repo.Setup(x => x.Get(TitleCasingRulesDocument.UniversalLanguageKey))
             .ReturnsAsync(existing);
-        repo.Setup(x => x.Save(It.IsAny<LanguageTitleCasingRulesDocument>()))
-            .Callback<LanguageTitleCasingRulesDocument>(d => saved = d)
+        repo.Setup(x => x.Save(It.IsAny<TitleCasingRulesDocument>()))
+            .Callback<TitleCasingRulesDocument>(d => saved = d)
             .Returns(Task.CompletedTask);
         var lookups = new Mock<ILookupRepository>();
         var sut = new TitleCasingRulesUpdateService(
@@ -45,7 +45,7 @@ public class TitleCasingRulesUpdateServiceTests
 
         // Act
         var result = await sut.UpsertKnownTermAsync(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey,
+            TitleCasingRulesDocument.UniversalLanguageKey,
             new KnownTermUpdate
             {
                 Literal = "NASA",
@@ -57,8 +57,8 @@ public class TitleCasingRulesUpdateServiceTests
         // Assert
         result.Status.Should().Be(TitleCasingRulesUpdateStatus.Ok);
         saved.Should().NotBeNull();
-        saved!.Language.Should().Be(LanguageTitleCasingRulesDocument.UniversalLanguageKey);
-        saved.LowerCaseTerms.Should().BeEmpty();
+        saved!.Language.Should().Be(TitleCasingRulesDocument.UniversalLanguageKey);
+        saved.Should().BeOfType<UniversalTitleCasingRulesDocument>();
         saved.KnownTerms.Should().HaveCount(2);
         saved.KnownTerms.Should().Contain(t => t.Literal == "BBC");
         saved.KnownTerms.Should().Contain(t => t.Literal == "NASA");
@@ -69,11 +69,11 @@ public class TitleCasingRulesUpdateServiceTests
     public async Task add_lower_case_term_on_missing_english_materialises_defaults()
     {
         // Arrange
-        LanguageTitleCasingRulesDocument? saved = null;
+        TitleCasingRulesDocument? saved = null;
         var repo = new Mock<ILanguageTitleCasingRulesRepository>();
-        repo.Setup(x => x.Get("en")).ReturnsAsync((LanguageTitleCasingRulesDocument?)null);
-        repo.Setup(x => x.Save(It.IsAny<LanguageTitleCasingRulesDocument>()))
-            .Callback<LanguageTitleCasingRulesDocument>(d => saved = d)
+        repo.Setup(x => x.Get("en")).ReturnsAsync((TitleCasingRulesDocument?)null);
+        repo.Setup(x => x.Save(It.IsAny<TitleCasingRulesDocument>()))
+            .Callback<TitleCasingRulesDocument>(d => saved = d)
             .Returns(Task.CompletedTask);
         var lookups = new Mock<ILookupRepository>();
         lookups.Setup(x => x.GetKnownTerms<KnownTermsModel>())
@@ -93,9 +93,10 @@ public class TitleCasingRulesUpdateServiceTests
         // Assert
         result.Status.Should().Be(TitleCasingRulesUpdateStatus.Ok);
         saved.Should().NotBeNull();
-        saved!.LowerCaseTerms.Should().Contain(novelTerm);
-        saved.LowerCaseTerms.Should().Contain(LowerCaseTerms.DefaultEnglishWords);
-        saved.LowerCaseTerms.Count.Should().BeGreaterThan(LowerCaseTerms.DefaultEnglishWords.Length);
+        var english = saved.Should().BeOfType<EnglishTitleCasingRulesDocument>().Subject;
+        english.LowerCaseTerms.Should().Contain(novelTerm);
+        english.LowerCaseTerms.Should().Contain(LowerCaseTerms.DefaultEnglishWords);
+        english.LowerCaseTerms.Count.Should().BeGreaterThan(LowerCaseTerms.DefaultEnglishWords.Length);
     }
 
     [Fact(DisplayName =
@@ -103,8 +104,8 @@ public class TitleCasingRulesUpdateServiceTests
     public async Task delete_known_term_preserves_siblings()
     {
         // Arrange
-        LanguageTitleCasingRulesDocument? saved = null;
-        var existing = new LanguageTitleCasingRulesDocument("eo")
+        TitleCasingRulesDocument? saved = null;
+        var existing = new NonEnglishTitleCasingRulesDocument("eo")
         {
             LowerCaseTerms = ["kaj", "la"],
             KnownTerms =
@@ -125,8 +126,8 @@ public class TitleCasingRulesUpdateServiceTests
         };
         var repo = new Mock<ILanguageTitleCasingRulesRepository>();
         repo.Setup(x => x.Get("eo")).ReturnsAsync(existing);
-        repo.Setup(x => x.Save(It.IsAny<LanguageTitleCasingRulesDocument>()))
-            .Callback<LanguageTitleCasingRulesDocument>(d => saved = d)
+        repo.Setup(x => x.Save(It.IsAny<TitleCasingRulesDocument>()))
+            .Callback<TitleCasingRulesDocument>(d => saved = d)
             .Returns(Task.CompletedTask);
         var lookups = new Mock<ILookupRepository>();
         var sut = new TitleCasingRulesUpdateService(
@@ -140,7 +141,61 @@ public class TitleCasingRulesUpdateServiceTests
         // Assert
         result.Status.Should().Be(TitleCasingRulesUpdateStatus.Ok);
         saved.Should().NotBeNull();
-        saved!.LowerCaseTerms.Should().Equal("kaj", "la");
-        saved.KnownTerms.Should().ContainSingle().Which.Literal.Should().Be("NASA");
+        var nonEnglish = saved.Should().BeOfType<NonEnglishTitleCasingRulesDocument>().Subject;
+        nonEnglish.LowerCaseTerms.Should().Equal("kaj", "la");
+        nonEnglish.KnownTerms.Should().ContainSingle().Which.Literal.Should().Be("NASA");
+    }
+
+    [Fact(DisplayName =
+        "Title-casing admin POST ignored subject for English or Universal: rejects with BadRequest, because ignored subjects are only stored on non-English language documents.")]
+    public async Task add_ignored_subject_rejects_english_and_universal()
+    {
+        // Arrange
+        var repo = new Mock<ILanguageTitleCasingRulesRepository>();
+        var lookups = new Mock<ILookupRepository>();
+        var sut = new TitleCasingRulesUpdateService(
+            repo.Object,
+            lookups.Object,
+            NullLogger<TitleCasingRulesUpdateService>.Instance);
+        var body = new TitleCasingRulesAddLowerCaseTermRequest { Term = "Hoy" };
+
+        // Act
+        var english = await sut.AddIgnoredSubjectAsync("en", body, CancellationToken.None);
+        var universal = await sut.AddIgnoredSubjectAsync("*", body, CancellationToken.None);
+
+        // Assert
+        english.Status.Should().Be(TitleCasingRulesUpdateStatus.BadRequest);
+        universal.Status.Should().Be(TitleCasingRulesUpdateStatus.BadRequest);
+        repo.Verify(x => x.Save(It.IsAny<TitleCasingRulesDocument>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Title-casing admin POST ignored subject for a non-English language with no Cosmos document: materialises a NonEnglish document then appends the subject.")]
+    public async Task add_ignored_subject_on_missing_non_english_materialises_document()
+    {
+        // Arrange
+        TitleCasingRulesDocument? saved = null;
+        var repo = new Mock<ILanguageTitleCasingRulesRepository>();
+        repo.Setup(x => x.Get("es")).ReturnsAsync((TitleCasingRulesDocument?)null);
+        repo.Setup(x => x.Save(It.IsAny<TitleCasingRulesDocument>()))
+            .Callback<TitleCasingRulesDocument>(d => saved = d)
+            .Returns(Task.CompletedTask);
+        var lookups = new Mock<ILookupRepository>();
+        var sut = new TitleCasingRulesUpdateService(
+            repo.Object,
+            lookups.Object,
+            NullLogger<TitleCasingRulesUpdateService>.Instance);
+
+        // Act
+        var result = await sut.AddIgnoredSubjectAsync(
+            "es",
+            new TitleCasingRulesAddLowerCaseTermRequest { Term = "Hoy" },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TitleCasingRulesUpdateStatus.Ok);
+        var nonEnglish = saved.Should().BeOfType<NonEnglishTitleCasingRulesDocument>().Subject;
+        nonEnglish.Language.Should().Be("es");
+        nonEnglish.IgnoredSubjects.Should().Equal("Hoy");
     }
 }

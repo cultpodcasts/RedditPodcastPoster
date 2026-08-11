@@ -22,8 +22,74 @@ public class PodcastUpdateServiceLanguageInheritanceTests
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "Podcast language update: when an episode has null Language, then propagation sets episode Language to the podcast language and saves, because unset episode langs inherit the podcast default.")]
-    public async Task update_propagates_podcast_language_onto_unset_episode_language()
+        "INTEGRITY: Podcast language API fil→es moves episodes still on fil to es, leaves English (null) overrides alone, " +
+        "and updates denormalised podcastLanguage — null must not be treated as unset.")]
+    public async Task update_moves_previous_default_followers_not_english_overrides()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Language = "fil");
+        var onDefault = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Language = "fil";
+                e.PodcastLanguage = "fil";
+            })
+            .Create();
+        var englishOverride = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Language = null;
+                e.PodcastLanguage = "fil";
+            })
+            .Create();
+        var otherOverride = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Language = "pt";
+                e.PodcastLanguage = "fil";
+            })
+            .Create();
+
+        var podcastRepo = new Mock<IPodcastRepository>();
+        podcastRepo.Setup(r => r.GetBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
+            .ReturnsAsync(podcast);
+        podcastRepo.Setup(r => r.Save(It.IsAny<Podcast>())).Returns(Task.CompletedTask);
+
+        var episodeRepo = new Mock<IEpisodeRepository>();
+        episodeRepo.Setup(r => r.GetByPodcastId(podcast.Id))
+            .Returns(ToAsyncEnumerable(onDefault, englishOverride, otherOverride));
+        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
+
+        var indexer = new Mock<IEpisodeSearchIndexerService>();
+        indexer.Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
+
+        var service = CreateService(podcastRepo.Object, episodeRepo.Object, indexer.Object);
+
+        // Act
+        var result = await service.UpdateAsync(
+            new PodcastChangeRequestWrapper(podcast.Id, new PodcastChangeRequest { Language = "es" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastUpdateStatus.Accepted);
+        onDefault.Language.Should().Be("es");
+        onDefault.PodcastLanguage.Should().Be("es");
+        englishOverride.Language.Should().BeNull();
+        englishOverride.PodcastLanguage.Should().Be("es");
+        otherOverride.Language.Should().Be("pt");
+        otherOverride.PodcastLanguage.Should().Be("es");
+        episodeRepo.Verify(r => r.Save(onDefault), Times.Once);
+        episodeRepo.Verify(r => r.Save(englishOverride), Times.Once);
+        episodeRepo.Verify(r => r.Save(otherOverride), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY: Podcast language API null→fil moves English-default (null) episodes to fil, because they followed the previous English show default.")]
+    public async Task update_from_english_default_moves_null_episodes_onto_new_default()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.Language = null);
@@ -71,17 +137,23 @@ public class PodcastUpdateServiceLanguageInheritanceTests
         unsetEpisode.PodcastLanguage.Should().Be("fil");
         explicitEpisode.Language.Should().Be("es");
         explicitEpisode.PodcastLanguage.Should().Be("fil");
-        episodeRepo.Verify(r => r.Save(unsetEpisode), Times.Once);
-        episodeRepo.Verify(r => r.Save(explicitEpisode), Times.Once);
     }
 
     [Fact(DisplayName =
-        "Podcast language clear: when request Language is empty, then unset episode Language stays null, because clearing the podcast default must not invent an episode language.")]
-    public async Task update_clearing_podcast_language_does_not_invent_episode_language()
+        "INTEGRITY: Podcast language API clear to English moves previous-default followers to null and leaves English overrides null.")]
+    public async Task update_clearing_podcast_language_nulls_previous_default_followers()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.Language = "fil");
-        var episode = _fixture.BuildEpisode()
+        var onDefault = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Language = "fil";
+                e.PodcastLanguage = "fil";
+            })
+            .Create();
+        var englishOverride = _fixture.BuildEpisode()
             .WithPodcast(podcast)
             .Customize(e =>
             {
@@ -97,7 +169,7 @@ public class PodcastUpdateServiceLanguageInheritanceTests
 
         var episodeRepo = new Mock<IEpisodeRepository>();
         episodeRepo.Setup(r => r.GetByPodcastId(podcast.Id))
-            .Returns(ToAsyncEnumerable(episode));
+            .Returns(ToAsyncEnumerable(onDefault, englishOverride));
         episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
 
         var indexer = new Mock<IEpisodeSearchIndexerService>();
@@ -114,8 +186,10 @@ public class PodcastUpdateServiceLanguageInheritanceTests
         // Assert
         result.Status.Should().Be(PodcastUpdateStatus.Accepted);
         podcast.Language.Should().BeNull();
-        episode.Language.Should().BeNull();
-        episode.PodcastLanguage.Should().BeNull();
+        onDefault.Language.Should().BeNull();
+        onDefault.PodcastLanguage.Should().BeNull();
+        englishOverride.Language.Should().BeNull();
+        englishOverride.PodcastLanguage.Should().BeNull();
     }
 
     private static PodcastUpdateService CreateService(

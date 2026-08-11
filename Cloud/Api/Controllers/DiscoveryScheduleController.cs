@@ -30,7 +30,7 @@ public class DiscoveryScheduleController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["admin"],
             getDiscoveryScheduleHandler.Handle,
             Unauthorised,
             ct);
@@ -44,7 +44,7 @@ public class DiscoveryScheduleController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            ["admin"],
             body,
             putDiscoveryScheduleHandler.Handle,
             Unauthorised,

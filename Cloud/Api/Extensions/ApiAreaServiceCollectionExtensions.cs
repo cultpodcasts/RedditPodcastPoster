@@ -153,5 +153,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostTitleCasingRulesLowerCaseTermHandler, PostTitleCasingRulesLowerCaseTermHandler>()
             .AddScoped<IDeleteTitleCasingRulesLowerCaseTermHandler, DeleteTitleCasingRulesLowerCaseTermHandler>()
             .AddScoped<IPostTitleCasingRulesKnownTermHandler, PostTitleCasingRulesKnownTermHandler>()
-            .AddScoped<IDeleteTitleCasingRulesKnownTermHandler, DeleteTitleCasingRulesKnownTermHandler>();
+            .AddScoped<IDeleteTitleCasingRulesKnownTermHandler, DeleteTitleCasingRulesKnownTermHandler>()
+            .AddScoped<IPostTitleCasingRulesIgnoredSubjectHandler, PostTitleCasingRulesIgnoredSubjectHandler>()
+            .AddScoped<IDeleteTitleCasingRulesIgnoredSubjectHandler, DeleteTitleCasingRulesIgnoredSubjectHandler>();
 }

@@ -11,5 +11,5 @@ public enum TitleCasingRulesUpdateStatus
 
 public record TitleCasingRulesUpdateResult(
     TitleCasingRulesUpdateStatus Status,
-    LanguageTitleCasingRulesDocument? Document = null,
+    TitleCasingRulesDocument? Document = null,
     string? Error = null);

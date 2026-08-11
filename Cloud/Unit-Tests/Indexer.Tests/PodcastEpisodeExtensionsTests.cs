@@ -55,8 +55,9 @@ public class PodcastEpisodeExtensionsTests
     }
 
     [Fact(DisplayName =
-        "ToEpisodeSearchRecord leaves Lang null when the episode language is unset, even if the " +
-        "podcast has a default language, because null means English.")]
+        "INTEGRITY: ToEpisodeSearchRecord leaves Lang null when Episode.Language is null (product English) even if the " +
+        "podcast has a non-English default, because search English is lang eq null and coalescing to podcast.Language " +
+        "would exclude curated English episodes of non-English shows from the English subject filter.")]
     public void Leaves_lang_null_when_episode_language_unset_despite_podcast_default()
     {
         // Arrange

@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects.Enrichers;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
@@ -296,11 +297,20 @@ public class UrlSubmissionGuestEnrichmentRules
             .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult(["Cults"], []));
 
+        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        subjectEnrichmentOptionsFactory
+            .Setup(x => x.CreateAsync(
+                It.IsAny<Podcast>(),
+                It.IsAny<Episode?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubjectEnrichmentOptions(null, null, null, string.Empty));
+
         return new PodcastProcessor(
             episodeHelper.Object,
             episodeEnricher.Object,
             episodeFactory.Object,
             subjectEnricher.Object,
+            subjectEnrichmentOptionsFactory.Object,
             guestEnricher,
             NullLogger<PodcastProcessor>.Instance);
     }

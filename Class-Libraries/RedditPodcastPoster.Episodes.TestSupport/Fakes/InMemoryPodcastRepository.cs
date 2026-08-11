@@ -93,6 +93,7 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
             YouTubePublicationOffset = podcast.YouTubePublicationOffset,
             ReleaseAuthority = podcast.ReleaseAuthority,
             IndexAllEpisodes = podcast.IndexAllEpisodes,
+            BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
             EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
             EpisodeMatchRegex = podcast.EpisodeMatchRegex,
             MinimumDuration = podcast.MinimumDuration,

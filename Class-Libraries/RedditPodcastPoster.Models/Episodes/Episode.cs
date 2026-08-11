@@ -262,10 +262,10 @@ public class Episode
 
     /// <param name="inheritLanguageIfUnset">
     /// When true, copy <see cref="Podcast.Language"/> onto this episode if
-    /// <see cref="Language"/> is unset. Used for new episodes and for podcast-update
-    /// propagation so a newly set podcast default fills null episode langs. Episodes that
-    /// already have an explicit <see cref="Language"/> are never overwritten. Pass false
-    /// (default) when only denormalised podcast projection fields should sync.
+    /// <see cref="Language"/> is unset. Used for <b>new episode create/merge</b> so a show default
+    /// stamps onto a freshly created episode. Do <b>not</b> use this for podcast API language
+    /// changes — use <see cref="ApplyPodcastDefaultLanguageChange"/> (null means English, not unset).
+    /// See docs/episode-language.md.
     /// </param>
     public (bool, bool) SetPodcastProperties(Podcast podcast, bool inheritLanguageIfUnset = false)
     {
@@ -332,6 +332,31 @@ public class Episode
         }
 
         Language = podcastLanguage;
+        return true;
+    }
+
+    /// <summary>
+    /// Podcast API default-language change: move this episode only if it still follows
+    /// <paramref name="previousPodcastLanguage"/>. Null episode language is English (override when
+    /// the previous default was non-English), not “unset”. See docs/episode-language.md.
+    /// </summary>
+    /// <returns>True when <see cref="Language"/> changed.</returns>
+    public bool ApplyPodcastDefaultLanguageChange(
+        string? previousPodcastLanguage,
+        string? newPodcastLanguage)
+    {
+        var next = EpisodeLanguageResolution.LanguageAfterPodcastDefaultChange(
+            Language,
+            previousPodcastLanguage,
+            newPodcastLanguage);
+        var currentStored = EpisodeLanguageResolution.ToStoredLanguage(Language);
+        if (string.Equals(currentStored, next, StringComparison.OrdinalIgnoreCase) ||
+            (currentStored is null && next is null))
+        {
+            return false;
+        }
+
+        Language = next;
         return true;
     }
 

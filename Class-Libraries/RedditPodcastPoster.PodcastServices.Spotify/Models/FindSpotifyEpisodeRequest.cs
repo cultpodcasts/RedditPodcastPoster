@@ -16,4 +16,5 @@ public record FindSpotifyEpisodeRequest(
     bool EnrichingYouTubeDiscoveredEpisode = false,
     string? EpisodeDescription = null,
     string? DefaultSubject = null,
-    IReadOnlyList<string>? IgnoredSubjects = null);
+    IReadOnlyList<string>? IgnoredSubjects = null,
+    string? Language = null);

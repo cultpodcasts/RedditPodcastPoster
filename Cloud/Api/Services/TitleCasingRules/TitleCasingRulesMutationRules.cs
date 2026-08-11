@@ -130,6 +130,54 @@ public static class TitleCasingRulesMutationRules
         return TitleCasingRulesKnownTermsMutationResult.Ok(remaining);
     }
 
+    public static TitleCasingRulesStringListMutationResult TryAddIgnoredSubject(
+        IReadOnlyList<string>? existing,
+        string? term)
+    {
+        var trimmed = term?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return TitleCasingRulesStringListMutationResult.Fail(
+                "Ignored subject is required.");
+        }
+
+        existing ??= [];
+        if (existing.Any(t => t.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            return TitleCasingRulesStringListMutationResult.Ok(OrderTerms(existing));
+        }
+
+        var next = existing
+            .Append(trimmed)
+            .ToList();
+        return TitleCasingRulesStringListMutationResult.Ok(OrderTerms(next));
+    }
+
+    public static TitleCasingRulesStringListMutationResult TryRemoveIgnoredSubject(
+        IReadOnlyList<string>? existing,
+        string? term)
+    {
+        var trimmed = term?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return TitleCasingRulesStringListMutationResult.Fail(
+                "Ignored subject is required.");
+        }
+
+        existing ??= [];
+        var remaining = existing
+            .Where(t => !t.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (remaining.Count == existing.Count)
+        {
+            return TitleCasingRulesStringListMutationResult.Fail(
+                $"Ignored subject '{trimmed}' is not in the list.");
+        }
+
+        return TitleCasingRulesStringListMutationResult.Ok(OrderTerms(remaining));
+    }
+
     private static IReadOnlyList<string> OrderTerms(IEnumerable<string> terms) =>
         terms
             .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)

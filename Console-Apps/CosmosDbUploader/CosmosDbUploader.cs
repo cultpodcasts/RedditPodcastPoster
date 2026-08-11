@@ -176,7 +176,7 @@ public class CosmosDbUploader(
 
     private async Task UploadTitleCasingRules()
     {
-        foreach (var document in ReadFiles<LanguageTitleCasingRulesDocument>("titlecasing"))
+        foreach (var document in ReadFiles<TitleCasingRulesDocument>("titlecasing"))
         {
             logger.LogInformation("Uploading title-casing rules '{FileKey}'.", document.FileKey);
             await titleCasingRulesRepository.Save(document);

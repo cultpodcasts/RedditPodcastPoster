@@ -65,12 +65,7 @@ public class RecentPodcastEpisodeCategoriser(
                 var episode = podcastEpisode.Episode;
                 var before = episode.Subjects.ToArray();
 
-                var updatedEpisode = await categoriser.Categorise(
-                    episode,
-                    podcast.IgnoredAssociatedSubjects,
-                    podcast.IgnoredSubjects,
-                    podcast.DefaultSubject,
-                    podcast.DescriptionRegex);
+                var updatedEpisode = await categoriser.Categorise(episode, podcast);
 
                 if (updatedEpisode)
                 {

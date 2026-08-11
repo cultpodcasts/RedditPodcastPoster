@@ -1,11 +1,14 @@
 using System.Net;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Text.TitleCasing;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
@@ -13,7 +16,8 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 public class SpotifySearchResultFinder(
     IEpisodePlatformMatcher platformMatcher,
     ISubjectMatcher subjectMatcher,
-    IHtmlSanitiser htmlSanitiser) : ISpotifySearchResultFinder
+    IHtmlSanitiser htmlSanitiser,
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider) : ISpotifySearchResultFinder
 {
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
@@ -36,6 +40,7 @@ public class SpotifySearchResultFinder(
         string? episodeDescription = null,
         string? defaultSubject = null,
         IReadOnlyList<string>? ignoredSubjects = null,
+        string? language = null,
         CancellationToken cancellationToken = default)
     {
         var probe = CreateProbeEpisode(episodeTitle, episodeLength, released, episodeDescription);
@@ -48,9 +53,11 @@ public class SpotifySearchResultFinder(
                 return source != null && reducer(source);
             };
 
+        var mergedIgnored = await MergeIgnoredSubjectsAsync(ignoredSubjects, language, cancellationToken);
+
         if (enrichingYouTubeDiscoveredEpisode)
         {
-            await ClassifySubjectsAsync(probe, candidates, defaultSubject, ignoredSubjects, cancellationToken);
+            await ClassifySubjectsAsync(probe, candidates, defaultSubject, mergedIgnored, cancellationToken);
         }
 
         var match = platformMatcher.FindCatalogueMatchByLength(
@@ -63,7 +70,7 @@ public class SpotifySearchResultFinder(
                 AcceptUniqueDurationWithoutTitleMatch: false,
                 EnrichingYouTubeDiscoveredEpisode: enrichingYouTubeDiscoveredEpisode,
                 DefaultSubject: defaultSubject,
-                IgnoredSubjects: ignoredSubjects),
+                IgnoredSubjects: mergedIgnored),
             episodeReducer);
 
         return match == null ? null : FindSourceEpisode(episodes, match);
@@ -105,6 +112,16 @@ public class SpotifySearchResultFinder(
             cancellationToken.ThrowIfCancellationRequested();
             candidate.Subjects = await MatchSubjectNamesAsync(candidate, options, cancellationToken);
         }
+    }
+
+    private async Task<IReadOnlyList<string>?> MergeIgnoredSubjectsAsync(
+        IReadOnlyList<string>? podcastIgnored,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        var provider = await titleCasingRulesProvider.GetAsync(cancellationToken);
+        var languageIgnored = await provider.GetIgnoredSubjectsAsync(language, cancellationToken);
+        return SubjectEnrichmentOptionsFactory.UnionIgnoreLists(podcastIgnored, languageIgnored);
     }
 
     private async Task<List<string>> MatchSubjectNamesAsync(

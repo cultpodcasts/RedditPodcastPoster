@@ -425,7 +425,7 @@ public class CosmosDbDownloader(
     private async Task DownloadTitleCasingRules(ProgressTask progress)
     {
         Directory.CreateDirectory("titlecasing");
-        var documents = new List<LanguageTitleCasingRulesDocument>();
+        var documents = new List<TitleCasingRulesDocument>();
         await foreach (var document in titleCasingRulesRepository.GetAll())
         {
             documents.Add(document);
@@ -519,7 +519,7 @@ public class CosmosDbDownloader(
         }
 
         var safe = fileName.Replace(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey,
+            TitleCasingRulesDocument.UniversalLanguageKey,
             "universal",
             StringComparison.Ordinal);
 

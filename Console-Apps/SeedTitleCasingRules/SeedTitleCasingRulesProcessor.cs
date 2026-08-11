@@ -13,7 +13,7 @@ public class SeedTitleCasingRulesProcessor(
 {
     public async Task<int> Run(SeedTitleCasingRulesRequest request)
     {
-        var language = LanguageTitleCasingRulesDocument.NormaliseLanguage(request.Language);
+        var language = TitleCasingRulesDocument.NormaliseLanguage(request.Language);
         if (string.IsNullOrEmpty(language))
         {
             logger.LogError("Language code is required.");
@@ -39,17 +39,23 @@ public class SeedTitleCasingRulesProcessor(
             ? LowerCaseTerms.DefaultEnglishWords.ToList()
             : [];
 
-        var document = new LanguageTitleCasingRulesDocument(language)
+        var document = TitleCasingRulesDocument.CreateForLanguage(language);
+        if (document is LanguageTitleCasingRulesDocument languageDocument)
         {
-            LowerCaseTerms = lowerCaseTerms,
-            KnownTerms = knownTerms
-        };
+            languageDocument.LowerCaseTerms = lowerCaseTerms;
+        }
+
+        document.KnownTerms = knownTerms;
+
+        var lowerCount = document is LanguageTitleCasingRulesDocument lang
+            ? lang.LowerCaseTerms.Count
+            : 0;
 
         logger.LogInformation(
             "Would seed language '{Language}' id={Id}: {LowerCount} lower-case terms, {KnownCount} known terms. Existing={Exists}. Apply={Apply}.",
             language,
             document.Id,
-            document.LowerCaseTerms.Count,
+            lowerCount,
             document.KnownTerms.Count,
             existing is not null,
             request.Apply);

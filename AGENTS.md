@@ -17,6 +17,17 @@ pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged -BaseRef origin/main
 
 Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
+## Episode language (HARD)
+
+`Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`.
+
+Podcast API default-language changes must use `ApplyPodcastDefaultLanguageChange(previous, new)` —
+update only episodes that still follow the **previous** default. Do **not** use
+`inheritLanguageIfUnset: true` for that path (it treats English null as unset).
+
+Authoritative: [docs/episode-language.md](docs/episode-language.md) ·
+[`EpisodeLanguageResolution`](Class-Libraries/RedditPodcastPoster.Models/Episodes/EpisodeLanguageResolution.cs).
+
 ## Catalogue & playlist pagination (HARD for related changes)
 
 Before changing Spotify paginators, YouTube playlist walks, expensive-query flags,

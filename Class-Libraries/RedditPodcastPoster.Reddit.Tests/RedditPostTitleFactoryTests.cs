@@ -26,9 +26,9 @@ public class RedditPostTitleFactoryTests
         _mocker = new AutoMocker();
 
         var rules = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                ["en"] = LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+                ["en"] = TitleCasingRulesDocument.CreateEnglishDefault(
                     LowerCaseTerms.DefaultEnglishWords)
             });
         var rulesInstance = _mocker.GetMock<IAsyncInstance<ITitleCasingRulesProvider>>();

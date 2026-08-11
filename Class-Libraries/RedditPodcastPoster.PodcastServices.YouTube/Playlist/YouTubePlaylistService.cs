@@ -117,21 +117,34 @@ public class YouTubePlaylistService(
                     throw new YouTubeQuotaException();
                 }
 
+                if (ex.HttpStatusCode == HttpStatusCode.NotFound)
+                {
+                    logger.LogError(ex,
+                        "YouTube playlist '{playlistId}' was not found (HTTP NotFound). The playlist may have been deleted or made private — update the podcast YouTubePlaylistId to a current playlist id. Skipping further YouTube URL resolving for this run.",
+                        playlistId.PlaylistId);
+                    await quotaUsageTracker.RecordNonQuotaErrorAsync();
+                    indexingContext.SkipYouTubeUrlResolving = true;
+                    return new GetPlaylistVideoSnippetsResponse(null,
+                        Failure: YouTubePlaylistFetchFailure.NotFound);
+                }
+
                 logger.LogError(ex,
                     "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId);
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return new GetPlaylistVideoSnippetsResponse(null);
+                return new GetPlaylistVideoSnippetsResponse(null,
+                    Failure: YouTubePlaylistFetchFailure.ApiError);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService)} obtaining playlist-video-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId);
+                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-video-snippets for playlist-id '{playlistId}'.",
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 indexingContext.SkipYouTubeUrlResolving = true;
-                return new GetPlaylistVideoSnippetsResponse(null);
+                return new GetPlaylistVideoSnippetsResponse(null,
+                    Failure: YouTubePlaylistFetchFailure.ApiError);
             }
 
             if (firstRun)
@@ -203,7 +216,7 @@ public class YouTubePlaylistService(
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             throw new InvalidOperationException(
-                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)} is set.");
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId.PlaylistId}'. {nameof(indexingContext.SkipYouTubeUrlResolving)} is set.");
         }
 
         var playlistRequest = youTubeServiceWrapper.YouTubeService.Playlists.List("snippet");
@@ -220,13 +233,13 @@ public class YouTubePlaylistService(
         if (playlistResponse == null || !playlistResponse.Items.Any())
         {
             throw new InvalidOperationException(
-                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. No result.");
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId.PlaylistId}'. No result.");
         }
 
         if (playlistResponse.Items.Count > 1)
         {
             throw new InvalidOperationException(
-                $"Error obtaining playlist-snippet for playlist-id '{playlistId}'. Multiple results: '{playlistResponse.Items.Count}'.");
+                $"Error obtaining playlist-snippet for playlist-id '{playlistId.PlaylistId}'. Multiple results: '{playlistResponse.Items.Count}'.");
         }
 
         var snippet = playlistResponse.Items.First().Snippet;

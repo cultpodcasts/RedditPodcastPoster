@@ -3,7 +3,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Subjects.Categorisation;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 
 namespace CategorisePodcastEpisodes;
 
@@ -11,6 +11,7 @@ public class CategorisePodcastEpisodesProcessor(
     IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<CategorisePodcastEpisodesProcessor> logger)
@@ -58,11 +59,7 @@ public class CategorisePodcastEpisodesProcessor(
 
                     var results = await subjectEnricher.EnrichSubjects(
                         podcastEpisode,
-                        new SubjectEnrichmentOptions(
-                            podcast.IgnoredAssociatedSubjects,
-                            podcast.IgnoredSubjects,
-                            podcast.DefaultSubject,
-                            podcast.DescriptionRegex));
+                        await subjectEnrichmentOptionsFactory.CreateAsync(podcast, podcastEpisode));
                     if (results.Additions.Any() || results.Removals.Any())
                     {
                         updatedEpisodeIds.Add(podcastEpisode.Id);

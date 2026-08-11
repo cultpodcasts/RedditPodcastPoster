@@ -26,14 +26,14 @@ public class TitleCasingRulesUpdateService(
             }
 
             var normalised = normalisedResult.Language!;
-            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            if (normalised == TitleCasingRulesDocument.UniversalLanguageKey)
             {
                 return new TitleCasingRulesUpdateResult(
                     TitleCasingRulesUpdateStatus.BadRequest,
                     Error: "Universal language does not store lower-case terms.");
             }
 
-            var document = await GetOrMaterializeAsync(normalised);
+            var document = await GetOrMaterializeLanguageAsync(normalised);
             var mutation = TitleCasingRulesMutationRules.TryAddLowerCaseTerm(
                 document.LowerCaseTerms,
                 body.Term);
@@ -69,14 +69,14 @@ public class TitleCasingRulesUpdateService(
             }
 
             var normalised = normalisedResult.Language!;
-            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            if (normalised == TitleCasingRulesDocument.UniversalLanguageKey)
             {
                 return new TitleCasingRulesUpdateResult(
                     TitleCasingRulesUpdateStatus.BadRequest,
                     Error: "Universal language does not store lower-case terms.");
             }
 
-            var document = await GetOrMaterializeAsync(normalised);
+            var document = await GetOrMaterializeLanguageAsync(normalised);
             var mutation = TitleCasingRulesMutationRules.TryRemoveLowerCaseTerm(
                 document.LowerCaseTerms,
                 term);
@@ -113,10 +113,6 @@ public class TitleCasingRulesUpdateService(
 
             var normalised = normalisedResult.Language!;
             var document = await GetOrMaterializeAsync(normalised);
-            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                document.LowerCaseTerms = [];
-            }
 
             var mutation = TitleCasingRulesMutationRules.TryUpsertKnownTerm(
                 document.KnownTerms,
@@ -156,10 +152,6 @@ public class TitleCasingRulesUpdateService(
 
             var normalised = normalisedResult.Language!;
             var document = await GetOrMaterializeAsync(normalised);
-            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                document.LowerCaseTerms = [];
-            }
 
             var mutation = TitleCasingRulesMutationRules.TryRemoveKnownTerm(
                 document.KnownTerms,
@@ -182,9 +174,79 @@ public class TitleCasingRulesUpdateService(
         }
     }
 
+    public async Task<TitleCasingRulesUpdateResult> AddIgnoredSubjectAsync(
+        string language,
+        TitleCasingRulesAddLowerCaseTermRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var normalisedResult = TryNormaliseNonEnglish(language);
+            if (normalisedResult.Error is not null)
+            {
+                return normalisedResult.Error;
+            }
+
+            var document = await GetOrMaterializeNonEnglishAsync(normalisedResult.Language!);
+            var mutation = TitleCasingRulesMutationRules.TryAddIgnoredSubject(
+                document.IgnoredSubjects,
+                body.Term);
+            if (!mutation.IsValid)
+            {
+                return new TitleCasingRulesUpdateResult(
+                    TitleCasingRulesUpdateStatus.BadRequest,
+                    Error: mutation.Error);
+            }
+
+            document.IgnoredSubjects = mutation.Terms.Count == 0 ? null : mutation.Terms.ToArray();
+            await titleCasingRulesRepository.Save(document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure to add ignored subject for language {Language}.", language);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Failed);
+        }
+    }
+
+    public async Task<TitleCasingRulesUpdateResult> DeleteIgnoredSubjectAsync(
+        string language,
+        string term,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var normalisedResult = TryNormaliseNonEnglish(language);
+            if (normalisedResult.Error is not null)
+            {
+                return normalisedResult.Error;
+            }
+
+            var document = await GetOrMaterializeNonEnglishAsync(normalisedResult.Language!);
+            var mutation = TitleCasingRulesMutationRules.TryRemoveIgnoredSubject(
+                document.IgnoredSubjects,
+                term);
+            if (!mutation.IsValid)
+            {
+                return new TitleCasingRulesUpdateResult(
+                    TitleCasingRulesUpdateStatus.BadRequest,
+                    Error: mutation.Error);
+            }
+
+            document.IgnoredSubjects = mutation.Terms.Count == 0 ? null : mutation.Terms.ToArray();
+            await titleCasingRulesRepository.Save(document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure to delete ignored subject for language {Language}.", language);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Failed);
+        }
+    }
+
     private static (string? Language, TitleCasingRulesUpdateResult? Error) TryNormalise(string language)
     {
-        var normalised = LanguageTitleCasingRulesDocument.NormaliseLanguage(language);
+        var normalised = TitleCasingRulesDocument.NormaliseLanguage(language);
         if (string.IsNullOrEmpty(normalised))
         {
             return (null, new TitleCasingRulesUpdateResult(
@@ -195,11 +257,27 @@ public class TitleCasingRulesUpdateService(
         return (normalised, null);
     }
 
-    /// <summary>
-    /// Loads the Cosmos document, or materialises English/Universal defaults so the first delta
-    /// cannot wipe registered terms that the admin UI shows from GET isDefault.
-    /// </summary>
-    private async Task<LanguageTitleCasingRulesDocument> GetOrMaterializeAsync(string normalised)
+    private static (string? Language, TitleCasingRulesUpdateResult? Error) TryNormaliseNonEnglish(string language)
+    {
+        var normalisedResult = TryNormalise(language);
+        if (normalisedResult.Error is not null)
+        {
+            return normalisedResult;
+        }
+
+        var normalised = normalisedResult.Language!;
+        if (normalised == TitleCasingRulesDocument.UniversalLanguageKey ||
+            string.Equals(normalised, "en", StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, new TitleCasingRulesUpdateResult(
+                TitleCasingRulesUpdateStatus.BadRequest,
+                Error: "Ignored subjects are only stored for non-English languages."));
+        }
+
+        return (normalised, null);
+    }
+
+    private async Task<TitleCasingRulesDocument> GetOrMaterializeAsync(string normalised)
     {
         var existing = await titleCasingRulesRepository.Get(normalised);
         if (existing is not null)
@@ -207,20 +285,38 @@ public class TitleCasingRulesUpdateService(
             return existing;
         }
 
-        if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        return TitleCasingRulesDocument.CreateForLanguage(normalised) switch
         {
-            return new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey);
-        }
-
-        if (normalised == "en")
-        {
-            return await BuildEnglishDefaultAsync();
-        }
-
-        return new LanguageTitleCasingRulesDocument(normalised);
+            EnglishTitleCasingRulesDocument => await BuildEnglishDefaultAsync(),
+            var created => created
+        };
     }
 
-    private async Task<LanguageTitleCasingRulesDocument> BuildEnglishDefaultAsync()
+    private async Task<LanguageTitleCasingRulesDocument> GetOrMaterializeLanguageAsync(string normalised)
+    {
+        var document = await GetOrMaterializeAsync(normalised);
+        if (document is LanguageTitleCasingRulesDocument languageDocument)
+        {
+            return languageDocument;
+        }
+
+        throw new InvalidOperationException(
+            $"Language '{normalised}' does not support lower-case terms.");
+    }
+
+    private async Task<NonEnglishTitleCasingRulesDocument> GetOrMaterializeNonEnglishAsync(string normalised)
+    {
+        var document = await GetOrMaterializeAsync(normalised);
+        if (document is NonEnglishTitleCasingRulesDocument nonEnglish)
+        {
+            return nonEnglish;
+        }
+
+        throw new InvalidOperationException(
+            $"Language '{normalised}' does not support ignored subjects.");
+    }
+
+    private async Task<EnglishTitleCasingRulesDocument> BuildEnglishDefaultAsync()
     {
         var knownTerms = new List<KnownTermEntry>();
         var legacy = await lookupRepository.GetKnownTerms<KnownTermsModel>();
@@ -236,7 +332,7 @@ public class TitleCasingRulesUpdateService(
                 .ToList();
         }
 
-        return LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+        return TitleCasingRulesDocument.CreateEnglishDefault(
             LowerCaseTerms.DefaultEnglishWords,
             knownTerms);
     }

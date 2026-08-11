@@ -25,5 +25,6 @@ public interface ISpotifySearchResultFinder
         string? episodeDescription = null,
         string? defaultSubject = null,
         IReadOnlyList<string>? ignoredSubjects = null,
+        string? language = null,
         CancellationToken cancellationToken = default);
 }

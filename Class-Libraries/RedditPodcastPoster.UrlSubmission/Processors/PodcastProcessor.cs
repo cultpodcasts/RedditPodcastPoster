@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
@@ -20,6 +20,7 @@ public class PodcastProcessor(
     IEpisodeEnricher episodeEnricher,
     IEpisodeFactory episodeFactory,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
     ILogger<PodcastProcessor> logger) : IPodcastProcessor
 {
@@ -65,11 +66,9 @@ public class PodcastProcessor(
             episode.SetPodcastProperties(categorisedItem.MatchingPodcast, inheritLanguageIfUnset: true);
             var subjectsResult = await subjectEnricher.EnrichSubjects(
                 episode,
-                new SubjectEnrichmentOptions(
-                    categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                    categorisedItem.MatchingPodcast.IgnoredSubjects,
-                    categorisedItem.MatchingPodcast.DefaultSubject,
-                    categorisedItem.MatchingPodcast.DescriptionRegex));
+                await subjectEnrichmentOptionsFactory.CreateAsync(
+                    categorisedItem.MatchingPodcast,
+                    episode));
             var guestsResult = await guestEnricher.EnrichGuests(episode);
 
             if (!episode.Subjects.Any())
@@ -110,11 +109,9 @@ public class PodcastProcessor(
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     episode,
-                    new SubjectEnrichmentOptions(
-                        categorisedItem.MatchingPodcast.IgnoredAssociatedSubjects,
-                        categorisedItem.MatchingPodcast.IgnoredSubjects,
-                        categorisedItem.MatchingPodcast.DefaultSubject,
-                        categorisedItem.MatchingPodcast.DescriptionRegex));
+                    await subjectEnrichmentOptionsFactory.CreateAsync(
+                        categorisedItem.MatchingPodcast,
+                        episode));
                 if (subjectsResult.Additions.Length > 0)
                 {
                     subjectAdditions = subjectsResult.Additions;

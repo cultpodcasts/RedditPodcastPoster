@@ -15,7 +15,7 @@ using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 
 namespace AddAudioPodcast;
 
@@ -30,6 +30,7 @@ public class AddAudioPodcastProcessor(
     iTunesSearchManager iTunesSearchManager,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     ILogger<AddAudioPodcastProcessor> logger)
 {
     private readonly IndexingContext _indexingContext = new(SkipYouTubeUrlResolving: true);
@@ -107,11 +108,7 @@ public class AddAudioPodcastProcessor(
             {
                 episode.Id = Guid.NewGuid();
                 await subjectEnricher.EnrichSubjects(episode,
-                    new SubjectEnrichmentOptions(
-                        podcast.IgnoredAssociatedSubjects,
-                        podcast.IgnoredSubjects,
-                        podcast.DefaultSubject,
-                        podcast.DescriptionRegex));
+                    await subjectEnrichmentOptionsFactory.CreateAsync(podcast, episode));
                 episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
             }
 

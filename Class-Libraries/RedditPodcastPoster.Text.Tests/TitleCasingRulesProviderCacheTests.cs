@@ -27,16 +27,14 @@ public class TitleCasingRulesProviderCacheTests
 
         // Act
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                ["en"] = LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+                ["en"] = TitleCasingRulesDocument.CreateEnglishDefault(
                     LowerCaseTerms.DefaultEnglishWords,
                     knownTerms: [languageTerm]),
-                [LanguageTitleCasingRulesDocument.UniversalLanguageKey] =
-                    new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-                    {
-                        LowerCaseTerms = [],
-                        KnownTerms = [universalTerm]
+                [TitleCasingRulesDocument.UniversalLanguageKey] =
+                    new UniversalTitleCasingRulesDocument()
+                    {KnownTerms = [universalTerm]
                     }
             });
 
@@ -54,9 +52,9 @@ public class TitleCasingRulesProviderCacheTests
     {
         // Arrange
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                ["fil"] = new LanguageTitleCasingRulesDocument("fil")
+                ["fil"] = new NonEnglishTitleCasingRulesDocument("fil")
                 {
                     LowerCaseTerms = [],
                     KnownTerms =
@@ -86,9 +84,9 @@ public class TitleCasingRulesProviderCacheTests
     {
         // Arrange
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                ["en"] = LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+                ["en"] = TitleCasingRulesDocument.CreateEnglishDefault(
                     LowerCaseTerms.DefaultEnglishWords,
                     knownTerms:
                     [
@@ -99,7 +97,7 @@ public class TitleCasingRulesProviderCacheTests
                             Options = "IgnoreCase, Compiled"
                         }
                     ]),
-                ["fil"] = new LanguageTitleCasingRulesDocument("fil")
+                ["fil"] = new NonEnglishTitleCasingRulesDocument("fil")
                 {
                     LowerCaseTerms = ["sa"],
                     KnownTerms =

@@ -11,5 +11,5 @@ public enum TitleCasingRulesGetStatus
 
 public record TitleCasingRulesGetResult(
     TitleCasingRulesGetStatus Status,
-    LanguageTitleCasingRulesDocument? Document = null,
+    TitleCasingRulesDocument? Document = null,
     bool IsDefault = false);

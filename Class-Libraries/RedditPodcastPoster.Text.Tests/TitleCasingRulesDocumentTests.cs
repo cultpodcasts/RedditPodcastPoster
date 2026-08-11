@@ -3,18 +3,18 @@ using RedditPodcastPoster.Models.TitleCasing;
 
 namespace RedditPodcastPoster.Text.Tests;
 
-public class LanguageTitleCasingRulesDocumentTests
+public class TitleCasingRulesDocumentTests
 {
     [Fact(DisplayName = "NormaliseLanguage preserves the universal key '*'.")]
     public void NormaliseLanguage_WithUniversalKey_PreservesStar()
     {
         // Arrange
         // Act
-        var result = LanguageTitleCasingRulesDocument.NormaliseLanguage(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey);
+        var result = TitleCasingRulesDocument.NormaliseLanguage(
+            TitleCasingRulesDocument.UniversalLanguageKey);
 
         // Assert
-        result.Should().Be(LanguageTitleCasingRulesDocument.UniversalLanguageKey);
+        result.Should().Be(TitleCasingRulesDocument.UniversalLanguageKey);
     }
 
     [Fact(DisplayName = "IdForLanguage is stable for the universal key.")]
@@ -22,9 +22,9 @@ public class LanguageTitleCasingRulesDocumentTests
     {
         // Arrange
         // Act
-        var first = LanguageTitleCasingRulesDocument.IdForLanguage(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey);
-        var second = LanguageTitleCasingRulesDocument.IdForLanguage("*");
+        var first = TitleCasingRulesDocument.IdForLanguage(
+            TitleCasingRulesDocument.UniversalLanguageKey);
+        var second = TitleCasingRulesDocument.IdForLanguage("*");
 
         // Assert
         first.Should().Be(second);
@@ -37,8 +37,8 @@ public class LanguageTitleCasingRulesDocumentTests
         // Arrange
         // Act
         // Assert
-        LanguageTitleCasingRulesDocument.IsUniversal("*").Should().BeTrue();
-        LanguageTitleCasingRulesDocument.IsUniversal("en").Should().BeFalse();
-        LanguageTitleCasingRulesDocument.IsUniversal(null).Should().BeFalse();
+        TitleCasingRulesDocument.IsUniversal("*").Should().BeTrue();
+        TitleCasingRulesDocument.IsUniversal("en").Should().BeFalse();
+        TitleCasingRulesDocument.IsUniversal(null).Should().BeFalse();
     }
 }

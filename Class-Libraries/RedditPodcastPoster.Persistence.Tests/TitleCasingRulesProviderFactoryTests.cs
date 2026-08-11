@@ -16,17 +16,17 @@ public class TitleCasingRulesProviderFactoryTests
     public async Task Create_when_universal_and_english_exist_does_not_call_GetAll()
     {
         // Arrange
-        var universal = new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        var universal = new UniversalTitleCasingRulesDocument()
         {
             KnownTerms = [new KnownTermEntry { Literal = "BBC", Pattern = "BBC" }]
         };
-        var english = new LanguageTitleCasingRulesDocument("en")
+        var english = new EnglishTitleCasingRulesDocument()
         {
             LowerCaseTerms = ["of", "the"],
             KnownTerms = []
         };
         var titleRepo = new Mock<ILanguageTitleCasingRulesRepository>();
-        titleRepo.Setup(x => x.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey))
+        titleRepo.Setup(x => x.Get(TitleCasingRulesDocument.UniversalLanguageKey))
             .ReturnsAsync(universal);
         titleRepo.Setup(x => x.Get("en")).ReturnsAsync(english);
         var lookup = new Mock<ILookupRepository>();
@@ -40,7 +40,7 @@ public class TitleCasingRulesProviderFactoryTests
 
         // Assert
         provider.GetAll().Keys.Should().BeEquivalentTo(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey,
+            TitleCasingRulesDocument.UniversalLanguageKey,
             "en");
         provider.GetUniversalKnownTerms().Should().ContainSingle(t => t.Literal == "BBC");
         provider.GetLowerCaseExpressions("en").Keys.Should().Contain("of");
@@ -53,19 +53,19 @@ public class TitleCasingRulesProviderFactoryTests
     public async Task Create_when_english_missing_GetAll_skips_universal_and_seeds_en()
     {
         // Arrange
-        var universal = new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        var universal = new UniversalTitleCasingRulesDocument()
         {
             KnownTerms = [new KnownTermEntry { Literal = "UN", Pattern = "UN" }]
         };
-        var french = new LanguageTitleCasingRulesDocument("fr")
+        var french = new NonEnglishTitleCasingRulesDocument("fr")
         {
             LowerCaseTerms = ["de", "la"],
             KnownTerms = []
         };
         var titleRepo = new Mock<ILanguageTitleCasingRulesRepository>();
-        titleRepo.Setup(x => x.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey))
+        titleRepo.Setup(x => x.Get(TitleCasingRulesDocument.UniversalLanguageKey))
             .ReturnsAsync(universal);
-        titleRepo.Setup(x => x.Get("en")).ReturnsAsync((LanguageTitleCasingRulesDocument?)null);
+        titleRepo.Setup(x => x.Get("en")).ReturnsAsync((TitleCasingRulesDocument?)null);
         titleRepo.Setup(x => x.GetAll()).Returns(Documents(universal, french));
         var lookup = new Mock<ILookupRepository>();
         lookup.Setup(x => x.GetKnownTerms<KnownTermsModel>())
@@ -80,14 +80,14 @@ public class TitleCasingRulesProviderFactoryTests
 
         // Assert
         provider.GetAll().Keys.Should().BeEquivalentTo(
-            LanguageTitleCasingRulesDocument.UniversalLanguageKey,
+            TitleCasingRulesDocument.UniversalLanguageKey,
             "fr",
             "en");
         provider.GetUniversalKnownTerms().Should().ContainSingle(t => t.Literal == "UN");
         provider.GetLowerCaseExpressions("fr").Keys.Should().Contain("de");
         provider.GetLowerCaseExpressions("en").Should().NotBeEmpty();
         titleRepo.Verify(x => x.GetAll(), Times.Once);
-        titleRepo.Verify(x => x.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey), Times.Once);
+        titleRepo.Verify(x => x.Get(TitleCasingRulesDocument.UniversalLanguageKey), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -97,7 +97,7 @@ public class TitleCasingRulesProviderFactoryTests
         // Arrange
         var titleRepo = new Mock<ILanguageTitleCasingRulesRepository>();
         titleRepo.Setup(x => x.Get(It.IsAny<string>()))
-            .ReturnsAsync((LanguageTitleCasingRulesDocument?)null);
+            .ReturnsAsync((TitleCasingRulesDocument?)null);
         titleRepo.Setup(x => x.GetAll()).Returns(EmptyDocuments());
         var lookup = new Mock<ILookupRepository>();
         lookup.Setup(x => x.GetKnownTerms<KnownTermsModel>())
@@ -113,18 +113,18 @@ public class TitleCasingRulesProviderFactoryTests
         // Assert
         provider.GetAll().Should().ContainKey("en");
         provider.GetLowerCaseExpressions("en").Should().NotBeEmpty();
-        titleRepo.Verify(x => x.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey), Times.Once);
+        titleRepo.Verify(x => x.Get(TitleCasingRulesDocument.UniversalLanguageKey), Times.Once);
         titleRepo.Verify(x => x.Get("en"), Times.Once);
         titleRepo.Verify(x => x.GetAll(), Times.Once);
     }
 
-    private static async IAsyncEnumerable<LanguageTitleCasingRulesDocument> EmptyDocuments()
+    private static async IAsyncEnumerable<TitleCasingRulesDocument> EmptyDocuments()
     {
         yield break;
     }
 
-    private static async IAsyncEnumerable<LanguageTitleCasingRulesDocument> Documents(
-        params LanguageTitleCasingRulesDocument[] documents)
+    private static async IAsyncEnumerable<TitleCasingRulesDocument> Documents(
+        params TitleCasingRulesDocument[] documents)
     {
         foreach (var document in documents)
         {

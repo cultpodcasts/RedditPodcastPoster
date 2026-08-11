@@ -61,7 +61,8 @@ public class SpotifyEpisodeResolver(
                 request.EnrichingYouTubeDiscoveredEpisode,
                 request.EpisodeDescription,
                 request.DefaultSubject,
-                request.IgnoredSubjects);
+                request.IgnoredSubjects,
+                request.Language);
         }
         else
         {

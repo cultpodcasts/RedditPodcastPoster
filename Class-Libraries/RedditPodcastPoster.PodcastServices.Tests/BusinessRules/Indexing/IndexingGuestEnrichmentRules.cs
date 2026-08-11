@@ -15,6 +15,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.Subjects.Enrichers;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
@@ -74,11 +75,20 @@ public class IndexingGuestEnrichmentRules
             })
             .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Ada Example")], []));
 
+        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        subjectEnrichmentOptionsFactory
+            .Setup(x => x.CreateAsync(
+                It.IsAny<Podcast>(),
+                It.IsAny<Episode?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubjectEnrichmentOptions(null, null, null, string.Empty));
+
         var indexer = new Indexer(
             podcastRepository,
             episodeRepository,
             podcastUpdater.Object,
             subjectEnricher.Object,
+            subjectEnrichmentOptionsFactory.Object,
             guestEnricher.Object,
             NullLogger<Indexer>.Instance);
 
@@ -135,11 +145,20 @@ public class IndexingGuestEnrichmentRules
             .Setup(x => x.EnrichGuests(added, It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichGuestsResult([], []));
 
+        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        subjectEnrichmentOptionsFactory
+            .Setup(x => x.CreateAsync(
+                It.IsAny<Podcast>(),
+                It.IsAny<Episode?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubjectEnrichmentOptions(null, null, null, string.Empty));
+
         var indexer = new Indexer(
             podcastRepository,
             episodeRepository,
             podcastUpdater.Object,
             subjectEnricher.Object,
+            subjectEnrichmentOptionsFactory.Object,
             guestEnricher.Object,
             NullLogger<Indexer>.Instance);
 

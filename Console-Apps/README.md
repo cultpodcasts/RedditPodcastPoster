@@ -286,6 +286,19 @@ RemoveEpisodes restore removed-episodes-log.txt
 | `-a, --apply` | Write the document; without this flag, report only |
 | `-l, --language` | Language code (default `en`) |
 
+### MigrateLanguageIgnoredSubjects
+
+**Purpose:** Two-phase migration of non-English podcast `ignoredSubjects` into per-language `TitleCasingRules.ignoredSubjects`. Dry-run by default. Phase 1 writes TitleCasingRules + an audit JSON (undo data) only when there are non-empty subjects to seed; it will **not** create an empty TitleCasingRules document when none exists. Phase 2 strips only migrated names from podcasts using that audit file. Do not run apply flags against production without explicit approval.
+
+**Run:** `dotnet run --project Console-Apps/MigrateLanguageIgnoredSubjects --` · PATH: `MigrateLanguageIgnoredSubjects`
+
+| Option | Description |
+|--------|-------------|
+| (none) | Dry-run: log planned language unions and per-podcast strips |
+| `--apply-seed` | Phase 1: upsert language ignoredSubjects; write audit JSON |
+| `--apply-clear` | Phase 2: clear migrated names from podcasts (requires audit file) |
+| `--audit-path` | Audit/undo JSON path (default `./language-ignored-subjects-migration-audit.json`) |
+
 ### SeedSupportedLanguages
 
 **Purpose:** Seed LookUps `SupportedLanguagesConfig`. Prefer `--from-r2` when R2 is the authority. Dry-run unless `--apply`. Skips if the document exists unless `--force`.

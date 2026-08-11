@@ -35,7 +35,8 @@ public static class FindSpotifyEpisodeRequestFactory
             EnrichingYouTubeDiscoveredEpisode: criteriaFromYouTube,
             EpisodeDescription: criteria.EpisodeDescription,
             DefaultSubject: podcast?.DefaultSubject,
-            IgnoredSubjects: podcast?.IgnoredSubjects);
+            IgnoredSubjects: podcast?.IgnoredSubjects,
+            Language: podcast?.Language);
     }
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
@@ -57,7 +58,8 @@ public static class FindSpotifyEpisodeRequestFactory
             enrichingYouTubeDiscoveredEpisode,
             episode.Description,
             podcast.DefaultSubject,
-            podcast.IgnoredSubjects);
+            podcast.IgnoredSubjects,
+            EpisodeLanguageResolution.ForEpisode(episode));
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)

@@ -13,6 +13,10 @@ public class LanguageTitleCasingRulesResponse
     [JsonPropertyName("knownTerms")]
     public required IReadOnlyList<KnownTermDto> KnownTerms { get; init; }
 
+    /// <summary>Empty for English and universal; subject names to skip during enrichment otherwise.</summary>
+    [JsonPropertyName("ignoredSubjects")]
+    public IReadOnlyList<string> IgnoredSubjects { get; init; } = [];
+
     [JsonPropertyName("isDefault")]
     public bool IsDefault { get; init; }
 

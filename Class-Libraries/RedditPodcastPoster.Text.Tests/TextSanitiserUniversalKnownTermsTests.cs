@@ -17,10 +17,8 @@ public class TextSanitiserUniversalKnownTermsTests
         TitleCasingTestSupport.UseRules(
             mocker,
             TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
-            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                LowerCaseTerms = [],
-                KnownTerms =
+            new UniversalTitleCasingRulesDocument()
+            {KnownTerms =
                 [
                     new KnownTermEntry
                     {
@@ -30,7 +28,7 @@ public class TextSanitiserUniversalKnownTermsTests
                     }
                 ]
             },
-            new LanguageTitleCasingRulesDocument("pl")
+            new NonEnglishTitleCasingRulesDocument("pl")
             {
                 LowerCaseTerms = [],
                 KnownTerms = []
@@ -53,10 +51,8 @@ public class TextSanitiserUniversalKnownTermsTests
         TitleCasingTestSupport.UseRules(
             mocker,
             TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
-            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                LowerCaseTerms = [],
-                KnownTerms =
+            new UniversalTitleCasingRulesDocument()
+            {KnownTerms =
                 [
                     new KnownTermEntry
                     {
@@ -84,10 +80,8 @@ public class TextSanitiserUniversalKnownTermsTests
         TitleCasingTestSupport.UseRules(
             mocker,
             TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
-            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                LowerCaseTerms = [],
-                KnownTerms =
+            new UniversalTitleCasingRulesDocument()
+            {KnownTerms =
                 [
                     new KnownTermEntry
                     {
@@ -97,7 +91,7 @@ public class TextSanitiserUniversalKnownTermsTests
                     }
                 ]
             },
-            new LanguageTitleCasingRulesDocument("fr")
+            new NonEnglishTitleCasingRulesDocument("fr")
             {
                 LowerCaseTerms = [],
                 KnownTerms =
@@ -128,10 +122,8 @@ public class TextSanitiserUniversalKnownTermsTests
         TitleCasingTestSupport.UseRules(
             mocker,
             TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: []),
-            new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
-            {
-                LowerCaseTerms = [],
-                KnownTerms =
+            new UniversalTitleCasingRulesDocument()
+            {KnownTerms =
                 [
                     new KnownTermEntry
                     {
@@ -141,7 +133,7 @@ public class TextSanitiserUniversalKnownTermsTests
                     }
                 ]
             },
-            new LanguageTitleCasingRulesDocument("fr")
+            new NonEnglishTitleCasingRulesDocument("fr")
             {
                 LowerCaseTerms = [],
                 KnownTerms =
@@ -191,7 +183,7 @@ public class TextSanitiserUniversalKnownTermsTests
     {
         // Arrange
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
                 ["en"] = TitleCasingTestSupport.CreateEnglishDefault(lowerCaseTerms: [], knownTerms: [])
             });
@@ -221,10 +213,10 @@ public class TextSanitiserUniversalKnownTermsTests
             Options = "IgnoreCase, Compiled"
         };
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                [LanguageTitleCasingRulesDocument.UniversalLanguageKey] =
-                    new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+                [TitleCasingRulesDocument.UniversalLanguageKey] =
+                    new UniversalTitleCasingRulesDocument()
                     {
                         KnownTerms = [universalTerm]
                     },
