@@ -87,7 +87,6 @@ public class ApplePodcastService(
         IndexingContext indexingContext, Func<Record, bool>? breakEvaluator)
     {
         var httpClient = await httpClientProvider.GetAsync();
-        var inDescendingDateOrder = true;
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
         try
@@ -117,37 +116,47 @@ public class ApplePodcastService(
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             if (appleObject != null && appleObject.Records.Any())
             {
-                var lastReleased = appleObject.Records.First().Attributes.Released.Add(TimeSpan.FromSeconds(1));
-                foreach (var appleObjectRecord in appleObject.Records)
-                {
-                    inDescendingDateOrder = lastReleased > appleObjectRecord.Attributes.Released;
-                    lastReleased = appleObjectRecord.Attributes.Released;
-                    if (!inDescendingDateOrder)
-                    {
-                        inDescendingDateOrder = false;
-                        break;
-                    }
-                }
+                // Equal release timestamps still count as newest-first (non-increasing). A strict
+                // greater-than probe used to flip ascending on same-day episodes and disable
+                // ReleasedSince early-stop — walking entire high-volume catalogues on MatchOtherServices.
+                var newestFirst = AppleCataloguePagination.IsNewestFirst(
+                    appleObject.Records.Select(r => r.Attributes.Released).ToList());
 
                 podcastRecords.AddRange(appleObject!.Records);
+                var pagesFetchedAfterFirst = 0;
                 while (response.IsSuccessStatusCode &&
                        (breakEvaluator == null || !podcastRecords.Any(breakEvaluator)) &&
-                       !string.IsNullOrWhiteSpace(appleObject.Next) &&
-                       (
-                           !indexingContext.ReleasedSince.HasValue ||
-                           podcastRecords.Last().ToAppleEpisode().Release >= indexingContext.ReleasedSince ||
-                           !inDescendingDateOrder)
-                      )
+                       AppleCataloguePagination.ShouldContinuePaging(
+                           !string.IsNullOrWhiteSpace(appleObject.Next),
+                           indexingContext.ReleasedSince,
+                           podcastRecords.Last().ToAppleEpisode().Release,
+                           newestFirst,
+                           pagesFetchedAfterFirst))
                 {
+                    var next = appleObject.Next;
                     var client = await httpClientProvider.GetAsync();
-                    response = await client.GetAsync((string?) appleObject.Next);
+                    response = await client.GetAsync(next);
                     if (response.IsSuccessStatusCode)
                     {
                         appleJson = await response.Content.ReadAsStringAsync();
                         collectedAppleJson.Add(appleJson);
                         appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
                         podcastRecords.AddRange(appleObject!.Records);
+                        pagesFetchedAfterFirst++;
                     }
+                }
+
+                if (!newestFirst &&
+                    indexingContext.ReleasedSince.HasValue &&
+                    pagesFetchedAfterFirst >= AppleCataloguePagination.MaxPages &&
+                    !string.IsNullOrWhiteSpace(appleObject.Next))
+                {
+                    logger.LogError(
+                        AppleCataloguePagination.CircuitBreakerTrippedMessageTemplate,
+                        pagesFetchedAfterFirst,
+                        AppleCataloguePagination.MaxPages,
+                        indexingContext.ReleasedSince,
+                        appleObject.Next);
                 }
             }
         }

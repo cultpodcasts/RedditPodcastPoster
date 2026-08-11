@@ -174,7 +174,7 @@ Full CLI reference (all apps, modes, and flags): [`Console-Apps/README.md`](Cons
 | `Poster` | Post episodes to Reddit |
 | `EnrichExistingEpisodesFromPodcastServices` | Backfill Spotify/Apple/YouTube URLs |
 | `EnrichYouTubeOnlyPodcasts` | Enrich YouTube-only channel podcasts |
-| `PublishR2` | Publish languages/people JSON to R2, or subject flairs to Reddit |
+| `PublishR2` | Publish languages/people/search-suggestions/homepage JSON to R2, or subject flairs to Reddit |
 | `RemoveEpisodes` | Remove matching episodes (`remove`) or restore from a log (`restore`) |
 | `MigrateConfig` | Convert user-secrets or launchSettings JSON to Azure app-setting JSON |
 | `SubmitUrl` | Submit a URL via the same path as the API |
@@ -200,8 +200,7 @@ $tools = (Resolve-Path 'artifacts\tools').Path
 
 | Publish profile | Apps | Why |
 |-----------------|------|-----|
-| **Self-contained** (default) | Most console apps | Uses reflection-based DI, `CommandLineParser`, Cosmos DB, and reflection JSON — not compatible with Native AOT without broad rewrites. |
-| **Native AOT** | `MigrateConfig` | Small utility with source-generated JSON and manual CLI parsing (no `CommandLineParser`). |
+| **Self-contained** (default) | All published console apps | Uses reflection-based DI, `CommandLineParser`, Cosmos DB, and reflection JSON — not compatible with Native AOT without broad rewrites. |
 
 Published tools use the same shared user-secrets store as `dotnet run` (same `UserSecretsId`). Per-app `appsettings.json` files are not copied into `artifacts\tools` (they would overwrite each other); run `dotnet run` from the app directory when you need bundled defaults such as `postingCriteria`.
 

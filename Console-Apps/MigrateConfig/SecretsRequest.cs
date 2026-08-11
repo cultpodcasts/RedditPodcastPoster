@@ -1,6 +1,10 @@
+using CommandLine;
+
 namespace MigrateConfig;
 
+[Verb("secrets", HelpText = "Convert user-secrets JSON to Azure function app-setting JSON.")]
 public class SecretsRequest
 {
-    public required string Path { get; init; }
+    [Value(0, MetaName = "secrets-json-path", Required = true, HelpText = "Path to user-secrets JSON file.")]
+    public string Path { get; set; } = "";
 }

@@ -12,7 +12,7 @@ dotnet run --project Console-Apps/<AppName> -- [args]
 <AppName> [args]
 ```
 
-Published executable name matches the project name (e.g. `Index`, `PublishR2`, `MigrateConfig`).
+Published executable name matches the project name (e.g. `Index`, `PublishR2`, `MigrateConfig`). Most apps use [CommandLineParser](https://github.com/commandlineparser/commandline) (`Parser.Default.ParseArguments<…>`).
 
 ```powershell
 .\scripts\publish-console-apps.ps1
@@ -20,7 +20,7 @@ Published executable name matches the project name (e.g. `Index`, `PublishR2`, `
 .\scripts\publish-console-apps.ps1 -Sequential
 ```
 
-Defaults to `artifacts\tools\` (gitignored). Publish is **parallel by default** (sequential pre-build, then concurrent `dotnet publish`; `-ThrottleLimit` defaults to `4`). Pass `-Sequential` for one-at-a-time publish. `ThrowawayConsole` is excluded from publish. Most apps are self-contained; `MigrateConfig` publishes as Native AOT.
+Defaults to `artifacts\tools\` (gitignored). Publish is **parallel by default** (sequential pre-build, then concurrent `dotnet publish`; `-ThrottleLimit` defaults to `4`). Pass `-Sequential` for one-at-a-time publish. `ThrowawayConsole` is excluded from publish. Apps publish self-contained (single-file) by default.
 
 For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or run the published exe with `--help`).
 
@@ -114,38 +114,40 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 
 ### PublishR2
 
-**Purpose:** Publish static content to Cloudflare R2 and subject flairs to Reddit. Replaces former `R2Publisher` / `FlairPublisher`. Each mode uses its own request + processor (`R2PublishRequest`/`R2PublishProcessor`, `FlairPublishRequest`/`FlairPublishProcessor`).
+**Purpose:** Publish static content to Cloudflare R2 and subject flairs to Reddit. Replaces former `R2Publisher` / `FlairPublisher`. Modes are CommandLineParser verbs; R2 verbs dispatch to `R2PublishRequest`/`R2PublishProcessor`, `flairs` to `FlairPublishRequest`/`FlairPublishProcessor`.
 
 **Run:** `dotnet run --project Console-Apps/PublishR2 --` · PATH: `PublishR2`
 
-**Modes** (at most one token; default `languages`):
+**Verbs** (default `languages`):
 
-| Mode | Aliases | Effect |
-|------|---------|--------|
-| `languages` (default) | `--languages`, `-l` | `R2PublishProcessor` — languages list to R2 |
-| `people` | `--people`, `-p` | `R2PublishProcessor` — People register to R2 |
-| `search-suggestions` | `--search-suggestions`, `-s`, `suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
-| `flairs` | `--flairs`, `-f`, `flair` | `FlairPublishProcessor` — subject flairs to Reddit |
-| `all` | `--all`, `-a` | R2 languages+people+search-suggestions, then flairs |
+| Verb | Effect |
+|------|--------|
+| `languages` | `R2PublishProcessor` — languages list to R2 |
+| `people` | `R2PublishProcessor` — People register to R2 |
+| `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
+| `homepage` | `R2PublishProcessor` — homepage JSON to R2 |
+| `flairs` | `FlairPublishProcessor` — subject flairs to Reddit |
+| `all` | R2 languages+people+search-suggestions+homepage, then flairs |
 
 ```text
 PublishR2
 PublishR2 people
+PublishR2 homepage
 PublishR2 search-suggestions
-PublishR2 --flairs
+PublishR2 flairs
 PublishR2 all
 ```
 
 ### MigrateConfig
 
-**Purpose:** Convert local config JSON to Azure function app-setting JSON. Native AOT. Replaces `SecretsToFunctionSettings` and `LaunchSettingsToAppSettings`. Modes dispatch to `SecretsRequest`/`SecretsProcessor` or `LaunchSettingsRequest`/`LaunchSettingsProcessor`.
+**Purpose:** Convert local config JSON to Azure function app-setting JSON. Replaces `SecretsToFunctionSettings` and `LaunchSettingsToAppSettings`. CommandLineParser verbs dispatch to `SecretsRequest`/`SecretsProcessor` or `LaunchSettingsRequest`/`LaunchSettingsProcessor`.
 
 **Run:** `dotnet run --project Console-Apps/MigrateConfig --` · PATH: `MigrateConfig`
 
-| Mode | Aliases | Usage |
-|------|---------|-------|
-| `secrets` | `s` | `MigrateConfig secrets <secrets-json-path>` |
-| `launch-settings` | `launchsettings`, `ls` | `MigrateConfig launch-settings <launch-settings-path> <profile-name>` |
+| Verb | Usage |
+|------|-------|
+| `secrets` | `MigrateConfig secrets <secrets-json-path>` |
+| `launch-settings` | `MigrateConfig launch-settings <launch-settings-path> <profile-name>` |
 
 ```text
 MigrateConfig secrets path-to-secrets.json
@@ -443,20 +445,6 @@ CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
 **Purpose:** Publish a public-facing podcast/episode JSON dump from Cosmos. No CLI flags.
 
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
-
-### ExportSearchSuggestions
-
-**Purpose:** Read-only file export of the flix search-typeahead flat match index (same `SearchSuggestionsIndexBuilder` as R2 publish). Subjects (`name` + `aliases`; `associatedSubjects` excluded) and non-removed podcast names. Prefer `PublishR2 search-suggestions` for production refresh.
-
-**Run:** `dotnet run --project Console-Apps/ExportSearchSuggestions -- [output-path]` · PATH: `ExportSearchSuggestions`
-
-| Value | Description |
-|-------|-------------|
-| `[output-path]` | Optional positional; JSON output path (default `search-suggestions.json`) |
-
-Production clients load the index from `GET /search-suggestions` (R2). See website `cultpodcasts/docs/search-suggestions.md`.
-
----
 
 ## Ops utilities
 

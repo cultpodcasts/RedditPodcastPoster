@@ -5,7 +5,8 @@ namespace PublishR2;
 public class R2PublishProcessor(
     ILanguagesPublisher languagesPublisher,
     IPeoplePublisher peoplePublisher,
-    ISearchSuggestionsPublisher searchSuggestionsPublisher)
+    ISearchSuggestionsPublisher searchSuggestionsPublisher,
+    IHomepagePublisher homepagePublisher)
 {
     public async Task<bool> Process(R2PublishRequest request)
     {
@@ -32,6 +33,12 @@ public class R2PublishProcessor(
                 // Publisher already logged the exception; map to CLI failure.
                 success = false;
             }
+        }
+
+        if (success && request.Target is R2PublishTarget.Homepage or R2PublishTarget.All)
+        {
+            var homepageResult = await homepagePublisher.PublishHomepage();
+            success = homepageResult.HomepagePublished;
         }
 
         return success;

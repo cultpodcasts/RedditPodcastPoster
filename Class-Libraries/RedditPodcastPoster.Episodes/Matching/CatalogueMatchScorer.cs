@@ -12,12 +12,20 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
-/// When both sides have duration, the allowed gap is
+/// When both sides have duration but the gap exceeds the band (YouTube clip of a longer
+/// multi-segment Apple/Spotify episode), duration points are also skipped rather than
+/// zeroing the whole score — same-day/in-window release plus a strong description match
+/// can still clear the threshold via <see cref="MissingDurationDescriptionBridgePoints"/>.
+/// When both sides have duration inside the band, the allowed gap is
 /// <c>max(<see cref="DurationBandFloor"/>, <see cref="DurationBandProportionOfShorter"/> × shorter)</c>
 /// so long Apple cuts with a few minutes of ads still match while short episodes keep a
 /// five-minute floor (Aug 2026: long YouTube cut vs slightly longer Apple audio).
 /// Spotify and Apple catalogue items are both windowed on calendar days, not elapsed hours,
 /// because audio slots and YouTube publishes on the same day can be far more than twelve hours apart.
+/// When descriptions fuzzy-match, audio rows within
+/// <see cref="EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold"/> of a
+/// delay-adjusted probe are still admitted (Aug 2026: YouTube clip of same-day longer Apple episode
+/// while Released was shifted back by the publishing delay).
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -31,6 +39,13 @@ public static class CatalogueMatchScorer
     public const int FuzzyDescriptionPoints = FuzzyTitlePoints;
     public const int SingleSharedSubjectPoints = 15;
     public const int MultipleSharedSubjectPoints = 25;
+
+    /// <summary>
+    /// Extra confidence when duration did not contribute (missing or out-of-band) but description
+    /// and release-window signals both fire — YouTube segment of a longer multi-topic audio episode.
+    /// With weak in-window release (15) + description (25) + bridge (20) = threshold.
+    /// </summary>
+    public const int MissingDurationDescriptionBridgePoints = 20;
 
     /// <summary>Minimum absolute duration gap allowed when both sides report length.</summary>
     public static readonly TimeSpan DurationBandFloor = TimeSpan.FromMinutes(5);
@@ -62,8 +77,11 @@ public static class CatalogueMatchScorer
 
     /// <summary>
     /// Scores a probe against a catalogue candidate within the YouTube-discovered release window.
-    /// When both sides have duration, requires the proportional duration band; otherwise scores without
-    /// duration points so Apple catalogue gaps can still match on title/subjects.
+    /// When both sides have duration inside the proportional band, awards duration points; when the gap
+    /// exceeds the band (or either side lacks duration), skips duration points so description/title
+    /// evidence can still match a longer multi-segment audio episode.
+    /// Audio rows more than a calendar-day from the delay-adjusted probe are admitted only when
+    /// descriptions fuzzy-match (YouTube upload same day as Apple while probe was shifted by delay).
     /// </summary>
     public static int Score(
         Episode probe,
@@ -77,25 +95,42 @@ public static class CatalogueMatchScorer
         if (probeHasDuration && catalogueHasDuration)
         {
             var band = GetDurationBand(probe.Length, catalogueItem.Length);
-            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) >= band.Ticks)
+            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) < band.Ticks)
             {
-                return 0;
+                durationInBand = true;
             }
-
-            durationInBand = true;
         }
 
-        if (probe.Release == DateTime.MinValue ||
-            !IsWithinReleaseWindow(probe.Release, catalogueItem))
+        if (probe.Release == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        var descriptionPoints = ScoreDescription(probe.Description, catalogueItem.Description);
+        var releasePoints = ScoreRelease(probe.Release, catalogueItem);
+        if (releasePoints == 0 &&
+            descriptionPoints > 0 &&
+            IsWithinDescriptionAlignedReleaseConsideration(probe.Release, catalogueItem))
+        {
+            releasePoints = WeakInWindowReleasePoints;
+        }
+
+        if (releasePoints == 0)
         {
             return 0;
         }
 
         var score = durationInBand ? DurationWithinBandPoints : 0;
-        score += ScoreRelease(probe.Release, catalogueItem);
+        score += releasePoints;
         score += ScoreTitle(probe.Title, catalogueItem.Title);
-        score += ScoreDescription(probe.Description, catalogueItem.Description);
+        score += descriptionPoints;
         score += ScoreSubjects(probe.Subjects, catalogueItem.Subjects, subjectFilters);
+
+        if (!durationInBand && descriptionPoints > 0 && releasePoints > 0)
+        {
+            score += MissingDurationDescriptionBridgePoints;
+        }
+
         return score;
     }
 
@@ -206,19 +241,24 @@ public static class CatalogueMatchScorer
         return 0;
     }
 
-    private static bool IsWithinReleaseWindow(DateTime probeRelease, Episode catalogueItem)
+    /// <summary>
+    /// Wider audio window used only when descriptions already fuzzy-match — covers delay-shifted
+    /// probes vs same-YouTube-day Apple/Spotify rows without reopening wrong-week title-only attaches.
+    /// </summary>
+    private static bool IsWithinDescriptionAlignedReleaseConsideration(
+        DateTime probeRelease,
+        Episode catalogueItem)
     {
-        if (IsAudioCatalogueItem(catalogueItem))
+        if (!IsAudioCatalogueItem(catalogueItem))
         {
-            return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
-                catalogueItem.Release,
-                probeRelease,
-                toleranceTicks: 0,
-                podcast: null);
+            return false;
         }
 
-        return Math.Abs((catalogueItem.Release - probeRelease).Ticks) <
-               TimeSpan.FromHours(12).Ticks;
+        return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
+            catalogueItem.Release,
+            probeRelease,
+            EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks,
+            podcast: null);
     }
 
     private static int ScoreTitle(string probeTitle, string catalogueTitle)
