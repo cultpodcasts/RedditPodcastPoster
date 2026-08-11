@@ -19,9 +19,11 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
 ## Episode language (HARD)
 
-`Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`
-(`episode.Language ?? podcast.Language` or the IsNullOrWhiteSpace ternary). That corrupts
-English subject search and enrichment for English episodes on non-English shows.
+`Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`.
+
+Podcast API default-language changes must use `ApplyPodcastDefaultLanguageChange(previous, new)` —
+update only episodes that still follow the **previous** default. Do **not** use
+`inheritLanguageIfUnset: true` for that path (it treats English null as unset).
 
 Authoritative: [docs/episode-language.md](docs/episode-language.md) ·
 [`EpisodeLanguageResolution`](Class-Libraries/RedditPodcastPoster.Models/Episodes/EpisodeLanguageResolution.cs).

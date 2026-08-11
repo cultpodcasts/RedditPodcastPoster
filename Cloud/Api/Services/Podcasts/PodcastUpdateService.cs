@@ -43,6 +43,7 @@ public class PodcastUpdateService(
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
 
+            var previousPodcastLanguage = podcast.Language;
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);
             var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
@@ -56,7 +57,7 @@ public class PodcastUpdateService(
 
             if (podcastChangeRequestWrapper.Podcast.Language != null)
             {
-                await PropagatePodcastLanguageToEpisodes(podcast, c);
+                await PropagatePodcastLanguageToEpisodes(podcast, previousPodcastLanguage, c);
             }
 
             if (podcastChangeRequestWrapper.Podcast.Removed == true || nameChanged)
@@ -103,16 +104,22 @@ public class PodcastUpdateService(
         }
     }
 
-    private async Task PropagatePodcastLanguageToEpisodes(DomainPodcast podcast, CancellationToken c)
+    private async Task PropagatePodcastLanguageToEpisodes(
+        DomainPodcast podcast,
+        string? previousPodcastLanguage,
+        CancellationToken c)
     {
-        // Refresh denormalised PodcastLanguage and fill Episode.Language when unset
-        // (null/blank). Explicit episode languages are left alone. Empty podcast language
-        // only clears the denormalised field — it does not invent an episode lang.
+        // Move episodes that still follow the previous podcast default onto the new default.
+        // Null episode language is English (not "unset"): do not stamp a non-English default onto
+        // English overrides. See docs/episode-language.md.
         var updatedEpisodeIds = new List<Guid>();
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
-            var (updated, _) = episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
-            if (!updated)
+            var (projectionUpdated, _) = episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: false);
+            var languageUpdated = episode.ApplyPodcastDefaultLanguageChange(
+                previousPodcastLanguage,
+                podcast.Language);
+            if (!projectionUpdated && !languageUpdated)
             {
                 continue;
             }
