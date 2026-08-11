@@ -49,8 +49,7 @@ public class Indexer(
         }
 
         var podcast = canIndex.Single();
-        return await Index(podcast.Id,
-            indexingContext with { SkipShortEpisodes = !podcast.BypassShortEpisodeChecking ?? false });
+        return await Index(podcast.Id, indexingContext);
     }
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)
@@ -68,6 +67,13 @@ public class Indexer(
                 podcast.Id);
             return new IndexResponse(IndexStatus.NotPerformed);
         }
+
+        // Only include shorts when the podcast explicitly bypasses short-episode checking.
+        // Unset (null) or false must skip shorts — do not use `!flag ?? false` (operator precedence).
+        indexingContext = indexingContext with
+        {
+            SkipShortEpisodes = podcast.BypassShortEpisodeChecking != true
+        };
 
         IndexStatus status;
         IndexedEpisode[]? updatedEpisodes = null;

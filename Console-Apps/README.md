@@ -288,7 +288,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### MigrateLanguageIgnoredSubjects
 
-**Purpose:** Two-phase migration of non-English podcast `ignoredSubjects` into per-language `TitleCasingRules.ignoredSubjects`. Dry-run by default. Phase 1 writes TitleCasingRules + an audit JSON (undo data). Phase 2 strips only migrated names from podcasts using that audit file. Do not run apply flags against production without explicit approval.
+**Purpose:** Two-phase migration of non-English podcast `ignoredSubjects` into per-language `TitleCasingRules.ignoredSubjects`. Dry-run by default. Phase 1 writes TitleCasingRules + an audit JSON (undo data) only when there are non-empty subjects to seed; it will **not** create an empty TitleCasingRules document when none exists. Phase 2 strips only migrated names from podcasts using that audit file. Do not run apply flags against production without explicit approval.
 
 **Run:** `dotnet run --project Console-Apps/MigrateLanguageIgnoredSubjects --` · PATH: `MigrateLanguageIgnoredSubjects`
 

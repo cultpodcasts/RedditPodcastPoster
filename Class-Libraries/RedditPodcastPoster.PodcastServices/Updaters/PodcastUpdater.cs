@@ -74,20 +74,27 @@ public class PodcastUpdater(
                 .ToListAsync();
 
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
-            var checkShortEpisodes =
-                !(podcast.BypassShortEpisodeChecking.HasValue && podcast.BypassShortEpisodeChecking.Value);
-            logger.LogInformation("Podcast '{podcastName}' has checkShortEpisodes= '{checkShortEpisodes}'.",
-                podcast.Name, checkShortEpisodes);
-            if (checkShortEpisodes)
+            // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
+            var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
+            var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
+            logger.LogInformation(
+                "Podcast '{podcastName}' has enforceMinimumDuration= '{enforceMinimumDuration}' (bypassGlobalShortCheck= '{bypassGlobalShortCheck}', podcastMinimumDuration= '{podcastMinimumDuration}').",
+                podcast.Name,
+                enforceMinimumDuration,
+                bypassGlobalShortCheck,
+                podcast.MinimumDuration);
+            if (enforceMinimumDuration)
             {
+                var threshold = podcast.MinimumDuration ?? _postingCriteria.MinimumDuration;
                 foreach (var newEpisode in newEpisodes)
                 {
-                    newEpisode.Ignored = newEpisode.Length < (podcast.MinimumDuration ?? _postingCriteria.MinimumDuration);
+                    newEpisode.Ignored = newEpisode.Length < threshold;
                 }
 
                 logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes= '{SkipShortEpisodes}'.",
                     podcast.Name, indexingContext.SkipShortEpisodes);
-                if (indexingContext.SkipShortEpisodes)
+                // Podcast-level floor always drops under-duration episodes on index; otherwise honour SkipShortEpisodes.
+                if (indexingContext.SkipShortEpisodes || podcast.MinimumDuration.HasValue)
                 {
                     RemoveIgnoredEpisodes(newEpisodes);
                 }

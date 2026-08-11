@@ -105,6 +105,81 @@ public class IndexingOrchestrationRules
     }
 
     [Fact(DisplayName =
+        "INTEGRITY: when podcast MinimumDuration is set, under-duration episodes are removed even if BypassShortEpisodeChecking is true and SkipShortEpisodes is false, because an explicit podcast floor must be obeyed on index.")]
+    public async Task podcast_minimum_duration_removes_short_episodes_despite_bypass()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcastMinimum = TimeSpan.FromMinutes(20);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.BypassShortEpisodeChecking = true;
+        podcast.MinimumDuration = podcastMinimum;
+        harness.PodcastRepository.Seed(podcast);
+
+        var underFloor = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(podcastMinimum - TimeSpan.FromMinutes(1)));
+        var aboveFloor = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(podcastMinimum + TimeSpan.FromMinutes(1)));
+
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([underFloor, aboveFloor]);
+
+        var indexingContext = PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince) with
+        {
+            SkipShortEpisodes = false
+        };
+
+        // Act
+        await harness.Updater.Update(podcast, enrichOnly: false, indexingContext);
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
+        harness.EpisodeRepository.SavedEpisodes.Single().Id.Should().Be(aboveFloor.Id);
+        harness.EpisodeRepository.SavedEpisodes.Single().Ignored.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY: when BypassShortEpisodeChecking is true and podcast MinimumDuration is unset, global short checking is skipped, because bypass only waives the posting-criteria floor.")]
+    public async Task bypass_without_podcast_minimum_keeps_global_short_episodes()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.BypassShortEpisodeChecking = true;
+        podcast.MinimumDuration = null;
+        harness.PodcastRepository.Seed(podcast);
+
+        var shortEpisode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(SubMinimumDuration));
+
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([shortEpisode]);
+
+        var indexingContext = PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince) with
+        {
+            SkipShortEpisodes = false
+        };
+
+        // Act
+        await harness.Updater.Update(podcast, enrichOnly: false, indexingContext);
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
+        harness.EpisodeRepository.SavedEpisodes.Single().Ignored.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "LatestReleased on the podcast reflects the most recent release among added and merged episodes.")]
     public async Task latest_released_is_updated_from_added_and_merged_episodes()
     {

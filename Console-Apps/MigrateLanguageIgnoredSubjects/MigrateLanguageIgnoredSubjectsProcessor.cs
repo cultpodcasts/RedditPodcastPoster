@@ -90,6 +90,14 @@ public class MigrateLanguageIgnoredSubjectsProcessor(
             }
 
             var orderedUnion = union.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (orderedUnion.Length == 0)
+            {
+                logger.LogInformation(
+                    "Language '{Language}': skip plan — podcasts had ignored-subject entries but none were non-empty after trim; will not seed or clear.",
+                    language);
+                continue;
+            }
+
             languageSeeds.Add(new LanguageSeed(language, orderedUnion));
 
             foreach (var podcast in group)
@@ -144,7 +152,7 @@ public class MigrateLanguageIgnoredSubjectsProcessor(
             plan.PodcastActions.Count);
     }
 
-    private async Task<int> ApplySeedAsync(MigrationPlan plan, string auditPath)
+    internal async Task<int> ApplySeedAsync(MigrationPlan plan, string auditPath)
     {
         foreach (var seed in plan.LanguageSeeds)
         {
@@ -156,6 +164,14 @@ public class MigrateLanguageIgnoredSubjectsProcessor(
             }
             else if (existing is null)
             {
+                if (seed.IgnoredSubjects is not { Length: > 0 })
+                {
+                    logger.LogInformation(
+                        "Skip language '{Language}': no ignored subjects to seed and no existing TitleCasingRules document; will not create an empty document.",
+                        seed.Language);
+                    continue;
+                }
+
                 document = new NonEnglishTitleCasingRulesDocument(seed.Language);
             }
             else
@@ -184,6 +200,15 @@ public class MigrateLanguageIgnoredSubjectsProcessor(
             document.IgnoredSubjects = merged.Count == 0
                 ? null
                 : merged.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            // Never materialise a brand-new empty TitleCasingRules row (no casing terms, no subjects).
+            if (existing is null && document.IgnoredSubjects is not { Length: > 0 })
+            {
+                logger.LogInformation(
+                    "Skip language '{Language}': merged ignored subjects empty and no preexisting document; will not create an empty TitleCasingRules document.",
+                    seed.Language);
+                continue;
+            }
 
             await titleCasingRulesRepository.Save(document);
             logger.LogInformation(
@@ -276,7 +301,7 @@ public class MigrateLanguageIgnoredSubjectsProcessor(
         return 0;
     }
 
-    private sealed record MigrationPlan(
+    internal sealed record MigrationPlan(
         IReadOnlyList<LanguageSeed> LanguageSeeds,
         IReadOnlyList<PodcastClearAction> PodcastActions);
 
