@@ -10,5 +10,6 @@ public enum R2PublishTarget
     Languages,
     People,
     SearchSuggestions,
+    Homepage,
     All
 }
