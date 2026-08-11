@@ -28,7 +28,8 @@ public static class PodcastEpisodeExtensions
                 : string.Empty,
             // Episode.Language only — null means English. Do not fall back to podcast language
             // (that undid curator "English" / "No Language" clears on non-English shows).
-            Lang = NullIfWhiteSpace(podcastEpisode.Episode.Language),
+            // See docs/episode-language.md.
+            Lang = NullIfWhiteSpace(EpisodeLanguageResolution.ForEpisode(podcastEpisode.Episode)),
             PodcastAppleId = podcastEpisode.Podcast.AppleId?.ToString(),
             PodcastName = podcastEpisode.Podcast.Name.Trim(),
             PodcastSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,

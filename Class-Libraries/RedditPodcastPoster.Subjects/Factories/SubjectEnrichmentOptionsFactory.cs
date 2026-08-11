@@ -15,9 +15,7 @@ public class SubjectEnrichmentOptionsFactory(
         Episode? episode = null,
         CancellationToken cancellationToken = default)
     {
-        var language = !string.IsNullOrWhiteSpace(episode?.Language)
-            ? episode.Language
-            : podcast.Language;
+        var language = EpisodeLanguageResolution.ForRead(podcast, episode);
 
         var provider = await titleCasingRulesProvider.GetAsync(cancellationToken);
         var languageIgnored = await provider.GetIgnoredSubjectsAsync(language, cancellationToken);

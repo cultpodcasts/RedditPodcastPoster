@@ -7,6 +7,9 @@ using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Subjects.Tests.BusinessRules.Enrichment;
 
+/// <summary>
+/// HARD integrity rules for subject-enrichment language. See docs/episode-language.md.
+/// </summary>
 public class SubjectEnrichmentOptionsFactoryRules
 {
     private readonly DomainTestFixture _fixture = new();
@@ -57,12 +60,12 @@ public class SubjectEnrichmentOptionsFactoryRules
     }
 
     [Fact(DisplayName =
-        "Subject enrichment options: when the episode has a language, then ignored subjects come from that language document, because episode language overrides the podcast language for matching.")]
+        "Subject enrichment options: when the episode has an explicit language, then ignored subjects come from that language document, because episode language is authoritative at read time.")]
     public async Task create_async_prefers_episode_language()
     {
         // Arrange
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
-        podcast.Language = "en";
+        podcast.Language = "fil";
         podcast.IgnoredSubjects = null;
         var episode = _fixture.CreateSpotifyCatalogueEpisode();
         episode.Language = "es";
@@ -72,8 +75,8 @@ public class SubjectEnrichmentOptionsFactoryRules
             .Setup(x => x.GetIgnoredSubjectsAsync("es", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "Hoy" });
         provider
-            .Setup(x => x.GetIgnoredSubjectsAsync("en", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<string>());
+            .Setup(x => x.GetIgnoredSubjectsAsync("fil", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "MustNotApply" });
         var instance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
         instance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(provider.Object);
         var sut = new SubjectEnrichmentOptionsFactory(instance.Object);
@@ -84,19 +87,48 @@ public class SubjectEnrichmentOptionsFactoryRules
         // Assert
         options.IgnoredSubjects.Should().Equal("Hoy");
         provider.Verify(x => x.GetIgnoredSubjectsAsync("es", It.IsAny<CancellationToken>()), Times.Once);
-        provider.Verify(x => x.GetIgnoredSubjectsAsync("en", It.IsAny<CancellationToken>()), Times.Never);
+        provider.Verify(x => x.GetIgnoredSubjectsAsync("fil", It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "Subject enrichment options: when the episode language is blank, then ignored subjects come from the podcast language, because podcast language is the fallback.")]
-    public async Task create_async_falls_back_to_podcast_language()
+        "INTEGRITY: when the episode Language is null (product English) on a non-English podcast, CreateAsync must not load that podcast language's ignored subjects, because null means English and coalescing to podcast.Language would corrupt enrichment vs English subject search.")]
+    public async Task create_async_null_episode_language_is_english_not_podcast_language()
+    {
+        // Arrange
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.Language = "fil";
+        podcast.IgnoredSubjects = ["LocalOverride"];
+        var episode = _fixture.CreateSpotifyCatalogueEpisode();
+        episode.Language = null;
+
+        var provider = new Mock<ITitleCasingRulesProvider>();
+        provider
+            .Setup(x => x.GetIgnoredSubjectsAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+        provider
+            .Setup(x => x.GetIgnoredSubjectsAsync("fil", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "FilipinoIgnore" });
+        var instance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
+        instance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(provider.Object);
+        var sut = new SubjectEnrichmentOptionsFactory(instance.Object);
+
+        // Act
+        var options = await sut.CreateAsync(podcast, episode);
+
+        // Assert
+        options.IgnoredSubjects.Should().Equal("LocalOverride");
+        provider.Verify(x => x.GetIgnoredSubjectsAsync(null, It.IsAny<CancellationToken>()), Times.Once);
+        provider.Verify(x => x.GetIgnoredSubjectsAsync("fil", It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Subject enrichment options: when no episode is supplied, ignored subjects come from the podcast language, because podcast-only paths have no episode language.")]
+    public async Task create_async_without_episode_uses_podcast_language()
     {
         // Arrange
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.Language = "fr";
-        podcast.IgnoredSubjects = ["Local"];
-        var episode = _fixture.CreateSpotifyCatalogueEpisode();
-        episode.Language = null;
+        podcast.IgnoredSubjects = null;
 
         var provider = new Mock<ITitleCasingRulesProvider>();
         provider
@@ -107,9 +139,10 @@ public class SubjectEnrichmentOptionsFactoryRules
         var sut = new SubjectEnrichmentOptionsFactory(instance.Object);
 
         // Act
-        var options = await sut.CreateAsync(podcast, episode);
+        var options = await sut.CreateAsync(podcast, episode: null);
 
         // Assert
-        options.IgnoredSubjects.Should().BeEquivalentTo(["Local", "Lang"], o => o.WithoutStrictOrdering());
+        options.IgnoredSubjects.Should().Equal("Lang");
+        provider.Verify(x => x.GetIgnoredSubjectsAsync("fr", It.IsAny<CancellationToken>()), Times.Once);
     }
 }

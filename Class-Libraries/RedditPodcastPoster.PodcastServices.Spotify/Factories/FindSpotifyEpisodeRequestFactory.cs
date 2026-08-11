@@ -59,7 +59,7 @@ public static class FindSpotifyEpisodeRequestFactory
             episode.Description,
             podcast.DefaultSubject,
             podcast.IgnoredSubjects,
-            !string.IsNullOrWhiteSpace(episode.Language) ? episode.Language : podcast.Language);
+            EpisodeLanguageResolution.ForEpisode(episode));
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)

@@ -348,7 +348,7 @@ Live index distribution (`@search.facets` on `lang` + count filters):
 
 Top non-null values: `es` 3948, `pt` 581, `fr` 478, `cs` 324, `de` 140, `it` 58, … (no English variants).
 
-**Semantics:** In this product, English/default is represented by **`lang` absent (`null`)**, not by `en`. Curator UI reinforces this: podcast language options exclude `en` (`PODCAST_DEFAULT_LANGUAGE_EXCLUDED_CODES`), and episode dialogs use `unset` → `"No Language"`. Datasource projects `e.lang ?? e.podcastLanguage as lang`. Push mapper (`ToEpisodeSearchRecord`) currently **omits `Lang` entirely** — fix that in the slim-index implementation so incremental uploads match the indexer (`episode.Language ?? podcast.Language`).
+**Semantics:** In this product, English/default is represented by **`lang` absent (`null`)**, not by `en`. Curator UI: episode English = `unset` → stored null (`NormaliseEpisodeLanguage`). **HARD:** do **not** project `e.lang ?? e.podcastLanguage` or map `episode.Language ?? podcast.Language` — null means English, including for English episodes of non-English podcasts. Live push mapper and Cosmos SQL use **episode `lang` only**. See [episode-language.md](episode-language.md).
 
 Therefore today's `lang eq null` clause is **already the English-only default**, by convention: it keeps unset/default-English docs and excludes explicit non-English codes. It does **not** mean “unknown language” as a separate concept in live data.
 
