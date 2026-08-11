@@ -240,8 +240,7 @@ public class YouTubeEpisodeProvider(
             catch (Exception e)
             {
                 logger.LogError(e,
-                    "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}', youtube-channel-id-value: '{youtubeChannelIdValue}'",
-                    youTubeChannelId,
+                    "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}'.",
                     youTubeChannelId?.ChannelId);
             }
         }
