@@ -1,8 +1,9 @@
-# Catalogue & playlist pagination (Spotify + YouTube)
+# Catalogue & playlist pagination (Spotify + YouTube + Apple)
 
 **Cold-start reference** for how Cult Podcasts discovers recent episodes from Spotify
-show catalogues and YouTube playlists without burning API quota. Read this before
-changing paginators, expensive-query flags, `PlaylistOrder`, or indexer skip gates.
+show catalogues, YouTube playlists, and Apple Podcasts episode lists without burning
+API quota. Read this before changing paginators, expensive-query flags, `PlaylistOrder`,
+or indexer skip gates.
 
 | Companion | Purpose |
 |-----------|---------|
@@ -14,20 +15,20 @@ changing paginators, expensive-query flags, `PlaylistOrder`, or indexer skip gat
 
 ## 1. Why this exists
 
-Both Spotify and YouTube return paginated catalogues. Recent episodes are **not** always
+Spotify, YouTube, and Apple return paginated catalogues. Recent episodes are **not** always
 on page one:
 
 | Observed layout | Where recent episodes live | Cheap strategy |
 |-----------------|----------------------------|----------------|
 | Newest-first (reverse-chronological) | Head of the list | Page from offset/page 0; stop when items fall before `ReleasedSince` |
-| Oldest-first (ascending) | Tail of the list | Spotify: jump to last page and walk back. YouTube: no end-jump API → full walk (expensive) |
+| Oldest-first (ascending) | Tail of the list | Spotify: jump to last page and walk back. YouTube/Apple: no end-jump API → capped or full walk |
 | Arbitrary / curated | Either end, inconsistently | YouTube only: capped full walk + filter on the indexing-window date; never trust position |
 
 Mis-classifying order causes either **missed episodes** (early-stop on a stale head) or
 **quota burn** (unbounded walks on news-channel-scale feeds). The system therefore:
 
 1. **Probes** order from a small lead-in sample when possible.
-2. **Persists** an expensive-query flag so later passes know the cheap path.
+2. **Persists** an expensive-query flag so later passes know the cheap path (Spotify / YouTube; Apple has no expensive-query flag).
 3. **Caps** walks that cannot early-stop, and **LogError**s when a cap trips so operators notice.
 
 ---
@@ -38,13 +39,17 @@ Mis-classifying order causes either **missed episodes** (early-stop on a stale h
 
 Indexing windows pass `IndexingContext.ReleasedSince`. Date-scoped walks must stop (or
 filter) once items fall outside that window. Spotify truncates to **date-only** before
-comparing (catalogue releases have no reliable time-of-day). YouTube playlist items window on
+comparing (catalogue releases have no reliable time-of-day). Apple compares full
+`releaseDateTime` timestamps. YouTube playlist items window on
 `PlaylistItem.GetIndexingWindowDate()` — the **later** of `snippet.publishedAt`
 (added-to-playlist) and `contentDetails.videoPublishedAt` (video publication). A scheduled
 upload joins the playlist days before it goes public, so added-at alone drops it from the
 window; a backlog video added long after publication keeps added-at, which is the
 "new to this feed" signal. Playlist item requests therefore ask for `contentDetails` whenever
 `ReleasedSince` is set (same 1-unit page cost).
+
+MatchOtherServices / SubmitUrl narrows Spotify and Apple lookups with `ReleasedSince`
+derived from the authority release (YouTube → authority minus publishing delay).
 
 ### Expensive-query flags (podcast document)
 
@@ -279,36 +284,96 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 
 ---
 
-## 5. Side-by-side comparison
+## 5. Apple catalogue pagination
 
-| Concern | Spotify | YouTube |
-|---------|---------|---------|
-| Newest-first strategy | Reverse-chrono Simple; stop on `ReleasedSince` | Early-stop while last added-at in window |
-| Oldest-first strategy | End-jump + walk back (`MaxWalkBackPages=5`) | Full forward walk (no API end-jump) |
-| Arbitrary / curated | N/A (catalogue is API-ordered) | `PlaylistOrder.Arbitrary` + capped walk |
-| Forward / unordered cap | `SimpleEpisodePaginator.MaxPages=20` | `ArbitraryYouTubePlaylistWalk.MaxPages=20` |
-| Order probe sample | Lead-in ≤ 3 episodes | First page sample (≥ 2 dated) |
-| Flag cleared on flip to newest-first | Yes | Yes |
-| Expensive allowed (hourly) | `hour % 6 == 0` + primary pass | `hour % 24 == 0` + primary pass |
-| SkipExpensive + ReleasedSince still walks | Provider: **yes** | Arbitrary: always; ascending known-expensive: still may full-walk on live probe |
-| Circuit-breaker log level | **Error** | **Error** (Arbitrary) |
-| Flag-flip log level | **Warning** | **Warning** |
+### Components
+
+| Piece | Path |
+|-------|------|
+| HTTP paging + order probe | `PodcastServices.Apple/Providers/ApplePodcastService.cs` |
+| Probe / continue / MaxPages rules | `Providers/AppleCataloguePagination.cs` |
+| Per-pass cache | `Providers/CachedApplePodcastService.cs` |
+| Indexer filter after fetch | `Providers/AppleEpisodeProvider.cs` |
+| MatchOtherServices resolve | `Categorisers/AppleUrlCategoriser.cs` → `Resolvers/AppleEpisodeResolver.cs` |
+
+Apple has **no** expensive-query podcast flag and **no** SkipExpensiveApple gate. MatchOtherServices
+relies on `ReleasedSince` early-stop (and MaxPages when the head is not newest-first).
+
+### Decision flow
+
+```
+GET /v1/catalog/us/podcasts/{id}/episodes (page 1)
+        │
+        ▼
+Probe first page: releases monotonically non-increasing?
+  (equal timestamps count as newest-first — same as Spotify/YouTube)
+        │
+        ├─ newest-first + ReleasedSince → follow next while last collected >= ReleasedSince
+        ├─ not newest-first + ReleasedSince → follow next up to MaxPages = 20, then LogError
+        └─ ReleasedSince null             → full catalogue until next empty
+        │
+        ▼
+FindEpisode / indexer filter on collected slice
+```
+
+**Equal timestamps:** same-day batching used to fail a strict `>` probe and disable
+ReleasedSince early-stop — walking entire high-volume shows on SubmitUrl `-m`. The probe
+now treats non-increasing sequences as newest-first.
+
+**Legacy `breakEvaluator`:** private Apple hook meant to stop when a specific catalogue
+record matched (originally find-by-id before the episode endpoint existed). Callers always
+pass `null` today. It is **not** the cross-service early-stop pattern; date-scoped walks are.
+
+### Caps
+
+| Mode | Cap | Stop condition |
+|------|-----|----------------|
+| Newest-first + `ReleasedSince` | **None** | Last collected release falls before `ReleasedSince` |
+| Not newest-first + `ReleasedSince` | `MaxPages = 20` subsequent fetches | Cap or catalogue end; Error log when cap trips with `next` remaining |
+| No `ReleasedSince` | Unbounded | Catalogue end |
+
+### Business-rule tests (Apple)
+
+| Rule area | Test file |
+|-----------|-----------|
+| Equal-date newest-first; thin sample; ReleasedSince continue / boundary; MaxPages | `Apple.Tests/BusinessRules/Providers/AppleCataloguePaginationRules.cs` |
+| GetEpisodes equal-date early-stop; in-window follow; SubmitUrl thousands-episode head-only; ascending MaxPages; null-window full walk | `.../ApplePodcastServicePaginationRules.cs` |
+| MatchOtherServices YouTube/Spotify → Apple ReleasedSince window | `UrlSubmission.Tests/BusinessRules/UrlSubmission/UrlCategoriserReleasedSinceRules.cs` |
 
 ---
 
-## 6. Operator playbook
+## 6. Side-by-side comparison
+
+| Concern | Spotify | YouTube | Apple |
+|---------|---------|---------|-------|
+| Newest-first strategy | Reverse-chrono Simple; stop on `ReleasedSince` | Early-stop while last in-window date in window | Early-stop while last collected >= `ReleasedSince` |
+| Oldest-first strategy | End-jump + walk back (`MaxWalkBackPages=5`) | Full forward walk (no API end-jump) | Forward walk capped at `MaxPages=20` when window set |
+| Arbitrary / curated | N/A (catalogue is API-ordered) | `PlaylistOrder.Arbitrary` + capped walk | N/A |
+| Forward / unordered cap | `SimpleEpisodePaginator.MaxPages=20` | `ArbitraryYouTubePlaylistWalk.MaxPages=20` | `AppleCataloguePagination.MaxPages=20` |
+| Order probe sample | Lead-in ≤ 3 episodes | First page sample (≥ 2 dated) | First page sample (equal dates = newest-first) |
+| Expensive-query flag | Yes | Yes | **No** |
+| Flag cleared on flip to newest-first | Yes | Yes | N/A |
+| Expensive allowed (hourly) | `hour % 6 == 0` + primary pass | `hour % 24 == 0` + primary pass | N/A |
+| SkipExpensive + ReleasedSince still walks | Provider: **yes** | Arbitrary: always; ascending known-expensive: still may full-walk on live probe | N/A |
+| Circuit-breaker log level | **Error** | **Error** (Arbitrary) | **Error** (unordered + window) |
+| Flag-flip log level | **Warning** | **Warning** | N/A |
+
+---
+
+## 7. Operator playbook
 
 | Symptom | Likely cause | Check |
 |---------|--------------|-------|
 | Recent episode missing Spotify URL | Ascending catalogue + skip-expensive without window; or walk-back circuit breaker | Flag flip / circuit-breaker Error; `ReleasedSince` window |
 | Recent YouTube URL missing on curated show | Playlist not `Arbitrary`, or wrong playlist id, or Arbitrary cap tripped | `youTubePlaylistOrder`, playlist id / `youTubePlaylistIdHistory`, Arbitrary circuit-breaker Error |
 | YouTube episode public today but not indexed, and its playlist item was added days ago | Scheduled upload — added-at is outside the window, video-published-at is inside | `contentDetails.videoPublishedAt` vs `snippet.publishedAt` on the playlist item |
+| SubmitUrl `-m` pages entire Apple catalogue | Broken newest-first probe (fixed: equal dates) or missing `ReleasedSince`; or unordered head hit MaxPages | Apple circuit-breaker Error; MatchOtherServices ReleasedSince |
 | Expensive flag stuck `true` forever | Probe never returned conclusive newest-first (should not happen — Apply clears) | Flag-flip Warning history |
 | Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass |
 
 ---
 
-## 7. Stable log prefixes (App Insights)
+## 8. Stable log prefixes (App Insights)
 
 | Prefix | Level | Source |
 |--------|-------|--------|
@@ -318,12 +383,13 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps; former id kept on `youTubePlaylistIdHistory`) |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
+| `Apple pagination circuit-breaker tripped:` | Error | `ApplePodcastService` via `AppleCataloguePagination` |
 
 KQL: [indexing-app-insights-queries.md](indexing-app-insights-queries.md).
 
 ---
 
-## 8. Agent / contributor checklist
+## 9. Agent / contributor checklist
 
 Before changing pagination, order probes, flags, or `PlaylistOrder`:
 
@@ -331,7 +397,8 @@ Before changing pagination, order probes, flags, or `PlaylistOrder`:
 - [ ] Update or add a `BusinessRules/**` test with `DisplayName` stating the rule (see `.cursor/rules/unit-tests.mdc`)
 - [ ] Keep circuit-breaker / flag-flip **message prefixes** stable — App Insights alerts key off them
 - [ ] Do not invent a third Spotify order mode without an end-jump or hard cap
-- [ ] Do not remove Arbitrary's `MaxPages` cap
+- [ ] Do not remove Arbitrary's `MaxPages` cap (or Apple's unordered `MaxPages` when `ReleasedSince` is set)
 - [ ] Do not make expensive-query flags sticky-true-only
+- [ ] Do not treat equal Apple release timestamps as “not newest-first”
 - [ ] If changing hourly gates, update `IndexingStrategy` tests / cost-analysis notes
 - [ ] Run `dotnet test` on affected `*Tests` projects + `pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged`

@@ -22,7 +22,7 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 Before changing Spotify paginators, YouTube playlist walks, expensive-query flags,
 `PlaylistOrder`, or `SkipExpensive*` gates, read:
 
-- [docs/catalogue-pagination.md](docs/catalogue-pagination.md) — Spotify + YouTube cold-start design, caps, flag lifecycle, test matrix
+- [docs/catalogue-pagination.md](docs/catalogue-pagination.md) — Spotify + YouTube + Apple cold-start design, caps, flag lifecycle, test matrix
 - [docs/youtube-playlist-order.md](docs/youtube-playlist-order.md) — YouTube Arbitrary / curated depth
 
 Keep circuit-breaker and flag-flip **log message prefixes** stable (App Insights keys off them).

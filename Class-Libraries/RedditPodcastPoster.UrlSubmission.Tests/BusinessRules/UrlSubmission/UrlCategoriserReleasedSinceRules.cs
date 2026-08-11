@@ -113,6 +113,108 @@ public class UrlCategoriserReleasedSinceRules
     }
 
     [Fact(DisplayName =
+        "When MatchOtherServices resolves Apple from a YouTube URL, ReleasedSince is the YouTube release minus the podcast publishing delay " +
+        "so Apple catalogue paging can early-stop near the audio window instead of walking thousands of episodes.")]
+    public async Task YouTube_authority_sets_apple_released_since_to_release_minus_publishing_delay()
+    {
+        // Arrange
+        var delay = TimeSpan.FromHours(4);
+        var release = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(15));
+        var youTubeId = _fixture.CreateYouTubeId();
+        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        IndexingContext? capturedContext = null;
+
+        var youTube = new Mock<IYouTubeUrlCategoriser>();
+        youTube
+            .Setup(x => x.Resolve(
+                It.IsAny<Podcast?>(),
+                It.IsAny<IList<Episode>>(),
+                youTubeUrl,
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateYouTubeItem(youTubeUrl, youTubeId, release));
+
+        var apple = new Mock<IAppleUrlCategoriser>();
+        apple
+            .Setup(x => x.Resolve(
+                It.IsAny<PodcastServiceSearchCriteria>(),
+                It.IsAny<Podcast?>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<PodcastServiceSearchCriteria, Podcast?, IndexingContext>((_, _, ctx) =>
+                capturedContext = ctx)
+            .ReturnsAsync((ResolvedAppleItem?)null);
+
+        var spotify = new Mock<ISpotifyUrlCategoriser>();
+        spotify
+            .Setup(x => x.Resolve(
+                It.IsAny<PodcastServiceSearchCriteria>(),
+                It.IsAny<Podcast?>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync((ResolvedSpotifyItem?)null);
+
+        var sut = CreateSut(spotify.Object, apple.Object, youTube.Object);
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.AppleId = null;
+            p.SpotifyId = string.Empty;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.YouTubePublicationOffset = delay.Ticks;
+        });
+
+        // Act
+        await sut.Categorise(podcast, youTubeUrl, new IndexingContext(), matchOtherServices: true);
+
+        // Assert
+        capturedContext.Should().NotBeNull();
+        capturedContext!.ReleasedSince.Should().Be(release.Subtract(delay));
+    }
+
+    [Fact(DisplayName =
+        "When MatchOtherServices resolves Apple from a Spotify URL, ReleasedSince is the Spotify release minus one day " +
+        "so Apple catalogue paging stays near the audio publish window on SubmitUrl -m.")]
+    public async Task Spotify_authority_sets_apple_released_since_to_release_minus_one_day()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10));
+        var spotifyId = _fixture.CreateSpotifyId();
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyId}");
+        IndexingContext? capturedContext = null;
+
+        var spotify = new Mock<ISpotifyUrlCategoriser>();
+        spotify
+            .Setup(x => x.Resolve(
+                It.IsAny<Podcast?>(),
+                It.IsAny<IEnumerable<Episode>>(),
+                spotifyUrl,
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateSpotifyItem(spotifyUrl, spotifyId, release));
+
+        var apple = new Mock<IAppleUrlCategoriser>();
+        apple
+            .Setup(x => x.Resolve(
+                It.IsAny<PodcastServiceSearchCriteria>(),
+                It.IsAny<Podcast?>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<PodcastServiceSearchCriteria, Podcast?, IndexingContext>((_, _, ctx) =>
+                capturedContext = ctx)
+            .ReturnsAsync((ResolvedAppleItem?)null);
+
+        var sut = CreateSut(spotify.Object, apple.Object, Mock.Of<IYouTubeUrlCategoriser>());
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.AppleId = null;
+            p.SpotifyId = spotifyId;
+            p.YouTubeChannelId = string.Empty;
+        });
+
+        // Act
+        await sut.Categorise(podcast, spotifyUrl, new IndexingContext(), matchOtherServices: true);
+
+        // Assert
+        capturedContext.Should().NotBeNull();
+        capturedContext!.ReleasedSince.Should().Be(release.AddDays(-1));
+    }
+
+    [Fact(DisplayName =
         "When MatchOtherServices resolves YouTube from a Spotify URL, ReleasedSince is the Spotify release plus the podcast publishing delay " +
         "because YouTube often appears after the audio release by the configured offset.")]
     public async Task Spotify_authority_sets_youtube_released_since_to_release_plus_publishing_delay()
