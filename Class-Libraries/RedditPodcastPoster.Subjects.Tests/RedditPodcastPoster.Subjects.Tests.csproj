@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection.Abstractions\RedditPodcastPoster.DependencyInjection.Abstractions.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
   </ItemGroup>

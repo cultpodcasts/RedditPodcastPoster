@@ -1,14 +1,9 @@
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Subjects.Categorisation;
 
 public interface ICategoriser
 {
-    public Task<bool> Categorise(
-        Episode episode,
-        string[]? ignoredAssociatedSubjects,
-        string[]? ignoredSubjects,
-        string? defaultSubject,
-        string descriptionRegex);
+    Task<bool> Categorise(Episode episode, Podcast podcast);
 }

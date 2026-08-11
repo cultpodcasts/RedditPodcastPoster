@@ -83,9 +83,9 @@ public static class LowerCaseTerms
     public static string NormaliseLanguageKey(string? language)
     {
         if (!string.IsNullOrWhiteSpace(language) &&
-            language.Trim() == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            language.Trim() == TitleCasingRulesDocument.UniversalLanguageKey)
         {
-            return LanguageTitleCasingRulesDocument.UniversalLanguageKey;
+            return TitleCasingRulesDocument.UniversalLanguageKey;
         }
 
         if (IsEnglish(language))
@@ -105,7 +105,7 @@ public static class LowerCaseTerms
             return true;
         }
 
-        if (language.Trim() == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+        if (language.Trim() == TitleCasingRulesDocument.UniversalLanguageKey)
         {
             return false;
         }

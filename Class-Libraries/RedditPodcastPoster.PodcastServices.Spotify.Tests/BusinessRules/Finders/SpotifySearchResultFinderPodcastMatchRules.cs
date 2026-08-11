@@ -1,10 +1,14 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
-using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Tests.Fakes;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Text.TitleCasing;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Finders;
@@ -18,7 +22,8 @@ public class SpotifySearchResultFinderPodcastMatchRules
     private readonly SpotifySearchResultFinder _sut = new(
         EpisodeDomainTestServices.CreatePlatformMatcher(),
         new StubSubjectMatcher(),
-        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
+        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance),
+        EmptyTitleCasingProvider());
 
     [Fact(DisplayName =
         "When the podcasts list is null, FindMatchingPodcasts returns an empty sequence " +
@@ -75,5 +80,14 @@ public class SpotifySearchResultFinderPodcastMatchRules
 
         // Assert
         result.Should().BeEmpty();
+    }
+
+    private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider()
+    {
+        var instance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
+        instance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TitleCasingRulesProvider(
+                new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)));
+        return instance.Object;
     }
 }

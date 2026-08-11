@@ -8,7 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 
 namespace RedditPodcastPoster.Indexing.Services;
 
@@ -17,6 +17,7 @@ public class Indexer(
     IEpisodeRepository episodeRepository,
     IPodcastUpdater podcastUpdater,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
     ILogger<Indexer> logger
 ) : IIndexer
@@ -130,11 +131,7 @@ public class Indexer(
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     indexedEpisode.Episode,
-                    new SubjectEnrichmentOptions(
-                        podcast.IgnoredAssociatedSubjects,
-                        podcast.IgnoredSubjects,
-                        podcast.DefaultSubject,
-                        podcast.DescriptionRegex));
+                    await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
 
                 var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
 

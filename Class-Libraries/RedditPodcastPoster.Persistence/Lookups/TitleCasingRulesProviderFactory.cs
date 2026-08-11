@@ -17,10 +17,10 @@ public class TitleCasingRulesProviderFactory(
     {
         logger.LogInformation("{Method}: Creating {Provider}.", nameof(Create), nameof(TitleCasingRulesProvider));
 
-        var byLanguage = new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase);
+        var byLanguage = new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase);
 
         // Hot path: point-read universal (*) and English in parallel.
-        var universalTask = titleCasingRulesRepository.Get(LanguageTitleCasingRulesDocument.UniversalLanguageKey);
+        var universalTask = titleCasingRulesRepository.Get(TitleCasingRulesDocument.UniversalLanguageKey);
         var englishTask = titleCasingRulesRepository.Get("en");
         await Task.WhenAll(universalTask, englishTask).WaitAsync(cancellationToken);
 
@@ -35,9 +35,9 @@ public class TitleCasingRulesProviderFactory(
             // No English document: scan remaining languages (skip * already loaded), then seed en.
             await foreach (var document in titleCasingRulesRepository.GetAll().WithCancellation(cancellationToken))
             {
-                var key = LanguageTitleCasingRulesDocument.NormaliseLanguage(document.Language);
+                var key = TitleCasingRulesDocument.NormaliseLanguage(document.Language);
                 if (string.IsNullOrEmpty(key) ||
-                    key == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+                    key == TitleCasingRulesDocument.UniversalLanguageKey)
                 {
                     continue;
                 }
@@ -48,26 +48,28 @@ public class TitleCasingRulesProviderFactory(
             byLanguage["en"] = await BuildEnglishDefaultAsync(cancellationToken);
         }
 
-        return new TitleCasingRulesProvider(byLanguage);
+        return new TitleCasingRulesProvider(
+            byLanguage,
+            loadLanguage: (language, ct) => titleCasingRulesRepository.Get(language));
     }
 
     private static void AddIfPresent(
-        IDictionary<string, LanguageTitleCasingRulesDocument> byLanguage,
-        LanguageTitleCasingRulesDocument? document)
+        IDictionary<string, TitleCasingRulesDocument> byLanguage,
+        TitleCasingRulesDocument? document)
     {
         if (document is null)
         {
             return;
         }
 
-        var key = LanguageTitleCasingRulesDocument.NormaliseLanguage(document.Language);
+        var key = TitleCasingRulesDocument.NormaliseLanguage(document.Language);
         if (!string.IsNullOrEmpty(key))
         {
             byLanguage[key] = document;
         }
     }
 
-    private async Task<LanguageTitleCasingRulesDocument> BuildEnglishDefaultAsync(
+    private async Task<EnglishTitleCasingRulesDocument> BuildEnglishDefaultAsync(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -85,7 +87,7 @@ public class TitleCasingRulesProviderFactory(
                 .ToList();
         }
 
-        return LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+        return TitleCasingRulesDocument.CreateEnglishDefault(
             LowerCaseTerms.DefaultEnglishWords,
             knownTerms);
     }

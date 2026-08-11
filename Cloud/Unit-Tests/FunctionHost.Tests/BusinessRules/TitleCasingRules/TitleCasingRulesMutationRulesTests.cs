@@ -189,4 +189,47 @@ public class TitleCasingRulesMutationRulesTests
         result.Error.Should().Contain("NASA");
         result.Error.Should().Contain("not in the list");
     }
+
+    [Fact(DisplayName =
+        "Title-casing admin POST ignored subject: appending a new subject keeps existing names and sorts case-insensitively, because language ignore lists are ordered unique deltas.")]
+    public void add_ignored_subject_appends_and_orders()
+    {
+        // Arrange
+        var existing = new[] { "Zeta", "Alpha" };
+
+        // Act
+        var result = TitleCasingRulesMutationRules.TryAddIgnoredSubject(existing, "Beta");
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+        result.Terms.Should().Equal("Alpha", "Beta", "Zeta");
+    }
+
+    [Fact(DisplayName =
+        "Title-casing admin POST ignored subject: empty term fails, because Add requires a subject name.")]
+    public void add_empty_ignored_subject_fails()
+    {
+        // Arrange
+        // Act
+        var result = TitleCasingRulesMutationRules.TryAddIgnoredSubject(null, "  ");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("required");
+    }
+
+    [Fact(DisplayName =
+        "Title-casing admin DELETE ignored subject: removing an unknown name fails, because only registered ignores can be deleted.")]
+    public void delete_unknown_ignored_subject_fails()
+    {
+        // Arrange
+        var existing = new[] { "Alpha" };
+
+        // Act
+        var result = TitleCasingRulesMutationRules.TryRemoveIgnoredSubject(existing, "Missing");
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Error.Should().Contain("Missing");
+    }
 }

@@ -23,4 +23,14 @@ public interface ITitleCasingRulesUpdateService
         string language,
         string literal,
         CancellationToken cancellationToken);
+
+    Task<TitleCasingRulesUpdateResult> AddIgnoredSubjectAsync(
+        string language,
+        TitleCasingRulesAddLowerCaseTermRequest body,
+        CancellationToken cancellationToken);
+
+    Task<TitleCasingRulesUpdateResult> DeleteIgnoredSubjectAsync(
+        string language,
+        string term,
+        CancellationToken cancellationToken);
 }

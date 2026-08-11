@@ -17,6 +17,8 @@ public class TitleCasingRulesController(
     IDeleteTitleCasingRulesLowerCaseTermHandler deleteTitleCasingRulesLowerCaseTermHandler,
     IPostTitleCasingRulesKnownTermHandler postTitleCasingRulesKnownTermHandler,
     IDeleteTitleCasingRulesKnownTermHandler deleteTitleCasingRulesKnownTermHandler,
+    IPostTitleCasingRulesIgnoredSubjectHandler postTitleCasingRulesIgnoredSubjectHandler,
+    IDeleteTitleCasingRulesIgnoredSubjectHandler deleteTitleCasingRulesIgnoredSubjectHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TitleCasingRulesController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -28,6 +30,8 @@ public class TitleCasingRulesController(
     private const string LowerCaseTermRoute = "title-casing-rules/{language}/lower-case-terms/{term}";
     private const string KnownTermsRoute = "title-casing-rules/{language}/known-terms";
     private const string KnownTermRoute = "title-casing-rules/{language}/known-terms/{literal}";
+    private const string IgnoredSubjectsRoute = "title-casing-rules/{language}/ignored-subjects";
+    private const string IgnoredSubjectRoute = "title-casing-rules/{language}/ignored-subjects/{term}";
 
     [Function("TitleCasingRulesGetByLanguage")]
     public Task<HttpResponseData> GetByLanguage(
@@ -105,6 +109,38 @@ public class TitleCasingRulesController(
             ["admin"],
             new TitleCasingRulesLanguageKnownTermDelete(language, Uri.UnescapeDataString(literal)),
             deleteTitleCasingRulesKnownTermHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("TitleCasingRulesPostIgnoredSubject")]
+    public Task<HttpResponseData> PostIgnoredSubject(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = IgnoredSubjectsRoute)]
+        HttpRequestData req,
+        string language,
+        FunctionContext _,
+        [FromBody] TitleCasingRulesAddLowerCaseTermRequest body,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            new TitleCasingRulesLanguageTerm(language, body.Term),
+            postTitleCasingRulesIgnoredSubjectHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("TitleCasingRulesDeleteIgnoredSubject")]
+    public Task<HttpResponseData> DeleteIgnoredSubject(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = IgnoredSubjectRoute)]
+        HttpRequestData req,
+        string language,
+        string term,
+        FunctionContext _,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            new TitleCasingRulesLanguageTerm(language, Uri.UnescapeDataString(term)),
+            deleteTitleCasingRulesIgnoredSubjectHandler.Handle,
             Unauthorised,
             ct);
 }

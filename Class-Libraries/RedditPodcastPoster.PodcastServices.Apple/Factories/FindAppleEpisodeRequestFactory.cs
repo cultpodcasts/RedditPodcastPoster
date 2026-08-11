@@ -27,7 +27,8 @@ public static class FindAppleEpisodeRequestFactory
             enrichingYouTubeDiscoveredEpisode,
             episode.Description,
             podcast.DefaultSubject,
-            podcast.IgnoredSubjects);
+            podcast.IgnoredSubjects,
+            !string.IsNullOrWhiteSpace(episode.Language) ? episode.Language : podcast.Language);
     }
 
     public static FindAppleEpisodeRequest Create(
@@ -57,7 +58,8 @@ public static class FindAppleEpisodeRequestFactory
             criteriaFromYouTube,
             criteria.EpisodeDescription,
             podcast?.DefaultSubject,
-            podcast?.IgnoredSubjects);
+            podcast?.IgnoredSubjects,
+            podcast?.Language);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)

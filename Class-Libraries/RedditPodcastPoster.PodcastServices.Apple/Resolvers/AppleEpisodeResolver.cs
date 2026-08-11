@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -7,8 +8,10 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Matching;
 using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
@@ -16,6 +19,7 @@ public class AppleEpisodeResolver(
     ICachedApplePodcastService applePodcastService,
     IEpisodePlatformMatcher platformMatcher,
     ISubjectMatcher subjectMatcher,
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider,
     ILogger<AppleEpisodeResolver> logger)
     : IAppleEpisodeResolver
 {
@@ -61,13 +65,15 @@ public class AppleEpisodeResolver(
                     return source != null && reducer(source);
                 };
 
+            var mergedIgnored = await MergeIgnoredSubjectsAsync(request.IgnoredSubjects, request.Language);
+
             if (request.EnrichingYouTubeDiscoveredEpisode)
             {
                 await ClassifySubjectsAsync(
                     probe,
                     candidates,
                     request.DefaultSubject,
-                    request.IgnoredSubjects);
+                    mergedIgnored);
             }
 
             var match = platformMatcher.FindCatalogueMatchByLength(
@@ -80,7 +86,7 @@ public class AppleEpisodeResolver(
                     AcceptUniqueDurationWithoutTitleMatch: false,
                     request.EnrichingYouTubeDiscoveredEpisode,
                     request.DefaultSubject,
-                    request.IgnoredSubjects),
+                    mergedIgnored),
                 episodeReducer);
 
             matchingEpisode = match == null
@@ -113,6 +119,15 @@ public class AppleEpisodeResolver(
         {
             candidate.Subjects = await MatchSubjectNamesAsync(candidate, options);
         }
+    }
+
+    private async Task<IReadOnlyList<string>?> MergeIgnoredSubjectsAsync(
+        IReadOnlyList<string>? podcastIgnored,
+        string? language)
+    {
+        var provider = await titleCasingRulesProvider.GetAsync();
+        var languageIgnored = await provider.GetIgnoredSubjectsAsync(language);
+        return SubjectEnrichmentOptionsFactory.UnionIgnoreLists(podcastIgnored, languageIgnored);
     }
 
     private async Task<List<string>> MatchSubjectNamesAsync(

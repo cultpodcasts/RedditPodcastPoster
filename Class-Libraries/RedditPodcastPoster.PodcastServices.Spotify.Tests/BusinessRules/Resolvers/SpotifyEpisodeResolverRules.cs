@@ -163,6 +163,7 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
         wrapper.Verify(
@@ -289,6 +290,7 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(catalogueEpisode);
         var sut = CreateSut(provider.Object, wrapper.Object, finder.Object);
@@ -319,6 +321,7 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
         finder.Verify(
@@ -376,6 +379,7 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(catalogueEpisode);
         var sut = CreateSut(provider.Object, wrapper.Object, finder.Object);
@@ -408,6 +412,7 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
         finder.Verify(

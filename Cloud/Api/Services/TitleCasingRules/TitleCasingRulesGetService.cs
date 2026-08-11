@@ -16,7 +16,7 @@ public class TitleCasingRulesGetService(
     {
         try
         {
-            var normalised = LanguageTitleCasingRulesDocument.NormaliseLanguage(language);
+            var normalised = TitleCasingRulesDocument.NormaliseLanguage(language);
             if (string.IsNullOrEmpty(normalised))
             {
                 return new TitleCasingRulesGetResult(TitleCasingRulesGetStatus.NotFound);
@@ -31,11 +31,11 @@ public class TitleCasingRulesGetService(
                     IsDefault: false);
             }
 
-            if (normalised == LanguageTitleCasingRulesDocument.UniversalLanguageKey)
+            if (normalised == TitleCasingRulesDocument.UniversalLanguageKey)
             {
                 return new TitleCasingRulesGetResult(
                     TitleCasingRulesGetStatus.Ok,
-                    new LanguageTitleCasingRulesDocument(LanguageTitleCasingRulesDocument.UniversalLanguageKey),
+                    new UniversalTitleCasingRulesDocument(),
                     IsDefault: true);
             }
 
@@ -57,7 +57,7 @@ public class TitleCasingRulesGetService(
         }
     }
 
-    private async Task<LanguageTitleCasingRulesDocument> BuildEnglishDefaultAsync()
+    private async Task<EnglishTitleCasingRulesDocument> BuildEnglishDefaultAsync()
     {
         var knownTerms = new List<KnownTermEntry>();
         var legacy = await lookupRepository.GetKnownTerms<KnownTermsModel>();
@@ -73,7 +73,7 @@ public class TitleCasingRulesGetService(
                 .ToList();
         }
 
-        return LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+        return TitleCasingRulesDocument.CreateEnglishDefault(
             LowerCaseTerms.DefaultEnglishWords,
             knownTerms);
     }

@@ -12,18 +12,18 @@ public class LanguageTitleCasingRulesRepository(
     ILogger<LanguageTitleCasingRulesRepository> logger)
     : ILanguageTitleCasingRulesRepository
 {
-    public async Task<LanguageTitleCasingRulesDocument?> Get(string language)
+    public async Task<TitleCasingRulesDocument?> Get(string language)
     {
-        var normalised = LanguageTitleCasingRulesDocument.NormaliseLanguage(language);
+        var normalised = TitleCasingRulesDocument.NormaliseLanguage(language);
         if (string.IsNullOrEmpty(normalised))
         {
             return null;
         }
 
-        var id = LanguageTitleCasingRulesDocument.IdForLanguage(normalised).ToString();
+        var id = TitleCasingRulesDocument.IdForLanguage(normalised).ToString();
         try
         {
-            return await titleCasingRulesContainer.ReadItemAsync<LanguageTitleCasingRulesDocument>(
+            return await titleCasingRulesContainer.ReadItemAsync<TitleCasingRulesDocument>(
                 id,
                 new PartitionKey(normalised));
         }
@@ -33,16 +33,16 @@ public class LanguageTitleCasingRulesRepository(
         }
     }
 
-    public async IAsyncEnumerable<LanguageTitleCasingRulesDocument> GetAll()
+    public async IAsyncEnumerable<TitleCasingRulesDocument> GetAll()
     {
         var query = titleCasingRulesContainer
-            .GetItemLinqQueryable<LanguageTitleCasingRulesDocument>(requestOptions: new QueryRequestOptions())
+            .GetItemLinqQueryable<TitleCasingRulesDocument>(requestOptions: new QueryRequestOptions())
             .Where(x => x.ModelType == ModelType.LanguageTitleCasingRules);
 
         var iterator = query.ToFeedIterator();
         while (iterator.HasMoreResults)
         {
-            FeedResponse<LanguageTitleCasingRulesDocument> response;
+            FeedResponse<TitleCasingRulesDocument> response;
             try
             {
                 response = await iterator.ReadNextAsync();
@@ -60,26 +60,26 @@ public class LanguageTitleCasingRulesRepository(
         }
     }
 
-    public async Task Save(LanguageTitleCasingRulesDocument document)
+    public async Task Save(TitleCasingRulesDocument document)
     {
-        document.Language = LanguageTitleCasingRulesDocument.NormaliseLanguage(document.Language);
-        document.Id = LanguageTitleCasingRulesDocument.IdForLanguage(document.Language);
+        document.Language = TitleCasingRulesDocument.NormaliseLanguage(document.Language);
+        document.Id = TitleCasingRulesDocument.IdForLanguage(document.Language);
         document.ModelType = ModelType.LanguageTitleCasingRules;
         await titleCasingRulesContainer.UpsertItemAsync(document, new PartitionKey(document.Language));
     }
 
     public async Task Delete(string language)
     {
-        var normalised = LanguageTitleCasingRulesDocument.NormaliseLanguage(language);
+        var normalised = TitleCasingRulesDocument.NormaliseLanguage(language);
         if (string.IsNullOrEmpty(normalised))
         {
             return;
         }
 
-        var id = LanguageTitleCasingRulesDocument.IdForLanguage(normalised).ToString();
+        var id = TitleCasingRulesDocument.IdForLanguage(normalised).ToString();
         try
         {
-            await titleCasingRulesContainer.DeleteItemAsync<LanguageTitleCasingRulesDocument>(
+            await titleCasingRulesContainer.DeleteItemAsync<TitleCasingRulesDocument>(
                 id,
                 new PartitionKey(normalised));
         }

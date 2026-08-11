@@ -4,8 +4,8 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Matching;
-using RedditPodcastPoster.Subjects.Models;
 
 namespace AddSubjectToSearchMatches;
 
@@ -13,6 +13,7 @@ public class Processor(
     ISubjectsProvider subjectsProvider,
     SearchClient searchClient,
     ISubjectMatcher subjectMatcher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
@@ -80,11 +81,9 @@ public class Processor(
                         podcastEpisode.Episode.Id);
                     if (repoPodcastEpisode != null && !repoPodcastEpisode.Subjects.Contains(request.Query))
                     {
-                        var subjectEnrichmentOptions = new SubjectEnrichmentOptions(
-                            podcast.IgnoredAssociatedSubjects,
-                            podcast.IgnoredSubjects,
-                            podcast.DefaultSubject,
-                            podcast.DescriptionRegex);
+                        var subjectEnrichmentOptions = await subjectEnrichmentOptionsFactory.CreateAsync(
+                            podcast,
+                            podcastEpisode.Episode);
                         var subjectMatches = await subjectMatcher.MatchSubjects(
                             podcastEpisode.Episode,
                             subjectEnrichmentOptions

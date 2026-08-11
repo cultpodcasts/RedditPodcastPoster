@@ -194,12 +194,12 @@ internal static class FunctionHostTestSupport
         var mockRepo = new Mock<ILanguageTitleCasingRulesRepository>();
         mockRepo.Setup(x => x.GetAll()).Returns(EmptyTitleCasingRules());
         mockRepo.Setup(x => x.Get(It.IsAny<string>()))
-            .ReturnsAsync((RedditPodcastPoster.Models.TitleCasing.LanguageTitleCasingRulesDocument?)null);
+            .ReturnsAsync((RedditPodcastPoster.Models.TitleCasing.TitleCasingRulesDocument?)null);
 
         services.AddSingleton(mockRepo.Object);
     }
 
-    private static async IAsyncEnumerable<RedditPodcastPoster.Models.TitleCasing.LanguageTitleCasingRulesDocument> EmptyTitleCasingRules()
+    private static async IAsyncEnumerable<RedditPodcastPoster.Models.TitleCasing.TitleCasingRulesDocument> EmptyTitleCasingRules()
     {
         yield break;
     }

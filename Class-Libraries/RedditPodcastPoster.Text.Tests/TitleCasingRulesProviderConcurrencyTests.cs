@@ -13,14 +13,13 @@ public class TitleCasingRulesProviderConcurrencyTests
     {
         // Arrange
         var provider = new TitleCasingRulesProvider(
-            new Dictionary<string, LanguageTitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
+            new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)
             {
-                ["en"] = LanguageTitleCasingRulesDocument.CreateEnglishDefault(
+                ["en"] = TitleCasingRulesDocument.CreateEnglishDefault(
                     LowerCaseTerms.DefaultEnglishWords,
                     knownTerms: null),
-                ["fil"] = new LanguageTitleCasingRulesDocument
+                ["fil"] = new NonEnglishTitleCasingRulesDocument("fil")
                 {
-                    Language = "fil",
                     LowerCaseTerms = ["sa", "kay", "ng"],
                     KnownTerms = []
                 }

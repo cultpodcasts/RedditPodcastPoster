@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
                 })
                 .AddScoped<ISubjectService, SubjectService>()
                 .AddScoped<ISubjectEnricher, SubjectEnricher>()
+                .AddScoped<ISubjectEnrichmentOptionsFactory, SubjectEnrichmentOptionsFactory>()
                 .AddScoped<ISubjectMatcher, SubjectMatcher>()
                 .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
                 .AddScoped<ICategoriser, Categoriser>()

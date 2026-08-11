@@ -65,7 +65,7 @@ public class TextSanitiserLanguageLowerCaseTermsTests
         TitleCasingTestSupport.UseRules(
             mocker,
             TitleCasingTestSupport.CreateEnglishDefault(),
-            new LanguageTitleCasingRulesDocument("pl")
+            new NonEnglishTitleCasingRulesDocument("pl")
             {
                 LowerCaseTerms = ["of", "the"],
                 KnownTerms = []

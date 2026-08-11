@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Text.TitleCasing;
 
 public interface ITitleCasingRulesProvider
 {
-    IReadOnlyDictionary<string, LanguageTitleCasingRulesDocument> GetAll();
+    IReadOnlyDictionary<string, TitleCasingRulesDocument> GetAll();
 
     IDictionary<string, Regex> GetLowerCaseExpressions(string? language);
 
@@ -19,4 +19,18 @@ public interface ITitleCasingRulesProvider
 
     /// <summary>Precompiled universal (<c>*</c>) known-term replacements.</summary>
     IReadOnlyList<KnownTermReplacement> GetUniversalKnownTermReplacements();
+
+    /// <summary>
+    /// Ensures a non-English language document is in the title-casing cache (lazy Cosmos point-read).
+    /// No-op for English, universal, or when already cached.
+    /// </summary>
+    Task EnsureLanguageLoadedAsync(string? language, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subject names ignored during enrichment for this language (from the cached title-casing doc).
+    /// English / universal / missing → empty.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetIgnoredSubjectsAsync(
+        string? language,
+        CancellationToken cancellationToken = default);
 }

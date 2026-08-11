@@ -21,7 +21,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.Subjects.Enrichers;
-using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Text.EliminationTerms;
 
 namespace EnrichYouTubeOnlyPodcasts;
@@ -35,6 +35,7 @@ public class EnrichYouTubePodcastProcessor(
     IYouTubeVideoService youTubeVideoService,
     IYouTubeEpisodeProvider youTubeEpisodeProvider,
     ISubjectEnricher subjectEnricher,
+    ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IPodcastFilter podcastFilter,
     IOptions<PostingCriteria> postingCriteria,
@@ -204,11 +205,7 @@ public class EnrichYouTubePodcastProcessor(
                     }
 
                     var results = await subjectEnricher.EnrichSubjects(episode,
-                        new SubjectEnrichmentOptions(
-                            podcast.IgnoredAssociatedSubjects,
-                            podcast.IgnoredSubjects,
-                            podcast.DefaultSubject,
-                            podcast.DescriptionRegex));
+                        await subjectEnrichmentOptionsFactory.CreateAsync(podcast, episode));
                     episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: true);
                     addedEpisodes.Add(episode);
                 }

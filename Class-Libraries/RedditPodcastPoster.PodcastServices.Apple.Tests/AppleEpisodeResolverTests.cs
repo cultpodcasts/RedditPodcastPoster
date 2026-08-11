@@ -1,5 +1,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.TitleCasing;
+using RedditPodcastPoster.Text.TitleCasing;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -66,6 +69,7 @@ public class AppleEpisodeResolverTests
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
             new StubSubjectMatcher(),
+            EmptyTitleCasingProvider(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -132,6 +136,7 @@ public class AppleEpisodeResolverTests
             new StubApplePodcastService(appleEpisodes),
             matcher,
             new StubSubjectMatcher(),
+            EmptyTitleCasingProvider(),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -169,5 +174,15 @@ public class AppleEpisodeResolverTests
 
         public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext) =>
             Task.FromResult<IEnumerable<AppleEpisode>?>(episodes);
+    }
+    private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>
+        new StubAsyncInstance<ITitleCasingRulesProvider>(
+            new TitleCasingRulesProvider(
+                new Dictionary<string, TitleCasingRulesDocument>(StringComparer.OrdinalIgnoreCase)));
+
+    private sealed class StubAsyncInstance<T>(T value) : IAsyncInstance<T>
+    {
+        public Task<T> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(value);
     }
 }
