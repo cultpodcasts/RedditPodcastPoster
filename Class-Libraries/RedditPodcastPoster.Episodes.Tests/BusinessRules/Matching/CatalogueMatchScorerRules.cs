@@ -413,8 +413,9 @@ public class CatalogueMatchScorerRules
 
     [Fact(DisplayName =
         "When both sides have duration and the gap equals the proportional band for a long episode, " +
-        "the score is zero because the duration hard-fail uses a strict less-than band edge.")]
-    public void long_episode_duration_gap_exactly_at_proportional_band_scores_zero()
+        "duration points are omitted (not a hard zero) so empty description leaves the score below threshold " +
+        "because out-of-band length alone must not accept catalogue rows.")]
+    public void long_episode_duration_gap_exactly_at_proportional_band_omits_duration_points()
     {
         // Arrange
         var release = DomainTestFixture.UtcDateDaysAgo(1);
@@ -446,7 +447,11 @@ public class CatalogueMatchScorerRules
 
         // Assert
         band.Should().BeGreaterThan(CatalogueMatchScorer.DurationBandFloor);
-        score.Should().Be(0);
+        score.Should().Be(
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints);
+        score.Should().BeLessThan(CatalogueMatchScorer.MatchThreshold);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -493,7 +498,7 @@ public class CatalogueMatchScorerRules
 
     [Fact(DisplayName =
         "For a short episode the duration band stays at the five-minute floor, so a gap of exactly " +
-        "five minutes still hard-fails even though ten percent of the shorter length is smaller.")]
+        "five minutes omits duration points even though ten percent of the shorter length is smaller.")]
     public void short_episode_duration_band_keeps_five_minute_floor()
     {
         // Arrange — 20m → 10% = 2m; floor remains 5m
@@ -526,6 +531,64 @@ public class CatalogueMatchScorerRules
 
         // Assert
         band.Should().Be(CatalogueMatchScorer.DurationBandFloor);
-        score.Should().Be(0);
+        score.Should().Be(
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.FuzzyTitlePoints);
+        score.Should().BeLessThan(CatalogueMatchScorer.MatchThreshold);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a delay-adjusted YouTube probe is about two weeks before a same-upload-day Apple row whose " +
+        "duration exceeds the band (YouTube clip of a longer multi-segment episode) but descriptions fuzzy-match, " +
+        "the score meets the threshold because description-aligned release consideration plus the missing-duration " +
+        "bridge replace duration points.")]
+    public void youtube_clip_of_longer_apple_with_matching_description_meets_threshold()
+    {
+        // Arrange — mirrors SubmitUrl MatchOtherServices: probe Released shifted by publishing delay;
+        // Apple same calendar day as YouTube publish; ~15m clip vs ~24m multi-topic audio; shared blurb.
+        var youTubeRelease = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(20));
+        var publishingDelay = TimeSpan.FromDays(14);
+        var probeRelease = youTubeRelease.Subtract(publishingDelay);
+        var appleRelease = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(4));
+        var sharedBlurb =
+            "The crime drama SeriesName follows two women: a serial killer targeting powerful men and the " +
+            "investigator tasked with tracking her down. Guest critics join the host to discuss why this " +
+            "show about female rage has turned into such a hit.";
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Female rage on television after a major scandal";
+            e.Description = sharedBlurb + " Subscribe on the open streaming platforms for more episodes.";
+            e.Length = TimeSpan.FromMinutes(15).Add(TimeSpan.FromSeconds(10));
+            e.Release = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title =
+                "SeriesName hits hard after a major scandal, and how gallery paintings ended up at a thrift shop";
+            e.Description = sharedBlurb +
+                            " Plus, when a trove of art popped up at a thrift shop, people discovered it had " +
+                            "been donated by a local gallery.";
+            e.Length = TimeSpan.FromMinutes(24);
+            e.Release = appleRelease;
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+        var band = CatalogueMatchScorer.GetDurationBand(probe.Length, catalogue.Length);
+
+        // Assert
+        (catalogue.Length - probe.Length).Should().BeGreaterThan(band);
+        (youTubeRelease.Date - probeRelease.Date).Days.Should().Be(14);
+        appleRelease.Date.Should().Be(youTubeRelease.Date);
+        score.Should().Be(
+            CatalogueMatchScorer.WeakInWindowReleasePoints +
+            CatalogueMatchScorer.FuzzyDescriptionPoints +
+            CatalogueMatchScorer.MissingDurationDescriptionBridgePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
     }
 }
