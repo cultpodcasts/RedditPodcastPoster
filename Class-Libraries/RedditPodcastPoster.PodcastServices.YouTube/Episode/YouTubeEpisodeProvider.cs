@@ -190,7 +190,7 @@ public class YouTubeEpisodeProvider(
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
         if (playlistQueryResponse.Result == null || !playlistQueryResponse.Result.Any())
         {
-            return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
+            return new GetPlaylistEpisodesResponse(null, isExpensiveQuery, playlistQueryResponse.Failure);
         }
 
         var results = playlistQueryResponse.Result;

@@ -51,6 +51,8 @@ public class YouTubeEpisodeRetrievalHandler(
                 newEpisodes = getPlaylistEpisodesResult.Results;
             }
 
+            LogPlaylistFetchFailure(podcast, getPlaylistEpisodesResult.Failure);
+
             // Arbitrary-order playlists never yield a head-order probe result (IsExpensiveQuery stays
             // null), and even if a probe value sneaks through the expensive flag must stay untouched —
             // curated playlists have no positional order to learn from.
@@ -91,6 +93,26 @@ public class YouTubeEpisodeRetrievalHandler(
         handled = true;
 
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+    }
+
+    private void LogPlaylistFetchFailure(Podcast podcast, YouTubePlaylistFetchFailure? failure)
+    {
+        if (failure == null)
+        {
+            return;
+        }
+
+        if (failure == YouTubePlaylistFetchFailure.NotFound)
+        {
+            logger.LogError(
+                "YouTube playlist '{PlaylistId}' for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
+                podcast.YouTubePlaylistId, podcast.Name, podcast.Id);
+            return;
+        }
+
+        logger.LogError(
+            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (failure '{Failure}').",
+            podcast.Name, podcast.Id, podcast.YouTubePlaylistId, failure);
     }
 
     private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)
