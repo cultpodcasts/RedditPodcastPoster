@@ -34,7 +34,7 @@ public class TweetBuilder(
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
 
-    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl)
+    public async Task<string> BuildTweet(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
         var postModel = postModelFactory.ToPostModel((podcastEpisode.Podcast, [podcastEpisode.Episode]));
         var episodeTitle = await textSanitiser.SanitiseTitle(postModel);
@@ -101,7 +101,12 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (_twitterOptions.WithEpisodeUrl ? 26 : 0));
+        // 257 already budgets one t.co URL. Extra 26 only when a second (short) URL will also be appended.
+        // Share-image posts are short-URL-only — no second-URL reserve, so the title can be longer.
+        var reserveSecondUrl = !hasShareImage
+            && _twitterOptions.WithEpisodeUrl
+            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+        var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveSecondUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
@@ -112,10 +117,17 @@ public class TweetBuilder(
                     $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
-            episodeTitle = episodeTitle[..min] + "ΓÇª";
+            episodeTitle = episodeTitle[..min] + "…";
         }
 
         tweetBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
+
+        if (hasShareImage && shortUrl != null)
+        {
+            tweetBuilder.Append(shortUrl);
+            return tweetBuilder.ToString();
+        }
+
         if (podcastEpisode.Episode.Urls.YouTube != null)
         {
             tweetBuilder.Append(podcastEpisode.Episode.Urls.YouTube);
@@ -140,14 +152,13 @@ public class TweetBuilder(
         {
             throw new InvalidOperationException("No link found to tweet");
         }
+
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
                                                            podcastEpisode.Episode.Subjects.Any()))
         {
             tweetBuilder.Append($"{Environment.NewLine}{shortUrl}");
         }
 
-
-        var tweet = tweetBuilder.ToString();
-        return tweet;
+        return tweetBuilder.ToString();
     }
 }
