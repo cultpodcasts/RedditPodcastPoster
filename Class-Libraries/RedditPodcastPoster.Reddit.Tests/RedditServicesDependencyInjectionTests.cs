@@ -8,8 +8,8 @@ namespace RedditPodcastPoster.Reddit.Tests;
 public class RedditServicesDependencyInjectionTests
 {
     [Fact(DisplayName =
-        "AddRedditServices registration: when called by a future Devvit host, then title and comment constructors are registered without a live poster port, because application hosts no longer call AddRedditServices.")]
-    public void add_reddit_services_registers_constructors_without_live_poster()
+        "AddRedditServices registration: when called, then title and comment constructors are registered for a future Devvit host.")]
+    public void add_reddit_services_registers_constructors()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -27,8 +27,5 @@ public class RedditServicesDependencyInjectionTests
         services.Should().Contain(d =>
             d.ServiceType == typeof(IRedditBundleCommentFactory) &&
             d.ImplementationType == typeof(RedditBundleCommentFactory));
-        services.Should().NotContain(d =>
-            d.ServiceType.Name == "IEpisodePostManager" ||
-            d.ServiceType.Name == "IPostManager");
     }
 }

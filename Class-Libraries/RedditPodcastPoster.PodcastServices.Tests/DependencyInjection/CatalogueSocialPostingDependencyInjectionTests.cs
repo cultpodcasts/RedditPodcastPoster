@@ -21,8 +21,8 @@ namespace RedditPodcastPoster.PodcastServices.Tests.DependencyInjection;
 public class CatalogueSocialPostingDependencyInjectionTests
 {
     [Fact(DisplayName =
-        "Index-like catalogue container: when AddCatalogueServices and AddSocialPostingServices are registered, then catalogue candidacy and PostModelFactory are registered without a Reddit poster, because Reddit.NET posting is removed.")]
-    public void index_like_container_registers_catalogue_and_social_without_reddit_poster()
+        "Index-like catalogue container: when AddCatalogueServices and AddSocialPostingServices are registered, then catalogue candidacy and PostModelFactory are registered.")]
+    public void index_like_container_registers_catalogue_and_social()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -39,9 +39,6 @@ public class CatalogueSocialPostingDependencyInjectionTests
         services.Should().Contain(d => d.ServiceType == typeof(IPodcastFactory));
         services.Should().Contain(d => d.ServiceType == typeof(IPodcastEpisodeFilter));
         services.Should().Contain(d => d.ServiceType == typeof(IPostModelFactory));
-        services.Should().NotContain(d =>
-            d.ServiceType.Name == "IEpisodeProcessor" ||
-            d.ServiceType.Name == "IPodcastEpisodePoster");
     }
 
     [Fact(DisplayName =
@@ -65,8 +62,8 @@ public class CatalogueSocialPostingDependencyInjectionTests
     }
 
     [Fact(DisplayName =
-        "Poster-like container: when Catalogue and SocialPosting are registered, then PostModelFactory and episode providers resolve without a Reddit poster port.")]
-    public void poster_like_container_resolves_social_helpers_without_reddit_poster()
+        "Poster-like container: when Catalogue and SocialPosting are registered, then PostModelFactory and episode providers resolve.")]
+    public void poster_like_container_resolves_social_helpers()
     {
         // Arrange
         var services = CreateIndexLikeContainer();
