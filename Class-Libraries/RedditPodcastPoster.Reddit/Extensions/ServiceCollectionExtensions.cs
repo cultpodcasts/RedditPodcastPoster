@@ -11,8 +11,8 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddRedditServices()
         {
-            // Live Reddit.NET posting/un-post/flair are detached. Keep title/comment
-            // constructors and settings for a future Devvit poster; RunPoster switches stay.
+            // Not used by Indexer/Api/Discovery/Poster/PublishR2 hosts — they are detached
+            // from Reddit DI. Kept for unit tests and a future Devvit poster host.
             return services
                 .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
                 .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()

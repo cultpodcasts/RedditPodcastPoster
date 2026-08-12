@@ -8,7 +8,6 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 
@@ -28,7 +27,6 @@ builder.Services
     .AddRepositories()
     .AddPeopleServices()
     .AddContentPublishing()
-    .AddRedditServices()
     .AddTextSanitiser()
     .AddSubjectServices()
     .AddScoped<R2PublishProcessor>()

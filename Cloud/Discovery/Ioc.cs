@@ -20,7 +20,6 @@ using RedditPodcastPoster.PodcastServices.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.People.Extensions;
-using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 
 namespace Discovery;
@@ -42,7 +41,6 @@ public static class Ioc
             .AddScoped(s => new iTunesSearchManager())
             .AddPushSubscriptions()
             .AddContentPublishing()
-            .AddRedditServices()
             .AddCloudflareClients()
             .AddHttpClient()
             .BindConfiguration<DiscoverOptions>("discover")

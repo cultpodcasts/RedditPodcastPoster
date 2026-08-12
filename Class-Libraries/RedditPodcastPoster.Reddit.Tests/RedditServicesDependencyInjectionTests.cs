@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Reddit.Tests;
 public class RedditServicesDependencyInjectionTests
 {
     [Fact(DisplayName =
-        "AddRedditServices registration: when called, then title and comment constructors are registered and no live poster port is wired, because Reddit.NET posting is detached pending Devvit.")]
+        "AddRedditServices registration: when called by a future Devvit host, then title and comment constructors are registered without a live poster port, because application hosts no longer call AddRedditServices.")]
     public void add_reddit_services_registers_constructors_without_live_poster()
     {
         // Arrange
