@@ -101,7 +101,8 @@ public class BlueskyEmbedCardPostFactory(
             postBuilder.AppendLine(endHashTags);
         }
 
-        var includeShortInText = hasShareImage
+        var shortUrlOnly = hasShareImage && _blueskyOptions.ShortUrlOnlyWhenShareImage;
+        var includeShortInText = shortUrlOnly
             || (_blueskyOptions.WithEpisodeUrl &&
                 (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
         if (shortUrl != null && includeShortInText)
@@ -110,8 +111,8 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         // Short URL is already in postBuilder when includeShortInText. Extra 26 was for dual-link
-        // budgeting; share-image posts are short-only so skip it and allow a longer title.
-        var reserveSecondUrlBudget = !hasShareImage
+        // budgeting; short-URL-only share-image posts skip it and allow a longer title.
+        var reserveSecondUrlBudget = !shortUrlOnly
             && _blueskyOptions.WithEpisodeUrl
             && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
         var permittedTitleLength = 300 - (postBuilder.Length + (reserveSecondUrlBudget ? 26 : 0));
@@ -163,7 +164,7 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         // Share-image shorts: card opens s.cultpodcasts.com; UrlService still drives thumb fetch.
-        if (hasShareImage && shortUrl != null)
+        if (shortUrlOnly && shortUrl != null)
         {
             url = shortUrl;
         }

@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using RedditPodcastPoster.Common.Factories;
+using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -22,7 +22,7 @@ public class TweetBuilderShortUrlOnlyTests
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When shortener KV has a share image, the tweet body uses only the short URL and omits platform links.")]
+        "When ShortUrlOnlyWhenShareImage is enabled and KV has a share image, the tweet body uses only the short URL and omits platform links.")]
     public async Task Has_share_image_tweet_is_short_url_only()
     {
         // Arrange
@@ -31,7 +31,7 @@ public class TweetBuilderShortUrlOnlyTests
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
         var platformHost = episode.Urls.YouTube!.Host;
-        var sut = CreateSut(withEpisodeUrl: false);
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var tweet = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: true);
@@ -39,6 +39,25 @@ public class TweetBuilderShortUrlOnlyTests
         // Assert
         tweet.Should().Contain(shortUrl.ToString());
         tweet.Should().NotContain(platformHost);
+    }
+
+    [Fact(DisplayName =
+        "When ShortUrlOnlyWhenShareImage is disabled, a share image does not remove the platform URL from the tweet.")]
+    public async Task Share_image_with_short_url_only_disabled_keeps_platform_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var platformUrl = episode.Urls.YouTube!;
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var tweet = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: true);
+
+        // Assert
+        tweet.Should().Contain(platformUrl.ToString());
     }
 
     [Fact(DisplayName =
@@ -51,7 +70,7 @@ public class TweetBuilderShortUrlOnlyTests
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
         var platformUrl = episode.Urls.YouTube!;
-        var sut = CreateSut(withEpisodeUrl: false);
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var tweet = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: false);
@@ -61,7 +80,7 @@ public class TweetBuilderShortUrlOnlyTests
     }
 
     [Fact(DisplayName =
-        "When shortener KV has a share image, the tweet title can be longer because only one URL is posted.")]
+        "When ShortUrlOnlyWhenShareImage is enabled and KV has a share image, the tweet title can be longer because only one URL is posted.")]
     public async Task Has_share_image_allows_longer_tweet_title_than_dual_url_post()
     {
         // Arrange — length literal is the truncation boundary under test
@@ -71,7 +90,7 @@ public class TweetBuilderShortUrlOnlyTests
         episode.Subjects = ["Subject"];
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
-        var sut = CreateSut(withEpisodeUrl: true);
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var shortOnly = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: true);
@@ -88,7 +107,7 @@ public class TweetBuilderShortUrlOnlyTests
         return end - start;
     }
 
-    private TweetBuilder CreateSut(bool withEpisodeUrl)
+    private TweetBuilder CreateSut(bool withEpisodeUrl, bool shortUrlOnlyWhenShareImage)
     {
         var textSanitiser = new Mock<ITextSanitiser>();
         textSanitiser
@@ -145,7 +164,8 @@ public class TweetBuilderShortUrlOnlyTests
             ConsumerSecret = "s",
             AccessToken = "t",
             AccessTokenSecret = "ts",
-            WithEpisodeUrl = withEpisodeUrl
+            WithEpisodeUrl = withEpisodeUrl,
+            ShortUrlOnlyWhenShareImage = shortUrlOnlyWhenShareImage
         });
 
         return new TweetBuilder(

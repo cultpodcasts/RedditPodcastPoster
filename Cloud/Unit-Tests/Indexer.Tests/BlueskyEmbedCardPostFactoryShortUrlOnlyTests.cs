@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
-using RedditPodcastPoster.Common.Factories;
+using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -22,7 +22,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When shortener KV has a share image, Bluesky embed URL is the short URL while UrlService stays YouTube for thumb fetch.")]
+        "When ShortUrlOnlyWhenShareImage is enabled and KV has a share image, Bluesky embed URL is the short URL while UrlService stays YouTube for thumb fetch.")]
     public async Task Has_share_image_embed_url_is_short_url_service_youtube()
     {
         // Arrange
@@ -30,7 +30,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
-        var sut = CreateSut(withEpisodeUrl: false);
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var post = await sut.Create(podcastEpisode, shortUrl, hasShareImage: true);
@@ -43,6 +43,25 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
     }
 
     [Fact(DisplayName =
+        "When ShortUrlOnlyWhenShareImage is disabled, a share image does not replace the Bluesky embed platform URL.")]
+    public async Task Share_image_with_short_url_only_disabled_keeps_platform_embed_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var post = await sut.Create(podcastEpisode, shortUrl, hasShareImage: true);
+
+        // Assert
+        post.Url.Should().Be(episode.Urls.YouTube);
+        post.UrlService.Should().Be(Service.YouTube);
+    }
+
+    [Fact(DisplayName =
         "When shortener KV has no share image, Bluesky embed URL remains the primary platform URL.")]
     public async Task No_share_image_embed_url_is_platform()
     {
@@ -51,7 +70,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
-        var sut = CreateSut(withEpisodeUrl: false);
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var post = await sut.Create(podcastEpisode, shortUrl, hasShareImage: false);
@@ -62,7 +81,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
     }
 
     [Fact(DisplayName =
-        "When shortener KV has a share image for a Spotify-primary episode, UrlService stays Spotify for thumb fetch.")]
+        "When ShortUrlOnlyWhenShareImage is enabled and KV has a share image for a Spotify-primary episode, UrlService stays Spotify for thumb fetch.")]
     public async Task Has_share_image_spotify_episode_keeps_spotify_url_service()
     {
         // Arrange
@@ -70,7 +89,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
-        var sut = CreateSut(withEpisodeUrl: false);
+        var sut = CreateSut(withEpisodeUrl: false, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var post = await sut.Create(podcastEpisode, shortUrl, hasShareImage: true);
@@ -81,7 +100,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
     }
 
     [Fact(DisplayName =
-        "When shortener KV has a share image, the Bluesky title can be longer because only one URL is in the post text.")]
+        "When ShortUrlOnlyWhenShareImage is enabled and KV has a share image, the Bluesky title can be longer because only one URL is in the post text.")]
     public async Task Has_share_image_allows_longer_bluesky_title_than_dual_url_budget()
     {
         // Arrange — length literal is the truncation boundary under test
@@ -91,7 +110,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         episode.Subjects = ["Subject"];
         var podcastEpisode = new PodcastEpisode(podcast, episode);
         var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
-        var sut = CreateSut(withEpisodeUrl: true);
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: true);
 
         // Act
         var shortOnly = await sut.Create(podcastEpisode, shortUrl, hasShareImage: true);
@@ -108,7 +127,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
         return end - start;
     }
 
-    private BlueskyEmbedCardPostFactory CreateSut(bool withEpisodeUrl)
+    private BlueskyEmbedCardPostFactory CreateSut(bool withEpisodeUrl, bool shortUrlOnlyWhenShareImage)
     {
         var textSanitiser = new Mock<ITextSanitiser>();
         textSanitiser
@@ -164,6 +183,7 @@ public class BlueskyEmbedCardPostFactoryShortUrlOnlyTests
             Identifier = "id",
             Password = "pw",
             WithEpisodeUrl = withEpisodeUrl,
+            ShortUrlOnlyWhenShareImage = shortUrlOnlyWhenShareImage,
             ReuseSession = false,
             MaxFailures = 1,
             MaxPosts = 1
