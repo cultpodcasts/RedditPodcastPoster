@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
+    <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Cloudflare\RedditPodcastPoster.Cloudflare.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.UrlShortening\RedditPodcastPoster.UrlShortening.csproj" />
   </ItemGroup>
 
