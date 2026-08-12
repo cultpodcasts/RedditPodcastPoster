@@ -13,7 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Third-Party\sirkris-Reddit.NET-1.5.3\src\Reddit.NET\Reddit.NET.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Cloudflare\RedditPodcastPoster.Cloudflare.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />

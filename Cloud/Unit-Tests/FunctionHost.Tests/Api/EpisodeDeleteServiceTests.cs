@@ -20,36 +20,45 @@ public class EpisodeDeleteServiceTests
     [Fact(DisplayName = "Delete returns PodcastConflict when podcast name resolves ambiguously")]
     public async Task Delete_returns_conflict_on_podcast_ambiguity()
     {
+        // Arrange
         var resolver = new Mock<IPodcastEpisodeResolver>();
         resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict));
 
         var service = CreateService(resolver.Object);
+
+        // Act
         var result = await service.DeleteAsync(
             new PodcastEpisodeRequestWrapper("Ambiguous Show", Guid.NewGuid()),
             CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(EpisodeDeleteStatus.PodcastConflict);
     }
 
     [Fact(DisplayName = "Delete returns NotFound when episode or podcast missing")]
     public async Task Delete_returns_not_found_when_missing()
     {
+        // Arrange
         var resolver = new Mock<IPodcastEpisodeResolver>();
         resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound));
 
         var service = CreateService(resolver.Object);
+
+        // Act
         var result = await service.DeleteAsync(
             new PodcastEpisodeRequestWrapper(Guid.NewGuid()),
             CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(EpisodeDeleteStatus.NotFound);
     }
 
-    [Fact(DisplayName = "Delete returns AlreadySocial when episode already posted or tweeted")]
+    [Fact(DisplayName = "Delete returns AlreadySocial when episode is tweeted")]
     public async Task Delete_returns_already_social_when_tweeted()
     {
+        // Arrange
         var episodeId = Guid.NewGuid();
         var podcastId = Guid.NewGuid();
         var episode = new Episode { Id = episodeId, PodcastId = podcastId, Tweeted = true };
@@ -62,18 +71,53 @@ public class EpisodeDeleteServiceTests
         var episodeRepo = new Mock<IEpisodeRepository>(MockBehavior.Strict);
         var service = CreateService(resolver.Object, episodeRepo.Object);
 
+        // Act
         var result = await service.DeleteAsync(
             new PodcastEpisodeRequestWrapper(podcastId, episodeId),
             CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(EpisodeDeleteStatus.AlreadySocial);
         result.Tweeted.Should().BeTrue();
         episodeRepo.Verify(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 
+    [Fact(DisplayName = "Delete allows removal when episode was Reddit-posted but not tweeted")]
+    public async Task Delete_allows_when_posted_but_not_tweeted()
+    {
+        // Arrange
+        var episodeId = Guid.NewGuid();
+        var podcastId = Guid.NewGuid();
+        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Posted = true, Tweeted = false };
+        var podcast = new Podcast { Id = podcastId, Name = "Show" };
+
+        var resolver = new Mock<IPodcastEpisodeResolver>();
+        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
+
+        var episodeRepo = new Mock<IEpisodeRepository>();
+        episodeRepo.Setup(r => r.Delete(podcastId, episodeId)).Returns(Task.CompletedTask);
+
+        var shortner = new Mock<IShortnerService>();
+        shortner.Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+            .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
+
+        var service = CreateService(resolver.Object, episodeRepo.Object, shortner.Object);
+
+        // Act
+        var result = await service.DeleteAsync(
+            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeDeleteStatus.Deleted);
+        episodeRepo.Verify(r => r.Delete(podcastId, episodeId), Times.Once);
+    }
+
     [Fact(DisplayName = "Delete persists removal and does not require social posters")]
     public async Task Delete_success_deletes_episode()
     {
+        // Arrange
         var episodeId = Guid.NewGuid();
         var podcastId = Guid.NewGuid();
         var episode = new Episode { Id = episodeId, PodcastId = podcastId };
@@ -91,10 +135,13 @@ public class EpisodeDeleteServiceTests
             .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
 
         var service = CreateService(resolver.Object, episodeRepo.Object, shortner.Object);
+
+        // Act
         var result = await service.DeleteAsync(
             new PodcastEpisodeRequestWrapper(podcastId, episodeId),
             CancellationToken.None);
 
+        // Assert
         result.Status.Should().Be(EpisodeDeleteStatus.Deleted);
         episodeRepo.Verify(r => r.Delete(podcastId, episodeId), Times.Once);
     }

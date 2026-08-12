@@ -43,6 +43,13 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             episode.SearchTerms = episodeChangeRequest.SearchTerms;
         }
 
+        if (episodeChangeRequest.HashTag != null)
+        {
+            episode.HashTag = string.IsNullOrWhiteSpace(episodeChangeRequest.HashTag)
+                ? null
+                : episodeChangeRequest.HashTag.Trim();
+        }
+
         if (episodeChangeRequest.Release != null)
         {
             episode.Release = episodeChangeRequest.Release.Value;

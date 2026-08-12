@@ -5,11 +5,7 @@ using Microsoft.Extensions.Options;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Flair = RedditPodcastPoster.ContentPublisher.Models.Flair;
-using Reddit;
-using Reddit.Things;
-using SubredditSettings = RedditPodcastPoster.Reddit.Configuration.SubredditSettings;
 using RedditPodcastPoster.ContentPublisher.Configuration;
-using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
@@ -18,8 +14,6 @@ public class SubjectsPublisher(
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
     ISubjectRepository subjectRepository,
-    RedditClient redditClient,
-    IOptions<SubredditSettings> subredditSettings,
     ILogger<SubjectsPublisher> logger) : ISubjectsPublisher
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -29,7 +23,6 @@ public class SubjectsPublisher(
     };
 
     private readonly ContentOptions _contentOptions = contentOptions.Value;
-    private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
 
     public async Task PublishSubjects()
     {
@@ -62,8 +55,21 @@ public class SubjectsPublisher(
 
     public async Task PublishFlairs()
     {
-        var subredditFlairs = redditClient.Subreddit(_subredditSettings.SubredditName).Flairs.LinkFlairV2;
-        var models = subredditFlairs.ToDictionary(x => Guid.Parse(x.Id), ToFlairModel);
+        // Live Reddit flair sync retired with Reddit.NET. Rebuild R2 from Cosmos subject flair fields.
+        var subjects = await subjectRepository.GetAll().ToListAsync();
+            var models = subjects
+            .Where(x => x.RedditFlairTemplateId.HasValue)
+            .GroupBy(x => x.RedditFlairTemplateId!.Value)
+            .ToDictionary(
+                g => g.Key.ToString(),
+                g => new Flair
+                {
+                    Text = g.Select(s => s.RedditFlareText).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t))
+                           ?? g.First().Name,
+                    TextEditable = true,
+                    TextColour = "dark",
+                    BackgroundColour = "#dadada"
+                });
 
         var request = new PutObjectRequest
         {
@@ -77,7 +83,10 @@ public class SubjectsPublisher(
         try
         {
             await client.PutObjectAsync(request);
-            logger.LogInformation("Completed '{MethodName}'.", nameof(PublishFlairs));
+            logger.LogInformation(
+                "Completed '{MethodName}' from Cosmos subject flair fields ({Count} templates).",
+                nameof(PublishFlairs),
+                models.Count);
         }
         catch (Exception ex)
         {
@@ -85,16 +94,5 @@ public class SubjectsPublisher(
                 "{MethodName} - Failed to upload flairs-content to R2. BucketName: '{BucketName}', Key: '{Key}'.",
                 nameof(PublishFlairs), _contentOptions.BucketName, _contentOptions.FlairsKey);
         }
-    }
-
-    private static Flair ToFlairModel(FlairV2 flair)
-    {
-        return new Flair
-        {
-            Text = flair.Text,
-            TextEditable = flair.TextEditable,
-            TextColour = flair.TextColor,
-            BackgroundColour = flair.BackgroundColor
-        };
     }
 }

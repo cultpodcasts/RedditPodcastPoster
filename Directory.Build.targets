@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <!--
-    Vendored Third-Party/sirkris-Reddit.NET-1.5.3 pins these vulnerable package versions.
-    Suppress their fan-out until the vendored library can be upgraded or replaced.
+    Historical NuGet audit suppressions (previously needed for vendored Reddit.NET).
+    Kept harmless; remove if advisory IDs no longer appear in restores.
   -->
   <ItemGroup>
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-9pq7-rcxv-47vq" />

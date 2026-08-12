@@ -1,42 +1,14 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Reddit;
-using Reddit.Controllers;
-using RedditPodcastPoster.Reddit.Configuration;
+using RedditPodcastPoster.Models.Posting;
 
 namespace RedditPodcastPoster.Subreddit.Providers;
 
-public class SubredditPostProvider(
-    RedditClient redditClient,
-    IOptions<SubredditSettings> subredditSettings,
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<SubredditPostProvider> logger)
-#pragma warning restore CS9113 // Parameter is unread.
-    : ISubredditPostProvider
+public class SubredditPostProvider(ILogger<SubredditPostProvider> logger) : ISubredditPostProvider
 {
-    private readonly SubredditSettings _subredditSettings = subredditSettings.Value;
-
-    public IEnumerable<Post> GetPosts()
+    public IEnumerable<RedditPost> GetPosts()
     {
-        var posts = new List<Post>();
-        var after = string.Empty;
-        var redditPostBatch =
-            redditClient
-                .Subreddit(_subredditSettings.SubredditName)
-                .Posts
-                .GetNew(after, limit: 10)
-                .ToList();
-        while (redditPostBatch.Any())
-        {
-            posts.AddRange(redditPostBatch);
-            after = redditPostBatch.Last().Fullname;
-            redditPostBatch =
-                redditClient
-                    .Subreddit(_subredditSettings.SubredditName)
-                    .Posts
-                    .GetNew(limit: 10, after: after);
-        }
-
-        return posts;
+        logger.LogInformation(
+            "Reddit.NET subreddit post archive is retired; returning no posts.");
+        return [];
     }
 }

@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.Twitter.Configuration;
@@ -40,6 +41,10 @@ public class TweetBuilder(
 
         var episodeHashtags = await hashTagProvider.GetHashTags(podcastEpisode.Episode.Subjects);
         episodeHashtags = episodeHashtags.Union(podcastEpisode.Podcast.GetHashTags()).ToList();
+        if (!string.IsNullOrWhiteSpace(podcastEpisode.Episode.HashTag))
+        {
+            episodeHashtags = episodeHashtags.Union(podcastEpisode.Episode.HashTag.ToHashTags()).ToList();
+        }
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
             episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));

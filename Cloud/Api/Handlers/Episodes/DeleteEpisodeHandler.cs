@@ -29,7 +29,6 @@ public class DeleteEpisodeHandler(
                     new
                     {
                         message = "Cannot remove episode.",
-                        posted = result.Posted,
                         tweeted = result.Tweeted
                     }, c),
             _ => LogAndFail(ctx)

@@ -15,7 +15,6 @@
   
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Third-Party\sirkris-Reddit.NET-1.5.3\src\Reddit.NET\Reddit.NET.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence.Abstractions\RedditPodcastPoster.Persistence.Abstractions.csproj" />

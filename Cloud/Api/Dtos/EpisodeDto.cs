@@ -105,6 +105,10 @@ public class EpisodeDto
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
 
+    [JsonPropertyName("hashTag")]
+    [JsonPropertyOrder(81)]
+    public string? HashTag { get; set; }
+
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }

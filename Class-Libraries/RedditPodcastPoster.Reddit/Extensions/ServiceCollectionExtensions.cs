@@ -4,8 +4,6 @@ using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Reddit.Episodes;
 using RedditPodcastPoster.Reddit.Factories;
 using RedditPodcastPoster.Reddit.Managers;
-using RedditPodcastPoster.Reddit.Posters;
-using RedditPodcastPoster.Reddit.Resolvers;
 using RedditPodcastPoster.SocialPosting.Episodes;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
@@ -16,16 +14,13 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddRedditServices()
         {
-            RedditClientFactory.AddRedditClient(services);
-
+            // Reddit.NET client factories removed — posting/un-post/flair are no-ops.
+            // Keep RunPoster / website reddit switches and these ports for a future Devvit poster.
             return services
                 .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-                .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
                 .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
                 .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
                 .AddScoped<IPostManager, PostManager>()
-                .AddScoped<IPostResolver, PostResolver>()
-                .AddScoped<IFlareManager, FlareManager>()
                 .AddScoped<IEpisodePostManager, EpisodePostManager>()
                 .BindConfiguration<RedditSettings>("reddit")
                 .AddSubredditSettings();

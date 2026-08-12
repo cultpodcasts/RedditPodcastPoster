@@ -1,31 +1,29 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Reddit.Resolvers;
 
 namespace RedditPodcastPoster.Reddit.Managers;
 
-public class PostManager(
-    IPostResolver postResolver,
-    IFlareManager flareManager,
-    ILogger<PostManager> logger
-) : IPostManager
+/// <summary>
+/// Live Reddit un-post / flair updates retired with Reddit.NET.
+/// Cosmos <c>posted</c> clearing remains in EpisodeUpdateService.
+/// </summary>
+public class PostManager(ILogger<PostManager> logger) : IPostManager
 {
-    public async Task RemoveEpisodePost(PodcastEpisode podcastEpisode)
+    public Task RemoveEpisodePost(PodcastEpisode podcastEpisode)
     {
-        var subredditEpisodePosts = postResolver.FindEpisodePosts(podcastEpisode);
-        foreach (var subredditEpisodePost in subredditEpisodePosts)
-        {
-            logger.LogInformation("Removing post '{Title}'.", subredditEpisodePost.Title);
-            await subredditEpisodePost.DeleteAsync();
-        }
+        logger.LogInformation(
+            "Reddit.NET un-post is retired; skipping live Reddit delete for podcast '{PodcastId}' episode '{EpisodeId}'.",
+            podcastEpisode.Podcast.Id,
+            podcastEpisode.Episode.Id);
+        return Task.CompletedTask;
     }
 
-    public async Task UpdateFlare(PodcastEpisode podcastEpisode)
+    public Task UpdateFlare(PodcastEpisode podcastEpisode)
     {
-        var subredditEpisodePosts = postResolver.FindEpisodePosts(podcastEpisode);
-        foreach (var subredditEpisodePost in subredditEpisodePosts)
-        {
-            await flareManager.SetFlare(podcastEpisode.Episode.Subjects.ToArray(), subredditEpisodePost);
-        }
+        logger.LogInformation(
+            "Reddit.NET flair update is retired; skipping live Reddit flair for podcast '{PodcastId}' episode '{EpisodeId}'.",
+            podcastEpisode.Podcast.Id,
+            podcastEpisode.Episode.Id);
+        return Task.CompletedTask;
     }
 }
