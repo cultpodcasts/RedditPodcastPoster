@@ -3,12 +3,9 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.SocialPosting.Adaptors;
 using RedditPodcastPoster.SocialPosting.Episodes;
-using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Twitter.Dtos;
 using RedditPodcastPoster.Twitter.Models;
@@ -21,11 +18,7 @@ public class PostProcessor(
     IPodcastRepository repository,
     IEpisodeRepository episodeRepository,
     ITweeter tweeter,
-    IPodcastEpisodesPoster podcastEpisodesPoster,
-    IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
-    IProcessResponsesAdaptor processResponsesAdaptor,
     IHomepagePublisher contentPublisher,
-    IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueSkyPoster,
     IBlueskyPostManager blueskyPostManager,
@@ -37,7 +30,8 @@ public class PostProcessor(
     {
         if (!request.SkipReddit)
         {
-            await Post(request);
+            logger.LogInformation(
+                "Reddit posting is retired; skipping Reddit post path (use --skip-reddit to silence).");
         }
 
         if (!request.SkipPublish)
@@ -49,65 +43,6 @@ public class PostProcessor(
         {
             await PostToSocial(request);
         }
-    }
-
-    private async Task Post(PostRequest request)
-    {
-        IList<Guid> podcastIds;
-
-        if (request.EpisodeId.HasValue)
-        {
-            var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId.Value);
-            if (episode == null)
-            {
-                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
-            }
-
-            var podcast = await repository.GetPodcast(episode.PodcastId);
-            if (podcast == null || podcast.Removed == true)
-            {
-                throw new ArgumentException(
-                    $"Podcast with id '{episode.PodcastId}' not found for episode-id '{request.EpisodeId.Value}' (Removed='{podcast?.Removed}').");
-            }
-
-            podcastIds = [podcast.Id];
-        }
-        else if (request.PodcastId.HasValue)
-        {
-            var podcast = await repository.GetPodcast(request.PodcastId.Value);
-            if (podcast == null || podcast.Removed == true)
-            {
-                throw new ArgumentException($"Podcast with id '{request.PodcastId.Value}' not found.");
-            }
-
-            podcastIds = [request.PodcastId.Value];
-        }
-        else if (request.PodcastName != null)
-        {
-            var ids = await repository.GetAllBy(x =>
-                    (!x.Removed.IsDefined() || x.Removed == false) &&
-                    x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase))
-                .Select(x => x.Id)
-                .ToListAsync();
-            logger.LogInformation("Found {idsCount} podcasts.", ids.Count);
-            podcastIds = ids.ToArray();
-        }
-        else
-        {
-            var since = DateTimeExtensions.DaysAgo(7);
-            var ids = await episodeRepository.GetAllBy(x =>
-                    x.Release >= since &&
-                    !x.Posted &&
-                    !x.Ignored &&
-                    !x.Removed &&
-                    (x.PodcastRemoved == null || x.PodcastRemoved == false))
-                .Select(x => x.PodcastId)
-                .Distinct()
-                .ToListAsync();
-            podcastIds = ids;
-        }
-
-        await PostNewEpisodes(request, podcastIds);
     }
 
     private async Task Publish()
@@ -265,87 +200,6 @@ public class PostProcessor(
                 default:
                     logger.LogError("Unknown tweet-send response '{result}'.", result.ToString());
                     break;
-            }
-        }
-    }
-
-    private async Task PostNewEpisodes(PostRequest request, IList<Guid> podcastIds)
-    {
-        if (request.EpisodeId.HasValue)
-        {
-            var selectedPodcast = await repository.GetPodcast(podcastIds.Single());
-            if (selectedPodcast == null)
-            {
-                throw new ArgumentException($"Podcast with id '{podcastIds.Single()}' not found.");
-            }
-
-            var detachedEpisode = await episodeRepository.GetEpisode(selectedPodcast.Id, request.EpisodeId.Value);
-            if (detachedEpisode == null)
-            {
-                throw new ArgumentException($"Episode with id '{request.EpisodeId.Value}' not found.");
-            }
-
-            if (detachedEpisode.Ignored && request.FlipIgnored)
-            {
-                detachedEpisode.Ignored = false;
-            }
-
-            if (detachedEpisode.Posted || detachedEpisode.Ignored || detachedEpisode.Removed)
-            {
-                logger.LogWarning(
-                    "Not posting episode with id '{episodeId}'. Posted: '{posted}', Ignored: '{ignored}', Removed: '{removed}'.",
-                    request.EpisodeId, detachedEpisode.Posted, detachedEpisode.Ignored, detachedEpisode.Removed);
-            }
-            else
-            {
-                var podcastEpisode = new PodcastEpisode(selectedPodcast, detachedEpisode);
-                var result = await podcastEpisodePoster.PostPodcastEpisode(
-                    podcastEpisode, request.YouTubePrimaryPostService);
-                if (!result.Success)
-                {
-                    logger.LogError(result.ToString());
-                }
-
-                await episodeRepository.Save(detachedEpisode);
-            }
-        }
-        else
-        {
-            var since = DateTimeExtensions.DaysAgo(request.ReleasedWithin);
-            var allCandidateEpisodes = await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
-            var podcastEpisodesToPost = allCandidateEpisodes
-                .Where(pe => podcastIds.Contains(pe.Episode.PodcastId))
-                .ToArray();
-
-            var postingResult = await podcastEpisodesPoster.PostNewEpisodes(
-                since,
-                podcastEpisodesToPost,
-                preferYouTube: request.YouTubePrimaryPostService,
-                ignoreAppleGracePeriod: request.IgnoreAppleGracePeriod);
-
-            // Persist modified episodes and podcasts (save each podcast only once)
-            var savedPodcasts = new HashSet<Guid>();
-            foreach (var podcastEpisode in postingResult.ModifiedPodcastEpisodes)
-            {
-                await episodeRepository.Save(podcastEpisode.Episode);
-                if (savedPodcasts.Add(podcastEpisode.Podcast.Id))
-                {
-                    await repository.Save(podcastEpisode.Podcast);
-                }
-            }
-
-            var result = processResponsesAdaptor.CreateResponse(postingResult.Responses);
-            var message = result.ToString();
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                if (!result.Success)
-                {
-                    logger.LogError(message);
-                }
-                else
-                {
-                    logger.LogInformation(message);
-                }
             }
         }
     }

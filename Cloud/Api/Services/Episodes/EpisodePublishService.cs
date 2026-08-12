@@ -4,7 +4,6 @@ using Api.Resolvers;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Twitter.Models;
@@ -16,7 +15,6 @@ namespace Api.Services.Episodes;
 public class EpisodePublishService(
     IEpisodeRepository episodeRepository,
     IPodcastEpisodeResolver podcastEpisodeResolver,
-    IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueskyPoster,
     IShortnerService shortnerService,
@@ -54,13 +52,10 @@ public class EpisodePublishService(
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
-                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisode);
-                if (!result.Success)
-                {
-                    logger.LogError(result.ToString());
-                }
-
-                // Live Reddit posting is retired; only report Posted when Cosmos was marked.
+                // Live Reddit.NET posting removed; keep API `post` flag for a future Devvit poster.
+                logger.LogInformation(
+                    "Reddit posting is retired; skipping post for episode '{EpisodeId}'.",
+                    podcastEpisode.Episode.Id);
                 outcome.Posted = podcastEpisode.Episode.Posted;
             }
 
