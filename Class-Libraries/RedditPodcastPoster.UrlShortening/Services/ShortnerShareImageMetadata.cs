@@ -10,9 +10,6 @@ namespace RedditPodcastPoster.UrlShortening.Services;
 /// </summary>
 public static class ShortnerShareImageMetadata
 {
-    public const string AspectWide = "wide";
-    public const string AspectSquare = "square";
-
     private const string YouTubePrefix = "https://i.ytimg.com/vi/";
     private const string SpotifyPrefix = "https://i.scdn.co/image/";
     private const string AppleScheme = "https://is";
@@ -41,19 +38,26 @@ public static class ShortnerShareImageMetadata
         metadata.ImageAspect = ResolveAspect(episode, image, youTubeId);
     }
 
-    public static string ResolveAspect(Episode episode, string imageTokenOrUrl, string? youTubeId)
+    /// <summary>
+    /// Resolves KV <c>imageAspect</c> for twitter:card selection.
+    /// </summary>
+    /// <param name="episode">The episode whose platform URLs may force wide aspect.</param>
+    /// <param name="imageTokenOrUrl">The compacted or absolute image reference.</param>
+    /// <param name="youTubeId">An optional YouTube id that implies wide thumbnails.</param>
+    /// <returns>One of the enumeration values that specifies wide or square art.</returns>
+    public static ShareImageAspect ResolveAspect(Episode episode, string imageTokenOrUrl, string? youTubeId)
     {
         if (IsYouTubeThumb(imageTokenOrUrl) || !string.IsNullOrWhiteSpace(youTubeId))
         {
-            return AspectWide;
+            return ShareImageAspect.Wide;
         }
 
         if (IsBbcIplayer(episode.Urls.BBC) || episode.Urls.InternetArchive is not null)
         {
-            return AspectWide;
+            return ShareImageAspect.Wide;
         }
 
-        return AspectSquare;
+        return ShareImageAspect.Square;
     }
 
     /// <summary>Same selection as SearchEpisodeImage.From: youtube ?? spotify ?? apple ?? other, then compact.</summary>

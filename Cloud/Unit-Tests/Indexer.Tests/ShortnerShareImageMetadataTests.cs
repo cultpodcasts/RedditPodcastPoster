@@ -36,7 +36,7 @@ public class ShortnerShareImageMetadataTests
         // Assert
         metadata.Image.Should().Be("yx");
         metadata.YoutubeId.Should().Be(youTubeId);
-        metadata.ImageAspect.Should().Be(ShortnerShareImageMetadata.AspectWide);
+        metadata.ImageAspect.Should().Be(ShareImageAspect.Wide);
     }
 
     [Fact(DisplayName =
@@ -64,7 +64,7 @@ public class ShortnerShareImageMetadataTests
         // Assert
         metadata.Image.Should().Be("sab6765ferngully00cover");
         metadata.YoutubeId.Should().BeNull();
-        metadata.ImageAspect.Should().Be(ShortnerShareImageMetadata.AspectSquare);
+        metadata.ImageAspect.Should().Be(ShareImageAspect.Square);
     }
 
     [Fact(DisplayName =
@@ -89,8 +89,8 @@ public class ShortnerShareImageMetadataTests
         var iplayerAspect = ShortnerShareImageMetadata.ResolveAspect(iplayer, "sab6765cover", null);
 
         // Assert
-        soundsAspect.Should().Be(ShortnerShareImageMetadata.AspectSquare);
-        iplayerAspect.Should().Be(ShortnerShareImageMetadata.AspectWide);
+        soundsAspect.Should().Be(ShareImageAspect.Square);
+        iplayerAspect.Should().Be(ShareImageAspect.Wide);
     }
 
     [Fact(DisplayName =
@@ -113,5 +113,28 @@ public class ShortnerShareImageMetadataTests
         metadata.Image.Should().BeNull();
         metadata.YoutubeId.Should().BeNull();
         metadata.ImageAspect.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "ShareImageAspect serializes to lowercase wide/square for Api-compatible shortener KV metadata.")]
+    public void Share_image_aspect_serializes_as_lowercase_wire_values()
+    {
+        // Arrange
+        var metadata = new MetaData
+        {
+            EpisodeTitle = "Sample title",
+            ReleaseDate = new DateOnly(2026, 7, 29),
+            Duration = TimeSpan.FromMinutes(30),
+            ImageAspect = ShareImageAspect.Wide
+        };
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(metadata);
+        var roundTrip = System.Text.Json.JsonSerializer.Deserialize<MetaData>(
+            """{"episodeTitle":"t","releaseDate":"2026-07-29","duration":"00:30:00","imageAspect":"square"}""");
+
+        // Assert
+        json.Should().Contain("\"imageAspect\":\"wide\"");
+        roundTrip!.ImageAspect.Should().Be(ShareImageAspect.Square);
     }
 }

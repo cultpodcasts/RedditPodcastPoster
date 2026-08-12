@@ -18,7 +18,8 @@ public class KVClient(
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
@@ -41,7 +42,7 @@ public class KVClient(
         }
 
         var json = await result.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<KVRecord>(json);
+        return JsonSerializer.Deserialize<KVRecord>(json, JsonSerializerOptions);
     }
 
     public async Task<string?> Read(string key, string namespaceId)

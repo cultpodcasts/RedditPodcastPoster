@@ -26,8 +26,8 @@ public class MetaData
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? YoutubeId { get; set; }
 
-    /// <summary><c>wide</c> or <c>square</c> for twitter:card selection.</summary>
+    /// <summary>One of the enumeration values that specifies twitter:card selection.</summary>
     [JsonPropertyName("imageAspect")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ImageAspect { get; set; }
+    public ShareImageAspect? ImageAspect { get; set; }
 }
