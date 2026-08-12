@@ -12,7 +12,6 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Updaters;
-using RedditPodcastPoster.Reddit.Managers;
 using RedditPodcastPoster.Twitter.Managers;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -25,7 +24,6 @@ public class EpisodeUpdateService(
     EpisodeChangeApplier episodeChangeApplier,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IHomepagePublisher contentPublisher,
-    IPostManager postManager,
     ITweetManager tweetManager,
     IBlueskyPostManager blueskyPostManager,
     IShortnerService shortnerService,
@@ -117,14 +115,8 @@ public class EpisodeUpdateService(
 
             await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
 
-            if (changeState.UnPost)
-            {
-                await postManager.RemoveEpisodePost(podcastEpisode);
-            }
-            else if (changeState.UpdatedSubjects)
-            {
-                await postManager.UpdateFlare(podcastEpisode);
-            }
+            // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
+            // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
 
             var removeTweetResult = RemoveTweetState.Unknown;
             if (changeState.UnTweet)

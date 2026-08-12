@@ -71,12 +71,12 @@ public class PodcastEpisodesPoster(
                         {
                             var result =
                                 await podcastEpisodePoster.PostPodcastEpisode(matchingPodcastEpisode, preferYouTube);
-                            if (result.Success)
+                            if (result.Success && matchingPodcastEpisode.Episode.Posted)
                             {
                                 posted++;
                                 modifiedPodcastEpisodes.Add(matchingPodcastEpisode);
                             }
-                            else
+                            else if (!result.Success)
                             {
                                 failures++;
                                 if (failures >= 5)

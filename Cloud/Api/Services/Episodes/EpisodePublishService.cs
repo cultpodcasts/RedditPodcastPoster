@@ -60,7 +60,8 @@ public class EpisodePublishService(
                     logger.LogError(result.ToString());
                 }
 
-                outcome.Posted = result.Success;
+                // Live Reddit posting is retired; only report Posted when Cosmos was marked.
+                outcome.Posted = podcastEpisode.Episode.Posted;
             }
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
