@@ -280,13 +280,13 @@ public class HandlerStatusMatrixTests
         result.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
-    [Fact(DisplayName = "DeleteEpisodeHandler maps AlreadySocial to 400 with body")]
+    [Fact(DisplayName = "DeleteEpisodeHandler maps AlreadySocial to 400 with tweeted body")]
     public async Task DeleteEpisodeHandler_already_social_returns_400()
     {
         // Arrange
         var service = new Mock<IEpisodeDeleteService>();
         service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: true, Tweeted: false));
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: false, Tweeted: true));
 
         var handler = new DeleteEpisodeHandler(service.Object, NullLogger<DeleteEpisodeHandler>.Instance);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
@@ -299,6 +299,7 @@ public class HandlerStatusMatrixTests
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("tweeted").GetBoolean().Should().BeTrue();
     }
 
     // ----- PostSubmitUrlHandler -----

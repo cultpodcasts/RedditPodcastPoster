@@ -1,0 +1,17 @@
+---
+description: HARD — never deploy Cloudflare Api Worker or website Pages
+alwaysApply: true
+---
+
+# No Api / website deploys (HARD GUARDRAIL)
+
+Sibling repos **Api** (Cloudflare Worker) and **website** (Pages) must **not** be deployed by the agent unless the user explicitly names that exact deploy in this conversation.
+
+| NEVER | |
+|-------|--|
+| `wrangler deploy` / `npm run deploy` in Api | Live or preview Worker |
+| `wrangler pages deploy` / `npm run deploy` in website/cultpodcasts | Pages apex or CLI deploy |
+
+`git push` when the user asks to push a PR branch is OK (Pages preview may build from git). Azure Function script deploys (`deploy-*.ps1`) are separate and only when explicitly requested.
+
+Authoritative copies: Api and website `.cursor/rules/no-api-website-deploys.mdc`.

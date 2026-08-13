@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.SocialPosting.Adaptors;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.SocialPosting.Factories;
 
@@ -12,13 +11,11 @@ public static class ServiceCollectionExtensions
     {
         services.AddDelayedYouTubePublication();
 
+        // Reddit episode posting (EpisodeProcessor / PodcastEpisodePoster) removed with Reddit.NET.
+        // Keep candidacy filter, recent candidates, and PostModelFactory for Tweet/Bluesky.
         return services
-            .AddScoped<IEpisodeProcessor, EpisodeProcessor>()
-            .AddScoped<IPodcastEpisodesPoster, PodcastEpisodesPoster>()
-            .AddScoped<IPodcastEpisodePoster, PodcastEpisodePoster>()
             .AddSingleton<IPodcastEpisodeFilter, PodcastEpisodeFilter>()
             .AddSingleton<IRecentEpisodeCandidatesProvider, RecentEpisodeCandidatesProvider>()
-            .AddSingleton<IProcessResponsesAdaptor, ProcessResponsesAdaptor>()
             .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>()
             .AddScoped<IPostModelFactory, PostModelFactory>();
     }

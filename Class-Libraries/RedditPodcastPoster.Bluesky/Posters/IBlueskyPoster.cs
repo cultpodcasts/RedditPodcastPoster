@@ -5,5 +5,5 @@ namespace RedditPodcastPoster.Bluesky.Posters;
 
 public interface IBlueskyPoster
 {
-    Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl);
+    Task<BlueskySendStatus> Post(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false);
 }

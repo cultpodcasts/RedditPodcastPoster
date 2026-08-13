@@ -26,7 +26,6 @@ using RedditPodcastPoster.PodcastServices.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Reddit.Extensions;
 using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
@@ -54,7 +53,6 @@ public static class Ioc
             .AddRemoteClient()
             .AddScoped(s => new iTunesSearchManager())
             .AddEliminationTerms()
-            .AddRedditServices()
             .AddTwitterServices()
             .AddBlueskyServices()
             .AddSubjectServices()

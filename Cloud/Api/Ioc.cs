@@ -32,8 +32,6 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
-using RedditPodcastPoster.Reddit.Extensions;
-using RedditPodcastPoster.Reddit.Factories;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Twitter.Extensions;
@@ -46,8 +44,6 @@ public static class Ioc
 {
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
-        AdminRedditClientFactory.AddAdminRedditClient(serviceCollection);
-
         serviceCollection
             .AddEpisodesDomain()
             .AddRepositories()
@@ -74,7 +70,6 @@ public static class Ioc
             .AddContentPublishing()
             .AddTwitterServices()
             .AddBlueskyServices()
-            .AddRedditServices()
             .AddCloudflareClients()
             .AddShortnerServices()
             .AddRedirectServices()

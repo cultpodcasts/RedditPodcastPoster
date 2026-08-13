@@ -41,7 +41,7 @@ public class EpisodeDeleteService(
                 return new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound);
             }
 
-            if (resolved.Episode.Tweeted || resolved.Episode.Posted)
+            if (resolved.Episode.Tweeted)
             {
                 return new EpisodeDeleteResult(
                     EpisodeDeleteStatus.AlreadySocial,

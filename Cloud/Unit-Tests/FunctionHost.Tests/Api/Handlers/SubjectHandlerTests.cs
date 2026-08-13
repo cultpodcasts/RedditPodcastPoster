@@ -1,15 +1,11 @@
 using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Moq;
 using Api.Models;
 using Api.Services.Subjects;
-using Reddit.Exceptions;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Reddit.Clients;
-using RedditPodcastPoster.Reddit.Configuration;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Services;
 using Xunit;
@@ -18,13 +14,13 @@ using SubjectEntity = RedditPodcastPoster.Models.Subjects.Subject;
 namespace FunctionHost.Tests.Api.Handlers;
 
 /// <summary>
-/// Service-level tests preserving #914 intent: Reddit Forbidden flair errors must not block subject persistence.
+/// Subject create/update persist flair fields to Cosmos without live Reddit sync (Reddit.NET retired).
 /// </summary>
 public class SubjectHandlerTests
 {
     [Fact(DisplayName =
-        "Plain English rule: when Reddit flair update is forbidden during subject create, then still save the subject and publish subjects, because flair sync failure must not block curation.")]
-    public async Task create_when_reddit_flair_forbidden_still_saves_subject()
+        "Plain English rule: when a subject is created with a Reddit flair template id, then save the subject and publish subjects without live Reddit flair sync, because Reddit.NET is retired.")]
+    public async Task create_with_flair_id_saves_subject_without_live_reddit()
     {
         // Arrange
         var flairId = Guid.NewGuid();
@@ -36,17 +32,13 @@ public class SubjectHandlerTests
         var subjectService = new Mock<ISubjectService>();
         subjectService.Setup(x => x.Match(It.IsAny<SubjectEntity>())).ReturnsAsync((SubjectEntity?)null);
 
-        var redditClient = new Mock<IAdminRedditClient>();
-        redditClient.Setup(x => x.Client)
-            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
-
         var subjectRepo = new Mock<ISubjectRepository>();
         subjectRepo.Setup(r => r.Save(It.IsAny<SubjectEntity>())).Returns(Task.CompletedTask);
 
         var publisher = new Mock<ISubjectsPublisher>();
         publisher.Setup(p => p.PublishSubjects()).Returns(Task.CompletedTask);
 
-        var applier = CreateSubjectChangeApplier(subjectRepo.Object, redditClient.Object);
+        var applier = CreateSubjectChangeApplier();
         var service = new SubjectCreateService(
             subjectRepo.Object,
             subjectService.Object,
@@ -69,8 +61,8 @@ public class SubjectHandlerTests
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when Reddit flair update is forbidden during subject update, then still save the subject with the requested flair, because flair sync failure must not roll back local changes.")]
-    public async Task update_when_reddit_flair_forbidden_still_saves_subject()
+        "Plain English rule: when a subject is updated with a Reddit flair template id, then persist the flair id on the subject without live Reddit sync, because Reddit.NET is retired.")]
+    public async Task update_with_flair_id_saves_subject_without_live_reddit()
     {
         // Arrange
         var subjectId = Guid.NewGuid();
@@ -82,11 +74,7 @@ public class SubjectHandlerTests
             .ReturnsAsync(existing);
         subjectRepo.Setup(r => r.Save(It.IsAny<SubjectEntity>())).Returns(Task.CompletedTask);
 
-        var redditClient = new Mock<IAdminRedditClient>();
-        redditClient.Setup(x => x.Client)
-            .Throws(new RedditForbiddenException("Reddit API returned Forbidden (403) response."));
-
-        var applier = CreateSubjectChangeApplier(subjectRepo.Object, redditClient.Object);
+        var applier = CreateSubjectChangeApplier();
         var service = new SubjectUpdateService(
             subjectRepo.Object,
             applier,
@@ -103,12 +91,6 @@ public class SubjectHandlerTests
         subjectRepo.Verify(x => x.Save(existing), Times.Once);
     }
 
-    private static SubjectChangeApplier CreateSubjectChangeApplier(
-        ISubjectRepository subjectRepository,
-        IAdminRedditClient redditClient) =>
-        new(
-            subjectRepository,
-            redditClient,
-            Options.Create(new SubredditSettings { SubredditName = "testsubreddit" }),
-            NullLogger<SubjectChangeApplier>.Instance);
+    private static SubjectChangeApplier CreateSubjectChangeApplier() =>
+        new(NullLogger<SubjectChangeApplier>.Instance);
 }

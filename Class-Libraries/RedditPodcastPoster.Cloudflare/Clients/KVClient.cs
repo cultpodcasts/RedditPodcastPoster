@@ -18,7 +18,8 @@ public class KVClient(
 {
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private readonly CloudFlareOptions _cloudFlareOptions = cloudFlareOptions.Value;
@@ -27,21 +28,20 @@ public class KVClient(
     {
         logger.LogInformation("{ReadWithMetaDataName}. Reading from KV. Key '{Key}'.", nameof(ReadWithMetaData), key);
         var url = GetReadMetadataUrl(_cloudFlareOptions.AccountId, namespaceId, key);
-        var urlS = url.ToString();
         using var request = new HttpRequestMessage();
         request.Method = HttpMethod.Get;
         request.RequestUri = url;
         request.Headers.Add("Authorization", $"Bearer {_cloudFlareOptions.KVApiToken}");
         var result = await httpClient.SendAsync(request);
-        if (result.StatusCode != HttpStatusCode.OK)
+        var json = await result.Content.ReadAsStringAsync();
+        if (result.StatusCode != HttpStatusCode.OK && result.StatusCode != HttpStatusCode.NotFound)
         {
             logger.LogError(
-                "{WriteName} KV-write unsuccessful. Read-Key. Status-code: {ResultStatusCode}. Response-body '{ReadAsStringAsync}'.",
-                nameof(Write), result.StatusCode, await result.Content.ReadAsStringAsync());
+                "{ReadWithMetaDataName} KV metadata read unsuccessful. Key '{Key}'. Status-code: {ResultStatusCode}. Response-body '{ResponseBody}'.",
+                nameof(ReadWithMetaData), key, result.StatusCode, json);
         }
 
-        var json = await result.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<KVRecord>(json);
+        return KVMetadataResponseParser.Parse(result.StatusCode, json, key, JsonSerializerOptions);
     }
 
     public async Task<string?> Read(string key, string namespaceId)

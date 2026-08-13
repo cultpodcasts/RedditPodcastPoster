@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,8 +12,11 @@
   <ItemGroup>
     <PackageReference Include="AutoFixture" Version="4.18.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.9" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="Moq.AutoMock" Version="4.0.2" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
@@ -27,7 +30,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Reddit\RedditPodcastPoster.Reddit.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
   </ItemGroup>
 
 </Project>
+

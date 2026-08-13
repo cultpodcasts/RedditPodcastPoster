@@ -4,7 +4,6 @@ using Api.Resolvers;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Twitter.Models;
@@ -16,7 +15,6 @@ namespace Api.Services.Episodes;
 public class EpisodePublishService(
     IEpisodeRepository episodeRepository,
     IPodcastEpisodeResolver podcastEpisodeResolver,
-    IPodcastEpisodePoster podcastEpisodePoster,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueskyPoster,
     IShortnerService shortnerService,
@@ -54,13 +52,11 @@ public class EpisodePublishService(
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
-                var result = await podcastEpisodePoster.PostPodcastEpisode(podcastEpisode);
-                if (!result.Success)
-                {
-                    logger.LogError(result.ToString());
-                }
-
-                outcome.Posted = result.Success;
+                // Live Reddit.NET posting removed; keep API `post` flag for a future Devvit poster.
+                logger.LogInformation(
+                    "Reddit posting is retired; skipping post for episode '{EpisodeId}'.",
+                    podcastEpisode.Episode.Id);
+                outcome.Posted = podcastEpisode.Episode.Posted;
             }
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
@@ -75,7 +71,7 @@ public class EpisodePublishService(
                 {
                     try
                     {
-                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url);
+                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
@@ -100,7 +96,7 @@ public class EpisodePublishService(
                 {
                     try
                     {
-                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url);
+                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);

@@ -133,6 +133,13 @@ public class Episode
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
 
+    /// <summary>
+    /// Optional episode-level hashtag appended to Tweet/Bluesky posts (e.g. <c>#MyTag</c>).
+    /// </summary>
+    [JsonPropertyName("hashTag")]
+    [JsonPropertyOrder(81)]
+    public string? HashTag { get; set; }
+
     [JsonPropertyName("podcastName")]
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }

@@ -189,6 +189,7 @@ var bluesky= {
     bluesky__Password: blueskyPassword
     bluesky__ReuseSession: 'true'
     bluesky__WithEpisodeUrl: 'true'
+    bluesky__ShortUrlOnlyWhenShareImage: 'false'
     bluesky__MaxFailures: 5
     bluesky__MaxPosts: 5
 }
@@ -384,6 +385,7 @@ var twitter= {
     twitter__HashTag: 'Cult'
     twitter__TwitterId: twitterTwitterId
     twitter__WithEpisodeUrl: 'true'
+    twitter__ShortUrlOnlyWhenShareImage: 'false'
 }
 
 var youtube= {

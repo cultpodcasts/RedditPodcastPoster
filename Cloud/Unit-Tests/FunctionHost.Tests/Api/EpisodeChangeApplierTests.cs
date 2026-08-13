@@ -109,6 +109,34 @@ public class EpisodeChangeApplierTests
         episode.SearchTerms.Should().Be("cults, documentaries");
     }
 
+    [Fact(DisplayName = "Apply sets HashTag when provided")]
+    public void Apply_sets_hash_tag()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest { HashTag = " #ABC #XYZ " });
+
+        // Assert
+        episode.HashTag.Should().Be("#ABC #XYZ");
+    }
+
+    [Fact(DisplayName = "Apply clears HashTag when empty string provided")]
+    public void Apply_clears_hash_tag_when_empty()
+    {
+        // Arrange
+        var episode = CreateEpisode(e => e.HashTag = "#Keep");
+        var sut = CreateSut();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest { HashTag = "  " });
+
+        // Assert
+        episode.HashTag.Should().BeNull();
+    }
+
     [Fact(DisplayName = "Apply sets Explicit/Ignored/Removed booleans when provided")]
     public void Apply_sets_boolean_flags()
     {

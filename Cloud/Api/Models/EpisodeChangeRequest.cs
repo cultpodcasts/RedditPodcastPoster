@@ -51,6 +51,9 @@ public class EpisodeChangeRequest
     [JsonPropertyName("searchTerms")]
     public string? SearchTerms { get; set; }
 
+    [JsonPropertyName("hashTag")]
+    public string? HashTag { get; set; }
+
     [JsonPropertyName("lang")]
     public string? Language { get; set; }
 
@@ -73,6 +76,7 @@ public class EpisodeChangeRequest
         Images != null ||
         Subjects != null ||
         SearchTerms != null ||
+        HashTag != null ||
         Language != null ||
         Guests != null;
 }

@@ -13,7 +13,6 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Reddit.Managers;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Twitter.Managers;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -285,7 +284,6 @@ public class EpisodeUpdateServiceTests
                 CreateUninitializedSearchClient(),
                 NullLogger<EpisodeSearchIndexCleanup>.Instance),
             Mock.Of<IHomepagePublisher>(),
-            Mock.Of<IPostManager>(),
             tweetManager ?? Mock.Of<ITweetManager>(),
             blueskyPostManager ?? Mock.Of<IBlueskyPostManager>(),
             Mock.Of<IShortnerService>(),

@@ -1,12 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Reddit.Configuration;
-using RedditPodcastPoster.Reddit.Episodes;
 using RedditPodcastPoster.Reddit.Factories;
-using RedditPodcastPoster.Reddit.Managers;
-using RedditPodcastPoster.Reddit.Posters;
-using RedditPodcastPoster.Reddit.Resolvers;
-using RedditPodcastPoster.SocialPosting.Episodes;
 
 namespace RedditPodcastPoster.Reddit.Extensions;
 
@@ -16,17 +11,12 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddRedditServices()
         {
-            RedditClientFactory.AddRedditClient(services);
-
+            // Not used by Indexer/Api/Discovery/Poster/PublishR2 hosts — they are detached
+            // from Reddit DI. Kept for unit tests and a future Devvit poster host.
             return services
                 .AddScoped<IRedditPostTitleFactory, RedditPostTitleFactory>()
-                .AddScoped<IRedditLinkPoster, RedditLinkPoster>()
                 .AddScoped<IRedditEpisodeCommentFactory, RedditEpisodeCommentFactory>()
                 .AddScoped<IRedditBundleCommentFactory, RedditBundleCommentFactory>()
-                .AddScoped<IPostManager, PostManager>()
-                .AddScoped<IPostResolver, PostResolver>()
-                .AddScoped<IFlareManager, FlareManager>()
-                .AddScoped<IEpisodePostManager, EpisodePostManager>()
                 .BindConfiguration<RedditSettings>("reddit")
                 .AddSubredditSettings();
         }

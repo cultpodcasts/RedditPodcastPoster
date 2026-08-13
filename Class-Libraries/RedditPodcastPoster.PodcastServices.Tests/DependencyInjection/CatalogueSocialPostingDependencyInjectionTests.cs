@@ -21,8 +21,8 @@ namespace RedditPodcastPoster.PodcastServices.Tests.DependencyInjection;
 public class CatalogueSocialPostingDependencyInjectionTests
 {
     [Fact(DisplayName =
-        "Index-like catalogue container: when AddCatalogueServices and AddSocialPostingServices are registered without Reddit, then catalogue and candidacy types are registered and IEpisodePostManager is not, because Index must not require Reddit.NET.")]
-    public void index_like_container_registers_catalogue_and_social_without_episode_post_manager()
+        "Index-like catalogue container: when AddCatalogueServices and AddSocialPostingServices are registered, then catalogue candidacy and PostModelFactory are registered.")]
+    public void index_like_container_registers_catalogue_and_social()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -38,27 +38,7 @@ public class CatalogueSocialPostingDependencyInjectionTests
         services.Should().Contain(d => d.ServiceType == typeof(IPodcastFilter));
         services.Should().Contain(d => d.ServiceType == typeof(IPodcastFactory));
         services.Should().Contain(d => d.ServiceType == typeof(IPodcastEpisodeFilter));
-        services.Should().Contain(d => d.ServiceType == typeof(IEpisodeProcessor));
-        services.Should().Contain(d => d.ServiceType == typeof(IPodcastEpisodePoster));
-        services.Should().NotContain(d => d.ServiceType == typeof(IEpisodePostManager));
-        services.Should().NotContain(d =>
-            d.ImplementationType != null &&
-            d.ImplementationType.FullName == "RedditPodcastPoster.Reddit.Episodes.EpisodePostManager");
-    }
-
-    [Fact(DisplayName =
-        "Index-like catalogue container: when IEpisodePostManager is requested without Reddit registration, then resolution fails, because posting to Reddit requires AddRedditServices.")]
-    public void index_like_container_fails_to_resolve_episode_post_manager_without_reddit()
-    {
-        // Arrange
-        var services = CreateIndexLikeContainer();
-        using var provider = services.BuildServiceProvider();
-
-        // Act
-        var act = () => provider.GetRequiredService<IEpisodePostManager>();
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
+        services.Should().Contain(d => d.ServiceType == typeof(IPostModelFactory));
     }
 
     [Fact(DisplayName =
@@ -82,26 +62,23 @@ public class CatalogueSocialPostingDependencyInjectionTests
     }
 
     [Fact(DisplayName =
-        "Poster-like container: when Catalogue, SocialPosting, and IEpisodePostManager are registered, then posting orchestrators resolve, because Poster/Indexer need the full posting graph.")]
-    public void poster_like_container_resolves_posting_orchestrators_with_episode_post_manager()
+        "Poster-like container: when Catalogue and SocialPosting are registered, then PostModelFactory and episode providers resolve.")]
+    public void poster_like_container_resolves_social_helpers()
     {
         // Arrange
         var services = CreateIndexLikeContainer();
         StubCatalogueAndSocialDependencies(services);
-        services.AddScoped<IEpisodePostManager>(_ => Mock.Of<IEpisodePostManager>());
         using var provider = services.BuildServiceProvider();
 
         // Act
-        var episodeProcessor = provider.GetRequiredService<IEpisodeProcessor>();
-        var podcastEpisodePoster = provider.GetRequiredService<IPodcastEpisodePoster>();
-        var episodePostManager = provider.GetRequiredService<IEpisodePostManager>();
+        var podcastEpisodeFilter = provider.GetRequiredService<IPodcastEpisodeFilter>();
         var postModelFactory = provider.GetRequiredService<IPostModelFactory>();
+        var podcastEpisodeProvider = provider.GetRequiredService<IPodcastEpisodeProvider>();
 
         // Assert
-        episodeProcessor.Should().NotBeNull();
-        podcastEpisodePoster.Should().NotBeNull();
-        episodePostManager.Should().NotBeNull();
+        podcastEpisodeFilter.Should().NotBeNull();
         postModelFactory.Should().NotBeNull();
+        podcastEpisodeProvider.Should().NotBeNull();
     }
 
     private static ServiceCollection CreateIndexLikeContainer()
