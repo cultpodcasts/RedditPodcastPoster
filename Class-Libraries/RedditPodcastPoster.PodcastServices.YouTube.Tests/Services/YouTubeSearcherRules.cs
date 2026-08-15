@@ -33,13 +33,13 @@ public class YouTubeSearcherRules
     {
         // Arrange
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
+        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception(_fixture.Create<string>()));
 
         var indexingContext = new IndexingContext();
         var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
-        var result = await sut.Search("query", indexingContext);
+        var result = await sut.Search(_fixture.Create<string>(), indexingContext);
 
         // Assert
         result.Should().BeEmpty();
@@ -58,7 +58,7 @@ public class YouTubeSearcherRules
         var youtubeService = new YouTubeService(new BaseClientService.Initializer
         {
             HttpClientFactory = new FakeHttpClientFactory(handler),
-            ApiKey = "test-key"
+            ApiKey = _fixture.Create<string>()
         });
 
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
@@ -68,7 +68,7 @@ public class YouTubeSearcherRules
         var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
-        var act = () => sut.Search("query", indexingContext);
+        var act = () => sut.Search(_fixture.Create<string>(), indexingContext);
 
         // Assert
         await act.Should().ThrowAsync<YouTubeQuotaException>();

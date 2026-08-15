@@ -30,7 +30,7 @@ public class YouTubeVideoServiceRules
     {
         // Arrange
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
+        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception(_fixture.Create<string>()));
 
         var indexingContext = new IndexingContext();
         var videoIds = _fixture.Create<string[]>();
@@ -56,7 +56,7 @@ public class YouTubeVideoServiceRules
         var youtubeService = new YouTubeService(new BaseClientService.Initializer
         {
             HttpClientFactory = new FakeHttpClientFactory(handler),
-            ApiKey = "test-key"
+            ApiKey = _fixture.Create<string>()
         });
 
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();

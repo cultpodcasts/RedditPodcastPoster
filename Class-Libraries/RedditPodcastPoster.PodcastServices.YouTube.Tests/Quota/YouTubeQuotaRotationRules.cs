@@ -26,16 +26,20 @@ public class YouTubeQuotaRotationRules
     private readonly AutoMocker _mocker = new();
     private readonly Application _app1;
     private readonly Application _app2;
+    private readonly string _apiKey1;
+    private readonly string _apiKey2;
     private Application _currentApp;
 
     public YouTubeQuotaRotationRules()
     {
+        _apiKey1 = _fixture.Create<string>();
+        _apiKey2 = _fixture.Create<string>();
         _app1 = _fixture.Build<Application>()
-            .With(x => x.ApiKey, "key1")
+            .With(x => x.ApiKey, _apiKey1)
             .With(x => x.Usage, ApplicationUsage.Indexer)
             .Create();
         _app2 = _fixture.Build<Application>()
-            .With(x => x.ApiKey, "key2")
+            .With(x => x.ApiKey, _apiKey2)
             .With(x => x.Usage, ApplicationUsage.Indexer)
             .Create();
         _currentApp = _app1;
@@ -89,8 +93,8 @@ public class YouTubeQuotaRotationRules
         result.Should().NotBeNull();
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         seenApps.Should().HaveCount(2);
-        seenApps[0].ApiKey.Should().Be("key1");
-        seenApps[1].ApiKey.Should().Be("key2");
+        seenApps[0].ApiKey.Should().Be(_apiKey1);
+        seenApps[1].ApiKey.Should().Be(_apiKey2);
         
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,
@@ -105,7 +109,7 @@ public class YouTubeQuotaRotationRules
     public async Task When_YouTube_Api_Throws_Quota_Exception_And_Rotation_Fails_Marks_Quota_Exhausted()
     {
         // Arrange
-        _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new Exception("Ring exhausted"));
+        _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new Exception(_fixture.Create<string>()));
         
         _mocker.GetMock<IYouTubeVideoService>().Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -166,8 +170,8 @@ public class YouTubeQuotaRotationRules
         result.Result.Should().NotBeNull();
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         seenApps.Should().HaveCount(2);
-        seenApps[0].ApiKey.Should().Be("key1");
-        seenApps[1].ApiKey.Should().Be("key2");
+        seenApps[0].ApiKey.Should().Be(_apiKey1);
+        seenApps[1].ApiKey.Should().Be(_apiKey2);
 
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,
@@ -204,15 +208,15 @@ public class YouTubeQuotaRotationRules
         var indexingContext = new IndexingContext();
 
         // Act
-        var result = await sut.Search("query", indexingContext);
+        var result = await sut.Search(_fixture.Create<string>(), indexingContext);
 
         // Assert
         result.Should().NotBeNull();
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         callCount.Should().Be(2);
         seenRecordCallApps.Should().HaveCount(2);
-        seenRecordCallApps[0].ApiKey.Should().Be("key1");
-        seenRecordCallApps[1].ApiKey.Should().Be("key2");
+        seenRecordCallApps[0].ApiKey.Should().Be(_apiKey1);
+        seenRecordCallApps[1].ApiKey.Should().Be(_apiKey2);
 
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,
@@ -249,15 +253,15 @@ public class YouTubeQuotaRotationRules
         var indexingContext = new IndexingContext();
 
         // Act
-        var result = await sut.FindChannelsSnippets("channel", "video", indexingContext);
+        var result = await sut.FindChannelsSnippets(_fixture.Create<string>(), _fixture.Create<string>(), indexingContext);
 
         // Assert
         result.Should().NotBeNull();
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         callCount.Should().Be(2);
         seenRecordCallApps.Should().HaveCount(2);
-        seenRecordCallApps[0].ApiKey.Should().Be("key1");
-        seenRecordCallApps[1].ApiKey.Should().Be("key2");
+        seenRecordCallApps[0].ApiKey.Should().Be(_apiKey1);
+        seenRecordCallApps[1].ApiKey.Should().Be(_apiKey2);
 
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,
@@ -299,8 +303,8 @@ public class YouTubeQuotaRotationRules
         result.Should().NotBeNull();
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         seenApps.Should().HaveCount(2);
-        seenApps[0].ApiKey.Should().Be("key1");
-        seenApps[1].ApiKey.Should().Be("key2");
+        seenApps[0].ApiKey.Should().Be(_apiKey1);
+        seenApps[1].ApiKey.Should().Be(_apiKey2);
 
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,

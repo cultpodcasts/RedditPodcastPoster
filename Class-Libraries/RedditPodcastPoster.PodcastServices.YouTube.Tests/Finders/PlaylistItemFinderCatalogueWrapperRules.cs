@@ -1,9 +1,11 @@
+using System.Text.RegularExpressions;
 using System.Xml;
 using FluentAssertions;
 using FuzzySharp;
 using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
@@ -32,7 +34,16 @@ public class PlaylistItemFinderCatalogueWrapperRules
 
     public PlaylistItemFinderCatalogueWrapperRules()
     {
-        _mocker.Use(EpisodeDomainTestServices.CreatePlatformMatcher());
+        var realMatcher = EpisodeDomainTestServices.CreatePlatformMatcher();
+        _mocker.GetMock<IEpisodePlatformMatcher>()
+            .Setup(x => x.IsCatalogueMatch(
+                It.IsAny<EpisodeModel>(),
+                It.IsAny<EpisodeModel>(),
+                It.IsAny<Podcast>(),
+                It.IsAny<Regex>()))
+            .Returns((EpisodeModel e1, EpisodeModel e2, Podcast p, Regex r) =>
+                realMatcher.IsCatalogueMatch(e1, e2, p, r));
+
         _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -758,15 +769,14 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 catalogueTitle,
                 durationOffsetFromEpisode: TimeSpan.FromMinutes(8));
         ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
-        var matcher = _mocker.GetMock<RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher>();
+        var matcher = _mocker.GetMock<IEpisodePlatformMatcher>();
         matcher
             .Setup(x => x.IsCatalogueMatch(
                 It.IsAny<EpisodeModel>(),
                 It.IsAny<EpisodeModel>(),
                 It.IsAny<Podcast>(),
-                null))
+                It.IsAny<Regex>()))
             .Returns(false);
-        _mocker.Use(matcher.Object);
 
         // Act
         var result = await Sut.FindMatchingYouTubeVideo(

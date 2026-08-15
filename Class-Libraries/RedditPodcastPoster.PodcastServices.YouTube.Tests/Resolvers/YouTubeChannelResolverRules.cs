@@ -29,13 +29,13 @@ public class YouTubeChannelResolverRules
     {
         // Arrange
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
+        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception(_fixture.Create<string>()));
 
         var indexingContext = new IndexingContext();
         var sut = _mocker.CreateInstance<YouTubeChannelResolver>();
 
         // Act
-        var result = await sut.FindChannelsSnippets("channel-name", "video-title", indexingContext);
+        var result = await sut.FindChannelsSnippets(_fixture.Create<string>(), _fixture.Create<string>(), indexingContext);
 
         // Assert
         result.Should().BeNull();
@@ -54,7 +54,7 @@ public class YouTubeChannelResolverRules
         var youtubeService = new YouTubeService(new BaseClientService.Initializer
         {
             HttpClientFactory = new FakeHttpClientFactory(handler),
-            ApiKey = "test-key"
+            ApiKey = _fixture.Create<string>()
         });
 
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
@@ -64,7 +64,7 @@ public class YouTubeChannelResolverRules
         var sut = _mocker.CreateInstance<YouTubeChannelResolver>();
 
         // Act
-        var act = () => sut.FindChannelsSnippets("channel-name", "video-title", indexingContext);
+        var act = () => sut.FindChannelsSnippets(_fixture.Create<string>(), _fixture.Create<string>(), indexingContext);
 
         // Assert
         await act.Should().ThrowAsync<YouTubeQuotaException>();

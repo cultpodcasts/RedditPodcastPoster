@@ -1,3 +1,4 @@
+using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Categorisation;
@@ -6,30 +7,39 @@ namespace RedditPodcastPoster.Subjects.Tests;
 
 public class CategorisePodcastLoggerRules
 {
+    private readonly Fixture _fixture = new();
+
     [Fact(DisplayName = "FormatMessage uses stable Categorise podcast: prefix with ids and subject delta.")]
     public void format_message_includes_podcast_episodes_and_delta()
     {
-        var podcastId = Guid.Parse("11111111-2222-3333-4444-555555555555");
-        var episodeId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        // Arrange
+        var podcastId = _fixture.Create<Guid>();
+        var podcastName = _fixture.Create<string>();
+        var episodeId = _fixture.Create<Guid>();
+        var episodeTitle = _fixture.Create<string>();
+        var subjects = _fixture.CreateMany<string>(2).ToArray();
+
         var deltas = new[]
         {
             CategoriseEpisodeDelta.From(
                 episodeId,
-                "Preacher Boys Episode",
+                episodeTitle,
                 before: [],
-                after: ["Abuse", "Cult"],
+                after: subjects,
                 persisted: true)
         };
 
-        var message = CategorisePodcastLogger.FormatMessage(podcastId, "Preacher Boys Podcast", deltas);
+        // Act
+        var message = CategorisePodcastLogger.FormatMessage(podcastId, podcastName, deltas);
 
+        // Assert
         message.Should().StartWith(CategorisePodcastLogger.MessagePrefix);
         message.Should().Contain($"podcast-id='{podcastId}'");
-        message.Should().Contain("podcast-name='Preacher Boys Podcast'");
+        message.Should().Contain($"podcast-name='{podcastName}'");
         message.Should().Contain($"episode-id='{episodeId}'");
-        message.Should().Contain("title='Preacher Boys Episode'");
-        message.Should().Contain("before→after=[]→['Abuse', 'Cult']");
-        message.Should().Contain("added=['Abuse', 'Cult']");
+        message.Should().Contain($"title='{episodeTitle}'");
+        message.Should().Contain($"before→after=[]→['{subjects[0]}', '{subjects[1]}']");
+        message.Should().Contain($"added=['{subjects[0]}', '{subjects[1]}']");
         message.Should().Contain("removed=[]");
         message.Should().Contain("persisted=True");
     }
@@ -37,19 +47,22 @@ public class CategorisePodcastLoggerRules
     [Fact(DisplayName = "FormatMessage reports unchanged when subjects did not change.")]
     public void format_message_reports_unchanged()
     {
-        var episodeId = Guid.NewGuid();
+        // Arrange
+        var episodeId = _fixture.Create<Guid>();
         var deltas = new[]
         {
             CategoriseEpisodeDelta.From(
                 episodeId,
-                "Empty Title",
+                _fixture.Create<string>(),
                 before: [],
                 after: [],
                 persisted: false)
         };
 
-        var message = CategorisePodcastLogger.FormatMessage(Guid.NewGuid(), "Some Podcast", deltas);
+        // Act
+        var message = CategorisePodcastLogger.FormatMessage(_fixture.Create<Guid>(), _fixture.Create<string>(), deltas);
 
+        // Assert
         message.Should().Contain($"episode-id='{episodeId}'");
         message.Should().Contain("unchanged before→after=[]");
         message.Should().Contain("persisted=False");
@@ -59,36 +72,48 @@ public class CategorisePodcastLoggerRules
     [Fact(DisplayName = "CategoriseEpisodeDelta computes added and removed subjects.")]
     public void episode_delta_computes_added_and_removed()
     {
+        // Arrange
+        var keep = _fixture.Create<string>();
+        var oldSubject = _fixture.Create<string>();
+        var newSubject = _fixture.Create<string>();
+
+        // Act
         var delta = CategoriseEpisodeDelta.From(
-            Guid.NewGuid(),
-            "t",
-            before: ["Keep", "Old"],
-            after: ["Keep", "New"],
+            _fixture.Create<Guid>(),
+            _fixture.Create<string>(),
+            before: [keep, oldSubject],
+            after: [keep, newSubject],
             persisted: true);
 
-        delta.Added.Should().BeEquivalentTo(["New"]);
-        delta.Removed.Should().BeEquivalentTo(["Old"]);
-        delta.Before.Should().BeEquivalentTo(["Keep", "Old"]);
-        delta.After.Should().BeEquivalentTo(["Keep", "New"]);
+        // Assert
+        delta.Added.Should().BeEquivalentTo([newSubject]);
+        delta.Removed.Should().BeEquivalentTo([oldSubject]);
+        delta.Before.Should().BeEquivalentTo([keep, oldSubject]);
+        delta.After.Should().BeEquivalentTo([keep, newSubject]);
     }
 
     [Fact(DisplayName = "FormatMessage lists multiple episodes for one podcast line.")]
     public void format_message_lists_multiple_episodes()
     {
-        var e1 = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-        var e2 = Guid.Parse("ffffffff-0000-1111-2222-333333333333");
+        // Arrange
+        var e1 = _fixture.Create<Guid>();
+        var e2 = _fixture.Create<Guid>();
+        var t1 = _fixture.Create<string>();
+        var t2 = _fixture.Create<string>();
         var deltas = new[]
         {
-            CategoriseEpisodeDelta.From(e1, "One", [], ["A"], true),
-            CategoriseEpisodeDelta.From(e2, "Two", [], [], false)
+            CategoriseEpisodeDelta.From(e1, t1, [], [_fixture.Create<string>()], true),
+            CategoriseEpisodeDelta.From(e2, t2, [], [], false)
         };
 
-        var message = CategorisePodcastLogger.FormatMessage(Guid.NewGuid(), "Pod", deltas);
+        // Act
+        var message = CategorisePodcastLogger.FormatMessage(_fixture.Create<Guid>(), _fixture.Create<string>(), deltas);
 
+        // Assert
         message.Should().Contain($"episode-id='{e1}'");
         message.Should().Contain($"episode-id='{e2}'");
-        message.Should().Contain("title='One'");
-        message.Should().Contain("title='Two'");
+        message.Should().Contain($"title='{t1}'");
+        message.Should().Contain($"title='{t2}'");
         message.Should().Contain(";");
     }
 }

@@ -27,7 +27,7 @@ public class YouTubeChannelServiceRules
     {
         // Arrange
         var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
+        mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception(_fixture.Create<string>()));
 
         var indexingContext = new IndexingContext();
         var channelId = _fixture.Create<YouTubeChannelId>();
