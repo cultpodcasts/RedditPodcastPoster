@@ -758,7 +758,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 catalogueTitle,
                 durationOffsetFromEpisode: TimeSpan.FromMinutes(8));
         ConfigureVideoDuration(matchingVideoId, catalogueVideoLength);
-        var matcher = new Mock<RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher>();
+        var matcher = _mocker.GetMock<RedditPodcastPoster.Episodes.Matching.IEpisodePlatformMatcher>();
         matcher
             .Setup(x => x.IsCatalogueMatch(
                 It.IsAny<EpisodeModel>(),

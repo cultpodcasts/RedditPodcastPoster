@@ -21,6 +21,9 @@ alwaysApply: true
 | Missing `// Arrange` / `// Act` / `// Assert` | Required section comments |
 | `throw new NotImplementedException` in `BusinessRules/**` test doubles | Prefer Moq / focused fakes that implement only used members |
 | Raw `new Podcast` / `new Episode` filler when `DomainTestFixture` applies | Use fixture factories |
+| Manually wiring SUT constructors in mocks-heavy tests | Use `AutoMocker.CreateInstance<T>()` |
+| Manual setup of every mock dependency in `// Arrange` | Move shared setup to constructor; use AutoMocker |
+| Hardcoded specimens for generic filler data | Use `AutoFixture` specimens |
 
 ## Cursor stop hook (conversation-scoped)
 

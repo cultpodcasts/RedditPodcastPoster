@@ -54,13 +54,19 @@ Every production code change **MUST** ship with tests in the same PR:
 
 **Before merge:** run `dotnet test` on every test project whose production assembly changed. No exceptions for "small" diffs — if production changed, tests changed.
 
-### Single fixture
+### Automated setup & specimen creation
 
 | | Rule |
 |---|------|
-| **MUST** | Use one `DomainTestFixture` instance per test class: `private readonly DomainTestFixture _fixture = new();` |
-| **MUST** | Rely on AutoFixture customizations registered in `DomainTestFixture`'s constructor — they wire catalogue/resolved DTOs through platform builders |
-| **NEVER** | Add scattered `Default*` filler constants (titles, durations, release offsets, platform IDs) in test classes or fixture |
+| **MUST** | Use `DomainTestFixture` for episode-domain business-rule tests (Matching, Merging, Adapting) |
+| **MUST** | Use `Moq.AutoMock.AutoMocker` for service orchestration, handler, and API-client tests |
+| **MUST** | Use `AutoFixture.Fixture` for all other specimen creation |
+| **MUST** | Perform shared setup (mock registrations, default returns) in the test class **Constructor** |
+| **MUST** | Use class **fields** for state-dependent specimens or configurations shared across setups |
+| **MUST** | Use `_mocker.CreateInstance<TSut>()` to build the SUT |
+| **MUST** | Use **deferred returns** (`() => sharedField`) for mock setups to allow per-test behavior |
+| **NEVER** | Add scattered `Default*` filler constants (titles, durations, IDs) — use fixture specimens |
+| **NEVER** | Manually wire SUT constructors with multiple mocks — use AutoMocker |
 | **NEVER** | Instantiate raw `new Episode { ... }` or `new SpotifyCatalogueInput(...)` in arrange — use fixture factories and builders |
 
 ### Lean arrange
@@ -320,7 +326,7 @@ var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
 stored.ShouldMatchExpectation(expected);
 ```
 
-### Canonical test skeleton
+### Canonical test skeleton (Episode Domain)
 
 ```csharp
 [Fact(DisplayName =
@@ -339,6 +345,40 @@ public void snake_case_shorthand()
     // Assert
     result.AddedEpisodes.Should().BeEmpty();
     stored.ShouldMatchExpectation(expected.WithSpotify(input.SpotifyId, input.SpotifyUrl));
+}
+```
+
+### Canonical test skeleton (Service/Orchestration with AutoMocker)
+
+```csharp
+public class MyServiceTests
+{
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private string _mockResponse = "default";
+
+    public MyServiceTests()
+    {
+        _mocker.GetMock<IDependency>()
+            .Setup(x => x.DoWork(It.IsAny<string>()))
+            .ReturnsAsync(() => _mockResponse); // Deferred return
+    }
+
+    [Fact(DisplayName = "When dependency succeeds, service returns result.")]
+    public async Task DoSomething_Succeeds()
+    {
+        // Arrange
+        _mockResponse = "success-value";
+        var input = _fixture.Create<string>();
+        var sut = _mocker.CreateInstance<MyService>();
+
+        // Act
+        var result = await sut.DoSomething(input);
+
+        // Assert
+        result.Should().Be("success-value");
+        _mocker.GetMock<IDependency>().Verify(x => x.DoWork(input), Times.Once);
+    }
 }
 ```
 
