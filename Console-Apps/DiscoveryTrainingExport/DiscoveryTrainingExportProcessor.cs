@@ -21,7 +21,7 @@ public class DiscoveryTrainingExportProcessor
 
     public async Task Run(DiscoveryTrainingExportRequest request)
     {
-        var exportPath = Path.GetFullPath(request.ExportPath);
+        var exportPath = Path.GetFullPath(request.ExportPath!);
         var outputPath = Path.GetFullPath(request.OutputPath ?? Path.Combine(exportPath, "analysis"));
         Directory.CreateDirectory(outputPath);
 
