@@ -112,7 +112,10 @@ public class YouTubeEpisodeProvider(
             if (channelVideosResponse.Failure != null)
             {
                 LogPlaylistFetchFailure(podcast, channelVideosResponse.Failure,
-                    channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads);
+                    new YouTubePlaylistId(
+                        channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads ?? string.Empty,
+                        YouTubePlaylistIdSource.ChannelUploads,
+                        request.ChannelId));
             }
 
             return null;
@@ -199,7 +202,7 @@ public class YouTubeEpisodeProvider(
         {
             if (playlistQueryResponse.Failure != null)
             {
-                LogPlaylistFetchFailure(podcast, playlistQueryResponse.Failure, youTubePlaylistId.PlaylistId);
+                LogPlaylistFetchFailure(podcast, playlistQueryResponse.Failure, youTubePlaylistId);
             }
 
             return new GetPlaylistEpisodesResponse(null, isExpensiveQuery, playlistQueryResponse.Failure);
@@ -260,7 +263,7 @@ public class YouTubeEpisodeProvider(
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
     }
 
-    private void LogPlaylistFetchFailure(Podcast podcast, YouTubePlaylistFetchFailure? failure, string? playlistId)
+    private void LogPlaylistFetchFailure(Podcast podcast, YouTubePlaylistFetchFailure? failure, YouTubePlaylistId playlistId)
     {
         if (failure == null)
         {
@@ -270,14 +273,14 @@ public class YouTubeEpisodeProvider(
         if (failure == YouTubePlaylistFetchFailure.NotFound)
         {
             logger.LogError(
-                "YouTube playlist '{PlaylistId}' for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
-                playlistId, podcast.Name, podcast.Id);
+                "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
             return;
         }
 
         logger.LogError(
-            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (failure '{Failure}').",
-            podcast.Name, podcast.Id, playlistId, failure);
+            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}, failure '{Failure}').",
+            podcast.Name, podcast.Id, playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, failure);
     }
 
     private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)

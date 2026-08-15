@@ -51,8 +51,9 @@ public class YouTubeItemResolver(
     private async Task<FindEpisodeResponse?> GetPlaylistVideos(EnrichmentRequest request,
         IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
+        var playlistId = new YouTubePlaylistId(request.Podcast.YouTubePlaylistId, YouTubePlaylistIdSource.PodcastEntity, request.Podcast.Id.ToString());
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
-            new YouTubePlaylistId(request.Podcast.YouTubePlaylistId, YouTubePlaylistIdSource.PodcastEntity, request.Podcast.Id.ToString()),
+            playlistId,
             indexingContext, true,
             indexingContext.RunExpensiveYouTubePlaylistPagination(request.Podcast),
             request.Podcast.YouTubePlaylistOrder);
@@ -60,7 +61,7 @@ public class YouTubeItemResolver(
         {
             if (latestPlaylistItems.Failure != null)
             {
-                LogPlaylistFetchFailure(request.Podcast, latestPlaylistItems.Failure, request.Podcast.YouTubePlaylistId);
+                LogPlaylistFetchFailure(request.Podcast, latestPlaylistItems.Failure, playlistId);
             }
 
             return null;
@@ -147,7 +148,10 @@ public class YouTubeItemResolver(
             if (channelVideosResponse.Failure != null)
             {
                 LogPlaylistFetchFailure(request.Podcast, channelVideosResponse.Failure,
-                    channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads);
+                    new YouTubePlaylistId(
+                        channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads ?? string.Empty,
+                        YouTubePlaylistIdSource.ChannelUploads,
+                        request.Podcast.YouTubeChannelId));
             }
 
             return null;
@@ -184,7 +188,7 @@ public class YouTubeItemResolver(
     }
 
     private void LogPlaylistFetchFailure(RedditPodcastPoster.Models.Podcasts.Podcast podcast,
-        YouTubePlaylistFetchFailure? failure, string? playlistId)
+        YouTubePlaylistFetchFailure? failure, YouTubePlaylistId playlistId)
     {
         if (failure == null)
         {
@@ -194,13 +198,13 @@ public class YouTubeItemResolver(
         if (failure == YouTubePlaylistFetchFailure.NotFound)
         {
             logger.LogError(
-                "YouTube playlist '{PlaylistId}' for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
-                playlistId, podcast.Name, podcast.Id);
+                "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
             return;
         }
 
         logger.LogError(
-            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (failure '{Failure}').",
-            podcast.Name, podcast.Id, playlistId, failure);
+            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}, failure '{Failure}').",
+            podcast.Name, podcast.Id, playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, failure);
     }
 }
