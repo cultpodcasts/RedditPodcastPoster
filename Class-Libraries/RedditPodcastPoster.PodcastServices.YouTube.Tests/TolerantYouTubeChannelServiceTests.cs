@@ -21,18 +21,27 @@ public class TolerantYouTubeChannelServiceTests
         var channelId = new YouTubeChannelId("channel-1");
         var indexingContext = new IndexingContext();
         var channel = new Google.Apis.YouTube.v3.Data.Channel { Id = channelId.ChannelId };
-        var application = new Application
+        var app1 = new Application
         {
             ApiKey = "key1",
             Name = "CultPodcasts",
             Usage = ApplicationUsage.Indexer,
             DisplayName = "Primary-1"
         };
+        var app2 = new Application
+        {
+            ApiKey = "key2",
+            Name = "CultPodcasts",
+            Usage = ApplicationUsage.Indexer,
+            DisplayName = "Primary-2"
+        };
 
+        var currentApp = app1;
         var wrapper = new Mock<IYouTubeServiceWrapper>();
         wrapper.SetupGet(x => x.CanRotate).Returns(true);
         wrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        wrapper.SetupGet(x => x.CurrentApplication).Returns(application);
+        wrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
+        wrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
 
         var callCount = 0;
         var channelService = new Mock<IYouTubeChannelService>();
@@ -56,8 +65,10 @@ public class TolerantYouTubeChannelServiceTests
             });
 
         var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        var seenRecordCallApps = new List<Application>();
         quotaTracker
             .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), ApplicationUsage.Indexer, It.IsAny<CancellationToken>()))
+            .Callback<Application, ApplicationUsage, CancellationToken>((app, usage, ct) => seenRecordCallApps.Add(app))
             .Returns(Task.CompletedTask);
         quotaTracker
             .Setup(x => x.RecordQuotaHitAsync(
@@ -81,9 +92,14 @@ public class TolerantYouTubeChannelServiceTests
         channelService.Verify(
             x => x.GetChannel(channelId, indexingContext, true, false, false, false),
             Times.Exactly(2));
+        
+        seenRecordCallApps.Should().HaveCount(2, "Should record calls for both keys");
+        seenRecordCallApps[0].ApiKey.Should().Be("key1");
+        seenRecordCallApps[1].ApiKey.Should().Be("key2");
+
         quotaTracker.Verify(
             x => x.RecordQuotaHitAsync(
-                application,
+                app1,
                 ApplicationUsage.Indexer,
                 YouTubeQuotaOperation.ChannelsList,
                 It.IsAny<CancellationToken>()),
