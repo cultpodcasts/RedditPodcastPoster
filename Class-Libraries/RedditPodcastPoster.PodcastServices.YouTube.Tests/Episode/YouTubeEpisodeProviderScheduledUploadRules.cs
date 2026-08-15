@@ -69,7 +69,9 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .Returns(new EpisodeModel());
 
         // Act
+        var podcast = _fixture.CreatePodcast();
         var response = await Sut.GetPlaylistEpisodes(
+            podcast,
             new YouTubePlaylistId(playlistId),
             new YouTubeChannelId(channelId),
             indexingContext,
@@ -117,7 +119,9 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync([CreatePublicVideo(staleVideoId, channelId, videoPublishedAt)]);
 
         // Act
+        var podcast = _fixture.CreatePodcast();
         var response = await Sut.GetPlaylistEpisodes(
+            podcast,
             new YouTubePlaylistId(playlistId),
             new YouTubeChannelId(channelId),
             indexingContext,

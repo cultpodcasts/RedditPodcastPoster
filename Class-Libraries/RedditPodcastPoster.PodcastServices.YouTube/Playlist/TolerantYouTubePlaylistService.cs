@@ -55,8 +55,8 @@ public class TolerantYouTubePlaylistService(
         if (!success)
         {
             indexingContext.MarkYouTubeQuotaExhausted();
-            logger.LogError("Unable to obtain latest-playlist-video-snippets for channel-id '{playlistId}'.",
-                playlistId.PlaylistId);
+            logger.LogError("Unable to obtain latest-playlist-video-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
         }
 
         return result;
@@ -99,10 +99,10 @@ public class TolerantYouTubePlaylistService(
         if (!success)
         {
             indexingContext.MarkYouTubeQuotaExhausted();
-            logger.LogError("Unable to obtain playlist-info for channel-id '{playlistId}'.",
-                playlistId.PlaylistId);
+            logger.LogError("Unable to obtain playlist-info for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
             throw new InvalidOperationException(
-                $"Unable to obtain playlist-info for channel-id '{playlistId.PlaylistId}'.");
+                $"Unable to obtain playlist-info for playlist-id '{playlistId.PlaylistId}' (source: {playlistId.Source}, identifier: {playlistId.SourceIdentifier}).");
         }
 
         return result!;

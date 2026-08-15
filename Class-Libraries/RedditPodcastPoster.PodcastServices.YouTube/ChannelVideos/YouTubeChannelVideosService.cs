@@ -23,13 +23,13 @@ public class YouTubeChannelVideosService(
         _cache.Clear();
     }
 
-    public async Task<Models.ChannelVideos?> GetChannelVideos(YouTubeChannelId channelId,
+    public async Task<GetChannelVideosResponse> GetChannelVideos(YouTubeChannelId channelId,
         IndexingContext indexingContext,
         bool expensivePlaylist = false)
     {
         if (_cache.TryGetValue(channelId.ChannelId, out var cachedVideos))
         {
-            return cachedVideos;
+            return new GetChannelVideosResponse(cachedVideos.Channel, cachedVideos.PlaylistItems);
         }
 
         var channel =
@@ -38,11 +38,12 @@ public class YouTubeChannelVideosService(
         {
             logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.",
                 nameof(GetChannelVideos), channelId.ChannelId);
-            return null;
+            return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.NotFound);
         }
 
         var uploadsChannelId = channel.ContentDetails.RelatedPlaylists.Uploads;
-        var response = await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(uploadsChannelId),
+        var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
+            new YouTubePlaylistId(uploadsChannelId, YouTubePlaylistIdSource.ChannelUploads, channelId.ChannelId),
             indexingContext, expensivePlaylist: expensivePlaylist);
         if (response.Result != null)
         {
@@ -57,12 +58,12 @@ public class YouTubeChannelVideosService(
 
             var result = new Models.ChannelVideos(channel, playlistItems);
             _cache[channelId.ChannelId] = result;
-            return result;
+            return new GetChannelVideosResponse(channel, playlistItems);
         }
 
         logger.LogError(
             "{GetChannelVideosName}: Unable to find channel-upload-playlist-items for channel-id '{ChannelIdChannelId}', playlist-id '{UploadsChannelId}'.",
             nameof(GetChannelVideos), channelId.ChannelId, uploadsChannelId);
-        return null;
+        return new GetChannelVideosResponse(channel, null, response.Failure ?? YouTubePlaylistFetchFailure.ApiError);
     }
 }

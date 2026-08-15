@@ -57,8 +57,14 @@ public class YouTubeEpisodeProviderMembersOnlyRules
         };
         _mocker.GetMock<IYouTubeChannelVideosService>()
             .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
-            .ReturnsAsync(new RedditPodcastPoster.PodcastServices.YouTube.Models.ChannelVideos(
-                new Google.Apis.YouTube.v3.Data.Channel(), playlistItems));
+            .ReturnsAsync(new GetChannelVideosResponse(
+                new Google.Apis.YouTube.v3.Data.Channel
+                {
+                    ContentDetails = new ChannelContentDetails
+                    {
+                        RelatedPlaylists = new ChannelContentDetails.RelatedPlaylistsData { Uploads = "uploads-id" }
+                    }
+                }, playlistItems));
 
         _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
@@ -113,8 +119,14 @@ public class YouTubeEpisodeProviderMembersOnlyRules
 
         _mocker.GetMock<IYouTubeChannelVideosService>()
             .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
-            .ReturnsAsync(new RedditPodcastPoster.PodcastServices.YouTube.Models.ChannelVideos(
-                new Google.Apis.YouTube.v3.Data.Channel(), new List<PlaylistItem>
+            .ReturnsAsync(new GetChannelVideosResponse(
+                new Google.Apis.YouTube.v3.Data.Channel
+                {
+                    ContentDetails = new ChannelContentDetails
+                    {
+                        RelatedPlaylists = new ChannelContentDetails.RelatedPlaylistsData { Uploads = "uploads-id" }
+                    }
+                }, new List<PlaylistItem>
                 {
                     CreatePlaylistItem(zeroViewVideoId, "Fictional Brand New Upload")
                 }));

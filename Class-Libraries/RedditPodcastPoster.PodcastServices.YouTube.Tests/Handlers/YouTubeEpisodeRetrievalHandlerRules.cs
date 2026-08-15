@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -62,24 +63,23 @@ public class YouTubeEpisodeRetrievalHandlerRules
     public async Task Arbitrary_order_forwards_playlist_order_and_leaves_expensive_flag_untouched()
     {
         // Arrange
+        var mocker = new AutoMocker();
         var podcast = CreatePlaylistPodcast();
         podcast.YouTubePlaylistOrder = PlaylistOrder.Arbitrary;
         podcast.YouTubePlaylistQueryIsExpensive = false;
         PlaylistOrder? forwardedOrder = null;
-        var provider = new Mock<IYouTubeEpisodeProvider>();
-        provider
+        mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
+                It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
-            .Callback<YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?>(
-                (_, _, _, _, playlistOrder) => forwardedOrder = playlistOrder)
+            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?>(
+                (_, _, _, _, _, playlistOrder) => forwardedOrder = playlistOrder)
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: true));
-        var sut = new YouTubeEpisodeRetrievalHandler(
-            provider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
+        var sut = mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
         // Act
         var result = await sut.GetEpisodes(
@@ -101,21 +101,20 @@ public class YouTubeEpisodeRetrievalHandlerRules
     public async Task Arbitrary_order_still_calls_playlist_provider_when_expensive_queries_skipped()
     {
         // Arrange
+        var mocker = new AutoMocker();
         var podcast = CreatePlaylistPodcast();
         podcast.YouTubePlaylistOrder = PlaylistOrder.Arbitrary;
         podcast.YouTubePlaylistQueryIsExpensive = true;
-        var provider = new Mock<IYouTubeEpisodeProvider>();
-        provider
+        mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
+                podcast,
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: null));
-        var sut = new YouTubeEpisodeRetrievalHandler(
-            provider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
+        var sut = mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
         // Act
         var result = await sut.GetEpisodes(
@@ -125,8 +124,9 @@ public class YouTubeEpisodeRetrievalHandlerRules
 
         // Assert
         result.Handled.Should().BeTrue();
-        provider.Verify(
+        mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
             x => x.GetPlaylistEpisodes(
+                podcast,
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
@@ -170,20 +170,19 @@ public class YouTubeEpisodeRetrievalHandlerRules
         params bool?[] probes)
     {
         var remainingProbes = new Queue<bool?>(probes);
-        var provider = new Mock<IYouTubeEpisodeProvider>();
-        provider
+        var mocker = new AutoMocker();
+        mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
+                It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
-            .Callback<YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?>(
-                (_, _, _, expensivePlaylist, _) => requestedExpensiveFlags.Add(expensivePlaylist))
+            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?>(
+                (_, _, _, _, expensivePlaylist, _) => requestedExpensiveFlags.Add(expensivePlaylist))
             .ReturnsAsync(() => new GetPlaylistEpisodesResponse([], remainingProbes.Dequeue()));
 
-        return new YouTubeEpisodeRetrievalHandler(
-            provider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
+        return mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
     }
 }

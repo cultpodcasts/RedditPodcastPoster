@@ -120,16 +120,17 @@ public class YouTubePlaylistService(
                 if (ex.HttpStatusCode == HttpStatusCode.NotFound)
                 {
                     logger.LogError(ex,
-                        "YouTube playlist '{playlistId}' was not found (HTTP NotFound). The playlist may have been deleted or made private — update the podcast YouTubePlaylistId to a current playlist id.",
-                        playlistId.PlaylistId);
+                        "YouTube playlist '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}) was not found (HTTP NotFound). The playlist may have been deleted or made private — update the podcast YouTubePlaylistId to a current playlist id.",
+                        playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
                     await quotaUsageTracker.RecordNonQuotaErrorAsync();
                     return new GetPlaylistVideoSnippetsResponse(null,
                         Failure: YouTubePlaylistFetchFailure.NotFound);
                 }
 
                 logger.LogError(ex,
-                    "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
+                    "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                    playlistId.SourceIdentifier);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 return new GetPlaylistVideoSnippetsResponse(null,
                     Failure: YouTubePlaylistFetchFailure.ApiError);
@@ -137,8 +138,9 @@ public class YouTubePlaylistService(
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-video-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
+                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-video-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                    playlistId.SourceIdentifier);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
                 return new GetPlaylistVideoSnippetsResponse(null,
                     Failure: YouTubePlaylistFetchFailure.ApiError);
@@ -245,8 +247,9 @@ public class YouTubePlaylistService(
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-info for playlist-id '{playlistId}'.",
-                nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
+                "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-info for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                playlistId.SourceIdentifier);
             throw;
         }
 

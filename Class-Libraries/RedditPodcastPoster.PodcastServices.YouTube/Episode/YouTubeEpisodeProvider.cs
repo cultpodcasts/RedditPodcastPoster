@@ -47,7 +47,7 @@ public class YouTubeEpisodeProvider(
             logger.LogInformation(
                 "Using channel uploads playlist for channel-id '{ChannelId}' ({Reason}).",
                 channelId.ChannelId, uploadsPlaylistReason);
-            return await GetEpisodesFromChannelUploadsPlaylist(channelId, indexingContext, knownIds);
+            return await GetEpisodesFromChannelUploadsPlaylist(podcast, channelId, indexingContext, knownIds);
         }
 
         try
@@ -96,22 +96,29 @@ public class YouTubeEpisodeProvider(
                 "Search.List is not permitted for channel-id '{ChannelId}'; falling back to channel uploads playlist.",
                 channelId.ChannelId);
             podcast.YouTubeChannelSearchForbidden = true;
-            return await GetEpisodesFromChannelUploadsPlaylist(channelId, indexingContext, knownIds);
+            return await GetEpisodesFromChannelUploadsPlaylist(podcast, channelId, indexingContext, knownIds);
         }
     }
 
     private async Task<IList<EpisodeModel>?> GetEpisodesFromChannelUploadsPlaylist(
+        Podcast podcast,
         YouTubeChannelId request,
         IndexingContext indexingContext,
         IEnumerable<string> knownIds)
     {
-        var channelVideos = await youTubeChannelVideosService.GetChannelVideos(request, indexingContext);
-        if (channelVideos?.PlaylistItems == null)
+        var channelVideosResponse = await youTubeChannelVideosService.GetChannelVideos(request, indexingContext);
+        if (channelVideosResponse.PlaylistItems == null)
         {
+            if (channelVideosResponse.Failure != null)
+            {
+                LogPlaylistFetchFailure(podcast, channelVideosResponse.Failure,
+                    channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads);
+            }
+
             return null;
         }
 
-        var playlistItems = channelVideos.PlaylistItems
+        var playlistItems = channelVideosResponse.PlaylistItems
             .Where(x => !knownIds.Contains(x.Snippet.ResourceId.VideoId))
             .ToList();
         if (indexingContext.ReleasedSince.HasValue)
@@ -180,16 +187,21 @@ public class YouTubeEpisodeProvider(
         return episodeFromCandidateFactory.Create(candidate, isExplicit);
     }
 
-    public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(YouTubePlaylistId youTubePlaylistId,
+    public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(Podcast podcast, YouTubePlaylistId youTubePlaylistId,
         YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null)
     {
         var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
-            new YouTubePlaylistId(youTubePlaylistId.PlaylistId), indexingContext,
+            youTubePlaylistId, indexingContext,
             expensivePlaylist: expensivePlaylist, playlistOrder: playlistOrder);
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
         if (playlistQueryResponse.Result == null || !playlistQueryResponse.Result.Any())
         {
+            if (playlistQueryResponse.Failure != null)
+            {
+                LogPlaylistFetchFailure(podcast, playlistQueryResponse.Failure, youTubePlaylistId.PlaylistId);
+            }
+
             return new GetPlaylistEpisodesResponse(null, isExpensiveQuery, playlistQueryResponse.Failure);
         }
 
@@ -246,6 +258,26 @@ public class YouTubeEpisodeProvider(
         }
 
         return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
+    }
+
+    private void LogPlaylistFetchFailure(Podcast podcast, YouTubePlaylistFetchFailure? failure, string? playlistId)
+    {
+        if (failure == null)
+        {
+            return;
+        }
+
+        if (failure == YouTubePlaylistFetchFailure.NotFound)
+        {
+            logger.LogError(
+                "YouTube playlist '{PlaylistId}' for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
+                playlistId, podcast.Name, podcast.Id);
+            return;
+        }
+
+        logger.LogError(
+            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (failure '{Failure}').",
+            podcast.Name, podcast.Id, playlistId, failure);
     }
 
     private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)
