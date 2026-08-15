@@ -6,7 +6,13 @@ using CommandLine;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
-using SeedSupportedLanguages;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

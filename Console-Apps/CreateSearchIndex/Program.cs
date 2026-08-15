@@ -8,6 +8,13 @@ using CreateSearchIndex;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Extensions;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -7,6 +7,13 @@ using DeleteSearchDocument;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Search.Extensions;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

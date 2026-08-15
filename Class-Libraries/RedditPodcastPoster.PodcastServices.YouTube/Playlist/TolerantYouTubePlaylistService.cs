@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -63,7 +62,8 @@ public class TolerantYouTubePlaylistService(
         return result;
     }
 
-    public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(YouTubePlaylistId playlistId, IndexingContext indexingContext)
+    public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(YouTubePlaylistId playlistId,
+        IndexingContext indexingContext)
     {
         GetPlaylistInfoResponse? result = null;
         var success = false;
@@ -101,7 +101,8 @@ public class TolerantYouTubePlaylistService(
             indexingContext.MarkYouTubeQuotaExhausted();
             logger.LogError("Unable to obtain playlist-info for channel-id '{playlistId}'.",
                 playlistId.PlaylistId);
-            throw new InvalidOperationException($"Unable to obtain playlist-info for channel-id '{playlistId.PlaylistId}'.");
+            throw new InvalidOperationException(
+                $"Unable to obtain playlist-info for channel-id '{playlistId.PlaylistId}'.");
         }
 
         return result!;

@@ -1,5 +1,12 @@
 using CommandLine;
 using DiscoveryTrainingTrain;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 return await Parser.Default.ParseArguments<DiscoveryTrainingTrainRequest>(args)
     .MapResult(
