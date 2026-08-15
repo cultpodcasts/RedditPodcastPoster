@@ -16,4 +16,6 @@ public class AddAudioPodcastRequest
 
     [Option('m', "spotify-market", Default = null, Required = false, HelpText = "The Spotify-Market to search against")]
     public string? SpotifyMarket { get; set; }
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

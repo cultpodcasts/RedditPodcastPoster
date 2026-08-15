@@ -36,4 +36,7 @@ public class SubmitUrlRequest
 
     [Option('c', "create-podcast", Default = false, HelpText = "Create new podcast")]
     public bool CreatePodcast { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

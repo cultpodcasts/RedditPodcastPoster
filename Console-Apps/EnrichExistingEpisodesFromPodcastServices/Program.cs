@@ -20,12 +20,6 @@ using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.Configuration;
 
-if (args.Contains("--version"))
-{
-    VersionInfo.PrintVersion();
-    return 0;
-}
-
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -56,10 +50,25 @@ builder.Services
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<EnrichPodcastEpisodesRequest>(args)
-    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async request => await Run(request), errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(-1);
+    });
 
 async Task<int> Run(EnrichPodcastEpisodesRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var urlSubmitter = host.Services.GetService<EnrichPodcastEpisodesProcessor>()!;
     await urlSubmitter.Run(request);
     return 0;

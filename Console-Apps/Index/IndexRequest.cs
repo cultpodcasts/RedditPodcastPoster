@@ -45,4 +45,7 @@ public class IndexRequest
         HelpText =
             "Skip podcast/platform update; re-push all episodes for the selected podcast(s) to Azure Search from Cosmos.")]
     public bool ReindexSearch { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

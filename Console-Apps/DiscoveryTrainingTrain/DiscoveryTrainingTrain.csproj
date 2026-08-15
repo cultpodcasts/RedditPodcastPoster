@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Discovery.ML\RedditPodcastPoster.Discovery.ML.csproj" />
   </ItemGroup>
 

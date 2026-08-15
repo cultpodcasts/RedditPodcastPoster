@@ -7,12 +7,6 @@ using Discover;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Configuration;
 
-if (args.Contains("--version"))
-{
-    VersionInfo.PrintVersion();
-    return 0;
-}
-
 var builder = Host.CreateApplicationBuilder(args);
 
 var appDirectory = AppContext.BaseDirectory;
@@ -29,11 +23,27 @@ builder.Services.AddLogging();
 Ioc.ConfigureServices(builder.Services);
 
 using var host = builder.Build();
+
 return await Parser.Default.ParseArguments<DiscoveryRequest>(args)
-    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async discoveryRequest => await Run(discoveryRequest), errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(-1);
+    });
 
 async Task<int> Run(DiscoveryRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var processor = host.Services.GetService<DiscoveryProcessor>()!;
     var result = await processor.Process(request);
     if (result.Initiation.HasValue)

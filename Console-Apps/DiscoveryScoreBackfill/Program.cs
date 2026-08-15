@@ -11,12 +11,6 @@ using RedditPodcastPoster.Discovery.ML.Services;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Configuration;
 
-if (args.Contains("--version"))
-{
-    VersionInfo.PrintVersion();
-    return 0;
-}
-
 var builder = Host.CreateApplicationBuilder(args);
 
 var appDirectory = AppContext.BaseDirectory;
@@ -42,6 +36,12 @@ return await Parser.Default.ParseArguments<DiscoveryScoreBackfillRequest>(args)
     .MapResult(
         async request =>
         {
+            if (request.Version)
+            {
+                VersionInfo.PrintVersion();
+                return 0;
+            }
+
             if (!request.AllUnprocessed && (request.DocumentIds == null || !request.DocumentIds.Any()))
             {
                 request.AllUnprocessed = true;
@@ -51,7 +51,16 @@ return await Parser.Default.ParseArguments<DiscoveryScoreBackfillRequest>(args)
             var processor = host.Services.GetRequiredService<DiscoveryScoreBackfillProcessor>();
             return await processor.Run(request, evidencePath);
         },
-        _ => Task.FromResult(1));
+        errs =>
+        {
+            if (errs.Any(x => x is VersionRequestedError))
+            {
+                VersionInfo.PrintVersion();
+                return Task.FromResult(0);
+            }
+
+            return Task.FromResult(1);
+        });
 
 static string ResolveDefaultEvidencePath()
 {

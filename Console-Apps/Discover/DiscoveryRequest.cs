@@ -43,6 +43,9 @@ public class DiscoveryRequest
         HelpText = "The amount of time extra to search against Taddy due to their indexing delay of 2 hours")]
     public string? TaddyOffset { get; set; }
 
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
+
     public TimeSpan GetTaddyOffset() =>
         string.IsNullOrWhiteSpace(TaddyOffset)
             ? DefaultTaddyOffset

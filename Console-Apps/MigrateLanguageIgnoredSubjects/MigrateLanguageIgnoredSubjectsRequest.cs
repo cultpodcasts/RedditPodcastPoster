@@ -12,4 +12,7 @@ public class MigrateLanguageIgnoredSubjectsRequest
 
     [Option("audit-path", HelpText = "Path for the machine-readable audit/undo JSON (default: ./language-ignored-subjects-migration-audit.json).")]
     public string AuditPath { get; set; } = "language-ignored-subjects-migration-audit.json";
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

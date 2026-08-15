@@ -23,12 +23,6 @@ using RedditPodcastPoster.Twitter.Extensions;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.Configuration;
 
-if (args.Contains("--version"))
-{
-    VersionInfo.PrintVersion();
-    return 0;
-}
-
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -66,10 +60,25 @@ builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(-1);
+    });
 
 async Task<int> Run(PostRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var postProcessor = host.Services.GetService<PostProcessor>()!;
     await postProcessor.Process(request);
     return 0;

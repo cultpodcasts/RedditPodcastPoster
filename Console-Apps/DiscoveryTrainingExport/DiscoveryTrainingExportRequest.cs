@@ -18,4 +18,7 @@ public class DiscoveryTrainingExportRequest
     [Option("analysis-path", Required = false,
         HelpText = "Folder containing discovery-results.csv (overrides output-path for analyze-only).")]
     public string? AnalysisPath { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

@@ -19,4 +19,7 @@ public class EnrichPodcastEpisodesRequest
 
     [Option('a', "acknowledge-expensive-queries", Required = false, Default = false, HelpText = "Allow expensive queries")]
     public bool AllowExpensiveQueries { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

@@ -15,4 +15,7 @@ public class DiscoveryScoreBackfillRequest
 
     [Option("evidence-path", HelpText = "Path for markdown evidence report.")]
     public string? EvidencePath { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }
