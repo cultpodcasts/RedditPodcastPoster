@@ -1,61 +1,55 @@
+using AutoFixture;
 using FluentAssertions;
+using Google.Apis.Services;
+using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using Moq.AutoMock;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using System.Net;
-using Google.Apis.YouTube.v3;
-using Google.Apis.Services;
 using Xunit;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Services;
 
 public class YouTubeSearcherRules
 {
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public YouTubeSearcherRules()
+    {
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<YouTubeSearcher>>(NullLogger<YouTubeSearcher>.Instance);
+    }
+
     [Fact(DisplayName = "When YouTube API throws an exception during search, Search returns partial results and does NOT set SkipYouTubeUrlResolving")]
     public async Task When_YouTube_Api_Throws_Exception_During_Search_Does_Not_Set_Skip_Flag()
     {
         // Arrange
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        // Accessing YouTubeService will throw
+        var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
         mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
 
-        var httpClientFactory = new Mock<INoRedirectHttpClientFactory>();
-        var videoService = new Mock<ITolerantYouTubeVideoService>();
-        var channelService = new Mock<ITolerantYouTubeChannelService>();
-        var thumbnailResolver = new Mock<IYouTubeThumbnailResolver>();
-
-        var sut = new YouTubeSearcher(
-            mockWrapper.Object, 
-            httpClientFactory.Object, 
-            videoService.Object, 
-            channelService.Object, 
-            thumbnailResolver.Object, 
-            NullLogger<YouTubeSearcher>.Instance);
-        
         var indexingContext = new IndexingContext();
+        var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
         var result = await sut.Search("query", indexingContext);
 
         // Assert
         result.Should().BeEmpty();
-        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse("non-quota errors should not trigger the kill-switch for the entire run");
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 
     [Fact(DisplayName = "When YouTube API throws a quota exception during search, Search throws YouTubeQuotaException and does NOT set SkipYouTubeUrlResolving")]
     public async Task When_YouTube_Api_Throws_Quota_Exception_During_Search_Throws_YouTubeQuotaException()
     {
         // Arrange
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
         {
             Content = new StringContent("{ \"error\": { \"code\": 403, \"message\": \"The request cannot be completed because you have exceeded your quota.\" } }")
@@ -67,29 +61,18 @@ public class YouTubeSearcherRules
             ApiKey = "test-key"
         });
 
+        var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
         mockWrapper.SetupGet(x => x.YouTubeService).Returns(youtubeService);
 
-        var httpClientFactory = new Mock<INoRedirectHttpClientFactory>();
-        var videoService = new Mock<ITolerantYouTubeVideoService>();
-        var channelService = new Mock<ITolerantYouTubeChannelService>();
-        var thumbnailResolver = new Mock<IYouTubeThumbnailResolver>();
-
-        var sut = new YouTubeSearcher(
-            mockWrapper.Object, 
-            httpClientFactory.Object, 
-            videoService.Object, 
-            channelService.Object, 
-            thumbnailResolver.Object, 
-            NullLogger<YouTubeSearcher>.Instance);
-        
         var indexingContext = new IndexingContext();
+        var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
         var act = () => sut.Search("query", indexingContext);
 
         // Assert
         await act.Should().ThrowAsync<YouTubeQuotaException>();
-        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse("quota errors should not trigger the kill-switch for the entire run anymore");
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 
     private sealed class FakeHttpMessageHandler(HttpResponseMessage response) : HttpMessageHandler

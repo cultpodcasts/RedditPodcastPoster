@@ -1,7 +1,8 @@
+using AutoFixture;
 using FluentAssertions;
-using Google;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -13,25 +14,30 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Channel;
 
 public class YouTubeChannelServiceRules
 {
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public YouTubeChannelServiceRules()
+    {
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<YouTubeChannelService>>(NullLogger<YouTubeChannelService>.Instance);
+    }
+
     [Fact(DisplayName = "When YouTube API throws a non-quota exception, GetChannel returns null and does NOT set SkipYouTubeUrlResolving")]
     public async Task When_YouTube_Api_Throws_NonQuota_Exception_Does_Not_Set_Skip_Flag()
     {
         // Arrange
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        // Accessing YouTubeService will throw, triggering the catch(Exception) block
+        var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
         mockWrapper.SetupGet(x => x.YouTubeService).Throws(new Exception("Simulated API failure"));
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        var sut = new YouTubeChannelService(mockWrapper.Object, quotaTracker.Object, NullLogger<YouTubeChannelService>.Instance);
-        
         var indexingContext = new IndexingContext();
-        var channelId = new YouTubeChannelId("channel-id");
+        var channelId = _fixture.Create<YouTubeChannelId>();
+        var sut = _mocker.CreateInstance<YouTubeChannelService>();
 
         // Act
         var result = await sut.GetChannel(channelId, indexingContext);
 
         // Assert
         result.Should().BeNull();
-        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse("non-quota errors should not trigger the kill-switch for the entire run");
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 }

@@ -1,6 +1,8 @@
+using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
@@ -20,37 +22,44 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Quota;
 
 public class YouTubeQuotaRotationRules
 {
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private readonly Application _app1;
+    private readonly Application _app2;
+    private Application _currentApp;
+
+    public YouTubeQuotaRotationRules()
+    {
+        _app1 = _fixture.Build<Application>()
+            .With(x => x.ApiKey, "key1")
+            .With(x => x.Usage, ApplicationUsage.Indexer)
+            .Create();
+        _app2 = _fixture.Build<Application>()
+            .With(x => x.ApiKey, "key2")
+            .With(x => x.Usage, ApplicationUsage.Indexer)
+            .Create();
+        _currentApp = _app1;
+
+        var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
+        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
+        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
+        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => _currentApp);
+        mockWrapper.Setup(x => x.Rotate()).Callback(() => _currentApp = _app2);
+
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>()
+            .Setup(x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>()
+            .Setup(x => x.RecordQuotaHitAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<YouTubeQuotaOperation>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+    }
+
     [Fact(DisplayName = "When YouTube API throws a quota exception, TolerantYouTubeVideoService rotates the API key and tries again")]
     public async Task When_YouTube_Api_Throws_Quota_Exception_Rotates_And_Retries()
     {
         // Arrange
-        var app1 = new Application
-        {
-            ApiKey = "key1",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-1"
-        };
-
-        var app2 = new Application
-        {
-            ApiKey = "key2",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-2"
-        };
-
-        var currentApp = app1;
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
-        mockWrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
-        
-        var mockBaseService = new Mock<IYouTubeVideoService>();
         var seenApps = new List<Application>();
-        
-        mockBaseService.Setup(x => x.GetVideoContentDetails(
+        _mocker.GetMock<IYouTubeVideoService>().Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
@@ -67,31 +76,28 @@ public class YouTubeQuotaRotationRules
                 return new List<Google.Apis.YouTube.v3.Data.Video>();
             });
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        var sut = new TolerantYouTubeVideoService(
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubeVideoService>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeVideoService>>(NullLogger<TolerantYouTubeVideoService>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubeVideoService>();
         
         var indexingContext = new IndexingContext();
-        var videoIds = new[] { "video-id" };
+        var videoIds = _fixture.Create<string[]>();
 
         // Act
-        var result = await sut.GetVideoContentDetails(mockWrapper.Object, videoIds, indexingContext);
+        var result = await sut.GetVideoContentDetails(_mocker.GetMock<IYouTubeServiceWrapper>().Object, videoIds, indexingContext);
 
         // Assert
         result.Should().NotBeNull();
-        mockWrapper.Verify(x => x.Rotate(), Times.Once, "Rotate should be called after a quota exception");
-        seenApps.Should().HaveCount(2, "The service should retry the call after rotation");
-        seenApps[0].ApiKey.Should().Be("key1", "First call should use the initial API key");
-        seenApps[1].ApiKey.Should().Be("key2", "Retry should use the rotated API key");
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
+        seenApps.Should().HaveCount(2);
+        seenApps[0].ApiKey.Should().Be("key1");
+        seenApps[1].ApiKey.Should().Be("key2");
         
-        quotaTracker.Verify(x => x.RecordQuotaHitAsync(
-            app1,
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
+            _app1,
             ApplicationUsage.Indexer,
             YouTubeQuotaOperation.VideosList,
-            It.IsAny<CancellationToken>()), Times.Once, "Quota hit should be recorded for the first application");
-        indexingContext.YouTubeQuotaExhausted.Should().BeFalse("Quota is not exhausted if rotation succeeded");
+            It.IsAny<CancellationToken>()), Times.Once);
+        indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
         indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 
@@ -99,12 +105,9 @@ public class YouTubeQuotaRotationRules
     public async Task When_YouTube_Api_Throws_Quota_Exception_And_Rotation_Fails_Marks_Quota_Exhausted()
     {
         // Arrange
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.Setup(x => x.Rotate()).Throws(new Exception("Ring exhausted"));
+        _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new Exception("Ring exhausted"));
         
-        var mockBaseService = new Mock<IYouTubeVideoService>();
-        mockBaseService.Setup(x => x.GetVideoContentDetails(
+        _mocker.GetMock<IYouTubeVideoService>().Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
@@ -113,55 +116,27 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<bool>()))
             .ThrowsAsync(new YouTubeQuotaException());
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        var sut = new TolerantYouTubeVideoService(
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubeVideoService>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeVideoService>>(NullLogger<TolerantYouTubeVideoService>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubeVideoService>();
         
         var indexingContext = new IndexingContext();
-        var videoIds = new[] { "video-id" };
+        var videoIds = _fixture.Create<string[]>();
 
         // Act
-        var result = await sut.GetVideoContentDetails(mockWrapper.Object, videoIds, indexingContext);
+        var result = await sut.GetVideoContentDetails(_mocker.GetMock<IYouTubeServiceWrapper>().Object, videoIds, indexingContext);
 
         // Assert
         result.Should().BeNull();
-        indexingContext.YouTubeQuotaExhausted.Should().BeTrue("Quota IS exhausted if rotation fails");
-        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse("SkipYouTubeUrlResolving should not be set by quota issues anymore");
+        indexingContext.YouTubeQuotaExhausted.Should().BeTrue();
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 
     [Fact(DisplayName = "When YouTube API throws a quota exception, TolerantYouTubePlaylistService rotates the API key and tries again")]
     public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubePlaylistService_Rotates_And_Retries()
     {
         // Arrange
-        var app1 = new Application
-        {
-            ApiKey = "key1",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-1"
-        };
-
-        var app2 = new Application
-        {
-            ApiKey = "key2",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-2"
-        };
-
-        var currentApp = app1;
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
-        mockWrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
-        
-        var mockBaseService = new Mock<IYouTubePlaylistService>();
         var seenApps = new List<Application>();
-        
-        mockBaseService.Setup(x => x.GetPlaylistVideoSnippets(
+        _mocker.GetMock<IYouTubePlaylistService>().Setup(x => x.GetPlaylistVideoSnippets(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
@@ -178,31 +153,27 @@ public class YouTubeQuotaRotationRules
                 return new GetPlaylistVideoSnippetsResponse(new List<Google.Apis.YouTube.v3.Data.PlaylistItem>());
             });
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        var sut = new TolerantYouTubePlaylistService(
-            mockWrapper.Object,
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubePlaylistService>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubePlaylistService>>(NullLogger<TolerantYouTubePlaylistService>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubePlaylistService>();
         
         var indexingContext = new IndexingContext();
-        var playlistId = new YouTubePlaylistId("playlist-id");
+        var playlistId = _fixture.Create<YouTubePlaylistId>();
 
         // Act
         var result = await sut.GetPlaylistVideoSnippets(playlistId, indexingContext);
 
         // Assert
         result.Result.Should().NotBeNull();
-        mockWrapper.Verify(x => x.Rotate(), Times.Once);
-        seenApps.Should().HaveCount(2, "The service should retry the call after rotation");
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
+        seenApps.Should().HaveCount(2);
         seenApps[0].ApiKey.Should().Be("key1");
         seenApps[1].ApiKey.Should().Be("key2");
 
-        quotaTracker.Verify(x => x.RecordQuotaHitAsync(
-            app1,
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
+            _app1,
             ApplicationUsage.Indexer,
             YouTubeQuotaOperation.PlaylistItemsList,
-            It.IsAny<CancellationToken>()), Times.Once, "Quota hit should be recorded");
+            It.IsAny<CancellationToken>()), Times.Once);
         indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
     }
 
@@ -210,35 +181,8 @@ public class YouTubeQuotaRotationRules
     public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubeSearcher_Rotates_And_Retries()
     {
         // Arrange
-        var app1 = new Application
-        {
-            ApiKey = "key1",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-1"
-        };
-
-        var app2 = new Application
-        {
-            ApiKey = "key2",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-2"
-        };
-
-        var currentApp = app1;
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
-        mockWrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
-        
-        var mockBaseService = new Mock<IYouTubeSearcher>();
         var callCount = 0;
-        
-        mockBaseService.Setup(x => x.Search(
-                It.IsAny<string>(),
-                It.IsAny<IndexingContext>()))
+        _mocker.GetMock<IYouTubeSearcher>().Setup(x => x.Search(It.IsAny<string>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -249,17 +193,13 @@ public class YouTubeQuotaRotationRules
                 return new List<RedditPodcastPoster.PodcastServices.Abstractions.Models.EpisodeResult>();
             });
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
         var seenRecordCallApps = new List<Application>();
-        quotaTracker.Setup(x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()))
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Setup(x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()))
             .Callback<Application, ApplicationUsage, CancellationToken>((app, usage, ct) => seenRecordCallApps.Add(app))
             .Returns(Task.CompletedTask);
 
-        var sut = new TolerantYouTubeSearcher(
-            mockWrapper.Object,
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubeSearcher>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeSearcher>>(NullLogger<TolerantYouTubeSearcher>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubeSearcher>();
         
         var indexingContext = new IndexingContext();
 
@@ -268,17 +208,17 @@ public class YouTubeQuotaRotationRules
 
         // Assert
         result.Should().NotBeNull();
-        mockWrapper.Verify(x => x.Rotate(), Times.Once);
-        callCount.Should().Be(2, "The service should retry the search after rotation");
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
+        callCount.Should().Be(2);
         seenRecordCallApps.Should().HaveCount(2);
         seenRecordCallApps[0].ApiKey.Should().Be("key1");
         seenRecordCallApps[1].ApiKey.Should().Be("key2");
 
-        quotaTracker.Verify(x => x.RecordQuotaHitAsync(
-            app1,
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
+            _app1,
             ApplicationUsage.Indexer,
             YouTubeQuotaOperation.SearchList,
-            It.IsAny<CancellationToken>()), Times.Once, "Quota hit should be recorded");
+            It.IsAny<CancellationToken>()), Times.Once);
         indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
     }
 
@@ -286,36 +226,8 @@ public class YouTubeQuotaRotationRules
     public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubeChannelResolver_Rotates_And_Retries()
     {
         // Arrange
-        var app1 = new Application
-        {
-            ApiKey = "key1",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-1"
-        };
-
-        var app2 = new Application
-        {
-            ApiKey = "key2",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-2"
-        };
-
-        var currentApp = app1;
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
-        mockWrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
-        
-        var mockBaseService = new Mock<IYouTubeChannelResolver>();
         var callCount = 0;
-        
-        mockBaseService.Setup(x => x.FindChannelsSnippets(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<IndexingContext>()))
+        _mocker.GetMock<IYouTubeChannelResolver>().Setup(x => x.FindChannelsSnippets(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -326,17 +238,13 @@ public class YouTubeQuotaRotationRules
                 return new Google.Apis.YouTube.v3.Data.SearchResult();
             });
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
         var seenRecordCallApps = new List<Application>();
-        quotaTracker.Setup(x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()))
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Setup(x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()))
             .Callback<Application, ApplicationUsage, CancellationToken>((app, usage, ct) => seenRecordCallApps.Add(app))
             .Returns(Task.CompletedTask);
 
-        var sut = new TolerantYouTubeChannelResolver(
-            mockWrapper.Object,
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubeChannelResolver>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeChannelResolver>>(NullLogger<TolerantYouTubeChannelResolver>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelResolver>();
         
         var indexingContext = new IndexingContext();
 
@@ -345,17 +253,17 @@ public class YouTubeQuotaRotationRules
 
         // Assert
         result.Should().NotBeNull();
-        mockWrapper.Verify(x => x.Rotate(), Times.Once);
-        callCount.Should().Be(2, "The service should retry the channel resolution after rotation");
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
+        callCount.Should().Be(2);
         seenRecordCallApps.Should().HaveCount(2);
         seenRecordCallApps[0].ApiKey.Should().Be("key1");
         seenRecordCallApps[1].ApiKey.Should().Be("key2");
 
-        quotaTracker.Verify(x => x.RecordQuotaHitAsync(
-            app1,
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
+            _app1,
             ApplicationUsage.Indexer,
             YouTubeQuotaOperation.SearchList,
-            It.IsAny<CancellationToken>()), Times.Once, "Quota hit should be recorded");
+            It.IsAny<CancellationToken>()), Times.Once);
         indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
     }
 
@@ -363,33 +271,8 @@ public class YouTubeQuotaRotationRules
     public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubeChannelVideoSnippetsService_Rotates_And_Retries()
     {
         // Arrange
-        var app1 = new Application
-        {
-            ApiKey = "key1",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-1"
-        };
-
-        var app2 = new Application
-        {
-            ApiKey = "key2",
-            Name = "CultPodcasts",
-            Usage = ApplicationUsage.Indexer,
-            DisplayName = "Primary-2"
-        };
-
-        var currentApp = app1;
-        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
-        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
-        mockWrapper.SetupGet(x => x.Usage).Returns(ApplicationUsage.Indexer);
-        mockWrapper.SetupGet(x => x.CurrentApplication).Returns(() => currentApp);
-        mockWrapper.Setup(x => x.Rotate()).Callback(() => currentApp = app2);
-        
-        var mockBaseService = new Mock<IYouTubeChannelVideoSnippetsService>();
         var seenApps = new List<Application>();
-        
-        mockBaseService.Setup(x => x.GetLatestChannelVideoSnippets(
+        _mocker.GetMock<IYouTubeChannelVideoSnippetsService>().Setup(x => x.GetLatestChannelVideoSnippets(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>()))
@@ -403,31 +286,27 @@ public class YouTubeQuotaRotationRules
                 return new List<Google.Apis.YouTube.v3.Data.SearchResult>();
             });
 
-        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        var sut = new TolerantYouTubeChannelVideoSnippetsService(
-            mockWrapper.Object,
-            mockBaseService.Object, 
-            quotaTracker.Object, 
-            NullLogger<TolerantYouTubeChannelVideoSnippetsService>.Instance);
+        _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeChannelVideoSnippetsService>>(NullLogger<TolerantYouTubeChannelVideoSnippetsService>.Instance);
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelVideoSnippetsService>();
         
         var indexingContext = new IndexingContext();
-        var channelId = new YouTubeChannelId("channel-id");
+        var channelId = _fixture.Create<YouTubeChannelId>();
 
         // Act
         var result = await sut.GetLatestChannelVideoSnippets(channelId, indexingContext);
 
         // Assert
         result.Should().NotBeNull();
-        mockWrapper.Verify(x => x.Rotate(), Times.Once);
-        seenApps.Should().HaveCount(2, "The service should retry the call after rotation");
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
+        seenApps.Should().HaveCount(2);
         seenApps[0].ApiKey.Should().Be("key1");
         seenApps[1].ApiKey.Should().Be("key2");
 
-        quotaTracker.Verify(x => x.RecordQuotaHitAsync(
-            app1,
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
+            _app1,
             ApplicationUsage.Indexer,
             YouTubeQuotaOperation.SearchList,
-            It.IsAny<CancellationToken>()), Times.Once, "Quota hit should be recorded");
+            It.IsAny<CancellationToken>()), Times.Once);
         indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
     }
 }
