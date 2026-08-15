@@ -443,3 +443,4 @@ plan-blocks.md
 
 # Cursor hook scratch state (unit-test guardrail stop loop)
 .cursor/hooks/.state/
+**/build-errors.json
