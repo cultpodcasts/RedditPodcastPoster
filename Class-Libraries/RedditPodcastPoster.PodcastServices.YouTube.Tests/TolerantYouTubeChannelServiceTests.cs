@@ -91,7 +91,7 @@ public class TolerantYouTubeChannelServiceTests
     }
 
     [Fact(DisplayName = "When rotation is exhausted, GetChannel returns null and does NOT set SkipYouTubeUrlResolving")]
-    public async Task GetChannel_WhenRotationExhausted_SetsSkipYouTubeUrlResolving()
+    public async Task GetChannel_WhenRotationExhausted_Does_Not_Set_SkipYouTubeUrlResolving()
     {
         // Arrange
         var channelId = new YouTubeChannelId("channel-1");

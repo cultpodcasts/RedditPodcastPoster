@@ -1,11 +1,16 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Quota;
@@ -85,5 +90,110 @@ public class YouTubeQuotaRotationRules
         result.Should().BeNull();
         indexingContext.YouTubeQuotaExhausted.Should().BeTrue("Quota IS exhausted if rotation fails");
         indexingContext.SkipYouTubeUrlResolving.Should().BeFalse("SkipYouTubeUrlResolving should not be set by quota issues anymore");
+    }
+
+    [Fact(DisplayName = "When YouTube API throws a quota exception, TolerantYouTubePlaylistService rotates the API key and tries again")]
+    public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubePlaylistService_Rotates_And_Retries()
+    {
+        // Arrange
+        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
+        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
+        
+        var mockBaseService = new Mock<IYouTubePlaylistService>();
+        
+        mockBaseService.SetupSequence(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .ThrowsAsync(new YouTubeQuotaException())
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(new List<Google.Apis.YouTube.v3.Data.PlaylistItem>()));
+
+        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        var sut = new TolerantYouTubePlaylistService(
+            mockWrapper.Object,
+            mockBaseService.Object, 
+            quotaTracker.Object, 
+            NullLogger<TolerantYouTubePlaylistService>.Instance);
+        
+        var indexingContext = new IndexingContext();
+        var playlistId = new YouTubePlaylistId("playlist-id");
+
+        // Act
+        var result = await sut.GetPlaylistVideoSnippets(playlistId, indexingContext);
+
+        // Assert
+        result.Result.Should().NotBeNull();
+        mockWrapper.Verify(x => x.Rotate(), Times.Once);
+        indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "When YouTube API throws a quota exception, TolerantYouTubeSearcher rotates the API key and tries again")]
+    public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubeSearcher_Rotates_And_Retries()
+    {
+        // Arrange
+        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
+        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
+        
+        var mockBaseService = new Mock<IYouTubeSearcher>();
+        
+        mockBaseService.SetupSequence(x => x.Search(
+                It.IsAny<string>(),
+                It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new YouTubeQuotaException())
+            .ReturnsAsync(new List<RedditPodcastPoster.PodcastServices.Abstractions.Models.EpisodeResult>());
+
+        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        var sut = new TolerantYouTubeSearcher(
+            mockWrapper.Object,
+            mockBaseService.Object, 
+            quotaTracker.Object, 
+            NullLogger<TolerantYouTubeSearcher>.Instance);
+        
+        var indexingContext = new IndexingContext();
+
+        // Act
+        var result = await sut.Search("query", indexingContext);
+
+        // Assert
+        result.Should().NotBeNull();
+        mockWrapper.Verify(x => x.Rotate(), Times.Once);
+        indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "When YouTube API throws a quota exception, TolerantYouTubeChannelResolver rotates the API key and tries again")]
+    public async Task When_YouTube_Api_Throws_Quota_Exception_TolerantYouTubeChannelResolver_Rotates_And_Retries()
+    {
+        // Arrange
+        var mockWrapper = new Mock<IYouTubeServiceWrapper>();
+        mockWrapper.SetupGet(x => x.CanRotate).Returns(true);
+        
+        var mockBaseService = new Mock<IYouTubeChannelResolver>();
+        
+        mockBaseService.SetupSequence(x => x.FindChannelsSnippets(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new YouTubeQuotaException())
+            .ReturnsAsync(new Google.Apis.YouTube.v3.Data.SearchResult());
+
+        var quotaTracker = new Mock<IYouTubeQuotaUsageTracker>();
+        var sut = new TolerantYouTubeChannelResolver(
+            mockWrapper.Object,
+            mockBaseService.Object, 
+            quotaTracker.Object, 
+            NullLogger<TolerantYouTubeChannelResolver>.Instance);
+        
+        var indexingContext = new IndexingContext();
+
+        // Act
+        var result = await sut.FindChannelsSnippets("channel", "video", indexingContext);
+
+        // Assert
+        result.Should().NotBeNull();
+        mockWrapper.Verify(x => x.Rotate(), Times.Once);
+        indexingContext.YouTubeQuotaExhausted.Should().BeFalse();
     }
 }
