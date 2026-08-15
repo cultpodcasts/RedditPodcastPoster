@@ -55,7 +55,7 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 [CreateScheduledPlaylistItem(scheduledVideoId, addedToPlaylistAt, videoPublishedAt)]));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -107,7 +107,7 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 [CreateScheduledPlaylistItem(staleVideoId, addedToPlaylistAt, videoPublishedAt)]));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),

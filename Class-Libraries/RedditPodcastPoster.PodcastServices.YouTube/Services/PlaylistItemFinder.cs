@@ -18,7 +18,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public partial class PlaylistItemFinder(
     IYouTubeServiceWrapper youTubeService,
-    IYouTubeVideoService videoService,
+    ITolerantYouTubeVideoService videoService,
     IEpisodePlatformMatcher platformMatcher,
     ILogger<PlaylistItemFinder> logger)
     : IPlaylistItemFinder

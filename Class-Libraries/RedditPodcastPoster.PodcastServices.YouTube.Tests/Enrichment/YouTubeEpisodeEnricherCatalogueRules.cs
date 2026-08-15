@@ -123,7 +123,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = new Mock<ITolerantYouTubeVideoService>();
         var sut = CreateEnricher(
             youTubeItemResolver: resolver.Object,
             youTubeVideoService: videoService.Object);
@@ -205,7 +205,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = new Mock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -269,7 +269,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = new Mock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -480,7 +480,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = new Mock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -649,13 +649,13 @@ public class YouTubeEpisodeEnricherCatalogueRules
 
     private YouTubeEpisodeEnricher CreateEnricher(
         IYouTubeItemResolver? youTubeItemResolver = null,
-        IYouTubeVideoService? youTubeVideoService = null,
+        ITolerantYouTubeVideoService? youTubeVideoService = null,
         ITextSanitiser? textSanitiser = null,
         IYouTubeThumbnailResolver? youTubeThumbnailResolver = null)
     {
         var youTubeService = new Mock<IYouTubeServiceWrapper>();
         var resolver = youTubeItemResolver ?? new Mock<IYouTubeItemResolver>().Object;
-        var videoService = youTubeVideoService ?? new Mock<IYouTubeVideoService>().Object;
+        var videoService = youTubeVideoService ?? new Mock<ITolerantYouTubeVideoService>().Object;
         var sanitiser = textSanitiser ?? new Mock<ITextSanitiser>().Object;
         var thumbnailResolver = youTubeThumbnailResolver ?? CreateDefaultThumbnailResolver();
 

@@ -33,7 +33,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
     public PlaylistItemFinderCatalogueWrapperRules()
     {
         _mocker.Use(EpisodeDomainTestServices.CreatePlatformMatcher());
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -497,7 +497,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             CreatePlaylistItem(liveVideoId, sharedTitle, DomainTestFixture.UtcDaysAgo(1)),
             CreatePlaylistItem(completedVideoId, sharedTitle, DomainTestFixture.UtcDaysAgo(2))
         };
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -579,7 +579,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
         {
             CreatePlaylistItem(liveVideoId, episode.Title, DomainTestFixture.UtcDaysAgo(1))
         };
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -899,7 +899,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
         {
             CreatePlaylistItem(videoId, sharedTitle, DomainTestFixture.UtcDaysAgo(1))
         };
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.Is<IEnumerable<string>>(ids => ids.Single() == videoId),
@@ -940,7 +940,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
         {
             CreatePlaylistItem(videoId, sharedTitle, DomainTestFixture.UtcDaysAgo(1))
         };
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -981,7 +981,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
     private void ConfigureVideoDurations(params (string VideoId, TimeSpan Duration)[] durations)
     {
         var durationByVideoId = durations.ToDictionary(x => x.VideoId, x => x.Duration);
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -1057,7 +1057,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
 
     private void ConfigureVideoDuration(string videoId, TimeSpan duration)
     {
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.Is<IEnumerable<string>>(ids => ids.Contains(videoId)),

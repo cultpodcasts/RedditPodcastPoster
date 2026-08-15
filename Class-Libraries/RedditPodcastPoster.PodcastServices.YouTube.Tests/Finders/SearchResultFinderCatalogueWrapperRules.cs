@@ -32,7 +32,7 @@ public class SearchResultFinderCatalogueWrapperRules
     public SearchResultFinderCatalogueWrapperRules()
     {
         _mocker.Use(EpisodeDomainTestServices.CreatePlatformMatcher());
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -358,7 +358,7 @@ public class SearchResultFinderCatalogueWrapperRules
 
     private void ConfigureVideoDuration(string videoId, TimeSpan duration)
     {
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -383,7 +383,7 @@ public class SearchResultFinderCatalogueWrapperRules
     private void ConfigureVideoDurations(params (string VideoId, TimeSpan Duration)[] durations)
     {
         var durationByVideoId = durations.ToDictionary(x => x.VideoId, x => x.Duration);
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),

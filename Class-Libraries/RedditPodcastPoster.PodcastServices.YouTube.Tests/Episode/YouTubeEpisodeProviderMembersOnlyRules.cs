@@ -43,7 +43,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
     public async Task MembersOnly_video_is_skipped_and_public_video_is_created()
     {
         // Arrange
-        var podcast = new Podcast { Name = "Fictional Preacher Boys Show", YouTubeChannelId = ChannelId };
+        var podcast = new Podcast { Name = "Fictional Show", YouTubeChannelId = ChannelId };
         var indexingContext = new IndexingContext();
 
         _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
@@ -60,7 +60,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
             .ReturnsAsync(new RedditPodcastPoster.PodcastServices.YouTube.Models.ChannelVideos(
                 new Google.Apis.YouTube.v3.Data.Channel(), playlistItems));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -103,7 +103,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
     public async Task ZeroView_public_video_is_not_skipped()
     {
         // Arrange
-        var podcast = new Podcast { Name = "Fictional Preacher Boys Show", YouTubeChannelId = ChannelId };
+        var podcast = new Podcast { Name = "Fictional Show", YouTubeChannelId = ChannelId };
         var indexingContext = new IndexingContext();
         const string zeroViewVideoId = "brand_new_vid_03";
 
@@ -119,7 +119,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
                     CreatePlaylistItem(zeroViewVideoId, "Fictional Brand New Upload")
                 }));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),

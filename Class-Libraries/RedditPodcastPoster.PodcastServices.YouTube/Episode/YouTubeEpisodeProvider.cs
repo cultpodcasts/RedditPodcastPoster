@@ -25,7 +25,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Episode;
 public class YouTubeEpisodeProvider(
     IYouTubeServiceWrapper youTubeService,
     ITolerantYouTubePlaylistService youTubePlaylistService,
-    IYouTubeVideoService youTubeVideoService,
+    ITolerantYouTubeVideoService youTubeVideoService,
     ICachedTolerantYouTubeChannelVideoSnippetsService youTubeChannelVideoSnippetsService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,

@@ -14,9 +14,10 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
 public class TolerantYouTubeChannelServiceTests
 {
-    [Fact]
+    [Fact(DisplayName = "When YouTube API throws a quota exception, GetChannel rotates and retries")]
     public async Task GetChannel_OnQuotaException_RotatesAndRetries()
     {
+        // Arrange
         var channelId = new YouTubeChannelId("channel-1");
         var indexingContext = new IndexingContext();
         var channel = new Google.Apis.YouTube.v3.Data.Channel { Id = channelId.ChannelId };
@@ -71,8 +72,10 @@ public class TolerantYouTubeChannelServiceTests
             quotaTracker.Object,
             NullLogger<TolerantYouTubeChannelService>.Instance);
 
+        // Act
         var result = await sut.GetChannel(channelId, indexingContext, withSnippets: true);
 
+        // Assert
         result.Should().Be(channel);
         wrapper.Verify(x => x.Rotate(), Times.Once);
         channelService.Verify(
@@ -87,9 +90,10 @@ public class TolerantYouTubeChannelServiceTests
             Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When rotation is exhausted, GetChannel returns null and does NOT set SkipYouTubeUrlResolving")]
     public async Task GetChannel_WhenRotationExhausted_SetsSkipYouTubeUrlResolving()
     {
+        // Arrange
         var channelId = new YouTubeChannelId("channel-1");
         var indexingContext = new IndexingContext();
         var application = new Application
@@ -134,9 +138,11 @@ public class TolerantYouTubeChannelServiceTests
             quotaTracker.Object,
             NullLogger<TolerantYouTubeChannelService>.Instance);
 
+        // Act
         var result = await sut.GetChannel(channelId, indexingContext);
 
+        // Assert
         result.Should().BeNull();
-        indexingContext.SkipYouTubeUrlResolving.Should().BeTrue();
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 }

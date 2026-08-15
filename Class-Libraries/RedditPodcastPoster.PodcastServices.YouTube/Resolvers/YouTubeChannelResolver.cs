@@ -1,12 +1,15 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
+using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using System.Net;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 
@@ -27,47 +30,59 @@ public class YouTubeChannelResolver(
         }
 
         mostRecentlyUploadVideoTitle = AlphaNumericOnly(mostRecentlyUploadVideoTitle);
-        var channelsListRequest = youTubeService.YouTubeService.Search.List("snippet");
-        channelsListRequest.Type = "channel";
-        channelsListRequest.Fields = "items/snippet/channelId,items/snippet/channelTitle";
-        channelsListRequest.Q = channelName;
-        channelsListRequest.MaxResults = 10;
         SearchListResponse channelsListResponse;
         try
         {
+            var channelsListRequest = youTubeService.YouTubeService.Search.List("snippet");
+            channelsListRequest.Type = "channel";
+            channelsListRequest.Fields = "items/snippet/channelId,items/snippet/channelTitle";
+            channelsListRequest.Q = channelName;
+            channelsListRequest.MaxResults = 10;
             channelsListResponse = await channelsListRequest.ExecuteAsync();
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                            ex.Message.Contains("exceeded") &&
+                                            ex.Message.Contains("quota"))
+        {
+            logger.LogWarning(ex, "Exceeded Quota occurred.");
+            throw new YouTubeQuotaException();
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
                 "Failed to use {YouTubeServiceName} to obtain channel-snippets for channel-name '{ChannelName}'.", nameof(youTubeService.YouTubeService), channelName);
-            indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
 
         foreach (var searchResult in channelsListResponse.Items)
         {
-            var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
-            searchListRequest.MaxResults = 1;
-            searchListRequest.ChannelId = searchResult.Snippet.ChannelId;
-            searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
-            searchListRequest.Type = "video";
-            searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-            }
-
             SearchListResponse searchListResponse;
             try
             {
+                var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
+                searchListRequest.MaxResults = 1;
+                searchListRequest.ChannelId = searchResult.Snippet.ChannelId;
+                searchListRequest.PageToken = " "; // or searchListResponse.NextPageToken if paging
+                searchListRequest.Type = "video";
+                searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                }
+
                 searchListResponse = await searchListRequest.ExecuteAsync();
+            }
+            catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                                ex.Message.Contains("exceeded") &&
+                                                ex.Message.Contains("quota"))
+            {
+                logger.LogWarning(ex, "Exceeded Quota occurred.");
+                throw new YouTubeQuotaException();
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
                     "Failed to use {YouTubeServiceName} to obtain channel-snippets for channel-id '{SnippetChannelId}' obtained when searching for channel with name '{ChannelName}'.", nameof(youTubeService.YouTubeService), searchResult.Snippet.ChannelId, channelName);
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return null;
             }
 

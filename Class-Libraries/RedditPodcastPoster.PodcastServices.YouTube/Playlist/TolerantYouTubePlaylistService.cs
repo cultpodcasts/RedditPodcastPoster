@@ -35,8 +35,7 @@ public class TolerantYouTubePlaylistService(
             }
             catch (YouTubeQuotaException)
             {
-                logger.LogInformation(
-                    "Quota exceeded observed. Rotating api-key .");
+                logger.LogInformation("Quota exceeded observed. Rotating api-key .");
                 await quotaUsageTracker.RecordQuotaHitAsync(
                     youTubeService.CurrentApplication,
                     youTubeService.Usage,
@@ -62,5 +61,49 @@ public class TolerantYouTubePlaylistService(
         }
 
         return result;
+    }
+
+    public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(YouTubePlaylistId playlistId, IndexingContext indexingContext)
+    {
+        GetPlaylistInfoResponse? result = null;
+        var success = false;
+        var rotationExcepted = false;
+        while (youTubeService.CanRotate && !success && !rotationExcepted)
+        {
+            try
+            {
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
+                result = await youTubePlaylistService.GetPlaylistInfo(youTubeService, playlistId, indexingContext);
+                success = true;
+            }
+            catch (YouTubeQuotaException)
+            {
+                logger.LogInformation("Quota exceeded observed. Rotating api-key.");
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.PlaylistsList);
+                try
+                {
+                    youTubeService.Rotate();
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error rotating api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
+                    rotationExcepted = true;
+                }
+            }
+        }
+
+        if (!success)
+        {
+            indexingContext.MarkYouTubeQuotaExhausted();
+            logger.LogError("Unable to obtain playlist-info for channel-id '{playlistId}'.",
+                playlistId.PlaylistId);
+            throw new InvalidOperationException($"Unable to obtain playlist-info for channel-id '{playlistId.PlaylistId}'.");
+        }
+
+        return result!;
     }
 }

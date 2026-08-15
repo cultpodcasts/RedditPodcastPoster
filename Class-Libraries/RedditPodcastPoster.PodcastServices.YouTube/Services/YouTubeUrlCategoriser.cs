@@ -22,9 +22,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 public class YouTubeUrlCategoriser(
     IYouTubeServiceWrapper youTubeService,
     ITolerantYouTubeChannelService youTubeChannelService,
-    IYouTubeVideoService youTubeVideoService,
+    ITolerantYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
-    IYouTubePlaylistService youTubePlaylistService,
+    ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
@@ -106,7 +106,7 @@ public class YouTubeUrlCategoriser(
             var playlistId = YouTubePlaylistIdResolver.Extract(url);
             if (!string.IsNullOrWhiteSpace(playlistId))
             {
-                var playlist = await youTubePlaylistService.GetPlaylistInfo(youTubeService,
+                var playlist = await youTubePlaylistService.GetPlaylistInfo(
                     new YouTubePlaylistId(playlistId), indexingContext);
                 snippetChannelTitle = playlist.Title;
                 snippetDescription = playlist.Description;
@@ -178,7 +178,7 @@ public class YouTubeUrlCategoriser(
             if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
             {
                 var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
-                    youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext,
+                    new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext,
                     expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
                 items = playlistVideoSnippetsResponse.Result;
             }

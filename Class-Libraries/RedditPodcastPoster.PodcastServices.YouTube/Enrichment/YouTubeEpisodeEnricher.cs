@@ -23,7 +23,7 @@ public class YouTubeEpisodeEnricher(
     IYouTubeServiceWrapper youTubeService,
     IYouTubeItemResolver youTubeItemResolver,
     ITextSanitiser textSanitiser,
-    IYouTubeVideoService youTubeVideoService,
+    ITolerantYouTubeVideoService youTubeVideoService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
     IEpisodePlatformApplier episodePlatformApplier,
     IEpisodeCatalogueAdapter<YouTubeCatalogueInput> youTubeAdapter,
