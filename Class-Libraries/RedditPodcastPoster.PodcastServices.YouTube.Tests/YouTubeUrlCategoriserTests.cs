@@ -19,7 +19,7 @@ public class YouTubeUrlCategoriserTests
 
     private IYouTubeUrlCategoriser Sut => _mocker.CreateInstance<YouTubeUrlCategoriser>();
 
-    [Fact(Skip = "Scaffold for test")]
+    [Fact(Skip = "Scaffold for test", DisplayName = "Scaffold for Resolve test")]
     public async Task Resolve()
     {
         // arrange
@@ -35,20 +35,27 @@ public class YouTubeUrlCategoriserTests
         var matchingPodcast = _fixture.Create<Podcast>();
         var indexingContext = _fixture.Create<IndexingContext>();
         _mocker.GetMock<IYouTubeChannelVideosService>().Setup(x =>
-            x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>())).ReturnsAsync(
-            new Models.ChannelVideos(new Google.Apis.YouTube.v3.Data.Channel(), new List<PlaylistItem>
-            {
-                new()
-                {
-                    Snippet = new PlaylistItemSnippet
+            x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            .ReturnsAsync(
+                new GetChannelVideosResponse(
+                    new Google.Apis.YouTube.v3.Data.Channel
                     {
-                        Title =
-                            "Do Mormon Women have More Power & Authority than Other Women? \u202a@breakingdownpatriarchy\u202c | Ep. 1880",
-                        PublishedAtDateTimeOffset = episodes.First().Release
+                        Snippet = new ChannelSnippet { Description = _fixture.Create<string>() },
+                        ContentOwnerDetails = new ChannelContentOwnerDetails()
                     },
-                    Id = "new-episode-id"
-                }
-            })
+                    new List<PlaylistItem>
+                    {
+                        new()
+                        {
+                            Snippet = new PlaylistItemSnippet
+                            {
+                                Title =
+                                    "Do Mormon Women have More Power & Authority than Other Women? \u202a@breakingdownpatriarchy\u202c | Ep. 1880",
+                                PublishedAtDateTimeOffset = episodes.First().Release
+                            },
+                            Id = "new-episode-id"
+                        }
+                    })
         );
         // act
         var result = await Sut.Resolve(

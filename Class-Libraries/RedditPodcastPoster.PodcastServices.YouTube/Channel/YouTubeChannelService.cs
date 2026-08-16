@@ -72,11 +72,11 @@ public class YouTubeChannelService(
             requestScope += ",contentDetails";
         }
 
-        var listRequest = youTubeService.YouTubeService.Channels.List(requestScope);
-        listRequest.Id = channelId.ChannelId;
         ChannelListResponse result;
         try
         {
+            var listRequest = youTubeService.YouTubeService.Channels.List(requestScope);
+            listRequest.Id = channelId.ChannelId;
             result = await listRequest.ExecuteAsync();
             await quotaUsageTracker.RecordQuotaConsumedAsync(
                 youTubeService.CurrentApplication,
@@ -101,7 +101,6 @@ public class YouTubeChannelService(
                 "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
                 nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
             await quotaUsageTracker.RecordNonQuotaErrorAsync();
-            indexingContext.SkipYouTubeUrlResolving = true;
             return null;
         }
         catch (Exception ex)

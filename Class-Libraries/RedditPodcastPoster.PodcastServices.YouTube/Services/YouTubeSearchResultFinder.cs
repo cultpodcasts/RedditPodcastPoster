@@ -18,7 +18,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public partial class YouTubeSearchResultFinder(
     IYouTubeServiceWrapper youTubeService,
-    IYouTubeVideoService videoService,
+    ITolerantYouTubeVideoService videoService,
     IEpisodePlatformMatcher platformMatcher,
     ILogger<YouTubeSearchResultFinder> logger)
     : IYouTubeSearchResultFinder

@@ -25,6 +25,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
+using RedditPodcastPoster.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -63,10 +64,25 @@ builder.Services.AddPostingCriteria();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(-1);
+    });
 
 async Task<int> Run(SubmitUrlRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var urlSubmitter = host.Services.GetService<SubmitUrlProcessor>()!;
     await urlSubmitter.Process(request);
     return 0;

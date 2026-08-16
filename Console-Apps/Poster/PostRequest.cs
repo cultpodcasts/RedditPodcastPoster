@@ -41,4 +41,7 @@ public class PostRequest
 
     [Option('n', "name", Required = false, HelpText = "Name of the podcast (will perform partial-match")]
     public string? PodcastName { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

@@ -1,4 +1,5 @@
 using System.Net;
+using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,7 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -18,7 +20,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 public class YouTubeSearcher(
     IYouTubeServiceWrapper youTubeService,
     INoRedirectHttpClientFactory httpClientFactory,
-    IYouTubeVideoService youTubeVideoService,
+    ITolerantYouTubeVideoService youTubeVideoService,
     ITolerantYouTubeChannelService youTubeChannelService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
     ILogger<YouTubeSearcher> logger) : IYouTubeSearcher
@@ -52,20 +54,6 @@ public class YouTubeSearcher(
     {
         var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
-        var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
-        searchListRequest.MaxResults = MaxSearchResults;
-        searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
-        searchListRequest.Type = "video";
-        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-        searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-        searchListRequest.Q = query;
-        searchListRequest.VideoDuration = duration;
-        if (indexingContext.ReleasedSince.HasValue)
-        {
-            searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-        }
-
         while (nextPageToken != null && (!results.Any() ||
                                          results.Last().SearchResult.Snippet.PublishedAtDateTimeOffset >=
                                          indexingContext.ReleasedSince))
@@ -73,13 +61,33 @@ public class YouTubeSearcher(
             SearchListResponse response;
             try
             {
+                var searchListRequest = youTubeService.YouTubeService.Search.List("snippet");
+                searchListRequest.MaxResults = MaxSearchResults;
+                searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
+                searchListRequest.Type = "video";
+                searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
+                searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                searchListRequest.Q = query;
+                searchListRequest.VideoDuration = duration;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                }
+
                 response = await searchListRequest.ExecuteAsync();
+            }
+            catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                                ex.Message.Contains("exceeded") &&
+                                                ex.Message.Contains("quota"))
+            {
+                logger.LogWarning(ex, "Exceeded Quota occurred.");
+                throw new YouTubeQuotaException();
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to use {YouTubeService} obtaining episodes using search-term '{query}'.",
                     nameof(youTubeService.YouTubeService), query);
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return await ToEpisodeResultsAsync(results);
             }
 
@@ -89,7 +97,6 @@ public class YouTubeSearcher(
 
             results.AddRange(releasedInTimeFrame.Select(x => new YouTubeItemDetails(x)));
             nextPageToken = response.NextPageToken;
-            searchListRequest.PageToken = nextPageToken;
         }
 
         await EnrichWithVideo(results, indexingContext);

@@ -22,9 +22,9 @@ public class SearchSuggestionsIndexBuilderRules
         corpus.GeneratedAtUtc.Should().Be(generatedAt);
         corpus.Entries.Should().BeEquivalentTo(
         [
-            new { Type = "subject", Canonical = "Primary Topic", SearchText = "primary alias", Alias = "Primary Alias" },
+            new { Type = "subject", Canonical = "Primary Topic", SearchText = "primary alias", Alias = (string?)"Primary Alias" },
             new { Type = "subject", Canonical = "Primary Topic", SearchText = "primary topic", Alias = (string?)null },
-            new { Type = "subject", Canonical = "Primary Topic", SearchText = "pt", Alias = "PT" }
+            new { Type = "subject", Canonical = "Primary Topic", SearchText = "pt", Alias = (string?)"PT" }
         ], options => options.WithStrictOrdering());
     }
 

@@ -10,4 +10,7 @@ public class LaunchSettingsRequest
 
     [Value(1, MetaName = "profile-name", Required = true, HelpText = "Profile name within launchSettings.json.")]
     public string Profile { get; set; } = "";
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

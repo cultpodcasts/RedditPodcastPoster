@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
+            .AddScoped<ITolerantYouTubeVideoService, TolerantYouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>
@@ -39,7 +40,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<ITolerantYouTubeChannelService, TolerantYouTubeChannelService>()
             .AddScoped<IYouTubeSearchResultFinder, YouTubeSearchResultFinder>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
+            .AddScoped<ITolerantYouTubeChannelResolver, TolerantYouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
+            .AddScoped<ITolerantYouTubeSearcher, TolerantYouTubeSearcher>()
             .AddSingleton<INoRedirectHttpClientFactory, NoRedirectHttpClientFactory>()
             .AddSingleton<IYouTubeThumbnailResolver, YouTubeThumbnailResolver>()
             .AddScoped<IYouTubeEpisodeRetrievalHandler, YouTubeEpisodeRetrievalHandler>()

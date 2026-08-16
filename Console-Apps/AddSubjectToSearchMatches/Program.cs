@@ -9,6 +9,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -34,10 +35,25 @@ using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<Request>(args)
     .MapResult(async request => await Run(request),
-        errs => Task.FromResult(-1));
+        errs =>
+        {
+            if (errs.Any(x => x is VersionRequestedError))
+            {
+                VersionInfo.PrintVersion();
+                return Task.FromResult(0);
+            }
+
+            return Task.FromResult(-1);
+        });
 
 async Task<int> Run(Request request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var podcastProcessor = host.Services.GetService<Processor>()!;
     await podcastProcessor.Process(request);
     return 0;

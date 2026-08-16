@@ -9,6 +9,7 @@ using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -35,8 +36,23 @@ using var host = builder.Build();
 return await Parser.Default.ParseArguments<CosmosDbDownloaderRequest>(args)
     .MapResult(async request =>
     {
+        if (request.Version)
+        {
+            VersionInfo.PrintVersion();
+            return 0;
+        }
+
         var downloader = host.Services.GetRequiredService<CosmosDbDownloader.CosmosDbDownloader>();
         await downloader.Run(request);
         return 0;
     },
-    _ => Task.FromResult(1));
+    errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(1);
+    });

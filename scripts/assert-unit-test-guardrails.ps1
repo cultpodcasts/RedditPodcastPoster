@@ -148,6 +148,16 @@ function Test-FileGuardrails([string] $filePath) {
                 'Hardcoded Guid literal. Use _fixture.CreateGuid() or specimen identity.'
         }
 
+        if ($line -match 'new\s+Mock<') {
+            Add-Violation $violations $rel $lineNum 'use-automocker' `
+                'Manual mock instantiation. Use AutoMocker.GetMock<T>() and CreateInstance<T>().'
+        }
+
+        if ($line -match 'new\s+Fixture\s*\(' -and $trimmed -notmatch '^private\s+readonly\s+Fixture') {
+             Add-Violation $violations $rel $lineNum 'use-fixture-specimens' `
+                'Manual Fixture instantiation in test. Use a shared private readonly Fixture _fixture field.'
+        }
+
         if ($line -match 'new\s+DateTime\s*\(\s*20\d{2}\s*,') {
             Add-Violation $violations $rel $lineNum 'no-fixed-calendar-datetime' `
                 'Fixed calendar DateTime. Use DomainTestFixture.UtcDaysAgo / UtcAtTime / UtcDateDaysAgo.'

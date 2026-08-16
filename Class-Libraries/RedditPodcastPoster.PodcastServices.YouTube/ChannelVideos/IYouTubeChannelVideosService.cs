@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
 
 public interface IYouTubeChannelVideosService
 {
-    Task<Models.ChannelVideos?> GetChannelVideos(
+    Task<GetChannelVideosResponse> GetChannelVideos(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,
         bool expensivePlaylist = false);

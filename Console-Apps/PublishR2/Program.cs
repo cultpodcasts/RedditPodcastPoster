@@ -10,6 +10,13 @@ using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var appDirectory = AppContext.BaseDirectory;
 var builder = Host.CreateApplicationBuilder(args);

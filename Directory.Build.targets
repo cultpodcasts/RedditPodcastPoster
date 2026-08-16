@@ -27,4 +27,33 @@
              BuildInParallel="false"
              Properties="Configuration=$(Configuration);Platform=$(Platform)" />
   </Target>
+
+  <Target Name="SetGitVersionInfo" BeforeTargets="PrepareForBuild">
+    <Exec Command="git rev-parse HEAD" ConsoleToMSBuild="true" StandardOutputImportance="Low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitHash" />
+    </Exec>
+    <Exec Command="git status --porcelain" ConsoleToMSBuild="true" StandardOutputImportance="Low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitStatus" />
+    </Exec>
+    <PropertyGroup>
+      <GitDirty>No</GitDirty>
+      <GitDirty Condition="'$(GitStatus)' != ''">Yes</GitDirty>
+      <BuildTime>$([System.DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss"))</BuildTime>
+      <InformationalVersion>$(Version)%0aGit Hash:   $(GitHash)%0aBuild Time: $(BuildTime)%0aDirty:      $(GitDirty)</InformationalVersion>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>GitHash</_Parameter1>
+        <_Parameter2>$(GitHash)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>BuildTime</_Parameter1>
+        <_Parameter2>$(BuildTime)</_Parameter2>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>IsDirty</_Parameter1>
+        <_Parameter2>$(GitDirty)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
 </Project>

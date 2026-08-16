@@ -1,10 +1,10 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Handlers;
@@ -19,6 +19,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Handlers;
 public class YouTubeEpisodeRetrievalHandlerTests
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    private IYouTubeEpisodeRetrievalHandler Sut => _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
     [Fact(DisplayName =
         "When the podcast has a channel id but no playlist and SkipExpensiveYouTubeQueries is set, GetEpisodes still calls channel discovery " +
@@ -38,29 +41,27 @@ public class YouTubeEpisodeRetrievalHandlerTests
         {
             _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast)
         };
-        var youTubeEpisodeProvider = new Mock<IYouTubeEpisodeProvider>();
-        youTubeEpisodeProvider
+        _mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetEpisodes(podcast, indexingContext, It.IsAny<IEnumerable<string>>()))
             .ReturnsAsync(expectedEpisodes);
-        var sut = new YouTubeEpisodeRetrievalHandler(
-            youTubeEpisodeProvider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
 
         // Act
-        var result = await sut.GetEpisodes(podcast, [], indexingContext);
+        var result = await Sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
         result.Handled.Should().BeTrue();
         result.Episodes.Should().BeEquivalentTo(expectedEpisodes);
-        youTubeEpisodeProvider.Verify(
+        _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
             x => x.GetEpisodes(podcast, indexingContext, It.IsAny<IEnumerable<string>>()),
             Times.Once);
-        youTubeEpisodeProvider.Verify(
+        _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
             x => x.GetPlaylistEpisodes(
+                It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()),
             Times.Never);
     }
 
@@ -85,30 +86,30 @@ public class YouTubeEpisodeRetrievalHandlerTests
         {
             _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast)
         };
-        var youTubeEpisodeProvider = new Mock<IYouTubeEpisodeProvider>();
-        youTubeEpisodeProvider
+        _mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
-                new YouTubePlaylistId(playlistId),
-                new YouTubeChannelId(channelId),
+                podcast,
+                It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
+                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                false))
+                false,
+                It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(expectedEpisodes));
-        var sut = new YouTubeEpisodeRetrievalHandler(
-            youTubeEpisodeProvider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
 
         // Act
-        var result = await sut.GetEpisodes(podcast, [], indexingContext);
+        var result = await Sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
         result.Handled.Should().BeTrue();
         result.Episodes.Should().BeEquivalentTo(expectedEpisodes);
-        youTubeEpisodeProvider.Verify(
+        _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
             x => x.GetPlaylistEpisodes(
-                new YouTubePlaylistId(playlistId),
-                new YouTubeChannelId(channelId),
+                podcast,
+                It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
+                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                false),
+                false,
+                It.IsAny<PlaylistOrder?>()),
             Times.Once);
     }
 
@@ -129,28 +130,28 @@ public class YouTubeEpisodeRetrievalHandlerTests
         var indexingContext = new IndexingContext(
             DomainTestFixture.UtcDaysAgo(2),
             SkipExpensiveYouTubeQueries: false);
-        var youTubeEpisodeProvider = new Mock<IYouTubeEpisodeProvider>();
-        youTubeEpisodeProvider
+        _mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
-                new YouTubePlaylistId(playlistId),
-                new YouTubeChannelId(channelId),
+                podcast,
+                It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
+                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                true))
+                true,
+                It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([]));
-        var sut = new YouTubeEpisodeRetrievalHandler(
-            youTubeEpisodeProvider.Object,
-            NullLogger<YouTubeEpisodeRetrievalHandler>.Instance);
 
         // Act
-        await sut.GetEpisodes(podcast, [], indexingContext);
+        await Sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
-        youTubeEpisodeProvider.Verify(
+        _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
             x => x.GetPlaylistEpisodes(
-                new YouTubePlaylistId(playlistId),
-                new YouTubeChannelId(channelId),
+                podcast,
+                It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
+                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                true),
+                true,
+                It.IsAny<PlaylistOrder?>()),
             Times.Once);
     }
 
@@ -168,9 +169,9 @@ public class YouTubeEpisodeRetrievalHandlerTests
             p.YouTubePlaylistId = playlistId;
         });
         var indexingContext = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
-        var youTubeEpisodeProvider = new Mock<IYouTubeEpisodeProvider>();
-        youTubeEpisodeProvider
+        _mocker.GetMock<IYouTubeEpisodeProvider>()
             .Setup(x => x.GetPlaylistEpisodes(
+                podcast,
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
@@ -179,14 +180,12 @@ public class YouTubeEpisodeRetrievalHandlerTests
             .ReturnsAsync(new GetPlaylistEpisodesResponse(
                 null,
                 Failure: YouTubePlaylistFetchFailure.NotFound));
-        var logger = new Mock<ILogger<YouTubeEpisodeRetrievalHandler>>();
-        var sut = new YouTubeEpisodeRetrievalHandler(youTubeEpisodeProvider.Object, logger.Object);
 
         // Act
-        await sut.GetEpisodes(podcast, [], indexingContext);
+        await Sut.GetEpisodes(podcast, [], indexingContext);
 
         // Assert
-        logger.Verify(
+        _mocker.GetMock<ILogger<YouTubeEpisodeRetrievalHandler>>().Verify(
             x => x.Log(
                 LogLevel.Error,
                 It.IsAny<EventId>(),

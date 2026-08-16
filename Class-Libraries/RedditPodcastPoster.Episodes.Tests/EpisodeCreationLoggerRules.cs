@@ -1,3 +1,4 @@
+using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -6,56 +7,73 @@ namespace RedditPodcastPoster.Episodes.Tests;
 
 public class EpisodeCreationLoggerRules
 {
+    private readonly Fixture _fixture = new();
+
     [Fact(DisplayName = "FormatMessage uses stable Episode created: prefix and includes ids/urls.")]
     public void format_message_includes_provenance_and_urls()
     {
-        var episodeId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-        var podcastId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        // Arrange
+        var episodeId = _fixture.Create<Guid>();
+        var podcastId = _fixture.Create<Guid>();
+        var title = _fixture.Create<string>();
+        var spotifyId = _fixture.Create<string>();
+        var youTubeId = _fixture.Create<string>();
+        var appleId = _fixture.Create<long>();
+        var spotifyUrl = _fixture.Create<Uri>();
+        var youTubeUrl = _fixture.Create<Uri>();
+        var appleUrl = _fixture.Create<Uri>();
+
         var episode = new Episode
         {
             Id = episodeId,
             PodcastId = podcastId,
-            Title = "Preacher Boys Episode",
-            SpotifyId = "spotifyEp123",
-            YouTubeId = "ytVid456",
-            AppleId = 9876543210,
+            Title = title,
+            SpotifyId = spotifyId,
+            YouTubeId = youTubeId,
+            AppleId = appleId,
             Urls = new ServiceUrls
             {
-                Spotify = new Uri("https://open.spotify.com/episode/spotifyEp123"),
-                YouTube = new Uri("https://www.youtube.com/watch?v=ytVid456"),
-                Apple = new Uri("https://podcasts.apple.com/us/podcast/id1?i=9876543210")
+                Spotify = spotifyUrl,
+                YouTube = youTubeUrl,
+                Apple = appleUrl
             }
         };
 
+        var caller = _fixture.Create<string>();
+
+        // Act
         var message = EpisodeCreationLogger.FormatMessage(
             episode,
             podcastId,
             EpisodeCreationSource.Indexer,
             Service.Spotify,
-            caller: "FakeIndexerComponent.CreateEpisode");
+            caller: caller);
 
+        // Assert
         message.Should().StartWith(EpisodeCreationLogger.MessagePrefix);
         message.Should().Contain($"episode-id='{episodeId}'");
-        message.Should().Contain("title='Preacher Boys Episode'");
+        message.Should().Contain($"title='{title}'");
         message.Should().Contain($"podcast-id='{podcastId}'");
         message.Should().Contain("source='Indexer'");
-        message.Should().Contain("caller='FakeIndexerComponent.CreateEpisode'");
+        message.Should().Contain($"caller='{caller}'");
         message.Should().Contain("service='Spotify'");
-        message.Should().Contain("spotify-id='spotifyEp123'");
-        message.Should().Contain("spotify-url='https://open.spotify.com/episode/spotifyEp123'");
-        message.Should().Contain("youtube-id='ytVid456'");
-        message.Should().Contain("youtube-url='https://www.youtube.com/watch?v=ytVid456'");
-        message.Should().Contain("apple-id='9876543210'");
-        message.Should().Contain("apple-url='https://podcasts.apple.com/us/podcast/id1?i=9876543210'");
+        message.Should().Contain($"spotify-id='{spotifyId}'");
+        message.Should().Contain($"spotify-url='{spotifyUrl}'");
+        message.Should().Contain($"youtube-id='{youTubeId}'");
+        message.Should().Contain($"youtube-url='{youTubeUrl}'");
+        message.Should().Contain($"apple-id='{appleId}'");
+        message.Should().Contain($"apple-url='{appleUrl}'");
     }
 
     [Fact(DisplayName = "ResolveCreatingService returns sole present platform identity.")]
     public void resolve_creating_service_sole_identity()
     {
-        var spotifyOnly = new Episode { SpotifyId = "sp1" };
-        var youTubeOnly = new Episode { YouTubeId = "yt1" };
-        var appleOnly = new Episode { AppleId = 1 };
+        // Arrange
+        var spotifyOnly = new Episode { SpotifyId = _fixture.Create<string>() };
+        var youTubeOnly = new Episode { YouTubeId = _fixture.Create<string>() };
+        var appleOnly = new Episode { AppleId = _fixture.Create<long>() };
 
+        // Act & Assert
         EpisodeCreationLogger.ResolveCreatingService(spotifyOnly, Service.YouTube)
             .Should().Be(Service.Spotify);
         EpisodeCreationLogger.ResolveCreatingService(youTubeOnly, Service.Spotify)
@@ -67,12 +85,14 @@ public class EpisodeCreationLoggerRules
     [Fact(DisplayName = "ResolveCreatingService prefers release authority when multiple ids present.")]
     public void resolve_creating_service_prefers_release_authority()
     {
+        // Arrange
         var episode = new Episode
         {
-            SpotifyId = "sp1",
-            YouTubeId = "yt1"
+            SpotifyId = _fixture.Create<string>(),
+            YouTubeId = _fixture.Create<string>()
         };
 
+        // Act & Assert
         EpisodeCreationLogger.ResolveCreatingService(episode, Service.YouTube)
             .Should().Be(Service.YouTube);
         EpisodeCreationLogger.ResolveCreatingService(episode, Service.Spotify)
@@ -85,18 +105,25 @@ public class EpisodeCreationLoggerRules
     [InlineData(EpisodeCreationSource.Discovery)]
     public void format_message_includes_source(EpisodeCreationSource source)
     {
+        // Arrange
+        var spotifyId = _fixture.Create<string>();
+        var spotifyUrl = _fixture.Create<Uri>();
         var episode = new Episode
         {
-            Id = Guid.NewGuid(),
-            Title = "t",
-            SpotifyId = "x",
-            Urls = new ServiceUrls { Spotify = new Uri("https://open.spotify.com/episode/x") }
+            Id = _fixture.Create<Guid>(),
+            Title = _fixture.Create<string>(),
+            SpotifyId = spotifyId,
+            Urls = new ServiceUrls { Spotify = spotifyUrl }
         };
 
-        var message = EpisodeCreationLogger.FormatMessage(
-            episode, Guid.NewGuid(), source, Service.Spotify, caller: "FakeSubmitPath.Persist");
+        var caller = _fixture.Create<string>();
 
+        // Act
+        var message = EpisodeCreationLogger.FormatMessage(
+            episode, _fixture.Create<Guid>(), source, Service.Spotify, caller: caller);
+
+        // Assert
         message.Should().Contain($"source='{source}'");
-        message.Should().Contain("caller='FakeSubmitPath.Persist'");
+        message.Should().Contain($"caller='{caller}'");
     }
 }

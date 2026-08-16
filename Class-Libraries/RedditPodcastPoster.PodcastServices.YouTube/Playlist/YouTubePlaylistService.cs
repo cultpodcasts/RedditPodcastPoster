@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Google;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
@@ -89,14 +89,14 @@ public class YouTubePlaylistService(
                 break;
             }
 
-            var playlistRequest = youTubeServiceWrapper.YouTubeService.PlaylistItems.List(requestScope);
-            playlistRequest.PlaylistId = playlistId.PlaylistId;
-            playlistRequest.MaxResults = batchSize;
-            playlistRequest.PageToken = nextPageToken;
-
             PlaylistItemListResponse playlistItemsListResponse;
             try
             {
+                var playlistRequest = youTubeServiceWrapper.YouTubeService.PlaylistItems.List(requestScope);
+                playlistRequest.PlaylistId = playlistId.PlaylistId;
+                playlistRequest.MaxResults = batchSize;
+                playlistRequest.PageToken = nextPageToken;
+
                 playlistItemsListResponse = await playlistRequest.ExecuteAsync();
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
@@ -120,29 +120,28 @@ public class YouTubePlaylistService(
                 if (ex.HttpStatusCode == HttpStatusCode.NotFound)
                 {
                     logger.LogError(ex,
-                        "YouTube playlist '{playlistId}' was not found (HTTP NotFound). The playlist may have been deleted or made private — update the podcast YouTubePlaylistId to a current playlist id. Skipping further YouTube URL resolving for this run.",
-                        playlistId.PlaylistId);
+                        "YouTube playlist '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}) was not found (HTTP NotFound). The playlist may have been deleted or made private — update the podcast YouTubePlaylistId to a current playlist id.",
+                        playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
                     await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                    indexingContext.SkipYouTubeUrlResolving = true;
                     return new GetPlaylistVideoSnippetsResponse(null,
                         Failure: YouTubePlaylistFetchFailure.NotFound);
                 }
 
                 logger.LogError(ex,
-                    "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
+                    "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain playlist-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                    playlistId.SourceIdentifier);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null,
                     Failure: YouTubePlaylistFetchFailure.ApiError);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
-                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-video-snippets for playlist-id '{playlistId}'.",
-                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId);
+                    "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-video-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                    nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                    playlistId.SourceIdentifier);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return new GetPlaylistVideoSnippetsResponse(null,
                     Failure: YouTubePlaylistFetchFailure.ApiError);
             }
@@ -223,12 +222,36 @@ public class YouTubePlaylistService(
         playlistRequest.Id = playlistId.PlaylistId;
         playlistRequest.MaxResults = 1;
 
-        var playlistResponse = await playlistRequest.ExecuteAsync();
-        await quotaUsageTracker.RecordQuotaConsumedAsync(
-            youTubeServiceWrapper.CurrentApplication,
-            youTubeServiceWrapper.Usage,
-            YouTubeQuotaOperation.PlaylistsList,
-            YouTubeQuotaCosts.PlaylistsList);
+        PlaylistListResponse? playlistResponse;
+        try
+        {
+            var response = await playlistRequest.ExecuteAsync();
+            await quotaUsageTracker.RecordQuotaConsumedAsync(
+                youTubeServiceWrapper.CurrentApplication,
+                youTubeServiceWrapper.Usage,
+                YouTubeQuotaOperation.PlaylistsList,
+                YouTubeQuotaCosts.PlaylistsList);
+            playlistResponse = response;
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                            ex.Message.Contains("exceeded") &&
+                                            ex.Message.Contains("quota"))
+        {
+            logger.LogWarning(ex, "Exceeded Quota occurred.");
+            await quotaUsageTracker.RecordQuotaHitAsync(
+                youTubeServiceWrapper.CurrentApplication,
+                youTubeServiceWrapper.Usage,
+                YouTubeQuotaOperation.PlaylistsList);
+            throw new YouTubeQuotaException();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to use {nameofYouTubeServiceWrapperYouTubeService} obtaining playlist-info for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                nameof(youTubeServiceWrapper.YouTubeService), playlistId.PlaylistId, playlistId.Source,
+                playlistId.SourceIdentifier);
+            throw;
+        }
 
         if (playlistResponse == null || !playlistResponse.Items.Any())
         {

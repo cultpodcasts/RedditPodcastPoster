@@ -1,16 +1,20 @@
 using System.Text.RegularExpressions;
+using AutoFixture;
 using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
@@ -18,8 +22,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using RedditPodcastPoster.Text;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Enrichment;
@@ -30,6 +32,20 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Enrichment;
 public class YouTubeEpisodeEnricherCatalogueRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private readonly Fixture _specimenFixture = new();
+
+    public YouTubeEpisodeEnricherCatalogueRules()
+    {
+        _mocker.Use<IEpisodePlatformApplier>(new EpisodePlatformApplier());
+        _mocker.Use<IEpisodeCatalogueAdapter<YouTubeCatalogueInput>>(new YouTubeEpisodeAdapter());
+        _mocker.Use<IPlatformEnrichmentApplicator>(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+        _mocker.Use<ILogger<YouTubeEpisodeEnricher>>(NullLogger<YouTubeEpisodeEnricher>.Instance);
+        _mocker.GetMock<IYouTubeThumbnailResolver>()
+            .Setup(x => x.GetImageUrlAsync(It.IsAny<Google.Apis.YouTube.v3.Data.Video>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Uri?)null);
+    }
 
     [Fact(DisplayName =
         "When a stored episode has a YouTube ID but no URL, the enricher backfills the watch URL " +
@@ -77,8 +93,8 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var enrichmentContext = new EnrichmentContext();
-        var resolver = new Mock<IYouTubeItemResolver>();
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
+        var sut = CreateEnricher(resolver.Object);
 
         // Act
         await sut.Enrich(
@@ -116,17 +132,17 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Images = new EpisodeImages { YouTube = _fixture.Create<Uri>() };
             })
             .Create();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
         var sut = CreateEnricher(
-            youTubeItemResolver: resolver.Object,
-            youTubeVideoService: videoService.Object);
+            resolver.Object,
+            videoService.Object);
         var enrichmentContext = new EnrichmentContext();
 
         // Act
@@ -201,11 +217,11 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var enrichmentContext = new EnrichmentContext();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -221,8 +237,8 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 }
             ]);
         var sut = CreateEnricher(
-            youTubeItemResolver: resolver.Object,
-            youTubeVideoService: videoService.Object);
+            resolver.Object,
+            videoService.Object);
 
         // Act
         await sut.Enrich(
@@ -259,17 +275,17 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Urls = new ServiceUrls();
             })
             .Create();
-        var textSanitiser = new Mock<ITextSanitiser>();
+        var textSanitiser = _mocker.GetMock<ITextSanitiser>();
         textSanitiser
             .Setup(x => x.SanitiseDescription(
                 rawDescription,
                 It.IsAny<Regex>()))
             .Returns(sanitizedDescription);
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -285,9 +301,9 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 }
             ]);
         var sut = CreateEnricher(
-            youTubeItemResolver: resolver.Object,
-            youTubeVideoService: videoService.Object,
-            textSanitiser: textSanitiser.Object);
+            resolver.Object,
+            videoService.Object,
+            textSanitiser.Object);
 
         // Act
         await sut.Enrich(
@@ -333,14 +349,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var enrichmentContext = new EnrichmentContext();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeRelease));
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
 
         // Act
         await sut.Enrich(
@@ -376,14 +392,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var enrichmentContext = new EnrichmentContext();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreatePlaylistItemResponse(
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeInput.Release));
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
 
         // Act
         await sut.Enrich(
@@ -428,14 +444,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithLength(sharedLength)
             .Customize(e => e.YouTubeId = youTubeInput.YouTubeId)
             .Create();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(
                 youTubeInput.YouTubeId,
                 sharedTitle,
                 sharedRelease));
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
         var enrichmentContext = new EnrichmentContext();
 
         // Act
@@ -473,14 +489,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Images = new EpisodeImages();
             })
             .Create();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(
                 youTubeInput.YouTubeId,
                 youTubeInput.Title,
                 youTubeInput.Release));
-        var videoService = new Mock<IYouTubeVideoService>();
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
         videoService
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
@@ -495,13 +511,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
                     Snippet = new VideoSnippet { Description = string.Empty }
                 }
             ]);
-        var thumbnailResolver = new Mock<IYouTubeThumbnailResolver>();
+        var thumbnailResolver = _mocker.GetMock<IYouTubeThumbnailResolver>();
         thumbnailResolver
-            .Setup(x => x.GetImageUrlAsync(It.IsAny<Google.Apis.YouTube.v3.Data.Video>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetImageUrlAsync(It.IsAny<Google.Apis.YouTube.v3.Data.Video>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(thumbnailUrl);
         var sut = CreateEnricher(
-            youTubeItemResolver: resolver.Object,
-            youTubeVideoService: videoService.Object,
+            resolver.Object,
+            videoService.Object,
             youTubeThumbnailResolver: thumbnailResolver.Object);
         var enrichmentContext = new EnrichmentContext();
 
@@ -534,11 +551,11 @@ public class YouTubeEpisodeEnricherCatalogueRules
             })
             .Create();
         var enrichmentContext = new EnrichmentContext();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync((FindEpisodeResponse?)null);
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
 
         // Act
         await sut.Enrich(
@@ -574,11 +591,11 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Urls = new ServiceUrls();
             })
             .Create();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync((FindEpisodeResponse?)null);
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
         var enrichmentContext = new EnrichmentContext();
 
         // Act
@@ -624,11 +641,11 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Images = new EpisodeImages { YouTube = image };
             })
             .Create();
-        var resolver = new Mock<IYouTubeItemResolver>();
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
         resolver
             .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSearchResultResponse(youTubeId, sharedTitle, inWindowRelease));
-        var sut = CreateEnricher(youTubeItemResolver: resolver.Object);
+        var sut = CreateEnricher(resolver.Object);
         var enrichmentContext = new EnrichmentContext();
         var expected = EpisodeExpectation.From(episode)
             .WithYouTube(youTubeId, SearchResultExtensions.ToYouTubeUrl(youTubeId), image);
@@ -649,33 +666,39 @@ public class YouTubeEpisodeEnricherCatalogueRules
 
     private YouTubeEpisodeEnricher CreateEnricher(
         IYouTubeItemResolver? youTubeItemResolver = null,
-        IYouTubeVideoService? youTubeVideoService = null,
+        ITolerantYouTubeVideoService? youTubeVideoService = null,
         ITextSanitiser? textSanitiser = null,
         IYouTubeThumbnailResolver? youTubeThumbnailResolver = null)
     {
-        var youTubeService = new Mock<IYouTubeServiceWrapper>();
-        var resolver = youTubeItemResolver ?? new Mock<IYouTubeItemResolver>().Object;
-        var videoService = youTubeVideoService ?? new Mock<IYouTubeVideoService>().Object;
-        var sanitiser = textSanitiser ?? new Mock<ITextSanitiser>().Object;
-        var thumbnailResolver = youTubeThumbnailResolver ?? CreateDefaultThumbnailResolver();
+        if (youTubeItemResolver != null)
+        {
+            _mocker.Use(youTubeItemResolver);
+        }
 
-        return new YouTubeEpisodeEnricher(
-            youTubeService.Object,
-            resolver,
-            sanitiser,
-            videoService,
-            thumbnailResolver,
-            new EpisodePlatformApplier(),
-            new YouTubeEpisodeAdapter(),
-            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
-            NullLogger<YouTubeEpisodeEnricher>.Instance);
+        if (youTubeVideoService != null)
+        {
+            _mocker.Use(youTubeVideoService);
+        }
+
+        if (textSanitiser != null)
+        {
+            _mocker.Use(textSanitiser);
+        }
+
+        if (youTubeThumbnailResolver != null)
+        {
+            _mocker.Use(youTubeThumbnailResolver);
+        }
+
+        return _mocker.CreateInstance<YouTubeEpisodeEnricher>();
     }
 
     private static FindEpisodeResponse CreateSearchResultResponse(
         string youTubeId,
         string title,
-        DateTime release) =>
-        new(new SearchResult
+        DateTime release)
+    {
+        return new FindEpisodeResponse(new SearchResult
         {
             Id = new ResourceId { VideoId = youTubeId },
             Snippet = new SearchResultSnippet
@@ -684,12 +707,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 PublishedAtDateTimeOffset = new DateTimeOffset(release, TimeSpan.Zero)
             }
         });
+    }
 
     private static FindEpisodeResponse CreatePlaylistItemResponse(
         string youTubeId,
         string title,
-        DateTime release) =>
-        new(PlaylistItem: new PlaylistItem
+        DateTime release)
+    {
+        return new FindEpisodeResponse(PlaylistItem: new PlaylistItem
         {
             Snippet = new PlaylistItemSnippet
             {
@@ -698,13 +723,5 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 PublishedAtDateTimeOffset = new DateTimeOffset(release, TimeSpan.Zero)
             }
         });
-
-    private static IYouTubeThumbnailResolver CreateDefaultThumbnailResolver()
-    {
-        var thumbnailResolver = new Mock<IYouTubeThumbnailResolver>();
-        thumbnailResolver
-            .Setup(x => x.GetImageUrlAsync(It.IsAny<Google.Apis.YouTube.v3.Data.Video>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Uri?)null);
-        return thumbnailResolver.Object;
     }
 }

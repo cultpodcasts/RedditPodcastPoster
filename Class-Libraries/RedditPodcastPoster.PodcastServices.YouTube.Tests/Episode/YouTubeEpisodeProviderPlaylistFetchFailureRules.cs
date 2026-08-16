@@ -28,6 +28,7 @@ public class YouTubeEpisodeProviderPlaylistFetchFailureRules
     {
         // Arrange
         var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast();
         var indexingContext = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
         _mocker.GetMock<ITolerantYouTubePlaylistService>()
             .Setup(x => x.GetPlaylistVideoSnippets(
@@ -42,6 +43,7 @@ public class YouTubeEpisodeProviderPlaylistFetchFailureRules
 
         // Act
         var response = await Sut.GetPlaylistEpisodes(
+            podcast,
             new YouTubePlaylistId(playlistId),
             new YouTubeChannelId(_fixture.CreateYouTubeChannelId()),
             indexingContext);

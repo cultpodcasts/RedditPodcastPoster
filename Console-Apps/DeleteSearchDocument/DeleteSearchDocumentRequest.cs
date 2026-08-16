@@ -11,4 +11,7 @@ public class DeleteSearchDocumentRequest
     [Option('p', "podcast", Default = false, Required = false,
         HelpText = "To delete all podcast episodes from the search-index use this flag and provide the podcast id")]
     public bool IsPodcast { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

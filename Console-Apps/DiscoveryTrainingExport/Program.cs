@@ -1,10 +1,17 @@
 using CommandLine;
 using DiscoveryTrainingExport;
+using RedditPodcastPoster.Configuration;
 
 return await Parser.Default.ParseArguments<DiscoveryTrainingExportRequest>(args)
     .MapResult(
         async request =>
         {
+            if (request.Version)
+            {
+                VersionInfo.PrintVersion();
+                return 0;
+            }
+
             if (request.AnalyzeOnly)
             {
                 var analysisPath = request.AnalysisPath
@@ -35,4 +42,13 @@ return await Parser.Default.ParseArguments<DiscoveryTrainingExportRequest>(args)
             new DiscoveryTrainingAnalyzeProcessor().Run(outputPath);
             return 0;
         },
-        _ => Task.FromResult(1));
+        errs =>
+        {
+            if (errs.Any(x => x is VersionRequestedError))
+            {
+                VersionInfo.PrintVersion();
+                return Task.FromResult(0);
+            }
+
+            return Task.FromResult(1);
+        });

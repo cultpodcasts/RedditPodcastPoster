@@ -37,14 +37,15 @@ public class FoundEpisodeFilterRules
     public void non_matching_titles_are_eliminated()
     {
         // Arrange
+        var matchPattern = _fixture.Create<string>();
         var podcast = _fixture.CreatePodcast(p =>
         {
-            p.EpisodeIncludeTitleRegex = _fixture.CreateTitle(1);
+            p.EpisodeIncludeTitleRegex = matchPattern;
         });
         var episodes = new List<Episode>
         {
-            _fixture.CreateStoredEpisode(podcast),
-            _fixture.CreateStoredEpisode(podcast)
+            _fixture.CreateStoredEpisode(podcast, e => e.Title = $"NO-MATCH-{_fixture.Create<string>()}"),
+            _fixture.CreateStoredEpisode(podcast, e => e.Title = $"STILL-NO-MATCH-{_fixture.Create<string>()}")
         };
         var sut = new FoundEpisodeFilter(NullLogger<FoundEpisodeFilter>.Instance);
 

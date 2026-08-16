@@ -11,4 +11,6 @@ public class Args
         HelpText = "Name of the most recently uploaded video to YouTube by this channel", Required = true)]
     public string MostRecentUploadedVideoTitle { get; set; } = "";
 
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

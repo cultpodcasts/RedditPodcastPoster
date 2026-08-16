@@ -22,9 +22,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 public class YouTubeUrlCategoriser(
     IYouTubeServiceWrapper youTubeService,
     ITolerantYouTubeChannelService youTubeChannelService,
-    IYouTubeVideoService youTubeVideoService,
+    ITolerantYouTubeVideoService youTubeVideoService,
     IYouTubeChannelVideosService youTubeChannelVideosService,
-    IYouTubePlaylistService youTubePlaylistService,
+    ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
@@ -106,8 +106,8 @@ public class YouTubeUrlCategoriser(
             var playlistId = YouTubePlaylistIdResolver.Extract(url);
             if (!string.IsNullOrWhiteSpace(playlistId))
             {
-                var playlist = await youTubePlaylistService.GetPlaylistInfo(youTubeService,
-                    new YouTubePlaylistId(playlistId), indexingContext);
+                var playlist = await youTubePlaylistService.GetPlaylistInfo(
+                    new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"), indexingContext);
                 snippetChannelTitle = playlist.Title;
                 snippetDescription = playlist.Description;
             }
@@ -178,20 +178,21 @@ public class YouTubeUrlCategoriser(
             if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
             {
                 var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
-                    youTubeService, new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId), indexingContext,
+                    new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId, YouTubePlaylistIdSource.PodcastEntity,
+                        matchingPodcast.Id.ToString()), indexingContext,
                     expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
                 items = playlistVideoSnippetsResponse.Result;
             }
             else
             {
-                var channelUploads =
+                var channelUploadsResponse =
                     await youTubeChannelVideosService.GetChannelVideos(
                         new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
-                if (channelUploads != null)
+                if (channelUploadsResponse.PlaylistItems != null)
                 {
-                    items = channelUploads.PlaylistItems;
-                    channelDescription = channelUploads.Channel.Snippet.Description;
-                    channelContentOwner = channelUploads.Channel.ContentOwnerDetails.ContentOwner;
+                    items = channelUploadsResponse.PlaylistItems;
+                    channelDescription = channelUploadsResponse.Channel!.Snippet.Description;
+                    channelContentOwner = channelUploadsResponse.Channel.ContentOwnerDetails.ContentOwner;
                 }
             }
 

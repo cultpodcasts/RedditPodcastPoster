@@ -59,12 +59,12 @@ public class YouTubeVideoService(
                     contentDetails = "status," + contentDetails;
                 }
 
-                var request = youTubeService.YouTubeService.Videos.List(contentDetails);
-                request.Id = string.Join(",", batchVideoIds);
-                request.MaxResults = MaxSearchResults;
                 VideoListResponse response;
                 try
                 {
+                    var request = youTubeService.YouTubeService.Videos.List(contentDetails);
+                    request.Id = string.Join(",", batchVideoIds);
+                    request.MaxResults = MaxSearchResults;
                     response = await request.ExecuteAsync();
                     await quotaUsageTracker.RecordQuotaConsumedAsync(
                         youTubeService.CurrentApplication,
@@ -83,8 +83,7 @@ public class YouTubeVideoService(
                         youTubeService.CurrentApplication,
                         youTubeService.Usage,
                         YouTubeQuotaOperation.VideosList);
-                    indexingContext?.MarkYouTubeQuotaExhausted();
-                    return null;
+                    throw new YouTubeQuotaException();
                 }
                 catch (Exception ex)
                 {
@@ -92,10 +91,6 @@ public class YouTubeVideoService(
                         "Failed to use {youTubeServiceName} obtaining videos matching video-ids '{videoIds}'.",
                         nameof(youTubeService.YouTubeService), string.Join(",", videoIds));
                     await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                    if (indexingContext != null)
-                    {
-                        indexingContext.SkipYouTubeUrlResolving = true;
-                    }
 
                     return null;
                 }

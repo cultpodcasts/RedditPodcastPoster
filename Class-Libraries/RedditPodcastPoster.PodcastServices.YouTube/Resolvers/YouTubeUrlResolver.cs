@@ -51,12 +51,19 @@ public class YouTubeItemResolver(
     private async Task<FindEpisodeResponse?> GetPlaylistVideos(EnrichmentRequest request,
         IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
+        var playlistId = new YouTubePlaylistId(request.Podcast.YouTubePlaylistId, YouTubePlaylistIdSource.PodcastEntity, request.Podcast.Id.ToString());
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
-            new YouTubePlaylistId(request.Podcast.YouTubePlaylistId), indexingContext, true,
+            playlistId,
+            indexingContext, true,
             indexingContext.RunExpensiveYouTubePlaylistPagination(request.Podcast),
             request.Podcast.YouTubePlaylistOrder);
-        if (latestPlaylistItems?.Result == null)
+        if (latestPlaylistItems.Result == null)
         {
+            if (latestPlaylistItems.Failure != null)
+            {
+                LogPlaylistFetchFailure(request.Podcast, latestPlaylistItems.Failure, playlistId);
+            }
+
             return null;
         }
 
@@ -134,14 +141,23 @@ public class YouTubeItemResolver(
     private async Task<FindEpisodeResponse?> GetChannelUploadsPlaylistVideos(
         EnrichmentRequest request, IndexingContext indexingContext, TimeSpan youTubePublishingDelay)
     {
-        var channelVideos = await youTubeChannelVideosService.GetChannelVideos(
+        var channelVideosResponse = await youTubeChannelVideosService.GetChannelVideos(
             new YouTubeChannelId(request.Podcast.YouTubeChannelId), indexingContext);
-        if (channelVideos?.PlaylistItems == null)
+        if (channelVideosResponse.PlaylistItems == null)
         {
+            if (channelVideosResponse.Failure != null)
+            {
+                LogPlaylistFetchFailure(request.Podcast, channelVideosResponse.Failure,
+                    new YouTubePlaylistId(
+                        channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads ?? string.Empty,
+                        YouTubePlaylistIdSource.ChannelUploads,
+                        request.Podcast.YouTubeChannelId));
+            }
+
             return null;
         }
 
-        var playlistItems = channelVideos.PlaylistItems.ForEpisodeMatching(indexingContext);
+        var playlistItems = channelVideosResponse.PlaylistItems.ForEpisodeMatching(indexingContext);
         if (playlistItems.Any())
         {
             LogRetrievedCount(nameof(GetChannelUploadsPlaylistVideos), playlistItems.Count, indexingContext);
@@ -169,5 +185,26 @@ public class YouTubeItemResolver(
                 "{method} Retrieved {count} items published on YouTube. {releasedSince} is Null.",
                 method, count, nameof(indexingContext.ReleasedSince));
         }
+    }
+
+    private void LogPlaylistFetchFailure(RedditPodcastPoster.Models.Podcasts.Podcast podcast,
+        YouTubePlaylistFetchFailure? failure, YouTubePlaylistId playlistId)
+    {
+        if (failure == null)
+        {
+            return;
+        }
+
+        if (failure == YouTubePlaylistFetchFailure.NotFound)
+        {
+            logger.LogError(
+                "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
+            return;
+        }
+
+        logger.LogError(
+            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}, failure '{Failure}').",
+            podcast.Name, podcast.Id, playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, failure);
     }
 }

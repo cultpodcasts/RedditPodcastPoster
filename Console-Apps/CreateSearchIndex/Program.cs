@@ -8,6 +8,7 @@ using CreateSearchIndex;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Extensions;
+using RedditPodcastPoster.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -28,10 +29,25 @@ builder.Services
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<CreateSearchIndexRequest>(args)
     .MapResult(async request => await Run(request),
-        errs => Task.FromResult(-1)); // Invalid arguments
+        errs =>
+        {
+            if (errs.Any(x => x is VersionRequestedError))
+            {
+                VersionInfo.PrintVersion();
+                return Task.FromResult(0);
+            }
+
+            return Task.FromResult(-1);
+        });
 
 async Task<int> Run(CreateSearchIndexRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var processor = host.Services.GetService<CreateSearchIndexProcessor>()!;
     await processor.Process(request);
     return 0;

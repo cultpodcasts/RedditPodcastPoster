@@ -55,7 +55,7 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 [CreateScheduledPlaylistItem(scheduledVideoId, addedToPlaylistAt, videoPublishedAt)]));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -69,7 +69,9 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .Returns(new EpisodeModel());
 
         // Act
+        var podcast = _fixture.CreatePodcast();
         var response = await Sut.GetPlaylistEpisodes(
+            podcast,
             new YouTubePlaylistId(playlistId),
             new YouTubeChannelId(channelId),
             indexingContext,
@@ -107,7 +109,7 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 [CreateScheduledPlaylistItem(staleVideoId, addedToPlaylistAt, videoPublishedAt)]));
 
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
@@ -117,7 +119,9 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .ReturnsAsync([CreatePublicVideo(staleVideoId, channelId, videoPublishedAt)]);
 
         // Act
+        var podcast = _fixture.CreatePodcast();
         var response = await Sut.GetPlaylistEpisodes(
+            podcast,
             new YouTubePlaylistId(playlistId),
             new YouTubeChannelId(channelId),
             indexingContext,

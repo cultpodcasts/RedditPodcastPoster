@@ -3,11 +3,18 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

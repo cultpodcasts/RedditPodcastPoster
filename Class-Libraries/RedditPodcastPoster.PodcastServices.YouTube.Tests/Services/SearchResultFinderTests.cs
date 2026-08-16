@@ -25,7 +25,7 @@ public class SearchResultFinderTests
     public SearchResultFinderTests()
     {
         _mocker.Use(EpisodeDomainTestServices.CreatePlatformMatcher());
-        _mocker.GetMock<IYouTubeVideoService>()
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),

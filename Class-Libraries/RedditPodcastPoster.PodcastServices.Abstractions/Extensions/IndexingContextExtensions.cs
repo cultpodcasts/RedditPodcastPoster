@@ -132,7 +132,6 @@ public static class IndexingContextExtensions
 
     public static void MarkYouTubeQuotaExhausted(this IndexingContext indexingContext)
     {
-        indexingContext.SkipYouTubeUrlResolving = true;
         indexingContext.YouTubeQuotaExhausted = true;
     }
 }

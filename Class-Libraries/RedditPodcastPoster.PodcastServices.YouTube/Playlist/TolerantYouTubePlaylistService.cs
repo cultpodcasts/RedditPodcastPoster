@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -35,8 +34,7 @@ public class TolerantYouTubePlaylistService(
             }
             catch (YouTubeQuotaException)
             {
-                logger.LogInformation(
-                    "Quota exceeded observed. Rotating api-key .");
+                logger.LogInformation("Quota exceeded observed. Rotating api-key .");
                 await quotaUsageTracker.RecordQuotaHitAsync(
                     youTubeService.CurrentApplication,
                     youTubeService.Usage,
@@ -57,10 +55,56 @@ public class TolerantYouTubePlaylistService(
         if (!success)
         {
             indexingContext.MarkYouTubeQuotaExhausted();
-            logger.LogError("Unable to obtain latest-playlist-video-snippets for channel-id '{playlistId}'.",
-                playlistId.PlaylistId);
+            logger.LogError("Unable to obtain latest-playlist-video-snippets for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
         }
 
         return result;
+    }
+
+    public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(YouTubePlaylistId playlistId,
+        IndexingContext indexingContext)
+    {
+        GetPlaylistInfoResponse? result = null;
+        var success = false;
+        var rotationExcepted = false;
+        while (youTubeService.CanRotate && !success && !rotationExcepted)
+        {
+            try
+            {
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
+                result = await youTubePlaylistService.GetPlaylistInfo(youTubeService, playlistId, indexingContext);
+                success = true;
+            }
+            catch (YouTubeQuotaException)
+            {
+                logger.LogInformation("Quota exceeded observed. Rotating api-key.");
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.PlaylistsList);
+                try
+                {
+                    youTubeService.Rotate();
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error rotating api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
+                    rotationExcepted = true;
+                }
+            }
+        }
+
+        if (!success)
+        {
+            indexingContext.MarkYouTubeQuotaExhausted();
+            logger.LogError("Unable to obtain playlist-info for playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
+            throw new InvalidOperationException(
+                $"Unable to obtain playlist-info for playlist-id '{playlistId.PlaylistId}' (source: {playlistId.Source}, identifier: {playlistId.SourceIdentifier}).");
+        }
+
+        return result!;
     }
 }

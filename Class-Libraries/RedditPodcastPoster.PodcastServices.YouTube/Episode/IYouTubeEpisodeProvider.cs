@@ -23,6 +23,7 @@ public interface IYouTubeEpisodeProvider
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 
     Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
+        Podcast podcast,
         YouTubePlaylistId youTubePlaylistId,
         YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext, 

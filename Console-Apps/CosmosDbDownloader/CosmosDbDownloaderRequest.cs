@@ -19,4 +19,7 @@ public class CosmosDbDownloaderRequest
     [Option('o', "overwrite", Required = false, Default = false,
         HelpText = "Overwrite existing local JSON files. Without this flag, an existing file is an error.")]
     public bool Overwrite { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

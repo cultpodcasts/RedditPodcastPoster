@@ -21,4 +21,7 @@ public class CategorisePodcastEpisodesRequest
 
     [Option('r', "Reset-Subject", Default = false, Required = false)]
     public bool ResetSubjects { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

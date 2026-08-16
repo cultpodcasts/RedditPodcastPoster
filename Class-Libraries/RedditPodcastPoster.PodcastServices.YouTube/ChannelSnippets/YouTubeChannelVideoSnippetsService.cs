@@ -26,25 +26,24 @@ public class YouTubeChannelVideoSnippetsService(
     {
         var result = new List<SearchResult>();
         var nextPageToken = "";
-        var searchListRequest = youTubeServiceWrapper.YouTubeService.Search.List("snippet");
-        searchListRequest.MaxResults = MaxSearchResults;
-        searchListRequest.ChannelId = channelId.ChannelId;
-        searchListRequest.Type = "video";
-        searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-        searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-        if (indexingContext.ReleasedSince.HasValue)
-        {
-            searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-        }
 
-        //upcoming
         while (nextPageToken != null)
         {
-            searchListRequest.PageToken = nextPageToken; // or searchListResponse.NextPageToken if paging
-
             SearchListResponse response;
             try
             {
+                var searchListRequest = youTubeServiceWrapper.YouTubeService.Search.List("snippet");
+                searchListRequest.MaxResults = MaxSearchResults;
+                searchListRequest.ChannelId = channelId.ChannelId;
+                searchListRequest.Type = "video";
+                searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
+                searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
+                if (indexingContext.ReleasedSince.HasValue)
+                {
+                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                }
+
+                searchListRequest.PageToken = nextPageToken;
                 response = await searchListRequest.ExecuteAsync();
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
@@ -74,7 +73,6 @@ public class YouTubeChannelVideoSnippetsService(
                     "Unrecognised google-api-exception. Failed to use {nameofYouTubeServiceWrapperYouTubeService} to obtain latest-channel-snippets for channel-id '{channelId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }
             catch (Exception ex)
@@ -83,7 +81,6 @@ public class YouTubeChannelVideoSnippetsService(
                     "Failed to use {nameofYouTubeServiceWrapperYouTubeService)} to obtain latest-channel-snippets for channel-id '{channelId}'.",
                     nameof(youTubeServiceWrapper.YouTubeService), channelId.ChannelId);
                 await quotaUsageTracker.RecordNonQuotaErrorAsync();
-                indexingContext.SkipYouTubeUrlResolving = true;
                 return result;
             }
 

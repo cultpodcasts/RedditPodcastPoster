@@ -11,4 +11,8 @@ public class SeedTitleCasingRulesRequest
     [Option('l', "language", Required = false, Default = "en",
         HelpText = "Language code to seed (default: en).")]
     public string Language { get; set; } = "en";
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
+
 }

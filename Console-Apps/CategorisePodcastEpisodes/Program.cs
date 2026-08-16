@@ -11,6 +11,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
+using RedditPodcastPoster.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -36,10 +37,25 @@ builder.Services
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<CategorisePodcastEpisodesRequest>(args)
-    .MapResult(async request => await Run(request), errs => Task.FromResult(-1)); // Invalid arguments
+    .MapResult(async request => await Run(request), errs =>
+    {
+        if (errs.Any(x => x is VersionRequestedError))
+        {
+            VersionInfo.PrintVersion();
+            return Task.FromResult(0);
+        }
+
+        return Task.FromResult(-1);
+    });
 
 async Task<int> Run(CategorisePodcastEpisodesRequest request)
 {
+    if (request.Version)
+    {
+        VersionInfo.PrintVersion();
+        return 0;
+    }
+
     var service = host.Services.GetService<CategorisePodcastEpisodesProcessor>()!;
     await service.Run(request);
     return 0;

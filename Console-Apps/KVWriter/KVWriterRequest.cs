@@ -18,4 +18,7 @@ public class KVWriterRequest
 
     [Option('r', "read", HelpText = "Short-guid for the item to read")]
     public string? Key { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

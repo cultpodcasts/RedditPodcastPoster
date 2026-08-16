@@ -13,4 +13,8 @@ public interface ITolerantYouTubePlaylistService
         bool withContentDetails = false,
         bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null);
+
+    public Task<GetPlaylistInfoResponse> GetPlaylistInfo(
+        YouTubePlaylistId playlistId,
+        IndexingContext indexingContext);
 }

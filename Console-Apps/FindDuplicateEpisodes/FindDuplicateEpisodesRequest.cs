@@ -15,4 +15,7 @@ public class FindDuplicateEpisodesRequest
     [Option('v', "verify-deduplication", Required = false, Default = false,
         HelpText = "Verify deduplication outcomes from backup files. Groups backups by podcastName and title, then checks canonical ignored/removed flags in Cosmos.")]
     public bool VerifyDeduplication { get; set; }
+
+    [Option("version", HelpText = "Display version information")]
+    public bool Version { get; set; }
 }

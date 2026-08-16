@@ -5,6 +5,13 @@ using Microsoft.Extensions.Hosting;
 using CultPodcasts.DatabasePublisher;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.Configuration;
+
+if (args.Contains("--version"))
+{
+    VersionInfo.PrintVersion();
+    return 0;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 
