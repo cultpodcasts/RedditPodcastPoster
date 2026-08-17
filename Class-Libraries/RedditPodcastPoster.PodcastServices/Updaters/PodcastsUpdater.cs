@@ -46,6 +46,7 @@ public class PodcastsUpdater(
             }
 
             var performAutoIndex = podcast != null &&
+                                   podcast.Removed != true &&
                                    (podcast.IndexAllEpisodes ||
                                     !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
             if (performAutoIndex)

@@ -14,9 +14,9 @@ public class IndexablePodcastIdProvider(
         logger.LogInformation($"{nameof(GetIndexablePodcastIds)} Retrieving podcasts.");
 
         var podcastIds = podcastRepository.GetAllBy(
-            podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                        podcast.IndexAllEpisodes) ||
-                       podcast.EpisodeIncludeTitleRegex != "",
+            podcast => (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                       (podcast.IndexAllEpisodes ||
+                        podcast.EpisodeIncludeTitleRegex != ""),
             x => x.Id);
 
         return podcastIds;

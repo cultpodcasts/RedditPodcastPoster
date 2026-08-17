@@ -175,6 +175,34 @@ public class EpisodeProviderRules
             Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When SkipEnrichingFromYouTube is true and the podcast does not depend on YouTube for discovery, " +
+        "EpisodeProvider does not attempt YouTube episode retrieval.")]
+    public async Task skip_enriching_from_youtube_suppresses_secondary_youtube_discovery()
+    {
+        // Arrange
+        var harness = new EpisodeProviderTestHarness();
+        var sut = harness.CreateSut();
+
+        // Spotify-authority podcast with a YouTube channel — normally the secondary YouTube
+        // discovery pass would run, but SkipEnrichingFromYouTube must suppress it.
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.SkipEnrichingFromYouTube = true;
+
+        var indexingContext = CatalogueMergeWithYouTubeDiscoveryContext();
+
+        // Act
+        var discovered = await sut.GetEpisodes(podcast, [], indexingContext);
+
+        // Assert
+        harness.YouTubeHandler.Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()),
+            Times.Never);
+        discovered.Should().BeEmpty();
+    }
+
     private Podcast CreateYouTubeAuthorityNegativeDelayPodcastWithApple()
     {
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();

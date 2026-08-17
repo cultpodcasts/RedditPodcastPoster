@@ -35,9 +35,9 @@ public class IndexIdProvider(
 
         var indexablePodcasts = await podcastRepository
             .GetAllBy(
-                podcast => ((!podcast.Removed.IsDefined() || podcast.Removed == false) &&
-                            podcast.IndexAllEpisodes) ||
-                           podcast.EpisodeIncludeTitleRegex != "")
+                podcast => (!podcast.Removed.IsDefined() || podcast.Removed == false) &&
+                           (podcast.IndexAllEpisodes ||
+                            podcast.EpisodeIncludeTitleRegex != ""))
             .ToArrayAsync();
 
         var allIndexablePodcastIds = indexablePodcasts.Select(p => p.Id).ToArray();

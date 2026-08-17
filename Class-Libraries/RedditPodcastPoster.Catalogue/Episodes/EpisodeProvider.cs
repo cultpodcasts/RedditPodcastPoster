@@ -54,7 +54,8 @@ public class EpisodeProvider(
 
         if (!indexingContext.SkipYouTubeUrlResolving &&
             !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-            !podcast.DependsOnYouTubeForEpisodeDiscovery())
+            !podcast.DependsOnYouTubeForEpisodeDiscovery() &&
+            podcast.SkipEnrichingFromYouTube is not true)
         {
             (newEpisodes, handled) = await RetrieveYouTubeEpisodes(podcast, episodes, indexingContext, newEpisodes);
         }
