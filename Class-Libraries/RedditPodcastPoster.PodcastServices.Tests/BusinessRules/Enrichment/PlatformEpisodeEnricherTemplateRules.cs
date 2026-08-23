@@ -75,6 +75,53 @@ public class PlatformEpisodeEnricherTemplateRules
     }
 
     [Fact(DisplayName =
+        "When an audio-first show is still inside the delayed YouTube window, audio-catalogue " +
+        "enrichment is not bypassed because Apple and Spotify are already live.")]
+    public void audio_catalogue_enrichment_is_not_bypassed_for_audio_first_show_inside_delay_window()
+    {
+        // Arrange
+        var show = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        show.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        show.YouTubePublicationOffset = PublishingDelay.Ticks;
+        var release = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(PublishingDelay);
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(release)
+            .WithDuration(_fixture.CreateDuration()));
+        var request = new EnrichmentRequest(show, [episode], episode);
+        var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+
+        // Act
+        var bypassed = enricher.TryAudioCatalogueBypass(request, NullLogger.Instance);
+
+        // Assert
+        bypassed.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-authority podcast is still inside the delayed audio window, audio-catalogue " +
+        "enrichment is bypassed because Apple and Spotify are not yet due.")]
+    public void audio_catalogue_enrichment_is_bypassed_for_youtube_authority_inside_delay_window()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            PublishingDelay.Ticks,
+            _fixture.CreateSpotifyId());
+        var release = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(PublishingDelay);
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(release)
+            .WithDuration(_fixture.CreateDuration()));
+        var request = new EnrichmentRequest(podcast, [episode], episode);
+        var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+
+        // Act
+        var bypassed = enricher.TryAudioCatalogueBypass(request, NullLogger.Instance);
+
+        // Assert
+        bypassed.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "When ApplyResolvedCandidate applies a Spotify catalogue candidate, the enrichment context " +
         "records the Spotify URL update and the episode receives the platform link via the applicator.")]
     public void apply_resolved_candidate_updates_enrichment_context_and_episode_state()
@@ -112,6 +159,9 @@ public class PlatformEpisodeEnricherTemplateRules
     {
         public bool TryBypass(EnrichmentRequest request, ILogger logger) =>
             IsBypassedByDelayedYouTubePublishing(request, "Test", logger);
+
+        public bool TryAudioCatalogueBypass(EnrichmentRequest request, ILogger logger) =>
+            IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(request, "Test", logger);
 
         public PlatformEnrichmentResult ApplyCandidate(
             EnrichmentRequest request,

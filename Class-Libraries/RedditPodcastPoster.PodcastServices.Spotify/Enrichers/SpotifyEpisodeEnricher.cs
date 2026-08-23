@@ -33,7 +33,7 @@ public class SpotifyEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (IsBypassedByDelayedYouTubePublishing(request, "Spotify", logger))
+        if (IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(request, "Spotify", logger))
         {
             return;
         }

@@ -149,9 +149,9 @@ public class SpotifyEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
-        "When the episode is still inside the delayed YouTube publishing window, Spotify enrichment " +
-        "is bypassed and does not query the catalogue.")]
-    public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
+        "When an audio-first podcast episode is still inside the delayed YouTube publishing window, " +
+        "Spotify enrichment still queries the catalogue because Spotify audio is already live.")]
+    public async Task enrich_queries_catalogue_for_audio_first_podcast_inside_delayed_youtube_window()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
@@ -165,6 +165,38 @@ public class SpotifyEpisodeEnricherCatalogueRules
             .WithDuration(_fixture.CreateDuration()));
         episode.YouTubeId = string.Empty;
         episode.Urls.YouTube = null;
+        var resolver = new TrackingSpotifyEpisodeResolver();
+        var sut = CreateEnricher(resolver);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        resolver.FindEpisodeInvoked.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-authority podcast is still inside the delayed audio window, Spotify enrichment " +
+        "is bypassed and does not query the catalogue.")]
+    public async Task enrich_is_bypassed_for_youtube_authority_inside_delayed_audio_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks,
+            _fixture.CreateSpotifyId());
+        var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+            publishingDelay);
+        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(inWindowRelease)
+            .WithDuration(_fixture.CreateDuration()));
+        episode.SpotifyId = string.Empty;
+        episode.Urls.Spotify = null;
         var resolver = new TrackingSpotifyEpisodeResolver();
         var sut = CreateEnricher(resolver);
         var enrichmentContext = new EnrichmentContext();

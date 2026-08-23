@@ -28,7 +28,7 @@ public class AppleEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (IsBypassedByDelayedYouTubePublishing(request, "Apple", logger))
+        if (IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(request, "Apple", logger))
         {
             return;
         }
