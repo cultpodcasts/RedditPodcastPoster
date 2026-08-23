@@ -19,7 +19,7 @@ Production deploys are defined by:
 | Step | CI (`deploy.yml`) | Local (`deploy-*.ps1` → `deploy-function-local.ps1`) |
 |------|-------------------|-------------------------------------|
 | Publish | `dotnet publish -c Release -r linux-x64 <Cloud/...> -o output/<name>` | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`) |
-| Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows-only fix) |
+| Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
 | Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
 | Provision | Bicep when `Infrastructure/**` changes | Not run locally |
@@ -69,7 +69,7 @@ When not using saved JSON or explicit parameters, `deploy-function-local.ps1` st
 
 `Compress-Archive` produces backslash paths in the zip. Linux Flex hosts cannot load `.azurefunctions/` from such packages — this broke `discover-infra` in June 2026.
 
-**Allowed fix:** `New-LinuxFunctionAppZip` in `AzureWebAppDeploy.ps1` — forward-slash paths only, validates `.azurefunctions/` at zip root. This is a **packaging** fix for Windows, not a new deployment mechanism.
+**Allowed fix:** `New-LinuxFunctionAppZip` in `AzureWebAppDeploy.ps1` — forward-slash paths only, validates `.azurefunctions/` at zip root. This is a **packaging** fix for Windows and Linux, not a new deployment mechanism. Linux must trim `/` as well as `\` or zip entries become `/.azurefunctions/...`.
 
 **Do not** revert to `Compress-Archive` for function app packages.
 
@@ -130,8 +130,8 @@ Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept
 
 | Change | Verdict | Why |
 |--------|---------|-----|
-| `New-LinuxFunctionAppZip` | **KEEP** | Windows `Compress-Archive` uses backslashes; broke Linux Flex hosts. CI builds on Linux and does not need this. |
-| `Compress-Archive` → `New-LinuxFunctionAppZip` in `deploy-function-local.ps1` | **KEEP** | Same reason — only Windows packaging change. |
+| `New-LinuxFunctionAppZip` | **KEEP** | Windows `Compress-Archive` uses backslashes; Linux `TrimEnd('\')` left a leading `/`. Both broke Flex hosts. |
+| `Compress-Archive` → `New-LinuxFunctionAppZip` in `deploy-function-local.ps1` | **KEEP** | Same packaging helper on Windows and Linux. |
 | `az functionapp restart` after blob upload | **KEEP** | Activates Flex package after blob upload; proven when OneDeploy fails from Windows. |
 | Dot-source `AzureWebAppDeploy.ps1` once at script start | **KEEP** | Loads zip helper only. |
 | SAS + `Invoke-WebAppZipDeploy` after blob | **REVERTED** | Session bloat; diverged from CI/bicep blob path; Kudu polling unnecessary. |

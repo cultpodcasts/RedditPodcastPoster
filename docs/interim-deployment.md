@@ -8,7 +8,7 @@ Use this guide when [`.github/workflows/deploy.yml`](../.github/workflows/deploy
 
 | CI (`deploy.yml`) | Bicep / artifact | Interim script | Notes |
 |-------------------|------------------|----------------|-------|
-| Build + publish matrix | `dotnet publish -r linux-x64` | *(inside `deploy-function-local.ps1`)* | Windows uses `New-LinuxFunctionAppZip` for forward-slash paths |
+| Build + publish matrix | `dotnet publish -r linux-x64` | *(inside `deploy-function-local.ps1`)* | `New-LinuxFunctionAppZip` writes forward-slash paths on Windows and Linux |
 | `provision` → Storage | [`function-storage.bicep`](../Infrastructure/function-storage.bicep) | [`provision-storage-containers.ps1`](../scripts/provision-storage-containers.ps1) | Containers only; storage account must already exist |
 | `provision` → Functions | [`functions.bicep`](../Infrastructure/functions.bicep) | **No script** | App settings (including `discover__scorer__*`) come from bicep only when this deploys |
 | `provision` → Cosmos diagnostics | [`cosmos-db-diagnostics.bicep`](../Infrastructure/cosmos-db-diagnostics.bicep) | [`enable-cosmos-diagnostics.ps1`](../scripts/enable-cosmos-diagnostics.ps1) / [`disable-cosmos-diagnostics.ps1`](../scripts/disable-cosmos-diagnostics.ps1) | Temporary RU investigation |
@@ -92,7 +92,7 @@ Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).
 | `deploy-api.ps1`, `deploy-indexer.ps1`, `deploy-discover.ps1` | June 2026 — thin wrappers over `deploy-function-local.ps1` |
 | `deploy-function-local.ps1` | Shared publish, Linux zip, blob upload, restart |
 | `Resolve-DeploySettings.ps1` | JSON + interactive Azure target resolution |
-| `AzureWebAppDeploy.ps1` | `New-LinuxFunctionAppZip` (Windows packaging fix) |
+| `AzureWebAppDeploy.ps1` | `New-LinuxFunctionAppZip` (Windows and Linux packaging) |
 | `apply-telemetry-app-settings.ps1` | Interim telemetry/sampling when bicep not deploying |
 | `enable-cosmos-diagnostics.ps1` / `disable-cosmos-diagnostics.ps1` | Interim Cosmos diagnostic export |
 | `publish-console-apps.ps1` | Self-contained Windows console tools |
