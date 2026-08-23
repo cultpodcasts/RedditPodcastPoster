@@ -219,12 +219,6 @@
     <File Path="scripts/deploy-indexer.ps1" />
   </Folder>
 
-  <Folder Name="/Third-Party/">
-
-    <Project Path="Third-Party/sirkris-Reddit.NET-1.5.3/src/Reddit.NET/Reddit.NET.csproj" />
-
-  </Folder>
-
   <Folder Name="/Workflows/">
 
     <File Path=".github/workflows/deploy.yml" />

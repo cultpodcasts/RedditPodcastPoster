@@ -38,6 +38,24 @@ public abstract class PlatformEpisodeEnricherTemplate(IPlatformEnrichmentApplica
         return true;
     }
 
+    /// <summary>
+    /// Apple/Spotify catalogues are already live for audio-first shows. Delayed YouTube
+    /// publishing must not block merging those URLs. Only YouTube-authority shows
+    /// (audio not yet due) skip audio-catalogue enrichment in the delay window.
+    /// </summary>
+    protected bool IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(
+        EnrichmentRequest request,
+        string platformName,
+        ILogger logger)
+    {
+        if (request.Podcast.ReleaseAuthority is not Service.YouTube)
+        {
+            return false;
+        }
+
+        return IsBypassedByDelayedYouTubePublishing(request, platformName, logger);
+    }
+
     protected PlatformEnrichmentResult ApplyResolvedCandidate(
         EnrichmentRequest request,
         EpisodeCandidate candidate,

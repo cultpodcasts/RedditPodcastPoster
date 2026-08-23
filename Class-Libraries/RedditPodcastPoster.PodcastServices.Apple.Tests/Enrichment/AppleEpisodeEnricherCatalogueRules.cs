@@ -157,15 +157,65 @@ public class AppleEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
-        "When the episode is still inside the delayed YouTube publishing window, Apple enrichment " +
-        "is bypassed and does not query the catalogue.")]
-    public async Task enrich_is_bypassed_inside_delayed_youtube_publishing_window()
+        "When an audio-first podcast episode is still inside the delayed YouTube publishing window, " +
+        "Apple enrichment still queries the catalogue and applies a matching Apple URL because Apple audio is already live.")]
+    public async Task enrich_applies_apple_for_audio_first_podcast_inside_delayed_youtube_window()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
         var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
         podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         podcast.YouTubePublicationOffset = publishingDelay.Ticks;
+        var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
+            publishingDelay);
+        var sharedTitle = _fixture.CreateTitle();
+        var sharedLength = _fixture.CreateDuration();
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .WithTitle(sharedTitle)
+            .WithRelease(inWindowRelease)
+            .WithLength(sharedLength)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+        episode.AppleId = null;
+        episode.Urls.Apple = null;
+        var appleEpisode = new AppleEpisode(
+            appleEpisodeId,
+            sharedTitle,
+            inWindowRelease.AddHours(8),
+            sharedLength,
+            _fixture.DefaultAppleUrl(appleEpisodeId),
+            string.Empty,
+            false);
+        var sut = CreateEnricher(new CapturingAppleEpisodeResolver([appleEpisode], appleEpisodeId));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.AppleId.Should().Be(appleEpisodeId);
+        episode.Urls.Apple.Should().NotBeNull();
+        enrichmentContext.AppleUrlUpdated.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-authority podcast is still inside the delayed audio window, Apple enrichment " +
+        "is bypassed and does not query the catalogue.")]
+    public async Task enrich_is_bypassed_for_youtube_authority_inside_delayed_audio_window()
+    {
+        // Arrange
+        var publishingDelay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            publishingDelay.Ticks,
+            _fixture.CreateSpotifyId());
+        podcast.AppleId = _fixture.CreateAppleId();
         var inWindowRelease = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(
             publishingDelay);
         var episode = _fixture.BuildEpisode()
