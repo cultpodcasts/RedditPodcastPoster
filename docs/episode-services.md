@@ -29,6 +29,8 @@ Top-level `spotifyId` / `appleId` / `youTubeId` are dual-written with `ids` unti
 
 Rollout order, Cosmos backfill, and tested migration types: [episode-services-migration.md](episode-services-migration.md).
 
+Product canvas (website, curator UI, tweets/Bsky, shape impact, plan): [episode-services-canvas.md](episode-services-canvas.md).
+
 ## Dual-write (migration)
 
 Existing documents only have split `urls` + `images` (BBC art in `images.other`). On deserialize, `EpisodeServicePresence.Hydrate` <!-- pragma: allowlist secret --> fills `services`. On serialize, `SyncLegacy` still writes `urls` / `images` so Cosmos SQL indexers and admin forms keep working.
