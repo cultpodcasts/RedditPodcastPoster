@@ -27,6 +27,8 @@ Platform identity for matching and “do we have Spotify / Apple / YouTube?” l
 
 Top-level `spotifyId` / `appleId` / `youTubeId` are dual-written with `ids` until Cosmos SQL and matching read the nested object only. Published homepage and public episode payloads expose **`ids` + `services`** — they do not bolt on a parallel `urls: { apple, spotify, youtube }` object. Reconstruct a listen/watch URL from `services.{key}.url`, or from `ids` (search still uses compact `spotifyId` / `youtubeId` / `appleId` + `podcastAppleId`). <!-- pragma: allowlist secret -->
 
+Rollout order, Cosmos backfill, and tested migration types: [episode-services-migration.md](episode-services-migration.md).
+
 ## Dual-write (migration)
 
 Existing documents only have split `urls` + `images` (BBC art in `images.other`). On deserialize, `EpisodeServicePresence.Hydrate` <!-- pragma: allowlist secret --> fills `services`. On serialize, `SyncLegacy` still writes `urls` / `images` so Cosmos SQL indexers and admin forms keep working.
