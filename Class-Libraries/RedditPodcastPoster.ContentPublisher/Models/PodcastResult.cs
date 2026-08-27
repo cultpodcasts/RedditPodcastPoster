@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 
@@ -37,6 +37,9 @@ public class PodcastResult
 
     [JsonPropertyName("internetArchive")]
     public Uri? InternetArchive { get; set; }
+
+    [JsonPropertyName("services")]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

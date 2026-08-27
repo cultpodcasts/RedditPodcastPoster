@@ -50,6 +50,9 @@ public class RecentEpisode
     [JsonPropertyName("internetArchive")]
     public Uri? InternetArchive { get; set; }
 
+    [JsonPropertyName("services")]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 

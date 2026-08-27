@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 
@@ -74,6 +74,19 @@ public readonly record struct SearchEpisodeImage(string Image)
         ("mqdefault.jpg", 'm'),
         ("default.jpg", 'd')
     ];
+
+    public static SearchEpisodeImage From(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        var image = EpisodeServicePresence.CoalescedImage(episode); // pragma: allowlist secret
+        if (image is null)
+        {
+            return new SearchEpisodeImage(string.Empty);
+        }
+
+        var url = image.ToString();
+        return new SearchEpisodeImage(Compact(url, episode.YouTubeId) ?? url);
+    }
 
     public static SearchEpisodeImage From(EpisodeImages? images, string? youTubeId)
     {

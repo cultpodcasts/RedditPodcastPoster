@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.Models.Episodes;
+namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
-public class Episode
+public class Episode : IJsonOnDeserialized, IJsonOnSerializing
 {
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
@@ -168,12 +168,35 @@ public class Episode
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }
 
+    /// <summary>
+    /// Per-service watch/listen URL and artwork, keyed by <see cref="ServiceKeys"/> (or a host slug).
+    /// Canonical adjacent storage. Legacy <see cref="Urls"/> / <see cref="Images"/> are dual-written.
+    /// </summary>
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(151)]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
 
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
+
+    public void OnDeserialized()
+    {
+        EpisodeServicePresence.Hydrate(this); // pragma: allowlist secret
+    }
+
+    public void OnSerializing()
+    {
+        EpisodeServicePresence.Hydrate(this); // pragma: allowlist secret
+        EpisodeServicePresence.SyncLegacy(this); // pragma: allowlist secret
+        if (Services is { Count: 0 })
+        {
+            Services = null;
+        }
+    }
 
     public static Episode FromSpotify(string spotifyId,
         string title,

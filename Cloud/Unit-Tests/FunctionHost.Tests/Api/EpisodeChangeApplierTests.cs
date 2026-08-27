@@ -1,11 +1,11 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Api.Models;
-using Api.Services.Episodes;
-using RedditPodcastPoster.Models.Episodes;
+using Api.Services.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.Episodes.Episode;
+using Episode = RedditPodcastPoster.Models.Episodes.Episode; // pragma: allowlist secret
 
 namespace FunctionHost.Tests.Api;
 
@@ -598,6 +598,32 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.Urls.InternetArchive.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply stores a Vimeo URL adjacent to its image under services.vimeo and dual-writes the image to Images.Other so services outside Spotify/Apple/YouTube do not need a new urls field.")]
+    public void Apply_sets_vimeo_service_url_and_image_adjacent()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var vimeoUrl = new Uri("https://vimeo.com/123456789");
+        var vimeoImage = new Uri("https://i.vimeocdn.com/video/123456789-d_640");
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            {
+                ["vimeo"] = new() { Url = vimeoUrl, Image = vimeoImage }
+            }
+        });
+
+        // Assert
+        episode.Services.Should().ContainKey("vimeo");
+        episode.Services!["vimeo"].Url.Should().Be(vimeoUrl);
+        episode.Services["vimeo"].Image.Should().Be(vimeoImage);
+        episode.Images!.Other.Should().Be(vimeoImage);
     }
 
     // ----- Images -----

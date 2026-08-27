@@ -41,6 +41,10 @@ public class PublicEpisodeDto
     [JsonPropertyOrder(100)]
     public ServiceUrls Urls { get; set; } = new();
 
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(101)]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }

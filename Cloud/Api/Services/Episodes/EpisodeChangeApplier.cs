@@ -1,19 +1,20 @@
-using Api.Models;
-using Microsoft.Extensions.Logging;
-using Episode = RedditPodcastPoster.Models.Episodes.Episode;
-using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
-using RedditPodcastPoster.PodcastServices.YouTube;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using Api.Models; // pragma: allowlist secret
+using Microsoft.Extensions.Logging; // pragma: allowlist secret
+using Episode = RedditPodcastPoster.Models.Episodes.Episode; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Apple; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Apple.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Spotify; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Spotify.Resolvers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
-namespace Api.Services.Episodes;
+namespace Api.Services.Episodes; // pragma: allowlist secret
 
 public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 {
@@ -262,6 +263,48 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             episode.Images.Other == null)
         {
             episode.Images = null;
+        }
+
+        if (episodeChangeRequest.Services != null)
+        {
+            foreach (var pair in episodeChangeRequest.Services)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key))
+                {
+                    continue;
+                }
+
+                var url = pair.Value?.Url;
+                var image = pair.Value?.Image;
+                if (url?.ToString() == string.Empty)
+                {
+                    url = null;
+                }
+
+                if (image?.ToString() == string.Empty)
+                {
+                    image = null;
+                }
+
+                if (url is null && image is null)
+                {
+                    EpisodeServicePresence.Upsert(episode, pair.Key, null, null); // pragma: allowlist secret
+                    continue;
+                }
+
+                var key = pair.Key;
+                if (url is not null)
+                {
+                    key = ServiceCatalog.TryResolveKey(url) ?? pair.Key;
+                }
+
+                EpisodeServicePresence.Upsert(episode, key, url, image); // pragma: allowlist secret
+            }
+        }
+        else
+        {
+            EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
+            EpisodeServicePresence.SyncLegacy(episode); // pragma: allowlist secret
         }
 
         if (episodeChangeRequest.Language != null)

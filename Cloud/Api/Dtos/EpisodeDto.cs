@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Dtos;
@@ -112,6 +112,10 @@ public class EpisodeDto
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }
+
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(151)]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
