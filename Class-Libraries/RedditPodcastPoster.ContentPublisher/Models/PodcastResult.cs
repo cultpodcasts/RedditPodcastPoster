@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 
