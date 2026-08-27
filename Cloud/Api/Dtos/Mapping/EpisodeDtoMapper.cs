@@ -70,6 +70,7 @@ public class EpisodeDtoMapper(
             SpotifyId = episode.SpotifyId,
             AppleId = episode.AppleId,
             YouTubeId = episode.YouTubeId,
+            Ids = episode.Ids, // pragma: allowlist secret
             Urls = episode.Urls,
             Images = episode.Images,
             Services = episode.Services,

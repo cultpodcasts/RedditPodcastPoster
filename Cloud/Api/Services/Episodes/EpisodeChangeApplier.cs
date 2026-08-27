@@ -289,6 +289,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 if (url is null && image is null)
                 {
                     EpisodeServicePresence.Upsert(episode, pair.Key, null, null); // pragma: allowlist secret
+                    ClearKnownServiceId(episode, pair.Key);
                     continue;
                 }
 
@@ -299,6 +300,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 }
 
                 EpisodeServicePresence.Upsert(episode, key, url, image); // pragma: allowlist secret
+                ApplyKnownServiceId(episode, key, url, changeState);
             }
         }
         else
@@ -306,6 +308,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
             EpisodeServicePresence.SyncLegacy(episode); // pragma: allowlist secret
         }
+
+        EpisodeServicePresence.SyncIds(episode); // pragma: allowlist secret
 
         if (episodeChangeRequest.Language != null)
         {
@@ -348,5 +352,61 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return trimmed;
+    }
+
+    private static void ApplyKnownServiceId(
+        Episode episode,
+        string key,
+        Uri? url,
+        EpisodeChangeState changeState)
+    {
+        if (url is null)
+        {
+            return;
+        }
+
+        if (key == ServiceKeys.Spotify && SpotifyPodcastServiceMatcher.IsMatch(url)) // pragma: allowlist secret
+        {
+            var spotifyId = SpotifyIdResolver.GetEpisodeId(url);
+            if (!string.IsNullOrWhiteSpace(spotifyId))
+            {
+                episode.SpotifyId = spotifyId;
+                changeState.UpdateSpotifyImage = true;
+            }
+        }
+        else if (key == ServiceKeys.Apple && ApplePodcastServiceMatcher.IsMatch(url)) // pragma: allowlist secret
+        {
+            var appleId = AppleIdResolver.GetEpisodeId(url);
+            if (appleId != null)
+            {
+                episode.AppleId = appleId;
+                changeState.UpdateAppleImage = true;
+            }
+        }
+        else if (key == ServiceKeys.YouTube && YouTubePodcastServiceMatcher.IsMatch(url)) // pragma: allowlist secret
+        {
+            var youTubeId = YouTubeIdResolver.Extract(url);
+            if (!string.IsNullOrWhiteSpace(youTubeId))
+            {
+                episode.YouTubeId = youTubeId;
+                changeState.UpdateYouTubeImage = true;
+            }
+        }
+    }
+
+    private static void ClearKnownServiceId(Episode episode, string key)
+    {
+        if (key == ServiceKeys.Spotify)
+        {
+            episode.SpotifyId = string.Empty;
+        }
+        else if (key == ServiceKeys.Apple)
+        {
+            episode.AppleId = null;
+        }
+        else if (key == ServiceKeys.YouTube)
+        {
+            episode.YouTubeId = string.Empty;
+        }
     }
 }

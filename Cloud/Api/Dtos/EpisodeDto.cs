@@ -85,6 +85,10 @@ public class EpisodeDto
     [JsonPropertyOrder(52)]
     public string YouTubeId { get; set; } = "";
 
+    [JsonPropertyName("ids")]
+    [JsonPropertyOrder(53)]
+    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(60)]
     public ServiceUrls Urls { get; set; } = new();

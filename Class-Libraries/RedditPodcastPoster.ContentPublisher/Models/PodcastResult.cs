@@ -23,20 +23,8 @@ public class PodcastResult
     [JsonPropertyName("release")]
     public DateTime Release { get; set; }
 
-    [JsonPropertyName("spotify")]
-    public Uri? Spotify { get; set; }
-
-    [JsonPropertyName("apple")]
-    public Uri? Apple { get; set; }
-
-    [JsonPropertyName("youtube")]
-    public Uri? YouTube { get; set; }
-
-    [JsonPropertyName("bbc")]
-    public Uri? BBC { get; set; }
-
-    [JsonPropertyName("internetArchive")]
-    public Uri? InternetArchive { get; set; }
+    [JsonPropertyName("ids")]
+    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
 
     [JsonPropertyName("services")]
     public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret

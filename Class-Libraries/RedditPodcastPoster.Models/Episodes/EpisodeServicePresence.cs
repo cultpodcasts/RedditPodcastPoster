@@ -43,6 +43,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         }
 
         episode.Services = map.Count == 0 ? null : map;
+        SyncIds(episode);
     }
 
     public static void SyncLegacy(Episode episode)
@@ -92,6 +93,49 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         episode.Images.Spotify = spotify;
         episode.Images.Apple = apple;
         episode.Images.Other = other;
+        SyncIds(episode);
+    }
+
+    /// <summary>
+    /// Keep nested <c>ids</c> and legacy top-level spotifyId / appleId / youTubeId aligned.
+    /// Presence of a reconstructable service is the id, not a named URL slot.
+    /// </summary>
+    public static void SyncIds(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+
+        if (string.IsNullOrWhiteSpace(episode.Ids.Spotify) && !string.IsNullOrWhiteSpace(episode.SpotifyId))
+        {
+            episode.Ids.Spotify = episode.SpotifyId;
+        }
+        else if (!string.IsNullOrWhiteSpace(episode.Ids.Spotify))
+        {
+            episode.SpotifyId = episode.Ids.Spotify;
+        }
+
+        if (episode.Ids.Apple is null && episode.AppleId is not null)
+        {
+            episode.Ids.Apple = episode.AppleId;
+        }
+        else if (episode.Ids.Apple is not null)
+        {
+            episode.AppleId = episode.Ids.Apple;
+        }
+
+        if (string.IsNullOrWhiteSpace(episode.Ids.YouTube) && !string.IsNullOrWhiteSpace(episode.YouTubeId))
+        {
+            episode.Ids.YouTube = episode.YouTubeId;
+        }
+        else if (!string.IsNullOrWhiteSpace(episode.Ids.YouTube))
+        {
+            episode.YouTubeId = episode.Ids.YouTube;
+        }
+
+        if (episode.Ids.IsEmpty)
+        {
+            episode.Ids = null;
+        }
     }
 
     public static Uri? CoalescedImage(Episode episode)

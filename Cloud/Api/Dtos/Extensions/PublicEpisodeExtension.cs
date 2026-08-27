@@ -18,7 +18,7 @@ public static class PublicEpisodeExtension
             Release = episode.Release,
             Length = episode.Length,
             Explicit = episode.Explicit,
-            Urls = episode.Urls,
+            Ids = episode.Ids,
             Services = episode.Services,
             Subjects = episode.Subjects,
             Image = EpisodeServicePresence.CoalescedImage(episode) // pragma: allowlist secret

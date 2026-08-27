@@ -61,4 +61,50 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         episode.Images.Should().NotBeNull();
         episode.Images!.Other.Should().Be(new Uri("https://i.vimeocdn.com/video/123456789-d_640"));
     }
+
+    [Fact(DisplayName =
+        "Hydrate copies top-level Spotify/Apple/YouTube ids into the nested ids object so presence of a reconstructable service is the id, not a named URL slot.")]
+    public void Hydrate_syncs_nested_ids_from_top_level_ids()
+    {
+        // Arrange
+        var episode = new Episode
+        {
+            SpotifyId = "4rOoJ6Egrf8K2IrywzwOMk",
+            AppleId = 9876543210,
+            YouTubeId = "abc123DEF45"
+        };
+
+        // Act
+        EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
+
+        // Assert
+        episode.Ids.Should().NotBeNull();
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Ids.Apple.Should().Be(9876543210);
+        episode.Ids.YouTube.Should().Be("abc123DEF45");
+    }
+
+    [Fact(DisplayName =
+        "SyncIds writes nested ids back onto the legacy top-level Spotify/Apple/YouTube id fields so matching and Cosmos SQL keep working during dual-write.")]
+    public void Sync_ids_copies_nested_ids_onto_top_level_fields()
+    {
+        // Arrange
+        var episode = new Episode
+        {
+            Ids = new EpisodeIds // pragma: allowlist secret
+            {
+                Spotify = "nestedSpotifyId",
+                Apple = 111,
+                YouTube = "nestedYouTubeId"
+            }
+        };
+
+        // Act
+        EpisodeServicePresence.SyncIds(episode); // pragma: allowlist secret
+
+        // Assert
+        episode.SpotifyId.Should().Be("nestedSpotifyId");
+        episode.AppleId.Should().Be(111);
+        episode.YouTubeId.Should().Be("nestedYouTubeId");
+    }
 }

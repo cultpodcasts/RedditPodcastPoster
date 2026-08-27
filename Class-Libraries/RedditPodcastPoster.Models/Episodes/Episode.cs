@@ -110,6 +110,14 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     [JsonPropertyOrder(52)]
     public string YouTubeId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Grouped platform ids. Dual-written with <see cref="SpotifyId"/> / <see cref="AppleId"/> /
+    /// <see cref="YouTubeId"/> until Cosmos SQL and matching code read this object only.
+    /// </summary>
+    [JsonPropertyName("ids")]
+    [JsonPropertyOrder(53)]
+    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(60)]
     public ServiceUrls Urls { get; set; } = new();

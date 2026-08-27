@@ -412,6 +412,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk"); // pragma: allowlist secret
         episode.Urls.Spotify!.ToString().Should().NotContain("si=");
         state.UpdateSpotifyImage.Should().BeTrue();
     }
@@ -624,6 +625,31 @@ public class EpisodeChangeApplierTests
         episode.Services!["vimeo"].Url.Should().Be(vimeoUrl);
         episode.Services["vimeo"].Image.Should().Be(vimeoImage);
         episode.Images!.Other.Should().Be(vimeoImage);
+    }
+
+    [Fact(DisplayName =
+        "Apply extracts SpotifyId into nested ids when a Spotify URL is supplied under services, so presence of that service is the id rather than a named URL slot.")]
+    public void Apply_extracts_spotify_id_from_services_url()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var spotifyUrl = new Uri("https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk");
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            {
+                ["spotify"] = new() { Url = spotifyUrl }
+            }
+        });
+
+        // Assert
+        episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk"); // pragma: allowlist secret
+        episode.Services.Should().ContainKey("spotify");
+        state.UpdateSpotifyImage.Should().BeTrue();
     }
 
     // ----- Images -----

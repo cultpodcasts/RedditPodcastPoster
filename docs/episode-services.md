@@ -15,7 +15,17 @@ JSON **keys** are the service identity used for logos (`ServiceCatalog` / websit
 
 The catalog is one ordered list (YouTube, Spotify, Apple, BBC iPlayer, BBC Sounds, Internet Archive, Vimeo, Netflix, Amazon Prime, Other). Curator forms show dedicated slots for `DefaultUiKeys` (Spotify, Apple, YouTube) and a list of other URLs whose service is inferred from the host.
 
-First-class episode ids (`spotifyId`, `youTubeId`, `appleId`) stay for matching and search reconstruction. They are not replaced by `services`.
+Platform identity for matching and “do we have Spotify / Apple / YouTube?” lives on **`ids`**, not on a named URL slot:
+
+```json
+"ids": {
+  "spotify": "4rOoJ6Egrf8K2IrywzwOMk",
+  "apple": 9876543210,
+  "youtube": "abc123DEF45"
+}
+```
+
+Top-level `spotifyId` / `appleId` / `youTubeId` are dual-written with `ids` until Cosmos SQL and matching read the nested object only. Published homepage and public episode payloads expose **`ids` + `services`** — they do not bolt on a parallel `urls: { apple, spotify, youtube }` object. Reconstruct a listen/watch URL from `services.{key}.url`, or from `ids` (search still uses compact `spotifyId` / `youtubeId` / `appleId` + `podcastAppleId`). <!-- pragma: allowlist secret -->
 
 ## Dual-write (migration)
 
