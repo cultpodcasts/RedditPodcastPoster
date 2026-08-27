@@ -14,16 +14,17 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
     public void needs_backfill_false_when_services_and_ids_cover_legacy_slots() // pragma: allowlist secret
     {
         // Arrange
-        var json = """
+        var json =
+            """
             {
               "id": "11111111-1111-1111-1111-111111111111",
-              "podcastId": "22222222-2222-2222-2222-222222222222", // pragma: allowlist secret
+              "podcastId": "22222222-2222-2222-2222-222222222222",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk",
-              "ids": { "spotify": "4rOoJ6Egrf8K2IrywzwOMk" }, // pragma: allowlist secret
-              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" }, // pragma: allowlist secret
-              "services": { "spotify": { "url": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } } // pragma: allowlist secret
+              "ids": { "spotify": "4rOoJ6Egrf8K2IrywzwOMk" },
+              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" },
+              "services": { "spotify": { "url": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } }
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var needs = EpisodeServiceDocumentMigration.NeedsBackfill(JsonDocument.Parse(json).RootElement); // pragma: allowlist secret
@@ -37,11 +38,12 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
     public void needs_backfill_true_when_legacy_spotify_url_has_no_service()
     {
         // Arrange
-        var json = """
+        var json =
+            """
             {
-              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } // pragma: allowlist secret
+              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" }
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var needs = EpisodeServiceDocumentMigration.NeedsBackfill(JsonDocument.Parse(json).RootElement); // pragma: allowlist secret
@@ -55,9 +57,7 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
     public void needs_backfill_true_when_top_level_spotify_id_has_no_nested_id()
     {
         // Arrange
-        var json = """
-            { "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk" }
-            """;
+        var json = """{ "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk" }"""; // pragma: allowlist secret
 
         // Act
         var needs = EpisodeServiceDocumentMigration.NeedsBackfill(JsonDocument.Parse(json).RootElement); // pragma: allowlist secret
@@ -71,11 +71,12 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
     public void needs_backfill_true_when_iplayer_url_has_no_bbc_iplayer_service()
     {
         // Arrange
-        var json = """
+        var json =
+            """
             {
-              "urls": { "bbc": "https://www.bbc.co.uk/iplayer/episode/p0abcd12" } // pragma: allowlist secret
+              "urls": { "bbc": "https://www.bbc.co.uk/iplayer/episode/p0abcd12" }
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var needs = EpisodeServiceDocumentMigration.NeedsBackfill(JsonDocument.Parse(json).RootElement); // pragma: allowlist secret
@@ -108,21 +109,21 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
         var podcastId = Guid.NewGuid(); // pragma: allowlist secret
         var gap = $$"""
             {
-              "id": "{{gapEpisodeId}}", // pragma: allowlist secret
-              "podcastId": "{{podcastId}}", // pragma: allowlist secret
+              "id": "{{gapEpisodeId}}",
+              "podcastId": "{{podcastId}}",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk"
             }
-            """;
+            """; // pragma: allowlist secret
         var complete = $$"""
             {
-              "id": "{{completeEpisodeId}}", // pragma: allowlist secret
-              "podcastId": "{{podcastId}}", // pragma: allowlist secret
+              "id": "{{completeEpisodeId}}",
+              "podcastId": "{{podcastId}}",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk",
-              "ids": { "spotify": "4rOoJ6Egrf8K2IrywzwOMk" }, // pragma: allowlist secret
-              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" }, // pragma: allowlist secret
-              "services": { "spotify": { "url": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } } // pragma: allowlist secret
+              "ids": { "spotify": "4rOoJ6Egrf8K2IrywzwOMk" },
+              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" },
+              "services": { "spotify": { "url": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } }
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var selected = EpisodeServiceDocumentMigration.SelectDocumentsToBackfill([gap, complete]); // pragma: allowlist secret

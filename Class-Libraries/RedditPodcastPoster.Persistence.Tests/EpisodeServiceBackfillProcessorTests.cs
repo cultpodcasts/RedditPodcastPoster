@@ -23,11 +23,11 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         var sut = new EpisodeServiceBackfillProcessor(repo.Object, NullLogger<EpisodeServiceBackfillProcessor>.Instance); // pragma: allowlist secret
         var json = $$"""
             {
-              "id": "{{episodeId}}", // pragma: allowlist secret
-              "podcastId": "{{podcastId}}", // pragma: allowlist secret
+              "id": "{{episodeId}}",
+              "podcastId": "{{podcastId}}",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk"
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var report = await sut.RunAsync([json], apply: false);
@@ -63,12 +63,12 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         var sut = new EpisodeServiceBackfillProcessor(repo.Object, NullLogger<EpisodeServiceBackfillProcessor>.Instance); // pragma: allowlist secret
         var json = $$"""
             {
-              "id": "{{episodeId}}", // pragma: allowlist secret
-              "podcastId": "{{podcastId}}", // pragma: allowlist secret
+              "id": "{{episodeId}}",
+              "podcastId": "{{podcastId}}",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk",
-              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" } // pragma: allowlist secret
+              "urls": { "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk" }
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var report = await sut.RunAsync([json], apply: true);
@@ -94,11 +94,11 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         var sut = new EpisodeServiceBackfillProcessor(repo.Object, NullLogger<EpisodeServiceBackfillProcessor>.Instance); // pragma: allowlist secret
         var json = $$"""
             {
-              "id": "{{episodeId}}", // pragma: allowlist secret
-              "podcastId": "{{podcastId}}", // pragma: allowlist secret
+              "id": "{{episodeId}}",
+              "podcastId": "{{podcastId}}",
               "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk"
             }
-            """;
+            """; // pragma: allowlist secret
 
         // Act
         var report = await sut.RunAsync([json], apply: true);
