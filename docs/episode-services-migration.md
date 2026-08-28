@@ -11,6 +11,8 @@ Risk assessment (functionality + data loss, including full-upsert and publish-or
 
 Ops runbook (human gates, backups, checks): [episode-services-ops-runbook.md](episode-services-ops-runbook.md).
 
+Deploy plan with diagram and post-step checks: [episode-services-deploy-plan.md](episode-services-deploy-plan.md).
+
 ## Why a phased plan
 
 Typed `Episode` deserialize already calls `EpisodeServicePresence.Hydrate`. That means **in-memory** code after this branch sees `services` / `ids` even when the Cosmos document does not store them yet. <!-- pragma: allowlist secret -->

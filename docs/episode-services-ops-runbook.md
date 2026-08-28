@@ -3,7 +3,7 @@
 
 Human-in-the-middle rollout. **You** decide each gate. An agent must not deploy Workers/Pages, must not write production Cosmos, and must not republish the feed unless you name that action.
 
-Companion docs: [risk](episode-services-risk.md) · [mechanics](episode-services-migration.md) · [canvas](episode-services-canvas.md).
+Companion docs: [deploy plan + diagram](episode-services-deploy-plan.md) · [risk](episode-services-risk.md) · [mechanics](episode-services-migration.md) · [canvas](episode-services-canvas.md).
 
 **Out of scope this exercise:** Phase 3 (stop dual-write / strip `urls`). Do not combine with a language job.
 

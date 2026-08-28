@@ -2,7 +2,7 @@
 # Canvas: one service catalog + nested ids
 
 This is the product/engineering canvas for the service-link work on `cursor/episode-service-links-18b4`.
-Authoritative code notes: [episode-services.md](episode-services.md). Rollout mechanics: [episode-services-migration.md](episode-services-migration.md). Loss-of-function / loss-of-data assessment: [episode-services-risk.md](episode-services-risk.md). Ops runbook: [episode-services-ops-runbook.md](episode-services-ops-runbook.md).
+Authoritative code notes: [episode-services.md](episode-services.md). Rollout mechanics: [episode-services-migration.md](episode-services-migration.md). Loss-of-function / loss-of-data assessment: [episode-services-risk.md](episode-services-risk.md). Ops runbook: [episode-services-ops-runbook.md](episode-services-ops-runbook.md). Deploy plan (diagram + checks): [episode-services-deploy-plan.md](episode-services-deploy-plan.md).
 
 ## 1. What changed
 
