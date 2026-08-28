@@ -34,13 +34,9 @@ public static class EpisodeServicePresence // pragma: allowlist secret
             map,
             ServiceKeys.InternetArchive,
             episode.Urls.InternetArchive,
-            bbcKey is null ? episode.Images?.Other : null);
+            bbcKey is null && episode.Urls.InternetArchive is not null ? episode.Images?.Other : null);
 
-        if (episode.Images?.Other is { } otherImage &&
-            !map.Values.Any(link => link.Image == otherImage))
-        {
-            Merge(map, ServiceKeys.Other, url: null, otherImage);
-        }
+        map.Remove("other");
 
         episode.Services = map.Count == 0 ? null : map;
         SyncIds(episode);
@@ -72,7 +68,10 @@ public static class EpisodeServicePresence // pragma: allowlist secret
                     Image(services, ServiceKeys.Vimeo) ??
                     Image(services, ServiceKeys.Netflix) ??
                     Image(services, ServiceKeys.AmazonPrime) ??
-                    Image(services, ServiceKeys.Other);
+                    Image(services, ServiceKeys.ParamountPlus) ??
+                    Image(services, ServiceKeys.HboMax) ??
+                    Image(services, ServiceKeys.PlaySuisse) ??
+                    Image(services, ServiceKeys.TvnzPlus);
 
         if (youtube is null && spotify is null && apple is null && other is null)
         {

@@ -27,7 +27,10 @@ public static class ServiceCatalog
         new(ServiceKeys.Vimeo, "Vimeo", "vimeo", false, true, ["vimeo.com"]),
         new(ServiceKeys.Netflix, "Netflix", "netflix", false, true, ["netflix.com"]),
         new(ServiceKeys.AmazonPrime, "Amazon Prime Video", "amazon-prime", false, true, ["primevideo.com", "amazon.com", "amazon.co.uk"]),
-        new(ServiceKeys.Other, "Other", "external-service", false, false, [])
+        new(ServiceKeys.ParamountPlus, "Paramount+", "paramount-plus", false, true, ["paramountplus.com"]),
+        new(ServiceKeys.HboMax, "HBO Max", "hbo-max", false, true, ["max.com", "hbomax.com"]),
+        new(ServiceKeys.PlaySuisse, "Play Suisse", "play-suisse", false, true, ["playsuisse.ch"]),
+        new(ServiceKeys.TvnzPlus, "TVNZ+", "tvnz-plus", false, true, ["tvnz.co.nz"])
     ];
 
     private static readonly Dictionary<string, Descriptor> ByKey =
@@ -47,7 +50,10 @@ public static class ServiceCatalog
         ServiceKeys.Vimeo,
         ServiceKeys.Netflix,
         ServiceKeys.AmazonPrime,
-        ServiceKeys.Other
+        ServiceKeys.ParamountPlus,
+        ServiceKeys.HboMax,
+        ServiceKeys.PlaySuisse,
+        ServiceKeys.TvnzPlus
     ];
 
     /// <summary>Editor default slots: Spotify, Apple, YouTube (same identity as <see cref="IndexIdKeys"/>, UI order).</summary>
@@ -75,7 +81,10 @@ public static class ServiceCatalog
         ServiceKeys.Vimeo,
         ServiceKeys.Netflix,
         ServiceKeys.AmazonPrime,
-        ServiceKeys.Other
+        ServiceKeys.ParamountPlus,
+        ServiceKeys.HboMax,
+        ServiceKeys.PlaySuisse,
+        ServiceKeys.TvnzPlus
     ];
 
     public static bool TryGet(string key, out Descriptor descriptor) =>
@@ -152,6 +161,26 @@ public static class ServiceCatalog
             return ServiceKeys.AmazonPrime;
         }
 
+        if (IsHost(host, "paramountplus.com"))
+        {
+            return ServiceKeys.ParamountPlus;
+        }
+
+        if (IsHost(host, "max.com") || IsHost(host, "hbomax.com"))
+        {
+            return ServiceKeys.HboMax;
+        }
+
+        if (IsHost(host, "playsuisse.ch"))
+        {
+            return ServiceKeys.PlaySuisse;
+        }
+
+        if (IsHost(host, "tvnz.co.nz"))
+        {
+            return ServiceKeys.TvnzPlus;
+        }
+
         return null;
     }
 
@@ -159,7 +188,7 @@ public static class ServiceCatalog
     /// Key for a URL that is not a well-known service: a host slug usable as a JSON key
     /// (letters/digits only, e.g. <c>dailymotioncom</c>).
     /// </summary>
-    public static string KeyFromUnknownHost(Uri url)
+    public static string? KeyFromUnknownHost(Uri url)
     {
         var host = url.Host.Trim().TrimEnd('.').ToLowerInvariant();
         if (host.StartsWith("www.", StringComparison.Ordinal))
@@ -168,10 +197,10 @@ public static class ServiceCatalog
         }
 
         var chars = host.Where(char.IsLetterOrDigit).ToArray();
-        return chars.Length == 0 ? ServiceKeys.Other : new string(chars);
+        return chars.Length == 0 ? null : new string(chars);
     }
 
-    public static string ResolveOrHostKey(Uri url) =>
+    public static string? ResolveOrHostKey(Uri url) =>
         TryResolveKey(url) ?? KeyFromUnknownHost(url);
 
     public static string? TryCompactUrl(string key, Uri url)

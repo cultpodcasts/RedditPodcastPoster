@@ -15,6 +15,11 @@ public class ServiceCatalogTests
     [InlineData("https://www.bbc.co.uk/iplayer/episode/p0abcd12", "bbcIplayer")]
     [InlineData("https://archive.org/details/harbour-vale-ep", "internetArchive")]
     [InlineData("https://www.primevideo.com/detail/0EXAMPLE", "amazonPrime")]
+    [InlineData("https://www.paramountplus.com/shows/example/", "paramountPlus")]
+    [InlineData("https://www.max.com/shows/example", "hboMax")]
+    [InlineData("https://www.hbomax.com/series/urn:hbo:series:example", "hboMax")]
+    [InlineData("https://www.playsuisse.ch/watch/example", "playSuisse")]
+    [InlineData("https://www.tvnz.co.nz/shows/example", "tvnzPlus")]
     public void Resolves_well_known_hosts_to_stable_json_keys(string url, string expectedKey)
     {
         // Arrange
@@ -41,5 +46,23 @@ public class ServiceCatalogTests
 
         // Assert
         key.Should().Be("dailymotioncom");
+        ServiceCatalog.TryGet("other", out _).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Service catalog is an explicit list of defined destinations and does not include an other catch-all, because leftover images.other is cover art rather than a listen service.")]
+    public void Catalog_does_not_include_other()
+    {
+        // Arrange
+        var hostWithNoAlnum = new Uri("http://-/");
+
+        // Act
+        var keys = ServiceCatalog.All.Select(d => d.Key).ToArray();
+
+        // Assert
+        keys.Should().NotContain("other");
+        ServiceCatalog.ImageCoalesceOrder.Should().NotContain("other");
+        ServiceCatalog.SearchEncodedKeys.Should().NotContain("other");
+        ServiceCatalog.KeyFromUnknownHost(hostWithNoAlnum).Should().BeNull();
     }
 }

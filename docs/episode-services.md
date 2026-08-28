@@ -11,9 +11,9 @@ Canonical storage is an adjacent per-service map on the Cosmos episode document:
 }
 ```
 
-JSON **keys** are the service identity used for logos (`ServiceCatalog` / website `service-catalog.ts`). A URL can also be resolved to a key from host/path (BBC Sounds vs iPlayer, Vimeo, Netflix, Amazon Prime, …). Unknown hosts slug to an alphanumeric key so they can still render with the generic `external-service` icon.
+JSON **keys** are the service identity used for logos (`ServiceCatalog` / website `service-catalog.ts`). A URL can also be resolved to a key from host/path (BBC Sounds vs iPlayer, Vimeo, Netflix, Amazon Prime, …). Unknown hosts slug to an alphanumeric key so they can still render with the generic `external-service` icon. There is no catch-all `other` service; leftover `images.other` is cover art.
 
-The catalog is one ordered list (YouTube, Spotify, Apple, BBC iPlayer, BBC Sounds, Internet Archive, Vimeo, Netflix, Amazon Prime, Other). Curator forms show dedicated slots for `DefaultUiKeys` (Spotify, Apple, YouTube) and a list of other URLs whose service is inferred from the host.
+The catalog is one ordered list (YouTube, Spotify, Apple, BBC iPlayer, BBC Sounds, Internet Archive, Vimeo, Netflix, Amazon Prime, Paramount+, HBO Max, Play Suisse, TVNZ+). Curator forms show dedicated slots for `DefaultUiKeys` (Spotify, Apple, YouTube) and a list of additional URLs whose service is inferred from the host.
 
 Platform identity for matching and “do we have Spotify / Apple / YouTube?” lives on **`ids`**, not on a named URL slot:
 

@@ -468,7 +468,11 @@ public partial class CreateSearchIndexProcessor(
                                     IIF(IS_DEFINED(e.urls.internetArchive), CONCAT(""internetArchive:"", e.urls.internetArchive, ""|""), """")),
                                 IIF(IS_DEFINED(e.services.vimeo.url), CONCAT(""vimeo:"", e.services.vimeo.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.netflix.url), CONCAT(""netflix:"", e.services.netflix.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.amazonPrime.url), CONCAT(""amazonPrime:"", e.services.amazonPrime.url, ""|""), """")
+                                IIF(IS_DEFINED(e.services.amazonPrime.url), CONCAT(""amazonPrime:"", e.services.amazonPrime.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.paramountPlus.url), CONCAT(""paramountPlus:"", e.services.paramountPlus.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.hboMax.url), CONCAT(""hboMax:"", e.services.hboMax.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.playSuisse.url), CONCAT(""playSuisse:"", e.services.playSuisse.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.tvnzPlus.url), CONCAT(""tvnzPlus:"", e.services.tvnzPlus.url, ""|""), """")
                             ), ""|"") as svc,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,

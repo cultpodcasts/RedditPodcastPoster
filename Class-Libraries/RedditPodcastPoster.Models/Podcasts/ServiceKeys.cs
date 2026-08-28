@@ -15,5 +15,8 @@ public static class ServiceKeys
     public const string Vimeo = "vimeo";
     public const string Netflix = "netflix";
     public const string AmazonPrime = "amazonPrime";
-    public const string Other = "other";
+    public const string ParamountPlus = "paramountPlus";
+    public const string HboMax = "hboMax";
+    public const string PlaySuisse = "playSuisse";
+    public const string TvnzPlus = "tvnzPlus";
 }
