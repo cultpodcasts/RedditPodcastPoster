@@ -7,6 +7,8 @@ This is the plan for moving from split `urls` / `images` / top-level platform id
 
 Do **not** treat this document as approval to write production Cosmos, recreate the search index, or deploy Workers/Pages.
 
+Risk assessment (functionality + data loss, including full-upsert and publish-order traps): [episode-services-risk.md](episode-services-risk.md).
+
 ## Why a phased plan
 
 Typed `Episode` deserialize already calls `EpisodeServicePresence.Hydrate`. That means **in-memory** code after this branch sees `services` / `ids` even when the Cosmos document does not store them yet. <!-- pragma: allowlist secret -->
