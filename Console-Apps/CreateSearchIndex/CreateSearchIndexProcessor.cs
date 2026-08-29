@@ -728,7 +728,11 @@ public partial class CreateSearchIndexProcessor(
         using var cosmosClient = CreateCosmosClient();
         var container = cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
 
-        var query = $@"SELECT e.id, e.podcastId, e.title, e.release, e.spotifyId, e.appleId, e.youTubeId, e.podcastName
+        var query = $@"SELECT e.id, e.podcastId, e.title, e.release,
+                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, e.spotifyId) as spotifyId,
+                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, e.appleId) as appleId,
+                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, e.youTubeId) as youTubeId,
+                              e.podcastName
                        FROM episodes e
                        WHERE {ActiveEpisodesFilter}";
         var iterator = container.GetItemQueryIterator<EpisodeDuplicateSample>(new QueryDefinition(query));

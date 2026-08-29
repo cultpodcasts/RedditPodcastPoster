@@ -135,6 +135,9 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
             return SkipReasons.MissingIdOrPodcastId;
         }
 
+        EpisodeServiceDocumentMigration.MergeRawLeftoverIntoCatalog(episode, raw);
+        EpisodeServicePresence.NormalizeCatalog(episode);
+
         if (episode.Services is { Count: 0 }) // pragma: allowlist secret
         {
             episode.Services = null; // pragma: allowlist secret

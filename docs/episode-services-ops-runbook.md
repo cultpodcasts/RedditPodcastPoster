@@ -5,7 +5,7 @@ Human-in-the-middle rollout. **You** decide each gate. Website and Api Worker sh
 
 Companion docs: [deploy plan + diagram](episode-services-deploy-plan.md) · [risk](episode-services-risk.md) · [mechanics](episode-services-migration.md) · [canvas](episode-services-canvas.md).
 
-**Out of scope this exercise:** Phase 3 (stop dual-write / strip `urls`). Do not combine with a language job.
+**Out of scope this exercise:** leftover JSON **strip** (`NeedsStrip`). Phase 3 leftover DTO retire is on this freeze branch. Do not combine with a language job.
 
 No new Worker secrets. Ignore GitHub Actions as a go/no-go.
 
@@ -57,10 +57,10 @@ Do not deploy Functions. Do not publish the feed. Complete site + Worker PRs imm
 
 ### 0.1 Confirm what you are shipping
 
-- [ ] Functions PR (this repo) includes dual-write + new public/feed JSON (`ids` + `services` only)
+- [ ] Functions PR includes catalog writers (`services` + nested `ids`) and public/feed JSON (`ids` + `services` only). Leftover members are not dual-written.
 - [ ] Api Worker PR: OpenAPI allows leftover named URL fields **and** `ids`/`services`; Worker still returns R2 **bytes unchanged**
 - [ ] Site PR: helpers read `services` → leftover named fields → `ids` / search compact ids / `svc`
-- [ ] Known bug **F4** still open: clearing Spotify/Apple/YouTube in the form can be undone by `SyncLegacy`. Treat “clear a link” as a soak item; do not rely on clear until a follow-up fix ships
+- [ ] **F4:** empty default `urls` slots on curator PATCH must `Upsert(..., null, null)` and clear nested ids (fixed on this branch; soak after Functions deploy)
 - [ ] Local: `dotnet test` on this repo; site + Api unit tests green on their branches
 
 ### 0.2 Backups (do these first; keep until Phase 2 is done or abandoned)
@@ -322,4 +322,4 @@ Only if canary diffs are clean.
 | Homepage or feed changed during 1c | Used `all` / `homepage` / admin publish | Restore feed from A and homepage from its step-0 copy; do not merge Functions |
 | Raw JSON lost `urls` or `lang` after a save | Upsert / wrong job (D1 / language-class bug) | Restore that id from snapshot; stop batch apply |
 | Curator clear Spotify does not stick | F4 | Leave the URL; fix in a later PR — not a backfill |
-| Tweet “No link found” | Missing legacy `urls` and SyncLegacy did not run | Check Functions version; do not strip `urls` |
+| Tweet “No link found” | No catalog listen URL on `services` | Check Functions version; posters read `TryGetPreferredSocialPostUrl` |

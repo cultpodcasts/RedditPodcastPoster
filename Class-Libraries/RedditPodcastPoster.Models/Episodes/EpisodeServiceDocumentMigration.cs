@@ -6,8 +6,9 @@ namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
 /// <summary>
 /// Pure Cosmos-document migration for <c>services</c> + <c>ids</c>. // pragma: allowlist secret
-/// Selection reads raw JSON (typed <see cref="Episode"/> deserialize already hydrates). // pragma: allowlist secret
-/// Apply mutates an in-memory episode the same way serialize dual-write does. // pragma: allowlist secret
+/// Selection and <see cref="NeedsBackfill"/> read leftover from raw JSON (typed
+/// <see cref="Episode"/> deserialize ignores leftover members).
+/// Apply normalizes catalog and nested ids only; it does not dual-write leftover JSON.
 /// </summary>
 public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
 {

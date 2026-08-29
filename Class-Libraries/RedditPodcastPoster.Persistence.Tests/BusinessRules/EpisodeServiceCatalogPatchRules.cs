@@ -412,6 +412,24 @@ public class EpisodeServiceCatalogPatchRules
         _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When stored JSON has only leftover Spotify url and top-level id, Classify returns null " +
+        "because leftover is merged into catalog before the empty-services skip check.")]
+    public void classify_leftover_only_document_is_a_candidate_not_both_null()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+        var json = ToLegacyJson(episode);
+
+        // Act
+        var skip = EpisodeServiceCatalogPatchFactory.Classify(json);
+
+        // Assert
+        skip.Should().BeNull();
+        EpisodeServiceCatalogPatchFactory.TryCreate(json, out _).Should().BeTrue();
+    }
+
     private static string ToLegacyJson(Episode episode, string? extraPropertyValue = null)
     {
         var urls = new Dictionary<string, string?>();

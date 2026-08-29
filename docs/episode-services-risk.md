@@ -1,7 +1,7 @@
 <!-- pragma: allowlist secret -->
 # Risk assessment: service catalog + nested ids rollout
 
-Scope: Phase 0–2 of [episode-services-migration.md](episode-services-migration.md). Phase 3 (stop dual-write / strip `urls`) is **out of scope** and is the highest future delete risk — do not combine it with this exercise.
+Scope: Phase 0–2 of [episode-services-migration.md](episode-services-migration.md) as they were designed. **Phase 3 leftover DTO retire has landed on freeze branch `cursor/episode-service-links-18b4`** (`SyncLegacy` is gone; typed `Episode` has no leftover members). Optional `NeedsStrip` of leftover Cosmos JSON is still later. Treat the dual-write rows below as **historical** unless noted.
 
 This is not approval to write production Cosmos, republish the feed, or recreate search.
 

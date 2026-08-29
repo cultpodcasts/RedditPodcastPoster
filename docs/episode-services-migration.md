@@ -15,11 +15,9 @@ Deploy plan with diagram and post-step checks: [episode-services-deploy-plan.md]
 
 ## Why a phased plan
 
-Typed `Episode` deserialize already calls `EpisodeServicePresence.Hydrate`. That means **in-memory** code after this branch sees `services` / `ids` even when the Cosmos document does not store them yet. <!-- pragma: allowlist secret -->
+Phase 3 (this freeze branch): leftover members are **not** on typed `Episode`. `NormalizeCatalog` does not copy leftover `urls` into the catalog. App matching and writers use nested `ids` / `services`. Leftover JSON is still dual-**read** by backfill (`MergeRawLeftoverIntoCatalog`) and by search indexer SQL until leftover keys wither. Optional `NeedsStrip` is later. <!-- pragma: allowlist secret -->
 
-The search indexer SQL still reads `e.urls.*` and top-level `spotifyId` / `appleId` / `youTubeId`. Matching still uses those top-level fields. So dual-write (`SyncLegacy` + `SyncIds`) stays on until every reader is switched. <!-- pragma: allowlist secret -->
-
-The published feed / public episode JSON on this branch is `ids` + `services` only. Older R2 objects still have flat `spotify` / `apple` / `youtube` URL fields. Website helpers keep reading those leftover fields until the feed is republished. <!-- pragma: allowlist secret -->
+The published feed / public episode JSON is `ids` + `services` only. Older R2 objects may still have flat named URL fields. Website helpers keep reading those leftover fields until the feed is republished. <!-- pragma: allowlist secret -->
 
 ## Tested migration code
 
@@ -27,7 +25,7 @@ The published feed / public episode JSON on this branch is `ids` + `services` on
 | --- | --- |
 | `EpisodeServiceDocumentMigration.NeedsBackfill(JsonElement)` | Decide from **raw JSON** (not a hydrated `Episode`) whether `services` / `ids` are incomplete | <!-- pragma: allowlist secret -->
 | `EpisodeServiceDocumentMigration.SelectDocumentsToBackfill` | Dry-run candidate list (`podcastId` + episode `id`) | <!-- pragma: allowlist secret -->
-| `EpisodeServiceDocumentMigration.Apply(Episode)` | Hydrate + dual-write; returns whether the persisted shape changed (idempotent) | <!-- pragma: allowlist secret -->
+| `EpisodeServiceDocumentMigration.Apply(Episode)` | `NormalizeCatalog` + nested ids; returns whether the in-memory catalog shape changed. Does not write leftover members | <!-- pragma: allowlist secret -->
 | `EpisodeServiceBackfillProcessor` | Dry-run count, or load/save only candidates. Default is **not** apply | <!-- pragma: allowlist secret -->
 
 Tests: `EpisodeServiceDocumentMigrationTests`, `EpisodeServiceBackfillProcessorTests`. <!-- pragma: allowlist secret -->
@@ -43,9 +41,11 @@ FROM c
 
 Then `NeedsBackfill` on each item. A cheaper first pass is `NOT IS_DEFINED(c.services) OR NOT IS_DEFINED(c.ids)` — that **misses** documents that already have a partial `services` map (e.g. YouTube only) while `urls.spotify` is still set. Prefer the full `NeedsBackfill` filter. <!-- pragma: allowlist secret -->
 
-## Phase 0 — already on this branch (safe to merge)
+## Phase 0 — historical (superseded by Phase 3 on this branch)
 
-Code dual-reads and dual-writes. No bulk Cosmos write required for correctness of new writes:
+Phase 0 shipped dual-read and dual-write. **This freeze branch no longer dual-writes leftover members.** Keep leftover JSON in Cosmos until wither/strip.
+
+Historical notes:
 
 - New/updated episodes persist `services` + `ids` **and** `urls` / `images` / top-level ids <!-- pragma: allowlist secret -->
 - Search SQL and matching keep working
@@ -84,19 +84,11 @@ Do not deploy website-only against an old feed if leftover URL fallbacks are rem
 
 Do not run apply against production from an agent session unless that write is explicitly requested.
 
-## Phase 3 — stop dual-write (later PR)
+## Phase 3 — leftover DTO retire (this branch)
 
-Only after all of these read `services` / `ids`: <!-- pragma: allowlist secret -->
+Typed `Episode` no longer has leftover members. Writers stop dual-write. Search indexer SQL prefers `e.ids.*` / `e.services.*` with leftover JSON as **read fallback**. Curator PATCH may still send leftover-shaped `urls` on the **request** DTO; the applier maps those onto catalog.
 
-- Cosmos SQL in `CreateSearchIndex` (today still `e.urls.*`)
-- Matching / enrichers (today `Episode.SpotifyId` etc.) <!-- pragma: allowlist secret -->
-- Curator forms (today still PATCH `urls`)
-
-Then, in a separate PR with its own tests:
-
-1. Stop `SyncLegacy` on serialize
-2. Stop writing top-level ids once matching reads `ids` <!-- pragma: allowlist secret -->
-3. Optional strip job for `urls` / `images` — **new** tested `NeedsStrip` + dry-run + apply, never combined with Phase 2
+Optional strip job for leftover Cosmos keys — **later** `NeedsStrip` + dry-run + apply, never combined with Phase 2.
 
 ## Rollback
 
@@ -108,4 +100,4 @@ Then, in a separate PR with its own tests:
 - [ ] Phase 1 deployed in the order above
 - [ ] Dry-run then apply backfill; second dry-run ~0
 - [ ] Feed republished; search reindexed with `svc`
-- [ ] Phase 3 tracked separately; dual-write still on until that PR
+- [ ] Phase 3 leftover DTO retire is on this freeze branch; leftover JSON withers on Save; strip is later

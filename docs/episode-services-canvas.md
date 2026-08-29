@@ -35,7 +35,7 @@ flowchart LR
   T --> D
 ```
 
-Until later cleanup, the document **dual-writes** both worlds so search SQL, matching, tweets, and curator PATCH `urls` keep working.
+Until leftover JSON withers, Cosmos documents may still **contain** both leftover keys and catalog keys. Application code **does not dual-write** leftover members. Search indexer SQL dual-**reads** leftover as fallback.
 
 ---
 
@@ -77,7 +77,7 @@ The add/edit dialogs keep **dedicated slots** for Spotify, Apple, YouTube (`DEFA
 
 - Changes to the three default slots + legacy BBC + Archive still go out as `urls.*` (and `images.*` if art changed).
 - Changes to additional catalog keys go out as `services.{key}.url`.
-- Server hydrate + dual-write fills `services` / `ids` from those `urls`, and keeps `urls` in sync on save.
+- Server maps leftover-shaped `urls` / `images` on the **request** onto `services` / nested `ids`. It does not write leftover members back onto `Episode`.
 
 **Curator impact**
 
@@ -90,27 +90,21 @@ The add/edit dialogs keep **dedicated slots** for Spotify, Apple, YouTube (`DEFA
 
 ## 4. How it affects tweets and Bluesky posts
 
-**No behaviour change while dual-write is on.**
+**Posters read catalog `services`.** Dual-write is off.
 
-`TweetBuilder` and `BlueskyEmbedCardPostFactory` still choose one outbound link from **legacy** `Episode.Urls`, in this order: <!-- pragma: allowlist secret -->
+`TweetBuilder` and `BlueskyEmbedCardPostFactory` choose one outbound link from **catalog** `services` (`TryGetPreferredSocialPostUrl`), in this order: <!-- pragma: allowlist secret -->
 
 1. YouTube
 2. Spotify
 3. Apple
 4. Internet Archive
-5. BBC (whichever URL is in the single `urls.bbc` slot)
+5. BBC iPlayer, then BBC Sounds
 
 If none exist, tweet build throws `No link found to tweet`.
 
-On deserialize, `EpisodeServicePresence.Hydrate` fills `services`. On serialize, `SyncLegacy` copies catalog URLs **back** into `urls` / `images`. So a document that only stored `services.youtube.url` still presents `Urls.YouTube` to the poster. <!-- pragma: allowlist secret -->
-
-Bluesky embed thumbnails still resolve via Spotify id (`Episode.SpotifyId`), which is dual-written with `ids.spotify`. <!-- pragma: allowlist secret -->
+Bluesky embed thumbnails resolve via nested `ids.spotify` (leftover top-level `spotifyId` is ignored on typed `Episode`). <!-- pragma: allowlist secret -->
 
 `hashTag` and posted/tweeted/bluesky flags are unchanged.
-
-**Later risk (Phase 3)**
-
-If we stop `SyncLegacy` or strip `urls` without updating the two poster factories, tweets/Bsky will fail or drop Archive/BBC. Phase 3 must switch posters to `services` (catalog order or the same YouTube→Spotify→Apple preference).
 
 Vimeo / Netflix / Prime **do not** appear in tweets today. Adding them is a product decision, not part of this branch.
 
@@ -143,7 +137,7 @@ Vimeo / Netflix / Prime **do not** appear in tweets today. Adding them is a prod
 }
 ```
 
-**After (canonical + dual-write still present)**
+**After Phase 2 backfill (catalog present; leftover JSON may still sit until wither)**
 
 ```json
 {
@@ -198,14 +192,14 @@ Empty string when none (never null — Azure Search merge ignores null). Grammar
 
 ## 6. Why migration is two tracks (code + data)
 
-`OnDeserialized` always hydrates. After this branch, **in-memory** typed objects look migrated even when Cosmos JSON has no `services`. Candidate selection **must** use raw JSON + `NeedsBackfill`. A cheap `NOT IS_DEFINED(c.services)` misses **partial** maps (YouTube in `services`, Spotify still only on `urls`). <!-- pragma: allowlist secret -->
+`OnDeserialized` calls `NormalizeCatalog` (drop retired `other`, empty ids). Leftover JSON is **not** copied onto typed `Episode`. Candidate selection **must** use raw JSON + `NeedsBackfill`. A cheap `NOT IS_DEFINED(c.services)` misses **partial** maps (YouTube in `services`, Spotify still only on `urls`). <!-- pragma: allowlist secret -->
 
 ```mermaid
 flowchart TD
-  P0[Phase 0 - this branch: dual-write + dual-read]
+  P0[Phase 0 - dual-write + dual-read]
   P1[Phase 1 - deploy Functions then Api then site then republish feed then add/reindex svc]
   P2[Phase 2 - Cosmos backfill dry-run then apply]
-  P3[Phase 3 - later PR: stop SyncLegacy, switch posters/SQL/forms, optional strip urls]
+  P3[Phase 3 - this branch: stop leftover writes, posters/SQL read catalog, leftover JSON withers; optional strip later]
   P0 --> P1 --> P2 --> P3
 ```
 
@@ -233,13 +227,9 @@ Tested types: document-migration (`NeedsBackfill`, `SelectDocumentsToBackfill`, 
 
 `Apply` **keeps** `urls` and top-level ids. This is a backfill, not a delete. Do not run apply against production from an agent session unless that write is explicitly requested.
 
-### Phase 3 — later PR (not this branch)
+### Phase 3 — leftover DTO retire (this freeze branch)
 
-Only after search SQL, matching, curator forms, and tweet/Bsky factories read `services` / `ids`:
-
-1. Stop `SyncLegacy`
-2. Stop writing top-level ids once matching reads `ids`
-3. Optional strip of `urls` / `images` — new tested `NeedsStrip`, never combined with Phase 2
+Writers stop leftover dual-write. Posters and matching read catalog / nested ids. Search indexer SQL dual-**reads** leftover as fallback. Optional strip of leftover Cosmos keys is later (`NeedsStrip`).
 
 ### Rollback
 
@@ -253,5 +243,5 @@ Only after search SQL, matching, curator forms, and tweet/Bsky factories read `s
 - [ ] Phase 1 deployed in the order above
 - [ ] Dry-run then apply; second dry-run ~0
 - [ ] Feed republished; search reindexed with `svc`
-- [ ] Phase 3 tracked separately; dual-write still on until that PR
-- [ ] Tweet/Bsky factories updated in the same PR that stops `SyncLegacy`
+- [ ] Phase 3 leftover DTO retire on this branch; leftover JSON withers on Save; strip later
+- [ ] Tweet/Bsky factories read catalog `services`

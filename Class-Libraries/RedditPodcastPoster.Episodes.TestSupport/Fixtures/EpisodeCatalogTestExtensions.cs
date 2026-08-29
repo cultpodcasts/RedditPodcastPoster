@@ -296,7 +296,7 @@ public sealed class EpisodeCatalogImages
 
         if (image is not null)
         {
-            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.BbcSounds, image);
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.BbcIplayer, image);
         }
     }
 }
