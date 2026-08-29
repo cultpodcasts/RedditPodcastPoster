@@ -472,19 +472,18 @@ public partial class CreateSearchIndexProcessor(
         //      a full reindex / index recreate is required after deploy so every document carries a
         //      lossless `image` token/URL and clients no longer rely on the coarse variant.
         // IMAGE PROJECTION — pull-path mirror of SearchEpisodeImage / EpisodeServicePresence
-        // CoalescedImage. Prefer catalog services.*.image (ImageCoalesceOrder), leftover
-        // e.images.* as read fallback until leftover JSON withers on Save.
+        // CoalescedImage. Catalog services.*.image only (Phase 2 backfill is source of truth).
         const string spotifyPrefix = "https://i.scdn.co/image/";
         const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
         var applePrefixLength = "https://is".Length + 1 + appleHostTail.Length;
         const string youTubeIdExpr =
-            @"IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, IIF(IS_DEFINED(e.youTubeId) AND e.youTubeId != """", e.youTubeId, """"))";
-        const string youtubeImageExpr = @"(e.services.youtube.image ?? e.images.youtube)";
-        const string spotifyImageExpr = @"(e.services.spotify.image ?? e.images.spotify)";
-        const string appleImageExpr = @"(e.services.apple.image ?? e.images.apple)";
-        const string appleUrlExpr = @"(e.services.apple.url ?? e.urls.apple)";
+            @"IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, """")";
+        const string youtubeImageExpr = @"e.services.youtube.image";
+        const string spotifyImageExpr = @"e.services.spotify.image";
+        const string appleImageExpr = @"e.services.apple.image";
+        const string appleUrlExpr = @"e.services.apple.url";
         var coalescedImageFallback =
-            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image ?? e.images.other";
+            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image";
         var isYouTubeToken =
             @$"(IS_DEFINED({youtubeImageExpr}) AND {youTubeIdExpr} != """"
                 AND STARTSWITH({youtubeImageExpr}, CONCAT(""https://i.ytimg.com/vi/"", {youTubeIdExpr}, ""/""))
@@ -526,25 +525,20 @@ public partial class CreateSearchIndexProcessor(
                                 e.description) as episodeDescription,
                             e.release,
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
-                            IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify,
-                                IIF(IS_DEFINED(e.spotifyId) AND e.spotifyId != """", e.spotifyId, null)) as spotifyId,
-                            IIF(IS_DEFINED(e.ids.apple), ToString(e.ids.apple),
-                                IIF(IS_DEFINED(e.appleId), ToString(e.appleId), null)) as appleId,
+                            IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                            IIF(IS_DEFINED(e.ids.apple), ToString(e.ids.apple), null) as appleId,
                             IIF(IS_DEFINED({appleUrlExpr}) AND CONTAINS({appleUrlExpr}, ""/id"") AND CONTAINS({appleUrlExpr}, ""?i=""),
                                 SUBSTRING({appleUrlExpr},
                                     INDEX_OF({appleUrlExpr}, ""/id"") + 3,
                                     INDEX_OF({appleUrlExpr}, ""?i="") - INDEX_OF({appleUrlExpr}, ""/id"") - 3),
                                 null) as podcastAppleId,
                             IIF({youTubeIdExpr} != """", {youTubeIdExpr}, null) as youtubeId,
-                            (e.services.bbcIplayer.url ?? e.services.bbcSounds.url ?? e.urls.bbc) as bbc,
-                            (e.services.internetArchive.url ?? e.urls.internetArchive) as internetArchive,
+                            (e.services.bbcIplayer.url ?? e.services.bbcSounds.url) as bbc,
+                            e.services.internetArchive.url as internetArchive,
                             RTRIM(CONCAT(
-                                IIF(IS_DEFINED(e.services.bbcSounds.url), CONCAT(""bbcSounds:"", e.services.bbcSounds.url, ""|""),
-                                    IIF(IS_DEFINED(e.urls.bbc) AND CONTAINS(e.urls.bbc, ""/sounds/""), CONCAT(""bbcSounds:"", e.urls.bbc, ""|""), """")),
-                                IIF(IS_DEFINED(e.services.bbcIplayer.url), CONCAT(""bbcIplayer:"", e.services.bbcIplayer.url, ""|""),
-                                    IIF(IS_DEFINED(e.urls.bbc) AND (CONTAINS(e.urls.bbc, ""/iplayer/"") OR CONTAINS(e.urls.bbc, ""/news/av-embeds/"")), CONCAT(""bbcIplayer:"", e.urls.bbc, ""|""), """")),
-                                IIF(IS_DEFINED(e.services.internetArchive.url), CONCAT(""internetArchive:"", e.services.internetArchive.url, ""|""),
-                                    IIF(IS_DEFINED(e.urls.internetArchive), CONCAT(""internetArchive:"", e.urls.internetArchive, ""|""), """")),
+                                IIF(IS_DEFINED(e.services.bbcSounds.url), CONCAT(""bbcSounds:"", e.services.bbcSounds.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.bbcIplayer.url), CONCAT(""bbcIplayer:"", e.services.bbcIplayer.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.internetArchive.url), CONCAT(""internetArchive:"", e.services.internetArchive.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.vimeo.url), CONCAT(""vimeo:"", e.services.vimeo.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.netflix.url), CONCAT(""netflix:"", e.services.netflix.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.amazonPrime.url), CONCAT(""amazonPrime:"", e.services.amazonPrime.url, ""|""), """"),
@@ -729,9 +723,9 @@ public partial class CreateSearchIndexProcessor(
         var container = cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
 
         var query = $@"SELECT e.id, e.podcastId, e.title, e.release,
-                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, e.spotifyId) as spotifyId,
-                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, e.appleId) as appleId,
-                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, e.youTubeId) as youTubeId,
+                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, null) as appleId,
+                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, null) as youTubeId,
                               e.podcastName
                        FROM episodes e
                        WHERE {ActiveEpisodesFilter}";

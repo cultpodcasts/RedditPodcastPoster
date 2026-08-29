@@ -15,7 +15,7 @@ Deploy plan with diagram and post-step checks: [episode-services-deploy-plan.md]
 
 ## Why a phased plan
 
-Phase 3 (this freeze branch): leftover members are **not** on typed `Episode`. `NormalizeCatalog` does not copy leftover `urls` into the catalog. App matching and writers use nested `ids` / `services`. Leftover JSON is still dual-**read** by the **EpisodeServiceBackfill CLI** (`MergeRawLeftoverIntoCatalog`) and by search indexer SQL until leftover keys wither. Optional `NeedsStrip` is later.
+Phase 3 (this freeze branch): leftover members are **not** on typed `Episode`. `NormalizeCatalog` does not copy leftover `urls` into the catalog. App matching and writers use nested `ids` / `services`. Search indexer SQL is catalog-only. The **EpisodeServiceBackfill CLI** still dual-**reads** leftover JSON to build surgical patches. Optional `NeedsStrip` is later.
 
 The published feed / public episode JSON is `ids` + `services` only. Older R2 objects may still have flat named URL fields. Website helpers keep reading those leftover fields until the feed is republished.
 

@@ -45,9 +45,9 @@ public class FindDuplicateEpisodesProcessor(
         }
 
         var query = $@"SELECT e.id, e.podcastId, e.title, e.release,
-                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, e.spotifyId) as spotifyId,
-                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, e.appleId) as appleId,
-                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, e.youTubeId) as youTubeId,
+                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, null) as appleId,
+                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, null) as youTubeId,
                               e.podcastName
                        FROM episodes e
                        WHERE {ActiveEpisodesFilter}";

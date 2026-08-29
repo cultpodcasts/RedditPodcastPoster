@@ -4,7 +4,7 @@ Phases 0–2 (Functions dual-write deploy + Cosmos catalog backfill + search `sv
 
 Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). Full-document `Save()` still withers leftover JSON keys: [episode-services-risk.md](episode-services-risk.md) D1 / D8.
 
-**Updated:** 2026-08-29 13:38 BST.
+**Updated:** 2026-08-29 14:07 BST.
 
 ## Can we proceed — no data loss, quality code?
 
@@ -16,14 +16,14 @@ Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). 
 | Ingest since 21:00 BST 28 Aug (`_ts` > `1787947200`) | 39 documents, **0** `NeedsBackfill` |
 | Full-container dry-run 29 Aug | scanned **97345**, candidates **0** |
 | Production Functions | Still **pre–Phase 3** (28 Aug script-deploy). New indexer Saves still dual-write leftover JSON **and** catalog |
-| #966 code quality | Origin `29ab3ae9` leftover CLI + backfill off production. Owner comments still being applied (including dropping Episode STJ hooks). |
-| Catalog / Indexer window | **15:00 BST** `--since-ts` then ask before Functions. 11:00 / 13:00 / 14:00 slots missed. |
+| #966 | Origin **`79793077`**. Leftover DTO retire, CLI leftover subclass, backfill off Models/Persistence, STJ hooks off Episode. #966 open. Do not merge. |
+| Catalog / Indexer window | **15:00 BST** `--since-ts` (21:00 BST 28 Aug), apply only if candidates, then **ask** before Functions. Next hourly after that is **16:03 BST**. |
 
 **Data-loss posture**
 
 - Surgical backfill patches **only** `/services` and `/ids`. It does not delete leftover JSON, title, description, `lang`, or guests.
 - Typed `Episode` no longer has leftover members, so a **full upsert** after Phase 3 Functions omit leftover keys. Catalog stays. That is wither, not strip.
-- Search indexer SQL **dual-reads** leftover JSON until those keys wither. Compact search fields (`spotifyId` / `youtubeId` / `appleId` / `image` / `svc`) stay.
+- Search indexer SQL reads **catalog only** (`e.ids.*` / `e.services.*`). Phase 2 backfill made leftover JSON redundant for search. Compact search fields stay.
 - Do **not** run `NeedsStrip` this slice.
 - Keep catalog current: after each hourly/discovery window until Phase 3 Functions are live, `--since-ts` dry-run; `--apply` only if candidates > 0.
 
@@ -31,7 +31,7 @@ Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). 
 
 - App writers: catalog + nested ids only. `SyncLegacy` is gone. F4 clear-slot maps empty request `urls` onto `Upsert(null)` + clear nested ids.
 - Review should-fix done: `Classify()` merges leftover before empty-catalog skip; duplicate-finder SQL prefers `e.ids.*`; docs no longer claim dual-write is on.
-- **Before Functions deploy:** commit/push CLI `LeftoverEpisodeDocument : Episode` (retired members read-only on the subclass). Do not persist that type.
+- **Before Functions deploy:** leftover CLI is on origin. Catalog `--since-ts` must be clean (or applied). Then you **name** Indexer / `deploy functions & clis`.
 
 ## Canonical vs leftover
 
@@ -41,14 +41,14 @@ Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). 
 | nested `ids.{spotify,apple,youtube}` | top-level `spotifyId` / `appleId` / `youTubeId` |
 | Search **index** compact fields `spotifyId` / `youtubeId` / `appleId` / `image` / `svc` | `images.youtube` / `spotify` / `apple` / `other` |
 
-Cover art coalesces from `services.*.image` using `ServiceCatalog.ImageCoalesceOrder` (YouTube → Spotify → Apple → remaining catalog keys). Application code **never writes** leftover members. Cosmos SQL **may dual-read** leftover JSON until unsaved rows wither.
+Cover art coalesces from `services.*.image` using `ServiceCatalog.ImageCoalesceOrder` (YouTube → Spotify → Apple → remaining catalog keys). Application code **never writes** leftover members. Search indexer SQL and duplicate-finder SQL read catalog only.
 
 ```mermaid
 flowchart TD
   P2["Phase 2 backfill done"]
   P3a["3a Domain: leftover members off Episode"]
   P3b["3b Writers and coalescers use services"]
-  P3c["3c Cosmos SQL plus search indexer dual-read"]
+  P3c["3c Search indexer SQL catalog only"]
   P3cli["CLI leftover subclass for backfill reads"]
   P3d["3d Script-deploy Functions when named"]
   P3keep["Keep catalog current: since-ts after ingest"]
@@ -62,9 +62,10 @@ Branch: `cursor/episode-service-links-18b4`. **Do not merge.**
 
 | Commit | What |
 | --- | --- |
-| `f4e05758` | Retire leftover `Episode` members; catalog writers; indexer SQL dual-read; tests |
-| `d0dbad11` | Review should-fix: `Classify()` leftover merge, duplicate-finder nested ids, docs match Phase 3 |
-| **Working tree (uncommitted)** | CLI `LeftoverEpisodeDocument : Episode` + `LeftoverEpisodeCatalogPatchSource`; processor `IEpisodeCatalogPatchSource` |
+| `f4e05758` | Retire leftover `Episode` members; catalog writers; indexer SQL dual-read |
+| `d0dbad11` | Classify leftover JSON; duplicate-finder nested ids; docs match Phase 3 |
+| `29ab3ae9` | Leftover CLI + `BackFillEpisodeRepository`; `PatchServicesAndIds` off live repo |
+| `79793077` | Remove Episode STJ hooks; backfill tests in `EpisodeServiceBackfill.Tests`; no RPP test → CLI refs |
 
 Functions on production are **not** this commit yet. Live indexer still dual-writes leftover JSON.
 
@@ -80,7 +81,6 @@ Landed in `d0dbad11`:
 
 Keep (not defects):
 
-- Indexer SQL leftover **read** fallback until wither.
 - Admin request DTO leftover-shaped PATCH → catalog (website form later).
 - Optional `NeedsStrip` later.
 
@@ -96,7 +96,7 @@ Website PATCH may still send leftover-shaped fields this slice. Stopping that fo
 
 ## 3c — Search indexer SQL (not index recreate)
 
-Indexer query prefers `e.ids.*` / `e.services.*`. Leftover `e.urls.*`, top-level ids, and `e.images.*` are **read fallback** only. Compact `image` tokens stay lossless (`y`/`s`/`a` + full URL). Do not drop search fields. Push the indexer definition on the next **named** Functions deploy (CreateSearchIndex is a console; Azure Search indexer SQL lives with Functions datasource — confirm what the Indexer app actually pushes vs `CreateSearchIndex`).
+Indexer query is **catalog only**: `e.ids.*` / `e.services.*`. No leftover `e.urls.*`, top-level ids, or `e.images.*`. Compact `image` tokens stay lossless (`y`/`s`/`a` + full URL). Do not drop search fields. Push the indexer definition on the next **named** Functions deploy (CreateSearchIndex is a console; Azure Search indexer SQL lives with Functions datasource — confirm what the Indexer app actually pushes vs `CreateSearchIndex`).
 
 Hourly **Indexer** function uses in-process `ToEpisodeSearchRecord` / catalog coalesce, not leftover DTO members.
 
@@ -135,7 +135,7 @@ Optional `NeedsStrip` dry-run / `--apply`. Not the same PR or day as 3a–3d.
 
 - No leftover url/id/images members on `Episode`; no app writes to them.
 - Cover art coalesces from catalog services.
-- Indexer SQL prefers `services`/`ids`, leftover JSON read-fallback only.
+- Indexer SQL is catalog-only (`services`/`ids`); leftover JSON is not read.
 - CLI leftover subclass is the only leftover-member type; not persisted.
 - Phase 3 Functions script-deployed when named; leftover JSON withers on Save.
 - Catalog stays complete: `--since-ts` clean after ingest windows.
