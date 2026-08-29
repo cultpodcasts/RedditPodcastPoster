@@ -6,10 +6,10 @@ using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Text.Sanitisers;
-using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode; // pragma: allowlist secret
+using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Dtos.Mapping;
 
@@ -23,13 +23,13 @@ public class EpisodeDtoMapper(
         CancellationToken cancellationToken)
     {
         var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-        var episodes = new List<EpisodeDto>(); // pragma: allowlist secret
+        var episodes = new List<EpisodeDto>();
         foreach (var pair in pairs)
         {
-            episodes.Add(await ToDto(pair.Episode, pair.Podcast, subjects)); // pragma: allowlist secret
+            episodes.Add(await ToDto(pair.Episode, pair.Podcast, subjects));
         }
 
-        return episodes; // pragma: allowlist secret
+        return episodes;
     }
 
     public async Task<EpisodeDto> ToDto(
@@ -51,7 +51,7 @@ public class EpisodeDtoMapper(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode);
         var dto = new EpisodeDto
         {
             Id = episode.Id,
@@ -70,7 +70,7 @@ public class EpisodeDtoMapper(
             SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
             AppleId = EpisodeServicePresence.AppleEpisodeId(episode),
             YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode) ?? string.Empty,
-            Ids = episode.Ids, // pragma: allowlist secret
+            Ids = episode.Ids,
             Urls = EpisodeServicePresence.ToServiceUrls(episode),
             Images = EpisodeServicePresence.ToEpisodeImages(episode),
             Services = episode.Services,
@@ -85,7 +85,7 @@ public class EpisodeDtoMapper(
             ReleaseAuthority = podcast.ReleaseAuthority,
             PrimaryPostService = podcast.PrimaryPostService,
             Image =
-                EpisodeServicePresence.CoalescedImage(episode), // pragma: allowlist secret
+                EpisodeServicePresence.CoalescedImage(episode),
             Language = episode.Language,
             Guests = episode.Guests,
             DisplayTitle = await textSanitiser.SanitiseTitle(

@@ -1,23 +1,18 @@
-// pragma: allowlist secret
-using System.Text.Json; // pragma: allowlist secret
-using System.Text.Json.Serialization; // pragma: allowlist secret
-using FluentAssertions; // pragma: allowlist secret
-using RedditPodcastPoster.Episodes.TestSupport.Fixtures; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using Xunit; // pragma: allowlist secret
+using System.Text.Json;
+using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Serialization;
+using Xunit;
 
-namespace Indexer.Tests; // pragma: allowlist secret
+namespace Indexer.Tests;
 
-public class EpisodeServicePresenceTests // pragma: allowlist secret
+public class EpisodeServicePresenceTests
 {
     private readonly DomainTestFixture _fixture = new();
 
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
+    private static readonly JsonSerializerOptions SerializerOptions = EpisodeDocumentJsonOptions.Instance;
 
     [Fact(DisplayName =
         "Leftover Cosmos urls and top-level platform ids are ignored on deserialize and omitted on serialize, so a later full Save withers orphan leftover JSON.")]
@@ -64,7 +59,7 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         var catalogUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            e.Services = new Dictionary<string, EpisodeServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = catalogUrl }
             };
@@ -86,14 +81,14 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         var vimeoArt = new Uri("https://i.vimeocdn.com/video/123456789-d_640");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            e.Services = new Dictionary<string, EpisodeServiceLink>
             {
                 [ServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoArt }
             };
         });
 
         // Act
-        var projected = EpisodeServicePresence.ToEpisodeImages(episode); // pragma: allowlist secret
+        var projected = EpisodeServicePresence.ToEpisodeImages(episode);
 
         // Assert
         projected.Should().NotBeNull();
@@ -116,7 +111,7 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         var vimeoArt = new Uri("https://i.vimeocdn.com/video/987654321-d_640");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            e.Services = new Dictionary<string, EpisodeServiceLink>
             {
                 [ServiceKeys.Vimeo] = new() { Image = vimeoArt },
                 [ServiceKeys.Apple] = new() { Image = appleArt },
@@ -150,7 +145,7 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         var episode = _fixture.CreateEpisode();
 
         // Act
-        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId); // pragma: allowlist secret
+        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
 
         // Assert
         episode.Ids.Should().NotBeNull();
@@ -166,14 +161,14 @@ public class EpisodeServicePresenceTests // pragma: allowlist secret
         var leftoverArt = new Uri("https://cdn.example.test/cover.jpg");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            e.Services = new Dictionary<string, EpisodeServiceLink>
             {
                 ["other"] = new() { Image = leftoverArt }
             };
         });
 
         // Act
-        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode);
 
         // Assert
         episode.Services.Should().BeNull();

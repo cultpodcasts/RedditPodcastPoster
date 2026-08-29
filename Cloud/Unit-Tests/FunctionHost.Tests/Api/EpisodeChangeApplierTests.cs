@@ -1,11 +1,11 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Api.Models;
-using Api.Services.Episodes; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using Api.Services.Episodes;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.Episodes.Episode; // pragma: allowlist secret
+using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace FunctionHost.Tests.Api;
 
@@ -412,7 +412,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
-        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk"); // pragma: allowlist secret
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
         episode.Urls.Spotify!.ToString().Should().NotContain("si=");
         state.UpdateSpotifyImage.Should().BeTrue();
     }
@@ -614,7 +614,7 @@ public class EpisodeChangeApplierTests
         // Act
         sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            Services = new Dictionary<string, EpisodeServiceLink>
             {
                 ["vimeo"] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
@@ -639,7 +639,7 @@ public class EpisodeChangeApplierTests
         // Act
         var state = sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+            Services = new Dictionary<string, EpisodeServiceLink>
             {
                 ["spotify"] = new() { Url = spotifyUrl }
             }
@@ -647,7 +647,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
-        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk"); // pragma: allowlist secret
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
         episode.Services.Should().ContainKey("spotify");
         state.UpdateSpotifyImage.Should().BeTrue();
     }

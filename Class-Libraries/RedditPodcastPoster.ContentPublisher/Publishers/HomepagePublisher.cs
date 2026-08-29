@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.ContentPublisher.Models;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Models.Subjects;
@@ -77,15 +77,15 @@ public class HomepagePublisher(
             .ToListAsync(ct)
             .AsTask();
 
-        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct); // pragma: allowlist secret
+        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
 
-        var homePageCache = await ResolveHomePageCache(recentEpisodesTask, ct); // pragma: allowlist secret
+        var homePageCache = await ResolveHomePageCache(recentEpisodesTask, ct);
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
 
-        var recentEpisodes = recentEpisodesTask.Result; // pragma: allowlist secret
+        var recentEpisodes = recentEpisodesTask.Result;
         var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
-        var orderedPodcasts = recentEpisodes // pragma: allowlist secret
+        var orderedPodcasts = recentEpisodes
             .Select(episode =>
             {
                 podcasts.TryGetValue(episode.PodcastId, out var podcast);
@@ -115,36 +115,36 @@ public class HomepagePublisher(
         return new HomePageModel
         {
             EpisodeCount = activeEpisodeCount,
-            RecentEpisodes = sanitizedPodcasts.Select(ToRecentEpisode), // pragma: allowlist secret
+            RecentEpisodes = sanitizedPodcasts.Select(ToRecentEpisode),
             TotalDuration = homePageCache.TotalDuration
         };
     }
 
-    private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes( // pragma: allowlist secret
+    private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
         Task<List<PodcastEntry>> recentPodcastsTask,
         DateTime recentCutoff,
         CancellationToken ct)
     {
         var podcasts = await recentPodcastsTask;
-        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct))); // pragma: allowlist secret
+        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct)));
         return episodeLists.SelectMany(x => x).ToList();
     }
 
-    private async Task<List<RecentEpisodeEntry>> LoadRecentEpisodes( // pragma: allowlist secret
+    private async Task<List<RecentEpisodeEntry>> LoadRecentEpisodes(
         PodcastEntry podcast,
         DateTime recentCutoff,
         CancellationToken ct)
     {
-        var recentEpisodes = new List<RecentEpisodeEntry>(); // pragma: allowlist secret
+        var recentEpisodes = new List<RecentEpisodeEntry>();
 
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
                            x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
-            EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
+            EpisodeServicePresence.NormalizeCatalog(episode);
 
-            recentEpisodes.Add(new RecentEpisodeEntry // pragma: allowlist secret
+            recentEpisodes.Add(new RecentEpisodeEntry
             {
                 PodcastId = episode.PodcastId,
                 PodcastName = episode.PodcastName,
@@ -161,22 +161,22 @@ public class HomepagePublisher(
             });
         }
 
-        return recentEpisodes; // pragma: allowlist secret
+        return recentEpisodes;
     }
 
-    private async Task<HomePageCache> ResolveHomePageCache(Task recentEpisodesTask, CancellationToken ct) // pragma: allowlist secret
+    private async Task<HomePageCache> ResolveHomePageCache(Task recentEpisodesTask, CancellationToken ct)
     {
         var homePageCache = await lookupRepository.GetHomePageCache() ?? new HomePageCache();
         var isRefreshWindow = IsRefreshWindow();
         var shouldRefreshDuration = isRefreshWindow || homePageCache.TotalDuration == default;
         var shouldRefreshCount = isRefreshWindow || homePageCache.ActiveEpisodeCount == null;
 
-        Task<List<TimeSpan>>? durationEpisodesTask = null; // pragma: allowlist secret
-        Task<List<Guid>>? countEpisodesTask = null; // pragma: allowlist secret
+        Task<List<TimeSpan>>? durationEpisodesTask = null;
+        Task<List<Guid>>? countEpisodesTask = null;
 
         if (shouldRefreshDuration)
         {
-            durationEpisodesTask = episodeRepository // pragma: allowlist secret
+            durationEpisodesTask = episodeRepository
                 .GetAllBy(
                     x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
                                                       x.PodcastRemoved == null),
@@ -187,7 +187,7 @@ public class HomepagePublisher(
 
         if (shouldRefreshCount)
         {
-            countEpisodesTask = episodeRepository // pragma: allowlist secret
+            countEpisodesTask = episodeRepository
                 .GetAllBy(
                     x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
                                         x.PodcastRemoved == null),
@@ -198,22 +198,22 @@ public class HomepagePublisher(
 
         await Task.WhenAll(
             [
-                recentEpisodesTask, // pragma: allowlist secret
-                durationEpisodesTask ?? Task.CompletedTask, // pragma: allowlist secret
-                countEpisodesTask ?? Task.CompletedTask // pragma: allowlist secret
+                recentEpisodesTask,
+                durationEpisodesTask ?? Task.CompletedTask,
+                countEpisodesTask ?? Task.CompletedTask
             ]);
 
-        if (durationEpisodesTask != null) // pragma: allowlist secret
+        if (durationEpisodesTask != null)
         {
-            homePageCache.TotalDuration = TimeSpan.FromTicks(durationEpisodesTask.Result.Sum(x => x.Ticks)); // pragma: allowlist secret
+            homePageCache.TotalDuration = TimeSpan.FromTicks(durationEpisodesTask.Result.Sum(x => x.Ticks));
         }
 
-        if (countEpisodesTask != null) // pragma: allowlist secret
+        if (countEpisodesTask != null)
         {
-            homePageCache.ActiveEpisodeCount = countEpisodesTask.Result.Count; // pragma: allowlist secret
+            homePageCache.ActiveEpisodeCount = countEpisodesTask.Result.Count;
         }
 
-        if (durationEpisodesTask != null || countEpisodesTask != null) // pragma: allowlist secret
+        if (durationEpisodesTask != null || countEpisodesTask != null)
         {
             await lookupRepository.SaveHomePageCache(homePageCache);
         }
@@ -234,7 +234,7 @@ public class HomepagePublisher(
             Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = EpisodeServicePresence.CoalescedImage(x.Services), // pragma: allowlist secret
+            Image = EpisodeServicePresence.CoalescedImage(x.Services),
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }
@@ -333,8 +333,8 @@ public class HomepagePublisher(
         public string EpisodeTitle { get; init; } = string.Empty;
         public string EpisodeDescription { get; init; } = string.Empty;
         public DateTime Release { get; init; }
-        public Dictionary<string, EpisodeServiceLink>? Services { get; init; } // pragma: allowlist secret
-        public EpisodeIds? Ids { get; init; } // pragma: allowlist secret
+        public Dictionary<string, EpisodeServiceLink>? Services { get; init; }
+        public EpisodeIds? Ids { get; init; }
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];
         public EpisodeImages? Images { get; init; }

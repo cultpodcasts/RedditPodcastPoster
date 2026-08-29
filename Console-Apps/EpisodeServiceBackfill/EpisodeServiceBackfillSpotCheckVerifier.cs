@@ -1,9 +1,9 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Serialization;
 
-namespace RedditPodcastPoster.Persistence.Episodes;
+namespace EpisodeServiceBackfill;
 
 public sealed record EpisodeServiceBackfillSpotCheckFailure(Guid EpisodeId, Guid PodcastId, string Reason);
 
@@ -17,13 +17,6 @@ public sealed record EpisodeServiceBackfillSpotCheckReport(
 
 public static class EpisodeServiceBackfillSpotCheckVerifier
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
     public static EpisodeServiceBackfillSpotCheckReport Verify(
         IReadOnlyList<EpisodeServiceBackfillSpotCheckSample> samples,
         IReadOnlyDictionary<Guid, string> storedJsonByEpisodeId,
@@ -115,7 +108,7 @@ public static class EpisodeServiceBackfillSpotCheckVerifier
         if (root.TryGetProperty("services", out var servicesEl) && servicesEl.ValueKind == JsonValueKind.Object)
         {
             stored = JsonSerializer.Deserialize<Dictionary<string, EpisodeServiceLink>>(
-                servicesEl.GetRawText(), SerializerOptions);
+                servicesEl.GetRawText(), EpisodeDocumentJsonOptions.Instance);
         }
 
         if (expected is not { Count: > 0 })
@@ -149,7 +142,7 @@ public static class EpisodeServiceBackfillSpotCheckVerifier
         EpisodeIds? stored = null;
         if (root.TryGetProperty("ids", out var idsEl) && idsEl.ValueKind == JsonValueKind.Object)
         {
-            stored = JsonSerializer.Deserialize<EpisodeIds>(idsEl.GetRawText(), SerializerOptions);
+            stored = JsonSerializer.Deserialize<EpisodeIds>(idsEl.GetRawText(), EpisodeDocumentJsonOptions.Instance);
         }
 
         if (expected is null || expected.IsEmpty)

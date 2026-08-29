@@ -39,11 +39,11 @@ public class PublicEpisodeDto
 
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(100)]
-    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+    public EpisodeIds? Ids { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(101)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]

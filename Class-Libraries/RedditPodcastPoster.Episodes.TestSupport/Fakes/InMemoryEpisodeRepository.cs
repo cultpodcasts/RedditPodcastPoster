@@ -162,6 +162,9 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Test helper for CLI backfill patches. Not on <see cref="IEpisodeRepository"/>.
+    /// </summary>
     public Task<bool> PatchServicesAndIds(
         Guid podcastId,
         Guid episodeId,

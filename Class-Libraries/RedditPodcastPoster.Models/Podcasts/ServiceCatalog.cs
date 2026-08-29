@@ -1,5 +1,4 @@
-// pragma: allowlist secret
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Well-known streaming/documentary services. JSON keys identify a service for icons;
@@ -20,7 +19,7 @@ public static class ServiceCatalog
     [
         new(ServiceKeys.YouTube, "YouTube", "youtube", true, true, ["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"]),
         new(ServiceKeys.Spotify, "Spotify", "spotify", true, false, ["open.spotify.com"]),
-        new(ServiceKeys.Apple, "Apple Podcasts", "apple", true, false, ["podcasts.apple.com"]), // pragma: allowlist secret
+        new(ServiceKeys.Apple, "Apple Podcasts", "apple", true, false, ["podcasts.apple.com"]),
         new(ServiceKeys.BbcIplayer, "BBC iPlayer", "bbc-iplayer", false, true, ["bbc.co.uk", "bbc.com"]),
         new(ServiceKeys.BbcSounds, "BBC Sounds", "bbc-sounds", false, false, ["bbc.co.uk", "bbc.com"]),
         new(ServiceKeys.InternetArchive, "Internet Archive", "internet-archive", false, true, ["archive.org"]),
@@ -119,7 +118,7 @@ public static class ServiceCatalog
             return ServiceKeys.Spotify;
         }
 
-        if (IsHost(host, "podcasts.apple.com")) // pragma: allowlist secret
+        if (IsHost(host, "podcasts.apple.com"))
         {
             return ServiceKeys.Apple;
         }

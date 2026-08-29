@@ -1,45 +1,37 @@
-// pragma: allowlist secret
+using EpisodeServiceBackfill;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using RedditPodcastPoster.Persistence.Abstractions.Repositories; // pragma: allowlist secret
-using RedditPodcastPoster.Persistence.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
-namespace RedditPodcastPoster.Persistence.Tests; // pragma: allowlist secret
+namespace RedditPodcastPoster.Persistence.Tests;
 
-public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
+public class EpisodeServiceBackfillProcessorTests
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker;
-    private readonly Mock<IEpisodeRepository> _repository;
+    private readonly Mock<IBackfillEpisodeRepository> _repository;
 
     public EpisodeServiceBackfillProcessorTests()
     {
         _mocker = new AutoMocker();
-        _repository = _mocker.GetMock<IEpisodeRepository>();
+        _repository = _mocker.GetMock<IBackfillEpisodeRepository>();
         _mocker.Use(NullLogger<EpisodeServiceBackfillProcessor>.Instance);
+        _mocker.Use<IEpisodeCatalogPatchSource>(new JsonEpisodeCatalogPatchSource());
     }
 
     [Fact(DisplayName =
-        "Episode service backfill dry-run: when raw documents include a coverage gap, then the report counts the candidate and does not load or save, because apply is off.")] // pragma: allowlist secret
+        "Episode service backfill dry-run: when raw documents include a coverage gap, then the report counts the candidate and does not load or save, because apply is off.")]
     public async Task dry_run_counts_candidates_without_saving()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
-        var json = $$"""
-            {
-              "id": "{{episode.Id}}",
-              "podcastId": "{{podcast.Id}}",
-              "spotifyId": "{{episode.SpotifyId}}"
-            }
-            """; // pragma: allowlist secret
+        var json = LegacyJson(episode);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();
 
         // Act
@@ -49,8 +41,6 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         report.Candidates.Should().Be(1);
         report.Saved.Should().Be(0);
         report.Applied.Should().BeFalse();
-        _repository.Verify(x => x.GetEpisode(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never); // pragma: allowlist secret
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never); // pragma: allowlist secret
         _repository.Verify(
             x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
@@ -61,20 +51,13 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
     }
 
     [Fact(DisplayName =
-        "Episode service backfill apply: when raw JSON has only a legacy Spotify id, then a services/ids patch is persisted and Save is not called.")] // pragma: allowlist secret
-    public async Task apply_patches_episode_when_legacy_shape_needs_catalog() // pragma: allowlist secret
+        "Episode service backfill apply: when raw JSON has only a legacy Spotify id, then a services/ids patch is persisted and Save is not called.")]
+    public async Task apply_patches_episode_when_legacy_shape_needs_catalog()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
-        var json = $$"""
-            {
-              "id": "{{episode.Id}}",
-              "podcastId": "{{podcast.Id}}",
-              "spotifyId": "{{episode.SpotifyId}}",
-              "urls": { "spotify": "{{episode.Urls.Spotify}}" }
-            }
-            """; // pragma: allowlist secret
+        var json = LegacyJson(episode);
         _repository
             .Setup(x => x.PatchServicesAndIds(
                 podcast.Id,
@@ -100,23 +83,16 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
                     s != null && s.ContainsKey(ServiceKeys.Spotify)),
                 It.Is<EpisodeIds?>(ids => ids != null && ids.Spotify == nestedSpotifyId)),
             Times.Once);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never); // pragma: allowlist secret
     }
 
     [Fact(DisplayName =
-        "Episode service backfill apply: when the episode id is selected from raw JSON but the item is missing, then Save is not called and Missing increments.")] // pragma: allowlist secret
-    public async Task apply_skips_save_when_episode_missing() // pragma: allowlist secret
+        "Episode service backfill apply: when the episode id is selected from raw JSON but the item is missing, then Save is not called and Missing increments.")]
+    public async Task apply_skips_save_when_episode_missing()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
-        var json = $$"""
-            {
-              "id": "{{episode.Id}}",
-              "podcastId": "{{podcast.Id}}",
-              "spotifyId": "{{episode.SpotifyId}}"
-            }
-            """; // pragma: allowlist secret
+        var json = LegacyJson(episode);
         _repository
             .Setup(x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
@@ -132,7 +108,6 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         // Assert
         report.Missing.Should().Be(1);
         report.Saved.Should().Be(0);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never); // pragma: allowlist secret
     }
 
     [Fact(DisplayName =
@@ -161,7 +136,6 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
                 It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()),
             Times.Never);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -199,16 +173,20 @@ public class EpisodeServiceBackfillProcessorTests // pragma: allowlist secret
         report.Saved.Should().Be(documents.Count);
         report.Mismatches.Should().Be(0);
         patched.Should().BeEquivalentTo(documents.Select(d => (d.Podcast.Id, d.Episode.Id)));
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
     }
 
-    private static string LegacyJson(Episode episode) =>
-        $$"""
-          {
-            "id": "{{episode.Id}}",
-            "podcastId": "{{episode.PodcastId}}",
-            "spotifyId": "{{episode.SpotifyId}}",
-            "urls": { "spotify": "{{episode.Urls.Spotify}}" }
-          }
-          """;
+    private static string LegacyJson(Episode episode)
+    {
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode);
+        var spotifyUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify);
+        return
+            $$"""
+              {
+                "id": "{{episode.Id}}",
+                "podcastId": "{{episode.PodcastId}}",
+                "spotifyId": "{{spotifyId}}",
+                "urls": { "spotify": "{{spotifyUrl}}" }
+              }
+              """;
+    }
 }

@@ -1,7 +1,7 @@
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.Persistence.Episodes;
+namespace EpisodeServiceBackfill;
 
 /// <summary>
 /// Thread-safe reservoir sample (Algorithm R) of catalog patches for post-run Cosmos spot-checks.

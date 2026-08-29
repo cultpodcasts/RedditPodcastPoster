@@ -1,19 +1,18 @@
-// pragma: allowlist secret
-using FluentAssertions; // pragma: allowlist secret
-using RedditPodcastPoster.EntitySearchIndexer.Models; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using Xunit; // pragma: allowlist secret
+using FluentAssertions;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
+using RedditPodcastPoster.Models.Podcasts;
+using Xunit;
 
-namespace Indexer.Tests; // pragma: allowlist secret
+namespace Indexer.Tests;
 
-public class SearchEpisodeServicesTests // pragma: allowlist secret
+public class SearchEpisodeServicesTests
 {
     [Fact(DisplayName =
         "Search svc encoding stores BBC Sounds as a compact play-id when the URL is the standard sounds/play shape, because the index must stay small while remaining loss-less.")]
     public void Compacts_bbc_sounds_play_url_to_id()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+        var services = new Dictionary<string, EpisodeServiceLink>
         {
             [ServiceKeys.BbcSounds] = new()
             {
@@ -22,8 +21,8 @@ public class SearchEpisodeServicesTests // pragma: allowlist secret
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().Be("bbcSounds:p0example");
@@ -36,14 +35,14 @@ public class SearchEpisodeServicesTests // pragma: allowlist secret
     public void Compacts_vimeo_watch_url_to_id()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+        var services = new Dictionary<string, EpisodeServiceLink>
         {
             [ServiceKeys.Vimeo] = new() { Url = new Uri("https://vimeo.com/123456789") }
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().Be("vimeo:123456789");
@@ -56,7 +55,7 @@ public class SearchEpisodeServicesTests // pragma: allowlist secret
     public void Omits_reconstructable_platform_ids()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+        var services = new Dictionary<string, EpisodeServiceLink>
         {
             [ServiceKeys.Spotify] = new() { Url = new Uri("https://open.spotify.com/episode/opaqueid00000000000000") },
             [ServiceKeys.YouTube] = new() { Url = new Uri("https://www.youtube.com/watch?v=griffinsong42") },
@@ -64,7 +63,7 @@ public class SearchEpisodeServicesTests // pragma: allowlist secret
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
 
         // Assert
         compact.Should().Be("internetArchive:harbour-vale-ep");
@@ -76,14 +75,14 @@ public class SearchEpisodeServicesTests // pragma: allowlist secret
     {
         // Arrange
         var url = new Uri("https://www.netflix.com/watch/81040344?trackId=14262865");
-        var services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+        var services = new Dictionary<string, EpisodeServiceLink>
         {
             [ServiceKeys.Netflix] = new() { Url = url }
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().StartWith("netflix:uhttps://");

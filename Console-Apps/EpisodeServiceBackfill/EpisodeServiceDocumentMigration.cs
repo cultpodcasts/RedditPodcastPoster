@@ -1,24 +1,24 @@
-// pragma: allowlist secret
-using System.Text.Json; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using System.Text.Json;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+namespace EpisodeServiceBackfill;
 
 /// <summary>
-/// Pure Cosmos-document migration for <c>services</c> + <c>ids</c>. // pragma: allowlist secret
+/// Pure Cosmos-document migration for <c>services</c> + <c>ids</c>.
 /// Selection and <see cref="NeedsBackfill"/> read leftover from raw JSON (typed
 /// <see cref="Episode"/> deserialize ignores leftover members).
 /// Apply normalizes catalog and nested ids only; it does not dual-write leftover JSON.
 /// </summary>
-public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
+public static class EpisodeServiceDocumentMigration
 {
-    public readonly record struct EpisodeRef(Guid PodcastId, Guid EpisodeId); // pragma: allowlist secret
+    public readonly record struct EpisodeRef(Guid PodcastId, Guid EpisodeId);
 
-    public static IReadOnlyList<EpisodeRef> SelectDocumentsToBackfill(IEnumerable<string> jsonDocuments) // pragma: allowlist secret
+    public static IReadOnlyList<EpisodeRef> SelectDocumentsToBackfill(IEnumerable<string> jsonDocuments)
     {
-        ArgumentNullException.ThrowIfNull(jsonDocuments); // pragma: allowlist secret
-        var selected = new List<EpisodeRef>(); // pragma: allowlist secret
-        foreach (var json in jsonDocuments) // pragma: allowlist secret
+        ArgumentNullException.ThrowIfNull(jsonDocuments);
+        var selected = new List<EpisodeRef>();
+        foreach (var json in jsonDocuments)
         {
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -31,37 +31,37 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
                 continue;
             }
 
-            if (TryReadRef(document.RootElement, out var episodeRef)) // pragma: allowlist secret
+            if (TryReadRef(document.RootElement, out var episodeRef))
             {
-                selected.Add(episodeRef); // pragma: allowlist secret
+                selected.Add(episodeRef);
             }
         }
 
         return selected;
     }
 
-    public static bool NeedsBackfill(JsonElement episode) // pragma: allowlist secret
+    public static bool NeedsBackfill(JsonElement episode)
     {
-        if (episode.ValueKind != JsonValueKind.Object) // pragma: allowlist secret
+        if (episode.ValueKind != JsonValueKind.Object)
         {
             return false;
         }
 
-        return HasUrlCoverageGaps(episode) || HasIdCoverageGaps(episode); // pragma: allowlist secret
+        return HasUrlCoverageGaps(episode) || HasIdCoverageGaps(episode);
     }
 
     /// <summary>
     /// One-line gap kind when <see cref="NeedsBackfill"/> is true; otherwise null.
     /// </summary>
-    public static string? DescribeNeed(JsonElement episode) // pragma: allowlist secret
+    public static string? DescribeNeed(JsonElement episode)
     {
         if (episode.ValueKind != JsonValueKind.Object)
         {
             return "unreadable";
         }
 
-        var urlGap = HasUrlCoverageGaps(episode); // pragma: allowlist secret
-        var idGap = HasIdCoverageGaps(episode); // pragma: allowlist secret
+        var urlGap = HasUrlCoverageGaps(episode);
+        var idGap = HasIdCoverageGaps(episode);
         if (urlGap && idGap)
         {
             return "url gap / id gap";
@@ -85,18 +85,18 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
     /// <see cref="MergeRawLeftoverIntoCatalog"/>. Returns true when the in-memory catalog
     /// shape changed. Does not write leftover DTO members.
     /// </summary>
-    public static bool Apply(Episode episode) // pragma: allowlist secret
+    public static bool Apply(Episode episode)
     {
-        ArgumentNullException.ThrowIfNull(episode); // pragma: allowlist secret
-        var before = Capture(episode); // pragma: allowlist secret
-        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
-        EpisodeServicePresence.SyncIds(episode); // pragma: allowlist secret
-        if (episode.Services is { Count: 0 }) // pragma: allowlist secret
+        ArgumentNullException.ThrowIfNull(episode);
+        var before = Capture(episode);
+        EpisodeServicePresence.NormalizeCatalog(episode);
+        EpisodeServicePresence.SyncIds(episode);
+        if (episode.Services is { Count: 0 })
         {
-            episode.Services = null; // pragma: allowlist secret
+            episode.Services = null;
         }
 
-        return !before.Equals(Capture(episode)); // pragma: allowlist secret
+        return !before.Equals(Capture(episode));
     }
 
     /// <summary>
@@ -191,31 +191,31 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
         }
     }
 
-    private static bool TryReadRef(JsonElement episode, out EpisodeRef episodeRef) // pragma: allowlist secret
+    private static bool TryReadRef(JsonElement episode, out EpisodeRef episodeRef)
     {
-        episodeRef = default; // pragma: allowlist secret
-        if (!episode.TryGetProperty("id", out var idEl) || !idEl.TryGetGuid(out var episodeId)) // pragma: allowlist secret
+        episodeRef = default;
+        if (!episode.TryGetProperty("id", out var idEl) || !idEl.TryGetGuid(out var episodeId))
         {
             return false;
         }
 
-        if (!episode.TryGetProperty("podcastId", out var podcastEl) || !podcastEl.TryGetGuid(out var podcastId)) // pragma: allowlist secret
+        if (!episode.TryGetProperty("podcastId", out var podcastEl) || !podcastEl.TryGetGuid(out var podcastId))
         {
             return false;
         }
 
-        episodeRef = new EpisodeRef(podcastId, episodeId); // pragma: allowlist secret
+        episodeRef = new EpisodeRef(podcastId, episodeId);
         return true;
     }
 
-    private static bool HasUrlCoverageGaps(JsonElement episode) // pragma: allowlist secret
+    private static bool HasUrlCoverageGaps(JsonElement episode)
     {
-        if (!TryGetObject(episode, "urls", out var urls)) // pragma: allowlist secret
+        if (!TryGetObject(episode, "urls", out var urls))
         {
             return false;
         }
 
-        TryGetObject(episode, "services", out var services); // pragma: allowlist secret
+        TryGetObject(episode, "services", out var services);
 
         if (UrlUncovered(urls, "spotify", services, ServiceKeys.Spotify))
         {
@@ -250,27 +250,27 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
         return false;
     }
 
-    private static bool HasIdCoverageGaps(JsonElement episode) // pragma: allowlist secret
+    private static bool HasIdCoverageGaps(JsonElement episode)
     {
-        TryGetObject(episode, "ids", out var ids); // pragma: allowlist secret
+        TryGetObject(episode, "ids", out var ids);
 
-        if (TryGetNonEmptyString(episode, "spotifyId", out var spotifyId) && // pragma: allowlist secret
-            !HasNonEmptyString(ids, "spotify", spotifyId)) // pragma: allowlist secret
+        if (TryGetNonEmptyString(episode, "spotifyId", out var spotifyId) &&
+            !HasNonEmptyString(ids, "spotify", spotifyId))
         {
             return true;
         }
 
-        if (TryGetNonEmptyString(episode, "youTubeId", out var youTubeId) && // pragma: allowlist secret
-            !HasNonEmptyString(ids, "youtube", youTubeId)) // pragma: allowlist secret
+        if (TryGetNonEmptyString(episode, "youTubeId", out var youTubeId) &&
+            !HasNonEmptyString(ids, "youtube", youTubeId))
         {
             return true;
         }
 
-        if (episode.TryGetProperty("appleId", out var appleEl) && // pragma: allowlist secret
+        if (episode.TryGetProperty("appleId", out var appleEl) &&
             appleEl.ValueKind is JsonValueKind.Number &&
             appleEl.TryGetInt64(out var appleId))
         {
-            if (!ids.TryGetProperty("apple", out var nested) || // pragma: allowlist secret
+            if (!ids.TryGetProperty("apple", out var nested) ||
                 nested.ValueKind != JsonValueKind.Number ||
                 !nested.TryGetInt64(out var nestedApple) ||
                 nestedApple != appleId)
@@ -330,26 +330,26 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
         return !string.IsNullOrWhiteSpace(value);
     }
 
-    private static bool HasNonEmptyString(JsonElement ids, string name, string expected) // pragma: allowlist secret
+    private static bool HasNonEmptyString(JsonElement ids, string name, string expected)
     {
-        return ids.ValueKind == JsonValueKind.Object && // pragma: allowlist secret
-               ids.TryGetProperty(name, out var el) && // pragma: allowlist secret
+        return ids.ValueKind == JsonValueKind.Object &&
+               ids.TryGetProperty(name, out var el) &&
                el.ValueKind == JsonValueKind.String &&
                string.Equals(el.GetString(), expected, StringComparison.Ordinal);
     }
 
     private readonly record struct ShapeSnapshot(
         string? Services,
-        string? Ids); // pragma: allowlist secret
+        string? Ids);
 
-    private static ShapeSnapshot Capture(Episode episode) => // pragma: allowlist secret
+    private static ShapeSnapshot Capture(Episode episode) =>
         new(
-            SerializeServices(episode.Services), // pragma: allowlist secret
-            episode.Ids is null // pragma: allowlist secret
+            SerializeServices(episode.Services),
+            episode.Ids is null
                 ? null
-                : $"{episode.Ids.Spotify}|{episode.Ids.Apple}|{episode.Ids.YouTube}"); // pragma: allowlist secret
+                : $"{episode.Ids.Spotify}|{episode.Ids.Apple}|{episode.Ids.YouTube}");
 
-    private static string? SerializeServices(Dictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
+    private static string? SerializeServices(Dictionary<string, EpisodeServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {

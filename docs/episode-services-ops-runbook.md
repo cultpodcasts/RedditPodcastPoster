@@ -1,4 +1,3 @@
-<!-- pragma: allowlist secret -->
 # Ops runbook: service catalog + nested ids
 
 Human-in-the-middle rollout. **You** decide each gate. Website and Api Worker ship by **completing those PRs** — this agent does not run Wrangler/Pages deploy. An agent must not write production Cosmos, must not republish the feed, and must not run `PublishR2` against production R2 unless you name that action.

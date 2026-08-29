@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 
@@ -25,10 +25,10 @@ public class PodcastResult
     public DateTime Release { get; set; }
 
     [JsonPropertyName("ids")]
-    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+    public EpisodeIds? Ids { get; set; }
 
     [JsonPropertyName("services")]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

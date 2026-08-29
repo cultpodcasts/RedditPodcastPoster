@@ -1,30 +1,30 @@
 using System.Text.Json;
+using EpisodeServiceBackfill;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Persistence.Episodes;
+using RedditPodcastPoster.Persistence.Tests.Fakes;
 using Xunit;
 
-namespace RedditPodcastPoster.Persistence.Tests.BusinessRules;
+namespace RedditPodcastPoster.Persistence.Tests;
 
-public class EpisodeServiceCatalogPatchRules
+public class EpisodeServiceCatalogPatchTests
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker;
-    private readonly Mock<IEpisodeRepository> _repository;
+    private readonly Mock<IBackfillEpisodeRepository> _repository;
 
-    public EpisodeServiceCatalogPatchRules()
+    public EpisodeServiceCatalogPatchTests()
     {
         _mocker = new AutoMocker();
-        _repository = _mocker.GetMock<IEpisodeRepository>();
+        _repository = _mocker.GetMock<IBackfillEpisodeRepository>();
         _mocker.Use(NullLogger<EpisodeServiceBackfillProcessor>.Instance);
+        _mocker.Use<IEpisodeCatalogPatchSource>(new JsonEpisodeCatalogPatchSource());
     }
 
     [Fact(DisplayName =
@@ -47,8 +47,8 @@ public class EpisodeServiceCatalogPatchRules
         patch!.EpisodeId.Should().Be(episode.Id);
         patch.PodcastId.Should().Be(podcast.Id);
         patch.Services.Should().ContainKey(ServiceKeys.Spotify);
-        patch.Services![ServiceKeys.Spotify].Url.Should().Be(episode.Urls.Spotify);
-        patch.Ids!.Spotify.Should().Be(episode.SpotifyId);
+        patch.Services![ServiceKeys.Spotify].Url.Should().Be(EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify));
+        patch.Ids!.Spotify.Should().Be(EpisodeServicePresence.SpotifyEpisodeId(episode));
         patch.Ids.YouTube.Should().BeNull();
         JsonSerializer.Serialize(patch).Should().NotContain(episode.Title);
         JsonSerializer.Serialize(patch).Should().NotContain("\"lang\"");
@@ -64,8 +64,9 @@ public class EpisodeServiceCatalogPatchRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-        var art = new Uri($"https://i.ytimg.com/vi/{episode.YouTubeId}/maxresdefault.jpg");
-        episode.Images = new EpisodeImages { YouTube = art };
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var art = new Uri($"https://i.ytimg.com/vi/{youTubeId}/maxresdefault.jpg");
+        EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, art);
         var json = ToLegacyJson(episode);
 
         // Act
@@ -74,9 +75,9 @@ public class EpisodeServiceCatalogPatchRules
         // Assert
         created.Should().BeTrue();
         patch!.Services.Should().ContainKey(ServiceKeys.YouTube);
-        patch.Services![ServiceKeys.YouTube].Url.Should().Be(episode.Urls.YouTube);
+        patch.Services![ServiceKeys.YouTube].Url.Should().Be(EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube));
         patch.Services[ServiceKeys.YouTube].Image.Should().Be(art);
-        patch.Ids!.YouTube.Should().Be(episode.YouTubeId);
+        patch.Ids!.YouTube.Should().Be(youTubeId);
         patch.Ids.Spotify.Should().BeNull();
     }
 
@@ -90,8 +91,8 @@ public class EpisodeServiceCatalogPatchRules
         var appleId = _fixture.CreateAppleId();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.AppleId = appleId;
-            e.Urls.Apple = _fixture.DefaultAppleUrl(appleId);
+            EpisodeServicePresence.SetAppleIdentity(e, appleId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Apple, _fixture.DefaultAppleUrl(appleId), null);
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             EpisodeServicePresence.SetYouTubeIdentity(e, null);
         });
@@ -103,7 +104,7 @@ public class EpisodeServiceCatalogPatchRules
         // Assert
         created.Should().BeTrue();
         patch!.Services.Should().ContainKey(ServiceKeys.Apple);
-        patch.Services![ServiceKeys.Apple].Url.Should().Be(episode.Urls.Apple);
+        patch.Services![ServiceKeys.Apple].Url.Should().Be(EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple));
         patch.Ids!.Apple.Should().Be(appleId);
     }
 
@@ -117,7 +118,7 @@ public class EpisodeServiceCatalogPatchRules
         var iplayer = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.Urls.BBC = iplayer;
+            EpisodeServicePresence.Upsert(e, ServiceKeys.BbcIplayer, iplayer, null);
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             EpisodeServicePresence.SetYouTubeIdentity(e, null);
         });
@@ -143,7 +144,7 @@ public class EpisodeServiceCatalogPatchRules
         var archive = new Uri($"https://archive.org/details/{_fixture.CreateSpotifyId()}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.Urls.InternetArchive = archive;
+            EpisodeServicePresence.Upsert(e, ServiceKeys.InternetArchive, archive, null);
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             EpisodeServicePresence.SetYouTubeIdentity(e, null);
         });
@@ -169,22 +170,26 @@ public class EpisodeServiceCatalogPatchRules
             podcast,
             _fixture.CreateSpotifyId(),
             _fixture.CreateYouTubeId());
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(stored);
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var youTubeUrl = EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.YouTube);
+        var spotifyUrl = EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.Spotify);
         var json = JsonSerializer.Serialize(new Dictionary<string, object?>
         {
             ["id"] = stored.Id,
             ["podcastId"] = stored.PodcastId,
-            ["youTubeId"] = stored.YouTubeId,
-            ["spotifyId"] = stored.SpotifyId,
+            ["youTubeId"] = youTubeId,
+            ["spotifyId"] = spotifyId,
             ["urls"] = new Dictionary<string, string?>
             {
-                ["youtube"] = stored.Urls.YouTube!.ToString(),
-                ["spotify"] = stored.Urls.Spotify!.ToString()
+                ["youtube"] = youTubeUrl!.ToString(),
+                ["spotify"] = spotifyUrl!.ToString()
             },
             ["services"] = new Dictionary<string, object>
             {
                 [ServiceKeys.YouTube] = new Dictionary<string, string?>
                 {
-                    ["url"] = stored.Urls.YouTube.ToString()
+                    ["url"] = youTubeUrl.ToString()
                 }
             }
         });
@@ -196,10 +201,10 @@ public class EpisodeServiceCatalogPatchRules
         created.Should().BeTrue();
         patch!.Services.Should().ContainKey(ServiceKeys.YouTube);
         patch.Services.Should().ContainKey(ServiceKeys.Spotify);
-        patch.Services![ServiceKeys.YouTube].Url.Should().Be(stored.Urls.YouTube);
-        patch.Services[ServiceKeys.Spotify].Url.Should().Be(stored.Urls.Spotify);
-        patch.Ids!.YouTube.Should().Be(stored.YouTubeId);
-        patch.Ids.Spotify.Should().Be(stored.SpotifyId);
+        patch.Services![ServiceKeys.YouTube].Url.Should().Be(youTubeUrl);
+        patch.Services[ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
+        patch.Ids!.YouTube.Should().Be(youTubeId);
+        patch.Ids.Spotify.Should().Be(spotifyId);
     }
 
     [Fact(DisplayName =
@@ -214,14 +219,14 @@ public class EpisodeServiceCatalogPatchRules
         {
             ["id"] = episode.Id,
             ["podcastId"] = episode.PodcastId,
-            ["spotifyId"] = episode.SpotifyId,
-            ["ids"] = new Dictionary<string, string?> { ["spotify"] = episode.SpotifyId },
-            ["urls"] = new Dictionary<string, string?> { ["spotify"] = episode.Urls.Spotify!.ToString() },
+            ["spotifyId"] = EpisodeServicePresence.SpotifyEpisodeId(episode),
+            ["ids"] = new Dictionary<string, string?> { ["spotify"] = EpisodeServicePresence.SpotifyEpisodeId(episode) },
+            ["urls"] = new Dictionary<string, string?> { ["spotify"] = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!.ToString() },
             ["services"] = new Dictionary<string, object>
             {
                 [ServiceKeys.Spotify] = new Dictionary<string, string?>
                 {
-                    ["url"] = episode.Urls.Spotify.ToString()
+                    ["url"] = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!.ToString()
                 }
             }
         });
@@ -308,8 +313,6 @@ public class EpisodeServiceCatalogPatchRules
                 It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()),
             Times.Never);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
-        _repository.Verify(x => x.GetEpisode(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -346,8 +349,6 @@ public class EpisodeServiceCatalogPatchRules
                     s != null && s.ContainsKey(ServiceKeys.Spotify)),
                 It.Is<EpisodeIds?>(ids => ids != null && ids.Spotify == nestedSpotifyId)),
             Times.Once);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
-        _repository.Verify(x => x.GetEpisode(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -361,14 +362,16 @@ public class EpisodeServiceCatalogPatchRules
         episode.Language = null;
         var title = episode.Title;
         var description = episode.Description;
-        var spotifyUrl = episode.Urls.Spotify;
-        var spotifyId = episode.SpotifyId;
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode);
         var json = ToLegacyJson(episode);
         episode.Services = null;
         episode.Ids = null;
         var repo = new InMemoryEpisodeRepository();
         repo.Seed(episode);
-        var sut = new EpisodeServiceBackfillProcessor(repo, NullLogger<EpisodeServiceBackfillProcessor>.Instance);
+        var sut = new EpisodeServiceBackfillProcessor(
+            new InMemoryBackfillEpisodeRepository(repo),
+            new JsonEpisodeCatalogPatchSource(),
+            NullLogger<EpisodeServiceBackfillProcessor>.Instance);
 
         // Act
         var report = await sut.RunAsync([json], apply: true);
@@ -379,8 +382,6 @@ public class EpisodeServiceCatalogPatchRules
         stored.Title.Should().Be(title);
         stored.Description.Should().Be(description);
         stored.Language.Should().BeNull();
-        stored.Urls.Spotify.Should().Be(spotifyUrl);
-        stored.SpotifyId.Should().Be(spotifyId);
         stored.Services.Should().ContainKey(ServiceKeys.Spotify);
         stored.Ids!.Spotify.Should().Be(spotifyId);
         repo.SavedEpisodes.Should().BeEmpty();
@@ -409,7 +410,6 @@ public class EpisodeServiceCatalogPatchRules
         // Assert
         report.Missing.Should().Be(1);
         report.Saved.Should().Be(0);
-        _repository.Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -433,29 +433,35 @@ public class EpisodeServiceCatalogPatchRules
     private static string ToLegacyJson(Episode episode, string? extraPropertyValue = null)
     {
         var urls = new Dictionary<string, string?>();
-        if (episode.Urls.Spotify is not null)
+        var spotifyUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify);
+        var appleUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple);
+        var youTubeUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube);
+        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer)
+                     ?? EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds);
+        var archiveUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive);
+        if (spotifyUrl is not null)
         {
-            urls["spotify"] = episode.Urls.Spotify.ToString();
+            urls["spotify"] = spotifyUrl.ToString();
         }
 
-        if (episode.Urls.Apple is not null)
+        if (appleUrl is not null)
         {
-            urls["apple"] = episode.Urls.Apple.ToString();
+            urls["apple"] = appleUrl.ToString();
         }
 
-        if (episode.Urls.YouTube is not null)
+        if (youTubeUrl is not null)
         {
-            urls["youtube"] = episode.Urls.YouTube.ToString();
+            urls["youtube"] = youTubeUrl.ToString();
         }
 
-        if (episode.Urls.BBC is not null)
+        if (bbcUrl is not null)
         {
-            urls["bbc"] = episode.Urls.BBC.ToString();
+            urls["bbc"] = bbcUrl.ToString();
         }
 
-        if (episode.Urls.InternetArchive is not null)
+        if (archiveUrl is not null)
         {
-            urls["internetArchive"] = episode.Urls.InternetArchive.ToString();
+            urls["internetArchive"] = archiveUrl.ToString();
         }
 
         var payload = new Dictionary<string, object?>
@@ -466,18 +472,19 @@ public class EpisodeServiceCatalogPatchRules
             ["description"] = episode.Description,
             ["lang"] = episode.Language,
             ["urls"] = urls,
-            ["spotifyId"] = episode.SpotifyId,
-            ["appleId"] = episode.AppleId,
-            ["youTubeId"] = episode.YouTubeId
+            ["spotifyId"] = EpisodeServicePresence.SpotifyEpisodeId(episode),
+            ["appleId"] = EpisodeServicePresence.AppleEpisodeId(episode),
+            ["youTubeId"] = EpisodeServicePresence.YouTubeEpisodeId(episode)
         };
-        if (episode.Images is not null)
+        var images = EpisodeServicePresence.ToEpisodeImages(episode);
+        if (images is not null)
         {
             payload["images"] = new Dictionary<string, string?>
             {
-                ["spotify"] = episode.Images.Spotify?.ToString(),
-                ["apple"] = episode.Images.Apple?.ToString(),
-                ["youtube"] = episode.Images.YouTube?.ToString(),
-                ["other"] = episode.Images.Other?.ToString()
+                ["spotify"] = images.Spotify?.ToString(),
+                ["apple"] = images.Apple?.ToString(),
+                ["youtube"] = images.YouTube?.ToString(),
+                ["other"] = images.Other?.ToString()
             };
         }
 

@@ -25,7 +25,7 @@ Platform identity for matching and “do we have Spotify / Apple / YouTube?” l
 }
 ```
 
-Top-level `spotifyId` / `appleId` / `youTubeId` are leftover Cosmos JSON: ignored on typed deserialize, omitted on serialize (wither). Matching and app writers use nested `ids` only. Search indexer SQL still dual-reads leftover ids until those keys wither. Published homepage and public episode payloads expose **`ids` + `services`**. Reconstruct a listen/watch URL from `services.{key}.url`, or from `ids` (search still uses compact `spotifyId` / `youtubeId` / `appleId` + `podcastAppleId`). <!-- pragma: allowlist secret -->
+Top-level `spotifyId` / `appleId` / `youTubeId` are leftover Cosmos JSON: ignored on typed deserialize, omitted on serialize (wither). Matching and app writers use nested `ids` only. Search indexer SQL still dual-reads leftover ids until those keys wither. Published homepage and public episode payloads expose **`ids` + `services`**. Reconstruct a listen/watch URL from `services.{key}.url`, or from `ids` (search still uses compact `spotifyId` / `youtubeId` / `appleId` + `podcastAppleId`).
 
 Rollout order, Cosmos backfill, and tested migration types: [episode-services-migration.md](episode-services-migration.md).
 
@@ -37,7 +37,8 @@ Leftover `urls` / top-level ids / `images` are **not** on `Episode`. `NormalizeC
 
 Raw leftover JSON is still read by:
 
-- `EpisodeServiceDocumentMigration` (backfill `NeedsBackfill` / `MergeRawLeftoverIntoCatalog`)
+- `EpisodeServiceDocumentMigration` (library `NeedsBackfill` / `MergeRawLeftoverIntoCatalog` from raw JSON)
+- CLI `LeftoverEpisodeDocument` (retired `urls` / ids / `images` members, read-only, in the backfill console assembly)
 - Search indexer SQL (catalog first, leftover fallback until leftover keys wither)
 
 BBC Sounds and BBC iPlayer are **distinct keys**.
@@ -50,7 +51,7 @@ Spotify / YouTube / Apple remain id fields (`spotifyId`, `youtubeId`, `appleId` 
 bbcSounds:p0example|vimeo:123456789|netflix:uhttps://www.netflix.com/watch/…
 ```
 
-Grammar (source of truth: `SearchEpisodeServices`): <!-- pragma: allowlist secret -->
+Grammar (source of truth: `SearchEpisodeServices`):
 
 - `key:payload` entries joined by `|`
 - payload is a compact id when `ServiceCatalog.TryCompactUrl` round-trips the original URL

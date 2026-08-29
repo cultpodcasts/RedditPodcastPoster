@@ -1,9 +1,8 @@
-// pragma: allowlist secret
-using System.Text.Json.Serialization; // pragma: allowlist secret
+using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
-public class EpisodeServiceLink // pragma: allowlist secret
+public class EpisodeServiceLink
 {
     [JsonPropertyName("url")]
     [JsonPropertyOrder(1)]

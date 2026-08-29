@@ -1,94 +1,87 @@
-// pragma: allowlist secret
-using System.Text.Json; // pragma: allowlist secret
-using System.Text.Json.Serialization; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using System.Text.Json;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Serialization;
 
-namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+namespace EpisodeServiceBackfill;
 
 /// <summary>
 /// Additive Cosmos patch payload for <c>services</c> and nested <c>ids</c> only.
 /// Built from <b>raw</b> JSON so hydrate-on-deserialize cannot skip a persist.
 /// Does not include <c>urls</c>, top-level ids, <c>images</c>, <c>lang</c>, title, or description.
 /// </summary>
-public sealed record EpisodeServiceCatalogPatch( // pragma: allowlist secret
-    Guid PodcastId, // pragma: allowlist secret
-    Guid EpisodeId, // pragma: allowlist secret
-    Dictionary<string, EpisodeServiceLink>? Services, // pragma: allowlist secret
-    EpisodeIds? Ids); // pragma: allowlist secret
+public sealed record EpisodeServiceCatalogPatch(
+    Guid PodcastId,
+    Guid EpisodeId,
+    Dictionary<string, EpisodeServiceLink>? Services,
+    EpisodeIds? Ids);
 
-public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secret
+public static class EpisodeServiceCatalogPatchFactory
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new() // pragma: allowlist secret
+    public static bool TryCreate(JsonElement raw, out EpisodeServiceCatalogPatch? patch)
     {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter() }
-    };
-
-    public static bool TryCreate(JsonElement raw, out EpisodeServiceCatalogPatch? patch) // pragma: allowlist secret
-    {
-        patch = null; // pragma: allowlist secret
-        if (!EpisodeServiceDocumentMigration.NeedsBackfill(raw)) // pragma: allowlist secret
+        patch = null;
+        if (!EpisodeServiceDocumentMigration.NeedsBackfill(raw))
         {
             return false;
         }
 
-        if (!EpisodeServiceDocumentMigration.SelectDocumentsToBackfill([raw.GetRawText()]).Any()) // pragma: allowlist secret
+        if (!EpisodeServiceDocumentMigration.SelectDocumentsToBackfill([raw.GetRawText()]).Any())
         {
             return false;
         }
 
-        Episode? episode; // pragma: allowlist secret
+        Episode? episode;
         try
         {
-            episode = JsonSerializer.Deserialize<Episode>(raw.GetRawText(), SerializerOptions); // pragma: allowlist secret
+            episode = JsonSerializer.Deserialize<Episode>(raw.GetRawText(), EpisodeDocumentJsonOptions.Instance);
         }
         catch (JsonException)
         {
             return false;
         }
 
-        if (episode is null || episode.Id == Guid.Empty || episode.PodcastId == Guid.Empty) // pragma: allowlist secret
+        if (episode is null || episode.Id == Guid.Empty || episode.PodcastId == Guid.Empty)
         {
             return false;
         }
 
         EpisodeServiceDocumentMigration.MergeRawLeftoverIntoCatalog(episode, raw);
-        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode);
 
-        if (episode.Services is { Count: 0 }) // pragma: allowlist secret
+        if (episode.Services is { Count: 0 })
         {
-            episode.Services = null; // pragma: allowlist secret
+            episode.Services = null;
         }
 
-        if (episode.Services is null && episode.Ids is null) // pragma: allowlist secret
+        if (episode.Services is null && episode.Ids is null)
         {
             return false;
         }
 
-        patch = new EpisodeServiceCatalogPatch( // pragma: allowlist secret
-            episode.PodcastId, // pragma: allowlist secret
-            episode.Id, // pragma: allowlist secret
-            CloneServices(episode.Services), // pragma: allowlist secret
-            CloneIds(episode.Ids)); // pragma: allowlist secret
+        patch = new EpisodeServiceCatalogPatch(
+            episode.PodcastId,
+            episode.Id,
+            CloneServices(episode.Services),
+            CloneIds(episode.Ids));
         return true;
     }
 
-    public static bool TryCreate(string json, out EpisodeServiceCatalogPatch? patch) // pragma: allowlist secret
+    public static bool TryCreate(string json, out EpisodeServiceCatalogPatch? patch)
     {
-        using var document = JsonDocument.Parse(json); // pragma: allowlist secret
-        return TryCreate(document.RootElement, out patch); // pragma: allowlist secret
+        using var document = JsonDocument.Parse(json);
+        return TryCreate(document.RootElement, out patch);
     }
 
     /// <summary>
     /// Null when <see cref="TryCreate"/> would succeed; otherwise a skip-reason bucket.
     /// </summary>
-    public static string? Classify(string json) // pragma: allowlist secret
+    public static string? Classify(string json)
     {
-        JsonDocument document; // pragma: allowlist secret
+        JsonDocument document;
         try
         {
-            document = JsonDocument.Parse(json); // pragma: allowlist secret
+            document = JsonDocument.Parse(json);
         }
         catch (JsonException)
         {
@@ -97,40 +90,40 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
 
         using (document)
         {
-            return Classify(document.RootElement); // pragma: allowlist secret
+            return Classify(document.RootElement);
         }
     }
 
-    public static string? Classify(JsonElement raw) // pragma: allowlist secret
+    public static string? Classify(JsonElement raw)
     {
         if (raw.ValueKind != JsonValueKind.Object)
         {
             return SkipReasons.NotAnObject;
         }
 
-        if (!EpisodeServiceDocumentMigration.NeedsBackfill(raw)) // pragma: allowlist secret
+        if (!EpisodeServiceDocumentMigration.NeedsBackfill(raw))
         {
             return HasMigratablePayload(raw)
                 ? SkipReasons.AlreadyCovered
                 : SkipReasons.NoUrlsOrIdsToMigrate;
         }
 
-        if (!EpisodeServiceDocumentMigration.SelectDocumentsToBackfill([raw.GetRawText()]).Any()) // pragma: allowlist secret
+        if (!EpisodeServiceDocumentMigration.SelectDocumentsToBackfill([raw.GetRawText()]).Any())
         {
             return SkipReasons.MissingIdOrPodcastId;
         }
 
-        Episode? episode; // pragma: allowlist secret
+        Episode? episode;
         try
         {
-            episode = JsonSerializer.Deserialize<Episode>(raw.GetRawText(), SerializerOptions); // pragma: allowlist secret
+            episode = JsonSerializer.Deserialize<Episode>(raw.GetRawText(), EpisodeDocumentJsonOptions.Instance);
         }
         catch (JsonException)
         {
             return SkipReasons.DeserializeFail;
         }
 
-        if (episode is null || episode.Id == Guid.Empty || episode.PodcastId == Guid.Empty) // pragma: allowlist secret
+        if (episode is null || episode.Id == Guid.Empty || episode.PodcastId == Guid.Empty)
         {
             return SkipReasons.MissingIdOrPodcastId;
         }
@@ -138,12 +131,12 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
         EpisodeServiceDocumentMigration.MergeRawLeftoverIntoCatalog(episode, raw);
         EpisodeServicePresence.NormalizeCatalog(episode);
 
-        if (episode.Services is { Count: 0 }) // pragma: allowlist secret
+        if (episode.Services is { Count: 0 })
         {
-            episode.Services = null; // pragma: allowlist secret
+            episode.Services = null;
         }
 
-        if (episode.Services is null && episode.Ids is null) // pragma: allowlist secret
+        if (episode.Services is null && episode.Ids is null)
         {
             return SkipReasons.ServicesAndIdsBothNull;
         }
@@ -156,7 +149,7 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
         return SkipReasons.Other;
     }
 
-    public static class SkipReasons // pragma: allowlist secret
+    public static class SkipReasons
     {
         public const string AlreadyCovered = "already_covered";
         public const string NoUrlsOrIdsToMigrate = "no_urls_ids_to_migrate";
@@ -167,7 +160,7 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
         public const string Other = "other";
     }
 
-    private static bool HasMigratablePayload(JsonElement episode) // pragma: allowlist secret
+    private static bool HasMigratablePayload(JsonElement episode)
     {
         if (episode.TryGetProperty("urls", out var urls) && urls.ValueKind == JsonValueKind.Object)
         {
@@ -233,32 +226,32 @@ public static class EpisodeServiceCatalogPatchFactory // pragma: allowlist secre
                !string.IsNullOrWhiteSpace(value.GetString());
     }
 
-    private static Dictionary<string, EpisodeServiceLink>? CloneServices( // pragma: allowlist secret
-        Dictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
+    private static Dictionary<string, EpisodeServiceLink>? CloneServices(
+        Dictionary<string, EpisodeServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {
             return null;
         }
 
-        return services.ToDictionary( // pragma: allowlist secret
-            x => x.Key, // pragma: allowlist secret
-            x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image }, // pragma: allowlist secret
+        return services.ToDictionary(
+            x => x.Key,
+            x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
             StringComparer.Ordinal);
     }
 
-    private static EpisodeIds? CloneIds(EpisodeIds? ids) // pragma: allowlist secret
+    private static EpisodeIds? CloneIds(EpisodeIds? ids)
     {
         if (ids is null || ids.IsEmpty)
         {
             return null;
         }
 
-        return new EpisodeIds // pragma: allowlist secret
+        return new EpisodeIds
         {
-            Spotify = ids.Spotify, // pragma: allowlist secret
-            Apple = ids.Apple, // pragma: allowlist secret
-            YouTube = ids.YouTube // pragma: allowlist secret
+            Spotify = ids.Spotify,
+            Apple = ids.Apple,
+            YouTube = ids.YouTube
         };
     }
 }

@@ -1,7 +1,6 @@
-// pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Episodes;
 
 /// <summary>
 /// Catalog accessors for <c>services</c> / nested <c>ids</c>.
@@ -9,17 +8,13 @@ namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 /// they wither on full <c>Save()</c>. Application code must not write those leftover members.
 /// Cover art coalesces from <c>services.*.image</c> via <see cref="ServiceCatalog.ImageCoalesceOrder"/>.
 /// </summary>
-public static class EpisodeServicePresence // pragma: allowlist secret
+public static class EpisodeServicePresence
 {
-    public static readonly string[] SocialPostUrlOrder =
-    [
-        ServiceKeys.YouTube,
-        ServiceKeys.Spotify,
-        ServiceKeys.Apple,
-        ServiceKeys.InternetArchive,
-        ServiceKeys.BbcIplayer,
-        ServiceKeys.BbcSounds
-    ];
+    /// <summary>
+    /// Outbound social-post preference: same as <see cref="ServiceCatalog.ImageCoalesceOrder"/>
+    /// so Netflix and other catalog listen destinations can be posted when they are the only URL.
+    /// </summary>
+    public static readonly string[] SocialPostUrlOrder = ServiceCatalog.ImageCoalesceOrder;
 
     /// <summary>
     /// Drop the retired <c>other</c> catalog key and keep nested ids aligned.
@@ -31,7 +26,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         ArgumentNullException.ThrowIfNull(episode);
         if (episode.Services is { Count: > 0 })
         {
-            var map = new Dictionary<string, EpisodeServiceLink>(episode.Services, StringComparer.Ordinal); // pragma: allowlist secret
+            var map = new Dictionary<string, EpisodeServiceLink>(episode.Services, StringComparer.Ordinal);
             map.Remove("other");
             episode.Services = map.Count == 0 ? null : map;
         }
@@ -167,7 +162,14 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         return null;
     }
 
-    public static bool TryGetPreferredSocialPostUrl(Episode episode, out Uri url, out Service service)
+    public static bool TryGetPreferredSocialPostUrl(Episode episode, out Uri url, out Service service) =>
+        TryGetPreferredSocialPost(episode, out url, out _, out service);
+
+    public static bool TryGetPreferredSocialPost(
+        Episode episode,
+        out Uri url,
+        out string serviceKey,
+        out Service service)
     {
         ArgumentNullException.ThrowIfNull(episode);
         foreach (var key in SocialPostUrlOrder)
@@ -179,6 +181,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
             }
 
             url = found;
+            serviceKey = key;
             service = key switch
             {
                 ServiceKeys.YouTube => Service.YouTube,
@@ -189,15 +192,67 @@ public static class EpisodeServicePresence // pragma: allowlist secret
             return true;
         }
 
+        foreach (var (key, link) in episode.Services ?? [])
+        {
+            if (link.Url is null)
+            {
+                continue;
+            }
+
+            url = link.Url;
+            serviceKey = key;
+            service = Service.Other;
+            return true;
+        }
+
         url = null!;
+        serviceKey = "";
         service = Service.Other;
         return false;
+    }
+
+    /// <summary>
+    /// Catalog listen URLs that are present, SocialPostUrlOrder first then remaining keys.
+    /// </summary>
+    public static string FormatCatalogUrlsForLog(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (episode.Services is not { Count: > 0 })
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var key in SocialPostUrlOrder)
+        {
+            var url = TryGetUrl(episode, key);
+            if (url is null)
+            {
+                continue;
+            }
+
+            parts.Add($"{key}={url}");
+            seen.Add(key);
+        }
+
+        foreach (var (key, link) in episode.Services)
+        {
+            if (!seen.Add(key) || link.Url is null)
+            {
+                continue;
+            }
+
+            parts.Add($"{key}={link.Url}");
+        }
+
+        return string.Join(";", parts);
     }
 
     public static void SetSpotifyIdentity(Episode episode, string? id)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids ??= new EpisodeIds();
         episode.Ids.Spotify = string.IsNullOrWhiteSpace(id) ? null : id;
         SyncIds(episode);
     }
@@ -205,7 +260,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
     public static void SetAppleIdentity(Episode episode, long? id)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids ??= new EpisodeIds();
         episode.Ids.Apple = id is > 0 ? id : null;
         SyncIds(episode);
     }
@@ -213,7 +268,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
     public static void SetYouTubeIdentity(Episode episode, string? id)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids ??= new EpisodeIds();
         episode.Ids.YouTube = string.IsNullOrWhiteSpace(id) ? null : id;
         SyncIds(episode);
     }
@@ -226,7 +281,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
     }
 
     public static Uri? CoalescedImage(
-        IReadOnlyDictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
+        IReadOnlyDictionary<string, EpisodeServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {
@@ -257,7 +312,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         NormalizeCatalog(episode);
-        episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal); // pragma: allowlist secret
+        episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal);
         if (url is null && image is null)
         {
             episode.Services.Remove(key);
@@ -271,7 +326,7 @@ public static class EpisodeServicePresence // pragma: allowlist secret
 
         if (!episode.Services.TryGetValue(key, out var link))
         {
-            link = new EpisodeServiceLink(); // pragma: allowlist secret
+            link = new EpisodeServiceLink();
             episode.Services[key] = link;
         }
 

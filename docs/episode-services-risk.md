@@ -1,4 +1,3 @@
-<!-- pragma: allowlist secret -->
 # Risk assessment: service catalog + nested ids rollout
 
 Scope: Phase 0–2 of [episode-services-migration.md](episode-services-migration.md) as they were designed. **Phase 3 leftover DTO retire has landed on freeze branch `cursor/episode-service-links-18b4`** (`SyncLegacy` is gone; typed `Episode` has no leftover members). Optional `NeedsStrip` of leftover Cosmos JSON is still later. Treat the dual-write rows below as **historical** unless noted.
@@ -37,7 +36,7 @@ These fields on a stored document must still be present and equal (or strictly a
 - `images.*`
 - `lang` (null still means English — do not “fill” it)
 - title, description, release, duration, flags (`posted`, `tweeted`, `bluesky` / `blueskyPost`, ignored, removed)
-- subject tags, guests, searchTerms, hashTag <!-- pragma: allowlist secret -->
+- subject tags, guests, searchTerms, hashTag
 
 Allowed adds only: `services`, `ids`.
 

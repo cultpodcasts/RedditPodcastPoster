@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace RedditPodcastPoster.Models.Episodes;
+namespace EpisodeServiceBackfill;
 
 /// <summary>
 /// Reads episode identity from the raw Cosmos JSON document and compares it to a catalog patch.

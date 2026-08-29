@@ -1,10 +1,9 @@
 using System.Text.Json;
+using EpisodeServiceBackfill;
 using FluentAssertions;
-using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Persistence.Episodes;
 using Xunit;
 
 namespace RedditPodcastPoster.Persistence.Tests;
@@ -92,14 +91,14 @@ public class EpisodeServiceBackfillSpotCheckVerifierTests
         {
             ["id"] = episode.Id,
             ["podcastId"] = podcast.Id,
-            ["spotifyId"] = episode.SpotifyId,
-            ["ids"] = new Dictionary<string, string?> { ["spotify"] = episode.SpotifyId },
-            ["urls"] = new Dictionary<string, string?> { ["spotify"] = episode.Urls.Spotify!.ToString() },
+            ["spotifyId"] = EpisodeServicePresence.SpotifyEpisodeId(episode),
+            ["ids"] = new Dictionary<string, string?> { ["spotify"] = EpisodeServicePresence.SpotifyEpisodeId(episode) },
+            ["urls"] = new Dictionary<string, string?> { ["spotify"] = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!.ToString() },
             ["services"] = new Dictionary<string, object>
             {
                 [ServiceKeys.Spotify] = new Dictionary<string, string?>
                 {
-                    ["url"] = episode.Urls.Spotify.ToString()
+                    ["url"] = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!.ToString()
                 }
             }
         });
@@ -147,16 +146,16 @@ public class EpisodeServiceBackfillSpotCheckVerifierTests
             podcast.Id,
             new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
             {
-                [ServiceKeys.Spotify] = new() { Url = episode.Urls.Spotify }
+                [ServiceKeys.Spotify] = new() { Url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) }
             },
-            new EpisodeIds { Spotify = episode.SpotifyId });
+            new EpisodeIds { Spotify = EpisodeServicePresence.SpotifyEpisodeId(episode) });
 
     private static string LegacyNeedsBackfillJson(Episode episode) =>
         JsonSerializer.Serialize(new Dictionary<string, object?>
         {
             ["id"] = episode.Id,
             ["podcastId"] = episode.PodcastId,
-            ["spotifyId"] = episode.SpotifyId,
-            ["urls"] = new Dictionary<string, string?> { ["spotify"] = episode.Urls.Spotify!.ToString() }
+            ["spotifyId"] = EpisodeServicePresence.SpotifyEpisodeId(episode),
+            ["urls"] = new Dictionary<string, string?> { ["spotify"] = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!.ToString() }
         });
 }

@@ -6,15 +6,19 @@ Operator plan. Detail and freeze rules live in the [ops playbook](episode-servic
 
 ## Live status
 
-Updated: **2026-08-28 22:22 BST**
+Updated: **2026-08-29 11:48 BST**
 
-### NOW: Phase 3 — retire leftover Episode members (in progress)
+### NOW: Phase 3 — leftover DTO retire (code on #966; Functions not yet this commit)
 
-Phases 0–6 of this deploy plan are **done**. Phase 3 operator plan: [episode-services-phase-3.md](episode-services-phase-3.md). #966 stays open. No Wrangler/Pages. No strip `--apply`.
+Phases 0–6 of this deploy plan are **done**. Operator plan: [episode-services-phase-3.md](episode-services-phase-3.md). #966 stays open. No Wrangler/Pages. No strip `--apply`.
 
-`--all --apply` **exit 0**. Scanned **97306** Candidates **97286** Saved **97286** Missing **0** Mismatches **0**. Spot-check **1000/1000 ok**. Elapsed **34.4m**. Patch JSONL: `CultPodcasts-PrivateDatabase\2026-08-28-backfill-logs`. Search index still **84714**.
+`--all --apply` **exit 0** (28 Aug). Scanned **97306** Candidates **97286** Saved **97286**. Spot-check **1000/1000**. Search index still **84714**.
 
-**Noted (not blocking 1a):** `other` is not a listen service. Catalog is defined destinations only (including Paramount+, HBO Max, Play Suisse, TVNZ+). Unknown hosts still slug to an alnum key. Leftover `images.other` stays as BBC-style art. Curator “Other” image field is unchanged.
+**29 Aug catalog check:** since 21:00 BST 28 Aug: 39 docs, **0** NeedsBackfill. Full dry-run: **97345** / **0**. Nothing to apply.
+
+**#966:** `f4e05758` leftover DTO retire; `d0dbad11` review should-fix. CLI `LeftoverEpisodeDocument : Episode` is **local**. Architect review: ship-quality if catalog complete. **11:00 BST Indexer slot missed** for Phase 3 deploy; next hourly **12:03 BST** if named.
+
+**Noted (not blocking 1a):** `other` is not a listen service. Catalog is defined destinations only (including Paramount+, HBO Max, Play Suisse, TVNZ+). Unknown hosts still slug to an alnum key. Leftover `images.other` stays as BBC-style art until wither. Curator “Other” image field is unchanged.
 
 In-progress rows always show **% of that step** (not of the whole rollout).
 
@@ -33,7 +37,7 @@ In-progress rows always show **% of that step** (not of the whole rollout).
 | 4 Publish feed | **done** | **100%** | `PublishR2 homepage` completed. GET leftover URLs gone; lead has `services`+`ids`. |
 | 5 Search `svc` + desc 180 | **done** | **100%** | Recreate exit 0. 9/10 Success, **84714** docs, `svc` + SUBSTRING 180. Storage **47,835,315** (91.2%) vs 52,133,148 (99.4%). UI: `search-description.ts`, hero, specs, `1.10.113` (not deployed). |
 | 6 Cosmos backfill | **done** | **100%** | exit 0. scanned 97306 candidates 97286 saved 97286 missing 0 mismatches 0. spot-check 1000 ok. 34.4m. |
-| P3 leftover retire | **in progress** | — | Drop leftover DTO members (`urls`, top-level ids, `images`). Catalog coalesce. Indexer SQL dual-read. |
+| P3 leftover retire | **in progress** | — | DTO + writers + indexer SQL on #966. Catalog 0 candidates. Functions still 28 Aug dual-write. CLI leftover subclass uncommitted. Next named Indexer deploy earliest **12:03 BST**. |
 
 **Forbidden while this run is live:** `--overwrite` on PrivateDatabase, any write into `2026-08-15`, `PublishR2 all`, **completing/merging [RPP #966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966)**, `wrangler deploy` / `npm run deploy` for Api or website, search index teardown/recreate.
 

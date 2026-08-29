@@ -1,5 +1,4 @@
-// pragma: allowlist secret
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Canonical JSON keys for <c>episode.services</c>. Stable identifiers for icons and search encoding.

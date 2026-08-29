@@ -8,7 +8,7 @@ using Indexer.Orchestrations;
 using Indexer.Services;
 using Xunit;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -57,7 +57,7 @@ public class PodcastEpisodeExtensionsTests
     [Fact(DisplayName =
         "INTEGRITY: ToEpisodeSearchRecord leaves Lang null when Episode.Language is null (product English) even if the " +
         "podcast has a non-English default, because search English is lang eq null and coalescing to podcast.Language " +
-        "would exclude curated English episodes of non-English shows from the English subject filter.")] // pragma: allowlist secret
+        "would exclude curated English episodes of non-English shows from the English subject filter.")]
     public void Leaves_lang_null_when_episode_language_unset_despite_podcast_default()
     {
         // Arrange

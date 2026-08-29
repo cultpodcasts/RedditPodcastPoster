@@ -29,6 +29,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\..\Console-Apps\MigrateLanguageIgnoredSubjects\MigrateLanguageIgnoredSubjects.csproj" />
+    <ProjectReference Include="..\..\Console-Apps\EpisodeServiceBackfill\EpisodeServiceBackfill.csproj" />
   </ItemGroup>
 
 </Project>

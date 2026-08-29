@@ -1,4 +1,3 @@
-<!-- pragma: allowlist secret -->
 # Canvas: one service catalog + nested ids
 
 This is the product/engineering canvas for the service-link work on `cursor/episode-service-links-18b4`.
@@ -41,7 +40,7 @@ Until leftover JSON withers, Cosmos documents may still **contain** both leftove
 
 ## 2. How it affects the public site
 
-Public cards, hero, search results, saved items, and share/play CTAs all go through the same helpers (`collectEpisodeServices`, `spotifyUrl` / `youtubeUrl` / `appleUrl` / BBC helpers in `search-result-links.ts`). <!-- pragma: allowlist secret -->
+Public cards, hero, search results, saved items, and share/play CTAs all go through the same helpers (`collectEpisodeServices`, `spotifyUrl` / `youtubeUrl` / `appleUrl` / BBC helpers in `search-result-links.ts`).
 
 **Resolution order** (first hit wins per service):
 
@@ -59,14 +58,14 @@ Public cards, hero, search results, saved items, and share/play CTAs all go thro
 
 **What does not change for visitors**
 
-- Detail pages, rails, and search still show the same cards. <!-- pragma: allowlist secret -->
+- Detail pages, rails, and search still show the same cards.
 - Sharing still picks a primary outbound URL via the same YouTube → Spotify → Apple preference, now sourced through the helpers.
 
 ---
 
 ## 3. How it affects the admin / curator UI
 
-Admin GET (`EpisodeDto` / `ApiEpisode`) is a **superset** during overlap: <!-- pragma: allowlist secret -->
+Admin GET (`EpisodeDto` / `ApiEpisode`) is a **superset** during overlap:
 
 - Still: `urls`, `images`, `spotifyId` / `appleId` / `youTubeId`
 - New: `ids`, `services`
@@ -92,7 +91,7 @@ The add/edit dialogs keep **dedicated slots** for Spotify, Apple, YouTube (`DEFA
 
 **Posters read catalog `services`.** Dual-write is off.
 
-`TweetBuilder` and `BlueskyEmbedCardPostFactory` choose one outbound link from **catalog** `services` (`TryGetPreferredSocialPostUrl`), in this order: <!-- pragma: allowlist secret -->
+`TweetBuilder` and `BlueskyEmbedCardPostFactory` choose one outbound link from **catalog** `services` (`TryGetPreferredSocialPostUrl`), in this order:
 
 1. YouTube
 2. Spotify
@@ -102,7 +101,7 @@ The add/edit dialogs keep **dedicated slots** for Spotify, Apple, YouTube (`DEFA
 
 If none exist, tweet build throws `No link found to tweet`.
 
-Bluesky embed thumbnails resolve via nested `ids.spotify` (leftover top-level `spotifyId` is ignored on typed `Episode`). <!-- pragma: allowlist secret -->
+Bluesky embed thumbnails resolve via nested `ids.spotify` (leftover top-level `spotifyId` is ignored on typed `Episode`).
 
 `hashTag` and posted/tweeted/bluesky flags are unchanged.
 
@@ -186,13 +185,13 @@ Spotify / YouTube / Apple stay compact id fields. Other catalog keys compact to:
 bbcSounds:p0example|vimeo:123456789|netflix:uhttps://www.netflix.com/watch/…
 ```
 
-Empty string when none (never null — Azure Search merge ignores null). Grammar lives on the compact-`svc` helper. <!-- pragma: allowlist secret -->
+Empty string when none (never null — Azure Search merge ignores null). Grammar lives on the compact-`svc` helper.
 
 ---
 
 ## 6. Why migration is two tracks (code + data)
 
-`OnDeserialized` calls `NormalizeCatalog` (drop retired `other`, empty ids). Leftover JSON is **not** copied onto typed `Episode`. Candidate selection **must** use raw JSON + `NeedsBackfill`. A cheap `NOT IS_DEFINED(c.services)` misses **partial** maps (YouTube in `services`, Spotify still only on `urls`). <!-- pragma: allowlist secret -->
+`OnDeserialized` calls `NormalizeCatalog` (drop retired `other`, empty ids). Leftover JSON is **not** copied onto typed `Episode`. Candidate selection **must** use raw JSON + `NeedsBackfill`. A cheap `NOT IS_DEFINED(c.services)` misses **partial** maps (YouTube in `services`, Spotify still only on `urls`).
 
 ```mermaid
 flowchart TD
@@ -217,7 +216,7 @@ New writes persist both shapes. Search SQL and matching still read `urls` / top-
 
 ### Phase 2 — migrate stored JSON
 
-Tested types: document-migration (`NeedsBackfill`, `SelectDocumentsToBackfill`, `Apply`) and the backfill processor (dry-run default). <!-- pragma: allowlist secret -->
+Tested types: document-migration (`NeedsBackfill`, `SelectDocumentsToBackfill`, `Apply`) and the backfill processor (dry-run default).
 
 1. Page raw documents
 2. Dry-run (`apply: false`) — record candidate count, spot-check

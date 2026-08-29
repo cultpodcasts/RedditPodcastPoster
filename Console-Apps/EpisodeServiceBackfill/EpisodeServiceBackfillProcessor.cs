@@ -1,9 +1,7 @@
-// pragma: allowlist secret
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Persistence.Episodes;
+namespace EpisodeServiceBackfill;
 
 /// <summary>
 /// Dry-run (default) or apply backfill of <c>services</c> + <c>ids</c> onto episode documents.
@@ -11,7 +9,8 @@ namespace RedditPodcastPoster.Persistence.Episodes;
 /// Query iteration is the caller's job; this type parallelises CPU work and PatchItemAsync only.
 /// </summary>
 public class EpisodeServiceBackfillProcessor(
-    IEpisodeRepository episodeRepository,
+    IBackfillEpisodeRepository episodeRepository,
+    IEpisodeCatalogPatchSource catalogPatchSource,
     ILogger<EpisodeServiceBackfillProcessor> logger)
 {
     public const int DefaultDegreeOfParallelism = 8;
@@ -43,7 +42,7 @@ public class EpisodeServiceBackfillProcessor(
                 return;
             }
 
-            if (!EpisodeServiceCatalogPatchFactory.TryCreate(json, out var patch) || patch is null)
+            if (!catalogPatchSource.TryCreate(json, out var patch) || patch is null)
             {
                 return;
             }

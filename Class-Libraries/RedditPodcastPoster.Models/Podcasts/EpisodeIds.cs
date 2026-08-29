@@ -1,13 +1,12 @@
-// pragma: allowlist secret
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Spotify / Apple / YouTube episode identity. Presence of a service for matching
 /// and search reconstruction lives here — not on a named URL slot.
 /// </summary>
-public class EpisodeIds // pragma: allowlist secret
+public class EpisodeIds
 {
     [JsonPropertyName("spotify")]
     public string? Spotify { get; set; }

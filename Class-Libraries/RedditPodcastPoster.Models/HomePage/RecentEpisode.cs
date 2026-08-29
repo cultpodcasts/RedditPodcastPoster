@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Models.HomePage;
 
@@ -37,10 +37,10 @@ public class RecentEpisode
         .ToString("dddd d MMMM");
 
     [JsonPropertyName("ids")]
-    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+    public EpisodeIds? Ids { get; set; }
 
     [JsonPropertyName("services")]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

@@ -1,7 +1,6 @@
-// pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.EntitySearchIndexer.Models; // pragma: allowlist secret
+namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 
 /// <summary>
 /// Compact encoding for service URLs that are not reconstructed from Spotify/Apple/YouTube ids.
@@ -11,11 +10,11 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models; // pragma: allowlist s
 /// Clients expand with the same catalog. Empty string when none
 /// (never null — Azure Search merge ignores null).
 /// </summary>
-public static class SearchEpisodeServices // pragma: allowlist secret
+public static class SearchEpisodeServices
 {
     public const char EntrySeparator = '|';
 
-    public static string Compact(IReadOnlyDictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
+    public static string Compact(IReadOnlyDictionary<string, EpisodeServiceLink>? services)
     {
         if (services is null || services.Count == 0)
         {

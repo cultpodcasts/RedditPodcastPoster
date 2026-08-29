@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -18,14 +17,4 @@ public interface IEpisodeRepository : IRepository<Episode>, IFilterableRepositor
     /// Surgical Cosmos patch of <c>/guests</c> only. Does not touch handle fields or other properties.
     /// </summary>
     Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests);
-
-    /// <summary>
-    /// Surgical Cosmos patch of <c>/services</c> and <c>/ids</c> only. Does not upsert the document.
-    /// Returns <c>false</c> when the item is missing.
-    /// </summary>
-    Task<bool> PatchServicesAndIds(
-        Guid podcastId,
-        Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
-        EpisodeIds? ids);
 }

@@ -166,14 +166,14 @@ public class YouTubeUrlCategoriser(
         {
             string channelDescription = "", channelContentOwner = "";
             var mismatchedEpisodes = episodes.Where(x =>
-            {
-                var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(x);
-                var youTubeUrl = EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube);
-                return (!x.Removed && string.IsNullOrWhiteSpace(youTubeId) && youTubeUrl != null) ||
-                       (youTubeUrl == null && !string.IsNullOrWhiteSpace(youTubeId)) ||
-                       (!string.IsNullOrWhiteSpace(youTubeId) && youTubeUrl != null &&
-                        YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
-            }).ToArray();
+                (!x.Removed && string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x)) &&
+                 EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) != null) ||
+                (EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) == null &&
+                 !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x))) ||
+                (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x)) &&
+                 EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) != null &&
+                 YouTubeIdResolver.Extract(EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube)!) !=
+                 EpisodeServicePresence.YouTubeEpisodeId(x))).ToArray();
             if (mismatchedEpisodes.Any())
             {
                 throw new InvalidOperationException(

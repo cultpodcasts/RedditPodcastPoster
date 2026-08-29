@@ -1,5 +1,5 @@
 using RedditPodcastPoster.EntitySearchIndexer.Models;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -10,7 +10,7 @@ public static class PodcastEpisodeExtensions
 {
     public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
     {
-        EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
@@ -35,7 +35,7 @@ public static class PodcastEpisodeExtensions
             PodcastName = podcastEpisode.Podcast.Name.Trim(),
             PodcastSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
             Release = podcastEpisode.Episode.Release,
-            Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services), // pragma: allowlist secret
+            Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
             SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
             Subjects = podcastEpisode.Episode.Subjects.ToArray(),
             YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode))

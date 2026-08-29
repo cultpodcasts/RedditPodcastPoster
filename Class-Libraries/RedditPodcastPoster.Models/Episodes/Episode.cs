@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Podcasts;
 
-namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Episodes;
 
 public class Episode : IJsonOnDeserialized, IJsonOnSerializing
 {
@@ -105,7 +105,7 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     /// </summary>
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
+    public EpisodeIds? Ids { get; set; }
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -164,7 +164,7 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     /// </summary>
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
@@ -173,18 +173,21 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
 
+    /// <summary>
+    /// Cosmos STJ hydrate: NormalizeCatalog drops retired <c>other</c>, empty ids, empty Services.
+    /// Write-path Upsert also normalizes; this hook covers loads that never call Upsert.
+    /// </summary>
     public void OnDeserialized()
     {
-        EpisodeServicePresence.NormalizeCatalog(this); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(this);
     }
 
+    /// <summary>
+    /// Cosmos STJ save: same NormalizeCatalog so a full Save cannot persist retired <c>other</c> or empty maps.
+    /// </summary>
     public void OnSerializing()
     {
-        EpisodeServicePresence.NormalizeCatalog(this); // pragma: allowlist secret
-        if (Services is { Count: 0 })
-        {
-            Services = null;
-        }
+        EpisodeServicePresence.NormalizeCatalog(this);
     }
 
     public static Episode FromSpotify(string spotifyId,
@@ -204,8 +207,8 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
             Explicit = @explicit,
             Release = release
         };
-        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId); // pragma: allowlist secret
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, maxImage); // pragma: allowlist secret
+        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, maxImage);
         return episode;
     }
 
@@ -227,8 +230,8 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
             Explicit = @explicit,
             Release = release
         };
-        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId); // pragma: allowlist secret
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, image); // pragma: allowlist secret
+        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, image);
         return episode;
     }
 
@@ -250,8 +253,8 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
             Explicit = @explicit,
             Release = release
         };
-        EpisodeServicePresence.SetAppleIdentity(episode, appleId); // pragma: allowlist secret
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, url, image); // pragma: allowlist secret
+        EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, url, image);
         return episode;
     }
 

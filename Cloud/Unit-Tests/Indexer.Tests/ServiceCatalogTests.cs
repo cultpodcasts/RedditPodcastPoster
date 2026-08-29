@@ -1,9 +1,8 @@
-// pragma: allowlist secret
-using FluentAssertions; // pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using Xunit; // pragma: allowlist secret
+using FluentAssertions;
+using RedditPodcastPoster.Models.Podcasts;
+using Xunit;
 
-namespace Indexer.Tests; // pragma: allowlist secret
+namespace Indexer.Tests;
 
 public class ServiceCatalogTests
 {

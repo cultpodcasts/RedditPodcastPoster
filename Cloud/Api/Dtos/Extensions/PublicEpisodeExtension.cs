@@ -1,14 +1,14 @@
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Dtos.Extensions;
 
 public static class PublicEpisodeExtension
 {
     public static PublicEpisodeDto ToDto(
-        this RedditPodcastPoster.Models.Episodes.Episode episode, // pragma: allowlist secret
+        this RedditPodcastPoster.Models.Episodes.Episode episode,
         RedditPodcastPoster.Models.Podcasts.Podcast podcast)
     {
-        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode);
         return new PublicEpisodeDto
         {
             PodcastName = podcast.Name,
@@ -21,7 +21,7 @@ public static class PublicEpisodeExtension
             Ids = episode.Ids,
             Services = episode.Services,
             Subjects = episode.Subjects,
-            Image = EpisodeServicePresence.CoalescedImage(episode) // pragma: allowlist secret
+            Image = EpisodeServicePresence.CoalescedImage(episode)
         };
     }
 }

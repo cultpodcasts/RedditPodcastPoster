@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 
-namespace RedditPodcastPoster.Persistence.Episodes;
+namespace EpisodeServiceBackfill;
 
 /// <summary>
 /// Thread-safe JSONL log of catalog-patch identities (not full episode documents). Overwrites the file on construct.

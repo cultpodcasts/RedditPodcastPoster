@@ -46,7 +46,7 @@ public class EpisodeChangeRequest
     public ServiceImageUrls? Images { get; set; }
 
     [JsonPropertyName("services")]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; } // pragma: allowlist secret
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

@@ -239,52 +239,6 @@ public class EpisodeRepository(
             [PatchOperation.Set("/guests", guests)]);
     }
 
-    public async Task<bool> PatchServicesAndIds(
-        Guid podcastId,
-        Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
-        EpisodeIds? ids)
-    {
-        if (podcastId == Guid.Empty)
-        {
-            throw new InvalidOperationException("podcastId must be set before patching services/ids.");
-        }
-
-        if (episodeId == Guid.Empty)
-        {
-            throw new InvalidOperationException("episodeId must be set before patching services/ids.");
-        }
-
-        var operations = new List<PatchOperation>(2);
-        if (services is { Count: > 0 })
-        {
-            operations.Add(PatchOperation.Set("/services", services));
-        }
-
-        if (ids is not null && !ids.IsEmpty)
-        {
-            operations.Add(PatchOperation.Set("/ids", ids));
-        }
-
-        if (operations.Count == 0)
-        {
-            return true;
-        }
-
-        try
-        {
-            await container.PatchItemAsync<Episode>(
-                episodeId.ToString(),
-                ToPartitionKey(podcastId),
-                operations);
-            return true;
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
-            return false;
-        }
-    }
-
     public async Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
         var query = container

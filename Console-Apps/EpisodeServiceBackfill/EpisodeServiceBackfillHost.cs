@@ -6,13 +6,13 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
-using RedditPodcastPoster.Persistence.Episodes;
 
 namespace EpisodeServiceBackfill;
 
 public class EpisodeServiceBackfillHost(
     ICosmosDbContainerFactory containerFactory,
     EpisodeServiceBackfillProcessor processor,
+    IEpisodeCatalogPatchSource catalogPatchSource,
     ILogger<EpisodeServiceBackfillHost> logger)
 {
     private static readonly JsonSerializerOptions SliceJson = new() { WriteIndented = true };
@@ -190,7 +190,7 @@ public class EpisodeServiceBackfillHost(
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = dop };
         var consumers = Parallel.ForEachAsync(channel.Reader.ReadAllAsync(), parallelOptions, async (json, ct) =>
         {
-            if (!EpisodeServiceCatalogPatchFactory.TryCreate(json, out var patch) || patch is null)
+            if (!catalogPatchSource.TryCreate(json, out var patch) || patch is null)
             {
                 return;
             }
@@ -283,9 +283,10 @@ public class EpisodeServiceBackfillHost(
         await foreach (var json in QueryRawStream(container, query))
         {
             hits++;
-            using var document = JsonDocument.Parse(json);
-            if (EpisodeServiceDocumentMigration.NeedsBackfill(document.RootElement) &&
-                EpisodeServiceCatalogPatchFactory.TryCreate(document.RootElement, out _))
+            if (LeftoverEpisodeDocument.TryParse(json, out var leftover) &&
+                leftover is not null &&
+                leftover.NeedsBackfill() &&
+                leftover.TryCreateCatalogPatch(out _))
             {
                 candidates.Add(json);
             }
@@ -357,36 +358,22 @@ public class EpisodeServiceBackfillHost(
             string? why = null;
             try
             {
-                using var document = JsonDocument.Parse(json);
-                var root = document.RootElement;
-                if (root.ValueKind != JsonValueKind.Object)
+                if (!LeftoverEpisodeDocument.TryParse(json, out var leftover) || leftover is null)
                 {
                     unreadable++;
                     classification = "unreadable";
-                    why = "not an object";
+                    why = "deserialize fail";
                 }
                 else
                 {
-                    if (root.TryGetProperty("id", out var idEl) && idEl.TryGetGuid(out var eid))
-                    {
-                        episodeId = eid;
-                    }
-
-                    if (root.TryGetProperty("podcastId", out var podcastEl) && podcastEl.TryGetGuid(out var pid))
-                    {
-                        podcastId = pid;
-                    }
-
-                    if (root.TryGetProperty("_ts", out var tsEl) && tsEl.TryGetInt64(out var unix))
-                    {
-                        ts = unix;
-                    }
-
-                    if (EpisodeServiceDocumentMigration.NeedsBackfill(root))
+                    episodeId = leftover.Id == Guid.Empty ? null : leftover.Id;
+                    podcastId = leftover.PodcastId == Guid.Empty ? null : leftover.PodcastId;
+                    ts = leftover.Timestamp;
+                    if (leftover.NeedsBackfill())
                     {
                         needsTrue++;
-                        why = EpisodeServiceDocumentMigration.DescribeNeed(root);
-                        classification = EpisodeServiceCatalogPatchFactory.TryCreate(root, out _)
+                        why = leftover.DescribeNeed();
+                        classification = leftover.TryCreateCatalogPatch(out _)
                             ? "still_candidate"
                             : "needs_backfill_not_candidate";
                         if (classification == "still_candidate")
@@ -495,7 +482,7 @@ public class EpisodeServiceBackfillHost(
             else
             {
                 var json = matches[0];
-                reason = EpisodeServiceCatalogPatchFactory.Classify(json) ?? "now_a_candidate";
+                reason = LeftoverEpisodeDocument.Classify(json) ?? "now_a_candidate";
                 using var document = JsonDocument.Parse(json);
                 if (document.RootElement.TryGetProperty("podcastId", out var podcastEl) &&
                     podcastEl.TryGetGuid(out var pid))
@@ -600,7 +587,7 @@ public class EpisodeServiceBackfillHost(
                 inPatchLog++;
             }
 
-            var reason = EpisodeServiceCatalogPatchFactory.Classify(json) ?? "now_a_candidate";
+            var reason = LeftoverEpisodeDocument.Classify(json) ?? "now_a_candidate";
             counts[reason] = counts.GetValueOrDefault(reason) + 1;
             var tsIso = ts > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime.ToString("o")
@@ -839,8 +826,9 @@ public class EpisodeServiceBackfillHost(
         var selected = new List<string>();
         foreach (var json in loaded)
         {
-            using var document = JsonDocument.Parse(json);
-            if (!EpisodeServiceDocumentMigration.NeedsBackfill(document.RootElement))
+            if (!LeftoverEpisodeDocument.TryParse(json, out var leftover) ||
+                leftover is null ||
+                !leftover.NeedsBackfill())
             {
                 continue;
             }
@@ -908,9 +896,9 @@ public class EpisodeServiceBackfillHost(
         }
     }
 
-    private static void PrintPatch(string json, string? snapshotDir)
+    private void PrintPatch(string json, string? snapshotDir)
     {
-        if (!EpisodeServiceCatalogPatchFactory.TryCreate(json, out var patch) || patch is null)
+        if (!catalogPatchSource.TryCreate(json, out var patch) || patch is null)
         {
             WriteLine(JsonSerializer.Serialize(new { patch = (object?)null, reason = "not a candidate" }, SliceJson));
             return;
