@@ -1,5 +1,6 @@
 using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
@@ -17,15 +18,18 @@ public static class YouTubeEnrichmentCandidate
         string? description,
         DateTime release,
         TimeSpan length,
-        string youTubeId) =>
-        new()
+        string youTubeId)
+    {
+        var episode = new EpisodeModel
         {
             Title = title,
             Description = description ?? string.Empty,
             Release = release,
-            Length = length,
-            YouTubeId = youTubeId
+            Length = length
         };
+        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+        return episode;
+    }
 
     public static EpisodeModel ToEpisode(SearchResult searchResult, Google.Apis.YouTube.v3.Data.Video? video)
     {

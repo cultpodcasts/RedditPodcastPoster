@@ -8,7 +8,7 @@ public static class PublicEpisodeExtension
         this RedditPodcastPoster.Models.Episodes.Episode episode, // pragma: allowlist secret
         RedditPodcastPoster.Models.Podcasts.Podcast podcast)
     {
-        EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
         return new PublicEpisodeDto
         {
             PodcastName = podcast.Name,

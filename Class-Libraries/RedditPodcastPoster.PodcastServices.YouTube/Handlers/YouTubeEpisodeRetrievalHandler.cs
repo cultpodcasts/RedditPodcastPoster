@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
@@ -77,11 +78,11 @@ public class YouTubeEpisodeRetrievalHandler(
             if (indexingContext.ReleasedSince.HasValue)
             {
                 knownIds = episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
-                    .Select(x => x.YouTubeId);
+                    .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty);
             }
             else
             {
-                knownIds = episodes.Select(x => x.YouTubeId);
+                knownIds = episodes.Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty);
             }
 
             var foundEpisodes = await youTubeEpisodeProvider.GetEpisodes(

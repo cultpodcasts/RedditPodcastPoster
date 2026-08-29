@@ -12,6 +12,7 @@ public sealed class DownloadContainerSelection
     public const string SubjectsName = "subjects";
     public const string DiscoveryName = "discovery";
     public const string PushSubscriptionsName = "pushsubscriptions";
+    public const string PeopleName = "people";
 
     public static readonly IReadOnlyList<string> AllNames =
     [
@@ -21,7 +22,8 @@ public sealed class DownloadContainerSelection
         TitleCasingName,
         SubjectsName,
         DiscoveryName,
-        PushSubscriptionsName
+        PushSubscriptionsName,
+        PeopleName
     ];
 
     private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
@@ -45,7 +47,9 @@ public sealed class DownloadContainerSelection
         [PushSubscriptionsName] = PushSubscriptionsName,
         ["push"] = PushSubscriptionsName,
         ["push-subscriptions"] = PushSubscriptionsName,
-        ["pushsubscription"] = PushSubscriptionsName
+        ["pushsubscription"] = PushSubscriptionsName,
+        [PeopleName] = PeopleName,
+        ["person"] = PeopleName
     };
 
     public bool Podcasts { get; private init; }
@@ -55,6 +59,7 @@ public sealed class DownloadContainerSelection
     public bool Subjects { get; private init; }
     public bool Discovery { get; private init; }
     public bool PushSubscriptions { get; private init; }
+    public bool People { get; private init; }
 
     public IEnumerable<string> EnabledNames
     {
@@ -67,6 +72,7 @@ public sealed class DownloadContainerSelection
             if (Subjects) yield return SubjectsName;
             if (Discovery) yield return DiscoveryName;
             if (PushSubscriptions) yield return PushSubscriptionsName;
+            if (People) yield return PeopleName;
         }
     }
 
@@ -78,7 +84,8 @@ public sealed class DownloadContainerSelection
         TitleCasing = true,
         Subjects = true,
         Discovery = true,
-        PushSubscriptions = true
+        PushSubscriptions = true,
+        People = true
     };
 
     public static DownloadContainerSelection FromRequest(CosmosDbDownloaderRequest request)
@@ -131,7 +138,8 @@ public sealed class DownloadContainerSelection
             TitleCasing = enabled.Contains(TitleCasingName),
             Subjects = enabled.Contains(SubjectsName),
             Discovery = enabled.Contains(DiscoveryName),
-            PushSubscriptions = enabled.Contains(PushSubscriptionsName)
+            PushSubscriptions = enabled.Contains(PushSubscriptionsName),
+            People = enabled.Contains(PeopleName)
         };
     }
 

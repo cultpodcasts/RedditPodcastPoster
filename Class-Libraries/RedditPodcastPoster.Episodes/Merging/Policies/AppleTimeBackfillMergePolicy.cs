@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.Merging;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Merging.Policies;
 
@@ -12,7 +13,7 @@ public sealed class AppleTimeBackfillMergePolicy : IReleaseMergePolicy
             return ReleaseMergeOpinion.NoOpinion;
         }
 
-        return context.IncomingEpisode.AppleId is > 0
+        return EpisodeServicePresence.AppleEpisodeId(context.IncomingEpisode) is > 0
             ? ReleaseMergeOpinion.Backfill
             : ReleaseMergeOpinion.NoOpinion;
     }

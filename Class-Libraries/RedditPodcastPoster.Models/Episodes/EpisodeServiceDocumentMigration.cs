@@ -50,15 +50,45 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
     }
 
     /// <summary>
-    /// Hydrate <c>services</c> / <c>ids</c> and dual-write legacy slots. // pragma: allowlist secret
-    /// Returns true when the persisted shape changed and the document should be saved.
+    /// One-line gap kind when <see cref="NeedsBackfill"/> is true; otherwise null.
+    /// </summary>
+    public static string? DescribeNeed(JsonElement episode) // pragma: allowlist secret
+    {
+        if (episode.ValueKind != JsonValueKind.Object)
+        {
+            return "unreadable";
+        }
+
+        var urlGap = HasUrlCoverageGaps(episode); // pragma: allowlist secret
+        var idGap = HasIdCoverageGaps(episode); // pragma: allowlist secret
+        if (urlGap && idGap)
+        {
+            return "url gap / id gap";
+        }
+
+        if (urlGap)
+        {
+            return "url gap";
+        }
+
+        if (idGap)
+        {
+            return "id gap";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Keep nested <c>ids</c> aligned after leftover JSON has been copied onto catalog by
+    /// <see cref="MergeRawLeftoverIntoCatalog"/>. Returns true when the in-memory catalog
+    /// shape changed. Does not write leftover DTO members.
     /// </summary>
     public static bool Apply(Episode episode) // pragma: allowlist secret
     {
         ArgumentNullException.ThrowIfNull(episode); // pragma: allowlist secret
         var before = Capture(episode); // pragma: allowlist secret
-        EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
-        EpisodeServicePresence.SyncLegacy(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
         EpisodeServicePresence.SyncIds(episode); // pragma: allowlist secret
         if (episode.Services is { Count: 0 }) // pragma: allowlist secret
         {
@@ -66,6 +96,98 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
         }
 
         return !before.Equals(Capture(episode)); // pragma: allowlist secret
+    }
+
+    /// <summary>
+    /// Copy leftover <c>urls</c> / top-level ids / <c>images</c> from raw Cosmos JSON into
+    /// catalog <c>services</c> and nested <c>ids</c>. Typed <see cref="Episode"/> no longer
+    /// has leftover members, so backfill must use this instead of deserialize-then-merge.
+    /// </summary>
+    public static void MergeRawLeftoverIntoCatalog(Episode episode, JsonElement raw)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (raw.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (TryGetObject(raw, "urls", out var urls))
+        {
+            MergeRawUrl(episode, urls, "spotify", ServiceKeys.Spotify);
+            MergeRawUrl(episode, urls, "apple", ServiceKeys.Apple);
+            MergeRawUrl(episode, urls, "youtube", ServiceKeys.YouTube);
+            MergeRawUrl(episode, urls, "internetArchive", ServiceKeys.InternetArchive);
+            if (TryGetUrl(urls, "bbc", out var bbc) &&
+                Uri.TryCreate(bbc, UriKind.Absolute, out var bbcUri))
+            {
+                var key = ServiceCatalog.TryResolveKey(bbcUri) ?? ServiceKeys.BbcSounds;
+                EpisodeServicePresence.TryFillMissing(episode, key, bbcUri, null);
+            }
+        }
+
+        if (TryGetNonEmptyString(raw, "spotifyId", out var spotifyId) &&
+            string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)))
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
+        }
+
+        if (TryGetNonEmptyString(raw, "youTubeId", out var youTubeId) &&
+            string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)))
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+        }
+
+        if (raw.TryGetProperty("appleId", out var appleEl) &&
+            appleEl.ValueKind is JsonValueKind.Number &&
+            appleEl.TryGetInt64(out var appleId) &&
+            EpisodeServicePresence.AppleEpisodeId(episode) is null)
+        {
+            EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+        }
+
+        if (TryGetObject(raw, "images", out var images))
+        {
+            MergeRawImage(episode, images, "spotify", ServiceKeys.Spotify);
+            MergeRawImage(episode, images, "apple", ServiceKeys.Apple);
+            MergeRawImage(episode, images, "youtube", ServiceKeys.YouTube);
+            if (TryGetUrl(images, "other", out var other) &&
+                Uri.TryCreate(other, UriKind.Absolute, out var otherUri))
+            {
+                foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+                {
+                    if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
+                    {
+                        continue;
+                    }
+
+                    if (EpisodeServicePresence.HasUrl(episode, key) &&
+                        EpisodeServicePresence.TryGetImage(episode, key) is null)
+                    {
+                        EpisodeServicePresence.SetCatalogImage(episode, key, otherUri);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private static void MergeRawUrl(Episode episode, JsonElement urls, string urlsName, string serviceKey)
+    {
+        if (TryGetUrl(urls, urlsName, out var value) &&
+            Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            EpisodeServicePresence.TryFillMissing(episode, serviceKey, uri, null);
+        }
+    }
+
+    private static void MergeRawImage(Episode episode, JsonElement images, string imagesName, string serviceKey)
+    {
+        if (TryGetUrl(images, imagesName, out var value) &&
+            Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            EpisodeServicePresence.TryGetImage(episode, serviceKey) is null)
+        {
+            EpisodeServicePresence.SetCatalogImage(episode, serviceKey, uri);
+        }
     }
 
     private static bool TryReadRef(JsonElement episode, out EpisodeRef episodeRef) // pragma: allowlist secret
@@ -217,30 +339,14 @@ public static class EpisodeServiceDocumentMigration // pragma: allowlist secret
 
     private readonly record struct ShapeSnapshot(
         string? Services,
-        string? Ids, // pragma: allowlist secret
-        string? SpotifyId,
-        long? AppleId,
-        string? YouTubeId,
-        string? UrlsSpotify,
-        string? UrlsApple,
-        string? UrlsYouTube,
-        string? UrlsBbc,
-        string? UrlsInternetArchive);
+        string? Ids); // pragma: allowlist secret
 
     private static ShapeSnapshot Capture(Episode episode) => // pragma: allowlist secret
         new(
             SerializeServices(episode.Services), // pragma: allowlist secret
             episode.Ids is null // pragma: allowlist secret
                 ? null
-                : $"{episode.Ids.Spotify}|{episode.Ids.Apple}|{episode.Ids.YouTube}", // pragma: allowlist secret
-            string.IsNullOrWhiteSpace(episode.SpotifyId) ? null : episode.SpotifyId, // pragma: allowlist secret
-            episode.AppleId, // pragma: allowlist secret
-            string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId, // pragma: allowlist secret
-            episode.Urls?.Spotify?.ToString(), // pragma: allowlist secret
-            episode.Urls?.Apple?.ToString(), // pragma: allowlist secret
-            episode.Urls?.YouTube?.ToString(), // pragma: allowlist secret
-            episode.Urls?.BBC?.ToString(), // pragma: allowlist secret
-            episode.Urls?.InternetArchive?.ToString()); // pragma: allowlist secret
+                : $"{episode.Ids.Spotify}|{episode.Ids.Apple}|{episode.Ids.YouTube}"); // pragma: allowlist secret
 
     private static string? SerializeServices(Dictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
     {

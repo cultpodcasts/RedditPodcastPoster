@@ -8,15 +8,16 @@ public static class PodcastEpisodeExtensions
 {
     public static EpisodeImageUpdateRequest ToEpisodeImageUpdateRequest(this (Podcast Podcast, Episode Episode) podcastEpisode)
     {
+        var episode = podcastEpisode.Episode;
         return new EpisodeImageUpdateRequest(
                     !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.SpotifyId) &&
-                    !string.IsNullOrWhiteSpace(podcastEpisode.Episode.SpotifyId) &&
-                    podcastEpisode.Episode.Images?.Spotify == null,
+                    !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) &&
+                    EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify) == null,
                     podcastEpisode.Podcast.AppleId != null &&
-                    podcastEpisode.Episode.AppleId != null &&
-                    podcastEpisode.Episode.Images?.Apple == null,
+                    EpisodeServicePresence.AppleEpisodeId(episode) != null &&
+                    EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple) == null,
                     !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
-                    !string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId) &&
-                    podcastEpisode.Episode.Images?.YouTube == null);
+                    !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) &&
+                    EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube) == null);
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.Persistence.Abstractions.Models;
@@ -102,9 +103,9 @@ public class Indexer(
                 .Select(x =>
                     new IndexedEpisode(
                         x,
-                        x.Urls.Spotify != null,
-                        x.Urls.Apple != null,
-                        x.Urls.YouTube != null))
+                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Spotify),
+                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Apple),
+                        EpisodeServicePresence.HasUrl(x, ServiceKeys.YouTube)))
                 .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
                     new IndexedEpisode(
                         x.Episode,
@@ -115,9 +116,9 @@ public class Indexer(
                 .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
                     new IndexedEpisode(
                         x.Episode,
-                        x.Episode.Urls.Spotify != null,
-                        x.Episode.Urls.Apple != null,
-                        x.Episode.Urls.YouTube != null)))
+                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Spotify),
+                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Apple),
+                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.YouTube))))
                 .Distinct()
                 .ToArray();
 

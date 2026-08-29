@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.TestSupport;
@@ -44,10 +45,10 @@ public class UrlSubmissionEnrichmentRules
             .WithDuration(youTubeInput.Duration)
             .WithDescription(youTubeInput.Description));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = string.Empty;
-        episode.AppleId = null;
-        episode.Urls.Spotify = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
 
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var appleInput = _fixture.CreateResolvedAppleItemInput();
@@ -215,10 +216,10 @@ public class UrlSubmissionEnrichmentRules
         episode.PodcastId = podcast.Id;
         var appleInput = _fixture.CreateResolvedAppleItemInput();
         var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
-        episode.AppleId = appleInput.EpisodeId;
-        episode.YouTubeId = youTubeInput.EpisodeId;
-        episode.Urls.Apple = appleInput.Url;
-        episode.Urls.YouTube = youTubeInput.Url;
+        EpisodeServicePresence.SetAppleIdentity(episode, appleInput.EpisodeId);
+        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeInput.EpisodeId);
+        episode.ApplyListenUrl(ServiceKeys.Apple, appleInput.Url);
+        episode.ApplyListenUrl(ServiceKeys.YouTube, youTubeInput.Url);
 
         var expected = EpisodeExpectation.From(episode);
 
@@ -229,7 +230,7 @@ public class UrlSubmissionEnrichmentRules
             episode,
             new CategorisedSpotifyItem(
                 podcast.SpotifyId,
-                episode.SpotifyId,
+                EpisodeServicePresence.SpotifyEpisodeId(episode),
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -237,12 +238,12 @@ public class UrlSubmissionEnrichmentRules
                 episode.Description,
                 episode.Release,
                 episode.Length,
-                episode.Urls.Spotify!,
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!,
                 false,
                 null),
             new CategorisedAppleItem(
                 podcast.AppleId,
-                episode.AppleId,
+                EpisodeServicePresence.AppleEpisodeId(episode),
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -250,12 +251,12 @@ public class UrlSubmissionEnrichmentRules
                 episode.Description,
                 episode.Release,
                 episode.Length,
-                episode.Urls.Apple!,
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple)!,
                 false,
                 null),
             new CategorisedYouTubeItem(
                 podcast.YouTubeChannelId,
-                episode.YouTubeId,
+                EpisodeServicePresence.YouTubeEpisodeId(episode),
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -263,7 +264,7 @@ public class UrlSubmissionEnrichmentRules
                 episode.Description,
                 episode.Release,
                 episode.Length,
-                episode.Urls.YouTube!,
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!,
                 false,
                 null,
                 null),
@@ -298,8 +299,8 @@ public class UrlSubmissionEnrichmentRules
             .WithDuration(youTubeInput.Duration)
             .WithDescription(youTubeInput.Description));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
 
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var expected = EpisodeExpectation.From(episode).WithSpotify(spotifyInput.EpisodeId, spotifyInput.Url!);
@@ -587,22 +588,23 @@ public class UrlSubmissionEnrichmentRules
 
     [Fact(DisplayName =
         "When a non-podcast resolved item carries artwork and the episode has no Other image, " +
-        "UrlSubmission enrichment stores the image on Images.YouTube (current behavior).")]
-    public void enrich_stores_non_podcast_image_on_youtube_images_current_behavior()
+        "UrlSubmission enrichment stores the image on the BBC catalog service and leftover Images.Other.")]
+    public void enrich_stores_non_podcast_image_on_bbc_catalog_and_leftover_other()
     {
         // Arrange
-        // KNOWN: likely bug â€” fix tracked separately; see README Â§4.7
         var enricher = CreateEnricher();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => e.Images = new EpisodeImages());
         var image = _fixture.Create<Uri>();
+        var bbcUrl = _fixture.Create<Uri>();
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.BBC,
-            Url: _fixture.Create<Uri>(),
+            Url: bbcUrl,
             Title: episode.Title,
             Description: episode.Description,
             Image: image);
         var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+        var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
 
         // Act
         enricher.ApplyResolvedPodcastServiceProperties(
@@ -611,8 +613,9 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        episode.Images!.YouTube.Should().Be(image);
-        episode.Images.Other.Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, bbcKey).Should().Be(image);
+        episode.Images!.Other.Should().Be(image);
+        episode.Images.YouTube.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -758,8 +761,14 @@ public class UrlSubmissionEnrichmentRules
             .WithDuration(_fixture.CreateDuration())
             .WithDescription(_fixture.Create<string>()));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = spotifyInput.EpisodeId;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyInput.EpisodeId);
+        if (episode.Services is { } services &&
+            services.TryGetValue(ServiceKeys.Spotify, out var spotifyLink))
+        {
+            spotifyLink.Url = null;
+        }
+
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var categorisedItem = CreateSpotifyOnlyCategorisedItem(podcast, episode, spotifyInput);
 
         // Act
@@ -1003,7 +1012,8 @@ public class UrlSubmissionEnrichmentRules
     private static EpisodeEnricher CreateEnricher(
         Action<Mock<IDescriptionHelper>>? configureDescriptionHelper = null)
     {
-        var descriptionHelper = new Mock<IDescriptionHelper>();
+        var mocker = new AutoMocker();
+        var descriptionHelper = mocker.GetMock<IDescriptionHelper>();
         descriptionHelper
             .Setup(x => x.CollapseDescription(It.IsAny<string?>()))
             .Returns<string?>(description => description ?? string.Empty);
@@ -1011,10 +1021,8 @@ public class UrlSubmissionEnrichmentRules
             .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
             .Returns("Resolved description");
         configureDescriptionHelper?.Invoke(descriptionHelper);
-
-        return new EpisodeEnricher(
-            descriptionHelper.Object,
-            EpisodeDomainTestServices.CreateEnrichmentApplicator(),
-            NullLogger<EpisodeEnricher>.Instance);
+        mocker.Use(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+        mocker.Use(NullLogger<EpisodeEnricher>.Instance);
+        return mocker.CreateInstance<EpisodeEnricher>();
     }
 }

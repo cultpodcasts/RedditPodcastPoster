@@ -24,6 +24,8 @@ param(
 
     [switch]$NoRestore,
 
+    [switch]$SingleNodeMsBuild,
+
     [switch]$SkipPackaging,
 
     [switch]$RemoveUnsupportedRunFromPackageSetting

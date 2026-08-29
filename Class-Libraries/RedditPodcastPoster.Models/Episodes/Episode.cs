@@ -98,29 +98,14 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     [JsonPropertyOrder(44)]
     public bool Removed { get; set; }
 
-    [JsonPropertyName("spotifyId")]
-    [JsonPropertyOrder(50)]
-    public string SpotifyId { get; set; } = string.Empty;
-
-    [JsonPropertyName("appleId")]
-    [JsonPropertyOrder(51)]
-    public long? AppleId { get; set; }
-
-    [JsonPropertyName("youTubeId")]
-    [JsonPropertyOrder(52)]
-    public string YouTubeId { get; set; } = string.Empty;
-
     /// <summary>
-    /// Grouped platform ids. Dual-written with <see cref="SpotifyId"/> / <see cref="AppleId"/> /
-    /// <see cref="YouTubeId"/> until Cosmos SQL and matching code read this object only.
+    /// Grouped platform ids. Source of truth for matching and reconstructable services.
+    /// Leftover Cosmos <c>spotifyId</c>/<c>appleId</c>/<c>youTubeId</c> JSON is ignored on
+    /// deserialize and omitted on serialize (wither).
     /// </summary>
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(53)]
     public EpisodeIds? Ids { get; set; } // pragma: allowlist secret
-
-    [JsonPropertyName("urls")]
-    [JsonPropertyOrder(60)]
-    public ServiceUrls Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -172,13 +157,10 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     [JsonPropertyOrder(94)]
     public bool? PodcastRemoved { get; set; }
 
-    [JsonPropertyName("images")]
-    [JsonPropertyOrder(150)]
-    public EpisodeImages? Images { get; set; }
-
     /// <summary>
     /// Per-service watch/listen URL and artwork, keyed by <see cref="ServiceKeys"/> (or a host slug).
-    /// Canonical adjacent storage. Legacy <see cref="Urls"/> / <see cref="Images"/> are dual-written.
+    /// Canonical adjacent storage. Leftover named <c>urls</c> / <c>images</c> JSON is ignored on
+    /// deserialize and omitted on serialize (wither).
     /// </summary>
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
@@ -193,13 +175,12 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
 
     public void OnDeserialized()
     {
-        EpisodeServicePresence.Hydrate(this); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(this); // pragma: allowlist secret
     }
 
     public void OnSerializing()
     {
-        EpisodeServicePresence.Hydrate(this); // pragma: allowlist secret
-        EpisodeServicePresence.SyncLegacy(this); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(this); // pragma: allowlist secret
         if (Services is { Count: 0 })
         {
             Services = null;
@@ -217,22 +198,14 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     {
         var episode = new Episode
         {
-            SpotifyId = spotifyId,
             Title = title,
             Description = description,
             Length = length,
             Explicit = @explicit,
-            Release = release,
-            Urls = new ServiceUrls { Spotify = spotifyUrl }
+            Release = release
         };
-        if (maxImage != null)
-        {
-            episode.Images = new EpisodeImages
-            {
-                Spotify = maxImage
-            };
-        }
-
+        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId); // pragma: allowlist secret
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, maxImage); // pragma: allowlist secret
         return episode;
     }
 
@@ -248,22 +221,14 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     {
         var episode = new Episode
         {
-            YouTubeId = youTubeId,
             Title = title,
             Description = description,
             Length = length,
             Explicit = @explicit,
-            Release = release,
-            Urls = new ServiceUrls { YouTube = youTubeUrl }
+            Release = release
         };
-        if (image != null)
-        {
-            episode.Images = new EpisodeImages
-            {
-                YouTube = image
-            };
-        }
-
+        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId); // pragma: allowlist secret
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, image); // pragma: allowlist secret
         return episode;
     }
 
@@ -279,22 +244,14 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
     {
         var episode = new Episode
         {
-            AppleId = appleId,
             Title = title,
             Description = description,
             Length = length,
             Explicit = @explicit,
-            Release = release,
-            Urls = new ServiceUrls { Apple = url }
+            Release = release
         };
-        if (image != null)
-        {
-            episode.Images = new EpisodeImages
-            {
-                Apple = image
-            };
-        }
-
+        EpisodeServicePresence.SetAppleIdentity(episode, appleId); // pragma: allowlist secret
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, url, image); // pragma: allowlist secret
         return episode;
     }
 

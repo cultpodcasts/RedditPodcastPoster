@@ -130,34 +130,8 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
-        Uri url;
-        Service urlPodcastService;
-        if (podcastEpisode.Episode.Urls.YouTube != null)
-        {
-            url = podcastEpisode.Episode.Urls.YouTube;
-            urlPodcastService = Service.YouTube;
-        }
-        else if (podcastEpisode.Episode.Urls.Spotify != null)
-        {
-            url = podcastEpisode.Episode.Urls.Spotify;
-            urlPodcastService = Service.Spotify;
-        }
-        else if (podcastEpisode.Episode.Urls.Apple != null)
-        {
-            url = podcastEpisode.Episode.Urls.Apple!;
-            urlPodcastService = Service.Apple;
-        }
-        else if (podcastEpisode.Episode.Urls.InternetArchive != null)
-        {
-            url = podcastEpisode.Episode.Urls.InternetArchive!;
-            urlPodcastService = Service.Other;
-        }
-        else if (podcastEpisode.Episode.Urls.BBC != null)
-        {
-            url = podcastEpisode.Episode.Urls.BBC!;
-            urlPodcastService = Service.Other;
-        }
-        else
+        if (!EpisodeServicePresence.TryGetPreferredSocialPostUrl(
+                podcastEpisode.Episode, out var url, out var urlPodcastService))
         {
             throw new InvalidOperationException(
                 $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Id}'.");

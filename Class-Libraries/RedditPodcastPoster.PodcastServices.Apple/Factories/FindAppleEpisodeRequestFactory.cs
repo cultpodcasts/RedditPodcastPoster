@@ -14,11 +14,12 @@ public static class FindAppleEpisodeRequestFactory
     {
         var release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
         var enrichingYouTubeDiscoveredEpisode =
-            !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) ||
+            EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
         return new FindAppleEpisodeRequest(
             podcast.AppleId,
             podcast.Name,
-            episode.AppleId,
+            EpisodeServicePresence.AppleEpisodeId(episode),
             episode.Title,
             release,
             podcast.ReleaseAuthority,

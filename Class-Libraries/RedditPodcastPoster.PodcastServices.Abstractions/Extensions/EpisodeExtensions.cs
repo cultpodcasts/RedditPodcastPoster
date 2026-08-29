@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
@@ -9,8 +10,8 @@ public static class EpisodeExtensions
         public bool HasAccurateReleaseTime()
         {
             return
-                episode.Urls.Apple != null &&
-                episode.AppleId != null &&
+                EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple) &&
+                EpisodeServicePresence.AppleEpisodeId(episode) != null &&
                 episode.Release.TimeOfDay != TimeSpan.Zero;
         }
     }

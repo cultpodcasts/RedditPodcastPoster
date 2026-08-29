@@ -212,8 +212,8 @@ public class IndexingPersistenceRules
             .WithDuration(_fixture.CreateDuration()));
         stored.Id = _fixture.CreateGuid();
         stored.PodcastId = podcast.Id;
-        stored.SpotifyId = string.Empty;
-        stored.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(stored, null);
+        EpisodeServicePresence.Upsert(stored, ServiceKeys.Spotify, null, null);
         harness.EpisodeRepository.Seed(stored);
 
         // Act

@@ -44,13 +44,15 @@ using var scope = host.Services.CreateScope();
 var services = scope.ServiceProvider;
 
 return await Parser.Default
-    .ParseArguments<LanguagesRequest, PeopleRequest, SearchSuggestionsRequest, HomepageRequest, FlairsRequest,
-        AllRequest>(args)
+    .ParseArguments<LanguagesRequest, PeopleRequest, SearchSuggestionsRequest, SubjectsRequest, HomepageRequest,
+        LookupsRequest, FlairsRequest, AllRequest>(args)
     .MapResult(
         (LanguagesRequest _) => RunR2(services, R2PublishTarget.Languages),
         (PeopleRequest _) => RunR2(services, R2PublishTarget.People),
         (SearchSuggestionsRequest _) => RunR2(services, R2PublishTarget.SearchSuggestions),
+        (SubjectsRequest _) => RunR2(services, R2PublishTarget.Subjects),
         (HomepageRequest _) => RunR2(services, R2PublishTarget.Homepage),
+        (LookupsRequest _) => RunLookups(services),
         (FlairsRequest _) => RunFlairs(services),
         (AllRequest _) => RunAll(services),
         _ => Task.FromResult(1));
@@ -60,6 +62,17 @@ async Task<int> RunR2(IServiceProvider sp, R2PublishTarget target)
     var processor = sp.GetRequiredService<R2PublishProcessor>();
     var success = await processor.Process(new R2PublishRequest { Target = target });
     return success ? 0 : 1;
+}
+
+async Task<int> RunLookups(IServiceProvider sp)
+{
+    var r2Exit = await RunR2(sp, R2PublishTarget.Lookups);
+    if (r2Exit != 0)
+    {
+        return r2Exit;
+    }
+
+    return await RunFlairs(sp);
 }
 
 async Task<int> RunFlairs(IServiceProvider sp)

@@ -47,7 +47,7 @@ public class SpotifyPodcastEnricher(
         {
             foreach (var podcastEpisode in episodes)
             {
-                if (string.IsNullOrWhiteSpace(podcastEpisode.SpotifyId))
+                if (string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode)))
                 {
                     var findEpisodeResponse = await spotifyIdResolver.FindEpisode(
                         FindSpotifyEpisodeRequestFactory.Create(
@@ -64,7 +64,7 @@ public class SpotifyPodcastEnricher(
                     }
                     else if (!string.IsNullOrWhiteSpace(findEpisodeResponse.FullEpisode?.Id))
                     {
-                        podcastEpisode.SpotifyId = findEpisodeResponse.FullEpisode.Id;
+                        EpisodeServicePresence.SetSpotifyIdentity(podcastEpisode, findEpisodeResponse.FullEpisode.Id);
                         podcastShouldUpdate = true;
                     }
 

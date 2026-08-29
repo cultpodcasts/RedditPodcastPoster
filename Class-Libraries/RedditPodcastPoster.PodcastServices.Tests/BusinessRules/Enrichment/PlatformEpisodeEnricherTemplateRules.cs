@@ -62,8 +62,8 @@ public class PlatformEpisodeEnricherTemplateRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(release)
             .WithDuration(_fixture.CreateDuration()));
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var request = new EnrichmentRequest(podcast, [episode], episode);
         var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
 
@@ -134,7 +134,7 @@ public class PlatformEpisodeEnricherTemplateRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();

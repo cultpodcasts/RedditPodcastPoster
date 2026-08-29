@@ -51,7 +51,7 @@ public class EpisodeDtoMapper(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
+        EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
         var dto = new EpisodeDto
         {
             Id = episode.Id,
@@ -67,12 +67,12 @@ public class EpisodeDtoMapper(
             Removed = episode.Removed,
             Length = episode.Length,
             Explicit = episode.Explicit,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
+            SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
+            AppleId = EpisodeServicePresence.AppleEpisodeId(episode),
+            YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode) ?? string.Empty,
             Ids = episode.Ids, // pragma: allowlist secret
-            Urls = episode.Urls,
-            Images = episode.Images,
+            Urls = EpisodeServicePresence.ToServiceUrls(episode),
+            Images = EpisodeServicePresence.ToEpisodeImages(episode),
             Services = episode.Services,
             Subjects = episode.Subjects,
             RemovedSubjects = episode.RemovedSubjects,

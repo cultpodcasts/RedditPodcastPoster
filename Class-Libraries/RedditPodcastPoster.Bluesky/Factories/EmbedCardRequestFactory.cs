@@ -36,7 +36,7 @@ public class EmbedCardRequestFactory(
             {
                 var video = await youTubeVideoService.GetVideoContentDetails(
                     youTubeService,
-                    [podcastEpisode.Episode.YouTubeId],
+                    [EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode) ?? string.Empty],
                     indexingContext, true);
                 if (video?.FirstOrDefault() != null)
                 {
@@ -48,13 +48,13 @@ public class EmbedCardRequestFactory(
                         ThumbUrl = await youTubeThumbnailResolver.GetImageUrlAsync(video.First())
                     };
                     logger.LogInformation(
-                        "Youtube-thumbnail for youtube-video-id '{EpisodeYouTubeId}' found '{ThumbUrl}'.", podcastEpisode.Episode.YouTubeId, embedCardRequest.ThumbUrl);
+                        "Youtube-thumbnail for youtube-video-id '{EpisodeYouTubeId}' found '{ThumbUrl}'.", EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode), embedCardRequest.ThumbUrl);
                 }
                 else
                 {
                     logger.LogError(
-                        "Unable to find video for bluesky-thumbnail with id '{EpisodeYouTubeId}'. {IndexingContextSkipYouTubeUrlResolvingName}= '{IndexingContextSkipYouTubeUrlResolving}'.", podcastEpisode.Episode.YouTubeId, nameof(indexingContext.SkipYouTubeUrlResolving), indexingContext.SkipYouTubeUrlResolving);
-                    throw new EpisodeNotFoundException(podcastEpisode.Episode.YouTubeId, Service.YouTube);
+                        "Unable to find video for bluesky-thumbnail with id '{EpisodeYouTubeId}'. {IndexingContextSkipYouTubeUrlResolvingName}= '{IndexingContextSkipYouTubeUrlResolving}'.", EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode), nameof(indexingContext.SkipYouTubeUrlResolving), indexingContext.SkipYouTubeUrlResolving);
+                    throw new EpisodeNotFoundException(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode) ?? string.Empty, Service.YouTube);
                 }
 
                 break;
@@ -75,7 +75,7 @@ public class EmbedCardRequestFactory(
                     {
                         embedCardRequest.ThumbUrl = maxImage;
                         logger.LogInformation(
-                            "Spotify-thumbnail for spotify-episode-id '{EpisodeSpotifyId}' found '{ThumbUrl}'.", podcastEpisode.Episode.SpotifyId, embedCardRequest.ThumbUrl);
+                            "Spotify-thumbnail for spotify-episode-id '{EpisodeSpotifyId}' found '{ThumbUrl}'.", EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode), embedCardRequest.ThumbUrl);
                     }
                 }
 
@@ -87,9 +87,10 @@ public class EmbedCardRequestFactory(
                     podcastEpisode.Episode.Title,
                     podcastEpisode.Episode.Description,
                     embedPost.Url);
-                if (podcastEpisode.Episode.Images?.Other != null)
+                var otherImage = EpisodeServicePresence.ToEpisodeImages(podcastEpisode.Episode)?.Other;
+                if (otherImage != null)
                 {
-                    embedCardRequest.ThumbUrl = podcastEpisode.Episode.Images?.Other;
+                    embedCardRequest.ThumbUrl = otherImage;
                 }
 
                 break;

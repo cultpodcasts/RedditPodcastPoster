@@ -1,7 +1,7 @@
 <!-- pragma: allowlist secret -->
 # Ops runbook: service catalog + nested ids
 
-Human-in-the-middle rollout. **You** decide each gate. An agent must not deploy Workers/Pages, must not write production Cosmos, and must not republish the feed unless you name that action.
+Human-in-the-middle rollout. **You** decide each gate. Website and Api Worker ship by **completing those PRs** — this agent does not run Wrangler/Pages deploy. An agent must not write production Cosmos, must not republish the feed, and must not run `PublishR2` against production R2 unless you name that action.
 
 Companion docs: [deploy plan + diagram](episode-services-deploy-plan.md) · [risk](episode-services-risk.md) · [mechanics](episode-services-migration.md) · [canvas](episode-services-canvas.md).
 
@@ -13,9 +13,9 @@ No new Worker secrets. Ignore GitHub Actions as a go/no-go.
 
 ## Roles and freeze
 
-| You | Agent / automation |
+| You | Agent / operator |
 | --- | --- |
-| Merge PRs, deploy site / Worker / Functions, admin publish, Azure Search schema, Cosmos export, any `apply: true` | Local tests, diffs, runbook edits only |
+| Inspect Cosmos dump; name the next step; merge PRs; any `apply: true`; feed publish | After you name a step: build CLIs, dump Cosmos into a **new** PrivateDatabase dated folder, later backups/deploys as named. **Never** write `2026-08-15` or `--overwrite` existing JSON |
 
 **Publish freeze** starts when `api-infra` (publisher) is on this code and ends only after the **new site is live** and you explicitly publish. Until then:
 
@@ -33,9 +33,9 @@ Three PRs, one branch name (`cursor/episode-service-links-18b4`):
 
 | Order | Repo | Typical PR | Merge when | Do not merge when |
 | --- | --- | --- | --- | --- |
-| 1 | **website** | site PR | After step 0 backups. Merge **first**. Then deploy Pages. | Before R2 snapshot exists |
-| 2 | **Api** (Worker) | Worker PR | After production site is live and step 1 checks pass. Merge, then deploy **preview**, then top-level Worker `api` (not `--env production`). | Before the new site is serving production |
-| 3 | **Functions** (this repo) | Functions PR | After Worker production is live and step 1 feed `GET` still matches leftover-field R2. Merge **last**. Then deploy `api-infra` / `indexer-infra` under the publish freeze. | Before site + Worker are in production |
+| 1 | **website** | #481 | After step 0 backups. Complete/merge **first**. Production site ships from that PR. | Before R2 snapshot exists |
+| 2 | **Api** (Worker) | #141 | After production site is live and step 1 checks pass. Complete/merge; production Worker ships from that PR (top-level `api`). | Before the new site is serving production |
+| 3 | **Functions** (this repo) | #966 | After Worker production is live and step 1 feed `GET` still matches leftover-field R2. Merge **last**. Then **script-deploy** `api-infra` / `indexer-infra` (PR complete does **not** deploy Functions). | Before site + Worker are in production |
 
 **Why this order.** Merge to `main` is how this org ships. `deploy.yml` on the Functions repo can put writers live when Actions is healthy. If you merge Functions first, the next successful Functions deploy (CI or script) can publish a new-shape feed while production still runs the **old** site. Old site cannot read `ids`+`services` only.
 
@@ -43,13 +43,13 @@ Three PRs, one branch name (`cursor/episode-service-links-18b4`):
 
 - [ ] Do **not** merge all three “because they are one feature.” Merge is a release step, not a paperwork step.
 - [ ] Do **not** merge Functions to `main` “to keep the branch tidy” and then wait to deploy. Someone else, or CI, can deploy `main` without you.
-- [ ] Preview Worker may be updated from the Worker branch **before** merge if you want a staging look. Production Worker merge waits for the site.
-- [ ] Leave the Functions PR **open** until step 2. After merge, treat `main` as deployable writers — start the publish freeze the same day.
+- [ ] Preview Worker may already be on the branch via Git. Production Worker is **completing Api PR #141**, not `wrangler deploy` from this agent.
+- [ ] Leave the Functions PR **open** until step 2. After merge, **script-deploy** Functions the same day (publish freeze). GitHub Actions is not go/no-go.
 - [ ] A later Phase 3 / F4-fix PR is **not** part of this merge train. Merge that only after this rollout is done.
 
 **If you already merged Functions first**
 
-Do not deploy Functions. Do not publish the feed. Merge and deploy site + Worker immediately, then continue from step 2. If Functions already deployed and R2 changed, restore feed backup A first.
+Do not deploy Functions. Do not publish the feed. Complete site + Worker PRs immediately, then continue from step 2. If Functions already deployed and R2 changed, restore feed backup A first.
 
 ---
 
@@ -65,9 +65,41 @@ Do not deploy Functions. Do not publish the feed. Merge and deploy site + Worker
 
 ### 0.2 Backups (do these first; keep until Phase 2 is done or abandoned)
 
-**A. Published feed (R2)** — copy the live feed object to a dated local file **and** a second R2 key you will not overwrite (example name `content/feed.bak-YYYYMMDD`). This is the rollback for F1. Confirm the copy still has leftover `spotify` / `apple` / `youtube` (or `urls`) fields.
+**Location:** `C:\Users\jonbr\source\repos\CultPodcasts-PrivateDatabase`. Layout is one dated folder per dump (`YYYY-MM-DD` → `episode\`, `podcast\`, `lookups\`, …).
 
-**B. Cosmos stored items** — `CosmosDbDownloader` for the **item container only** (not a full account dump unless you want one). Use overwrite-off so a second run cannot clobber the snapshot. Store off-box (disk + one other place). Spot-check 5 JSON files still have `urls` and `lang` as you expect (null `lang` is English — that is valid).
+**HARD: do not impact existing backups.** Do not write into `2026-08-15` (or any other folder that already exists). Do not `--overwrite`. Do not delete, rename, or git-commit those trees unless you explicitly ask. New dump = **new sibling folder** only (`2026-08-28` if that directory does not yet exist).
+
+#### 0pre. Build CLIs
+
+From this repo on `cursor/episode-service-links-18b4`:
+
+```powershell
+.\scripts\publish-console-apps.ps1 -Confirm:$false
+```
+
+Publishes to `RedditPodcastPoster\artifacts\tools\` (not PrivateDatabase). Use those exes for 0a / 1c.
+
+#### 0a. Cosmos dump — then **hard stop**
+
+```powershell
+$dest = "C:\Users\jonbr\source\repos\CultPodcasts-PrivateDatabase\$(Get-Date -Format 'yyyy-MM-dd')"
+if (Test-Path $dest) { throw "Folder already exists — pick a new name, do not overwrite: $dest" }
+New-Item -ItemType Directory -Path $dest | Out-Null
+Set-Location $dest
+& "<repo>\artifacts\tools\CosmosDbDownloader.exe"
+```
+
+No `--overwrite`. Activities are not downloaded (tool does not include them).
+
+## 0a. Cosmos backup — hard stop
+
+Same as 0.2 §0a. Agent stops after the new dated folder is written. You inspect it. `2026-08-15` must be untouched.
+
+**HITL:** agent **stops**. You open the new folder, confirm `2026-08-15` is untouched, spot-check episode JSON (`urls`, `lang`). Next step only when you say so (e.g. “Cosmos backup looks good — continue 0b”).
+
+**B. Cosmos stored items** — the 0a dump (all downloader containers, overwrite off), not a write into an old dated folder.
+
+**A. Published feed (R2)** — copy the live feed object to a dated local file **and** a second R2 key you will not overwrite (example name `content/feed.bak-YYYYMMDD`). This is the rollback for F1. Confirm leftover `spotify` / `apple` / `youtube` (or `urls`). Do this in **0b**, after 0a pass.
 
 **C. Search index schema** — Azure portal: export or screenshot field list (`spotifyId`, `youtubeId`, `appleId`, `podcastAppleId`, `bbc`, `internetArchive`, `image`). You will **add** `svc` later, never drop these.
 
@@ -82,8 +114,11 @@ Note current site and Worker release (Pages / Worker dashboard).
 
 ### 0.3 Gate — human
 
-- [ ] Snapshot A + B exist and you opened at least one file from each
+**0a (first):** you opened the **new** dated PrivateDatabase folder; `2026-08-15` is untouched.
+
+- [ ] Snapshot A + A2 exist (0b) and you opened at least one file from each
 - [ ] You accept: no feed publish until step 4
+- [ ] You accept: lookup republish (step 1c) uses this branch’s local `PublishR2`, not PATH tools / not `PublishR2 all`
 - [ ] You accept: no Cosmos `apply: true` until step 6
 - [ ] You accept: merge order website → Api → Functions (Functions PR stays open until step 2)
 
@@ -93,8 +128,8 @@ Note current site and Worker release (Pages / Worker dashboard).
 
 Old feed stays on R2. New site can read it. Old site cannot read a new feed — that is why writers come later.
 
-1. **Merge the website PR to `main`.** Deploy Pages (your usual production flow). Do not drop leftover fallbacks.
-2. **After** production site checks below pass: **merge the Api PR to `main`.** Deploy Worker preview if not already, then production Worker `api` (not `--env production`).
+1. **Complete the website PR (#481) to `main`.** Production Pages ships from that. Do not `wrangler pages deploy` / `npm run deploy`. Do not drop leftover fallbacks.
+2. **After** production site checks below pass: **complete the Api PR (#141) to `main`.** Production Worker ships from that (top-level `api`). Do not `wrangler deploy` / `npm run deploy`.
 3. No new secrets. Parity script only if you added keys (this change should not).
 4. Leave the Functions PR **unmerged**.
 
@@ -106,6 +141,45 @@ Old feed stays on R2. New site can read it. Old site cannot read a new feed — 
 - [ ] `GET` feed from the Worker is **byte-identical** to the R2 backup (or same leftover fields). Worker must not reshape.
 
 **Stop** if links are missing. Do not deploy Functions yet.
+
+---
+
+## 1c. Republish R2 lookup JSON from this branch (local build)
+
+After production **site + Worker** are live and feed GET still matches leftover-field R2. **Before** merging Functions.
+
+These Worker keys are Cosmos-derived catalogs, not the episode feed:
+
+| R2 key | Source | CLI |
+| --- | --- | --- |
+| `languages` | LookUps `SupportedLanguagesConfig` | `PublishR2 languages` |
+| `people` | People container | `PublishR2 people` |
+| `search-suggestions` | generated from Cosmos | `PublishR2 search-suggestions` |
+| `subjects` | Subjects container | `PublishR2 subjects` |
+| `flairs` | Subject flair fields | `PublishR2 flairs` |
+
+**Out of this step:** `homepage`, `homepage-ssr`, `discovery-info`, the **feed**. Do not `PublishR2 all` (that includes homepage). Do not admin-publish the feed.
+
+Build from **this branch**, not an older published exe:
+
+```powershell
+cd <RedditPodcastPoster>
+git checkout cursor/episode-service-links-18b4
+dotnet run --project Console-Apps/PublishR2 -- lookups
+```
+
+`lookups` runs languages + people + search-suggestions + subjects, then flairs. It does **not** write homepage.
+
+### Checks (human)
+
+- [ ] Command was `dotnet run --project Console-Apps/PublishR2 -- lookups` on this branch (not PATH `PublishR2`)
+- [ ] Worker `GET` `/languages`, `/people`, `/subjects`, `/flairs`, `/search-suggestions` still 200
+- [ ] Feed `GET` still matches backup A (etag/shape)
+- [ ] Homepage object unchanged vs step 0
+
+**Stop** if feed or homepage changed. Restore those keys from backups. Do not merge Functions.
+
+**Rollback:** put A2 files back on the matching R2 keys.
 
 ---
 
@@ -222,6 +296,7 @@ Only if canary diffs are clean.
 
 - [ ] PRs merged in order: website, then Api, then Functions
 - [ ] Site + Worker + `api-infra` + `indexer-infra` on this code
+- [ ] R2 lookup keys republished from this branch’s local `PublishR2 lookups`
 - [ ] Feed republished after the site was live
 - [ ] Feed and a public detail page show the right destinations
 - [ ] Search compact ids still work; `svc` added only if you chose step 5
@@ -234,6 +309,7 @@ Only if canary diffs are clean.
 - Run language inherit / “fill empty lang” in the same window
 - Use typed `GetAll()` + `Save` as a migration
 - Deploy Functions and publish the feed on the same breath as an old site
+- `PublishR2 all` / `homepage` as a substitute for step 1c (that writes homepage)
 
 ---
 
@@ -242,6 +318,8 @@ Only if canary diffs are clean.
 | Symptom | Likely | Action |
 | --- | --- | --- |
 | Feed cards have no platform icons; Cosmos `urls` still there | Publish before new site (F1) | Restore R2 from backup A; or finish site deploy |
+| Languages/people/subjects Worker routes broken after 1c | Bad local `PublishR2` or old PATH exe | Restore those keys from backup A2 |
+| Homepage or feed changed during 1c | Used `all` / `homepage` / admin publish | Restore feed from A and homepage from its step-0 copy; do not merge Functions |
 | Raw JSON lost `urls` or `lang` after a save | Upsert / wrong job (D1 / language-class bug) | Restore that id from snapshot; stop batch apply |
 | Curator clear Spotify does not stick | F4 | Leave the URL; fix in a later PR — not a backfill |
 | Tweet “No link found” | Missing legacy `urls` and SyncLegacy did not run | Check Functions version; do not strip `urls` |

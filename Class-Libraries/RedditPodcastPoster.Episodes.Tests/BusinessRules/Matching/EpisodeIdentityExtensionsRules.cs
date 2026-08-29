@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
@@ -32,7 +33,7 @@ public class EpisodeIdentityExtensionsRules
             "id_present" => _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast),
             "url_only" => _fixture.CreateStoredEpisode(podcast, e =>
             {
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls
                 {
                     Spotify = new Uri("https://open.spotify.com/episode/abc123DEF456")
@@ -40,7 +41,7 @@ public class EpisodeIdentityExtensionsRules
             }),
             "neither" => _fixture.CreateStoredEpisode(podcast, e =>
             {
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls();
             }),
             _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null)
@@ -77,7 +78,7 @@ public class EpisodeIdentityExtensionsRules
             }),
             "url_only" => _fixture.CreateStoredEpisode(podcast, e =>
             {
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls
                 {
                     Apple = new Uri("https://podcasts.apple.com/us/podcast/episode/id1234567890")
@@ -85,7 +86,7 @@ public class EpisodeIdentityExtensionsRules
             }),
             "neither" => _fixture.CreateStoredEpisode(podcast, e =>
             {
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
             }),
             _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null)
@@ -155,7 +156,7 @@ public class EpisodeIdentityExtensionsRules
         });
         var right = _fixture.CreateEpisode(e =>
         {
-            e.SpotifyId = string.Empty;
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Urls = new ServiceUrls
             {
                 Spotify = new Uri($"https://open.spotify.com/episode/{episodeId}")
@@ -229,5 +230,26 @@ public class EpisodeIdentityExtensionsRules
 
         // Assert
         owned.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "HasSpotifyIdentity is true when nested ids.spotify is set even if leftover SpotifyId and urls.spotify are empty, because nested ids are the source of truth after backfill.")]
+    public void has_spotify_identity_from_nested_ids_without_leftover_members()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
+            e.Urls = new ServiceUrls();
+            e.Ids = new EpisodeIds { Spotify = spotifyId };
+        });
+
+        // Act
+        var hasIdentity = episode.HasSpotifyIdentity();
+
+        // Assert
+        hasIdentity.Should().BeTrue();
     }
 }

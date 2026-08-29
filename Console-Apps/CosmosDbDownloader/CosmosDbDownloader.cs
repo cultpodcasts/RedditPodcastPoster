@@ -22,6 +22,7 @@ public class CosmosDbDownloader(
     ILanguageTitleCasingRulesRepository titleCasingRulesRepository,
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPushSubscriptionRepository pushSubscriptionRepository,
+    IPersonRepository personRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<CosmosDbDownloader> logger)
 {
@@ -94,6 +95,11 @@ public class CosmosDbDownloader(
                 if (selection.PushSubscriptions)
                 {
                     downloads.Add(DownloadPushSubscriptions(ctx.AddTask("Push subscriptions")));
+                }
+
+                if (selection.People)
+                {
+                    downloads.Add(DownloadPeople(ctx.AddTask("People")));
                 }
 
                 await Task.WhenAll(downloads);
@@ -284,6 +290,27 @@ public class CosmosDbDownloader(
         await WriteAllParallelAsync(
             episodeRepository.GetAll(),
             episode => WriteJson("episode", episode.Id.ToString(), episode),
+            progress);
+        progress.StopTask();
+    }
+
+    private async Task DownloadPeople(ProgressTask progress)
+    {
+        var count = await personRepository.Count();
+        progress.MaxValue = Math.Max(count, 1);
+        Directory.CreateDirectory("person");
+
+        if (count == 0)
+        {
+            progress.Increment(1);
+            progress.StopTask();
+            return;
+        }
+
+        // Person.FileKey is often empty — filename is id, same as episodes. Never Save() people.
+        await WriteAllParallelAsync(
+            personRepository.GetAll(),
+            person => WriteJson("person", person.Id.ToString(), person),
             progress);
         progress.StopTask();
     }

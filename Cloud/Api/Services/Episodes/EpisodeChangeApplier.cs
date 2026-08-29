@@ -107,12 +107,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.Spotify.ToString() == string.Empty)
             {
-                episode.SpotifyId = string.Empty;
-                episode.Urls.Spotify = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.Spotify = null;
-                }
+                EpisodeServicePresence.SetSpotifyIdentity(episode, null); // pragma: allowlist secret
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null); // pragma: allowlist secret
             }
             else
             {
@@ -121,8 +117,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var spotifyId = SpotifyIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Spotify);
                     if (!string.IsNullOrWhiteSpace(spotifyId))
                     {
-                        episode.SpotifyId = spotifyId;
-                        episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify.CleanSpotifyUrl();
+                        var cleaned = episodeChangeRequest.Urls.Spotify.CleanSpotifyUrl();
+                        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId); // pragma: allowlist secret
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, cleaned, null); // pragma: allowlist secret
                         changeState.UpdateSpotifyImage = true;
                     }
                 }
@@ -137,12 +134,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.Apple.ToString() == string.Empty)
             {
-                episode.AppleId = null;
-                episode.Urls.Apple = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.Apple = null;
-                }
+                EpisodeServicePresence.SetAppleIdentity(episode, null); // pragma: allowlist secret
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null); // pragma: allowlist secret
             }
             else
             {
@@ -151,8 +144,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var appleId = AppleIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Apple);
                     if (appleId != null)
                     {
-                        episode.AppleId = appleId;
-                        episode.Urls.Apple = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
+                        var cleaned = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
+                        EpisodeServicePresence.SetAppleIdentity(episode, appleId); // pragma: allowlist secret
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, cleaned, null); // pragma: allowlist secret
                         changeState.UpdateAppleImage = true;
                     }
                 }
@@ -167,12 +161,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.YouTube.ToString() == string.Empty)
             {
-                episode.YouTubeId = string.Empty;
-                episode.Urls.YouTube = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.YouTube = null;
-                }
+                EpisodeServicePresence.SetYouTubeIdentity(episode, null); // pragma: allowlist secret
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null); // pragma: allowlist secret
             }
             else
             {
@@ -181,8 +171,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
                     if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
-                        episode.YouTubeId = youTubeId;
-                        episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(youTubeId);
+                        var youTubeUrl = SearchResultExtensions.ToYouTubeUrl(youTubeId);
+                        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId); // pragma: allowlist secret
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, null); // pragma: allowlist secret
                         changeState.UpdateYouTubeImage = true;
                     }
                     else
@@ -197,13 +188,15 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.BBC.ToString() == string.Empty)
             {
-                episode.Urls.BBC = null;
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcIplayer, null, null); // pragma: allowlist secret
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcSounds, null, null); // pragma: allowlist secret
             }
             else
             {
                 if (NonPodcastServiceMatcher.MatchesBBC(episodeChangeRequest.Urls.BBC))
                 {
-                    episode.Urls.BBC = episodeChangeRequest.Urls.BBC;
+                    var bbcKey = ServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? ServiceKeys.BbcSounds;
+                    EpisodeServicePresence.Upsert(episode, bbcKey, episodeChangeRequest.Urls.BBC, null); // pragma: allowlist secret
                     changeState.UpdateBBCImage = true;
                 }
             }
@@ -213,56 +206,51 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.InternetArchive.ToString() == string.Empty)
             {
-                episode.Urls.InternetArchive = null;
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.InternetArchive, null, null); // pragma: allowlist secret
             }
             else
             {
                 if (NonPodcastServiceMatcher.MatchesInternetArchive(episodeChangeRequest.Urls.InternetArchive))
                 {
-                    episode.Urls.InternetArchive = episodeChangeRequest.Urls.InternetArchive;
+                    EpisodeServicePresence.Upsert( // pragma: allowlist secret
+                        episode,
+                        ServiceKeys.InternetArchive,
+                        episodeChangeRequest.Urls.InternetArchive,
+                        null);
                 }
             }
         }
 
         if (episodeChangeRequest.Images?.Spotify != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Spotify = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Spotify;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Spotify, image);
         }
 
         if (episodeChangeRequest.Images?.Apple != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Apple = episodeChangeRequest.Images.Apple.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.Apple.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Apple;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, image);
         }
 
         if (episodeChangeRequest.Images?.YouTube != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.YouTube = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.YouTube;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, image);
         }
 
         if (episodeChangeRequest.Images?.Other != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Other = episodeChangeRequest.Images.Other.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.Other.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Other;
-        }
-
-        if (episode.Images != null &&
-            episode.Images.YouTube == null &&
-            episode.Images.Spotify == null &&
-            episode.Images.Apple == null &&
-            episode.Images.Other == null)
-        {
-            episode.Images = null;
+            ApplyOtherImage(episode, image);
         }
 
         if (episodeChangeRequest.Services != null)
@@ -305,8 +293,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
         else
         {
-            EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
-            EpisodeServicePresence.SyncLegacy(episode); // pragma: allowlist secret
+            EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
         }
 
         EpisodeServicePresence.SyncIds(episode); // pragma: allowlist secret
@@ -332,6 +319,29 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
+    }
+
+    private static void ApplyOtherImage(Episode episode, Uri? image)
+    {
+        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+        {
+            if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
+            {
+                continue;
+            }
+
+            if (EpisodeServicePresence.HasUrl(episode, key) ||
+                EpisodeServicePresence.TryGetImage(episode, key) is not null)
+            {
+                EpisodeServicePresence.SetCatalogImage(episode, key, image);
+                return;
+            }
+        }
+
+        if (image is not null)
+        {
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.BbcIplayer, image);
+        }
     }
 
     /// <summary>
@@ -370,7 +380,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var spotifyId = SpotifyIdResolver.GetEpisodeId(url);
             if (!string.IsNullOrWhiteSpace(spotifyId))
             {
-                episode.SpotifyId = spotifyId;
+                EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId); // pragma: allowlist secret
                 changeState.UpdateSpotifyImage = true;
             }
         }
@@ -379,7 +389,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var appleId = AppleIdResolver.GetEpisodeId(url);
             if (appleId != null)
             {
-                episode.AppleId = appleId;
+                EpisodeServicePresence.SetAppleIdentity(episode, appleId); // pragma: allowlist secret
                 changeState.UpdateAppleImage = true;
             }
         }
@@ -388,7 +398,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var youTubeId = YouTubeIdResolver.Extract(url);
             if (!string.IsNullOrWhiteSpace(youTubeId))
             {
-                episode.YouTubeId = youTubeId;
+                EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId); // pragma: allowlist secret
                 changeState.UpdateYouTubeImage = true;
             }
         }
@@ -398,15 +408,15 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
     {
         if (key == ServiceKeys.Spotify)
         {
-            episode.SpotifyId = string.Empty;
+            EpisodeServicePresence.SetSpotifyIdentity(episode, null); // pragma: allowlist secret
         }
         else if (key == ServiceKeys.Apple)
         {
-            episode.AppleId = null;
+            EpisodeServicePresence.SetAppleIdentity(episode, null); // pragma: allowlist secret
         }
         else if (key == ServiceKeys.YouTube)
         {
-            episode.YouTubeId = string.Empty;
+            EpisodeServicePresence.SetYouTubeIdentity(episode, null); // pragma: allowlist secret
         }
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Bluesky.Logging;
 
@@ -31,9 +32,9 @@ public static class BlueskyPostLogger
             podcastEpisode.Podcast.Id,
             podcastEpisode.Podcast.Name,
             caller,
-            podcastEpisode.Episode.Urls.Spotify,
-            podcastEpisode.Episode.Urls.YouTube,
-            podcastEpisode.Episode.Urls.Apple);
+            EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Spotify),
+            EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.YouTube),
+            EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Apple));
     }
 
     public static void LogFlagSetWithoutPost(
@@ -55,6 +56,6 @@ public static class BlueskyPostLogger
         string caller)
     {
         return
-            $"{PostedMessagePrefix} episode-id='{podcastEpisode.Episode.Id}' title='{podcastEpisode.Episode.Title}' podcast-id='{podcastEpisode.Podcast.Id}' podcast-name='{podcastEpisode.Podcast.Name}' caller='{caller}' spotify-url='{podcastEpisode.Episode.Urls.Spotify}' youtube-url='{podcastEpisode.Episode.Urls.YouTube}' apple-url='{podcastEpisode.Episode.Urls.Apple}'";
+            $"{PostedMessagePrefix} episode-id='{podcastEpisode.Episode.Id}' title='{podcastEpisode.Episode.Title}' podcast-id='{podcastEpisode.Podcast.Id}' podcast-name='{podcastEpisode.Podcast.Name}' caller='{caller}' spotify-url='{EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Spotify)}' youtube-url='{EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.YouTube)}' apple-url='{EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Apple)}'";
     }
 }

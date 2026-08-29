@@ -394,8 +394,8 @@ public class IndexingOrchestrationRules
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,
             release: youTubeRelease);
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         harness.EpisodeRepository.Seed(episode);
 
         var enrichedEpisodeIds = new List<Guid>();

@@ -25,35 +25,20 @@ public sealed class EpisodeFromCandidateFactory : IEpisodeFromCandidateFactory
         switch (link.Service)
         {
             case Service.Spotify:
-                episode.SpotifyId = link.Id ?? string.Empty;
-                episode.Urls = new ServiceUrls { Spotify = link.Url };
-                if (link.Image != null)
-                {
-                    episode.Images = new EpisodeImages { Spotify = link.Image };
-                }
-
+                EpisodeServicePresence.SetSpotifyIdentity(episode, link.Id);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, link.Url, link.Image);
                 break;
             case Service.Apple:
                 if (link.Id != null && long.TryParse(link.Id, out var appleId))
                 {
-                    episode.AppleId = appleId;
+                    EpisodeServicePresence.SetAppleIdentity(episode, appleId);
                 }
 
-                episode.Urls = new ServiceUrls { Apple = link.Url };
-                if (link.Image != null)
-                {
-                    episode.Images = new EpisodeImages { Apple = link.Image };
-                }
-
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, link.Url, link.Image);
                 break;
             case Service.YouTube:
-                episode.YouTubeId = link.Id ?? string.Empty;
-                episode.Urls = new ServiceUrls { YouTube = link.Url };
-                if (link.Image != null)
-                {
-                    episode.Images = new EpisodeImages { YouTube = link.Image };
-                }
-
+                EpisodeServicePresence.SetYouTubeIdentity(episode, link.Id);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, link.Url, link.Image);
                 break;
         }
 

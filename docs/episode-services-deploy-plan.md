@@ -2,9 +2,44 @@
 
 Operator plan. Detail and freeze rules live in the [ops playbook](episode-services-ops-runbook.md). Risk notes: [episode-services-risk.md](episode-services-risk.md).
 
-**Merge order is the release order:** website → Api Worker → Functions. Do not merge all three at once. Do not merge Functions until site + Worker are in production.
+**Watch this file.** The **Live status** table is edited in place as work happens. Refresh/reopen if the editor does not auto-reload.
 
-No new Worker secrets. Phase 3 (strip `urls`) is not in this plan.
+## Live status
+
+Updated: **2026-08-28 22:22 BST**
+
+### NOW: Phase 3 — retire leftover Episode members (in progress)
+
+Phases 0–6 of this deploy plan are **done**. Phase 3 operator plan: [episode-services-phase-3.md](episode-services-phase-3.md). #966 stays open. No Wrangler/Pages. No strip `--apply`.
+
+`--all --apply` **exit 0**. Scanned **97306** Candidates **97286** Saved **97286** Missing **0** Mismatches **0**. Spot-check **1000/1000 ok**. Elapsed **34.4m**. Patch JSONL: `CultPodcasts-PrivateDatabase\2026-08-28-backfill-logs`. Search index still **84714**.
+
+**Noted (not blocking 1a):** `other` is not a listen service. Catalog is defined destinations only (including Paramount+, HBO Max, Play Suisse, TVNZ+). Unknown hosts still slug to an alnum key. Leftover `images.other` stays as BBC-style art. Curator “Other” image field is unchanged.
+
+In-progress rows always show **% of that step** (not of the whole rollout).
+
+| Step | Status | % of step | Notes |
+| --- | --- | --- | --- |
+| 0pre Build CLIs | **done** | **100%** | `CosmosDbDownloader.exe` 12:26, `PublishR2.exe` 12:27 in `artifacts\tools`. |
+| 0a Cosmos dump (new dated folder) | **done** | **100%** | `2026-08-28` dump. People included. |
+| 0a HITL — you inspect Cosmos dump | **done** | — | You continued. |
+| 0b R2 + search + blob times | **done** | **100%** | Homepage leftover URLs. Search: compact ids + **bbc URLs** + internetArchive + image. No retrievable `svc`. |
+| 0c Freeze accept | **done** | — | You accepted. No feed until step 4. [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966) open through soak. |
+| 1a Website | **done** | **100%** | [#481](https://github.com/cultpodcasts/website/pull/481) `89eef08`. Prod **1.10.112**. Spotify + BBC Sounds seen on leftover feed. |
+| 1b Api Worker | **done** | **100%** | [#141](https://github.com/cultpodcasts/Api/pull/141) `013b85da`. GET /homepage leftover URLs, no `services`/`ids`. |
+| 1c `PublishR2 lookups` (this branch local) | **done** | **100%** | languages 52, people, search-suggestions 8563, subjects, flairs 333. Not homepage. |
+| 2 Functions **from branch** (script) | **done** | **100%** | Indexer 13:20:22Z, Discover 13:27:29Z, api-infra **13:43:40Z**. CS2012 retry used `-SingleNodeMsBuild`. #966 open. |
+| 3 Soak | **done** | **100%** | Operator skipped remaining soak wait; named publish + svc + 4-id canary. |
+| 4 Publish feed | **done** | **100%** | `PublishR2 homepage` completed. GET leftover URLs gone; lead has `services`+`ids`. |
+| 5 Search `svc` + desc 180 | **done** | **100%** | Recreate exit 0. 9/10 Success, **84714** docs, `svc` + SUBSTRING 180. Storage **47,835,315** (91.2%) vs 52,133,148 (99.4%). UI: `search-description.ts`, hero, specs, `1.10.113` (not deployed). |
+| 6 Cosmos backfill | **done** | **100%** | exit 0. scanned 97306 candidates 97286 saved 97286 missing 0 mismatches 0. spot-check 1000 ok. 34.4m. |
+| P3 leftover retire | **in progress** | — | Drop leftover DTO members (`urls`, top-level ids, `images`). Catalog coalesce. Indexer SQL dual-read. |
+
+**Forbidden while this run is live:** `--overwrite` on PrivateDatabase, any write into `2026-08-15`, `PublishR2 all`, **completing/merging [RPP #966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966)**, `wrangler deploy` / `npm run deploy` for Api or website, search index teardown/recreate.
+
+**Ship path:** website + Api Worker = **complete those PRs**. Functions = **script-deploy from the open branch** (`cursor/episode-service-links-18b4`). Leave [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966) open through soak. Blob `lastModified` is production truth.
+
+No new Worker secrets. Phase 3 detail: [episode-services-phase-3.md](episode-services-phase-3.md).
 
 ---
 
@@ -14,15 +49,20 @@ Click a node on GitHub to open the matching playbook section. `FAIL` means stop 
 
 ```mermaid
 flowchart TD
-  S0["0 Backups and freeze accept"]
-  M1["Merge website PR"]
-  S1a["1a Deploy site"]
+  S00["0pre Build CLIs this branch"]
+  S0a["0a Cosmos dump NEW dated folder"]
+  G0a{"Human opens Cosmos backup"}
+  S0b["0b R2 + search + blob times"]
+  S0["0c Freeze accept"]
+  M1["Complete website PR"]
+  S1a["1a Site live via PR"]
   C1a{"Site checks"}
-  M2["Merge Api PR"]
-  S1b["1b Deploy Worker"]
+  M2["Complete Api PR"]
+  S1b["1b Worker live via PR"]
   C1b{"Feed GET unchanged"}
-  M3["Merge Functions PR"]
-  S2["2 Deploy Functions plus freeze"]
+  S1c["1c Local PublishR2 lookups"]
+  C1c{"Lookup R2 keys updated"}
+  S2["2 Deploy Functions FROM BRANCH freeze"]
   C2{"R2 still old shape"}
   S3["3 Soak Saves"]
   C3{"Raw JSON invariants"}
@@ -35,11 +75,15 @@ flowchart TD
   DONE["Done - no Phase 3"]
   FAIL["Stop - restore from backups"]
 
-  S0 --> M1 --> S1a --> C1a
+  S00 --> S0a --> G0a
+  G0a -->|pass| S0b --> S0 --> M1 --> S1a --> C1a
+  G0a -->|fail| FAIL
   C1a -->|pass| M2 --> S1b --> C1b
   C1a -->|fail| FAIL
-  C1b -->|pass| M3 --> S2 --> C2
+  C1b -->|pass| S1c --> C1c
   C1b -->|fail| FAIL
+  C1c -->|pass| S2 --> C2
+  C1c -->|fail| FAIL
   C2 -->|pass| S3 --> C3
   C2 -->|fail| FAIL
   C3 -->|pass| S4 --> C4
@@ -52,8 +96,10 @@ flowchart TD
 Playbook anchors:
 
 - [0 — Before any production deploy](episode-services-ops-runbook.md#0-before-any-production-deploy)
+- [0a — Cosmos backup HITL](episode-services-ops-runbook.md#0a-cosmos-backup--hard-stop)
 - [When to merge PRs](episode-services-ops-runbook.md#when-to-merge-prs)
 - [1 — Readers first](episode-services-ops-runbook.md#1-readers-first-site--api-worker)
+- [1c — Edge lookup republish](episode-services-ops-runbook.md#1c-republish-r2-lookup-json-from-this-branch-local-build)
 - [2 — Writers](episode-services-ops-runbook.md#2-writers-azure-functions-under-publish-freeze)
 - [3 — Soak](episode-services-ops-runbook.md#3-soak-writers-on-old-feed-still-live)
 - [4 — Republish the feed](episode-services-ops-runbook.md#4-republish-the-feed-only-after-site--soak)
@@ -64,55 +110,112 @@ Playbook anchors:
 
 ---
 
-## Step 0 — Backups (playbook §0)
+## Step 0pre — Build CLIs (this branch)
+
+**Do not merge. Do not write Cosmos. Do not touch existing PrivateDatabase folders.**
+
+| | |
+| --- | --- |
+| **Actions** | On `cursor/episode-service-links-18b4`, `.\scripts\publish-console-apps.ps1 -Confirm:$false`. Output is `artifacts\tools\` in this repo, **not** PrivateDatabase. |
+| **Expect / check** | `CosmosDbDownloader.exe` and `PublishR2.exe` in `artifacts\tools` are dated this run. |
+
+**Gate:** CLIs built. Then Cosmos dump only.
+
+---
+
+## Step 0a — Cosmos backup (HITL — stop)
+
+Dump into a **new dated folder** under `C:\Users\jonbr\source\repos\CultPodcasts-PrivateDatabase`. **Never** write into an existing dated folder (today: `2026-08-15` is off-limits). Overwrite **off**.
+
+| | |
+| --- | --- |
+| **Playbook** | [§0a](episode-services-ops-runbook.md#0a-cosmos-backup--hard-stop) |
+| **Actions** | `mkdir` `CultPodcasts-PrivateDatabase\YYYY-MM-DD` (today’s date, folder must not already exist). `cd` there. Run **this branch’s** `CosmosDbDownloader` (no `--overwrite`). Default = all downloader containers except Activities (tool does not download Activities). |
+| **Post-step actions** | **STOP.** Open the folder and spot-check files. Agent must not continue until you name the next step (e.g. “Cosmos backup looks good — continue 0b”). |
+| **Expect / check** | New sibling of `2026-08-15` only. `2026-08-15` timestamps unchanged. Episode JSON still has `urls` and a sensible `lang`. People JSON present if the tool supports `people`. |
+
+**Gate:** you have opened the new dump. **Fail** if anything was written into `2026-08-15` or files were overwritten.
+
+---
+
+## Step 0b — Remaining backups (only after 0a pass)
 
 **Do not merge any PR yet.**
 
 | | |
 | --- | --- |
 | **Playbook** | [§0](episode-services-ops-runbook.md#0-before-any-production-deploy) |
-| **Actions** | Snapshot live R2 feed to a dated file **and** a second R2 key (`content/feed.bak-YYYYMMDD`). Run `CosmosDbDownloader` for the item container only, overwrite off. Screenshot Azure Search fields. Record Functions blob `lastModified`. |
-| **Post-step actions** | Store copies off-box. Write down “no feed publish until step 4” and “Functions PR stays open.” If deploy day is Sunday/Monday UTC, plan coverage for 00:00–00:20 UTC. |
-| **Expect / check** | You can open the feed backup and still see leftover `spotify` / `apple` / `youtube` (or `urls`). Five Cosmos JSON files still have `urls` and a sensible `lang` (null = English). Search field list includes compact ids + `bbc` + `internetArchive` + `image`. |
+| **Actions** | Snapshot live R2 **feed** to a dated file **and** a second R2 key (`content/feed.bak-YYYYMMDD`). Snapshot live R2 **lookup** objects (`languages`, `people`, `subjects`, `flairs`, `search-suggestions`) to dated local files **outside** existing PrivateDatabase dated folders. Screenshot Azure Search fields. Record Functions blob `lastModified`. |
+| **Post-step actions** | Store copies off-box. Write down “no feed publish until step 4” and “Functions PR stays open.” |
+| **Expect / check** | Feed backup still has leftover `spotify` / `apple` / `youtube` (or `urls`). Search field list includes compact ids + `bbc` + `internetArchive` + `image`. |
 
-**Gate:** snapshots opened with your own eyes. Then merge website only.
+**Gate:** snapshots opened. Then freeze-accept; then merge website only.
 
 ---
 
-## Step 1a — Merge website, deploy site (playbook §1 + merge)
+## Step 1a — Complete website PR (playbook §1)
+
+Site production is **the completed PR**, not a local Pages/`wrangler` deploy.
+
+**PR:** [cultpodcasts/website#481](https://github.com/cultpodcasts/website/pull/481)
 
 | | |
 | --- | --- |
 | **Playbook** | [Merge](episode-services-ops-runbook.md#when-to-merge-prs) · [§1](episode-services-ops-runbook.md#1-readers-first-site--api-worker) |
-| **Actions** | Merge **website** PR to `main`. Deploy Pages. Leave Api + Functions PRs open. |
-| **Post-step actions** | Hard-refresh production. Open feed, search, one public detail / saved item. |
-| **Expect / check** | Listen/watch icons still work on the **old** feed. Leftover fallbacks are still in the shipped site. No Functions code is on `main`. |
+| **Actions** | Complete [website #481](https://github.com/cultpodcasts/website/pull/481) to `main`. Leave [Api #141](https://github.com/cultpodcasts/Api/pull/141) and [Functions #966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966) open. Do **not** `npm run deploy` / `wrangler pages deploy`. |
+| **Post-step actions** | Wait until production site is serving that merge. Hard-refresh. Open feed, search, one public detail / saved item. |
+| **Expect / check** | Listen/watch icons still work on the **old** feed. Leftover fallbacks are still in the shipped site. No Functions code is on `main`. Catalog has no `other` listen service; leftover `images.other` is art. |
 
-**Gate:** links work. If not, do not merge Api.
+**Gate:** links work. If not, do not complete the Api PR.
 
 ---
 
-## Step 1b — Merge Api, deploy Worker (playbook §1)
+## Step 1b — Complete Api Worker PR (playbook §1)
+
+Worker production is **the completed PR**, not `wrangler deploy` / `npm run deploy` from this run. Live Worker is top-level `api` (not `--env production`).
+
+**PR:** [cultpodcasts/Api#141](https://github.com/cultpodcasts/Api/pull/141)
 
 | | |
 | --- | --- |
 | **Playbook** | [Merge](episode-services-ops-runbook.md#when-to-merge-prs) · [§1](episode-services-ops-runbook.md#1-readers-first-site--api-worker) |
-| **Actions** | Merge **Api** PR to `main`. Deploy preview, then production Worker `api` (not `--env production`). No new secrets. |
+| **Actions** | After the site is live: complete [Api #141](https://github.com/cultpodcasts/Api/pull/141) to `main`. No new secrets. Do **not** run Wrangler deploy from this agent. |
 | **Post-step actions** | `GET` the live feed through the Worker. Compare to R2 backup A (fields, not just status 200). |
 | **Expect / check** | Worker still returns leftover-field JSON (pass-through). Site behaviour unchanged. Functions PR still **unmerged**. |
 
-**Gate:** feed bytes/shape match backup. Then merge Functions.
+**Gate:** feed bytes/shape match backup. Then step **1c** (lookup republish). Do **not** merge Functions yet.
 
 ---
 
-## Step 2 — Merge Functions, deploy writers, freeze (playbook §2)
+## Step 1c — Republish R2 lookup JSON from this branch (playbook §1c)
+
+**Do not merge Functions yet.** Do **not** publish the feed or homepage.
+
+Lookup objects on the Worker `Content` bucket are generated **from Cosmos** by `PublishR2`. Auth0 and Azure Search are separate. Homepage, `homepage-ssr`, `discovery-info`, and the **feed** are not lookups — leave them until later gates.
 
 | | |
 | --- | --- |
-| **Playbook** | [Merge](episode-services-ops-runbook.md#when-to-merge-prs) · [§2](episode-services-ops-runbook.md#2-writers-azure-functions-under-publish-freeze) |
-| **Actions** | Start publish freeze (no admin publish, no edits of items released in the last 7 days). **Then** merge Functions PR to `main`. Same day: `deploy-api.ps1`, `deploy-indexer.ps1` (and the third app if it saves the same item type). |
-| **Post-step actions** | Confirm blob `lastModified` is this release. Confirm live R2 etag/timestamp still equals backup A. Open one **raw** Cosmos document you will not edit. |
-| **Expect / check** | Functions are new. Feed is **still old shape**. Raw JSON still has `urls`. `services` / `ids` may be missing on untouched rows. |
+| **Playbook** | [§1c](episode-services-ops-runbook.md#1c-republish-r2-lookup-json-from-this-branch-local-build) |
+| **Actions** | On `cursor/episode-service-links-18b4`, build and run **this branch’s** `PublishR2` locally (`dotnet run --project Console-Apps/PublishR2 -- lookups`). Do **not** use a PATH `PublishR2` from an older `publish-console-apps.ps1`. Do **not** `PublishR2 all` or `homepage`. |
+| **Post-step actions** | `GET` `/languages`, `/people`, `/subjects`, `/flairs`, `/search-suggestions` through the production Worker. Confirm feed GET still matches backup A. |
+| **Expect / check** | Those five R2 keys updated from this branch’s publishers. Feed etag/shape still equals backup A. Homepage unchanged. |
+
+**Gate:** lookup Worker routes still 200 with sensible JSON; feed unchanged. Then step **2** (Functions from branch). **Do not complete [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966).**
+
+---
+
+## Step 2 — Deploy Functions from the open branch, freeze (playbook §2)
+
+**Do not complete [RPP #966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966).** Keep the branch/PR open through soak. Production Functions are script-deployed from `cursor/episode-service-links-18b4`.
+
+**PR (leave open):** [cultpodcasts/RedditPodcastPoster#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966)
+
+| | |
+| --- | --- |
+| **Playbook** | [§2](episode-services-ops-runbook.md#2-writers-azure-functions-under-publish-freeze) |
+| **Actions** | Start publish freeze (no admin publish, no edits of items released in the last 7 days). On this branch: `deploy-indexer.ps1`, `deploy-discover.ps1`, `deploy-api.ps1` (`-Confirm:$false`, known Azure targets). Do **not** merge [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966). |
+| **Post-step actions** | Confirm blob `lastModified` is this release. Confirm live R2 etag/timestamp still equals backup A. Open one **raw** Cosmos document you will not edit. [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966) still draft/open. |
+| **Expect / check** | Functions are new (from branch). Feed is **still old shape**. Raw JSON still has `urls`. `services` / `ids` may be missing on untouched rows. |
 
 **Gate:** R2 unchanged. If the feed already flipped, restore backup A before soak.
 
@@ -176,8 +279,9 @@ Default: **skip apply**. Dual-write fills rows on ordinary saves. Playbook §6 o
 
 Playbook [§7](episode-services-ops-runbook.md#7-done--do-not-do).
 
-- [ ] Merged website, then Api, then Functions
+- [ ] Completed [website #481](https://github.com/cultpodcasts/website/pull/481), then [Api #141](https://github.com/cultpodcasts/Api/pull/141). **Did not complete [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966).** Functions script-deployed from the open branch; PR stayed open through soak
 - [ ] Site + Worker + `api-infra` + `indexer-infra` on this code
+- [ ] R2 lookup keys republished from **this branch’s** local `PublishR2 lookups` (not homepage / not feed)
 - [ ] Feed published **after** the new site was live
 - [ ] Feed and a public detail page show the right destinations
 - [ ] Search compact ids work; `svc` only if you ran step 5

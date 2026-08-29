@@ -140,7 +140,7 @@ public class EpisodeMappingExtensionsRules
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.SpotifyId = string.Empty;
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Urls = new ServiceUrls();
         });
 

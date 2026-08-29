@@ -61,9 +61,9 @@ public class SearchResultFinderTests
             .With(x => x.Title, expectedTitle)
             .With(x => x.Release, today)
             .With(x => x.Length, DefaultEpisodeLength)
-            .With(x => x.AppleId, (long?) null)
-            .With(x => x.Urls, _fixture.Build<ServiceUrls>().With(x => x.Apple, (Uri?) null).Create())
             .Create();
+        episode.AppleId = null;
+        episode.Urls.Apple = null;
         var expected = _fixture
             .Build<SearchResult>()
             .With(x => x.Snippet, _fixture

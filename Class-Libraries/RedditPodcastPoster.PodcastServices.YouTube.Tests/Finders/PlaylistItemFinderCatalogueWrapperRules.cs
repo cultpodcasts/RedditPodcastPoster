@@ -703,7 +703,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
                 e.Release = release;
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();

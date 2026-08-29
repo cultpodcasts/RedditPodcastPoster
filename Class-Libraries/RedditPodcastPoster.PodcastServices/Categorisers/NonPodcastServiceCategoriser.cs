@@ -33,7 +33,9 @@ public class NonPodcastServiceCategoriser(
             {
                 service = NonPodcastService.BBC;
                 matchingPodcastIds = await episodeRepository
-                    .GetAllBy(episode => episode.Urls.BBC == url)
+                    .GetAllBy(episode =>
+                        (episode.Services != null && episode.Services[ServiceKeys.BbcIplayer].Url == url) ||
+                        (episode.Services != null && episode.Services[ServiceKeys.BbcSounds].Url == url))
                     .Select(x => x.PodcastId)
                     .ToListAsync();
             }
@@ -41,7 +43,8 @@ public class NonPodcastServiceCategoriser(
             {
                 service = NonPodcastService.InternetArchive;
                 matchingPodcastIds = await episodeRepository
-                    .GetAllBy(episode => episode.Urls.InternetArchive == url)
+                    .GetAllBy(episode =>
+                        episode.Services != null && episode.Services[ServiceKeys.InternetArchive].Url == url)
                     .Select(x => x.PodcastId)
                     .ToListAsync();
             }
@@ -70,13 +73,16 @@ public class NonPodcastServiceCategoriser(
                 if (service == NonPodcastService.BBC)
                 {
                     episodes = await episodeRepository
-                        .GetByPodcastId(podcast.Id, x => x.Urls.BBC == url)
+                        .GetByPodcastId(podcast.Id, x =>
+                            (x.Services != null && x.Services[ServiceKeys.BbcIplayer].Url == url) ||
+                            (x.Services != null && x.Services[ServiceKeys.BbcSounds].Url == url))
                         .ToListAsync();
                 }
                 else
                 {
                     episodes = await episodeRepository
-                        .GetByPodcastId(podcast.Id, x => x.Urls.InternetArchive == url)
+                        .GetByPodcastId(podcast.Id, x =>
+                            x.Services != null && x.Services[ServiceKeys.InternetArchive].Url == url)
                         .ToListAsync();
                 }
 

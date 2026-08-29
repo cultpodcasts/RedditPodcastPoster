@@ -31,11 +31,16 @@ Rollout order, Cosmos backfill, and tested migration types: [episode-services-mi
 
 Product canvas (website, curator UI, tweets/Bsky, shape impact, plan): [episode-services-canvas.md](episode-services-canvas.md).
 
-## Dual-write (migration)
+## Phase 3 (typed Episode)
 
-Existing documents only have split `urls` + `images` (BBC art in `images.other`). On deserialize, `EpisodeServicePresence.Hydrate` <!-- pragma: allowlist secret --> fills `services`. On serialize, `SyncLegacy` still writes `urls` / `images` so Cosmos SQL indexers and admin forms keep working.
+Leftover `urls` / top-level ids / `images` are **not** on `Episode`. `NormalizeCatalog` only drops a retired `other` catalog key and empty `ids`. Application code reads and writes `services` / nested `ids` only. Leftover JSON in Cosmos is ignored on deserialize and omitted on the next full `Save()` (wither).
 
-BBC Sounds and BBC iPlayer are **distinct keys**. Legacy `urls.bbc` can hold only one URL (iPlayer preferred on sync).
+Raw leftover JSON is still read by:
+
+- `EpisodeServiceDocumentMigration` (backfill `NeedsBackfill` / `MergeRawLeftoverIntoCatalog`)
+- Search indexer SQL (catalog first, leftover fallback until leftover keys wither)
+
+BBC Sounds and BBC iPlayer are **distinct keys**.
 
 ## Search index (`svc`)
 

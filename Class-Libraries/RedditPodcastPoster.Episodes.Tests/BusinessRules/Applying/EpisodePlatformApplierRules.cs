@@ -156,9 +156,9 @@ public class EpisodePlatformApplierRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.SpotifyId = string.Empty;
-                e.YouTubeId = string.Empty;
-                e.AppleId = null;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -290,17 +290,17 @@ public class EpisodePlatformApplierRules
             case Service.Spotify:
                 target.SpotifyId = link.Id!;
                 target.Urls.Spotify = link.Url;
-                target.Images!.Spotify = link.Image;
+                EpisodeServicePresence.SetCatalogImage(target, ServiceKeys.Spotify, link.Image);
                 break;
             case Service.Apple:
                 target.AppleId = long.Parse(link.Id!);
                 target.Urls.Apple = link.Url;
-                target.Images!.Apple = link.Image;
+                EpisodeServicePresence.SetCatalogImage(target, ServiceKeys.Apple, link.Image);
                 break;
             case Service.YouTube:
                 target.YouTubeId = link.Id!;
                 target.Urls.YouTube = link.Url;
-                target.Images!.YouTube = link.Image;
+                EpisodeServicePresence.SetCatalogImage(target, ServiceKeys.YouTube, link.Image);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(link.Service), link.Service, null);

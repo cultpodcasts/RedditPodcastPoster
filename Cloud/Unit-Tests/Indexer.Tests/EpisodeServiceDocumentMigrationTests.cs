@@ -134,35 +134,35 @@ public class EpisodeServiceDocumentMigrationTests // pragma: allowlist secret
     }
 
     [Fact(DisplayName =
-        "Apply writes services and nested ids from legacy urls and top-level ids, and a second Apply is unchanged so backfill is idempotent.")] // pragma: allowlist secret
-    public void apply_hydrates_legacy_document_and_is_idempotent()
+        "MergeRawLeftoverIntoCatalog writes services and nested ids from leftover JSON urls and top-level ids, and a second Apply is unchanged so backfill is idempotent.")] // pragma: allowlist secret
+    public void merge_raw_leftover_hydrates_catalog_and_apply_is_idempotent()
     {
         // Arrange
-        var episode = new Episode // pragma: allowlist secret
-        {
-            SpotifyId = "4rOoJ6Egrf8K2IrywzwOMk",
-            Urls = new ServiceUrls
+        var leftover =
+            """
             {
-                Spotify = new Uri("https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk"), // pragma: allowlist secret
-                BBC = new Uri("https://www.bbc.co.uk/iplayer/episode/p0abcd12") // pragma: allowlist secret
-            },
-            Images = new EpisodeImages // pragma: allowlist secret
-            {
-                Other = new Uri("https://ichef.bbci.co.uk/images/ic/1200x675/p0artwork.jpg")
+              "spotifyId": "4rOoJ6Egrf8K2IrywzwOMk",
+              "urls": {
+                "spotify": "https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk",
+                "bbc": "https://www.bbc.co.uk/iplayer/episode/p0abcd12"
+              },
+              "images": { "other": "https://ichef.bbci.co.uk/images/ic/1200x675/p0artwork.jpg" }
             }
-        };
+            """; // pragma: allowlist secret
+        var episode = new Episode(); // pragma: allowlist secret
+        using var document = JsonDocument.Parse(leftover); // pragma: allowlist secret
 
         // Act
-        var first = EpisodeServiceDocumentMigration.Apply(episode); // pragma: allowlist secret
+        EpisodeServiceDocumentMigration.MergeRawLeftoverIntoCatalog(episode, document.RootElement); // pragma: allowlist secret
+        EpisodeServiceDocumentMigration.Apply(episode); // pragma: allowlist secret
         var second = EpisodeServiceDocumentMigration.Apply(episode); // pragma: allowlist secret
 
         // Assert
-        first.Should().BeTrue();
-        second.Should().BeFalse();
         episode.Services.Should().ContainKey(ServiceKeys.Spotify); // pragma: allowlist secret
         episode.Services.Should().ContainKey(ServiceKeys.BbcIplayer); // pragma: allowlist secret
         episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk"); // pragma: allowlist secret
-        episode.Urls.Spotify.Should().NotBeNull(); // pragma: allowlist secret
-        episode.Urls.BBC.Should().NotBeNull(); // pragma: allowlist secret
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().NotBeNull(); // pragma: allowlist secret
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer).Should().NotBeNull(); // pragma: allowlist secret
+        second.Should().BeFalse();
     }
 }

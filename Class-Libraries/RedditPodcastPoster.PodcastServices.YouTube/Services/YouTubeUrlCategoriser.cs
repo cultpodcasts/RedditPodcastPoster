@@ -3,6 +3,8 @@ using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -44,9 +46,11 @@ public class YouTubeUrlCategoriser(
         IndexingContext indexingContext)
     {
         PodcastEpisode? pair = null;
-        if (podcast != null && podcastEpisodes.Any(x => x.Urls.YouTube == url))
+        if (podcast != null && podcastEpisodes.Any(x =>
+                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) == url))
         {
-            var storedEpisodes = podcastEpisodes.Where(x => x.Urls.YouTube == url).ToArray();
+            var storedEpisodes = podcastEpisodes.Where(x =>
+                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) == url).ToArray();
             if (storedEpisodes.Length > 1)
             {
                 var ex = new InvalidOperationException(
@@ -162,12 +166,14 @@ public class YouTubeUrlCategoriser(
         {
             string channelDescription = "", channelContentOwner = "";
             var mismatchedEpisodes = episodes.Where(x =>
-                (!x.Removed &&
-                 string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null) ||
-                (x.Urls.YouTube == null && !string.IsNullOrWhiteSpace(x.YouTubeId)) ||
-                (!string.IsNullOrWhiteSpace(x.YouTubeId) && x.Urls.YouTube != null &&
-                 YouTubeIdResolver.Extract(x.Urls.YouTube) != x.YouTubeId)
-            ).ToArray();
+            {
+                var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(x);
+                var youTubeUrl = EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube);
+                return (!x.Removed && string.IsNullOrWhiteSpace(youTubeId) && youTubeUrl != null) ||
+                       (youTubeUrl == null && !string.IsNullOrWhiteSpace(youTubeId)) ||
+                       (!string.IsNullOrWhiteSpace(youTubeId) && youTubeUrl != null &&
+                        YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
+            }).ToArray();
             if (mismatchedEpisodes.Any())
             {
                 throw new InvalidOperationException(
@@ -201,8 +207,9 @@ public class YouTubeUrlCategoriser(
                 return null;
             }
 
-            var podcastEpisodeYouTubeIds = episodes.Where(y => !string.IsNullOrWhiteSpace(y.YouTubeId))
-                .Select(x => x.YouTubeId);
+            var podcastEpisodeYouTubeIds = episodes
+                .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x))
+                .Where(id => !string.IsNullOrWhiteSpace(id));
             var unassignedChannelUploads =
                 items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id)).ToArray();
             var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();

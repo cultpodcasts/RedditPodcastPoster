@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Episodes.Merging;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Merging.Policies;
@@ -17,7 +18,7 @@ public sealed class AppleAuthoritativeAdoptReleaseMergePolicy : IReleaseMergePol
             return ReleaseMergeOpinion.NoOpinion;
         }
 
-        if (context.IncomingEpisode.AppleId is null or 0)
+        if (EpisodeServicePresence.AppleEpisodeId(context.IncomingEpisode) is null or 0)
         {
             return ReleaseMergeOpinion.NoOpinion;
         }

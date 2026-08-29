@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
@@ -36,22 +37,27 @@ public class YouTubeEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (!string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube == null)
+        if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(request.Episode)) &&
+            EpisodeServicePresence.TryGetUrl(request.Episode, ServiceKeys.YouTube) == null)
         {
+            var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(request.Episode)!;
             ApplyYouTubeLink(
                 request.Episode,
-                request.Episode.YouTubeId,
-                SearchResultExtensions.ToYouTubeUrl(request.Episode.YouTubeId),
+                youTubeId,
+                SearchResultExtensions.ToYouTubeUrl(youTubeId),
                 enrichmentContext);
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(request.Episode.YouTubeId) && request.Episode.Urls.YouTube != null)
+        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(request.Episode)) &&
+            EpisodeServicePresence.TryGetUrl(request.Episode, ServiceKeys.YouTube) != null)
         {
-            var videoId = YouTubeIdResolver.Extract(request.Episode.Urls.YouTube);
+            var youTubeUrl = EpisodeServicePresence.TryGetUrl(request.Episode, ServiceKeys.YouTube);
+            var videoId = youTubeUrl is null ? null : YouTubeIdResolver.Extract(youTubeUrl);
             if (videoId != null)
             {
-                request.Episode.YouTubeId = enrichmentContext.YouTubeId = videoId;
+                EpisodeServicePresence.SetYouTubeIdentity(request.Episode, videoId);
+                enrichmentContext.YouTubeId = videoId;
             }
 
             return;
@@ -61,7 +67,8 @@ public class YouTubeEpisodeEnricher(
         if (youTubeItem?.SearchResult != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.SearchResult.Id.VideoId) &&
-                request.Episodes.All(x => x.YouTubeId != youTubeItem.SearchResult.Id.VideoId))
+                request.Episodes.All(x =>
+                    EpisodeServicePresence.YouTubeEpisodeId(x) != youTubeItem.SearchResult.Id.VideoId))
             {
                 await EnrichFromCatalogueItem(
                     youTubeItem.SearchResult.Id.VideoId,
@@ -79,7 +86,9 @@ public class YouTubeEpisodeEnricher(
         if (youTubeItem?.PlaylistItem != null)
         {
             if (!string.IsNullOrWhiteSpace(youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId) &&
-                request.Episodes.All(x => x.YouTubeId != youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))
+                request.Episodes.All(x =>
+                    EpisodeServicePresence.YouTubeEpisodeId(x) !=
+                    youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId))
             {
                 await EnrichFromCatalogueItem(
                     youTubeItem.PlaylistItem.Snippet.ResourceId.VideoId,
@@ -126,7 +135,8 @@ public class YouTubeEpisodeEnricher(
         ApplyResolvedCandidate(request, youTubeAdapter.Adapt(catalogueInput), enrichmentContext);
         enrichmentContext.YouTubeId = episodeYouTubeId;
 
-        if (string.IsNullOrWhiteSpace(request.Episode.Description) || request.Episode.Images?.YouTube == null)
+        if (string.IsNullOrWhiteSpace(request.Episode.Description) ||
+            EpisodeServicePresence.TryGetImage(request.Episode, ServiceKeys.YouTube) == null)
         {
             await ApplyYouTubeVideoDetails(
                 episodeYouTubeId,
@@ -135,7 +145,7 @@ public class YouTubeEpisodeEnricher(
                 indexingContext);
         }
 
-        if ((request.Podcast.AppleId == null || request.Episode.AppleId == null) &&
+        if ((request.Podcast.AppleId == null || EpisodeServicePresence.AppleEpisodeId(request.Episode) == null) &&
             request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
             release.HasValue &&
             episodePlatformApplier.ApplyFillMissingRelease(

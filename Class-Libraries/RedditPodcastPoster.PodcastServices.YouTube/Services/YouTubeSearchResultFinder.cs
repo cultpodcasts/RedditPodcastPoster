@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;
 using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -342,9 +343,9 @@ public partial class YouTubeSearchResultFinder(
         {
             Title = match.Snippet.Title,
             Release = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
-            Length = videoDetail?.GetLength() ?? episode.Length,
-            YouTubeId = match.Id.VideoId
+            Length = videoDetail?.GetLength() ?? episode.Length
         };
+        EpisodeServicePresence.SetYouTubeIdentity(catalogueEpisode, match.Id.VideoId);
 
         var podcast = new Podcast
         {

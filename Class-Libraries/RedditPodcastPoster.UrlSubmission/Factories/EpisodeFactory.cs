@@ -75,19 +75,59 @@ public class EpisodeFactory(
             Release = release,
             Length = length,
             Explicit = @explicit,
-            AppleId = categorisedItem.ResolvedAppleItem?.EpisodeId,
-            SpotifyId = categorisedItem.ResolvedSpotifyItem?.EpisodeId ?? string.Empty,
-            YouTubeId = categorisedItem.ResolvedYouTubeItem?.EpisodeId ?? string.Empty,
-            Description = description,
-            Urls = new ServiceUrls
-            {
-                Spotify = categorisedItem.ResolvedSpotifyItem?.Url,
-                Apple = categorisedItem.ResolvedAppleItem?.Url,
-                YouTube = categorisedItem.ResolvedYouTubeItem?.Url,
-                BBC = categorisedItem.ResolvedNonPodcastServiceItem?.BBCUrl,
-                InternetArchive = categorisedItem.ResolvedNonPodcastServiceItem?.InternetArchiveUrl
-            }
+            Description = description
         };
+        if (categorisedItem.ResolvedSpotifyItem != null)
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(newEpisode, categorisedItem.ResolvedSpotifyItem.EpisodeId);
+            EpisodeServicePresence.Upsert(
+                newEpisode,
+                ServiceKeys.Spotify,
+                categorisedItem.ResolvedSpotifyItem.Url,
+                categorisedItem.ResolvedSpotifyItem.Image);
+        }
+
+        if (categorisedItem.ResolvedAppleItem != null)
+        {
+            EpisodeServicePresence.SetAppleIdentity(newEpisode, categorisedItem.ResolvedAppleItem.EpisodeId);
+            EpisodeServicePresence.Upsert(
+                newEpisode,
+                ServiceKeys.Apple,
+                categorisedItem.ResolvedAppleItem.Url,
+                categorisedItem.ResolvedAppleItem.Image);
+        }
+
+        if (categorisedItem.ResolvedYouTubeItem != null)
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(newEpisode, categorisedItem.ResolvedYouTubeItem.EpisodeId);
+            EpisodeServicePresence.Upsert(
+                newEpisode,
+                ServiceKeys.YouTube,
+                categorisedItem.ResolvedYouTubeItem.Url,
+                categorisedItem.ResolvedYouTubeItem.Image);
+        }
+
+        if (categorisedItem.ResolvedNonPodcastServiceItem?.BBCUrl != null)
+        {
+            var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
+            var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+            EpisodeServicePresence.Upsert(
+                newEpisode,
+                bbcKey,
+                bbcUrl,
+                categorisedItem.ResolvedNonPodcastServiceItem.Image);
+        }
+
+        if (categorisedItem.ResolvedNonPodcastServiceItem?.InternetArchiveUrl != null)
+        {
+            EpisodeServicePresence.Upsert(
+                newEpisode,
+                ServiceKeys.InternetArchive,
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
+                categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null
+                    ? categorisedItem.ResolvedNonPodcastServiceItem.Image
+                    : null);
+        }
         if (categorisedItem.MatchingPodcast != null)
         {
             if (categorisedItem.MatchingPodcast.HasIgnoreAllEpisodes())
@@ -109,20 +149,6 @@ public class EpisodeFactory(
         else
         {
             newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
-        }
-
-        if (categorisedItem.ResolvedAppleItem?.Image != null ||
-            categorisedItem.ResolvedSpotifyItem?.Image != null ||
-            categorisedItem.ResolvedYouTubeItem?.Image != null ||
-            categorisedItem.ResolvedNonPodcastServiceItem?.Image != null)
-        {
-            newEpisode.Images = new EpisodeImages
-            {
-                Apple = categorisedItem.ResolvedAppleItem?.Image,
-                Spotify = categorisedItem.ResolvedSpotifyItem?.Image,
-                YouTube = categorisedItem.ResolvedYouTubeItem?.Image,
-                Other = categorisedItem.ResolvedNonPodcastServiceItem?.Image
-            };
         }
 
         if (categorisedItem.MatchingPodcast != null && categorisedItem.MatchingPodcast.HasIgnoreAllEpisodes())

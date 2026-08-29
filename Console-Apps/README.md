@@ -125,8 +125,10 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `languages` | `R2PublishProcessor` — languages list to R2 |
 | `people` | `R2PublishProcessor` — People register to R2 |
 | `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
+| `subjects` | `R2PublishProcessor` — subjects name list to R2 |
 | `homepage` | `R2PublishProcessor` — homepage JSON to R2 |
-| `flairs` | `FlairPublishProcessor` — subject flairs to Reddit |
+| `lookups` | languages + people + search-suggestions + subjects, then flairs (**not** homepage / feed) |
+| `flairs` | `FlairPublishProcessor` — subject flairs to R2 (from Cosmos) |
 | `all` | R2 languages+people+search-suggestions+homepage, then flairs |
 
 ```text
@@ -134,6 +136,8 @@ PublishR2
 PublishR2 people
 PublishR2 homepage
 PublishR2 search-suggestions
+PublishR2 subjects
+PublishR2 lookups
 PublishR2 flairs
 PublishR2 all
 ```
@@ -436,7 +440,7 @@ LookUps are written under `lookups/` via typed getters (elimination terms, disco
 | `--skip a,b,…` | Skip these containers (cannot combine with `--only`) |
 | `-o, --overwrite` | Replace existing local JSON files (default: fail if a file already exists) |
 
-Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions` (aliases like `title-casing`, `push` accepted).
+Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions`, `people` (aliases like `title-casing`, `push`, `person` accepted). Activities are not downloaded.
 
 Examples:
 

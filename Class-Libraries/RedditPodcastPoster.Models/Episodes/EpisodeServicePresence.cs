@@ -1,180 +1,262 @@
 // pragma: allowlist secret
-using System.Text.Json.Serialization; // pragma: allowlist secret
 using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
 /// <summary>
-/// Dual-read/write between adjacent <c>services.{key}.{url,image}</c> and legacy
-/// <c>urls</c> / <c>images</c> so existing Cosmos documents and indexers keep working.
+/// Catalog accessors for <c>services</c> / nested <c>ids</c>.
+/// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not on <see cref="Episode"/>;
+/// they wither on full <c>Save()</c>. Application code must not write those leftover members.
+/// Cover art coalesces from <c>services.*.image</c> via <see cref="ServiceCatalog.ImageCoalesceOrder"/>.
 /// </summary>
 public static class EpisodeServicePresence // pragma: allowlist secret
 {
-    public static void Hydrate(Episode episode)
+    public static readonly string[] SocialPostUrlOrder =
+    [
+        ServiceKeys.YouTube,
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple,
+        ServiceKeys.InternetArchive,
+        ServiceKeys.BbcIplayer,
+        ServiceKeys.BbcSounds
+    ];
+
+    /// <summary>
+    /// Drop the retired <c>other</c> catalog key and keep nested ids aligned.
+    /// Does not copy leftover Cosmos JSON onto the catalog (typed <see cref="Episode"/>
+    /// has no leftover members).
+    /// </summary>
+    public static void NormalizeCatalog(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        episode.Urls ??= new ServiceUrls();
-        var map = episode.Services is { Count: > 0 }
-            ? new Dictionary<string, EpisodeServiceLink>(episode.Services, StringComparer.Ordinal) // pragma: allowlist secret
-            : new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal); // pragma: allowlist secret
-
-        Merge(map, ServiceKeys.Spotify, episode.Urls.Spotify, episode.Images?.Spotify);
-        Merge(map, ServiceKeys.Apple, episode.Urls.Apple, episode.Images?.Apple);
-        Merge(map, ServiceKeys.YouTube, episode.Urls.YouTube, episode.Images?.YouTube);
-
-        var bbcKey = episode.Urls.BBC is { } bbcUrl
-            ? ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds
-            : null;
-        if (bbcKey is ServiceKeys.BbcSounds or ServiceKeys.BbcIplayer)
+        if (episode.Services is { Count: > 0 })
         {
-            Merge(map, bbcKey, episode.Urls.BBC, episode.Images?.Other);
+            var map = new Dictionary<string, EpisodeServiceLink>(episode.Services, StringComparer.Ordinal); // pragma: allowlist secret
+            map.Remove("other");
+            episode.Services = map.Count == 0 ? null : map;
+        }
+        else
+        {
+            episode.Services = null;
         }
 
-        Merge(
-            map,
-            ServiceKeys.InternetArchive,
-            episode.Urls.InternetArchive,
-            bbcKey is null && episode.Urls.InternetArchive is not null ? episode.Images?.Other : null);
-
-        map.Remove("other");
-
-        episode.Services = map.Count == 0 ? null : map;
-        SyncIds(episode);
-    }
-
-    public static void SyncLegacy(Episode episode)
-    {
-        ArgumentNullException.ThrowIfNull(episode);
-        if (episode.Services is not { Count: > 0 } services)
-        {
-            return;
-        }
-
-        episode.Urls ??= new ServiceUrls();
-        episode.Urls.Spotify = Url(services, ServiceKeys.Spotify);
-        episode.Urls.Apple = Url(services, ServiceKeys.Apple);
-        episode.Urls.YouTube = Url(services, ServiceKeys.YouTube);
-        episode.Urls.InternetArchive = Url(services, ServiceKeys.InternetArchive);
-        episode.Urls.BBC =
-            Url(services, ServiceKeys.BbcIplayer) ??
-            Url(services, ServiceKeys.BbcSounds);
-
-        var youtube = Image(services, ServiceKeys.YouTube);
-        var spotify = Image(services, ServiceKeys.Spotify);
-        var apple = Image(services, ServiceKeys.Apple);
-        var other = Image(services, ServiceKeys.BbcIplayer) ??
-                    Image(services, ServiceKeys.BbcSounds) ??
-                    Image(services, ServiceKeys.InternetArchive) ??
-                    Image(services, ServiceKeys.Vimeo) ??
-                    Image(services, ServiceKeys.Netflix) ??
-                    Image(services, ServiceKeys.AmazonPrime) ??
-                    Image(services, ServiceKeys.ParamountPlus) ??
-                    Image(services, ServiceKeys.HboMax) ??
-                    Image(services, ServiceKeys.PlaySuisse) ??
-                    Image(services, ServiceKeys.TvnzPlus);
-
-        if (youtube is null && spotify is null && apple is null && other is null)
-        {
-            if (episode.Images is not null &&
-                episode.Images.YouTube is null &&
-                episode.Images.Spotify is null &&
-                episode.Images.Apple is null &&
-                episode.Images.Other is null)
-            {
-                episode.Images = null;
-            }
-
-            return;
-        }
-
-        episode.Images ??= new EpisodeImages();
-        episode.Images.YouTube = youtube;
-        episode.Images.Spotify = spotify;
-        episode.Images.Apple = apple;
-        episode.Images.Other = other;
         SyncIds(episode);
     }
 
     /// <summary>
-    /// Keep nested <c>ids</c> and legacy top-level spotifyId / appleId / youTubeId aligned.
-    /// Presence of a reconstructable service is the id, not a named URL slot.
+    /// Nested <c>ids</c> is the only id source of truth. Empty nested objects are dropped.
     /// </summary>
     public static void SyncIds(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
-
-        if (string.IsNullOrWhiteSpace(episode.Ids.Spotify) && !string.IsNullOrWhiteSpace(episode.SpotifyId))
-        {
-            episode.Ids.Spotify = episode.SpotifyId;
-        }
-        else if (!string.IsNullOrWhiteSpace(episode.Ids.Spotify))
-        {
-            episode.SpotifyId = episode.Ids.Spotify;
-        }
-
-        if (episode.Ids.Apple is null && episode.AppleId is not null)
-        {
-            episode.Ids.Apple = episode.AppleId;
-        }
-        else if (episode.Ids.Apple is not null)
-        {
-            episode.AppleId = episode.Ids.Apple;
-        }
-
-        if (string.IsNullOrWhiteSpace(episode.Ids.YouTube) && !string.IsNullOrWhiteSpace(episode.YouTubeId))
-        {
-            episode.Ids.YouTube = episode.YouTubeId;
-        }
-        else if (!string.IsNullOrWhiteSpace(episode.Ids.YouTube))
-        {
-            episode.YouTubeId = episode.Ids.YouTube;
-        }
-
-        if (episode.Ids.IsEmpty)
+        if (episode.Ids is null || episode.Ids.IsEmpty)
         {
             episode.Ids = null;
         }
     }
 
-    public static Uri? CoalescedImage(Episode episode)
+    public static Uri? TryGetUrl(Episode episode, string key)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        Hydrate(episode);
-        return CoalescedImage(episode.Services, episode.Images);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (episode.Services is { Count: > 0 } &&
+            episode.Services.TryGetValue(key, out var link) &&
+            link.Url is not null)
+        {
+            return link.Url;
+        }
+
+        return null;
     }
 
-    public static Uri? CoalescedImage(
-        IReadOnlyDictionary<string, EpisodeServiceLink>? services, // pragma: allowlist secret
-        EpisodeImages? images)
+    public static Uri? TryGetImage(Episode episode, string key)
     {
-        if (services is { Count: > 0 })
+        ArgumentNullException.ThrowIfNull(episode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (episode.Services is { Count: > 0 } &&
+            episode.Services.TryGetValue(key, out var link) &&
+            link.Image is not null)
         {
-            foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+            return link.Image;
+        }
+
+        return null;
+    }
+
+    public static bool HasUrl(Episode episode, string key) => TryGetUrl(episode, key) is not null;
+
+    public static string? SpotifyEpisodeId(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return string.IsNullOrWhiteSpace(episode.Ids?.Spotify) ? null : episode.Ids.Spotify;
+    }
+
+    public static long? AppleEpisodeId(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return episode.Ids?.Apple is > 0 ? episode.Ids.Apple : null;
+    }
+
+    public static string? YouTubeEpisodeId(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return string.IsNullOrWhiteSpace(episode.Ids?.YouTube) ? null : episode.Ids.YouTube;
+    }
+
+    public static ServiceUrls ToServiceUrls(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return new ServiceUrls
+        {
+            Spotify = TryGetUrl(episode, ServiceKeys.Spotify),
+            Apple = TryGetUrl(episode, ServiceKeys.Apple),
+            YouTube = TryGetUrl(episode, ServiceKeys.YouTube),
+            InternetArchive = TryGetUrl(episode, ServiceKeys.InternetArchive),
+            BBC = TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
+                  TryGetUrl(episode, ServiceKeys.BbcSounds)
+        };
+    }
+
+    public static EpisodeImages? ToEpisodeImages(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        var youtube = TryGetImage(episode, ServiceKeys.YouTube);
+        var spotify = TryGetImage(episode, ServiceKeys.Spotify);
+        var apple = TryGetImage(episode, ServiceKeys.Apple);
+        Uri? other = null;
+        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+        {
+            if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
             {
-                if (services.TryGetValue(key, out var link) && link.Image is not null)
-                {
-                    return link.Image;
-                }
+                continue;
             }
 
-            foreach (var link in services.Values)
+            other = TryGetImage(episode, key);
+            if (other is not null)
             {
-                if (link.Image is not null)
-                {
-                    return link.Image;
-                }
+                break;
             }
         }
 
-        return images?.YouTube ?? images?.Spotify ?? images?.Apple ?? images?.Other;
+        if (youtube is null && spotify is null && apple is null && other is null)
+        {
+            return null;
+        }
+
+        return new EpisodeImages
+        {
+            YouTube = youtube,
+            Spotify = spotify,
+            Apple = apple,
+            Other = other
+        };
+    }
+
+    public static Uri? PreferredSocialPostUrl(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        foreach (var key in SocialPostUrlOrder)
+        {
+            var url = TryGetUrl(episode, key);
+            if (url is not null)
+            {
+                return url;
+            }
+        }
+
+        return null;
+    }
+
+    public static bool TryGetPreferredSocialPostUrl(Episode episode, out Uri url, out Service service)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        foreach (var key in SocialPostUrlOrder)
+        {
+            var found = TryGetUrl(episode, key);
+            if (found is null)
+            {
+                continue;
+            }
+
+            url = found;
+            service = key switch
+            {
+                ServiceKeys.YouTube => Service.YouTube,
+                ServiceKeys.Spotify => Service.Spotify,
+                ServiceKeys.Apple => Service.Apple,
+                _ => Service.Other
+            };
+            return true;
+        }
+
+        url = null!;
+        service = Service.Other;
+        return false;
+    }
+
+    public static void SetSpotifyIdentity(Episode episode, string? id)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids.Spotify = string.IsNullOrWhiteSpace(id) ? null : id;
+        SyncIds(episode);
+    }
+
+    public static void SetAppleIdentity(Episode episode, long? id)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids.Apple = id is > 0 ? id : null;
+        SyncIds(episode);
+    }
+
+    public static void SetYouTubeIdentity(Episode episode, string? id)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        episode.Ids ??= new EpisodeIds(); // pragma: allowlist secret
+        episode.Ids.YouTube = string.IsNullOrWhiteSpace(id) ? null : id;
+        SyncIds(episode);
+    }
+
+    public static Uri? CoalescedImage(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        NormalizeCatalog(episode);
+        return CoalescedImage(episode.Services);
+    }
+
+    public static Uri? CoalescedImage(
+        IReadOnlyDictionary<string, EpisodeServiceLink>? services) // pragma: allowlist secret
+    {
+        if (services is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+        {
+            if (services.TryGetValue(key, out var link) && link.Image is not null)
+            {
+                return link.Image;
+            }
+        }
+
+        foreach (var link in services.Values)
+        {
+            if (link.Image is not null)
+            {
+                return link.Image;
+            }
+        }
+
+        return null;
     }
 
     public static void Upsert(Episode episode, string key, Uri? url, Uri? image)
     {
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        Hydrate(episode);
+        NormalizeCatalog(episode);
         episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal); // pragma: allowlist secret
         if (url is null && image is null)
         {
@@ -184,7 +266,6 @@ public static class EpisodeServicePresence // pragma: allowlist secret
                 episode.Services = null;
             }
 
-            SyncLegacy(episode);
             return;
         }
 
@@ -203,34 +284,49 @@ public static class EpisodeServicePresence // pragma: allowlist secret
         {
             link.Image = image;
         }
-
-        SyncLegacy(episode);
     }
 
-    private static void Merge(
-        Dictionary<string, EpisodeServiceLink> map, // pragma: allowlist secret
-        string key,
-        Uri? url,
-        Uri? image)
+    public static void SetCatalogImage(Episode episode, string key, Uri? image)
     {
-        if (url is null && image is null)
+        ArgumentNullException.ThrowIfNull(episode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        NormalizeCatalog(episode);
+        var url = TryGetUrl(episode, key);
+        if (image is null && url is null)
         {
+            Upsert(episode, key, null, null);
             return;
         }
 
-        if (!map.TryGetValue(key, out var link))
+        episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal);
+        if (!episode.Services.TryGetValue(key, out var link))
         {
-            map[key] = new EpisodeServiceLink { Url = url, Image = image }; // pragma: allowlist secret
-            return;
+            link = new EpisodeServiceLink();
+            episode.Services[key] = link;
         }
 
-        link.Url ??= url;
-        link.Image ??= image;
+        if (url is not null)
+        {
+            link.Url = url;
+        }
+
+        link.Image = image;
     }
 
-    private static Uri? Url(Dictionary<string, EpisodeServiceLink> services, string key) => // pragma: allowlist secret
-        services.TryGetValue(key, out var link) ? link.Url : null;
+    public static bool TryFillMissing(Episode episode, string key, Uri? url, Uri? image)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var existingUrl = TryGetUrl(episode, key);
+        var existingImage = TryGetImage(episode, key);
+        var fillUrl = existingUrl is null && url is not null;
+        var fillImage = existingImage is null && image is not null;
+        if (!fillUrl && !fillImage)
+        {
+            return false;
+        }
 
-    private static Uri? Image(Dictionary<string, EpisodeServiceLink> services, string key) => // pragma: allowlist secret
-        services.TryGetValue(key, out var link) ? link.Image : null;
+        Upsert(episode, key, existingUrl ?? url, existingImage ?? image);
+        return true;
+    }
 }

@@ -72,8 +72,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         // Arrange
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var sut = CreateEnricher(new CapturingSpotifyEpisodeResolver([], expectedSpotifyId: string.Empty));
         var enrichmentContext = new EnrichmentContext();
 
@@ -96,12 +96,12 @@ public class SpotifyEpisodeEnricherCatalogueRules
     {
         // Arrange
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
-        podcast.Name = "Virginia I The Age & SMH Investigates";
+        podcast.Name = _fixture.CreateTitle();
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(TimeSpan.FromMinutes(58)));
-        episode.Id = Guid.Parse("f58f1992-c8e6-4ba0-a3a0-fd4b83d261bd");
-        episode.Title = "Virginia | Ep 3: Mommy still loves you";
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        episode.Id = _fixture.CreateGuid();
+        episode.Title = _fixture.CreateTitle();
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var logger = new CapturingLogger<SpotifyEpisodeEnricher>();
         var sut = CreateEnricher(
             new CapturingSpotifyEpisodeResolver([], expectedSpotifyId: string.Empty),
@@ -133,8 +133,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.SpotifyEpisodesQueryIsExpensive = null;
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var sut = CreateEnricher(new ExpensiveQuerySpotifyEpisodeResolver());
         var enrichmentContext = new EnrichmentContext();
 
@@ -163,8 +163,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(inWindowRelease)
             .WithDuration(_fixture.CreateDuration()));
-        episode.YouTubeId = string.Empty;
-        episode.Urls.YouTube = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
         var resolver = new TrackingSpotifyEpisodeResolver();
         var sut = CreateEnricher(resolver);
         var enrichmentContext = new EnrichmentContext();
@@ -195,8 +195,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(inWindowRelease)
             .WithDuration(_fixture.CreateDuration()));
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var resolver = new TrackingSpotifyEpisodeResolver();
         var sut = CreateEnricher(resolver);
         var enrichmentContext = new EnrichmentContext();

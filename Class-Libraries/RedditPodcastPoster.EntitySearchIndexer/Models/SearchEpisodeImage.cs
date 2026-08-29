@@ -85,19 +85,7 @@ public readonly record struct SearchEpisodeImage(string Image)
         }
 
         var url = image.ToString();
-        return new SearchEpisodeImage(Compact(url, episode.YouTubeId) ?? url);
-    }
-
-    public static SearchEpisodeImage From(EpisodeImages? images, string? youTubeId)
-    {
-        var image = images?.YouTube ?? images?.Spotify ?? images?.Apple ?? images?.Other;
-        if (image is null)
-        {
-            return new SearchEpisodeImage(string.Empty);
-        }
-
-        var url = image.ToString();
-        return new SearchEpisodeImage(Compact(url, youTubeId) ?? url);
+        return new SearchEpisodeImage(Compact(url, EpisodeServicePresence.YouTubeEpisodeId(episode)) ?? url);
     }
 
     /// <summary>

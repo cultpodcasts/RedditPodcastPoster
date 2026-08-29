@@ -142,7 +142,7 @@ public class HomepagePublisher(
                            x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
-            EpisodeServicePresence.Hydrate(episode); // pragma: allowlist secret
+            EpisodeServicePresence.NormalizeCatalog(episode); // pragma: allowlist secret
 
             recentEpisodes.Add(new RecentEpisodeEntry // pragma: allowlist secret
             {
@@ -156,7 +156,7 @@ public class HomepagePublisher(
                 Ids = episode.Ids,
                 Length = episode.Length,
                 Subjects = episode.Subjects,
-                Images = episode.Images,
+                Images = EpisodeServicePresence.ToEpisodeImages(episode),
                 Language = episode.Language
             });
         }
@@ -234,7 +234,7 @@ public class HomepagePublisher(
             Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = EpisodeServicePresence.CoalescedImage(x.Services, x.Images), // pragma: allowlist secret
+            Image = EpisodeServicePresence.CoalescedImage(x.Services), // pragma: allowlist secret
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }

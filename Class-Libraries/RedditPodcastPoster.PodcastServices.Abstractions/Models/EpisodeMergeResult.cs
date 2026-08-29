@@ -23,7 +23,7 @@ public class EpisodeMergeResult(
         foreach (var (episode, newEpisode) in MergedEpisodes)
         {
             report.AppendLine(
-                $"Title: '{episode.Title} with Id '{episode.Id}' merged with SpotifyId '{newEpisode.SpotifyId}', AppleId '{newEpisode.AppleId}', YouTubeId '{newEpisode.YouTubeId}'.");
+                $"Title: '{episode.Title} with Id '{episode.Id}' merged with SpotifyId '{EpisodeServicePresence.SpotifyEpisodeId(newEpisode)}', AppleId '{EpisodeServicePresence.AppleEpisodeId(newEpisode)}', YouTubeId '{EpisodeServicePresence.YouTubeEpisodeId(newEpisode)}'.");
         }
 
         return report.ToString();
@@ -36,7 +36,7 @@ public class EpisodeMergeResult(
         foreach (var episode in AddedEpisodes)
         {
             report.AppendLine(
-                $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}', Episode-Id: '{episode.Id}'.");
+                $"Title: '{episode.Title}', SpotifyId: '{EpisodeServicePresence.SpotifyEpisodeId(episode)}', YouTubeId: '{EpisodeServicePresence.YouTubeEpisodeId(episode)}', AppleId: '{EpisodeServicePresence.AppleEpisodeId(episode)}', Episode-Id: '{episode.Id}'.");
         }
 
         return report.ToString();
@@ -49,7 +49,7 @@ public class EpisodeMergeResult(
         foreach (var episode in FailedEpisodes.SelectMany(x => x))
         {
             report.AppendLine(
-                $"Title: '{episode.Title}', SpotifyId: '{episode.SpotifyId}', YouTubeId: '{episode.YouTubeId}', AppleId: '{episode.AppleId}'.");
+                $"Title: '{episode.Title}', SpotifyId: '{EpisodeServicePresence.SpotifyEpisodeId(episode)}', YouTubeId: '{EpisodeServicePresence.YouTubeEpisodeId(episode)}', AppleId: '{EpisodeServicePresence.AppleEpisodeId(episode)}'.");
         }
 
         return report.ToString();

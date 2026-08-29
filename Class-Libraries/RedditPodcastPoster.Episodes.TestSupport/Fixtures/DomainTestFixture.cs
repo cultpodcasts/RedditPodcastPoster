@@ -513,11 +513,8 @@ public sealed class DomainTestFixture
       Description = _fixture.Create<string>(),
       Release = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
       Length = TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1),
-      Urls = new ServiceUrls(),
       Images = new EpisodeImages(),
-      Subjects = [],
-      SpotifyId = string.Empty,
-      YouTubeId = string.Empty
+      Subjects = []
     };
     customize?.Invoke(episode);
     return episode;
@@ -544,8 +541,8 @@ public sealed class DomainTestFixture
         e.Title = title;
       e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
-      e.YouTubeId = youTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(youTubeId);
+      EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, DefaultYouTubeUrl(youTubeId), null);
     });
   }
 
@@ -563,8 +560,8 @@ public sealed class DomainTestFixture
         e.Title = title;
       e.Release = release ?? UtcAtTime(-2, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
-      e.SpotifyId = spotifyId;
-      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
+      EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(spotifyId), null);
     });
   }
 
@@ -585,10 +582,10 @@ public sealed class DomainTestFixture
         e.Title = title;
       e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
-      e.YouTubeId = yid;
-      e.SpotifyId = sid;
-      e.Urls.YouTube = DefaultYouTubeUrl(yid);
-      e.Urls.Spotify = DefaultSpotifyUrl(sid);
+      EpisodeServicePresence.SetYouTubeIdentity(e, yid);
+      EpisodeServicePresence.SetSpotifyIdentity(e, sid);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, DefaultYouTubeUrl(yid), null);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(sid), null);
     });
   }
 
@@ -840,16 +837,16 @@ public sealed class DomainTestFixture
       e.Title = title;
       e.Release = release;
       e.Length = length;
-      e.YouTubeId = youTubeId;
-      e.Urls.YouTube = DefaultYouTubeUrl(youTubeId);
+      EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, DefaultYouTubeUrl(youTubeId), null);
     });
     var appleOnly = CreateStoredEpisode(podcast, e =>
     {
       e.Title = title;
       e.Release = release;
       e.Length = length;
-      e.AppleId = appleId;
-      e.Urls.Apple = DefaultAppleUrl(appleId);
+      EpisodeServicePresence.SetAppleIdentity(e, appleId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Apple, DefaultAppleUrl(appleId), null);
     });
     return (youTubeOnly, appleOnly);
   }
@@ -878,8 +875,8 @@ public sealed class DomainTestFixture
       e.Release = audioRelease ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
       e.Length = length ?? CreateDuration();
       var spotifyId = CreateSpotifyId();
-      e.SpotifyId = spotifyId;
-      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
+      EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(spotifyId), null);
     });
 
   public Episode CreateMidnightUtcSpotifyStoredEpisode(
@@ -899,8 +896,8 @@ public sealed class DomainTestFixture
     {
       e.Release = dateOnlyRelease;
       var spotifyId = CreateSpotifyId();
-      e.SpotifyId = spotifyId;
-      e.Urls.Spotify = DefaultSpotifyUrl(spotifyId);
+      EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(spotifyId), null);
       if (title is not null)
         e.Title = title;
       if (length is not null)
@@ -986,7 +983,7 @@ public sealed class DomainTestFixture
       e.PodcastId = podcastId ?? Guid.NewGuid();
       e.Title = title;
       e.Release = release ?? DateTime.UtcNow.Date;
-      e.Urls.Spotify = spotifyUrl;
+      EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, spotifyUrl, null);
     });
 
   public Episode CreateSpotifyCatalogueEpisode(
@@ -1696,37 +1693,37 @@ public sealed class EpisodeBuilder
 
   public EpisodeBuilder WithSpotify(string spotifyId, Uri? url = null)
   {
-    _episode.SpotifyId = spotifyId;
+    EpisodeServicePresence.SetSpotifyIdentity(_episode, spotifyId);
     if (url is not null)
-      _episode.Urls.Spotify = url;
+      EpisodeServicePresence.Upsert(_episode, ServiceKeys.Spotify, url, null);
     return this;
   }
 
   public EpisodeBuilder WithYouTube(string youTubeId, Uri? url = null)
   {
-    _episode.YouTubeId = youTubeId;
+    EpisodeServicePresence.SetYouTubeIdentity(_episode, youTubeId);
     if (url is not null)
-      _episode.Urls.YouTube = url;
+      EpisodeServicePresence.Upsert(_episode, ServiceKeys.YouTube, url, null);
     return this;
   }
 
   public EpisodeBuilder WithApple(long appleId, Uri? url = null)
   {
-    _episode.AppleId = appleId;
+    EpisodeServicePresence.SetAppleIdentity(_episode, appleId);
     if (url is not null)
-      _episode.Urls.Apple = url;
+      EpisodeServicePresence.Upsert(_episode, ServiceKeys.Apple, url, null);
     return this;
   }
 
   public EpisodeBuilder WithSpotifyImage(Uri image)
   {
-    _episode.Images!.Spotify = image;
+    EpisodeServicePresence.SetCatalogImage(_episode, ServiceKeys.Spotify, image);
     return this;
   }
 
   public EpisodeBuilder WithYouTubeImage(Uri image)
   {
-    _episode.Images!.YouTube = image;
+    EpisodeServicePresence.SetCatalogImage(_episode, ServiceKeys.YouTube, image);
     return this;
   }
 

@@ -49,7 +49,8 @@ public class SpotifySearchResultFinder(
             ? null
             : e =>
             {
-                var source = episodes.FirstOrDefault(x => x.Id == e.SpotifyId);
+                var source = episodes.FirstOrDefault(x =>
+                    x.Id == EpisodeServicePresence.SpotifyEpisodeId(e));
                 return source != null && reducer(source);
             };
 
@@ -151,18 +152,21 @@ public class SpotifySearchResultFinder(
             Release = released ?? DateTime.MinValue
         };
 
-    private static Episode ToCatalogueEpisode(SimpleEpisode episode, IHtmlSanitiser htmlSanitiser) =>
-        new()
+    private static Episode ToCatalogueEpisode(SimpleEpisode episode, IHtmlSanitiser htmlSanitiser)
+    {
+        var mapped = new Episode
         {
             Title = WebUtility.HtmlDecode(episode.Name.Trim()),
             Description = htmlSanitiser.Sanitise(episode.HtmlDescription ?? string.Empty),
             Length = episode.GetDuration(),
-            Release = episode.GetReleaseDate(),
-            SpotifyId = episode.Id
+            Release = episode.GetReleaseDate()
         };
+        EpisodeServicePresence.SetSpotifyIdentity(mapped, episode.Id);
+        return mapped;
+    }
 
     private static SimpleEpisode? FindSourceEpisode(IEnumerable<SimpleEpisode> episodes, Episode match) =>
-        episodes.FirstOrDefault(x => x.Id == match.SpotifyId);
+        episodes.FirstOrDefault(x => x.Id == EpisodeServicePresence.SpotifyEpisodeId(match));
 
     private static Podcast CreateLookupPodcast(Service? releaseAuthority) =>
         new()

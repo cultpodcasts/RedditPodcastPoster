@@ -1,3 +1,6 @@
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+
 namespace RedditPodcastPoster.PodcastServices.Apple.Models;
 
 public class ResolvedAppleItem
@@ -32,7 +35,7 @@ public class ResolvedAppleItem
     public ResolvedAppleItem(RedditPodcastPoster.Models.Episodes.PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.AppleId;
-        EpisodeId = podcastEpisode.Episode.AppleId;
+        EpisodeId = EpisodeServicePresence.AppleEpisodeId(podcastEpisode.Episode);
         ShowName = podcastEpisode.Podcast.Name;
         Publisher = podcastEpisode.Podcast.Publisher;
         EpisodeTitle = podcastEpisode.Episode.Title;
@@ -40,12 +43,8 @@ public class ResolvedAppleItem
         Release = podcastEpisode.Episode.Release;
         Duration = podcastEpisode.Episode.Length;
         Explicit = podcastEpisode.Episode.Explicit;
-        if (podcastEpisode.Episode.Urls.Apple != null)
-        {
-            Url = podcastEpisode.Episode.Urls.Apple;
-        }
-
-        Image = podcastEpisode.Episode.Images?.Apple;
+        Url = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Apple);
+        Image = EpisodeServicePresence.TryGetImage(podcastEpisode.Episode, ServiceKeys.Apple);
     }
 
     public long? ShowId { get; init; }
