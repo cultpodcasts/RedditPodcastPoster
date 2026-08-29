@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models.Serialization;
+namespace EpisodeServiceBackfill;
 
 /// <summary>
-/// Shared STJ options for episode document / catalog-patch deserialize (camelCase + enums).
+/// STJ options for leftover-document / catalog-patch deserialize in this CLI.
 /// Persistence Cosmos options stay on <c>JsonSerializerOptionsProvider</c> (adds RegexConverter).
 /// </summary>
 public static class EpisodeDocumentJsonOptions

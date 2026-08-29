@@ -1,8 +1,6 @@
 using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Serialization;
-
 namespace EpisodeServiceBackfill;
 
 public sealed record EpisodeServiceBackfillSpotCheckFailure(Guid EpisodeId, Guid PodcastId, string Reason);

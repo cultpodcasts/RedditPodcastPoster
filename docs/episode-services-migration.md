@@ -15,22 +15,23 @@ Deploy plan with diagram and post-step checks: [episode-services-deploy-plan.md]
 
 ## Why a phased plan
 
-Phase 3 (this freeze branch): leftover members are **not** on typed `Episode`. `NormalizeCatalog` does not copy leftover `urls` into the catalog. App matching and writers use nested `ids` / `services`. Leftover JSON is still dual-**read** by backfill (`MergeRawLeftoverIntoCatalog`) and by search indexer SQL until leftover keys wither. Optional `NeedsStrip` is later.
+Phase 3 (this freeze branch): leftover members are **not** on typed `Episode`. `NormalizeCatalog` does not copy leftover `urls` into the catalog. App matching and writers use nested `ids` / `services`. Leftover JSON is still dual-**read** by the **EpisodeServiceBackfill CLI** (`MergeRawLeftoverIntoCatalog`) and by search indexer SQL until leftover keys wither. Optional `NeedsStrip` is later.
 
 The published feed / public episode JSON is `ids` + `services` only. Older R2 objects may still have flat named URL fields. Website helpers keep reading those leftover fields until the feed is republished.
 
 ## Tested migration code
 
-| Piece | Role |
-| --- | --- |
-| `EpisodeServiceDocumentMigration.NeedsBackfill(JsonElement)` | Decide from **raw JSON** (not a hydrated `Episode`) whether `services` / `ids` are incomplete |
-| `EpisodeServiceDocumentMigration.SelectDocumentsToBackfill` | Dry-run candidate list (`podcastId` + episode `id`) |
-| `EpisodeServiceDocumentMigration.Apply(Episode)` | `NormalizeCatalog` + nested ids; returns whether the in-memory catalog shape changed. Does not write leftover members |
-| `EpisodeServiceBackfillProcessor` | Dry-run count, or load/save only candidates. Default is **not** apply |
+| Piece | Role | Assembly |
+| --- | --- | --- |
+| `EpisodeServiceDocumentMigration.NeedsBackfill(JsonElement)` | Decide from **raw JSON** (not a hydrated `Episode`) whether `services` / `ids` are incomplete | `EpisodeServiceBackfill` CLI |
+| `EpisodeServiceDocumentMigration.SelectDocumentsToBackfill` | Dry-run candidate list (`podcastId` + episode `id`) | CLI |
+| `EpisodeServiceDocumentMigration.Apply(Episode)` | `NormalizeCatalog` + nested ids; in-memory only. Does not write leftover members | CLI |
+| `EpisodeServiceBackfillProcessor` | Dry-run count, or surgical `/services` `/ids` patch. Default is **not** apply | CLI |
+| `BackFillEpisodeRepository` | Cosmos `PatchServicesAndIds` — not on production `IEpisodeRepository` | CLI |
 
-Tests: `EpisodeServiceDocumentMigrationTests`, `EpisodeServiceBackfillProcessorTests`.
+Tests: `Console-Apps/EpisodeServiceBackfill.Tests` (`EpisodeServiceDocumentMigrationTests`, `EpisodeServiceBackfillProcessorTests`, leftover document tests). **Do not** reference this CLI from Class-Library or Cloud `*Tests` projects.
 
-Selection **must** use raw documents. After `OnDeserialized`, a typed `Episode` always looks migrated, so `GetAll()` cannot be the candidate query.
+Selection **must** use raw documents. Typed `Episode` has no leftover members, so `GetAll()` cannot see `urls` / top-level ids / `images`.
 
 Cosmos scan (when a host is wired; dry-run first):
 

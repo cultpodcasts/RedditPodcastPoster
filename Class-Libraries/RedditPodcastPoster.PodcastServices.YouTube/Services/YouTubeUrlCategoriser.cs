@@ -165,15 +165,7 @@ public class YouTubeUrlCategoriser(
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
         {
             string channelDescription = "", channelContentOwner = "";
-            var mismatchedEpisodes = episodes.Where(x =>
-                (!x.Removed && string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x)) &&
-                 EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) != null) ||
-                (EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) == null &&
-                 !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x))) ||
-                (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(x)) &&
-                 EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube) != null &&
-                 YouTubeIdResolver.Extract(EpisodeServicePresence.TryGetUrl(x, ServiceKeys.YouTube)!) !=
-                 EpisodeServicePresence.YouTubeEpisodeId(x))).ToArray();
+            var mismatchedEpisodes = episodes.Where(HasInconsistentYouTubeIdAndUrl).ToArray();
             if (mismatchedEpisodes.Any())
             {
                 throw new InvalidOperationException(
@@ -301,5 +293,20 @@ public class YouTubeUrlCategoriser(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// True when YouTube id and URL disagree, or only one of them is present
+    /// (except a removed episode that has a URL and no id).
+    /// </summary>
+    internal static bool HasInconsistentYouTubeIdAndUrl(EpisodeModel episode)
+    {
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var youTubeUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube);
+        var idMissing = string.IsNullOrWhiteSpace(youTubeId);
+        return (!episode.Removed && idMissing && youTubeUrl is not null) ||
+               (youTubeUrl is null && !idMissing) ||
+               (!idMissing && youTubeUrl is not null &&
+                YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
     }
 }

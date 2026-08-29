@@ -163,38 +163,18 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
     }
 
     /// <summary>
-    /// Test helper for CLI backfill patches. Not on <see cref="IEpisodeRepository"/>.
+    /// Mutate the stored row in place without recording a <see cref="Save"/> (surgical patch).
     /// </summary>
-    public Task<bool> PatchServicesAndIds(
-        Guid podcastId,
-        Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
-        EpisodeIds? ids)
+    public bool TryMutate(Guid podcastId, Guid episodeId, Action<Episode> mutate)
     {
+        ArgumentNullException.ThrowIfNull(mutate);
         if (!_episodes.TryGetValue(episodeId, out var episode) || episode.PodcastId != podcastId)
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        if (services is { Count: > 0 })
-        {
-            episode.Services = services.ToDictionary(
-                x => x.Key,
-                x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
-                StringComparer.Ordinal);
-        }
-
-        if (ids is not null && !ids.IsEmpty)
-        {
-            episode.Ids = new EpisodeIds
-            {
-                Spotify = ids.Spotify,
-                Apple = ids.Apple,
-                YouTube = ids.YouTube
-            };
-        }
-
-        return Task.FromResult(true);
+        mutate(episode);
+        return true;
     }
 
     public Episode GetStored(Guid episodeId) =>

@@ -1,9 +1,7 @@
-using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Serialization;
 using Xunit;
 
 namespace Indexer.Tests.BusinessRules;
@@ -13,30 +11,29 @@ public class EpisodeCatalogNormalizeRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When Cosmos System.Text.Json deserializes or serializes an episode, OnDeserialized and OnSerializing run NormalizeCatalog so retired other keys, empty ids, and empty services maps do not persist, because leftover hydrate is gone and write-path Upsert is not the only load/save path.")]
-    public void deserialize_and_serialize_hooks_still_normalize_catalog()
+        "When Upsert writes a catalog service, NormalizeCatalog drops a retired other key and empty ids so those do not persist on the write path.")]
+    public void upsert_normalizes_retired_other_and_empty_ids()
     {
         // Arrange
         var leftoverArt = new Uri($"https://cdn.example.test/{_fixture.Create<string>()}.jpg");
-        var json =
-            $$"""
+        var catalogUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Ids = new EpisodeIds();
+            e.Services = new Dictionary<string, EpisodeServiceLink>
             {
-              "title": "Untitled",
-              "ids": {},
-              "services": { "other": { "image": "{{leftoverArt}}" } }
-            }
-            """;
+                ["other"] = new() { Image = leftoverArt }
+            };
+        });
 
         // Act
-        var episode = JsonSerializer.Deserialize<Episode>(json, EpisodeDocumentJsonOptions.Instance)!;
-        var written = JsonSerializer.Serialize(episode, EpisodeDocumentJsonOptions.Instance);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, catalogUrl, null);
 
         // Assert
-        episode.Services.Should().BeNull();
+        episode.Services.Should().NotBeNull();
+        episode.Services.Should().NotContainKey("other");
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().Be(catalogUrl);
         episode.Ids.Should().BeNull();
-        written.Should().NotContain("\"other\"");
-        written.Should().NotContain("\"ids\"");
-        written.Should().NotContain("\"services\"");
     }
 
     [Fact(DisplayName =

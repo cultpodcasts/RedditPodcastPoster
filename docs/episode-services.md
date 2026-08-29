@@ -37,8 +37,8 @@ Leftover `urls` / top-level ids / `images` are **not** on `Episode`. `NormalizeC
 
 Raw leftover JSON is still read by:
 
-- `EpisodeServiceDocumentMigration` (library `NeedsBackfill` / `MergeRawLeftoverIntoCatalog` from raw JSON)
-- CLI `LeftoverEpisodeDocument` (retired `urls` / ids / `images` members, read-only, in the backfill console assembly)
+- Console `EpisodeServiceBackfill` (`EpisodeServiceDocumentMigration`, `LeftoverEpisodeDocument` — retired `urls` / ids / `images` members, read-only; never persist that type)
+- Tests: `Console-Apps/EpisodeServiceBackfill.Tests` only (no Class-Library or Cloud test project references the CLI)
 - Search indexer SQL (catalog first, leftover fallback until leftover keys wither)
 
 BBC Sounds and BBC iPlayer are **distinct keys**.

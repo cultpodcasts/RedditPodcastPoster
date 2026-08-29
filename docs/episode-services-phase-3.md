@@ -4,7 +4,7 @@ Phases 0–2 (Functions dual-write deploy + Cosmos catalog backfill + search `sv
 
 Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). Full-document `Save()` still withers leftover JSON keys: [episode-services-risk.md](episode-services-risk.md) D1 / D8.
 
-**Updated:** 2026-08-29 11:48 BST.
+**Updated:** 2026-08-29 13:38 BST.
 
 ## Can we proceed — no data loss, quality code?
 
@@ -16,8 +16,8 @@ Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). 
 | Ingest since 21:00 BST 28 Aug (`_ts` > `1787947200`) | 39 documents, **0** `NeedsBackfill` |
 | Full-container dry-run 29 Aug | scanned **97345**, candidates **0** |
 | Production Functions | Still **pre–Phase 3** (28 Aug script-deploy). New indexer Saves still dual-write leftover JSON **and** catalog |
-| #966 code quality | Architect review: **ship-quality for Phase 3** if catalog is complete. Should-fix items landed in `d0dbad11`. Leftover CLI subclass is local (not pushed) |
-| 11:00 BST 29 Aug indexer slot | **Missed** for a Phase 3 Indexer deploy (now 11:48 BST). Next hourly is **12:03 BST** (11:03 UTC) if you **name** a script-deploy |
+| #966 code quality | Origin `29ab3ae9` leftover CLI + backfill off production. Owner comments still being applied (including dropping Episode STJ hooks). |
+| Catalog / Indexer window | **15:00 BST** `--since-ts` then ask before Functions. 11:00 / 13:00 / 14:00 slots missed. |
 
 **Data-loss posture**
 
@@ -86,7 +86,7 @@ Keep (not defects):
 
 ## 3a — Episode DTO
 
-Leftover properties are **off** `Episode`: `Urls`, top-level ids, `Images`. `OnSerializing` / `OnDeserialized` call `NormalizeCatalog` (drop retired catalog key `other`, empty `ids`). Empty `services` → null. Leftover JSON is ignored on deserialize and omitted on serialize.
+Leftover properties are **off** `Episode`: `Urls`, top-level ids, `Images`. Leftover JSON is ignored on deserialize and omitted on serialize (wither). `NormalizeCatalog` (drop retired catalog key `other`, empty `ids`, empty `services`) runs on write/`Upsert` only — not STJ hydrate hooks.
 
 ## 3b — App writers and readers
 
@@ -106,7 +106,7 @@ Console `EpisodeServiceBackfill`:
 
 - Production `Episode` has no leftover members.
 - CLI **`LeftoverEpisodeDocument : Episode`** adds read-only `urls`, top-level ids, `images` for Cosmos JSON deserialize. Never save that type.
-- `LeftoverEpisodeCatalogPatchSource` builds surgical `services`/`ids` patches. Library tests can still use `JsonEpisodeCatalogPatchSource` (`JsonElement` merge).
+- `LeftoverEpisodeCatalogPatchSource` builds surgical `services`/`ids` patches. CLI tests use `JsonEpisodeCatalogPatchSource` (`JsonElement` merge) or leftover parse. Class-Library / Cloud tests do **not** reference this CLI.
 - `--since-ts` classifies (and with `--apply` patches) by `_ts`. Does not overwrite `episode-service-backfill-patches.jsonl`.
 - Default is dry-run. `--apply` only when named.
 
@@ -123,7 +123,7 @@ Until Phase 3 Functions are live, after each hourly/discovery: `--since-ts <unix
 
 Phrase **deploy functions & clis** (or an explicit “deploy Indexer”) is the deploy approval. Order remains Indexer → Discover → Api.
 
-**11:00 BST 29 Aug hourly:** too late to land Phase 3 Indexer for that slot. Next slot **12:03 BST** (11:03 UTC) if you name the deploy in time to finish blob upload + restart (script always restarts; blob `lastModified` is deploy truth).
+**15:00 BST 29 Aug:** classify `_ts` since 21:00 BST 28 Aug, apply only if candidates, then wait for a **named** Indexer script-deploy. Blob `lastModified` is deploy truth.
 
 Soak after deploy: `AppRequests` for `HourlyOrchestration` / `activity:Indexer` (not traces alone), curator clear-slot, tweet/Bsky, one full `Save` omits leftover JSON.
 

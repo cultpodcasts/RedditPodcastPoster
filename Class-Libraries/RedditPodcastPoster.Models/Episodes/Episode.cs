@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Models.Episodes;
 
-public class Episode : IJsonOnDeserialized, IJsonOnSerializing
+public class Episode
 {
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
@@ -172,23 +172,6 @@ public class Episode : IJsonOnDeserialized, IJsonOnSerializing
 
     [JsonPropertyName("_ts")]
     public long Timestamp { get; set; }
-
-    /// <summary>
-    /// Cosmos STJ hydrate: NormalizeCatalog drops retired <c>other</c>, empty ids, empty Services.
-    /// Write-path Upsert also normalizes; this hook covers loads that never call Upsert.
-    /// </summary>
-    public void OnDeserialized()
-    {
-        EpisodeServicePresence.NormalizeCatalog(this);
-    }
-
-    /// <summary>
-    /// Cosmos STJ save: same NormalizeCatalog so a full Save cannot persist retired <c>other</c> or empty maps.
-    /// </summary>
-    public void OnSerializing()
-    {
-        EpisodeServicePresence.NormalizeCatalog(this);
-    }
 
     public static Episode FromSpotify(string spotifyId,
         string title,

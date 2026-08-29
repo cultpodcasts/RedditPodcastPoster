@@ -6,7 +6,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
-namespace RedditPodcastPoster.Persistence.Tests;
+namespace EpisodeServiceBackfill.Tests;
 
 public class EpisodeServiceDocumentMigrationTests
 {

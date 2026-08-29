@@ -1,9 +1,9 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Serialization;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -12,7 +12,13 @@ public class EpisodeServicePresenceTests
 {
     private readonly DomainTestFixture _fixture = new();
 
-    private static readonly JsonSerializerOptions SerializerOptions = EpisodeDocumentJsonOptions.Instance;
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     [Fact(DisplayName =
         "Leftover Cosmos urls and top-level platform ids are ignored on deserialize and omitted on serialize, so a later full Save withers orphan leftover JSON.")]
@@ -36,8 +42,6 @@ public class EpisodeServicePresenceTests
 
         // Act
         var episode = JsonSerializer.Deserialize<Episode>(json, SerializerOptions)!;
-        episode.OnDeserialized();
-        episode.OnSerializing();
         var written = JsonSerializer.Serialize(episode, SerializerOptions);
 
         // Assert
@@ -194,8 +198,6 @@ public class EpisodeServicePresenceTests
 
         // Act
         var episode = JsonSerializer.Deserialize<Episode>(json, SerializerOptions)!;
-        episode.OnDeserialized();
-        episode.OnSerializing();
         var written = JsonSerializer.Serialize(episode, SerializerOptions);
 
         // Assert

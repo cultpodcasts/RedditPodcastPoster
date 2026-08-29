@@ -8,10 +8,10 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Persistence.Tests.Fakes;
+using EpisodeServiceBackfill.Tests.Fakes;
 using Xunit;
 
-namespace RedditPodcastPoster.Persistence.Tests;
+namespace EpisodeServiceBackfill.Tests;
 
 public class EpisodeServiceCatalogPatchTests
 {

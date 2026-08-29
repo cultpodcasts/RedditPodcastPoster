@@ -11,10 +11,26 @@ namespace RedditPodcastPoster.Models.Episodes;
 public static class EpisodeServicePresence
 {
     /// <summary>
-    /// Outbound social-post preference: same as <see cref="ServiceCatalog.ImageCoalesceOrder"/>
-    /// so Netflix and other catalog listen destinations can be posted when they are the only URL.
+    /// Outbound Tweet/Bluesky URL preference. YouTube, then Spotify, then Apple, then remaining
+    /// catalog listen destinations so a Netflix (or other) URL can be posted when it is the only one.
+    /// Same sequence as <see cref="ServiceCatalog.ImageCoalesceOrder"/>.
     /// </summary>
-    public static readonly string[] SocialPostUrlOrder = ServiceCatalog.ImageCoalesceOrder;
+    public static readonly string[] SocialPostUrlOrder =
+    [
+        ServiceKeys.YouTube,
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple,
+        ServiceKeys.BbcIplayer,
+        ServiceKeys.BbcSounds,
+        ServiceKeys.InternetArchive,
+        ServiceKeys.Vimeo,
+        ServiceKeys.Netflix,
+        ServiceKeys.AmazonPrime,
+        ServiceKeys.ParamountPlus,
+        ServiceKeys.HboMax,
+        ServiceKeys.PlaySuisse,
+        ServiceKeys.TvnzPlus
+    ];
 
     /// <summary>
     /// Drop the retired <c>other</c> catalog key and keep nested ids aligned.

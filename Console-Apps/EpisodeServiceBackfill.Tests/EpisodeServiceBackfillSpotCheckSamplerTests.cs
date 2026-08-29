@@ -4,7 +4,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using Xunit;
 
-namespace RedditPodcastPoster.Persistence.Tests;
+namespace EpisodeServiceBackfill.Tests;
 
 public class EpisodeServiceBackfillSpotCheckSamplerTests
 {
