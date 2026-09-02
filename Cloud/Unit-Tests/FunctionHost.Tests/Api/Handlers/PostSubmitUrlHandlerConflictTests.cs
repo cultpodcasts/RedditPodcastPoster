@@ -49,6 +49,26 @@ public class PostSubmitUrlHandlerConflictTests
         using var reader = new StreamReader(result.Body, leaveOpen: true);
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
         doc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
-        doc.RootElement.GetArrayLength().Should().Be(2);
+        var ids = doc.RootElement.EnumerateArray().Select(e => e.GetGuid()).ToArray();
+        ids.Should().BeEquivalentTo([firstId, secondId]);
+    }
+
+    [Fact(DisplayName =
+        "When the submit service reports a missing podcast, the handler returns HTTP 404.")]
+    public async Task podcast_not_found_returns_404()
+    {
+        // Arrange
+        _serviceResult = new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: _fixture.Create<string>());
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new SubmitUrlRequest { Url = new Uri($"https://example.com/{_fixture.Create<string>()}") },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

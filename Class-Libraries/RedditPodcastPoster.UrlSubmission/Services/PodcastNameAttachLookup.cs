@@ -18,6 +18,17 @@ public static class PodcastNameAttachLookup
             matches.Add(candidate);
         }
 
+        if (matches.Count == 0 && !string.IsNullOrWhiteSpace(podcastName))
+        {
+            var lowerName = podcastName.ToLower();
+            await foreach (var candidate in podcastRepository
+                               .GetAllBy(x => x.Name.ToLower() == lowerName)
+                               .WithCancellation(cancellationToken))
+            {
+                matches.Add(candidate);
+            }
+        }
+
         return matches;
     }
 }

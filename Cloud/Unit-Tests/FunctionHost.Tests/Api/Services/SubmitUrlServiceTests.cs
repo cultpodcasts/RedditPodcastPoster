@@ -20,14 +20,15 @@ public class SubmitUrlServiceTests
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
-    private IReadOnlyList<Podcast> _nameMatches = [];
+    private IReadOnlyList<Podcast> _storedPodcasts = [];
     private SubmitOptions? _capturedOptions;
 
     public SubmitUrlServiceTests()
     {
         _mocker.GetMock<IPodcastRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
-            .Returns(() => ToAsyncEnumerable(_nameMatches));
+            .Returns((Expression<Func<Podcast, bool>> predicate) =>
+                ToAsyncEnumerable(_storedPodcasts.Where(predicate.Compile())));
 
         _mocker.GetMock<IUrlSubmitter>()
             .Setup(s => s.Submit(
@@ -53,7 +54,7 @@ public class SubmitUrlServiceTests
         var name = _fixture.CreateTitle();
         var first = _fixture.CreatePodcast(p => p.Name = name);
         var second = _fixture.CreatePodcast(p => p.Name = name);
-        _nameMatches = [first, second];
+        _storedPodcasts = [first, second];
         var request = new SubmitUrlRequest
         {
             Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
@@ -79,7 +80,7 @@ public class SubmitUrlServiceTests
         // Arrange
         var name = _fixture.CreateTitle();
         var podcast = _fixture.CreatePodcast(p => p.Name = name);
-        _nameMatches = [podcast];
+        _storedPodcasts = [podcast];
         var request = new SubmitUrlRequest
         {
             Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
@@ -98,6 +99,30 @@ public class SubmitUrlServiceTests
     }
 
     [Fact(DisplayName =
+        "When Cosmos has one series whose name differs only by case, name-only submit attaches that id.")]
+    public async Task unique_name_case_insensitive_resolves_to_podcast_id()
+    {
+        // Arrange
+        var storedName = _fixture.CreateTitle();
+        var submittedName = FlipCasing(storedName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = storedName);
+        _storedPodcasts = [podcast];
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
+            PodcastName = submittedName
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _capturedOptions!.PodcastId.Should().Be(podcast.Id);
+    }
+
+    [Fact(DisplayName =
         "When submit already includes podcastId, name lookup is skipped so a curator choice is not overwritten.")]
     public async Task podcast_id_is_not_replaced_by_name_lookup()
     {
@@ -105,7 +130,7 @@ public class SubmitUrlServiceTests
         var name = _fixture.CreateTitle();
         var chosen = _fixture.CreateGuid();
         var other = _fixture.CreatePodcast(p => p.Name = name);
-        _nameMatches = [other];
+        _storedPodcasts = [other];
         var request = new SubmitUrlRequest
         {
             Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
@@ -131,7 +156,7 @@ public class SubmitUrlServiceTests
     {
         // Arrange
         var name = _fixture.CreateTitle();
-        _nameMatches = [];
+        _storedPodcasts = [];
         var request = new SubmitUrlRequest
         {
             Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
@@ -182,7 +207,7 @@ public class SubmitUrlServiceTests
         var name = _fixture.CreateTitle();
         var firstId = _fixture.CreateGuid();
         var secondId = _fixture.CreateGuid();
-        _nameMatches = [];
+        _storedPodcasts = [];
         _mocker.GetMock<IUrlSubmitter>()
             .Setup(s => s.Submit(
                 It.IsAny<Uri>(),
@@ -202,6 +227,14 @@ public class SubmitUrlServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.Conflict);
         result.AmbiguousPodcasts.Should().BeEquivalentTo([firstId, secondId]);
+    }
+
+    private static string FlipCasing(string value)
+    {
+        var upper = value.ToUpperInvariant();
+        return string.Equals(upper, value, StringComparison.Ordinal)
+            ? value.ToLowerInvariant()
+            : upper;
     }
 
     private static async IAsyncEnumerable<Podcast> ToAsyncEnumerable(IEnumerable<Podcast> items)
