@@ -41,14 +41,13 @@ public class SubmitUrlController(
         SubmitUrlRequest submitUrlModel,
         CancellationToken c)
     {
-        if (IsBlankUrl(submitUrlModel.Url))
+        if (!submitUrlModel.HasUsableHttpUrl())
         {
-            return ctx.BadRequest(ApiErrorResponse.Failure("Url is required"), c);
+            return ctx.BadRequest(
+                ApiErrorResponse.Failure("Url must be an absolute http or https URL"),
+                c);
         }
 
         return postSubmitUrlHandler.Handle(ctx, submitUrlModel, c);
     }
-
-    private static bool IsBlankUrl(Uri? url) =>
-        url is null || string.IsNullOrWhiteSpace(url.OriginalString);
 }

@@ -66,7 +66,7 @@ public class SubmitUrlControllerBlankUrlTests
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        await AssertUrlRequiredBody(result);
+        await AssertInvalidUrlBody(result);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
             h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -87,7 +87,7 @@ public class SubmitUrlControllerBlankUrlTests
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        await AssertUrlRequiredBody(result);
+        await AssertInvalidUrlBody(result);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
             h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -108,7 +108,7 @@ public class SubmitUrlControllerBlankUrlTests
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        await AssertUrlRequiredBody(result);
+        await AssertInvalidUrlBody(result);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
             h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -117,7 +117,7 @@ public class SubmitUrlControllerBlankUrlTests
     [Fact(DisplayName =
         "When Isolated binds an absolute https url, SubmitUrlController delegates to PostSubmitUrlHandler, " +
         "because a present Url is the submit command.")]
-    public async Task absolute_url_delegates_to_handler()
+    public async Task absolute_https_url_delegates_to_handler()
     {
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
@@ -137,11 +137,119 @@ public class SubmitUrlControllerBlankUrlTests
             Times.Once);
     }
 
-    private static async Task AssertUrlRequiredBody(HttpResponseData result)
+    [Fact(DisplayName =
+        "When Isolated binds an absolute http url, SubmitUrlController delegates to PostSubmitUrlHandler, " +
+        "because http is an allowed submit scheme.")]
+    public async Task absolute_http_url_delegates_to_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest
+        {
+            Url = new Uri($"http://example.com/{_fixture.CreateGuid():N}")
+        };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated binds a relative path as Url, SubmitUrlController returns 400 and does not call the handler, " +
+        "because submit requires an absolute http or https URL.")]
+    public async Task relative_url_returns_400_without_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest { Url = new Uri("/foo", UriKind.RelativeOrAbsolute) };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertInvalidUrlBody(result);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated binds a non-URI string as a relative Url, SubmitUrlController returns 400 and does not call " +
+        "the handler, because submit requires an absolute http or https URL.")]
+    public async Task non_uri_string_returns_400_without_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest { Url = new Uri("not-a-uri", UriKind.RelativeOrAbsolute) };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertInvalidUrlBody(result);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated binds an absolute ftp url, SubmitUrlController returns 400 and does not call the handler, " +
+        "because only http and https schemes are allowed.")]
+    public async Task ftp_url_returns_400_without_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest { Url = new Uri("ftp://example.com/episode") };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertInvalidUrlBody(result);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated binds an absolute file url, SubmitUrlController returns 400 and does not call the handler, " +
+        "because only http and https schemes are allowed.")]
+    public async Task file_url_returns_400_without_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest { Url = new Uri("file:///tmp/episode") };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertInvalidUrlBody(result);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private static async Task AssertInvalidUrlBody(HttpResponseData result)
     {
         result.Body.Position = 0;
         using var reader = new StreamReader(result.Body, leaveOpen: true);
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
-        doc.RootElement.GetProperty("error").GetString().Should().Be("Url is required");
+        doc.RootElement.GetProperty("error").GetString()
+            .Should().Be("Url must be an absolute http or https URL");
     }
 }
