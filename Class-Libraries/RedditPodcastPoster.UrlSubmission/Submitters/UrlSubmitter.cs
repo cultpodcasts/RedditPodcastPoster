@@ -32,6 +32,13 @@ public class UrlSubmitter(
                 if (submitOptions.PodcastId != null)
                 {
                     podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
+                    if (podcast == null)
+                    {
+                        logger.LogWarning(
+                            "Submit referenced podcast id '{PodcastId}' which does not exist.",
+                            submitOptions.PodcastId.Value);
+                        throw new SubmitPodcastNotFoundException(submitOptions.PodcastId.Value);
+                    }
                 }
                 else if (!string.IsNullOrWhiteSpace(submitOptions.PodcastName))
                 {
@@ -94,6 +101,10 @@ public class UrlSubmitter(
             return submitResult;
         }
         catch (AmbiguousPodcastNameException)
+        {
+            throw;
+        }
+        catch (SubmitPodcastNotFoundException)
         {
             throw;
         }

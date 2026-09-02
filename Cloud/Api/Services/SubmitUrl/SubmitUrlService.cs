@@ -26,6 +26,7 @@ public class SubmitUrlService(
                 "{RunName}: Handling url-submission: url: '{Url}', podcast-id: '{PodcastId}', podcast-name: '{PodcastName}'.",
                 nameof(SubmitAsync), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
             Guid? podcastId = submitUrlModel.PodcastId;
+            // Name-only: unique → attach by id; many → 409; none → leave id unset so ingest creates a series with PodcastName.
             if (podcastId == null && !string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
                 var matches = await PodcastNameAttachLookup.FindByName(
@@ -98,6 +99,16 @@ public class SubmitUrlService(
                 ex.PodcastName,
                 submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.Conflict, AmbiguousPodcasts: ex.PodcastIds);
+        }
+        catch (SubmitPodcastNotFoundException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Submit referenced missing podcast id '{PodcastId}' for '{Url}'.",
+                nameof(SubmitAsync),
+                ex.PodcastId,
+                submitUrlModel.Url);
+            return new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "Podcast not found");
         }
         catch (Exception ex)
         {

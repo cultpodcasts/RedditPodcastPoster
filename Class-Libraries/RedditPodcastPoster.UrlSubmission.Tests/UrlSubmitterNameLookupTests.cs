@@ -121,6 +121,36 @@ public class UrlSubmitterNameLookupTests
             Times.Once);
     }
 
+    [Fact(DisplayName =
+        "When submit references a podcast id that does not exist, ingest throws instead of creating a series.")]
+    public async Task missing_podcast_id_throws_before_categorise()
+    {
+        // Arrange
+        var missingId = _fixture.CreateGuid();
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(r => r.GetPodcast(missingId))
+            .ReturnsAsync((Podcast?)null);
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var url = new Uri($"https://example.com/{_fixture.Create<string>()}");
+
+        // Act
+        var act = () => sut.Submit(
+            url,
+            new IndexingContext(),
+            new SubmitOptions(missingId, true));
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<SubmitPodcastNotFoundException>();
+        ex.Which.PodcastId.Should().Be(missingId);
+        _mocker.GetMock<IUrlCategoriser>().Verify(
+            c => c.Categorise(
+                It.IsAny<Podcast?>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
     private static async IAsyncEnumerable<Podcast> ToAsyncEnumerable(IEnumerable<Podcast> items)
     {
         foreach (var item in items)

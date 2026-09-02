@@ -96,6 +96,9 @@ public class PodcastGetService(
             }
         }
 
+        // Browse convenience only: if exactly one duplicate has Spotify/Apple/YouTube ids,
+        // treat that row as the catalogue show so GET /podcast/{name} still 200s.
+        // Submit does not use this — name-only POST 409s whenever more than one row shares the name.
         var podcastsWithServiceIds = podcasts.Where(x =>
             !string.IsNullOrWhiteSpace(x.SpotifyId) ||
             !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||

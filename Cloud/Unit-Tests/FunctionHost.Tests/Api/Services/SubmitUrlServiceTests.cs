@@ -149,6 +149,32 @@ public class SubmitUrlServiceTests
     }
 
     [Fact(DisplayName =
+        "When submit references a podcast id that does not exist, the API returns not-found instead of creating a series.")]
+    public async Task missing_podcast_id_maps_to_not_found()
+    {
+        // Arrange
+        var missingId = _fixture.CreateGuid();
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ThrowsAsync(new SubmitPodcastNotFoundException(missingId));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
+            PodcastId = missingId
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.PodcastNotFound);
+    }
+
+    [Fact(DisplayName =
         "When the submitter reports an ambiguous name, the API maps that to conflict with the podcast id list.")]
     public async Task submitter_ambiguous_name_maps_to_conflict()
     {
