@@ -4,7 +4,7 @@ Phases 0–2 (Functions dual-write deploy + Cosmos catalog backfill + search `sv
 
 Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). Full-document `Save()` still withers leftover JSON keys: [episode-services-risk.md](episode-services-risk.md) D1 / D8.
 
-**Updated:** 2026-08-29 14:07 BST.
+**Updated:** 2026-08-29 15:00 BST.
 
 ## Can we proceed — no data loss, quality code?
 
@@ -13,11 +13,11 @@ Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). 
 | Gate | Status |
 | --- | --- |
 | Phase 2 `--all --apply` | Done 28 Aug: scanned 97306, saved 97286, mismatches 0, spot-check 1000/1000 |
-| Ingest since 21:00 BST 28 Aug (`_ts` > `1787947200`) | 39 documents, **0** `NeedsBackfill` |
+| Ingest since 21:00 BST 28 Aug (`_ts` > `1787947200`) | **15:00 BST** dry-run: Hits **48**, NeedsBackfillTrue **0**, StillCandidate **0**, Unreadable **0**. No `--apply`. |
 | Full-container dry-run 29 Aug | scanned **97345**, candidates **0** |
 | Production Functions | Still **pre–Phase 3** (28 Aug script-deploy). New indexer Saves still dual-write leftover JSON **and** catalog |
 | #966 | Origin **`79793077`**. Leftover DTO retire, CLI leftover subclass, backfill off Models/Persistence, STJ hooks off Episode. #966 open. Do not merge. |
-| Catalog / Indexer window | **15:00 BST** `--since-ts` (21:00 BST 28 Aug), apply only if candidates, then **ask** before Functions. Next hourly after that is **16:03 BST**. |
+| Catalog / Indexer window | **15:00 BST** `--since-ts` done: 48 / 0. Waiting for a **named** Indexer script-deploy. Next hourly is **16:03 BST**. |
 
 **Data-loss posture**
 
@@ -114,7 +114,7 @@ Console `EpisodeServiceBackfill`:
 
 Indexer/discovery on **current** production Functions still dual-write leftover + catalog, so new rows should already have `services`/`ids`. Measured:
 
-- Window `_ts` > 21:00 BST 28 Aug: **39** hits, **0** candidates.
+- Window `_ts` > 21:00 BST 28 Aug (**15:00 BST** dry-run): **48** hits, **0** candidates. `--apply` not run.
 - Full scan 29 Aug: **97345** / **0**.
 
 Until Phase 3 Functions are live, after each hourly/discovery: `--since-ts <unix>` dry-run. Apply only if `NeedsBackfill` > 0. After Phase 3 Indexer is live, new Saves wither leftover on full upsert; catalog-only writes need no leftover merge.
@@ -123,7 +123,7 @@ Until Phase 3 Functions are live, after each hourly/discovery: `--since-ts <unix
 
 Phrase **deploy functions & clis** (or an explicit “deploy Indexer”) is the deploy approval. Order remains Indexer → Discover → Api.
 
-**15:00 BST 29 Aug:** classify `_ts` since 21:00 BST 28 Aug, apply only if candidates, then wait for a **named** Indexer script-deploy. Blob `lastModified` is deploy truth.
+**15:00 BST 29 Aug:** `--since-ts 1787947200` dry-run exit 0. Hits **48**, NeedsBackfillTrue **0**, StillCandidate **0**, Unreadable **0**. No ids to backfill; `--apply` not run. Waiting for a **named** Indexer script-deploy. Blob `lastModified` is deploy truth.
 
 Soak after deploy: `AppRequests` for `HourlyOrchestration` / `activity:Indexer` (not traces alone), curator clear-slot, tweet/Bsky, one full `Save` omits leftover JSON.
 

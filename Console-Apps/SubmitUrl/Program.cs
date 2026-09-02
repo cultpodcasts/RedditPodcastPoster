@@ -12,6 +12,9 @@ using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.Netflix.Extensions;
+using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -58,6 +61,9 @@ builder.Services
     .AddEpisodeSearchIndexerService()
     .AddBBCServices()
     .AddInternetArchiveServices()
+    .AddVimeoServices()
+    .AddNetflixServices()
+    .AddAmazonPrimeServices()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();

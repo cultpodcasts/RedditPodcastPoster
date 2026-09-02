@@ -33,6 +33,10 @@ public class UrlSubmitter(
                 {
                     podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
                 }
+                else if (!string.IsNullOrWhiteSpace(submitOptions.PodcastName))
+                {
+                    podcast = await podcastRepository.GetBy(x => x.Name == submitOptions.PodcastName);
+                }
                 else
                 {
                     podcast = await podcastService.GetPodcastFromEpisodeUrl(url, indexingContext);

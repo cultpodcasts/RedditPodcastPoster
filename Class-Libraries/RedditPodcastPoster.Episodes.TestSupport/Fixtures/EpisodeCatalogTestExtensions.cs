@@ -245,12 +245,6 @@ public sealed class EpisodeCatalogImages
             : _other;
         set
         {
-            if (_live is not null)
-            {
-                ApplyOther(_live, value);
-                return;
-            }
-
             _other = value;
         }
     }
@@ -261,7 +255,6 @@ public sealed class EpisodeCatalogImages
         EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, images?.YouTube);
         EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Spotify, images?.Spotify);
         EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, images?.Apple);
-        ApplyOther(episode, images?.Other);
     }
 
     private Uri? Read(string key, Uri? snapshot) =>
@@ -276,27 +269,5 @@ public sealed class EpisodeCatalogImages
         }
 
         snapshot = value;
-    }
-
-    private static void ApplyOther(Episode episode, Uri? image)
-    {
-        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
-        {
-            if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
-            {
-                continue;
-            }
-
-            if (EpisodeServicePresence.HasUrl(episode, key))
-            {
-                EpisodeServicePresence.SetCatalogImage(episode, key, image);
-                return;
-            }
-        }
-
-        if (image is not null)
-        {
-            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.BbcIplayer, image);
-        }
     }
 }

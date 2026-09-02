@@ -6,6 +6,10 @@ using Microsoft.Extensions.Hosting;
 using CommandLine;
 using EnrichPodcastWithImages;
 using RedditPodcastPoster.BBC.Extensions;
+using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.Netflix.Extensions;
+using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
@@ -38,6 +42,10 @@ builder.Services
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSpotifyServices()
     .AddBBCServices()
+    .AddInternetArchiveServices()
+    .AddVimeoServices()
+    .AddNetflixServices()
+    .AddAmazonPrimeServices()
     .AddPodcastServices()
     .AddEpisodeSearchIndexerService()
     .AddHttpClient();

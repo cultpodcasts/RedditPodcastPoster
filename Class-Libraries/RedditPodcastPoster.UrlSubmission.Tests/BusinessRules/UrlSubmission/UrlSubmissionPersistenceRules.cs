@@ -117,7 +117,7 @@ public class UrlSubmissionPersistenceRules
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();
         factory
-            .Setup(x => x.CreatePodcastWithEpisode(It.IsAny<CategorisedItem>()))
+            .Setup(x => x.CreatePodcastWithEpisode(It.IsAny<CategorisedItem>(), It.IsAny<string?>()))
             .ReturnsAsync(new CreatePodcastWithEpisodeResponse(
                 newPodcast,
                 newEpisode,
@@ -254,7 +254,7 @@ public class UrlSubmissionPersistenceRules
 
         var factory = new Mock<IPodcastAndEpisodeFactory>();
         factory
-            .Setup(x => x.CreatePodcastWithEpisode(It.IsAny<CategorisedItem>()))
+            .Setup(x => x.CreatePodcastWithEpisode(It.IsAny<CategorisedItem>(), It.IsAny<string?>()))
             .ReturnsAsync(new CreatePodcastWithEpisodeResponse(
                 newPodcast,
                 newEpisode,

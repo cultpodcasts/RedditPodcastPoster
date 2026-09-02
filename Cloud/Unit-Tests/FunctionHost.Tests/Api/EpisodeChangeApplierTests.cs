@@ -602,7 +602,7 @@ public class EpisodeChangeApplierTests
     }
 
     [Fact(DisplayName =
-        "Apply stores a Vimeo URL adjacent to its image under services.vimeo and dual-writes the image to Images.Other so services outside Spotify/Apple/YouTube do not need a new urls field.")]
+        "Apply stores a Vimeo URL adjacent to its image under services.vimeo. Extra service art is not written to leftover Images.Other.")]
     public void Apply_sets_vimeo_service_url_and_image_adjacent()
     {
         // Arrange
@@ -624,7 +624,7 @@ public class EpisodeChangeApplierTests
         episode.Services.Should().ContainKey("vimeo");
         episode.Services!["vimeo"].Url.Should().Be(vimeoUrl);
         episode.Services["vimeo"].Image.Should().Be(vimeoImage);
-        episode.Images!.Other.Should().Be(vimeoImage);
+        EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
     }
 
     [Fact(DisplayName =

@@ -8,6 +8,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -20,7 +21,8 @@ public class PodcastAndEpisodeFactory(
 ) : IPodcastAndEpisodeFactory
 {
     public async Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
-        CategorisedItem categorisedItem)
+        CategorisedItem categorisedItem,
+        string? podcastName = null)
     {
         string showName;
         string publisher;
@@ -39,11 +41,16 @@ public class PodcastAndEpisodeFactory(
                 publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
                 break;
             case Service.Other:
-                showName = categorisedItem.ResolvedNonPodcastServiceItem!.Title!;
-                publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher!;
+                showName = ResolveNonPodcastShowName(categorisedItem.ResolvedNonPodcastServiceItem!);
+                publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher ?? string.Empty;
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcastName))
+        {
+            showName = podcastName.Trim();
         }
 
         var newPodcast = await podcastFactory.Create(showName);
@@ -78,5 +85,22 @@ public class PodcastAndEpisodeFactory(
             guestsResult.SkippedLowConfidence);
         episode.SetPodcastProperties(newPodcast, inheritLanguageIfUnset: true);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
+    }
+
+    private static string ResolveNonPodcastShowName(
+        ResolvedNonPodcastServiceItem item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ShowName))
+        {
+            return item.ShowName.Trim();
+        }
+
+        if (item.NonPodcastService == NonPodcastService.Vimeo &&
+            !string.IsNullOrWhiteSpace(item.Publisher))
+        {
+            return item.Publisher.Trim();
+        }
+
+        return item.Title ?? string.Empty;
     }
 }

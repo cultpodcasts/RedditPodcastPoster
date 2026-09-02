@@ -87,7 +87,11 @@ public class EmbedCardRequestFactory(
                     podcastEpisode.Episode.Title,
                     podcastEpisode.Episode.Description,
                     embedPost.Url);
-                var otherImage = EpisodeServicePresence.ToEpisodeImages(podcastEpisode.Episode)?.Other;
+                var catalogKey = ServiceCatalog.TryResolveKey(embedPost.Url);
+                var otherImage = catalogKey is not null
+                    ? EpisodeServicePresence.TryGetImage(podcastEpisode.Episode, catalogKey)
+                    : null;
+                otherImage ??= EpisodeServicePresence.CoalescedImage(podcastEpisode.Episode);
                 if (otherImage != null)
                 {
                     embedCardRequest.ThumbUrl = otherImage;

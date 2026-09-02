@@ -77,8 +77,8 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
-        "ToEpisodeImages projects non-default catalog artwork as Other, because leftover images members are retired and admin GET still needs that shape.")]
-    public void to_episode_images_projects_vimeo_catalog_art_as_other()
+        "ToEpisodeImages exposes Spotify/Apple/YouTube art only. Extra catalog art stays on services.{key}.image; search uses CoalescedImage.")]
+    public void to_episode_images_does_not_collapse_vimeo_art_into_other()
     {
         // Arrange
         var vimeoUrl = new Uri("https://vimeo.com/123456789");
@@ -95,11 +95,8 @@ public class EpisodeServicePresenceTests
         var projected = EpisodeServicePresence.ToEpisodeImages(episode);
 
         // Assert
-        projected.Should().NotBeNull();
-        projected!.Other.Should().Be(vimeoArt);
-        projected.YouTube.Should().BeNull();
-        projected.Spotify.Should().BeNull();
-        projected.Apple.Should().BeNull();
+        projected.Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(vimeoArt);
         EpisodeServicePresence.CoalescedImage(episode).Should().Be(vimeoArt);
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer).Should().BeNull();
     }

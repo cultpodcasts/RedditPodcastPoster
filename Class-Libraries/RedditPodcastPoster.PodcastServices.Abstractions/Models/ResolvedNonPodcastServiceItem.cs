@@ -14,7 +14,8 @@ public record ResolvedNonPodcastServiceItem(
     Uri? Image = null,
     DateTime? Release = null,
     TimeSpan? Duration = null,
-    bool? KnownExplicit = false
+    bool? KnownExplicit = false,
+    string? ShowName = null
 )
 {
     public bool Explicit => KnownExplicit ?? false;

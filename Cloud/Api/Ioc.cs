@@ -24,6 +24,9 @@ using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.Netflix.Extensions;
+using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
@@ -78,6 +81,9 @@ public static class Ioc
             .AddAuth0Validation()
             .AddBBCServices()
             .AddInternetArchiveServices()
+            .AddVimeoServices()
+            .AddNetflixServices()
+            .AddAmazonPrimeServices()
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
             .AddApiEpisodes()

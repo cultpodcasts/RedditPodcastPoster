@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
@@ -281,6 +282,7 @@ public class UrlCategoriserReleasedSinceRules
             youTube,
             new InMemoryEpisodeRepository(),
             Mock.Of<INonPodcastServiceCategoriser>(),
+            NonPodcastSubmitAdapterResolverSupport.Create(),
             NullLogger<UrlCategoriser>.Instance);
 
     private ResolvedAppleItem CreateAppleItem(Uri url, DateTime release) =>

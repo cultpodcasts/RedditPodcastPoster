@@ -21,6 +21,7 @@ public class UrlCategoriser(
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
     IEpisodeRepository episodeRepository,
     INonPodcastServiceCategoriser nonPodcastServiceCategoriser,
+    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<UrlCategoriser> logger)
 #pragma warning restore CS9113 // Parameter is unread.
@@ -80,7 +81,7 @@ public class UrlCategoriser(
                 authority = Service.YouTube;
             }
         }
-        else if (NonPodcastServiceMatcher.MatchesBBC(url) || NonPodcastServiceMatcher.MatchesInternetArchive(url))
+        else if (nonPodcastServiceAdapterResolver.ForSubmit(url) != null)
         {
             resolvedNonPodcastServiceItem = await nonPodcastServiceCategoriser.Resolve(podcast, url, indexingContext);
             if (resolvedNonPodcastServiceItem != null)

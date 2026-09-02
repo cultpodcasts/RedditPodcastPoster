@@ -4,6 +4,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AI/RedditPodcastPoster.AI.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime/RedditPodcastPoster.AmazonPrime.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.Auth0/RedditPodcastPoster.Auth0.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC/RedditPodcastPoster.BBC.csproj" />
@@ -40,6 +42,10 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Models/RedditPodcastPoster.Models.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.Netflix/RedditPodcastPoster.Netflix.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.OpenGraph/RedditPodcastPoster.OpenGraph.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
 
@@ -56,6 +62,8 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/RedditPodcastPoster.PodcastServices.YouTube.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo/RedditPodcastPoster.Vimeo.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PushSubscriptions/RedditPodcastPoster.PushSubscriptions.csproj" />
 
@@ -82,16 +90,25 @@
 
   <Folder Name="/Class-Libraries/Tests/">
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime.Tests/RedditPodcastPoster.AmazonPrime.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.InternetArchive.Tests/RedditPodcastPoster.InternetArchive.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.People.Tests/RedditPodcastPoster.People.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher.Tests/RedditPodcastPoster.ContentPublisher.Tests.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.Netflix.Tests/RedditPodcastPoster.Netflix.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.OpenGraph.Tests/RedditPodcastPoster.OpenGraph.Tests.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo.Tests/RedditPodcastPoster.Vimeo.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 

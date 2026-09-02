@@ -2,7 +2,6 @@ using Api.Models;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
@@ -12,6 +11,8 @@ using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Services.Episodes;
@@ -193,7 +194,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
             else
             {
-                if (NonPodcastServiceMatcher.MatchesBBC(episodeChangeRequest.Urls.BBC))
+                if (BBCUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.BBC))
                 {
                     var bbcKey = ServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? ServiceKeys.BbcSounds;
                     EpisodeServicePresence.Upsert(episode, bbcKey, episodeChangeRequest.Urls.BBC, null);
@@ -210,7 +211,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
             else
             {
-                if (NonPodcastServiceMatcher.MatchesInternetArchive(episodeChangeRequest.Urls.InternetArchive))
+                if (InternetArchiveUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.InternetArchive))
                 {
                     EpisodeServicePresence.Upsert(
                         episode,
@@ -243,14 +244,6 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 ? null
                 : episodeChangeRequest.Images.YouTube;
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, image);
-        }
-
-        if (episodeChangeRequest.Images?.Other != null)
-        {
-            var image = episodeChangeRequest.Images.Other.ToString() == string.Empty
-                ? null
-                : episodeChangeRequest.Images.Other;
-            ApplyOtherImage(episode, image);
         }
 
         if (episodeChangeRequest.Services != null)
@@ -319,29 +312,6 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
-    }
-
-    private static void ApplyOtherImage(Episode episode, Uri? image)
-    {
-        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
-        {
-            if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
-            {
-                continue;
-            }
-
-            if (EpisodeServicePresence.HasUrl(episode, key) ||
-                EpisodeServicePresence.TryGetImage(episode, key) is not null)
-            {
-                EpisodeServicePresence.SetCatalogImage(episode, key, image);
-                return;
-            }
-        }
-
-        if (image is not null)
-        {
-            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.BbcIplayer, image);
-        }
     }
 
     /// <summary>

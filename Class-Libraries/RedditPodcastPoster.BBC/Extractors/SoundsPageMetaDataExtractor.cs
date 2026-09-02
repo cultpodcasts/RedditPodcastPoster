@@ -42,7 +42,8 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
                     currentProgramme.Release.Date,
                     maxImage,
                     currentProgramme.Guidance.HasWarnings,
-                    "BBC"
+                    "BBC",
+                    currentProgramme.Titles.SeriesName
                 );
             }
         }

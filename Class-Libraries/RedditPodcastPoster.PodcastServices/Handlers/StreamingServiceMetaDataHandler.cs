@@ -1,18 +1,13 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.InternetArchive.Extractors;
-using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.BBC.Extractors;
-using RedditPodcastPoster.BBC.Matching;
 
 namespace RedditPodcastPoster.PodcastServices.Handlers;
 
 public class StreamingServiceMetaDataHandler(
-    IBBCPageMetaDataExtractor bbcPageMetaDataExtractor,
-    IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor,
+    INonPodcastServiceAdapterResolver adapterResolver,
     ILogger<StreamingServiceMetaDataHandler> logger
 ) : IStreamingServiceMetaDataHandler
 {
@@ -21,47 +16,20 @@ public class StreamingServiceMetaDataHandler(
         IEnumerable<Episode> episodes,
         Uri url)
     {
-        NonPodcastService service;
-        NonPodcastServiceItemMetaData metaData;
-        Episode? matchingEpisode;
+        var adapter = adapterResolver.ForExtract(url)
+                      ?? throw new InvalidOperationException($"Url $'{url}' cannot be handled");
 
-        if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
+        var metaData = await adapter.ExtractMetaData(url);
+        var matchingEpisode = adapter.FindMatchingEpisode(episodes, url);
+        if (episodes.Count(episode => adapter.FindMatchingEpisode([episode], url) != null) > 1)
         {
-            metaData = await internetArchivePageMetaDataExtractor.GetMetaData(url);
-            service = NonPodcastService.InternetArchive;
-            if (episodes.Count(x => EpisodeServicePresence.TryGetUrl(x, ServiceKeys.InternetArchive) == url) > 1)
-            {
-                logger.LogError(
-                    "Multiple episodes of podcast with podcast-id {podcastId} with internet-archive url '{url}'.",
-                    podcast?.Id, url);
-            }
-
-            matchingEpisode = episodes.FirstOrDefault(x =>
-                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.InternetArchive) == url);
-        }
-        else if (BBCUrlMatcher.IsBBCUrl(url))
-        {
-            metaData = await bbcPageMetaDataExtractor.GetMetaData(url);
-            service = NonPodcastService.BBC;
-            if (episodes.Count(x =>
-                    EpisodeServicePresence.TryGetUrl(x, ServiceKeys.BbcIplayer) == url ||
-                    EpisodeServicePresence.TryGetUrl(x, ServiceKeys.BbcSounds) == url) > 1)
-            {
-                logger.LogError("Multiple episodes of podcast with podcast-id {podcastId} with bbc url '{url}'.",
-                    podcast?.Id, url);
-            }
-
-            matchingEpisode = episodes.FirstOrDefault(x =>
-                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.BbcIplayer) == url ||
-                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.BbcSounds) == url);
-        }
-        else
-        {
-            throw new InvalidOperationException($"Url $'{url}' cannot be handled");
+            logger.LogError(
+                "Multiple episodes of podcast with podcast-id {podcastId} with url '{url}'.",
+                podcast?.Id, url);
         }
 
         return new ResolvedNonPodcastServiceItem(
-            service,
+            adapter.Service,
             podcast,
             matchingEpisode,
             url,
@@ -71,6 +39,7 @@ public class StreamingServiceMetaDataHandler(
             metaData.Image,
             metaData.Release,
             metaData.Duration,
-            metaData.Explicit);
+            metaData.Explicit,
+            metaData.ShowName);
     }
 }

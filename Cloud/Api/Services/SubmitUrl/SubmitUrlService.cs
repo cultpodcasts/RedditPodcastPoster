@@ -23,25 +23,17 @@ public class SubmitUrlService(
             logger.LogInformation(
                 "{RunName}: Handling url-submission: url: '{Url}', podcast-id: '{PodcastId}', podcast-name: '{PodcastName}'.",
                 nameof(SubmitAsync), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
-            Guid? podcastId;
+            Guid? podcastId = submitUrlModel.PodcastId;
             if (!string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
             {
                 var podcast = await repository.GetBy(x => x.Name == submitUrlModel.PodcastName);
-                if (podcast == null)
+                if (podcast != null)
                 {
-                    return new SubmitUrlResult(
-                        SubmitUrlStatus.PodcastNotFound,
-                        Message: "Podcast with name not found");
+                    podcastId = podcast.Id;
                 }
-
-                podcastId = podcast.Id;
-            }
-            else
-            {
-                podcastId = submitUrlModel.PodcastId;
             }
 
-            var submitOptions = new SubmitOptions(podcastId, true);
+            var submitOptions = new SubmitOptions(podcastId, true, PodcastName: submitUrlModel.PodcastName);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext

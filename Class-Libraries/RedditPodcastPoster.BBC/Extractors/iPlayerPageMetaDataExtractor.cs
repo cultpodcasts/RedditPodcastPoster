@@ -51,7 +51,7 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
 
 
         return new NonPodcastServiceItemMetaData(title, description, md.Duration, md.Release, md.Image,
-            md.Explicit, "BBC");
+            md.Explicit, "BBC", md.Series);
     }
 
     private static TextMetaData GetMetaData(HtmlDocument document)
@@ -60,6 +60,9 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
 
         var titleNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:title']");
         var title = titleNode?.Attributes["Content"]?.Value;
+        var seriesNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:video:series']");
+        var ogSeries = seriesNode?.Attributes["Content"]?.Value;
+        string? reduxSubtitle = null;
 
         var tvAppClientConfigScriptNode =
             document.DocumentNode.SelectSingleNode("//script[@id='tvip-script-app-store']");
@@ -74,6 +77,7 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
                 ?? throw new InvalidOperationException("Unable to deserialize BBC iPlayer redux state.");
 
             description = metaData.Episode.Synopses.Description;
+            reduxSubtitle = metaData.Episode.Subtitle;
         }
         else
         {
@@ -149,7 +153,8 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
             @explicit = guidanceItems.Any();
         }
 
-        return new TextMetaData(title, description, release, duration, maxImageUrl, @explicit);
+        var series = BbcSeriesName.FromDistinctCandidates(title, ogSeries, reduxSubtitle);
+        return new TextMetaData(title, description, release, duration, maxImageUrl, @explicit, series);
     }
 
     [GeneratedRegex(@"^(?<hourstext>(?<hours>\d+)h ?)?((?<mins>\d+)( mins|m))?$")]
@@ -168,5 +173,6 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         DateTime? Release,
         TimeSpan? Duration,
         Uri? Image,
-        bool Explicit);
+        bool Explicit,
+        string? Series);
 }

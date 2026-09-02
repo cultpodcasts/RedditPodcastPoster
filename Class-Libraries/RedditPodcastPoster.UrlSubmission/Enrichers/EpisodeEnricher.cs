@@ -160,6 +160,26 @@ public class EpisodeEnricher(
                     matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl);
             }
 
+            if (categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Url is { } streamingUrl)
+            {
+                var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl);
+                if (streamingKey != null &&
+                    !EpisodeServicePresence.HasUrl(matchingEpisode, streamingKey))
+                {
+                    EpisodeServicePresence.Upsert(
+                        matchingEpisode,
+                        streamingKey,
+                        streamingUrl,
+                        categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                    episodeResult = SubmitResultState.Enriched;
+                    logger.LogInformation(
+                        "Enriched episode '{matchingEpisodeId}' with {serviceKey} url {streamingUrl}.",
+                        matchingEpisode.Id, streamingKey, streamingUrl);
+                }
+            }
+
             if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
                 categorisedItem.ResolvedNonPodcastServiceItem.Release.HasValue &&
                 categorisedItem.ResolvedNonPodcastServiceItem.Release.Value.TimeOfDay != TimeSpan.Zero)
@@ -182,7 +202,10 @@ public class EpisodeEnricher(
             {
                 var imageKey = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl is { } bbcForImage
                     ? ServiceCatalog.TryResolveKey(bbcForImage) ?? ServiceKeys.BbcSounds
-                    : ServiceKeys.InternetArchive;
+                    : categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
+                        ? ServiceKeys.InternetArchive
+                        : ServiceCatalog.TryResolveKey(categorisedItem.ResolvedNonPodcastServiceItem.Url!)
+                          ?? ServiceKeys.InternetArchive;
                 if (EpisodeServicePresence.TryFillMissing(
                     matchingEpisode, imageKey, null, nonPodcastImage))
                 {

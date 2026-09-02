@@ -107,26 +107,18 @@ public class EpisodeFactory(
                 categorisedItem.ResolvedYouTubeItem.Image);
         }
 
-        if (categorisedItem.ResolvedNonPodcastServiceItem?.BBCUrl != null)
+        if (categorisedItem.ResolvedNonPodcastServiceItem?.Url is { } nonPodcastUrl)
         {
-            var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
-            var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
-            EpisodeServicePresence.Upsert(
-                newEpisode,
-                bbcKey,
-                bbcUrl,
-                categorisedItem.ResolvedNonPodcastServiceItem.Image);
-        }
-
-        if (categorisedItem.ResolvedNonPodcastServiceItem?.InternetArchiveUrl != null)
-        {
-            EpisodeServicePresence.Upsert(
-                newEpisode,
-                ServiceKeys.InternetArchive,
-                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
-                categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null
-                    ? categorisedItem.ResolvedNonPodcastServiceItem.Image
-                    : null);
+            var catalogKey = ServiceCatalog.TryResolveKey(nonPodcastUrl)
+                             ?? ServiceCatalog.KeyFromUnknownHost(nonPodcastUrl);
+            if (catalogKey != null)
+            {
+                EpisodeServicePresence.Upsert(
+                    newEpisode,
+                    catalogKey,
+                    nonPodcastUrl,
+                    categorisedItem.ResolvedNonPodcastServiceItem.Image);
+            }
         }
         if (categorisedItem.MatchingPodcast != null)
         {

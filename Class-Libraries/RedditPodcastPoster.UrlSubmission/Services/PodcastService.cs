@@ -22,6 +22,7 @@ public class PodcastService(
     IPodcastRepository podcastRepository,
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IYouTubeVideoService youTubeVideoService,
+    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastService> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -104,7 +105,7 @@ public class PodcastService(
 
             v2Podcasts = await podcastRepository.GetAllBy(podcast => podcast.AppleId == podcastId).ToArrayAsync();
         }
-        else if (NonPodcastServiceMatcher.MatchesBBC(url) || NonPodcastServiceMatcher.MatchesInternetArchive(url))
+        else if (nonPodcastServiceAdapterResolver.ForSubmit(url) != null)
         {
             v2Podcasts = [];
         }

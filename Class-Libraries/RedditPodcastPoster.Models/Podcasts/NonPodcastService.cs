@@ -4,5 +4,8 @@ public enum NonPodcastService
 {
     Unknown = 0,
     BBC,
-    InternetArchive
+    InternetArchive,
+    Vimeo,
+    Netflix,
+    AmazonPrime
 }

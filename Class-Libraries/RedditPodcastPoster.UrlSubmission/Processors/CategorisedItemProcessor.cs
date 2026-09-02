@@ -74,7 +74,9 @@ public class CategorisedItemProcessor(
         }
         else
         {
-            var result = await podcastAndEpisodeFactory.CreatePodcastWithEpisode(categorisedItem);
+            var result = await podcastAndEpisodeFactory.CreatePodcastWithEpisode(
+                categorisedItem,
+                submitOptions.PodcastName);
             submitResult = new SubmitResult(SubmitResultState.Created,
                 SubmitResultState.Created,
                 result.SubmitEpisodeDetails,

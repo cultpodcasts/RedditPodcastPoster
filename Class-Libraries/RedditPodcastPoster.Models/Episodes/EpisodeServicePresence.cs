@@ -134,22 +134,7 @@ public static class EpisodeServicePresence
         var youtube = TryGetImage(episode, ServiceKeys.YouTube);
         var spotify = TryGetImage(episode, ServiceKeys.Spotify);
         var apple = TryGetImage(episode, ServiceKeys.Apple);
-        Uri? other = null;
-        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
-        {
-            if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
-            {
-                continue;
-            }
-
-            other = TryGetImage(episode, key);
-            if (other is not null)
-            {
-                break;
-            }
-        }
-
-        if (youtube is null && spotify is null && apple is null && other is null)
+        if (youtube is null && spotify is null && apple is null)
         {
             return null;
         }
@@ -158,8 +143,7 @@ public static class EpisodeServicePresence
         {
             YouTube = youtube,
             Spotify = spotify,
-            Apple = apple,
-            Other = other
+            Apple = apple
         };
     }
 
@@ -289,6 +273,10 @@ public static class EpisodeServicePresence
         SyncIds(episode);
     }
 
+    /// <summary>
+    /// Cover art for search/share only: YouTube, then Spotify, then Apple, then remaining catalog keys.
+    /// Extra service art stays on <c>services.{key}.image</c> and is not collapsed into leftover <c>images.other</c>.
+    /// </summary>
     public static Uri? CoalescedImage(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);

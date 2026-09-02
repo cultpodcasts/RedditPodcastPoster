@@ -587,8 +587,7 @@ public class UrlSubmissionEnrichmentRules
     }
 
     [Fact(DisplayName =
-        "When a non-podcast resolved item carries artwork and the episode has no Other image, " +
-        "UrlSubmission enrichment stores the image on the BBC catalog service and leftover Images.Other.")]
+        "When a non-podcast resolved item carries artwork, UrlSubmission enrichment stores the image on that catalog service only — not leftover Images.Other.")]
     public void enrich_stores_non_podcast_image_on_bbc_catalog_and_leftover_other()
     {
         // Arrange
@@ -614,8 +613,8 @@ public class UrlSubmissionEnrichmentRules
 
         // Assert
         EpisodeServicePresence.TryGetImage(episode, bbcKey).Should().Be(image);
-        episode.Images!.Other.Should().Be(image);
-        episode.Images.YouTube.Should().BeNull();
+        EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube).Should().BeNull();
     }
 
     [Fact(DisplayName =
