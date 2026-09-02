@@ -15,6 +15,7 @@ namespace Api.Controllers;
 
 public class SubmitUrlController(
     IPostSubmitUrlHandler postSubmitUrlHandler,
+    IGetSubmitUrlLookupHandler getSubmitUrlLookupHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -36,6 +37,19 @@ public class SubmitUrlController(
             Unauthorised,
             ct);
 
+    [Function("SubmitUrlLookup")]
+    public Task<HttpResponseData> Get(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "SubmitUrl")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["submit"],
+            HandleLookup,
+            Unauthorised,
+            ct);
+
     private Task<HttpResponseData> Handle(
         IHandlerContext ctx,
         SubmitUrlRequest submitUrlModel,
@@ -49,5 +63,19 @@ public class SubmitUrlController(
         }
 
         return postSubmitUrlHandler.Handle(ctx, submitUrlModel, c);
+    }
+
+    private Task<HttpResponseData> HandleLookup(
+        IHandlerContext ctx,
+        CancellationToken c)
+    {
+        if (!SubmitUrlRequest.TryParseUsableHttpUrl(ctx.Query("url"), out var parsed))
+        {
+            return ctx.BadRequest(
+                ApiErrorResponse.Failure("Url must be an absolute http or https URL"),
+                c);
+        }
+
+        return getSubmitUrlLookupHandler.Handle(ctx, parsed, c);
     }
 }

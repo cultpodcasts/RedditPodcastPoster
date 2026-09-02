@@ -35,6 +35,7 @@ public class ApiIocTests
         [typeof(ICreatePushSubscriptionHandler)],
         [typeof(IRunSearchIndexHandler)],
         [typeof(IPostSubmitUrlHandler)],
+        [typeof(IGetSubmitUrlLookupHandler)],
         [typeof(IGetSubjectHandler)],
         [typeof(IPostSubjectHandler)],
         [typeof(IPutSubjectHandler)],
