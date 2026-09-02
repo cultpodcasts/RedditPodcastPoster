@@ -22,6 +22,10 @@ public class PostSubmitUrlHandler(
                 await ctx.Ok(SubmitUrlResponse.Successful(result.Result!), c),
             SubmitUrlStatus.PodcastNotFound =>
                 await ctx.NotFound(new { message = result.Message }, c),
+            SubmitUrlStatus.Conflict when result.AmbiguousPodcasts != null =>
+                await ctx.Conflict(result.AmbiguousPodcasts, c),
+            SubmitUrlStatus.Conflict =>
+                await ctx.Conflict(ApiErrorResponse.Failure("Podcast name is ambiguous"), c),
             SubmitUrlStatus.Failed =>
                 await ctx.InternalError(SubmitUrlResponse.Failure(result.Message ?? "Failure"), c),
             _ => LogAndFail(ctx)

@@ -35,7 +35,22 @@ public class UrlSubmitter(
                 }
                 else if (!string.IsNullOrWhiteSpace(submitOptions.PodcastName))
                 {
-                    podcast = await podcastRepository.GetBy(x => x.Name == submitOptions.PodcastName);
+                    var matches = await PodcastNameAttachLookup.FindByName(
+                        podcastRepository,
+                        submitOptions.PodcastName);
+                    if (matches.Count > 1)
+                    {
+                        logger.LogWarning(
+                            "Podcast name '{PodcastName}' matches {Count} rows; refusing first-iterator attach. Ids: {Ids}.",
+                            submitOptions.PodcastName,
+                            matches.Count,
+                            string.Join(", ", matches.Select(x => x.Id)));
+                        throw new AmbiguousPodcastNameException(
+                            submitOptions.PodcastName,
+                            matches.Select(x => x.Id).ToArray());
+                    }
+
+                    podcast = matches.Count == 1 ? matches[0] : null;
                 }
                 else
                 {
@@ -77,6 +92,10 @@ public class UrlSubmitter(
             }
 
             return submitResult;
+        }
+        catch (AmbiguousPodcastNameException)
+        {
+            throw;
         }
         catch (HttpRequestException e)
         {
