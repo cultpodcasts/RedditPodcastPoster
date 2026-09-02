@@ -36,7 +36,7 @@ public class GetSubmitUrlLookupHandlerTests
         // Arrange
         var podcastId = _fixture.CreateGuid();
         var podcastName = _fixture.CreateTitle();
-        var url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
         _mocker.GetMock<ISubmitUrlLookupService>()
             .Setup(s => s.LookupAsync(url, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubmitUrlLookupResponse
@@ -61,6 +61,7 @@ public class GetSubmitUrlLookupHandlerTests
         body.GetProperty("known").GetBoolean().Should().BeTrue();
         body.GetProperty("podcastId").GetGuid().Should().Be(podcastId);
         body.GetProperty("podcastName").GetString().Should().Be(podcastName);
+        body.GetProperty("kind").GetString().Should().Be(UrlMembershipLookupKinds.PodcastService);
     }
 
     [Fact(DisplayName =

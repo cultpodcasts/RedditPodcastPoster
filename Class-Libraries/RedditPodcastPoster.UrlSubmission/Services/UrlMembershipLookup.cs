@@ -2,10 +2,12 @@ using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
+using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
+using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
+using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
@@ -59,24 +61,22 @@ public class UrlMembershipLookup(
 
     private string Classify(Uri url, out Expression<Func<Episode, bool>>? storedUrlEquals)
     {
-        if (SpotifyPodcastServiceMatcher.IsMatch(url))
+        var key = ServiceCatalog.TryResolveKey(url);
+        if (key == ServiceKeys.Spotify)
         {
-            storedUrlEquals = episode =>
-                episode.Services != null && episode.Services[ServiceKeys.Spotify].Url == url;
+            storedUrlEquals = SpotifyStoredEquals(url);
             return UrlMembershipLookupKinds.PodcastService;
         }
 
-        if (ApplePodcastServiceMatcher.IsMatch(url))
+        if (key == ServiceKeys.Apple)
         {
-            storedUrlEquals = episode =>
-                episode.Services != null && episode.Services[ServiceKeys.Apple].Url == url;
+            storedUrlEquals = AppleStoredEquals(url);
             return UrlMembershipLookupKinds.PodcastService;
         }
 
-        if (YouTubePodcastServiceMatcher.IsMatch(url))
+        if (key == ServiceKeys.YouTube)
         {
-            storedUrlEquals = episode =>
-                episode.Services != null && episode.Services[ServiceKeys.YouTube].Url == url;
+            storedUrlEquals = YouTubeStoredEquals(url);
             return UrlMembershipLookupKinds.PodcastService;
         }
 
@@ -89,5 +89,55 @@ public class UrlMembershipLookup(
 
         storedUrlEquals = null;
         return UrlMembershipLookupKinds.Unrecognised;
+    }
+
+    private static Expression<Func<Episode, bool>> SpotifyStoredEquals(Uri url)
+    {
+        var episodeId = SpotifyIdResolver.GetEpisodeId(url);
+        var cleaned = string.IsNullOrWhiteSpace(episodeId) ? url : url.CleanSpotifyUrl();
+        if (string.IsNullOrWhiteSpace(episodeId))
+        {
+            return episode =>
+                episode.Services != null && episode.Services[ServiceKeys.Spotify].Url == url;
+        }
+
+        return episode =>
+            (episode.Ids != null && episode.Ids.Spotify == episodeId) ||
+            (episode.Services != null &&
+             (episode.Services[ServiceKeys.Spotify].Url == url ||
+              episode.Services[ServiceKeys.Spotify].Url == cleaned));
+    }
+
+    private static Expression<Func<Episode, bool>> AppleStoredEquals(Uri url)
+    {
+        var episodeId = AppleIdResolver.GetEpisodeId(url);
+        var cleaned = url.CleanAppleUrl();
+        if (episodeId is null)
+        {
+            return episode =>
+                episode.Services != null &&
+                (episode.Services[ServiceKeys.Apple].Url == url ||
+                 episode.Services[ServiceKeys.Apple].Url == cleaned);
+        }
+
+        return episode =>
+            (episode.Ids != null && episode.Ids.Apple == episodeId) ||
+            (episode.Services != null &&
+             (episode.Services[ServiceKeys.Apple].Url == url ||
+              episode.Services[ServiceKeys.Apple].Url == cleaned));
+    }
+
+    private static Expression<Func<Episode, bool>> YouTubeStoredEquals(Uri url)
+    {
+        var episodeId = YouTubeIdResolver.Extract(url);
+        if (string.IsNullOrWhiteSpace(episodeId))
+        {
+            return episode =>
+                episode.Services != null && episode.Services[ServiceKeys.YouTube].Url == url;
+        }
+
+        return episode =>
+            (episode.Ids != null && episode.Ids.YouTube == episodeId) ||
+            (episode.Services != null && episode.Services[ServiceKeys.YouTube].Url == url);
     }
 }
