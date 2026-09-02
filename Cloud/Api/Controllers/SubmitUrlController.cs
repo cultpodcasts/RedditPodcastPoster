@@ -7,6 +7,7 @@ using Api;
 using Api.Dtos;
 using Api.Models;
 using Api.Factories;
+using Api.Handlers;
 using Api.Handlers.SubmitUrl;
 using Azure.Diagnostics;
 
@@ -31,7 +32,23 @@ public class SubmitUrlController(
             req,
             ["submit"],
             submitUrlModel,
-            postSubmitUrlHandler.Handle,
+            Handle,
             Unauthorised,
             ct);
+
+    private Task<HttpResponseData> Handle(
+        IHandlerContext ctx,
+        SubmitUrlRequest submitUrlModel,
+        CancellationToken c)
+    {
+        if (IsBlankUrl(submitUrlModel.Url))
+        {
+            return ctx.BadRequest(ApiErrorResponse.Failure("Url is required"), c);
+        }
+
+        return postSubmitUrlHandler.Handle(ctx, submitUrlModel, c);
+    }
+
+    private static bool IsBlankUrl(Uri? url) =>
+        url is null || string.IsNullOrWhiteSpace(url.OriginalString);
 }
