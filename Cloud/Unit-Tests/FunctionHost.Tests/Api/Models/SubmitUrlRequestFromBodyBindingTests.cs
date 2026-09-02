@@ -144,6 +144,58 @@ public class SubmitUrlRequestFromBodyBindingTests
         bound.PodcastName.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: ftp url binds as an absolute Uri with ftp scheme, " +
+        "because System.Text.Json Uri conversion accepts absolute non-http schemes.")]
+    public async Task ftp_url_binds_as_absolute_ftp()
+    {
+        // Arrange
+        const string json = """{"url":"ftp://example.com/episode"}""";
+
+        // Act
+        var bound = await BindAsync(json);
+
+        // Assert
+        bound.Url.IsAbsoluteUri.Should().BeTrue();
+        bound.Url.Scheme.Should().Be(Uri.UriSchemeFtp);
+        bound.Url.ToString().Should().Be("ftp://example.com/episode");
+    }
+
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: file url binds as an absolute Uri with file scheme, " +
+        "because System.Text.Json Uri conversion accepts absolute non-http schemes.")]
+    public async Task file_url_binds_as_absolute_file()
+    {
+        // Arrange
+        const string json = """{"url":"file:///tmp/episode"}""";
+
+        // Act
+        var bound = await BindAsync(json);
+
+        // Assert
+        bound.Url.IsAbsoluteUri.Should().BeTrue();
+        bound.Url.Scheme.Should().Be(Uri.UriSchemeFile);
+        bound.Url.AbsolutePath.Should().Be("/tmp/episode");
+    }
+
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: uppercase HTTP scheme binds as an absolute Uri with Scheme http, " +
+        "because System.Uri normalises the scheme to lowercase.")]
+    public async Task uppercase_http_scheme_binds_as_lowercase_http()
+    {
+        // Arrange
+        var path = _fixture.CreateGuid().ToString("N");
+        var json = $$"""{"url":"HTTP://example.com/{{path}}"}""";
+
+        // Act
+        var bound = await BindAsync(json);
+
+        // Assert
+        bound.Url.IsAbsoluteUri.Should().BeTrue();
+        bound.Url.Scheme.Should().Be(Uri.UriSchemeHttp);
+        bound.Url.AbsolutePath.Should().Be($"/{path}");
+    }
+
     private static async Task<SubmitUrlRequest> BindAsync(string json)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

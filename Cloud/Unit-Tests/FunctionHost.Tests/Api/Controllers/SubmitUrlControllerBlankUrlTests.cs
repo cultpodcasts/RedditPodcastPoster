@@ -115,8 +115,8 @@ public class SubmitUrlControllerBlankUrlTests
     }
 
     [Fact(DisplayName =
-        "When Isolated binds an absolute https url, SubmitUrlController delegates to PostSubmitUrlHandler, " +
-        "because a present Url is the submit command.")]
+        "When Isolated binds an absolute https URL, SubmitUrlController Handle delegates to PostSubmitUrlHandler, " +
+        "because an absolute https URL is a usable submit URL.")]
     public async Task absolute_https_url_delegates_to_handler()
     {
         // Arrange
@@ -154,6 +154,30 @@ public class SubmitUrlControllerBlankUrlTests
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
 
         // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
+            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated binds an absolute HTTP url with an uppercase scheme, SubmitUrlController Handle delegates, " +
+        "because Uri.Scheme is already lowercase http and matches Uri.UriSchemeHttp.")]
+    public async Task uppercase_http_scheme_delegates_to_handler()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest
+        {
+            Url = new Uri($"HTTP://example.com/{_fixture.CreateGuid():N}")
+        };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        model.Url.Scheme.Should().Be(Uri.UriSchemeHttp);
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
             h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
