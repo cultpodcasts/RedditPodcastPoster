@@ -1,17 +1,19 @@
+using RedditPodcastPoster.Models.Podcasts;
+
 namespace RedditPodcastPoster.AmazonPrime.Matching;
 
 public static class AmazonPrimeUrlMatcher
 {
     public static bool IsSubmitUrl(Uri url)
     {
-        var host = url.Host.ToLowerInvariant();
-        if (host.Contains("primevideo.com"))
+        var host = ServiceCatalog.CanonicalHost(url);
+        if (ServiceCatalog.IsHost(host, "primevideo.com"))
         {
             return url.AbsolutePath.Contains("/detail/", StringComparison.OrdinalIgnoreCase) ||
                    url.AbsolutePath.Contains("/gp/video", StringComparison.OrdinalIgnoreCase);
         }
 
-        if (host.Contains("amazon.com") || host.Contains("amazon.co.uk"))
+        if (ServiceCatalog.IsAmazonHost(host))
         {
             var path = url.AbsolutePath;
             return path.Contains("/gp/video", StringComparison.OrdinalIgnoreCase) ||

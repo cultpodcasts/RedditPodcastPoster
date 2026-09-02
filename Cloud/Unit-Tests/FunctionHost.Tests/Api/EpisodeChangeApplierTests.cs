@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Api.Models;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
@@ -18,15 +19,17 @@ namespace FunctionHost.Tests.Api;
 /// </summary>
 public class EpisodeChangeApplierTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     private static EpisodeChangeApplier CreateSut() =>
         new(NullLogger<EpisodeChangeApplier>.Instance);
 
-    private static Episode CreateEpisode(Action<Episode>? customize = null)
+    private Episode CreateEpisode(Action<Episode>? customize = null)
     {
         var episode = new Episode
         {
-            Id = Guid.NewGuid(),
-            PodcastId = Guid.NewGuid(),
+            Id = _fixture.CreateGuid(),
+            PodcastId = _fixture.CreateGuid(),
             Title = "Original title",
             Description = "Original description",
             Release = DateTime.UtcNow.AddDays(-30),
@@ -608,22 +611,44 @@ public class EpisodeChangeApplierTests
         // Arrange
         var episode = CreateEpisode();
         var sut = CreateSut();
-        var vimeoUrl = new Uri("https://vimeo.com/123456789");
-        var vimeoImage = new Uri("https://i.vimeocdn.com/video/123456789-d_640");
+        var videoId = _fixture.CreateAppleId();
+        var vimeoUrl = new Uri($"https://vimeo.com/{videoId}");
+        var vimeoImage = _fixture.Create<Uri>();
 
         // Act
         sut.Apply(episode, new EpisodeChangeRequest
         {
             Services = new Dictionary<string, EpisodeServiceLink>
             {
-                ["vimeo"] = new() { Url = vimeoUrl, Image = vimeoImage }
+                [ServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
         });
 
         // Assert
-        episode.Services.Should().ContainKey("vimeo");
-        episode.Services!["vimeo"].Url.Should().Be(vimeoUrl);
-        episode.Services["vimeo"].Image.Should().Be(vimeoImage);
+        episode.Services.Should().ContainKey(ServiceKeys.Vimeo);
+        episode.Services![ServiceKeys.Vimeo].Url.Should().Be(vimeoUrl);
+        episode.Services[ServiceKeys.Vimeo].Image.Should().Be(vimeoImage);
+        episode.Images?.Other.Should().BeNull();
+        EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply ignores leftover Images.Other on the change request, so extra-service art is not written to images.other.")]
+    public void Apply_does_not_write_leftover_images_other()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var leftover = _fixture.Create<Uri>();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Images = new ServiceImageUrls { Other = leftover }
+        });
+
+        // Assert
+        episode.Images?.Other.Should().BeNull();
         EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
     }
 

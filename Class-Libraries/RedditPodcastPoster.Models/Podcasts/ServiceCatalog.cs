@@ -99,12 +99,7 @@ public static class ServiceCatalog
             return null;
         }
 
-        var host = url.Host.Trim().TrimEnd('.').ToLowerInvariant();
-        if (host.StartsWith("www.", StringComparison.Ordinal))
-        {
-            host = host[4..];
-        }
-
+        var host = CanonicalHost(url);
         var path = url.AbsolutePath;
 
         if (IsHost(host, "youtu.be") || IsHost(host, "youtube.com") || IsHost(host, "m.youtube.com") ||
@@ -187,13 +182,20 @@ public static class ServiceCatalog
     /// Key for a URL that is not a well-known service: a host slug usable as a JSON key
     /// (letters/digits only, e.g. <c>dailymotioncom</c>).
     /// </summary>
-    public static string? KeyFromUnknownHost(Uri url)
+    public static string CanonicalHost(Uri url)
     {
         var host = url.Host.Trim().TrimEnd('.').ToLowerInvariant();
         if (host.StartsWith("www.", StringComparison.Ordinal))
         {
             host = host[4..];
         }
+
+        return host;
+    }
+
+    public static string? KeyFromUnknownHost(Uri url)
+    {
+        var host = CanonicalHost(url);
 
         var chars = host.Where(char.IsLetterOrDigit).ToArray();
         return chars.Length == 0 ? null : new string(chars);
@@ -243,10 +245,10 @@ public static class ServiceCatalog
         };
     }
 
-    private static bool IsHost(string host, string suffix) =>
+    public static bool IsHost(string host, string suffix) =>
         host == suffix || host.EndsWith("." + suffix, StringComparison.Ordinal);
 
-    private static bool IsAmazonHost(string host) =>
+    public static bool IsAmazonHost(string host) =>
         host == "amazon.com" || host.EndsWith(".amazon.com", StringComparison.Ordinal) ||
         host == "amazon.co.uk" || host.EndsWith(".amazon.co.uk", StringComparison.Ordinal);
 
@@ -278,11 +280,7 @@ public static class ServiceCatalog
             return null;
         }
 
-        var host = uri.Host.Trim().TrimEnd('.').ToLowerInvariant();
-        if (host.StartsWith("www.", StringComparison.Ordinal))
-        {
-            host = host[4..];
-        }
+        var host = CanonicalHost(uri);
 
         if (hosts is { Length: > 0 } && !hosts.Any(h => IsHost(host, h)))
         {

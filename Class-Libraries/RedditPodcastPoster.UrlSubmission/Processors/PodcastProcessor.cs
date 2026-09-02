@@ -92,14 +92,9 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.DefaultSubject);
             }
 
-            submitEpisodeDetails = new SubmitEpisodeDetails(
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify),
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple),
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube),
+            submitEpisodeDetails = SubmitEpisodeDetails.FromEpisode(
+                episode,
                 subjectsResult.Additions,
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcIplayer) ||
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcSounds),
-                EpisodeServicePresence.HasUrl(episode, ServiceKeys.InternetArchive),
                 guestsResult.Additions,
                 guestsResult.SkippedLowConfidence);
         }

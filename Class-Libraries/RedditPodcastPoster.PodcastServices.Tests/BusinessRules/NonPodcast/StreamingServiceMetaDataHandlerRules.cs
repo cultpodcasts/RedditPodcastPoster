@@ -1,15 +1,19 @@
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.AmazonPrime.Extractors;
 using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Netflix.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Handlers;
+using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.Vimeo.Extractors;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.NonPodcast;
 
@@ -19,6 +23,8 @@ public class StreamingServiceMetaDataHandlerRules
     private readonly AutoMocker _mocker = new();
     private NonPodcastServiceItemMetaData? _bbcMeta;
     private NonPodcastServiceItemMetaData? _archiveMeta;
+    private NonPodcastServiceItemMetaData? _vimeoMeta;
+    private NonPodcastServiceItemMetaData? _netflixMeta;
 
     public StreamingServiceMetaDataHandlerRules()
     {
@@ -28,13 +34,19 @@ public class StreamingServiceMetaDataHandlerRules
         _mocker.GetMock<IInternetArchivePageMetaDataExtractor>()
             .Setup(x => x.GetMetaData(It.IsAny<Uri>()))
             .ReturnsAsync(() => _archiveMeta!);
+        _mocker.GetMock<IVimeoMetaDataExtractor>()
+            .Setup(x => x.GetMetaData(It.IsAny<Uri>()))
+            .ReturnsAsync(() => _vimeoMeta!);
+        _mocker.GetMock<INetflixPageMetaDataExtractor>()
+            .Setup(x => x.GetMetaData(It.IsAny<Uri>()))
+            .ReturnsAsync(() => _netflixMeta!);
         _mocker.Use<INonPodcastServiceAdapterResolver>(
-            new NonPodcastServiceAdapterResolver(
-            [
-                new BbcNonPodcastServiceAdapter(_mocker.GetMock<IBBCPageMetaDataExtractor>().Object),
-                new InternetArchiveNonPodcastServiceAdapter(
-                    _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object)
-            ]));
+            NonPodcastSubmitAdapterResolverSupport.Create(
+                _mocker.GetMock<IBBCPageMetaDataExtractor>().Object,
+                _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object,
+                _mocker.GetMock<IVimeoMetaDataExtractor>().Object,
+                _mocker.GetMock<INetflixPageMetaDataExtractor>().Object,
+                _mocker.GetMock<IAmazonPrimePageMetaDataExtractor>().Object));
     }
 
     [Fact(DisplayName =
@@ -133,8 +145,51 @@ public class StreamingServiceMetaDataHandlerRules
     }
 
     [Fact(DisplayName =
-        "A URL that is neither BBC nor Internet Archive cannot be resolved, " +
-        "because today's handler only knows those two extractors.")]
+        "When resolving a Vimeo video URL, metadata comes from the Vimeo extractor and the item is tagged Vimeo.")]
+    public async Task vimeo_url_uses_vimeo_extractor()
+    {
+        // Arrange
+        var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
+        _vimeoMeta = CreateMetaData();
+        var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
+
+        // Act
+        var resolved = await sut.ResolveServiceItem(null, [], url);
+
+        // Assert
+        resolved.NonPodcastService.Should().Be(NonPodcastService.Vimeo);
+        resolved.Url.Should().Be(url);
+        resolved.Title.Should().Be(_vimeoMeta.Title);
+        resolved.Image.Should().Be(_vimeoMeta.Image);
+        _mocker.GetMock<IBBCPageMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+        _mocker.GetMock<INetflixPageMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When resolving a Netflix title URL, metadata comes from the Netflix extractor and the item is tagged Netflix.")]
+    public async Task netflix_url_uses_netflix_extractor()
+    {
+        // Arrange
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        _netflixMeta = CreateMetaData();
+        var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
+
+        // Act
+        var resolved = await sut.ResolveServiceItem(null, [], url);
+
+        // Assert
+        resolved.NonPodcastService.Should().Be(NonPodcastService.Netflix);
+        resolved.Url.Should().Be(url);
+        resolved.Title.Should().Be(_netflixMeta.Title);
+        _mocker.GetMock<IVimeoMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A URL whose host has no registered adapter cannot be resolved, " +
+        "because extract routing only uses BBC, Internet Archive, Vimeo, Netflix, and Prime plugins.")]
     public async Task unknown_host_cannot_be_handled()
     {
         // Arrange

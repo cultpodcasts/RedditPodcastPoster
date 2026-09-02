@@ -73,14 +73,9 @@ public class PodcastAndEpisodeFactory(
         var guestsResult = await guestEnricher.EnrichGuests(episode);
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
-        var submitEpisodeDetails = new SubmitEpisodeDetails(
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify),
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple),
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube),
+        var submitEpisodeDetails = SubmitEpisodeDetails.FromEpisode(
+            episode,
             subjectsResult.Additions,
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcIplayer) ||
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcSounds),
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.InternetArchive),
             guestsResult.Additions,
             guestsResult.SkippedLowConfidence);
         episode.SetPodcastProperties(newPodcast, inheritLanguageIfUnset: true);

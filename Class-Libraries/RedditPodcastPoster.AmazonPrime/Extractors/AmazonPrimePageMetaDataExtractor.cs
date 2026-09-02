@@ -18,7 +18,7 @@ public class AmazonPrimePageMetaDataExtractor(
     public async Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url)
     {
         var client = httpClientFactory.CreateClient(nameof(AmazonPrimePageMetaDataExtractor));
-        var pageResponse = await client.GetAsync(url);
+        using var pageResponse = await client.GetAsync(url);
         if (pageResponse.StatusCode != HttpStatusCode.OK)
         {
             throw new NonPodcastServiceMetaDataExtractionException(url, pageResponse.StatusCode);

@@ -12,10 +12,9 @@ namespace RedditPodcastPoster.PodcastServices.Categorisers;
 public class NonPodcastServiceCategoriser(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-#pragma warning disable CS9113 // Parameter is unread.
-    IHttpClientFactory httpClientFactory,
     IStreamingServiceMetaDataHandler streamingServiceMetaDataHandler,
     INonPodcastServiceAdapterResolver adapterResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<NonPodcastServiceCategoriser> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using FluentAssertions;
@@ -37,11 +38,13 @@ public class VimeoMetaDataExtractorRules
         var author = _fixture.Create<string>();
         var image = new Uri($"https://example.test/art/{_fixture.CreateYouTubeId()}");
         var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
+        var release = DomainTestFixture.UtcAtTime(-5, TimeSpan.FromHours(18));
+        var uploadDate = release.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
                 $$"""
-                  {"title":"{{title}}","description":"{{description}}","duration":90,"upload_date":"2024-03-15 18:00:00","thumbnail_url":"{{image}}","author_name":"{{author}}"}
+                  {"title":"{{title}}","description":"{{description}}","duration":90,"upload_date":"{{uploadDate}}","thumbnail_url":"{{image}}","author_name":"{{author}}"}
                   """,
                 Encoding.UTF8,
                 "application/json")
@@ -57,6 +60,7 @@ public class VimeoMetaDataExtractorRules
         meta.Duration.Should().Be(TimeSpan.FromSeconds(90));
         meta.Image.Should().Be(image);
         meta.Publisher.Should().Be(author);
+        meta.Release.Should().Be(release);
         _handler.LastRequestUri.Should().NotBeNull();
         _handler.LastRequestUri!.Host.Should().Be("vimeo.com");
         _handler.LastRequestUri.AbsolutePath.Should().Be("/api/oembed.json");

@@ -57,6 +57,10 @@ public class SubmitUrlResponse
             resultSubmitEpisodeDetails.YouTube,
             resultSubmitEpisodeDetails.BBC,
             resultSubmitEpisodeDetails.InternetArchive,
+            resultSubmitEpisodeDetails.Vimeo,
+            resultSubmitEpisodeDetails.Netflix,
+            resultSubmitEpisodeDetails.AmazonPrime,
+            resultSubmitEpisodeDetails.ExtraServiceKeys ?? [],
             resultSubmitEpisodeDetails.Subjects ?? [],
             (resultSubmitEpisodeDetails.People ?? [])
             .Select(x => x.Person.Name)
@@ -117,6 +121,10 @@ public class SubmitUrlResponse
         bool youTube,
         bool bbc,
         bool internetArchive,
+        bool vimeo,
+        bool netflix,
+        bool amazonPrime,
+        string[]? extraServiceKeys,
         string[]? subjects,
         string[]? people,
         GuestSuggestion[]? guestSuggestions)
@@ -135,6 +143,18 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("internetArchive")]
         public bool InternetArchive { get; private set; } = internetArchive;
+
+        [JsonPropertyName("vimeo")]
+        public bool Vimeo { get; private set; } = vimeo;
+
+        [JsonPropertyName("netflix")]
+        public bool Netflix { get; private set; } = netflix;
+
+        [JsonPropertyName("amazonPrime")]
+        public bool AmazonPrime { get; private set; } = amazonPrime;
+
+        [JsonPropertyName("extraServiceKeys")]
+        public string[]? ExtraServiceKeys { get; private set; } = extraServiceKeys;
 
         [JsonPropertyName("subjects")]
         public string[]? Subjects { get; private set; } = subjects;

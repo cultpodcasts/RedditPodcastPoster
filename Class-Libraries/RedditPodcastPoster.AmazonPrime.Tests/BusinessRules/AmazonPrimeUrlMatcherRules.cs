@@ -49,4 +49,19 @@ public class AmazonPrimeUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "A lookalike host that merely contains the letters amazon.com is not a submit URL, " +
+        "because host matching is suffix-safe.")]
+    public void lookalike_host_is_not_submit_url()
+    {
+        // Arrange
+        var url = new Uri($"https://notamazon.com/gp/video/detail/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var matches = AmazonPrimeUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeFalse();
+    }
 }

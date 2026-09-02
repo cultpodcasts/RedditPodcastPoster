@@ -1,11 +1,12 @@
+using RedditPodcastPoster.Models.Podcasts;
+
 namespace RedditPodcastPoster.Netflix.Matching;
 
 public static class NetflixUrlMatcher
 {
     public static bool IsSubmitUrl(Uri url)
     {
-        var host = url.Host.ToLowerInvariant();
-        if (!host.Contains("netflix.com"))
+        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "netflix.com"))
         {
             return false;
         }

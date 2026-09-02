@@ -49,4 +49,19 @@ public class NetflixUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "A lookalike host that merely contains the letters netflix.com is not a submit URL, " +
+        "because host matching is suffix-safe.")]
+    public void lookalike_host_is_not_submit_url()
+    {
+        // Arrange
+        var url = new Uri($"https://www.netflix.com.example.test/title/{_fixture.CreateAppleId()}");
+
+        // Act
+        var matches = NetflixUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeFalse();
+    }
 }

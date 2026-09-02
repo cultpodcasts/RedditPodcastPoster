@@ -1,10 +1,8 @@
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -13,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Handlers;
+using RedditPodcastPoster.PodcastServices.Tests.Support;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.NonPodcast;
 
@@ -31,11 +30,7 @@ public class NonPodcastServiceCategoriserRules
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<INonPodcastServiceAdapterResolver>(
-            new NonPodcastServiceAdapterResolver(
-            [
-                new BbcNonPodcastServiceAdapter(Mock.Of<IBBCPageMetaDataExtractor>()),
-                new InternetArchiveNonPodcastServiceAdapter(Mock.Of<IInternetArchivePageMetaDataExtractor>())
-            ]));
+            NonPodcastSubmitAdapterResolverSupport.CreateMocks());
         _mocker.GetMock<IStreamingServiceMetaDataHandler>()
             .Setup(x => x.ResolveServiceItem(
                 It.IsAny<Podcast?>(),
@@ -122,7 +117,7 @@ public class NonPodcastServiceCategoriserRules
 
     [Fact(DisplayName =
         "When a podcast is supplied, submit loads that podcast's episodes and extracts metadata for the URL, " +
-        "so a Sounds or Archive link can be attached to a chosen series.")]
+        "so a recognised extra-service link can be attached to a chosen series.")]
     public async Task supplied_podcast_extracts_against_that_series_episodes()
     {
         // Arrange
@@ -143,12 +138,12 @@ public class NonPodcastServiceCategoriserRules
     }
 
     [Fact(DisplayName =
-        "When no podcast is supplied and the URL is not BBC or Internet Archive, " +
-        "submit fails because today's categoriser does not recognise the service.")]
+        "When no podcast is supplied and the URL host has no adapter (example.test), " +
+        "submit fails because the categoriser does not recognise the service.")]
     public async Task unknown_service_without_podcast_is_rejected()
     {
         // Arrange
-        var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
+        var url = new Uri($"https://example.test/watch/{_fixture.CreateYouTubeId()}");
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
 
         // Act
@@ -157,6 +152,30 @@ public class NonPodcastServiceCategoriserRules
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Unrecognised service*");
+    }
+
+    [Fact(DisplayName =
+        "When no podcast is supplied and the URL is a Vimeo submit URL, " +
+        "submit reaches the metadata handler instead of rejecting the service as unrecognised.")]
+    public async Task missing_podcast_with_vimeo_url_extracts_metadata()
+    {
+        // Arrange
+        var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
+        _handlerResult = CreateResolved(NonPodcastService.Vimeo, url);
+        var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
+
+        // Act
+        var resolved = await sut.Resolve(null, url, new IndexingContext());
+
+        // Assert
+        resolved.Should().BeSameAs(_handlerResult);
+        _mocker.GetMock<IStreamingServiceMetaDataHandler>()
+            .Verify(
+                x => x.ResolveServiceItem(
+                    It.IsAny<Podcast?>(),
+                    It.IsAny<IEnumerable<Episode>>(),
+                    url),
+                Times.Once);
     }
 
     [Fact(DisplayName =

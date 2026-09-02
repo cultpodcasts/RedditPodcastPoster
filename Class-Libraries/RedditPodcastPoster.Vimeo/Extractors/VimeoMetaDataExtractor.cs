@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
@@ -32,9 +33,13 @@ public class VimeoMetaDataExtractor(IHttpClientFactory httpClientFactory) : IVim
 
         DateTime? release = null;
         if (!string.IsNullOrWhiteSpace(payload.UploadDate) &&
-            DateTime.TryParse(payload.UploadDate, out var parsed))
+            DateTime.TryParse(
+                payload.UploadDate,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsed))
         {
-            release = DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+            release = parsed;
         }
 
         Uri? image = null;

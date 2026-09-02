@@ -555,6 +555,7 @@ public class UrlSubmissionEnrichmentRules
         episode.Urls.BBC.Should().Be(bbcUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
         response.SubmitEpisodeDetails.BBC.Should().BeTrue();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.BbcSounds);
     }
 
     [Fact(DisplayName =
@@ -615,6 +616,103 @@ public class UrlSubmissionEnrichmentRules
         EpisodeServicePresence.TryGetImage(episode, bbcKey).Should().Be(image);
         EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
         EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube).Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.InternetArchive).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a Vimeo resolved item carries artwork, UrlSubmission enrichment stores the image on the vimeo catalog key, " +
+        "not leftover Images.Other and not the Internet Archive slot.")]
+    public void enrich_stores_vimeo_image_on_vimeo_catalog_key()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Images = new EpisodeImages());
+        var image = _fixture.Create<Uri>();
+        var vimeoUrl = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Vimeo,
+            Url: vimeoUrl,
+            Title: episode.Title,
+            Description: episode.Description,
+            Image: image);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Vimeo).Should().Be(vimeoUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.InternetArchive).Should().BeNull();
+        EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.Vimeo.Should().BeTrue();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.Vimeo);
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode is missing a Netflix link and a resolved Netflix item is present, " +
+        "UrlSubmission enrichment fills the Netflix catalog URL and sets the Netflix submit flag.")]
+    public void enrich_fills_missing_netflix_url_from_non_podcast_item()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Urls = new ServiceUrls());
+        var netflixUrl = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Netflix,
+            Url: netflixUrl,
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Netflix).Should().Be(netflixUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.Netflix.Should().BeTrue();
+        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
+        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When an existing episode is missing a Prime Video link and a resolved Prime item is present, " +
+        "UrlSubmission enrichment fills the amazonPrime catalog URL and sets the Amazon Prime submit flag.")]
+    public void enrich_fills_missing_prime_url_from_non_podcast_item()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Urls = new ServiceUrls());
+        var primeUrl = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.AmazonPrime,
+            Url: primeUrl,
+            Title: episode.Title,
+            Description: episode.Description);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.AmazonPrime).Should().Be(primeUrl);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.AmazonPrime.Should().BeTrue();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.AmazonPrime);
     }
 
     [Fact(DisplayName =

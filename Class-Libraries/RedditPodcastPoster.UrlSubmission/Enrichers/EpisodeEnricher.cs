@@ -26,6 +26,7 @@ public class EpisodeEnricher(
     {
         var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
             (false, false, false, false, false);
+        var addedExtraKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var podcastResult = SubmitResultState.None;
         var episodeResult = SubmitResultState.None;
@@ -139,6 +140,7 @@ public class EpisodeEnricher(
                     bbcKey,
                     bbcUrl,
                     categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                addedExtraKeys.Add(bbcKey);
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     "Enriched episode '{matchingEpisodeId}' with bbc details with bbc-url {resolvedNonPodcastServiceItemBBCUrl}.",
@@ -154,6 +156,7 @@ public class EpisodeEnricher(
                     ServiceKeys.InternetArchive,
                     categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
                     null);
+                addedExtraKeys.Add(ServiceKeys.InternetArchive);
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",
@@ -173,6 +176,7 @@ public class EpisodeEnricher(
                         streamingKey,
                         streamingUrl,
                         categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                    addedExtraKeys.Add(streamingKey);
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
                         "Enriched episode '{matchingEpisodeId}' with {serviceKey} url {streamingUrl}.",
@@ -205,9 +209,10 @@ public class EpisodeEnricher(
                     : categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
                         ? ServiceKeys.InternetArchive
                         : ServiceCatalog.TryResolveKey(categorisedItem.ResolvedNonPodcastServiceItem.Url!)
-                          ?? ServiceKeys.InternetArchive;
-                if (EpisodeServicePresence.TryFillMissing(
-                    matchingEpisode, imageKey, null, nonPodcastImage))
+                          ?? ServiceCatalog.KeyFromUnknownHost(categorisedItem.ResolvedNonPodcastServiceItem.Url!);
+                if (imageKey != null &&
+                    EpisodeServicePresence.TryFillMissing(
+                        matchingEpisode, imageKey, null, nonPodcastImage))
                 {
                     episodeResult = SubmitResultState.Enriched;
                 }
@@ -215,7 +220,17 @@ public class EpisodeEnricher(
         }
 
         return new ApplyResolvePodcastServicePropertiesResponse(podcastResult, episodeResult,
-            new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube, [], addedBBC, addedInternetArchive));
+            new SubmitEpisodeDetails(
+                addedSpotify,
+                addedApple,
+                addedYouTube,
+                [],
+                addedBBC,
+                addedInternetArchive,
+                Vimeo: addedExtraKeys.Contains(ServiceKeys.Vimeo),
+                Netflix: addedExtraKeys.Contains(ServiceKeys.Netflix),
+                AmazonPrime: addedExtraKeys.Contains(ServiceKeys.AmazonPrime),
+                ExtraServiceKeys: addedExtraKeys.Count == 0 ? null : addedExtraKeys.ToArray()));
     }
 
     private static SubmitResultState MergeEpisodeResult(
