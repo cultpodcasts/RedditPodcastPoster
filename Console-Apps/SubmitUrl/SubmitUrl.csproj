@@ -20,6 +20,9 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
   </ItemGroup>
 

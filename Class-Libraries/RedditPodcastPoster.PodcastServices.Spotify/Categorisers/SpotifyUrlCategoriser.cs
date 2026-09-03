@@ -131,10 +131,11 @@ public class SpotifyUrlCategoriser(
         Uri url,
         IndexingContext indexingContext)
     {
-        if (podcast != null && episodes.Any(x => x.Urls.Spotify == url))
+        if (podcast != null && episodes.Any(x =>
+                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.Spotify) == url))
         {
             return new ResolvedSpotifyItem(new PodcastEpisode(podcast,
-                episodes.Single(x => x.Urls.Spotify == url)));
+                episodes.Single(x => EpisodeServicePresence.TryGetUrl(x, ServiceKeys.Spotify) == url)));
         }
 
         var episodeId = SpotifyIdResolver.GetEpisodeId(url);

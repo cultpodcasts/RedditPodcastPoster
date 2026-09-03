@@ -2,6 +2,7 @@ using Api.Models;
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Podcasts;
 
@@ -67,12 +68,10 @@ public class PodcastGetService(
             return new PodcastWrapper(podcast, PodcastRetrievalState.Found);
         }
 
-        var podcasts = await podcastRepository.GetAllBy(x => x.Name == podcastGetRequest.PodcastName).ToListAsync(c);
-        if (!podcasts.Any() && !string.IsNullOrWhiteSpace(podcastGetRequest.PodcastName))
-        {
-            var lowerName = podcastGetRequest.PodcastName.ToLower();
-            podcasts = await podcastRepository.GetAllBy(x => x.Name.ToLower() == lowerName).ToListAsync(c);
-        }
+        var podcasts = (await PodcastNameAttachLookup.FindByName(
+            podcastRepository,
+            podcastGetRequest.PodcastName ?? string.Empty,
+            c)).ToList();
         if (!podcasts.Any())
         {
             return new PodcastWrapper(null, PodcastRetrievalState.NotFound);
@@ -96,6 +95,9 @@ public class PodcastGetService(
             }
         }
 
+        // Browse convenience only: if exactly one duplicate has Spotify/Apple/YouTube ids,
+        // treat that row as the catalogue show so GET /podcast/{name} still 200s.
+        // Submit does not use this — name-only POST 409s whenever more than one row shares the name.
         var podcastsWithServiceIds = podcasts.Where(x =>
             !string.IsNullOrWhiteSpace(x.SpotifyId) ||
             !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||

@@ -9,6 +9,7 @@ using RedditPodcastPoster.Text.Sanitisers;
 using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Dtos.Mapping;
 
@@ -50,6 +51,7 @@ public class EpisodeDtoMapper(
             ? null
             : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
+        EpisodeServicePresence.NormalizeCatalog(episode);
         var dto = new EpisodeDto
         {
             Id = episode.Id,
@@ -65,11 +67,13 @@ public class EpisodeDtoMapper(
             Removed = episode.Removed,
             Length = episode.Length,
             Explicit = episode.Explicit,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = episode.Urls,
-            Images = episode.Images,
+            SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
+            AppleId = EpisodeServicePresence.AppleEpisodeId(episode),
+            YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode) ?? string.Empty,
+            Ids = episode.Ids,
+            Urls = EpisodeServicePresence.ToServiceUrls(episode),
+            Images = EpisodeServicePresence.ToEpisodeImages(episode),
+            Services = episode.Services,
             Subjects = episode.Subjects,
             RemovedSubjects = episode.RemovedSubjects,
             Matches = episode.Matches,
@@ -81,7 +85,7 @@ public class EpisodeDtoMapper(
             ReleaseAuthority = podcast.ReleaseAuthority,
             PrimaryPostService = podcast.PrimaryPostService,
             Image =
-                episode.Images?.YouTube ?? episode.Images?.Spotify ?? episode.Images?.Apple ?? episode.Images?.Other,
+                EpisodeServicePresence.CoalescedImage(episode),
             Language = episode.Language,
             Guests = episode.Guests,
             DisplayTitle = await textSanitiser.SanitiseTitle(

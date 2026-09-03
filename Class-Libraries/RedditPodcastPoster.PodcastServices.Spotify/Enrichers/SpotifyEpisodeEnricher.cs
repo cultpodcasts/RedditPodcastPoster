@@ -15,6 +15,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Text.Sanitisers;
+using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 
@@ -46,8 +47,9 @@ public class SpotifyEpisodeEnricher(
             Release = findSpotifyEpisodeRequest.Released ?? request.Episode.Release
         };
         var assignedSpotifyIds = request.Episodes
-            .Where(x => !string.IsNullOrWhiteSpace(x.SpotifyId))
-            .Select(x => x.SpotifyId)
+            .Select(EpisodeServicePresence.SpotifyEpisodeId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
             .ToHashSet(StringComparer.Ordinal);
 
         var findEpisodeResult = await spotifyEpisodeResolver.FindEpisode(
@@ -57,13 +59,7 @@ public class SpotifyEpisodeEnricher(
                  findSpotifyEpisodeRequest.Released.HasValue &&
                  platformMatcher.CatalogueReleaseMatches(
                      probeEpisode,
-                     new Episode
-                     {
-                         Title = y.Name,
-                         Length = y.GetDuration(),
-                         Release = y.GetReleaseDate(),
-                         SpotifyId = y.Id
-                     },
+                     CreateSpotifyCandidate(y),
                      request.Podcast));
 
         if (findEpisodeResult.FullEpisode != null &&
@@ -75,7 +71,8 @@ public class SpotifyEpisodeEnricher(
                 findSpotifyEpisodeRequest.Market ?? Market.CountryCode);
         }
         else if (findEpisodeResult.FullEpisode != null &&
-            request.Episodes.All(x => x.SpotifyId != findEpisodeResult.FullEpisode.Id))
+            request.Episodes.All(x =>
+                EpisodeServicePresence.SpotifyEpisodeId(x) != findEpisodeResult.FullEpisode.Id))
         {
             logger.LogInformation(
                 "{EnrichName} Found matching Spotify episode: '{FullEpisodeId}' with title '{FullEpisodeName}' and release-date '{FullEpisodeReleaseDate}'.",
@@ -105,6 +102,18 @@ public class SpotifyEpisodeEnricher(
         }
 
         enrichmentSideEffect.OnFindComplete(request.Podcast, findEpisodeResult.IsExpensiveQuery);
+    }
+
+    private static Episode CreateSpotifyCandidate(SimpleEpisode spotify)
+    {
+        var candidate = new Episode
+        {
+            Title = spotify.Name,
+            Length = spotify.GetDuration(),
+            Release = spotify.GetReleaseDate()
+        };
+        EpisodeServicePresence.SetSpotifyIdentity(candidate, spotify.Id);
+        return candidate;
     }
 }
 

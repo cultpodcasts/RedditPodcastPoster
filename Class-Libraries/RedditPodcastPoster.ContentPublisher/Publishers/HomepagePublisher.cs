@@ -98,11 +98,8 @@ public class HomepagePublisher(
                     EpisodeTitle = episode.EpisodeTitle,
                     EpisodeDescription = episode.EpisodeDescription,
                     Release = episode.Release,
-                    Spotify = episode.Urls.Spotify,
-                    Apple = episode.Urls.Apple,
-                    YouTube = episode.Urls.YouTube,
-                    BBC = episode.Urls.BBC,
-                    InternetArchive = episode.Urls.InternetArchive,
+                    Ids = episode.Ids,
+                    Services = episode.Services,
                     Length = episode.Length,
                     Subjects = episode.Subjects.Count > 0 ? episode.Subjects.ToArray() : null,
                     Images = episode.Images,
@@ -145,6 +142,7 @@ public class HomepagePublisher(
                            x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
+            EpisodeServicePresence.NormalizeCatalog(episode);
 
             recentEpisodes.Add(new RecentEpisodeEntry
             {
@@ -154,10 +152,11 @@ public class HomepagePublisher(
                 EpisodeTitle = episode.Title,
                 EpisodeDescription = episode.Description,
                 Release = episode.Release,
-                Urls = episode.Urls,
+                Services = episode.Services,
+                Ids = episode.Ids,
                 Length = episode.Length,
                 Subjects = episode.Subjects,
-                Images = episode.Images,
+                Images = EpisodeServicePresence.ToEpisodeImages(episode),
                 Language = episode.Language
             });
         }
@@ -231,14 +230,11 @@ public class HomepagePublisher(
             EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
             PodcastName = x.PodcastName,
             Release = x.Release,
-            Spotify = x.Spotify,
-            Apple = x.Apple,
-            YouTube = x.YouTube,
-            BBC = x.BBC,
-            InternetArchive = x.InternetArchive,
+            Ids = x.Ids,
+            Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = x.Images?.YouTube ?? x.Images?.Spotify ?? x.Images?.Apple ?? x.Images?.Other,
+            Image = EpisodeServicePresence.CoalescedImage(x.Services),
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }
@@ -337,7 +333,8 @@ public class HomepagePublisher(
         public string EpisodeTitle { get; init; } = string.Empty;
         public string EpisodeDescription { get; init; } = string.Empty;
         public DateTime Release { get; init; }
-        public ServiceUrls Urls { get; init; } = new();
+        public Dictionary<string, EpisodeServiceLink>? Services { get; init; }
+        public EpisodeIds? Ids { get; init; }
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];
         public EpisodeImages? Images { get; init; }

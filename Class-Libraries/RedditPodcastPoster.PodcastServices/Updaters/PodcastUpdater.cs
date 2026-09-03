@@ -119,10 +119,11 @@ public class PodcastUpdater(
             episodes = episodes
                 .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
                 .Where(episode =>
-                    (!string.IsNullOrWhiteSpace(podcast.SpotifyId) && string.IsNullOrWhiteSpace(episode.SpotifyId)) ||
+                    (!string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+                     string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode))) ||
                     (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-                     string.IsNullOrWhiteSpace(episode.YouTubeId)) ||
-                    (podcast.AppleId.HasValue && !episode.AppleId.HasValue)
+                     string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode))) ||
+                    (podcast.AppleId.HasValue && EpisodeServicePresence.AppleEpisodeId(episode) is null)
                 ).ToList();
             mergeResult = EpisodeMergeResult.Empty;
         }
@@ -138,8 +139,8 @@ public class PodcastUpdater(
         var episodesWithAssignedPlatformIds = await episodeRepository
             .GetByPodcastId(
                 podcast.Id,
-                x => (x.AppleId != null && x.AppleId > 0) ||
-                     (x.SpotifyId != null && x.SpotifyId != string.Empty))
+                x => (x.Ids != null && x.Ids.Apple != null && x.Ids.Apple > 0) ||
+                     (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty))
             .ToListAsync();
         var enrichmentEpisodeContext =
             BuildEnrichmentEpisodeContext(episodes, episodesWithAssignedPlatformIds);
@@ -368,10 +369,10 @@ public class PodcastUpdater(
         var platformIdentifiedEpisodes = await episodeRepository
             .GetByPodcastId(
                 podcastId,
-                x => (x.AppleId != null && x.AppleId > 0) ||
-                     (x.SpotifyId != null && x.SpotifyId != string.Empty) ||
-                     (x.YouTubeId != null && x.YouTubeId != string.Empty) ||
-                     x.Urls.Spotify != null)
+                x => (x.Ids != null && x.Ids.Apple != null && x.Ids.Apple > 0) ||
+                     (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty) ||
+                     (x.Ids != null && x.Ids.YouTube != null && x.Ids.YouTube != string.Empty) ||
+                     (x.Services != null && x.Services[ServiceKeys.Spotify].Url != null))
             .ToListAsync();
 
         if (platformIdentifiedEpisodes.Count == 0)

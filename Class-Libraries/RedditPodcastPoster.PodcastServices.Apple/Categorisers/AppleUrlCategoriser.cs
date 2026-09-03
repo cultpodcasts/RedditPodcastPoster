@@ -121,9 +121,12 @@ public class AppleUrlCategoriser(
 
     public async Task<ResolvedAppleItem> Resolve(Podcast? podcast,IEnumerable<Episode> episodes, Uri url, IndexingContext indexingContext)
     {
-        if (podcast != null && episodes.Any(x => x.Urls.Apple == url))
+        if (podcast != null && episodes.Any(x =>
+                EpisodeServicePresence.TryGetUrl(x, ServiceKeys.Apple) == url))
         {
-            return new ResolvedAppleItem(new RedditPodcastPoster.Models.Episodes.PodcastEpisode(podcast, episodes.Single(x => x.Urls.Apple == url)));
+            return new ResolvedAppleItem(new RedditPodcastPoster.Models.Episodes.PodcastEpisode(
+                podcast,
+                episodes.Single(x => EpisodeServicePresence.TryGetUrl(x, ServiceKeys.Apple) == url)));
         }
 
         var podcastId = AppleIdResolver.GetPodcastId(url);

@@ -12,19 +12,19 @@ public static class EpisodeMappingExtensions
         {
             Service.Spotify => CreatePlatformLink(
                 Service.Spotify,
-                episode.SpotifyId,
-                episode.Urls.Spotify,
-                episode.Images?.Spotify),
+                EpisodeServicePresence.SpotifyEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify)),
             Service.Apple => CreatePlatformLink(
                 Service.Apple,
-                episode.AppleId?.ToString(),
-                episode.Urls.Apple,
-                episode.Images?.Apple),
+                EpisodeServicePresence.AppleEpisodeId(episode)?.ToString(),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple)),
             Service.YouTube => CreatePlatformLink(
                 Service.YouTube,
-                episode.YouTubeId,
-                episode.Urls.YouTube,
-                episode.Images?.YouTube),
+                EpisodeServicePresence.YouTubeEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube)),
             _ => null
         };
 
@@ -43,9 +43,9 @@ public static class EpisodeMappingExtensions
         new(
             CreatePlatformLink(
                 Service.Spotify,
-                episode.SpotifyId,
-                episode.Urls.Spotify,
-                episode.Images?.Spotify),
+                EpisodeServicePresence.SpotifyEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify)),
             episode.Description,
             new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
 
@@ -53,9 +53,9 @@ public static class EpisodeMappingExtensions
         new(
             CreatePlatformLink(
                 Service.Apple,
-                episode.AppleId?.ToString(),
-                episode.Urls.Apple,
-                episode.Images?.Apple),
+                EpisodeServicePresence.AppleEpisodeId(episode)?.ToString(),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple)),
             episode.Description,
             new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
 
@@ -63,9 +63,9 @@ public static class EpisodeMappingExtensions
         new(
             CreatePlatformLink(
                 Service.YouTube,
-                episode.YouTubeId,
-                episode.Urls.YouTube,
-                episode.Images?.YouTube),
+                EpisodeServicePresence.YouTubeEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube)),
             episode.Description,
             new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
 

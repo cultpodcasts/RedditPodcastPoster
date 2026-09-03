@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Models;
 
@@ -7,7 +8,7 @@ public class ResolvedSpotifyItem
     public ResolvedSpotifyItem(PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.SpotifyId;
-        EpisodeId = podcastEpisode.Episode.SpotifyId;
+        EpisodeId = EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode) ?? string.Empty;
         ShowName = podcastEpisode.Podcast.Name;
         Publisher = podcastEpisode.Podcast.Publisher;
         EpisodeTitle = podcastEpisode.Episode.Title;
@@ -15,12 +16,8 @@ public class ResolvedSpotifyItem
         Release = podcastEpisode.Episode.Release;
         Duration = podcastEpisode.Episode.Length;
         Explicit = podcastEpisode.Episode.Explicit;
-        if (podcastEpisode.Episode.Urls.Spotify != null)
-        {
-            Url = podcastEpisode.Episode.Urls.Spotify;
-        }
-
-        Image = podcastEpisode.Episode.Images?.Spotify;
+        Url = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.Spotify);
+        Image = EpisodeServicePresence.TryGetImage(podcastEpisode.Episode, ServiceKeys.Spotify);
     }
 
     public ResolvedSpotifyItem(

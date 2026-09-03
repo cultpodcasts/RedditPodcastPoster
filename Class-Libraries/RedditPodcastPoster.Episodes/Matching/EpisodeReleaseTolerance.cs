@@ -276,24 +276,27 @@ public static class EpisodeReleaseTolerance
     private static bool EpisodeMissingConfiguredPlatformIds(Episode episode, Podcast podcast)
     {
         var needsSpotify = !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-                           string.IsNullOrWhiteSpace(episode.SpotifyId);
-        var needsApple = podcast.AppleId is > 0 && episode.AppleId is null or 0;
+                           string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode));
+        var needsApple = podcast.AppleId is > 0 && EpisodeServicePresence.AppleEpisodeId(episode) is null or 0;
         return needsSpotify || needsApple;
     }
 
     private static bool IsReleaseAuthorityAudioIdentityMissing(Podcast podcast, Episode episode) =>
         podcast.ReleaseAuthority switch
         {
-            Service.Apple => episode.AppleId is null or 0,
-            Service.Spotify => string.IsNullOrWhiteSpace(episode.SpotifyId) && episode.Urls.Spotify == null,
+            Service.Apple => EpisodeServicePresence.AppleEpisodeId(episode) is null or 0,
+            Service.Spotify => string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) &&
+                               !EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify),
             _ => EpisodeMissingConfiguredPlatformIds(episode, podcast)
         };
 
     private static bool HasYouTubeIdentity(Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) ||
+        EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
 
     private static bool HasSpotifyIdentity(Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) ||
+        EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify);
 
     private static bool HasAudioPlatformConfigured(Podcast podcast) =>
         !string.IsNullOrWhiteSpace(podcast.SpotifyId) || podcast.AppleId != null;

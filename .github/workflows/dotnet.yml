@@ -10,7 +10,10 @@ on:
     branches: [ "**" ]
 
 env:  
-  DOTNET_VERSION: '10.0.x' 
+  DOTNET_VERSION: '10.0.x'
+  # Live streaming scraper Theories hit BBC / Netflix / Prime / Vimeo from Actions IPs.
+  # Opt in locally or on a nightly job by omitting this (or setting to 0).
+  SKIP_LIVE_STREAMING_SCRAPER_TESTS: '1'
 
 jobs:
   build:

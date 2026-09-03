@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using CultPodcasts.DatabasePublisher.PublicModels;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
@@ -97,21 +98,22 @@ public class PublicDatabasePublisher(
             publicEpisodes.Add(new PublicEpisode
             {
                 Id = episode.Id,
-                AppleId = episode.AppleId,
+                AppleId = EpisodeServicePresence.AppleEpisodeId(episode),
                 Description = string.IsNullOrWhiteSpace(episode.Description) ? null : episode.Description,
                 Explicit = episode.Explicit,
                 Length = episode.Length,
                 Release = episode.Release,
-                SpotifyId = string.IsNullOrWhiteSpace(episode.SpotifyId) ? null : episode.SpotifyId,
+                SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode),
                 Title = episode.Title,
-                YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId,
+                YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode),
                 Urls = new PublicServiceUrls
                 {
-                    Apple = episode.Urls.Apple,
-                    Spotify = episode.Urls.Spotify,
-                    YouTube = episode.Urls.YouTube,
-                    BBC = episode.Urls.BBC,
-                    InternetArchive = episode.Urls.InternetArchive
+                    Apple = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+                    Spotify = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+                    YouTube = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                    BBC = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer)
+                          ?? EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds),
+                    InternetArchive = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive)
                 },
                 Subjects = episode.Subjects.Any() ? episode.Subjects : null
             });

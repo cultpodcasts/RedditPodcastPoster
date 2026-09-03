@@ -33,8 +33,8 @@ public class SpotifyExpensiveQuerySideEffectRules
             DomainTestFixture.UtcDaysAgo(5),
             _fixture.CreateDuration(),
             _fixture.CreateTitle());
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var sut = CreateEnricher(isExpensiveQuery: true);
 
         // Act
@@ -60,8 +60,8 @@ public class SpotifyExpensiveQuerySideEffectRules
             DomainTestFixture.UtcDaysAgo(5),
             _fixture.CreateDuration(),
             _fixture.CreateTitle());
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var sut = CreateEnricher(isExpensiveQuery: false);
 
         // Act
@@ -87,8 +87,8 @@ public class SpotifyExpensiveQuerySideEffectRules
             DomainTestFixture.UtcDaysAgo(5),
             _fixture.CreateDuration(),
             _fixture.CreateTitle());
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
         var sut = CreateEnricher(isExpensiveQuery: null);
 
         // Act

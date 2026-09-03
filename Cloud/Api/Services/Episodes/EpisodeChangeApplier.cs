@@ -2,7 +2,6 @@ using Api.Models;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
@@ -12,6 +11,9 @@ using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.InternetArchive.Matching;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Services.Episodes;
 
@@ -106,12 +108,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.Spotify.ToString() == string.Empty)
             {
-                episode.SpotifyId = string.Empty;
-                episode.Urls.Spotify = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.Spotify = null;
-                }
+                EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
             }
             else
             {
@@ -120,8 +118,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var spotifyId = SpotifyIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Spotify);
                     if (!string.IsNullOrWhiteSpace(spotifyId))
                     {
-                        episode.SpotifyId = spotifyId;
-                        episode.Urls.Spotify = episodeChangeRequest.Urls.Spotify.CleanSpotifyUrl();
+                        var cleaned = episodeChangeRequest.Urls.Spotify.CleanSpotifyUrl();
+                        EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, cleaned, null);
                         changeState.UpdateSpotifyImage = true;
                     }
                 }
@@ -136,12 +135,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.Apple.ToString() == string.Empty)
             {
-                episode.AppleId = null;
-                episode.Urls.Apple = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.Apple = null;
-                }
+                EpisodeServicePresence.SetAppleIdentity(episode, null);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
             }
             else
             {
@@ -150,8 +145,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var appleId = AppleIdResolver.GetEpisodeId(episodeChangeRequest.Urls.Apple);
                     if (appleId != null)
                     {
-                        episode.AppleId = appleId;
-                        episode.Urls.Apple = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
+                        var cleaned = episodeChangeRequest.Urls.Apple.CleanAppleUrl();
+                        EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, cleaned, null);
                         changeState.UpdateAppleImage = true;
                     }
                 }
@@ -166,12 +162,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.YouTube.ToString() == string.Empty)
             {
-                episode.YouTubeId = string.Empty;
-                episode.Urls.YouTube = null;
-                if (episode.Images != null)
-                {
-                    episode.Images.YouTube = null;
-                }
+                EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
             }
             else
             {
@@ -180,8 +172,9 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     var youTubeId = YouTubeIdResolver.Extract(episodeChangeRequest.Urls.YouTube);
                     if (!string.IsNullOrWhiteSpace(youTubeId))
                     {
-                        episode.YouTubeId = youTubeId;
-                        episode.Urls.YouTube = SearchResultExtensions.ToYouTubeUrl(youTubeId);
+                        var youTubeUrl = SearchResultExtensions.ToYouTubeUrl(youTubeId);
+                        EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+                        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, null);
                         changeState.UpdateYouTubeImage = true;
                     }
                     else
@@ -196,13 +189,15 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.BBC.ToString() == string.Empty)
             {
-                episode.Urls.BBC = null;
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcIplayer, null, null);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcSounds, null, null);
             }
             else
             {
-                if (NonPodcastServiceMatcher.MatchesBBC(episodeChangeRequest.Urls.BBC))
+                if (BBCUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.BBC))
                 {
-                    episode.Urls.BBC = episodeChangeRequest.Urls.BBC;
+                    var bbcKey = ServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? ServiceKeys.BbcSounds;
+                    EpisodeServicePresence.Upsert(episode, bbcKey, episodeChangeRequest.Urls.BBC, null);
                     changeState.UpdateBBCImage = true;
                 }
             }
@@ -212,57 +207,89 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.InternetArchive.ToString() == string.Empty)
             {
-                episode.Urls.InternetArchive = null;
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.InternetArchive, null, null);
             }
             else
             {
-                if (NonPodcastServiceMatcher.MatchesInternetArchive(episodeChangeRequest.Urls.InternetArchive))
+                if (InternetArchiveUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.InternetArchive))
                 {
-                    episode.Urls.InternetArchive = episodeChangeRequest.Urls.InternetArchive;
+                    EpisodeServicePresence.Upsert(
+                        episode,
+                        ServiceKeys.InternetArchive,
+                        episodeChangeRequest.Urls.InternetArchive,
+                        null);
                 }
             }
         }
 
         if (episodeChangeRequest.Images?.Spotify != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Spotify = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Spotify;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Spotify, image);
         }
 
         if (episodeChangeRequest.Images?.Apple != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Apple = episodeChangeRequest.Images.Apple.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.Apple.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Apple;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, image);
         }
 
         if (episodeChangeRequest.Images?.YouTube != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.YouTube = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
+            var image = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.YouTube;
+            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, image);
         }
 
-        if (episodeChangeRequest.Images?.Other != null)
+        if (episodeChangeRequest.Services != null)
         {
-            episode.Images ??= new EpisodeImages();
-            episode.Images.Other = episodeChangeRequest.Images.Other.ToString() == string.Empty
-                ? null
-                : episodeChangeRequest.Images.Other;
+            foreach (var pair in episodeChangeRequest.Services)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key))
+                {
+                    continue;
+                }
+
+                var url = pair.Value?.Url;
+                var image = pair.Value?.Image;
+                if (url?.ToString() == string.Empty)
+                {
+                    url = null;
+                }
+
+                if (image?.ToString() == string.Empty)
+                {
+                    image = null;
+                }
+
+                if (url is null && image is null)
+                {
+                    EpisodeServicePresence.Upsert(episode, pair.Key, null, null);
+                    ClearKnownServiceId(episode, pair.Key);
+                    continue;
+                }
+
+                var key = pair.Key;
+                if (url is not null)
+                {
+                    key = ServiceCatalog.TryResolveKey(url) ?? pair.Key;
+                }
+
+                EpisodeServicePresence.Upsert(episode, key, url, image);
+                ApplyKnownServiceId(episode, key, url, changeState);
+            }
+        }
+        else
+        {
+            EpisodeServicePresence.NormalizeCatalog(episode);
         }
 
-        if (episode.Images != null &&
-            episode.Images.YouTube == null &&
-            episode.Images.Spotify == null &&
-            episode.Images.Apple == null &&
-            episode.Images.Other == null)
-        {
-            episode.Images = null;
-        }
+        EpisodeServicePresence.SyncIds(episode);
 
         if (episodeChangeRequest.Language != null)
         {
@@ -305,5 +332,61 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return trimmed;
+    }
+
+    private static void ApplyKnownServiceId(
+        Episode episode,
+        string key,
+        Uri? url,
+        EpisodeChangeState changeState)
+    {
+        if (url is null)
+        {
+            return;
+        }
+
+        if (key == ServiceKeys.Spotify && SpotifyPodcastServiceMatcher.IsMatch(url))
+        {
+            var spotifyId = SpotifyIdResolver.GetEpisodeId(url);
+            if (!string.IsNullOrWhiteSpace(spotifyId))
+            {
+                EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
+                changeState.UpdateSpotifyImage = true;
+            }
+        }
+        else if (key == ServiceKeys.Apple && ApplePodcastServiceMatcher.IsMatch(url))
+        {
+            var appleId = AppleIdResolver.GetEpisodeId(url);
+            if (appleId != null)
+            {
+                EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+                changeState.UpdateAppleImage = true;
+            }
+        }
+        else if (key == ServiceKeys.YouTube && YouTubePodcastServiceMatcher.IsMatch(url))
+        {
+            var youTubeId = YouTubeIdResolver.Extract(url);
+            if (!string.IsNullOrWhiteSpace(youTubeId))
+            {
+                EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+                changeState.UpdateYouTubeImage = true;
+            }
+        }
+    }
+
+    private static void ClearKnownServiceId(Episode episode, string key)
+    {
+        if (key == ServiceKeys.Spotify)
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        }
+        else if (key == ServiceKeys.Apple)
+        {
+            EpisodeServicePresence.SetAppleIdentity(episode, null);
+        }
+        else if (key == ServiceKeys.YouTube)
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        }
     }
 }

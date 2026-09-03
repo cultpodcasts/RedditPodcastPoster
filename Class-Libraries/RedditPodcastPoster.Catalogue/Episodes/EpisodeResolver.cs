@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Catalogue.Episodes;
@@ -15,7 +16,9 @@ public class EpisodeResolver(
     public async Task<PodcastEpisode> ResolveServiceUrl(Uri url)
     {
         var matchingEpisode = await episodeRepository.GetBy(x =>
-            x.Urls.Spotify == url || x.Urls.Apple == url || x.Urls.YouTube == url);
+            (x.Services != null && x.Services[ServiceKeys.Spotify].Url == url) ||
+            (x.Services != null && x.Services[ServiceKeys.Apple].Url == url) ||
+            (x.Services != null && x.Services[ServiceKeys.YouTube].Url == url));
 
         if (matchingEpisode == null)
         {

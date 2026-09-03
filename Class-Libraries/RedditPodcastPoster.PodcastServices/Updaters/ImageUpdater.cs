@@ -30,17 +30,21 @@ public class ImageUpdater(
         IndexingContext indexingContext)
     {
         var updated = false;
-        if (updateRequest.UpdateSpotifyImage == true && !string.IsNullOrWhiteSpace(episode.SpotifyId))
+        if (updateRequest.UpdateSpotifyImage == true &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)))
         {
             try
             {
                 var fullEpisode = await spotifyEpisodeResolver.FindEpisode(
-                    FindSpotifyEpisodeRequestFactory.Create(episode.SpotifyId),
+                    FindSpotifyEpisodeRequestFactory.Create(EpisodeServicePresence.SpotifyEpisodeId(episode)!),
                     indexingContext);
                 if (fullEpisode != null)
                 {
-                    episode.Images ??= new EpisodeImages();
-                    episode.Images.Spotify = fullEpisode.FullEpisode?.GetBestImageUrl();
+                    EpisodeServicePresence.Upsert(
+                        episode,
+                        ServiceKeys.Spotify,
+                        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+                        fullEpisode.FullEpisode?.GetBestImageUrl());
                     updated = true;
                 }
             }
@@ -49,11 +53,12 @@ public class ImageUpdater(
                 logger.LogError(ex,
                     "Failure updating image for episode with id '{episodeId}' and spotify-id '{spotifyId}'.",
                     episode.Id,
-                    episode.SpotifyId);
+                    EpisodeServicePresence.SpotifyEpisodeId(episode));
             }
         }
 
-        if (updateRequest.UpdateAppleImage == true && episode.AppleId != null && podcast.AppleId != null)
+        if (updateRequest.UpdateAppleImage == true &&
+            EpisodeServicePresence.AppleEpisodeId(episode) != null && podcast.AppleId != null)
         {
             try
             {
@@ -62,8 +67,11 @@ public class ImageUpdater(
                     indexingContext);
                 if (appleEpisode != null)
                 {
-                    episode.Images ??= new EpisodeImages();
-                    episode.Images.Apple = appleEpisode.Image;
+                    EpisodeServicePresence.Upsert(
+                        episode,
+                        ServiceKeys.Apple,
+                        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+                        appleEpisode.Image);
                     updated = true;
                 }
             }
@@ -72,20 +80,25 @@ public class ImageUpdater(
                 logger.LogError(ex,
                     "Failure updating image for episode with id '{episodeId}' and apple-id '{appleId}'.",
                     episode.Id,
-                    episode.AppleId);
+                    EpisodeServicePresence.AppleEpisodeId(episode));
             }
         }
 
-        if (updateRequest.UpdateYouTubeImage == true && !string.IsNullOrWhiteSpace(episode.YouTubeId))
+        if (updateRequest.UpdateYouTubeImage == true &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)))
         {
             try
             {
-                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService, [episode.YouTubeId],
+                var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
+                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService, [youTubeId],
                     indexingContext, true);
                 if (video != null && video.Any())
                 {
-                    episode.Images ??= new EpisodeImages();
-                    episode.Images.YouTube = await youTubeThumbnailResolver.GetImageUrlAsync(video.First());
+                    EpisodeServicePresence.Upsert(
+                        episode,
+                        ServiceKeys.YouTube,
+                        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                        await youTubeThumbnailResolver.GetImageUrlAsync(video.First()));
                     updated = true;
                 }
             }
@@ -94,17 +107,19 @@ public class ImageUpdater(
                 logger.LogError(ex,
                     "Failure updating image for episode with id '{episodeId}' and youtube-video-id '{youtubeId}'.",
                     episode.Id,
-                    episode.YouTubeId);
+                    EpisodeServicePresence.YouTubeEpisodeId(episode));
             }
         }
 
-        if (updateRequest.UpdateBBCImage == true && episode.Urls.BBC != null)
+        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
+                     EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds);
+        if (updateRequest.UpdateBBCImage == true && bbcUrl != null)
         {
             try
             {
-                var metaData = await bbcPageMetaDataExtractor.GetMetaData(episode.Urls.BBC);
-                episode.Images ??= new EpisodeImages();
-                episode.Images.Other = metaData.Image;
+                var metaData = await bbcPageMetaDataExtractor.GetMetaData(bbcUrl);
+                var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+                EpisodeServicePresence.Upsert(episode, bbcKey, bbcUrl, metaData.Image);
                 updated = true;
             }
             catch (Exception ex)
@@ -112,7 +127,7 @@ public class ImageUpdater(
                 logger.LogError(ex,
                     "Failure updating image for episode with id '{episodeId}' and iplayer-url '{iplayerUrl}'.",
                     episode.Id,
-                    episode.Urls.BBC);
+                    bbcUrl);
             }
         }
 

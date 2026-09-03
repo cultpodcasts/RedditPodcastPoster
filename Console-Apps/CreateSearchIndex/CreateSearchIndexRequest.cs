@@ -1,4 +1,4 @@
-﻿using CommandLine;
+using CommandLine;
 
 namespace CreateSearchIndex;
 
@@ -9,6 +9,14 @@ public class CreateSearchIndexRequest
 
     [Option('t', "teardown-index", Required = false, Default = false, HelpText = "Tear-Down Index")]
     public bool TearDownIndex { get; set; }
+
+    [Option("update-existing", Required = false, Default = false,
+        HelpText = "Add missing index fields (e.g. svc) and upsert the Cosmos data-source query. Refuses --teardown-index.")]
+    public bool UpdateExisting { get; set; }
+
+    [Option("reset-indexer", Required = false, Default = false,
+        HelpText = "Reset the named indexer high-water mark so existing documents pick up new fields. Use with --update-existing.")]
+    public bool ResetIndexer { get; set; }
 
     [Option('d', "datasource", Required = false, Default = null, HelpText = "Data-source name")]
     public string? DataSourceName { get; set; }

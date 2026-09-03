@@ -226,7 +226,7 @@ public class PlatformIdentityMatchingRules
             spotifyInput.SpotifyUrl,
             title: _fixture.CreateTitle(),
             release: spotifyInput.Release);
-        stored.SpotifyId = string.Empty;
+        EpisodeServicePresence.SetSpotifyIdentity(stored, null);
         var expected = EpisodeExpectation.From(stored);
         var discovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithSpotifyId(spotifyInput.SpotifyId)
@@ -259,7 +259,7 @@ public class PlatformIdentityMatchingRules
             .WithLength(sharedLength)
             .Customize(e =>
             {
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls { Apple = appleInput.AppleUrl };
             })
             .Create();

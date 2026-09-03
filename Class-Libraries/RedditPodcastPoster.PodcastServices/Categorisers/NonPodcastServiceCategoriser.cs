@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -7,17 +6,15 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Handlers;
-using RedditPodcastPoster.BBC.Matching;
-using RedditPodcastPoster.BBC.Extractors;
 
 namespace RedditPodcastPoster.PodcastServices.Categorisers;
 
 public class NonPodcastServiceCategoriser(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
-#pragma warning disable CS9113 // Parameter is unread.
-    IHttpClientFactory httpClientFactory,
     IStreamingServiceMetaDataHandler streamingServiceMetaDataHandler,
+    INonPodcastServiceAdapterResolver adapterResolver,
+#pragma warning disable CS9113 // Parameter is unread.
     ILogger<NonPodcastServiceCategoriser> logger
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
@@ -27,28 +24,13 @@ public class NonPodcastServiceCategoriser(
     {
         if (podcast == null)
         {
-            List<Guid> matchingPodcastIds;
-            NonPodcastService service;
-            if (BBCUrlMatcher.IsBBCUrl(url))
-            {
-                service = NonPodcastService.BBC;
-                matchingPodcastIds = await episodeRepository
-                    .GetAllBy(episode => episode.Urls.BBC == url)
-                    .Select(x => x.PodcastId)
-                    .ToListAsync();
-            }
-            else if (InternetArchiveUrlMatcher.IsInternetArchiveUrl(url))
-            {
-                service = NonPodcastService.InternetArchive;
-                matchingPodcastIds = await episodeRepository
-                    .GetAllBy(episode => episode.Urls.InternetArchive == url)
-                    .Select(x => x.PodcastId)
-                    .ToListAsync();
-            }
-            else
-            {
-                throw new InvalidOperationException("Unrecognised service");
-            }
+            var adapter = adapterResolver.ForSubmit(url)
+                          ?? throw new InvalidOperationException("Unrecognised service");
+
+            var storedMatches = episodeRepository.GetAllBy(adapter.StoredUrlEquals(url));
+            var matchingPodcastIds = storedMatches is null
+                ? []
+                : await storedMatches.Select(x => x.PodcastId).ToListAsync();
 
             if (matchingPodcastIds.Any())
             {
@@ -66,33 +48,34 @@ public class NonPodcastServiceCategoriser(
                         $"Podcast '{podcastId}' not found for url '{url}'.");
                 }
 
-                IEnumerable<Episode> episodes;
-                if (service == NonPodcastService.BBC)
-                {
-                    episodes = await episodeRepository
-                        .GetByPodcastId(podcast.Id, x => x.Urls.BBC == url)
-                        .ToListAsync();
-                }
-                else
-                {
-                    episodes = await episodeRepository
-                        .GetByPodcastId(podcast.Id, x => x.Urls.InternetArchive == url)
-                        .ToListAsync();
-                }
+                var podcastUrlMatches = episodeRepository
+                    .GetByPodcastId(podcast.Id, adapter.StoredUrlEquals(url));
+                var episodes = podcastUrlMatches is null
+                    ? []
+                    : await podcastUrlMatches.ToListAsync();
 
-                if (episodes.Count() > 1)
+                if (episodes.Count > 1)
                 {
                     throw new InvalidOperationException(
                         $"Found episodes with url '{url}'. Podcast-id: '{podcast.Id}'. Episode-ids: {string.Join(", ", episodes)}.");
                 }
 
-                return new ResolvedNonPodcastServiceItem(service, podcast, episodes.Single());
+                return new ResolvedNonPodcastServiceItem(adapter.Service, podcast, episodes.Single());
             }
         }
 
-        var podcastEpisodes = podcast == null
-            ? new List<Episode>()
-            : await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
+        List<Episode> podcastEpisodes;
+        if (podcast == null)
+        {
+            podcastEpisodes = [];
+        }
+        else
+        {
+            var seriesEpisodes = episodeRepository.GetByPodcastId(podcast.Id);
+            podcastEpisodes = seriesEpisodes is null
+                ? []
+                : await seriesEpisodes.ToListAsync();
+        }
 
         return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, podcastEpisodes, url);
     }

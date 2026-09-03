@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects.Enrichers;
@@ -91,13 +92,9 @@ public class PodcastProcessor(
                     categorisedItem.MatchingPodcast.DefaultSubject);
             }
 
-            submitEpisodeDetails = new SubmitEpisodeDetails(
-                episode.Urls.Spotify != null,
-                episode.Urls.Apple != null,
-                episode.Urls.YouTube != null,
+            submitEpisodeDetails = SubmitEpisodeDetails.FromEpisode(
+                episode,
                 subjectsResult.Additions,
-                episode.Urls.BBC != null,
-                episode.Urls.InternetArchive != null,
                 guestsResult.Additions,
                 guestsResult.SkippedLowConfidence);
         }

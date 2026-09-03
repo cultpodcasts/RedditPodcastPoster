@@ -20,12 +20,14 @@ public class MetaDataExtractor(
         document.Load(await pageResponse.Content.ReadAsStreamAsync());
         var titleNode = document.DocumentNode.SelectSingleNode("//span[@itemprop='name']");
 
-        var title = titleNode.InnerText.Trim();
+        var pageTitle = titleNode?.InnerText.Trim();
+        var title = pageTitle;
         Uri? image = null;
         TimeSpan? duration = null;
         string? description = null;
         DateTime? release = null;
         string? publisher = null;
+        string? showName = null;
 
         var items = internetArchivePlayListProvider.GetPlayList(document).ToList();
 
@@ -68,12 +70,13 @@ public class MetaDataExtractor(
                        items.First();
 
                 title = item?.Title.Trim();
+                showName = DistinctFromEpisodeTitle(title, pageTitle);
             }
 
             if (item == null)
             {
                 return new NonPodcastServiceItemMetaData(title ?? string.Empty, description ?? string.Empty, duration,
-                    release, image, Publisher: publisher);
+                    release, image, Publisher: publisher, ShowName: showName);
             }
 
             if (item.Image != null)
@@ -85,6 +88,22 @@ public class MetaDataExtractor(
         }
 
         return new NonPodcastServiceItemMetaData(title ?? string.Empty, description ?? string.Empty, duration, release,
-            image, Publisher: publisher);
+            image, Publisher: publisher, ShowName: showName);
+    }
+
+    private static string? DistinctFromEpisodeTitle(string? episodeTitle, string? candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        var series = candidate.Trim();
+        if (string.Equals(series, episodeTitle?.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return series;
     }
 }

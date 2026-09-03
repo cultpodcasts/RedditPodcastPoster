@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Bluesky.Logging;
 
@@ -14,7 +15,7 @@ public static class BlueskyPostLogger
     public const string FlagSetMessagePrefix = "BlueskyPosted flag set:";
 
     public const string PostedMessageTemplate =
-        "Bluesky posted: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' podcast-name='{PodcastName}' caller='{Caller}' spotify-url='{SpotifyUrl}' youtube-url='{YouTubeUrl}' apple-url='{AppleUrl}'";
+        "Bluesky posted: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' podcast-name='{PodcastName}' caller='{Caller}' posted-url='{PostedUrl}' posted-service='{PostedService}' catalog-urls='{CatalogUrls}'";
 
     public const string FlagSetMessageTemplate =
         "BlueskyPosted flag set: episode-id='{EpisodeId}' title='{Title}' podcast-id='{PodcastId}' caller='{Caller}' network-post='false'";
@@ -24,6 +25,7 @@ public static class BlueskyPostLogger
         PodcastEpisode podcastEpisode,
         string caller)
     {
+        var (postedUrl, postedService, catalogUrls) = PostedUrlFields(podcastEpisode.Episode);
         logger.LogWarning(
             PostedMessageTemplate,
             podcastEpisode.Episode.Id,
@@ -31,9 +33,9 @@ public static class BlueskyPostLogger
             podcastEpisode.Podcast.Id,
             podcastEpisode.Podcast.Name,
             caller,
-            podcastEpisode.Episode.Urls.Spotify,
-            podcastEpisode.Episode.Urls.YouTube,
-            podcastEpisode.Episode.Urls.Apple);
+            postedUrl,
+            postedService,
+            catalogUrls);
     }
 
     public static void LogFlagSetWithoutPost(
@@ -54,7 +56,20 @@ public static class BlueskyPostLogger
         PodcastEpisode podcastEpisode,
         string caller)
     {
+        var (postedUrl, postedService, catalogUrls) = PostedUrlFields(podcastEpisode.Episode);
         return
-            $"{PostedMessagePrefix} episode-id='{podcastEpisode.Episode.Id}' title='{podcastEpisode.Episode.Title}' podcast-id='{podcastEpisode.Podcast.Id}' podcast-name='{podcastEpisode.Podcast.Name}' caller='{caller}' spotify-url='{podcastEpisode.Episode.Urls.Spotify}' youtube-url='{podcastEpisode.Episode.Urls.YouTube}' apple-url='{podcastEpisode.Episode.Urls.Apple}'";
+            $"{PostedMessagePrefix} episode-id='{podcastEpisode.Episode.Id}' title='{podcastEpisode.Episode.Title}' podcast-id='{podcastEpisode.Podcast.Id}' podcast-name='{podcastEpisode.Podcast.Name}' caller='{caller}' posted-url='{postedUrl}' posted-service='{postedService}' catalog-urls='{catalogUrls}'";
+    }
+
+    private static (Uri? PostedUrl, string PostedService, string CatalogUrls) PostedUrlFields(Episode episode)
+    {
+        var catalogUrls = EpisodeServicePresence.FormatCatalogUrlsForLog(episode);
+        if (EpisodeServicePresence.TryGetPreferredSocialPost(
+                episode, out var url, out var serviceKey, out _))
+        {
+            return (url, serviceKey, catalogUrls);
+        }
+
+        return (null, "", catalogUrls);
     }
 }

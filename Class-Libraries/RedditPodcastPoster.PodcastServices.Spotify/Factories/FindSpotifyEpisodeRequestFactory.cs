@@ -41,13 +41,15 @@ public static class FindSpotifyEpisodeRequestFactory
 
     public static FindSpotifyEpisodeRequest Create(Podcast podcast, Episode episode)
     {
-        var enrichingYouTubeDiscoveredEpisode = EpisodeHasYouTubeIdentity(episode);
+        var enrichingYouTubeDiscoveredEpisode =
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) ||
+            EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
         var release = EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup(podcast, episode);
 
         return new FindSpotifyEpisodeRequest(
             podcast.SpotifyId,
             podcast.Name.Trim(),
-            episode.SpotifyId,
+            EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
             episode.Title.Trim(),
             release,
             podcast.HasExpensiveSpotifyEpisodesQuery(),
@@ -72,7 +74,4 @@ public static class FindSpotifyEpisodeRequestFactory
             null,
             true);
     }
-
-    private static bool EpisodeHasYouTubeIdentity(Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
 }

@@ -51,7 +51,7 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
 
 
         return new NonPodcastServiceItemMetaData(title, description, md.Duration, md.Release, md.Image,
-            md.Explicit, "BBC");
+            md.Explicit, "BBC", md.Series);
     }
 
     private static TextMetaData GetMetaData(HtmlDocument document)
@@ -59,7 +59,11 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         string? description;
 
         var titleNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:title']");
-        var title = titleNode?.Attributes["Content"]?.Value;
+        var ogTitle = titleNode?.Attributes["Content"]?.Value;
+        var seriesNode = document.DocumentNode.SelectSingleNode(@"/html/head/meta[@property='og:video:series']");
+        var ogSeries = seriesNode?.Attributes["Content"]?.Value;
+        string? reduxBrand = null;
+        string? reduxSubtitle = null;
 
         var tvAppClientConfigScriptNode =
             document.DocumentNode.SelectSingleNode("//script[@id='tvip-script-app-store']");
@@ -74,6 +78,9 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
                 ?? throw new InvalidOperationException("Unable to deserialize BBC iPlayer redux state.");
 
             description = metaData.Episode.Synopses.Description;
+            // Live iPlayer: episode.title is the programme/brand; episode.subtitle is the episode label.
+            reduxBrand = metaData.Episode.Title;
+            reduxSubtitle = metaData.Episode.Subtitle;
         }
         else
         {
@@ -85,71 +92,131 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         TimeSpan? duration = null;
         DateTime? release = null;
         var metaDataValues = document.DocumentNode.SelectNodes("//span[@class='episode-metadata__text']");
-        foreach (var node in metaDataValues)
+        if (metaDataValues != null)
         {
-            if (DurationRegex.IsMatch(node.InnerText))
+            foreach (var node in metaDataValues)
             {
-                var match = DurationRegex.Match(node.InnerText);
-                var mins = match.Groups["mins"].Value;
-                if (mins==string.Empty) mins="0";
-                if (!string.IsNullOrWhiteSpace(mins) && int.TryParse(mins, out var _duration))
+                if (DurationRegex.IsMatch(node.InnerText))
                 {
-                    var hours = match.Groups["hours"]?.Value;
-                    if (!string.IsNullOrWhiteSpace(hours) && int.TryParse(hours, out var _hours))
+                    var match = DurationRegex.Match(node.InnerText);
+                    var mins = match.Groups["mins"].Value;
+                    if (mins == string.Empty) mins = "0";
+                    if (!string.IsNullOrWhiteSpace(mins) && int.TryParse(mins, out var _duration))
                     {
-                        _duration += _hours * 60;
-                    }
-                    duration = TimeSpan.FromMinutes(_duration);
-                }
-            }
-            else if (ReleaseRegex.IsMatch(node.InnerText))
-            {
-                var matches = ReleaseRegex.Match(node.InnerText);
-                var hour = matches.Groups["hour"]?.Value;
-                var min = matches.Groups["min"]?.Value;
-                var pm = matches.Groups["pm"]?.Value;
-                var date = matches.Groups["date"]?.Value;
-                if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, Uk, out var _dateTime))
-                {
-                    release = _dateTime;
-                    if (!string.IsNullOrWhiteSpace(hour) && int.TryParse(hour, out var _hour))
-                    {
-                        release += TimeSpan.FromHours(_hour);
-                        if (pm == "pm")
+                        var hours = match.Groups["hours"]?.Value;
+                        if (!string.IsNullOrWhiteSpace(hours) && int.TryParse(hours, out var _hours))
                         {
-                            release += TimeSpan.FromHours(12);
+                            _duration += _hours * 60;
                         }
 
-                        if (!string.IsNullOrWhiteSpace(min) && int.TryParse(min, out var _min))
+                        duration = TimeSpan.FromMinutes(_duration);
+                    }
+                }
+                else if (ReleaseRegex.IsMatch(node.InnerText))
+                {
+                    var matches = ReleaseRegex.Match(node.InnerText);
+                    var hour = matches.Groups["hour"]?.Value;
+                    var min = matches.Groups["min"]?.Value;
+                    var pm = matches.Groups["pm"]?.Value;
+                    var date = matches.Groups["date"]?.Value;
+                    if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, Uk, out var _dateTime))
+                    {
+                        release = _dateTime;
+                        if (!string.IsNullOrWhiteSpace(hour) && int.TryParse(hour, out var _hour))
                         {
-                            release += TimeSpan.FromMinutes(_min);
+                            release += TimeSpan.FromHours(_hour);
+                            if (pm == "pm")
+                            {
+                                release += TimeSpan.FromHours(12);
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(min) && int.TryParse(min, out var _min))
+                            {
+                                release += TimeSpan.FromMinutes(_min);
+                            }
                         }
                     }
                 }
             }
         }
 
-
         var imageContainer =
             document.DocumentNode.SelectNodes("//div[contains(@class, 'hero-image__picture')]/picture/source");
-        var maxImage = imageContainer
-            .Select(x => x.Attributes["srcset"].Value.Split(" "))
-            .Select(x => new
-                { Width = int.Parse(NumericPrefix.Match(x[1]).Groups["numericprefix"].Value), Url = new Uri(x[0]) })
-            .OrderByDescending(x => x.Width)
-            .FirstOrDefault();
-        var maxImageUrl = maxImage?.Url;
+        Uri? maxImageUrl = null;
+        if (imageContainer != null)
+        {
+            var maxImage = imageContainer
+                .Where(x => !string.IsNullOrWhiteSpace(x.Attributes["srcset"]?.Value))
+                .Select(x => x.Attributes["srcset"].Value.Split(" ", StringSplitOptions.RemoveEmptyEntries))
+                .Where(x => x.Length >= 2 && NumericPrefix.IsMatch(x[1]))
+                .Select(x => new
+                {
+                    Width = int.Parse(NumericPrefix.Match(x[1]).Groups["numericprefix"].Value),
+                    Url = new Uri(x[0])
+                })
+                .OrderByDescending(x => x.Width)
+                .FirstOrDefault();
+            maxImageUrl = maxImage?.Url;
+        }
 
         var @explicit = false;
         var guidanceContainer =
             document.DocumentNode.SelectSingleNode("//div[contains(@class, 'guidance-banner')]");
         if (guidanceContainer != null)
         {
-            var guidanceItems = guidanceContainer.SelectNodes("//div[@class='banner__message__inner']/span");
-            @explicit = guidanceItems.Any();
+            var guidanceItems = guidanceContainer.SelectNodes(".//div[@class='banner__message__inner']/span");
+            @explicit = guidanceItems?.Any() == true;
         }
 
-        return new TextMetaData(title, description, release, duration, maxImageUrl, @explicit);
+        var title = ResolveEpisodeTitle(ogTitle, reduxBrand, reduxSubtitle) ?? string.Empty;
+        var series = BbcSeriesName.FromProgrammeBrand(reduxBrand, title)
+                     ?? BbcSeriesName.FromDistinctCandidates(title, ogSeries)
+                     ?? BrandFromOgTitle(ogTitle, title);
+        return new TextMetaData(
+            string.IsNullOrWhiteSpace(title) ? ogTitle : title,
+            description,
+            release,
+            duration,
+            maxImageUrl,
+            @explicit,
+            series);
+    }
+
+    private static string? ResolveEpisodeTitle(string? ogTitle, string? reduxBrand, string? reduxSubtitle)
+    {
+        if (!string.IsNullOrWhiteSpace(reduxSubtitle))
+        {
+            return reduxSubtitle.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(ogTitle) &&
+            !string.IsNullOrWhiteSpace(reduxBrand) &&
+            ogTitle.StartsWith(reduxBrand, StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = ogTitle[reduxBrand.Length..].TrimStart(' ', '-', ':');
+            if (!string.IsNullOrWhiteSpace(remainder))
+            {
+                return remainder;
+            }
+        }
+
+        return ogTitle;
+    }
+
+    private static string? BrandFromOgTitle(string? ogTitle, string? episodeTitle)
+    {
+        if (string.IsNullOrWhiteSpace(ogTitle))
+        {
+            return null;
+        }
+
+        var separator = ogTitle.IndexOf(" - ", StringComparison.Ordinal);
+        if (separator <= 0)
+        {
+            return null;
+        }
+
+        return BbcSeriesName.FromProgrammeBrand(ogTitle[..separator], episodeTitle ?? string.Empty);
     }
 
     [GeneratedRegex(@"^(?<hourstext>(?<hours>\d+)h ?)?((?<mins>\d+)( mins|m))?$")]
@@ -168,5 +235,6 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         DateTime? Release,
         TimeSpan? Duration,
         Uri? Image,
-        bool Explicit);
+        bool Explicit,
+        string? Series);
 }

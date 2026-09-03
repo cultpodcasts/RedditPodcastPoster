@@ -120,7 +120,9 @@ public static class ApiAreaServiceCollectionExtensions
     public static IServiceCollection AddApiSubmitUrl(this IServiceCollection services) =>
         services
             .AddScoped<IPostSubmitUrlHandler, PostSubmitUrlHandler>()
-            .AddScoped<ISubmitUrlService, SubmitUrlService>();
+            .AddScoped<IGetSubmitUrlLookupHandler, GetSubmitUrlLookupHandler>()
+            .AddScoped<ISubmitUrlService, SubmitUrlService>()
+            .AddScoped<ISubmitUrlLookupService, SubmitUrlLookupService>();
 
     public static IServiceCollection AddApiDiscovery(this IServiceCollection services) =>
         services

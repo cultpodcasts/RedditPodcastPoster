@@ -12,28 +12,24 @@ namespace RedditPodcastPoster.UrlSubmission.Tests;
 
 public class EpisodeHelperTests
 {
-    private readonly Fixture _fixture;
-    private readonly AutoMocker _mocker;
-
-    public EpisodeHelperTests()
-    {
-        _fixture = new Fixture();
-        _mocker = new AutoMocker();
-    }
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
 
     private IEpisodeHelper Sut => _mocker.CreateInstance<EpisodeHelper>();
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the stored episode title contains the resolved Spotify title and Spotify is already assigned, " +
+        "the episode is not treated as a title match.")]
     public void IsMatchingEpisode_WhenContainsResolvedEpisodeNameAndAlreadySpotifyAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
-            .With(x => x.SpotifyId, "spotifyid")
-            .With(x => x.Urls, new ServiceUrls
+            .With(x => x.Ids, new EpisodeIds { Spotify = "spotifyid" })
+            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
             {
-                Spotify = new Uri("http://existing-url")
+                [ServiceKeys.Spotify] = new() { Url = new Uri("http://existing-url") }
             })
             .Create();
         var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
@@ -45,24 +41,23 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the stored episode title contains the resolved Spotify title and Spotify is not assigned, " +
+        "the episode matches so the missing Spotify identity can be applied.")]
     public void IsMatchingEpisode_WhenContainsResolvedEpisodeNameAndNotAlreadySpotifyAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
-            .With(x => x.SpotifyId, "")
-            .With(x => x.Urls, new ServiceUrls
-            {
-                Spotify = null
-            })
+            .Without(x => x.Ids)
+            .Without(x => x.Services)
             .Create();
         var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, substring)
@@ -73,24 +68,26 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeTrue();
     }
 
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the resolved Spotify title contains the stored episode title and Spotify is already assigned, " +
+        "the episode is not treated as a title match.")]
     public void IsMatchingEpisode_WhenContainsEpisodeNameAndAlreadySpotifyAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
-            .With(x => x.SpotifyId, "spotifyid")
-            .With(x => x.Urls, new ServiceUrls
+            .With(x => x.Ids, new EpisodeIds { Spotify = "spotifyid" })
+            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
             {
-                Spotify = new Uri("http://existing-url")
+                [ServiceKeys.Spotify] = new() { Url = new Uri("http://existing-url") }
             })
             .Create();
         var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
@@ -102,24 +99,23 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the resolved Spotify title contains the stored episode title and Spotify is not assigned, " +
+        "the episode matches so the missing Spotify identity can be applied.")]
     public void IsMatchingEpisode_WhenContainsEpisodeNameAndNotAlreadySpotifyAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
-            .With(x => x.SpotifyId, "")
-            .With(x => x.Urls, new ServiceUrls
-            {
-                Spotify = null
-            })
+            .Without(x => x.Ids)
+            .Without(x => x.Services)
             .Create();
         var spotifyItem = _fixture.Build<CategorisedSpotifyItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
@@ -130,23 +126,25 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedYouTubeItem, (CategorisedYouTubeItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the stored episode title contains the resolved YouTube title and YouTube is already assigned, " +
+        "the episode is not treated as a title match.")]
     public void IsMatchingEpisode_WhenContainsResolvedEpisodeNameAndAlreadyYouTubeAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
-            .With(x => x.YouTubeId, "youtubeid")
-            .With(x => x.Urls, new ServiceUrls
+            .With(x => x.Ids, new EpisodeIds { YouTube = "youtubeid" })
+            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
             {
-                YouTube = new Uri("http://existing-url")
+                [ServiceKeys.YouTube] = new() { Url = new Uri("http://existing-url") }
             })
             .Create();
         var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
@@ -158,24 +156,23 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the stored episode title contains the resolved YouTube title and YouTube is not assigned, " +
+        "the episode matches so the missing YouTube identity can be applied.")]
     public void IsMatchingEpisode_WhenContainsResolvedEpisodeNameAndNotAlreadyYouTubeAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
-            .With(x => x.YouTubeId, "")
-            .With(x => x.Urls, new ServiceUrls
-            {
-                YouTube = null
-            })
+            .Without(x => x.Ids)
+            .Without(x => x.Services)
             .Create();
         var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, substring)
@@ -186,24 +183,26 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeTrue();
     }
 
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the resolved YouTube title contains the stored episode title and YouTube is already assigned, " +
+        "the episode is not treated as a title match.")]
     public void IsMatchingEpisode_WhenContainsEpisodeNameAndAlreadyYouTubeAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
-            .With(x => x.YouTubeId, "youtubeid")
-            .With(x => x.Urls, new ServiceUrls
+            .With(x => x.Ids, new EpisodeIds { YouTube = "youtubeid" })
+            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
             {
-                YouTube = new Uri("http://existing-url")
+                [ServiceKeys.YouTube] = new() { Url = new Uri("http://existing-url") }
             })
             .Create();
         var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
@@ -215,24 +214,23 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "When the resolved YouTube title contains the stored episode title and YouTube is not assigned, " +
+        "the episode matches so the missing YouTube identity can be applied.")]
     public void IsMatchingEpisode_WhenContainsEpisodeNameAndNotAlreadyYouTubeAssigned_IsCorrect()
     {
-        // arrange
+        // Arrange
         var substring = "component";
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
-            .With(x => x.YouTubeId, "")
-            .With(x => x.Urls, new ServiceUrls
-            {
-                YouTube = null
-            })
+            .Without(x => x.Ids)
+            .Without(x => x.Services)
             .Create();
         var youTubeItem = _fixture.Build<CategorisedYouTubeItem>()
             .With(x => x.EpisodeTitle, "prefix " + substring + " suffix")
@@ -243,9 +241,9 @@ public class EpisodeHelperTests
             .With(x => x.ResolvedAppleItem, (CategorisedAppleItem?)null)
             .With(x => x.ResolvedSpotifyItem, (CategorisedSpotifyItem?)null)
             .Create();
-        // act
+        // Act
         var result = Sut.IsMatchingEpisode(episode, categorisedItem);
-        // assert
+        // Assert
         result.Should().BeTrue();
     }
 }

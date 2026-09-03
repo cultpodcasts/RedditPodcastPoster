@@ -28,14 +28,17 @@ public class EpisodeCreationLoggerRules
             Id = episodeId,
             PodcastId = podcastId,
             Title = title,
-            SpotifyId = spotifyId,
-            YouTubeId = youTubeId,
-            AppleId = appleId,
-            Urls = new ServiceUrls
+            Ids = new EpisodeIds
             {
-                Spotify = spotifyUrl,
-                YouTube = youTubeUrl,
-                Apple = appleUrl
+                Spotify = spotifyId,
+                YouTube = youTubeId,
+                Apple = appleId
+            },
+            Services = new Dictionary<string, EpisodeServiceLink>
+            {
+                [ServiceKeys.Spotify] = new() { Url = spotifyUrl },
+                [ServiceKeys.YouTube] = new() { Url = youTubeUrl },
+                [ServiceKeys.Apple] = new() { Url = appleUrl }
             }
         };
 
@@ -69,9 +72,9 @@ public class EpisodeCreationLoggerRules
     public void resolve_creating_service_sole_identity()
     {
         // Arrange
-        var spotifyOnly = new Episode { SpotifyId = _fixture.Create<string>() };
-        var youTubeOnly = new Episode { YouTubeId = _fixture.Create<string>() };
-        var appleOnly = new Episode { AppleId = _fixture.Create<long>() };
+        var spotifyOnly = new Episode { Ids = new EpisodeIds { Spotify = _fixture.Create<string>() } };
+        var youTubeOnly = new Episode { Ids = new EpisodeIds { YouTube = _fixture.Create<string>() } };
+        var appleOnly = new Episode { Ids = new EpisodeIds { Apple = _fixture.Create<long>() } };
 
         // Act & Assert
         EpisodeCreationLogger.ResolveCreatingService(spotifyOnly, Service.YouTube)
@@ -88,8 +91,11 @@ public class EpisodeCreationLoggerRules
         // Arrange
         var episode = new Episode
         {
-            SpotifyId = _fixture.Create<string>(),
-            YouTubeId = _fixture.Create<string>()
+            Ids = new EpisodeIds
+            {
+                Spotify = _fixture.Create<string>(),
+                YouTube = _fixture.Create<string>()
+            }
         };
 
         // Act & Assert
@@ -112,8 +118,11 @@ public class EpisodeCreationLoggerRules
         {
             Id = _fixture.Create<Guid>(),
             Title = _fixture.Create<string>(),
-            SpotifyId = spotifyId,
-            Urls = new ServiceUrls { Spotify = spotifyUrl }
+            Ids = new EpisodeIds { Spotify = spotifyId },
+            Services = new Dictionary<string, EpisodeServiceLink>
+            {
+                [ServiceKeys.Spotify] = new() { Url = spotifyUrl }
+            }
         };
 
         var caller = _fixture.Create<string>();

@@ -75,16 +75,17 @@ public readonly record struct SearchEpisodeImage(string Image)
         ("default.jpg", 'd')
     ];
 
-    public static SearchEpisodeImage From(EpisodeImages? images, string? youTubeId)
+    public static SearchEpisodeImage From(Episode episode)
     {
-        var image = images?.YouTube ?? images?.Spotify ?? images?.Apple ?? images?.Other;
+        ArgumentNullException.ThrowIfNull(episode);
+        var image = EpisodeServicePresence.CoalescedImage(episode);
         if (image is null)
         {
             return new SearchEpisodeImage(string.Empty);
         }
 
         var url = image.ToString();
-        return new SearchEpisodeImage(Compact(url, youTubeId) ?? url);
+        return new SearchEpisodeImage(Compact(url, EpisodeServicePresence.YouTubeEpisodeId(episode)) ?? url);
     }
 
     /// <summary>

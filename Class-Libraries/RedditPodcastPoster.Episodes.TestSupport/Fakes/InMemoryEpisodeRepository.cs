@@ -162,6 +162,21 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Mutate the stored row in place without recording a <see cref="Save"/> (surgical patch).
+    /// </summary>
+    public bool TryMutate(Guid podcastId, Guid episodeId, Action<Episode> mutate)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+        if (!_episodes.TryGetValue(episodeId, out var episode) || episode.PodcastId != podcastId)
+        {
+            return false;
+        }
+
+        mutate(episode);
+        return true;
+    }
+
     public Episode GetStored(Guid episodeId) =>
         Clone(_episodes[episodeId]);
 
@@ -181,26 +196,6 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             BlueskyPost = episode.BlueskyPost,
             Ignored = episode.Ignored,
             Removed = episode.Removed,
-            SpotifyId = episode.SpotifyId,
-            AppleId = episode.AppleId,
-            YouTubeId = episode.YouTubeId,
-            Urls = new ServiceUrls
-            {
-                Spotify = episode.Urls.Spotify,
-                Apple = episode.Urls.Apple,
-                YouTube = episode.Urls.YouTube,
-                BBC = episode.Urls.BBC,
-                InternetArchive = episode.Urls.InternetArchive
-            },
-            Images = episode.Images is null
-                ? null
-                : new EpisodeImages
-                {
-                    Spotify = episode.Images.Spotify,
-                    Apple = episode.Images.Apple,
-                    YouTube = episode.Images.YouTube,
-                    Other = episode.Images.Other
-                },
             Subjects = [.. episode.Subjects],
             SearchTerms = episode.SearchTerms,
             PodcastName = episode.PodcastName,
@@ -210,6 +205,20 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             PodcastMetadataVersion = episode.PodcastMetadataVersion,
             PodcastRemoved = episode.PodcastRemoved,
             Guests = episode.Guests?.ToArray(),
-            Timestamp = episode.Timestamp
+            Timestamp = episode.Timestamp,
+            Services = episode.Services is { Count: > 0 }
+                ? episode.Services.ToDictionary(
+                    x => x.Key,
+                    x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+                    StringComparer.Ordinal)
+                : null,
+            Ids = episode.Ids is null
+                ? null
+                : new EpisodeIds
+                {
+                    Spotify = episode.Ids.Spotify,
+                    Apple = episode.Ids.Apple,
+                    YouTube = episode.Ids.YouTube
+                }
         };
 }

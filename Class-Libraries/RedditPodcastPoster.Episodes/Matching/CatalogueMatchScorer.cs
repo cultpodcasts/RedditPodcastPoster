@@ -206,7 +206,8 @@ public static class CatalogueMatchScorer
     /// 00:05, YouTube at 18:15 the same day). Both are compared on calendar days rather than elapsed hours.
     /// </summary>
     private static bool IsAudioCatalogueItem(Episode catalogueItem) =>
-        !string.IsNullOrWhiteSpace(catalogueItem.SpotifyId) || catalogueItem.AppleId is > 0;
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(catalogueItem)) ||
+        EpisodeServicePresence.AppleEpisodeId(catalogueItem) is > 0;
 
     private static int ScoreRelease(DateTime probeRelease, Episode catalogueItem)
     {

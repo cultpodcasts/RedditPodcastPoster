@@ -202,10 +202,11 @@ public class PodcastEpisodeFilter(
     {
         if (podcast.ReleaseAuthority == Service.YouTube)
         {
-            return episode.Urls.YouTube != null;
+            return EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
         }
 
-        return episode.Urls.YouTube != null || episode.Urls.Spotify != null;
+        return EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube) ||
+               EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify);
     }
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
@@ -223,12 +224,14 @@ public class PodcastEpisodeFilter(
 
         if (episode.Release >= since)
         {
-            if ((!string.IsNullOrWhiteSpace(podcast.SpotifyId) && episode.Urls.Spotify != null) ||
+            if ((!string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+                 EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify)) ||
                 (string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-                 podcast.AppleId != null && episode.Urls.Apple != null) || (podcast.AppleId == null &&
+                 podcast.AppleId != null && EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple)) ||
+                (podcast.AppleId == null &&
                                                                             !string.IsNullOrWhiteSpace(
                                                                                 podcast.YouTubeChannelId) &&
-                                                                            episode.Urls.YouTube != null) ||
+                                                                            EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube)) ||
                 string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
             {
                 return true;
@@ -247,7 +250,7 @@ public class PodcastEpisodeFilter(
     {
         if (!youTubeRefreshed &&
             !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
-            string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
+            string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)))
         {
             if (podcastEpisode.Episode.Release.TimeOfDay > TimeSpan.Zero &&
                 podcastEpisode.Podcast.YouTubePublishingDelay() >= TimeSpan.Zero &&
@@ -263,7 +266,7 @@ public class PodcastEpisodeFilter(
 
         if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
             IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) &&
-            string.IsNullOrWhiteSpace(podcastEpisode.Episode.YouTubeId))
+            string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)))
         {
             logger.LogInformation(
                 "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to Recently-Expired Delayed Publishing.",

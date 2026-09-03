@@ -17,6 +17,9 @@ using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.Netflix.Extensions;
+using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -77,7 +80,10 @@ public static class Ioc
             .AddPostingCriteria()
             .AddDelayedYouTubePublication()
             .AddBBCServices()
-            .AddInternetArchiveServices();
+            .AddInternetArchiveServices()
+            .AddVimeoServices()
+            .AddNetflixServices()
+            .AddAmazonPrimeServices();
 
         serviceCollection.AddOptions<PosterOptions>().ValidateOnStart();
     }

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Api.Models;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
@@ -18,15 +19,17 @@ namespace FunctionHost.Tests.Api;
 /// </summary>
 public class EpisodeChangeApplierTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     private static EpisodeChangeApplier CreateSut() =>
         new(NullLogger<EpisodeChangeApplier>.Instance);
 
-    private static Episode CreateEpisode(Action<Episode>? customize = null)
+    private Episode CreateEpisode(Action<Episode>? customize = null)
     {
         var episode = new Episode
         {
-            Id = Guid.NewGuid(),
-            PodcastId = Guid.NewGuid(),
+            Id = _fixture.CreateGuid(),
+            PodcastId = _fixture.CreateGuid(),
             Title = "Original title",
             Description = "Original description",
             Release = DateTime.UtcNow.AddDays(-30),
@@ -412,6 +415,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
         episode.Urls.Spotify!.ToString().Should().NotContain("si=");
         state.UpdateSpotifyImage.Should().BeTrue();
     }
@@ -598,6 +602,79 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.Urls.InternetArchive.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply stores a Vimeo URL adjacent to its image under services.vimeo. Extra service art is not written to leftover Images.Other.")]
+    public void Apply_sets_vimeo_service_url_and_image_adjacent()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var videoId = _fixture.CreateAppleId();
+        var vimeoUrl = new Uri($"https://vimeo.com/{videoId}");
+        var vimeoImage = _fixture.Create<Uri>();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, EpisodeServiceLink>
+            {
+                [ServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoImage }
+            }
+        });
+
+        // Assert
+        episode.Services.Should().ContainKey(ServiceKeys.Vimeo);
+        episode.Services![ServiceKeys.Vimeo].Url.Should().Be(vimeoUrl);
+        episode.Services[ServiceKeys.Vimeo].Image.Should().Be(vimeoImage);
+        episode.Images?.Other.Should().BeNull();
+        EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply ignores leftover Images.Other on the change request, so extra-service art is not written to images.other.")]
+    public void Apply_does_not_write_leftover_images_other()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var leftover = _fixture.Create<Uri>();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Images = new ServiceImageUrls { Other = leftover }
+        });
+
+        // Assert
+        episode.Images?.Other.Should().BeNull();
+        EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply extracts SpotifyId into nested ids when a Spotify URL is supplied under services, so presence of that service is the id rather than a named URL slot.")]
+    public void Apply_extracts_spotify_id_from_services_url()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+        var spotifyUrl = new Uri("https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk");
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, EpisodeServiceLink>
+            {
+                ["spotify"] = new() { Url = spotifyUrl }
+            }
+        });
+
+        // Assert
+        episode.SpotifyId.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Ids!.Spotify.Should().Be("4rOoJ6Egrf8K2IrywzwOMk");
+        episode.Services.Should().ContainKey("spotify");
+        state.UpdateSpotifyImage.Should().BeTrue();
     }
 
     // ----- Images -----

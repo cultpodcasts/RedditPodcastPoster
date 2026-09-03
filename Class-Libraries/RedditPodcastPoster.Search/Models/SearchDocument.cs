@@ -41,17 +41,22 @@ public class SearchDocument
     public Episode ToEpisodeModel()
     {
         var length = !string.IsNullOrWhiteSpace(Duration) ? TimeSpan.Parse(Duration) : TimeSpan.Zero;
-        return new Episode
+        var episode = new Episode
         {
             Id = Id,
             Title = EpisodeTitle,
             Description = EpisodeDescription,
             Subjects = Subjects.ToList(),
             Length = length,
-            Release = Release ?? DateTime.MinValue,
-            SpotifyId = SpotifyId ?? string.Empty,
-            YouTubeId = YoutubeId ?? string.Empty,
-            AppleId = long.TryParse(AppleId, out var appleId) ? appleId : null
+            Release = Release ?? DateTime.MinValue
         };
+        EpisodeServicePresence.SetSpotifyIdentity(episode, SpotifyId);
+        EpisodeServicePresence.SetYouTubeIdentity(episode, YoutubeId);
+        if (long.TryParse(AppleId, out var appleId))
+        {
+            EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+        }
+
+        return episode;
     }
 }

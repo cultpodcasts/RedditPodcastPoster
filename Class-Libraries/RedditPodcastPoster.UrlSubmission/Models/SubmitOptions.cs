@@ -8,4 +8,5 @@ public record SubmitOptions(
     bool MatchOtherServices,
     bool PersistToDatabase = true,
     bool CreatePodcast = false,
+    string? PodcastName = null,
     EpisodeCreationSource CreationSource = EpisodeCreationSource.SubmitUrl);

@@ -34,7 +34,7 @@ public class PlatformEnrichmentApplicatorRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -91,7 +91,7 @@ public class PlatformEnrichmentApplicatorRules
             .Customize(e =>
             {
                 e.Description = string.Empty;
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -238,7 +238,7 @@ public class PlatformEnrichmentApplicatorRules
             .WithDescription(truncatedDescription)
             .Customize(e =>
             {
-                e.SpotifyId = string.Empty;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -287,7 +287,7 @@ public class PlatformEnrichmentApplicatorRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -317,7 +317,7 @@ public class PlatformEnrichmentApplicatorRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -397,7 +397,7 @@ public class PlatformEnrichmentApplicatorRules
                 e.Title = storedTitle;
                 e.Length = storedLength;
                 e.Release = midnightRelease;
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();

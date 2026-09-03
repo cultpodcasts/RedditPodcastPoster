@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
@@ -20,6 +21,7 @@ public class IndexingEnrichmentRules
 {
     private static readonly TimeSpan PublishingDelay = TimeSpan.FromDays(1);
 
+    private readonly AutoMocker _mocker = new();
     private readonly DomainTestFixture _fixture = new();
 
     public static TheoryData<string> DelayedPublishingAudioPlatforms =>
@@ -30,9 +32,9 @@ public class IndexingEnrichmentRules
     public async Task spotify_enricher_is_invoked_when_spotify_link_is_missing()
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         spotifyEnricher
             .Setup(x => x.Enrich(
@@ -54,8 +56,8 @@ public class IndexingEnrichmentRules
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -80,9 +82,9 @@ public class IndexingEnrichmentRules
     public async Task apple_enricher_is_invoked_when_apple_link_is_missing()
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         appleEnricher
             .Setup(x => x.Enrich(
@@ -106,8 +108,8 @@ public class IndexingEnrichmentRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.AppleId = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -132,9 +134,9 @@ public class IndexingEnrichmentRules
     public async Task youtube_enricher_is_invoked_when_youtube_link_is_missing_and_channel_present()
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         youTubeEnricher
             .Setup(x => x.Enrich(
@@ -158,8 +160,8 @@ public class IndexingEnrichmentRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.YouTubeId = string.Empty;
-        episode.Urls.YouTube = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -184,9 +186,9 @@ public class IndexingEnrichmentRules
     public async Task youtube_enricher_is_skipped_when_skip_enriching_from_youtube_is_true()
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
             spotifyEnricher,
@@ -200,8 +202,8 @@ public class IndexingEnrichmentRules
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.YouTubeId = string.Empty;
-        episode.Urls.YouTube = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -227,9 +229,9 @@ public class IndexingEnrichmentRules
         string audioPlatform)
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
         var enrichedEpisodeIds = new List<Guid>();
 
         youTubeEnricher
@@ -287,9 +289,9 @@ public class IndexingEnrichmentRules
         string audioPlatform)
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         youTubeEnricher
             .Setup(x => x.Enrich(
@@ -340,9 +342,9 @@ public class IndexingEnrichmentRules
         string audioPlatform)
     {
         // Arrange
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
 
         var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
             spotifyEnricher,
@@ -383,8 +385,8 @@ public class IndexingEnrichmentRules
     {
         // Arrange
         var spotifyEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateSpotifyEnricherMockApplyingPatch(_fixture);
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
         var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
             spotifyEnricher,
             appleEnricher,
@@ -393,8 +395,8 @@ public class IndexingEnrichmentRules
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = string.Empty;
-        episode.Urls.Spotify = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -417,9 +419,9 @@ public class IndexingEnrichmentRules
         // Arrange
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
         var appleInput = _fixture.CreateAppleCatalogueInput();
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
         var applicator = EpisodeDomainTestServices.CreateEnrichmentApplicator();
         var spotifyAdapter = new SpotifyEpisodeAdapter();
         var appleAdapter = new AppleEpisodeAdapter();
@@ -455,10 +457,10 @@ public class IndexingEnrichmentRules
         podcast.AppleId = _fixture.CreateAppleId();
         var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.SpotifyId = string.Empty;
-        episode.AppleId = null;
-        episode.Urls.Spotify = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
         var expected = EpisodeExpectation.From(episode)
             .WithSpotify(spotifyInput.SpotifyId, spotifyInput.SpotifyUrl, spotifyInput.Image)
             .WithApple(appleInput.AppleId, appleInput.AppleUrl, appleInput.Image);
@@ -482,8 +484,8 @@ public class IndexingEnrichmentRules
     {
         // Arrange
         var appleEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateAppleEnricherMockApplyingPatch(_fixture);
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var youTubeEnricher = new Mock<IYouTubeEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
         var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
             spotifyEnricher,
             appleEnricher,
@@ -493,8 +495,8 @@ public class IndexingEnrichmentRules
         podcast.AppleId = _fixture.CreateAppleId();
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.AppleId = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -516,8 +518,8 @@ public class IndexingEnrichmentRules
     {
         // Arrange
         var youTubeEnricher = PodcastServicesEpisodeEnricherTestSupport.CreateYouTubeEnricherMockApplyingPatch(_fixture);
-        var spotifyEnricher = new Mock<ISpotifyEpisodeEnricher>();
-        var appleEnricher = new Mock<IAppleEpisodeEnricher>();
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
         var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
             spotifyEnricher,
             appleEnricher,
@@ -527,8 +529,8 @@ public class IndexingEnrichmentRules
         podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
         var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
         episode.PodcastId = podcast.Id;
-        episode.YouTubeId = string.Empty;
-        episode.Urls.YouTube = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
 
         // Act
         var results = await enricher.EnrichEpisodes(
@@ -563,9 +565,9 @@ public class IndexingEnrichmentRules
         var episode = _fixture.CreateEpisode(e =>
         {
             e.Length = _fixture.CreateDuration();
-            e.YouTubeId = string.Empty;
-            e.SpotifyId = string.Empty;
-            e.AppleId = null;
+            EpisodeServicePresence.SetYouTubeIdentity(e, null);
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
+            EpisodeServicePresence.SetAppleIdentity(e, null);
             e.Urls = new ServiceUrls();
         });
         episode.PodcastId = podcast.Id;
@@ -601,8 +603,8 @@ public class IndexingEnrichmentRules
             _ => throw new ArgumentOutOfRangeException(nameof(audioPlatform), audioPlatform, null)
         };
 
-        episode.YouTubeId = string.Empty;
-        episode.Urls.YouTube = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
         return episode;
     }
 

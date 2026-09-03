@@ -1,5 +1,6 @@
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 
@@ -9,23 +10,23 @@ public static class PodcastEpisodeExtensions
 {
     public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
     {
-        var image = SearchEpisodeImage.From(podcastEpisode.Episode.Images, podcastEpisode.Episode.YouTubeId);
+        EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
+        var image = SearchEpisodeImage.From(podcastEpisode.Episode);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
         var duration = podcastEpisode.Episode.Length.ToString();
         return new EpisodeSearchRecord
         {
-            AppleId = podcastEpisode.Episode.AppleId?.ToString(),
-            BBC = podcastEpisode.Episode.Urls.BBC != null ? podcastEpisode.Episode.Urls.BBC.ToString() : string.Empty,
+            AppleId = EpisodeServicePresence.AppleEpisodeId(podcastEpisode.Episode)?.ToString(),
+            BBC = BbcSearchField(podcastEpisode.Episode),
             Duration = duration.EndsWith(".0000000", StringComparison.Ordinal) ? duration[..^8] : duration,
             EpisodeDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription),
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
-            InternetArchive = podcastEpisode.Episode.Urls.InternetArchive != null
-                ? podcastEpisode.Episode.Urls.InternetArchive.ToString()
-                : string.Empty,
+            InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.InternetArchive)
+                ?.ToString() ?? string.Empty,
             // Episode.Language only — null means English. Do not fall back to podcast language
             // (that undid curator "English" / "No Language" clears on non-English shows).
             // See docs/episode-language.md.
@@ -34,11 +35,16 @@ public static class PodcastEpisodeExtensions
             PodcastName = podcastEpisode.Podcast.Name.Trim(),
             PodcastSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
             Release = podcastEpisode.Episode.Release,
-            SpotifyId = NullIfWhiteSpace(podcastEpisode.Episode.SpotifyId),
+            Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
+            SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
             Subjects = podcastEpisode.Episode.Subjects.ToArray(),
-            YoutubeId = NullIfWhiteSpace(podcastEpisode.Episode.YouTubeId)
+            YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode))
         };
     }
+
+    private static string BbcSearchField(Episode episode) =>
+        (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
+         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds))?.ToString() ?? string.Empty;
 
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;

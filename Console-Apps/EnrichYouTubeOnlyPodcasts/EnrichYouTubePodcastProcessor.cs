@@ -225,7 +225,8 @@ public class EnrichYouTubePodcastProcessor(
         var episodesToUpdate = new List<Episode>();
         foreach (var podcastEpisode in existingEpisodes)
         {
-            if (string.IsNullOrWhiteSpace(podcastEpisode.YouTubeId) || podcastEpisode.Urls.YouTube == null)
+            if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode)) ||
+                !EpisodeServicePresence.HasUrl(podcastEpisode, ServiceKeys.YouTube))
             {
                 var youTubeItems =
                     playlistQueryResponse.Result.Where(x => Matches(podcastEpisode, x, episodeMatchRegex));
@@ -233,8 +234,14 @@ public class EnrichYouTubePodcastProcessor(
                 var youTubeItem = youTubeItems.FirstOrDefault();
                 if (youTubeItem != null)
                 {
-                    podcastEpisode.YouTubeId = youTubeItem.Snippet.ResourceId.VideoId;
-                    podcastEpisode.Urls.YouTube = youTubeItem.Snippet.ToYouTubeUrl();
+                    EpisodeServicePresence.SetYouTubeIdentity(
+                        podcastEpisode,
+                        youTubeItem.Snippet.ResourceId.VideoId);
+                    EpisodeServicePresence.Upsert(
+                        podcastEpisode,
+                        ServiceKeys.YouTube,
+                        youTubeItem.Snippet.ToYouTubeUrl(),
+                        null);
                     episodesToUpdate.Add(podcastEpisode);
                     if (!updatedEpisodeIds.Contains(podcastEpisode.Id))
                     {
@@ -304,8 +311,8 @@ public class EnrichYouTubePodcastProcessor(
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-            episode.YouTubeId == playlistItem.Snippet.ResourceId.VideoId)
+        if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) &&
+            EpisodeServicePresence.YouTubeEpisodeId(episode) == playlistItem.Snippet.ResourceId.VideoId)
         {
             return true;
         }

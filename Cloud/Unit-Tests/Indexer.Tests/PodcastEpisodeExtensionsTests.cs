@@ -79,8 +79,8 @@ public class PodcastEpisodeExtensionsTests
         // Arrange
         var episode = CreateEpisode();
         episode.SpotifyId = " ";
-        episode.YouTubeId = string.Empty;
-        episode.AppleId = null;
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
         episode.Images = new EpisodeImages
         {
             Spotify = new Uri("https://i.scdn.co/image/opaque")
@@ -103,8 +103,8 @@ public class PodcastEpisodeExtensionsTests
     {
         // Arrange
         var episode = CreateEpisode();
-        // 220 chars of complete words, then a partial token that would be mid-cut at 230.
-        episode.Description = new string('a', 10) + " " + new string('b', 209) + " Alpha Bravo continues";
+        // Filler plus " Alpha" fits inside DescriptionSize; " Bravo" is the first word past the cut.
+        episode.Description = new string('a', 10) + " " + new string('b', 161) + " Alpha Bravo continues";
         episode.Description.Length.Should().BeGreaterThan(Constants.DescriptionSize);
 
         // Act
@@ -157,6 +157,7 @@ public class PodcastEpisodeExtensionsTests
         fields.Should().Contain(field => field.Name == "youtubeId");
         fields.Should().Contain(field => field.Name == "appleId");
         fields.Should().Contain(field => field.Name == "podcastAppleId");
+        fields.Should().Contain(field => field.Name == "svc");
 
         var language = fields.Single(field => field.Name == "lang");
         language.IsFilterable.Should().BeTrue();

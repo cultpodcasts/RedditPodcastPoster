@@ -1,18 +1,22 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Episodes.Extensions;
 
 internal static partial class EpisodeIdentityExtensions
 {
     internal static bool HasYouTubeIdentity(this Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.YouTubeId) || episode.Urls.YouTube != null;
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) ||
+        EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
 
     internal static bool HasSpotifyIdentity(this Episode episode) =>
-        !string.IsNullOrWhiteSpace(episode.SpotifyId) || episode.Urls.Spotify != null;
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) ||
+        EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify);
 
     internal static bool HasAppleIdentity(this Episode episode) =>
-        episode.AppleId is > 0 || episode.Urls.Apple != null;
+        EpisodeServicePresence.AppleEpisodeId(episode) is > 0 ||
+        EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple);
 
     internal static bool HasYouTubeOrAppleIdentity(this Episode episode) =>
         episode.HasYouTubeIdentity() || episode.HasAppleIdentity();
@@ -35,8 +39,12 @@ internal static partial class EpisodeIdentityExtensions
 
     internal static bool SpotifyEpisodesMatch(Episode episode, Episode episodeToMerge)
     {
-        var existingId = ResolveSpotifyEpisodeId(episode.SpotifyId, episode.Urls.Spotify);
-        var incomingId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
+        var existingId = ResolveSpotifyEpisodeId(
+            EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify));
+        var incomingId = ResolveSpotifyEpisodeId(
+            EpisodeServicePresence.SpotifyEpisodeId(episodeToMerge) ?? string.Empty,
+            EpisodeServicePresence.TryGetUrl(episodeToMerge, ServiceKeys.Spotify));
         return !string.IsNullOrWhiteSpace(existingId) &&
                !string.IsNullOrWhiteSpace(incomingId) &&
                existingId == incomingId;
@@ -47,7 +55,9 @@ internal static partial class EpisodeIdentityExtensions
         Episode episodeToMerge,
         IReadOnlyList<Episode> existingEpisodes)
     {
-        var incomingSpotifyId = ResolveSpotifyEpisodeId(episodeToMerge.SpotifyId, episodeToMerge.Urls.Spotify);
+        var incomingSpotifyId = ResolveSpotifyEpisodeId(
+            EpisodeServicePresence.SpotifyEpisodeId(episodeToMerge) ?? string.Empty,
+            EpisodeServicePresence.TryGetUrl(episodeToMerge, ServiceKeys.Spotify));
         if (!string.IsNullOrWhiteSpace(incomingSpotifyId))
         {
             foreach (var existingEpisode in existingEpisodes)
@@ -58,7 +68,9 @@ internal static partial class EpisodeIdentityExtensions
                 }
 
                 var existingSpotifyId =
-                    ResolveSpotifyEpisodeId(existingEpisode.SpotifyId, existingEpisode.Urls.Spotify);
+                    ResolveSpotifyEpisodeId(
+                        EpisodeServicePresence.SpotifyEpisodeId(existingEpisode) ?? string.Empty,
+                        EpisodeServicePresence.TryGetUrl(existingEpisode, ServiceKeys.Spotify));
                 if (existingSpotifyId == incomingSpotifyId)
                 {
                     return true;
@@ -66,7 +78,8 @@ internal static partial class EpisodeIdentityExtensions
             }
         }
 
-        if (episodeToMerge.AppleId is > 0)
+        var incomingAppleId = EpisodeServicePresence.AppleEpisodeId(episodeToMerge);
+        if (incomingAppleId is > 0)
         {
             foreach (var existingEpisode in existingEpisodes)
             {
@@ -75,7 +88,7 @@ internal static partial class EpisodeIdentityExtensions
                     continue;
                 }
 
-                if (existingEpisode.AppleId == episodeToMerge.AppleId)
+                if (EpisodeServicePresence.AppleEpisodeId(existingEpisode) == incomingAppleId)
                 {
                     return true;
                 }

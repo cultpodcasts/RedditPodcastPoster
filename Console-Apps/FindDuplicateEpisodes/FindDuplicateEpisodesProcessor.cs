@@ -44,7 +44,11 @@ public class FindDuplicateEpisodesProcessor(
             return;
         }
 
-        var query = $@"SELECT e.id, e.podcastId, e.title, e.release, e.spotifyId, e.appleId, e.youTubeId, e.podcastName
+        var query = $@"SELECT e.id, e.podcastId, e.title, e.release,
+                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, null) as appleId,
+                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, null) as youTubeId,
+                              e.podcastName
                        FROM episodes e
                        WHERE {ActiveEpisodesFilter}";
         var iterator = container.GetItemQueryIterator<EpisodeDuplicateSample>(new QueryDefinition(query));
@@ -522,34 +526,44 @@ public class FindDuplicateEpisodesProcessor(
     private static bool MergeUrls(Episode target, Episode source)
     {
         var merged = false;
-
-        if (target.Urls.Spotify == null && source.Urls.Spotify != null)
+        foreach (var key in new[]
+                 {
+                     ServiceKeys.Spotify,
+                     ServiceKeys.Apple,
+                     ServiceKeys.YouTube,
+                     ServiceKeys.BbcIplayer,
+                     ServiceKeys.BbcSounds,
+                     ServiceKeys.InternetArchive
+                 })
         {
-            target.Urls.Spotify = source.Urls.Spotify;
+            if (EpisodeServicePresence.TryFillMissing(
+                    target,
+                    key,
+                    EpisodeServicePresence.TryGetUrl(source, key),
+                    EpisodeServicePresence.TryGetImage(source, key)))
+            {
+                merged = true;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(target)) &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(source)))
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(target, EpisodeServicePresence.SpotifyEpisodeId(source));
             merged = true;
         }
 
-        if (target.Urls.Apple == null && source.Urls.Apple != null)
+        if (EpisodeServicePresence.AppleEpisodeId(target) is null &&
+            EpisodeServicePresence.AppleEpisodeId(source) is { } appleId)
         {
-            target.Urls.Apple = source.Urls.Apple;
+            EpisodeServicePresence.SetAppleIdentity(target, appleId);
             merged = true;
         }
 
-        if (target.Urls.YouTube == null && source.Urls.YouTube != null)
+        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(target)) &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(source)))
         {
-            target.Urls.YouTube = source.Urls.YouTube;
-            merged = true;
-        }
-
-        if (target.Urls.BBC == null && source.Urls.BBC != null)
-        {
-            target.Urls.BBC = source.Urls.BBC;
-            merged = true;
-        }
-
-        if (target.Urls.InternetArchive == null && source.Urls.InternetArchive != null)
-        {
-            target.Urls.InternetArchive = source.Urls.InternetArchive;
+            EpisodeServicePresence.SetYouTubeIdentity(target, EpisodeServicePresence.YouTubeEpisodeId(source));
             merged = true;
         }
 
@@ -626,9 +640,14 @@ public class FindDuplicateEpisodesProcessor(
         return null;
     }
 
-    private static bool HasYouTubeId(Episode e) => !string.IsNullOrWhiteSpace(e.YouTubeId);
-    private static bool HasSpotifyId(Episode e) => !string.IsNullOrWhiteSpace(e.SpotifyId);
-    private static bool HasAppleId(Episode e) => e.AppleId.HasValue;
+    private static bool HasYouTubeId(Episode e) =>
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(e));
+
+    private static bool HasSpotifyId(Episode e) =>
+        !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(e));
+
+    private static bool HasAppleId(Episode e) =>
+        EpisodeServicePresence.AppleEpisodeId(e) is > 0;
 
     private async Task<Dictionary<string, string>?> FetchEpisodeAsDocument(Container container, string id)
     {

@@ -91,8 +91,8 @@ public class CrossPlatformMatchingRules
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.YouTubePublicationOffset = TimeSpan.FromHours(-8.5).Ticks;
-        var youTubeRelease = new DateTime(2026, 7, 13, 4, 0, 5, DateTimeKind.Utc);
-        var audioRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-20, new TimeSpan(4, 0, 5));
+        var audioRelease = DomainTestFixture.UtcAtTime(-20, new TimeSpan(8, 30, 0));
         var youTubeLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(37);
         var spotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
         var appleId = _fixture.CreateAppleId();
@@ -139,8 +139,8 @@ public class CrossPlatformMatchingRules
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.YouTubePublicationOffset = TimeSpan.FromHours(-8.5).Ticks;
-        var lastWeekYouTubeRelease = new DateTime(2026, 7, 10, 19, 0, 46, DateTimeKind.Utc);
-        var thisWeekSpotifyRelease = new DateTime(2026, 7, 13, 8, 30, 0, DateTimeKind.Utc);
+        var lastWeekYouTubeRelease = DomainTestFixture.UtcAtTime(-10, new TimeSpan(19, 0, 46));
+        var thisWeekSpotifyRelease = DomainTestFixture.UtcAtTime(-7, new TimeSpan(8, 30, 0));
         var lastWeekLength = TimeSpan.FromMinutes(59) + TimeSpan.FromSeconds(40);
         var thisWeekSpotifyLength = TimeSpan.FromMinutes(62) + TimeSpan.FromSeconds(39);
         var youTubeId = _fixture.CreateYouTubeId();
@@ -486,7 +486,7 @@ public class CrossPlatformMatchingRules
             e.Title = storedTitle;
             e.Release = release;
             e.Length = length;
-            e.SpotifyId = string.Empty;
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Urls = new ServiceUrls();
         });
         var spotifyInput = _fixture.CreateSpotifyCatalogueInput(b => b
@@ -616,8 +616,8 @@ public class CrossPlatformMatchingRules
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.YouTubePublicationOffset = TimeSpan.FromDays(-31).Add(TimeSpan.FromHours(-12)).Ticks;
-        var youTubeRelease = new DateTime(2026, 7, 1, 15, 21, 27, DateTimeKind.Utc);
-        var audioRelease = new DateTime(2026, 7, 14, 13, 0, 0, DateTimeKind.Utc);
+        var youTubeRelease = DomainTestFixture.UtcAtTime(-20, new TimeSpan(15, 21, 27));
+        var audioRelease = DomainTestFixture.UtcAtTime(-7, new TimeSpan(13, 0, 0));
         var length = TimeSpan.FromMinutes(80);
         var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,

@@ -41,35 +41,48 @@ public partial class CreateSearchIndexProcessor(
     {
         if (request.TearDownIndex)
         {
+            if (request.UpdateExisting)
+            {
+                throw new InvalidOperationException(
+                    "Refusing --update-existing together with --teardown-index (that recreates the index).");
+            }
+
             await TearDown(request);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.IndexName))
+        if (request.UpdateExisting)
         {
-            var existingIndex = await TryGetIndex(request.IndexName);
-            if (existingIndex == null)
-            {
-                var result = await CreateIndex(request);
-            }
+            await UpdateExistingIndexAndDataSource(request);
         }
-
-        if (!string.IsNullOrWhiteSpace(request.DataSourceName))
+        else
         {
-            var existingDataSource = await TryGetDataSource(request.DataSourceName);
-            if (existingDataSource == null)
+            if (!string.IsNullOrWhiteSpace(request.IndexName))
             {
-                var result = await CreateDataSource(request);
+                var existingIndex = await TryGetIndex(request.IndexName);
+                if (existingIndex == null)
+                {
+                    var result = await CreateIndex(request);
+                }
             }
-        }
 
-        if (!string.IsNullOrWhiteSpace(request.IndexerName) &&
-            !string.IsNullOrWhiteSpace(request.DataSourceName) &&
-            !string.IsNullOrWhiteSpace(request.IndexName))
-        {
-            var existingIndexer = await TryGetIndexer(request.IndexerName);
-            if (existingIndexer == null)
+            if (!string.IsNullOrWhiteSpace(request.DataSourceName))
             {
-                var result = await CreateIndexer(request);
+                var existingDataSource = await TryGetDataSource(request.DataSourceName);
+                if (existingDataSource == null)
+                {
+                    var result = await CreateDataSource(request);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.IndexerName) &&
+                !string.IsNullOrWhiteSpace(request.DataSourceName) &&
+                !string.IsNullOrWhiteSpace(request.IndexName))
+            {
+                var existingIndexer = await TryGetIndexer(request.IndexerName);
+                if (existingIndexer == null)
+                {
+                    var result = await CreateIndexer(request);
+                }
             }
         }
 
@@ -350,6 +363,60 @@ public partial class CreateSearchIndexProcessor(
         return latest;
     }
 
+    private async Task UpdateExistingIndexAndDataSource(CreateSearchIndexRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            throw new InvalidOperationException("--update-existing requires --index.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.DataSourceName))
+        {
+            throw new InvalidOperationException("--update-existing requires --datasource.");
+        }
+
+        await EnsureRetrievableStringField(request.IndexName, "svc");
+        await CreateDataSource(request);
+        logger.LogInformation(
+            "Updated data source '{DataSourceName}' Cosmos SQL (includes svc). Index '{IndexName}' kept in place.",
+            request.DataSourceName,
+            request.IndexName);
+
+        if (request.ResetIndexer)
+        {
+            if (string.IsNullOrWhiteSpace(request.IndexerName))
+            {
+                throw new InvalidOperationException("--reset-indexer requires --indexer.");
+            }
+
+            await searchIndexerClient.ResetIndexerAsync(request.IndexerName);
+            logger.LogInformation("Reset indexer '{IndexerName}' high-water mark.", request.IndexerName);
+        }
+    }
+
+    private async Task EnsureRetrievableStringField(string indexName, string fieldName)
+    {
+        var index = await searchIndexClient.GetIndexAsync(indexName);
+        var fields = index.Value.Fields;
+        if (fields.Any(f => string.Equals(f.Name, fieldName, StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogInformation("Index '{IndexName}' already has field '{FieldName}'.", indexName, fieldName);
+            return;
+        }
+
+        fields.Add(new SearchField(fieldName, SearchFieldDataType.String)
+        {
+            IsKey = false,
+            IsSearchable = false,
+            IsFilterable = false,
+            IsSortable = false,
+            IsFacetable = false,
+            IsHidden = false
+        });
+        await searchIndexClient.CreateOrUpdateIndexAsync(index.Value);
+        logger.LogInformation("Added retrievable string field '{FieldName}' to index '{IndexName}'.", fieldName, indexName);
+    }
+
     private async Task<Azure.Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)
     {
         var nextIndex = DateTimeOffset.Now
@@ -404,42 +471,51 @@ public partial class CreateSearchIndexProcessor(
         //   4. youtubeImageVariant has been removed entirely (field no longer exists on the index):
         //      a full reindex / index recreate is required after deploy so every document carries a
         //      lossless `image` token/URL and clients no longer rely on the coarse variant.
+        // IMAGE PROJECTION — pull-path mirror of SearchEpisodeImage / EpisodeServicePresence
+        // CoalescedImage. Catalog services.*.image only (Phase 2 backfill is source of truth).
         const string spotifyPrefix = "https://i.scdn.co/image/";
         const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
-        // Full Apple prefix = "https://is" (10) + digit (1) + appleHostTail => digit at index 10.
         var applePrefixLength = "https://is".Length + 1 + appleHostTail.Length;
+        const string youTubeIdExpr =
+            @"IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, """")";
+        const string youtubeImageExpr = @"e.services.youtube.image";
+        const string spotifyImageExpr = @"e.services.spotify.image";
+        const string appleImageExpr = @"e.services.apple.image";
+        const string appleUrlExpr = @"e.services.apple.url";
+        var coalescedImageFallback =
+            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image";
         var isYouTubeToken =
-            @$"(IS_DEFINED(e.images.youtube) AND IS_DEFINED(e.youTubeId)
-                AND STARTSWITH(e.images.youtube, CONCAT(""https://i.ytimg.com/vi/"", e.youTubeId, ""/""))
-                AND (ENDSWITH(e.images.youtube, ""/maxresdefault.jpg"")
-                    OR ENDSWITH(e.images.youtube, ""/sddefault.jpg"")
-                    OR ENDSWITH(e.images.youtube, ""/hqdefault.jpg"")
-                    OR ENDSWITH(e.images.youtube, ""/mqdefault.jpg"")
-                    OR ENDSWITH(e.images.youtube, ""/default.jpg"")))";
+            @$"(IS_DEFINED({youtubeImageExpr}) AND {youTubeIdExpr} != """"
+                AND STARTSWITH({youtubeImageExpr}, CONCAT(""https://i.ytimg.com/vi/"", {youTubeIdExpr}, ""/""))
+                AND (ENDSWITH({youtubeImageExpr}, ""/maxresdefault.jpg"")
+                    OR ENDSWITH({youtubeImageExpr}, ""/sddefault.jpg"")
+                    OR ENDSWITH({youtubeImageExpr}, ""/hqdefault.jpg"")
+                    OR ENDSWITH({youtubeImageExpr}, ""/mqdefault.jpg"")
+                    OR ENDSWITH({youtubeImageExpr}, ""/default.jpg"")))";
         var youTubeToken =
-            @"CONCAT(""y"",
-                IIF(ENDSWITH(e.images.youtube, ""/maxresdefault.jpg""), ""x"",
-                    IIF(ENDSWITH(e.images.youtube, ""/sddefault.jpg""), ""s"",
-                        IIF(ENDSWITH(e.images.youtube, ""/hqdefault.jpg""), ""h"",
-                            IIF(ENDSWITH(e.images.youtube, ""/mqdefault.jpg""), ""m"", ""d"")))))";
+            @$"CONCAT(""y"",
+                IIF(ENDSWITH({youtubeImageExpr}, ""/maxresdefault.jpg""), ""x"",
+                    IIF(ENDSWITH({youtubeImageExpr}, ""/sddefault.jpg""), ""s"",
+                        IIF(ENDSWITH({youtubeImageExpr}, ""/hqdefault.jpg""), ""h"",
+                            IIF(ENDSWITH({youtubeImageExpr}, ""/mqdefault.jpg""), ""m"", ""d"")))))";
         var isSpotifyToken =
-            @$"((NOT IS_DEFINED(e.images.youtube)) AND IS_DEFINED(e.images.spotify)
-                AND STARTSWITH(e.images.spotify, ""{spotifyPrefix}"")
-                AND LENGTH(e.images.spotify) > {spotifyPrefix.Length}
-                AND (NOT CONTAINS(SUBSTRING(e.images.spotify, {spotifyPrefix.Length}, LENGTH(e.images.spotify) - {spotifyPrefix.Length}), ""/""))
-                AND (NOT CONTAINS(e.images.spotify, ""?""))
-                AND (NOT CONTAINS(e.images.spotify, ""#"")))";
+            @$"((NOT {isYouTubeToken}) AND IS_DEFINED({spotifyImageExpr})
+                AND STARTSWITH({spotifyImageExpr}, ""{spotifyPrefix}"")
+                AND LENGTH({spotifyImageExpr}) > {spotifyPrefix.Length}
+                AND (NOT CONTAINS(SUBSTRING({spotifyImageExpr}, {spotifyPrefix.Length}, LENGTH({spotifyImageExpr}) - {spotifyPrefix.Length}), ""/""))
+                AND (NOT CONTAINS({spotifyImageExpr}, ""?""))
+                AND (NOT CONTAINS({spotifyImageExpr}, ""#"")))";
         var spotifyToken =
-            @$"CONCAT(""s"", SUBSTRING(e.images.spotify, {spotifyPrefix.Length}, LENGTH(e.images.spotify) - {spotifyPrefix.Length}))";
+            @$"CONCAT(""s"", SUBSTRING({spotifyImageExpr}, {spotifyPrefix.Length}, LENGTH({spotifyImageExpr}) - {spotifyPrefix.Length}))";
         var isAppleToken =
-            @$"((NOT IS_DEFINED(e.images.youtube)) AND (NOT IS_DEFINED(e.images.spotify)) AND IS_DEFINED(e.images.apple)
-                AND (STARTSWITH(e.images.apple, ""https://is1{appleHostTail}"")
-                    OR STARTSWITH(e.images.apple, ""https://is2{appleHostTail}"")
-                    OR STARTSWITH(e.images.apple, ""https://is3{appleHostTail}"")
-                    OR STARTSWITH(e.images.apple, ""https://is4{appleHostTail}"")
-                    OR STARTSWITH(e.images.apple, ""https://is5{appleHostTail}"")))";
+            @$"((NOT {isYouTubeToken}) AND (NOT {isSpotifyToken}) AND IS_DEFINED({appleImageExpr})
+                AND (STARTSWITH({appleImageExpr}, ""https://is1{appleHostTail}"")
+                    OR STARTSWITH({appleImageExpr}, ""https://is2{appleHostTail}"")
+                    OR STARTSWITH({appleImageExpr}, ""https://is3{appleHostTail}"")
+                    OR STARTSWITH({appleImageExpr}, ""https://is4{appleHostTail}"")
+                    OR STARTSWITH({appleImageExpr}, ""https://is5{appleHostTail}"")))";
         var appleToken =
-            @$"CONCAT(""a"", SUBSTRING(e.images.apple, 10, 1), SUBSTRING(e.images.apple, {applePrefixLength}, LENGTH(e.images.apple) - {applePrefixLength}))";
+            @$"CONCAT(""a"", SUBSTRING({appleImageExpr}, 10, 1), SUBSTRING({appleImageExpr}, {applePrefixLength}, LENGTH({appleImageExpr}) - {applePrefixLength}))";
         var query = @$"SELECT
                             e.id,
                             e.title as episodeTitle,
@@ -449,23 +525,35 @@ public partial class CreateSearchIndexProcessor(
                                 e.description) as episodeDescription,
                             e.release,
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
-                            IIF(IS_DEFINED(e.spotifyId) AND e.spotifyId != """", e.spotifyId, null) as spotifyId,
-                            IIF(IS_DEFINED(e.appleId), ToString(e.appleId), null) as appleId,
-                            IIF(IS_DEFINED(e.urls.apple) AND CONTAINS(e.urls.apple, ""/id"") AND CONTAINS(e.urls.apple, ""?i=""),
-                                SUBSTRING(e.urls.apple,
-                                    INDEX_OF(e.urls.apple, ""/id"") + 3,
-                                    INDEX_OF(e.urls.apple, ""?i="") - INDEX_OF(e.urls.apple, ""/id"") - 3),
+                            IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                            IIF(IS_DEFINED(e.ids.apple), ToString(e.ids.apple), null) as appleId,
+                            IIF(IS_DEFINED({appleUrlExpr}) AND CONTAINS({appleUrlExpr}, ""/id"") AND CONTAINS({appleUrlExpr}, ""?i=""),
+                                SUBSTRING({appleUrlExpr},
+                                    INDEX_OF({appleUrlExpr}, ""/id"") + 3,
+                                    INDEX_OF({appleUrlExpr}, ""?i="") - INDEX_OF({appleUrlExpr}, ""/id"") - 3),
                                 null) as podcastAppleId,
-                            IIF(IS_DEFINED(e.youTubeId) AND e.youTubeId != """", e.youTubeId, null) as youtubeId,
-                            e.urls.bbc,
-                            e.urls.internetArchive,
+                            IIF({youTubeIdExpr} != """", {youTubeIdExpr}, null) as youtubeId,
+                            (e.services.bbcIplayer.url ?? e.services.bbcSounds.url) as bbc,
+                            e.services.internetArchive.url as internetArchive,
+                            RTRIM(CONCAT(
+                                IIF(IS_DEFINED(e.services.bbcSounds.url), CONCAT(""bbcSounds:"", e.services.bbcSounds.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.bbcIplayer.url), CONCAT(""bbcIplayer:"", e.services.bbcIplayer.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.internetArchive.url), CONCAT(""internetArchive:"", e.services.internetArchive.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.vimeo.url), CONCAT(""vimeo:"", e.services.vimeo.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.netflix.url), CONCAT(""netflix:"", e.services.netflix.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.amazonPrime.url), CONCAT(""amazonPrime:"", e.services.amazonPrime.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.paramountPlus.url), CONCAT(""paramountPlus:"", e.services.paramountPlus.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.hboMax.url), CONCAT(""hboMax:"", e.services.hboMax.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.playSuisse.url), CONCAT(""playSuisse:"", e.services.playSuisse.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.tvnzPlus.url), CONCAT(""tvnzPlus:"", e.services.tvnzPlus.url, ""|""), """")
+                            ), ""|"") as svc,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             IIF({isYouTubeToken}, {youTubeToken},
                                 IIF({isSpotifyToken}, {spotifyToken},
                                     IIF({isAppleToken}, {appleToken},
-                                        (e.images.youtube ?? e.images.spotify ?? e.images.apple ?? e.images.other) ?? """"))) as image,
+                                        ({coalescedImageFallback}) ?? """"))) as image,
                             e.lang as lang,
                             e._ts
                             FROM episodes e
@@ -634,7 +722,11 @@ public partial class CreateSearchIndexProcessor(
         using var cosmosClient = CreateCosmosClient();
         var container = cosmosClient.GetContainer(_cosmosDbSettings.DatabaseId, _cosmosDbSettings.EpisodesContainer);
 
-        var query = $@"SELECT e.id, e.podcastId, e.title, e.release, e.spotifyId, e.appleId, e.youTubeId, e.podcastName
+        var query = $@"SELECT e.id, e.podcastId, e.title, e.release,
+                              IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
+                              IIF(IS_DEFINED(e.ids.apple), e.ids.apple, null) as appleId,
+                              IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, null) as youTubeId,
+                              e.podcastName
                        FROM episodes e
                        WHERE {ActiveEpisodesFilter}";
         var iterator = container.GetItemQueryIterator<EpisodeDuplicateSample>(new QueryDefinition(query));

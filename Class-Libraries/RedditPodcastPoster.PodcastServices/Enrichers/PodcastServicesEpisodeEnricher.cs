@@ -33,19 +33,22 @@ public class PodcastServicesEpisodeEnricher(
             var enrichmentContext = new EnrichmentContext();
             var enrichmentRequest = new EnrichmentRequest(podcast, episodes, episode);
 
-            if (episode.Urls.Spotify == null || string.IsNullOrWhiteSpace(episode.SpotifyId))
+            if (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
+                string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)))
             {
                 await spotifyEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
 
-            if (episode.Urls.Apple == null || episode.AppleId == null || episode.AppleId == 0)
+            if (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple) == null ||
+                EpisodeServicePresence.AppleEpisodeId(episode) is null or 0)
             {
                 await appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
 
             if (podcast.SkipEnrichingFromYouTube is null or false &&
                 !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
-                (episode.Urls.YouTube == null || string.IsNullOrWhiteSpace(episode.YouTubeId)))
+                (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) == null ||
+                 string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode))))
             {
                 await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
@@ -64,8 +67,9 @@ public class PodcastServicesEpisodeEnricher(
                 var delayedEpisodes = episodes
                     .Where(episode => podcastEpisodeFilter.IsRecentlyExpiredDelayedPublishing(podcast, episode))
                     .Where(delayedEpisode => !newEpisodes.Contains(delayedEpisode))
-                    .Where(delayedEpisode => delayedEpisode.Urls.YouTube == null ||
-                                             string.IsNullOrWhiteSpace(delayedEpisode.YouTubeId));
+                    .Where(delayedEpisode =>
+                        EpisodeServicePresence.TryGetUrl(delayedEpisode, ServiceKeys.YouTube) == null ||
+                        string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(delayedEpisode)));
                 foreach (var delayedEpisode in delayedEpisodes)
                 {
                     var enrichmentContext = new EnrichmentContext();

@@ -6,25 +6,24 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
 public sealed record PlatformExpectation(string? Id, Uri? Url, Uri? Image = null)
 {
-    public static PlatformExpectation? From(ServiceUrls urls, string? id, EpisodeImages? images, Service service)
+    public static PlatformExpectation? FromCatalog(Episode episode, Service service)
     {
-        var url = service switch
+        var (id, url, image) = service switch
         {
-            Service.Spotify => urls.Spotify,
-            Service.Apple => urls.Apple,
-            Service.YouTube => urls.YouTube,
-            _ => null
+            Service.Spotify => (
+                EpisodeServicePresence.SpotifyEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify)),
+            Service.Apple => (
+                EpisodeServicePresence.AppleEpisodeId(episode)?.ToString(),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple)),
+            Service.YouTube => (
+                EpisodeServicePresence.YouTubeEpisodeId(episode),
+                EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube)),
+            _ => (null, null, null)
         };
-
-        var image = images is null
-            ? null
-            : service switch
-            {
-                Service.Spotify => images.Spotify,
-                Service.Apple => images.Apple,
-                Service.YouTube => images.YouTube,
-                _ => images.Other
-            };
 
         if (string.IsNullOrWhiteSpace(id) && url is null && image is null)
         {
@@ -49,9 +48,9 @@ public sealed record EpisodeExpectation(
 {
     public static EpisodeExpectation From(Episode episode) =>
         new(
-            PlatformExpectation.From(episode.Urls, episode.SpotifyId, episode.Images, Service.Spotify),
-            PlatformExpectation.From(episode.Urls, episode.AppleId?.ToString(), episode.Images, Service.Apple),
-            PlatformExpectation.From(episode.Urls, episode.YouTubeId, episode.Images, Service.YouTube),
+            PlatformExpectation.FromCatalog(episode, Service.Spotify),
+            PlatformExpectation.FromCatalog(episode, Service.Apple),
+            PlatformExpectation.FromCatalog(episode, Service.YouTube),
             episode.Release,
             episode.Description,
             episode.Ignored,

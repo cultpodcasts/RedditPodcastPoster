@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
             .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
             .AddScoped<IUrlSubmitter, UrlSubmitter>()
+            .AddScoped<IUrlMembershipLookup, UrlMembershipLookup>()
             .AddScoped<IPodcastService, PodcastService>()
             .AddSingleton<IDescriptionHelper, DescriptionHelper>()
             .AddSingleton<IEpisodeHelper, EpisodeHelper>()

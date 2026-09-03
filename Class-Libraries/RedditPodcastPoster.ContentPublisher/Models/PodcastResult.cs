@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.ContentPublisher.Models;
 
@@ -23,20 +24,11 @@ public class PodcastResult
     [JsonPropertyName("release")]
     public DateTime Release { get; set; }
 
-    [JsonPropertyName("spotify")]
-    public Uri? Spotify { get; set; }
+    [JsonPropertyName("ids")]
+    public EpisodeIds? Ids { get; set; }
 
-    [JsonPropertyName("apple")]
-    public Uri? Apple { get; set; }
-
-    [JsonPropertyName("youtube")]
-    public Uri? YouTube { get; set; }
-
-    [JsonPropertyName("bbc")]
-    public Uri? BBC { get; set; }
-
-    [JsonPropertyName("internetArchive")]
-    public Uri? InternetArchive { get; set; }
+    [JsonPropertyName("services")]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

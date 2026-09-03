@@ -52,8 +52,8 @@ public class EpisodeGuestAndHandlePersistenceRules
             .Customize(e =>
             {
                 e.Guests = ["Ada Example"];
-                e.SpotifyId = string.Empty;
-                e.Urls.Spotify = null;
+                EpisodeServicePresence.SetSpotifyIdentity(e, null);
+                EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, null, null);
             })
             .Create();
 

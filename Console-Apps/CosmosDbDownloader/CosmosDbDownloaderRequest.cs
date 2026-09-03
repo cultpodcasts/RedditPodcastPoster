@@ -7,13 +7,13 @@ public class CosmosDbDownloaderRequest
     [Option("only", Required = false, Separator = ',',
         HelpText =
             "Download only these containers (comma-separated). Default: all. " +
-            "Names: podcasts, episodes, lookups, titlecasing, subjects, discovery, pushsubscriptions.")]
+            "Names: podcasts, episodes, lookups, titlecasing, subjects, discovery, pushsubscriptions, people.")]
     public IEnumerable<string>? Only { get; set; }
 
     [Option("skip", Required = false, Separator = ',',
         HelpText =
             "Skip these containers (comma-separated). Cannot combine with --only. " +
-            "Names: podcasts, episodes, lookups, titlecasing, subjects, discovery, pushsubscriptions.")]
+            "Names: podcasts, episodes, lookups, titlecasing, subjects, discovery, pushsubscriptions, people.")]
     public IEnumerable<string>? Skip { get; set; }
 
     [Option('o', "overwrite", Required = false, Default = false,

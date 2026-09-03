@@ -41,12 +41,12 @@ public static class EpisodeCreationLogger
             source,
             caller,
             service,
-            EmptyToNull(episode.SpotifyId),
-            episode.Urls.Spotify,
-            episode.AppleId,
-            episode.Urls.Apple,
-            EmptyToNull(episode.YouTubeId),
-            episode.Urls.YouTube);
+            EmptyToNull(EpisodeServicePresence.SpotifyEpisodeId(episode)),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+            EpisodeServicePresence.AppleEpisodeId(episode),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
+            EmptyToNull(EpisodeServicePresence.YouTubeEpisodeId(episode)),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube));
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public static class EpisodeCreationLogger
         string caller)
     {
         return
-            $"{MessagePrefix} episode-id='{episode.Id}' title='{episode.Title}' podcast-id='{podcastId}' source='{source}' caller='{caller}' service='{service}' spotify-id='{EmptyToNull(episode.SpotifyId)}' spotify-url='{episode.Urls.Spotify}' apple-id='{episode.AppleId}' apple-url='{episode.Urls.Apple}' youtube-id='{EmptyToNull(episode.YouTubeId)}' youtube-url='{episode.Urls.YouTube}'";
+            $"{MessagePrefix} episode-id='{episode.Id}' title='{episode.Title}' podcast-id='{podcastId}' source='{source}' caller='{caller}' service='{service}' spotify-id='{EmptyToNull(EpisodeServicePresence.SpotifyEpisodeId(episode))}' spotify-url='{EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)}' apple-id='{EpisodeServicePresence.AppleEpisodeId(episode)}' apple-url='{EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple)}' youtube-id='{EmptyToNull(EpisodeServicePresence.YouTubeEpisodeId(episode))}' youtube-url='{EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)}'";
     }
 
     /// <summary>
@@ -69,9 +69,9 @@ public static class EpisodeCreationLogger
     /// </summary>
     public static Service ResolveCreatingService(Episode episode, Service? releaseAuthority = null)
     {
-        var hasSpotify = !string.IsNullOrWhiteSpace(episode.SpotifyId);
-        var hasYouTube = !string.IsNullOrWhiteSpace(episode.YouTubeId);
-        var hasApple = episode.AppleId is > 0;
+        var hasSpotify = !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode));
+        var hasYouTube = !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode));
+        var hasApple = EpisodeServicePresence.AppleEpisodeId(episode) is > 0;
 
         var presentCount = (hasSpotify ? 1 : 0) + (hasYouTube ? 1 : 0) + (hasApple ? 1 : 0);
         if (presentCount == 1)

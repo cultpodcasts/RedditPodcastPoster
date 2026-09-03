@@ -30,6 +30,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="RedditPodcastPoster.Models.Episodes" />
+    <Using Include="RedditPodcastPoster.Models.Podcasts" />
   </ItemGroup>
 
 </Project>

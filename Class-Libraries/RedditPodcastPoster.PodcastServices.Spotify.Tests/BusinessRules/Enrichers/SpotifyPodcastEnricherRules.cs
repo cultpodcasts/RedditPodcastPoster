@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
@@ -16,7 +18,13 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Enrich
 /// </summary>
 public class SpotifyPodcastEnricherRules
 {
+    private readonly AutoMocker _mocker = new();
     private readonly DomainTestFixture _fixture = new();
+
+    public SpotifyPodcastEnricherRules()
+    {
+        _mocker.Use(NullLogger<SpotifyPodcastEnricher>.Instance);
+    }
 
     [Fact(DisplayName =
         "When the podcast SpotifyId is empty and FindPodcast returns a show id, AddIdAndUrls sets podcast.SpotifyId and returns true " +
@@ -26,12 +34,11 @@ public class SpotifyPodcastEnricherRules
         // Arrange
         var showId = _fixture.CreateSpotifyId();
         var podcast = _fixture.CreatePodcast(p => p.SpotifyId = string.Empty);
-        var podcastResolver = new Mock<ISpotifyPodcastResolver>();
-        podcastResolver
+        _mocker.GetMock<ISpotifyPodcastResolver>()
             .Setup(x => x.FindPodcast(It.IsAny<FindSpotifyPodcastRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new SpotifyPodcastWrapper(simpleShow: new SimpleShow { Id = showId, Name = podcast.Name }));
-        var episodeResolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(episodeResolver.Object, podcastResolver.Object);
+        _mocker.GetMock<ISpotifyEpisodeResolver>();
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
 
         // Act
         var updated = await sut.AddIdAndUrls(podcast, [], new IndexingContext());
@@ -57,12 +64,11 @@ public class SpotifyPodcastEnricherRules
         {
             ExpensiveQueryFound = true
         };
-        var podcastResolver = new Mock<ISpotifyPodcastResolver>();
-        podcastResolver
+        _mocker.GetMock<ISpotifyPodcastResolver>()
             .Setup(x => x.FindPodcast(It.IsAny<FindSpotifyPodcastRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(wrapper);
-        var episodeResolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(episodeResolver.Object, podcastResolver.Object);
+        _mocker.GetMock<ISpotifyEpisodeResolver>();
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
 
         // Act
         await sut.AddIdAndUrls(podcast, [], new IndexingContext());
@@ -81,7 +87,7 @@ public class SpotifyPodcastEnricherRules
         var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.SpotifyId = string.Empty;
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Title = _fixture.CreateTitle();
             e.Release = DomainTestFixture.UtcDateDaysAgo(1);
             e.Length = _fixture.CreateDuration();
@@ -94,15 +100,13 @@ public class SpotifyPodcastEnricherRules
             ReleaseDate = DomainTestFixture.UtcDateDaysAgo(1).ToString("yyyy-MM-dd"),
             IsPlayable = true
         };
-        var podcastResolver = new Mock<ISpotifyPodcastResolver>(MockBehavior.Strict);
-        var episodeResolver = new Mock<ISpotifyEpisodeResolver>();
-        episodeResolver
+        _mocker.GetMock<ISpotifyEpisodeResolver>()
             .Setup(x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
             .ReturnsAsync(new FindEpisodeResponse(fullEpisode));
-        var sut = CreateSut(episodeResolver.Object, podcastResolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
 
         // Act
         var updated = await sut.AddIdAndUrls(podcast, [episode], new IndexingContext());
@@ -110,7 +114,7 @@ public class SpotifyPodcastEnricherRules
         // Assert
         updated.Should().BeTrue();
         episode.SpotifyId.Should().Be(resolvedEpisodeId);
-        episodeResolver.Verify(
+        _mocker.GetMock<ISpotifyEpisodeResolver>().Verify(
             x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
@@ -126,16 +130,14 @@ public class SpotifyPodcastEnricherRules
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
-        var podcastResolver = new Mock<ISpotifyPodcastResolver>(MockBehavior.Strict);
-        var episodeResolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(episodeResolver.Object, podcastResolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
 
         // Act
         var updated = await sut.AddIdAndUrls(podcast, [episode], new IndexingContext());
 
         // Assert
         updated.Should().BeFalse();
-        episodeResolver.Verify(
+        _mocker.GetMock<ISpotifyEpisodeResolver>().Verify(
             x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
@@ -154,12 +156,10 @@ public class SpotifyPodcastEnricherRules
             p.SpotifyId = string.Empty;
             p.SpotifyEpisodesQueryIsExpensive = false;
         });
-        var podcastResolver = new Mock<ISpotifyPodcastResolver>();
-        podcastResolver
+        _mocker.GetMock<ISpotifyPodcastResolver>()
             .Setup(x => x.FindPodcast(It.IsAny<FindSpotifyPodcastRequest>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync((SpotifyPodcastWrapper?)null);
-        var episodeResolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(episodeResolver.Object, podcastResolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
 
         // Act
         var updated = await sut.AddIdAndUrls(podcast, [], new IndexingContext());
@@ -169,12 +169,4 @@ public class SpotifyPodcastEnricherRules
         podcast.SpotifyId.Should().BeEmpty();
         podcast.SpotifyEpisodesQueryIsExpensive.Should().BeFalse();
     }
-
-    private static SpotifyPodcastEnricher CreateSut(
-        ISpotifyEpisodeResolver episodeResolver,
-        ISpotifyPodcastResolver podcastResolver) =>
-        new(
-            episodeResolver,
-            podcastResolver,
-            NullLogger<SpotifyPodcastEnricher>.Instance);
 }

@@ -82,6 +82,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: build
+    env:
+      # Same gate as Build — live streaming scrapers are opt-in, not a CI contract.
+      SKIP_LIVE_STREAMING_SCRAPER_TESTS: '1'
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET

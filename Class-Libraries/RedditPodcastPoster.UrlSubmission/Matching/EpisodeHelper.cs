@@ -14,15 +14,19 @@ public class EpisodeHelper : IEpisodeHelper
     public bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
         var spotifyResolved = (categorisedItem.ResolvedSpotifyItem != null &&
-                               !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-                               episode.SpotifyId != categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
+                               !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) &&
+                               EpisodeServicePresence.SpotifyEpisodeId(episode) !=
+                               categorisedItem.ResolvedSpotifyItem.EpisodeId) ||
                               categorisedItem.ResolvedSpotifyItem == null;
-        var appleResolved = (categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
-                             episode.AppleId != categorisedItem.ResolvedAppleItem.EpisodeId) ||
+        var appleResolved = (categorisedItem.ResolvedAppleItem != null &&
+                             EpisodeServicePresence.AppleEpisodeId(episode) != null &&
+                             EpisodeServicePresence.AppleEpisodeId(episode) !=
+                             categorisedItem.ResolvedAppleItem.EpisodeId) ||
                             categorisedItem.ResolvedAppleItem == null;
         var youTubeResolved = (categorisedItem.ResolvedYouTubeItem != null &&
-                               !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-                               episode.YouTubeId != categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
+                               !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) &&
+                               EpisodeServicePresence.YouTubeEpisodeId(episode) !=
+                               categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
                               categorisedItem.ResolvedYouTubeItem == null;
         var alreadyCategorised = spotifyResolved && appleResolved && youTubeResolved;
         if (alreadyCategorised)
@@ -31,13 +35,17 @@ public class EpisodeHelper : IEpisodeHelper
         }
 
         var matchingSpotify = categorisedItem.ResolvedSpotifyItem != null &&
-                              !string.IsNullOrWhiteSpace(episode.SpotifyId) &&
-                              episode.SpotifyId == categorisedItem.ResolvedSpotifyItem.EpisodeId;
-        var matchingApple = categorisedItem.ResolvedAppleItem != null && episode.AppleId != null &&
-                            episode.AppleId == categorisedItem.ResolvedAppleItem.EpisodeId;
+                              !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)) &&
+                              EpisodeServicePresence.SpotifyEpisodeId(episode) ==
+                              categorisedItem.ResolvedSpotifyItem.EpisodeId;
+        var matchingApple = categorisedItem.ResolvedAppleItem != null &&
+                            EpisodeServicePresence.AppleEpisodeId(episode) != null &&
+                            EpisodeServicePresence.AppleEpisodeId(episode) ==
+                            categorisedItem.ResolvedAppleItem.EpisodeId;
         var matchingYouTube = categorisedItem.ResolvedYouTubeItem != null &&
-                              !string.IsNullOrWhiteSpace(episode.YouTubeId) &&
-                              episode.YouTubeId == categorisedItem.ResolvedYouTubeItem.EpisodeId;
+                              !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) &&
+                              EpisodeServicePresence.YouTubeEpisodeId(episode) ==
+                              categorisedItem.ResolvedYouTubeItem.EpisodeId;
         var hasMatchingUrl = matchingSpotify || matchingApple || matchingYouTube;
         if (hasMatchingUrl)
         {

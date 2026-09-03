@@ -41,31 +41,35 @@ public class PostModelFactory(
     private static EpisodePost ToBasicEpisode(Episode episode)
     {
         var id = "unknown";
-        if (!string.IsNullOrWhiteSpace(episode.SpotifyId))
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode);
+        var appleId = EpisodeServicePresence.AppleEpisodeId(episode);
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        if (!string.IsNullOrWhiteSpace(spotifyId))
         {
-            id = $"Spotify-{episode.SpotifyId}";
+            id = $"Spotify-{spotifyId}";
         }
-        else if (episode.AppleId != null)
+        else if (appleId != null)
         {
-            id = $"Apple-{episode.AppleId}";
+            id = $"Apple-{appleId}";
         }
-        else if (!string.IsNullOrWhiteSpace(episode.YouTubeId))
+        else if (!string.IsNullOrWhiteSpace(youTubeId))
         {
-            id = $"YouTube-{episode.YouTubeId}";
+            id = $"YouTube-{youTubeId}";
         }
 
         return new EpisodePost(
             episode.Title,
-            episode.Urls.YouTube,
-            episode.Urls.Spotify,
-            episode.Urls.Apple,
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
             episode.Release.ToString("d MMM yyyy"),
             episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture),
             episode.Description,
             id,
             episode.Release,
             episode.Subjects.ToArray(),
-            episode.Urls.BBC,
-            episode.Urls.InternetArchive);
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds),
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive));
     }
 }

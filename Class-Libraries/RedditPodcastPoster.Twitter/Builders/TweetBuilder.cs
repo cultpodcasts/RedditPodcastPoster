@@ -129,30 +129,13 @@ public class TweetBuilder(
             return tweetBuilder.ToString();
         }
 
-        if (podcastEpisode.Episode.Urls.YouTube != null)
-        {
-            tweetBuilder.Append(podcastEpisode.Episode.Urls.YouTube);
-        }
-        else if (podcastEpisode.Episode.Urls.Spotify != null)
-        {
-            tweetBuilder.Append(podcastEpisode.Episode.Urls.Spotify);
-        }
-        else if (podcastEpisode.Episode.Urls.Apple != null)
-        {
-            tweetBuilder.Append(podcastEpisode.Episode.Urls.Apple!);
-        }
-        else if (podcastEpisode.Episode.Urls.InternetArchive != null)
-        {
-            tweetBuilder.Append(podcastEpisode.Episode.Urls.InternetArchive!);
-        }
-        else if (podcastEpisode.Episode.Urls.BBC != null)
-        {
-            tweetBuilder.Append(podcastEpisode.Episode.Urls.BBC!);
-        }
-        else
+        if (!EpisodeServicePresence.TryGetPreferredSocialPostUrl(
+                podcastEpisode.Episode, out var postUrl, out _))
         {
             throw new InvalidOperationException("No link found to tweet");
         }
+
+        tweetBuilder.Append(postUrl);
 
         if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
                                                            podcastEpisode.Episode.Subjects.Any()))

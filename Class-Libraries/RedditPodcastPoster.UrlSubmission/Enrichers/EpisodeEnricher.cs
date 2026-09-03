@@ -26,6 +26,7 @@ public class EpisodeEnricher(
     {
         var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
             (false, false, false, false, false);
+        var addedExtraKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var podcastResult = SubmitResultState.None;
         var episodeResult = SubmitResultState.None;
@@ -59,8 +60,8 @@ public class EpisodeEnricher(
                         categorisedItem),
                     platformName: "apple",
                     logIdProperty: "apple-id",
-                    idSelector: e => e.AppleId?.ToString(),
-                    urlSelector: e => e.Urls.Apple);
+                    idSelector: e => EpisodeServicePresence.AppleEpisodeId(e)?.ToString(),
+                    urlSelector: e => EpisodeServicePresence.TryGetUrl(e, ServiceKeys.Apple));
                 addedApple |= outcome.PlatformLinkAdded;
                 episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
@@ -88,8 +89,8 @@ public class EpisodeEnricher(
                         categorisedItem),
                     platformName: "spotify",
                     logIdProperty: "spotify-id",
-                    idSelector: e => e.SpotifyId,
-                    urlSelector: e => e.Urls.Spotify);
+                    idSelector: e => EpisodeServicePresence.SpotifyEpisodeId(e),
+                    urlSelector: e => EpisodeServicePresence.TryGetUrl(e, ServiceKeys.Spotify));
                 addedSpotify |= outcome.PlatformLinkAdded;
                 episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
@@ -118,8 +119,8 @@ public class EpisodeEnricher(
                         categorisedItem),
                     platformName: "youtube",
                     logIdProperty: "youtube-id",
-                    idSelector: e => e.YouTubeId,
-                    urlSelector: e => e.Urls.YouTube);
+                    idSelector: e => EpisodeServicePresence.YouTubeEpisodeId(e),
+                    urlSelector: e => EpisodeServicePresence.TryGetUrl(e, ServiceKeys.YouTube));
                 addedYouTube |= outcome.PlatformLinkAdded;
                 episodeResult = MergeEpisodeResult(episodeResult, outcome);
             }
@@ -127,26 +128,60 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedNonPodcastServiceItem != null && matchingEpisode != null)
         {
-            if (matchingEpisode.Urls.BBC == null && categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcIplayer) &&
+                !EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcSounds) &&
+                categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
             {
                 addedBBC = true;
-                matchingEpisode.Urls.BBC = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
+                var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
+                var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+                EpisodeServicePresence.Upsert(
+                    matchingEpisode,
+                    bbcKey,
+                    bbcUrl,
+                    categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                addedExtraKeys.Add(bbcKey);
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     "Enriched episode '{matchingEpisodeId}' with bbc details with bbc-url {resolvedNonPodcastServiceItemBBCUrl}.",
                     matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl);
             }
 
-            if (matchingEpisode.Urls.InternetArchive == null &&
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.InternetArchive) &&
                 categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
             {
                 addedInternetArchive = true;
-                matchingEpisode.Urls.InternetArchive =
-                    categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl;
+                EpisodeServicePresence.Upsert(
+                    matchingEpisode,
+                    ServiceKeys.InternetArchive,
+                    categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
+                    null);
+                addedExtraKeys.Add(ServiceKeys.InternetArchive);
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",
                     matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl);
+            }
+
+            if (categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Url is { } streamingUrl)
+            {
+                var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl);
+                if (streamingKey != null &&
+                    !EpisodeServicePresence.HasUrl(matchingEpisode, streamingKey))
+                {
+                    EpisodeServicePresence.Upsert(
+                        matchingEpisode,
+                        streamingKey,
+                        streamingUrl,
+                        categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                    addedExtraKeys.Add(streamingKey);
+                    episodeResult = SubmitResultState.Enriched;
+                    logger.LogInformation(
+                        "Enriched episode '{matchingEpisodeId}' with {serviceKey} url {streamingUrl}.",
+                        matchingEpisode.Id, streamingKey, streamingUrl);
+                }
             }
 
             if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
@@ -167,15 +202,35 @@ public class EpisodeEnricher(
                 episodeResult = SubmitResultState.Enriched;
             }
 
-            if (matchingEpisode.Images?.Other == null && categorisedItem.ResolvedNonPodcastServiceItem.Image != null)
+            if (categorisedItem.ResolvedNonPodcastServiceItem.Image is { } nonPodcastImage)
             {
-                matchingEpisode.Images ??= new EpisodeImages();
-                matchingEpisode.Images.YouTube = categorisedItem.ResolvedNonPodcastServiceItem.Image;
+                var imageKey = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl is { } bbcForImage
+                    ? ServiceCatalog.TryResolveKey(bbcForImage) ?? ServiceKeys.BbcSounds
+                    : categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
+                        ? ServiceKeys.InternetArchive
+                        : ServiceCatalog.TryResolveKey(categorisedItem.ResolvedNonPodcastServiceItem.Url!)
+                          ?? ServiceCatalog.KeyFromUnknownHost(categorisedItem.ResolvedNonPodcastServiceItem.Url!);
+                if (imageKey != null &&
+                    EpisodeServicePresence.TryFillMissing(
+                        matchingEpisode, imageKey, null, nonPodcastImage))
+                {
+                    episodeResult = SubmitResultState.Enriched;
+                }
             }
         }
 
         return new ApplyResolvePodcastServicePropertiesResponse(podcastResult, episodeResult,
-            new SubmitEpisodeDetails(addedSpotify, addedApple, addedYouTube, [], addedBBC, addedInternetArchive));
+            new SubmitEpisodeDetails(
+                addedSpotify,
+                addedApple,
+                addedYouTube,
+                [],
+                addedBBC,
+                addedInternetArchive,
+                Vimeo: addedExtraKeys.Contains(ServiceKeys.Vimeo),
+                Netflix: addedExtraKeys.Contains(ServiceKeys.Netflix),
+                AmazonPrime: addedExtraKeys.Contains(ServiceKeys.AmazonPrime),
+                ExtraServiceKeys: addedExtraKeys.Count == 0 ? null : addedExtraKeys.ToArray()));
     }
 
     private static SubmitResultState MergeEpisodeResult(

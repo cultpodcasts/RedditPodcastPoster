@@ -85,6 +85,10 @@ public class EpisodeDto
     [JsonPropertyOrder(52)]
     public string YouTubeId { get; set; } = "";
 
+    [JsonPropertyName("ids")]
+    [JsonPropertyOrder(53)]
+    public EpisodeIds? Ids { get; set; }
+
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(60)]
     public ServiceUrls Urls { get; set; } = new();
@@ -112,6 +116,10 @@ public class EpisodeDto
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
     public EpisodeImages? Images { get; set; }
+
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(151)]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]

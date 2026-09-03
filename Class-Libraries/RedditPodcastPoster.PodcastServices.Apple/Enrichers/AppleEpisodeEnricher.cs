@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Enriching;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Factories;
+using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -51,8 +52,9 @@ public class AppleEpisodeEnricher(
             Release = findAppleEpisodeRequest.Released ?? request.Episode.Release
         };
         var assignedAppleIds = request.Episodes
-            .Where(x => x.AppleId is > 0)
-            .Select(x => x.AppleId!.Value)
+            .Select(x => EpisodeServicePresence.AppleEpisodeId(x))
+            .Where(id => id is > 0)
+            .Select(id => id!.Value)
             .ToHashSet();
 
         var appleItem = await appleEpisodeResolver.FindEpisode(
@@ -62,15 +64,10 @@ public class AppleEpisodeEnricher(
                  findAppleEpisodeRequest.Released.HasValue &&
                  platformMatcher.CatalogueReleaseMatches(
                      probeEpisode,
-                     new Episode
-                     {
-                         Title = y.Title,
-                         Length = y.Duration,
-                         Release = y.Release,
-                         AppleId = y.Id
-                     },
+                     CreateAppleCandidate(y),
                      request.Podcast));
-        if (appleItem == null || request.Episodes.Any(x => x.AppleId == appleItem.Id))
+        if (appleItem == null || request.Episodes.Any(x =>
+                EpisodeServicePresence.AppleEpisodeId(x) == appleItem.Id))
         {
             return;
         }
@@ -88,6 +85,18 @@ public class AppleEpisodeEnricher(
             appleItem.Url.CleanAppleUrl(),
             appleItem.Image);
         ApplyResolvedCandidate(request, appleAdapter.Adapt(catalogueInput), enrichmentContext);
+    }
+
+    private static Episode CreateAppleCandidate(AppleEpisode apple)
+    {
+        var candidate = new Episode
+        {
+            Title = apple.Title,
+            Length = apple.Duration,
+            Release = apple.Release
+        };
+        EpisodeServicePresence.SetAppleIdentity(candidate, apple.Id);
+        return candidate;
     }
 }
 

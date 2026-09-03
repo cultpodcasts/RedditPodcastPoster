@@ -47,24 +47,12 @@ public sealed class EpisodePlatformApplier : IEpisodePlatformApplier
 
     private static bool ApplySpotifyLink(Episode target, PlatformLink link)
     {
-        var updated = false;
-
-        if (target.Urls.Spotify == null && link.Url != null)
+        var updated = EpisodeServicePresence.TryFillMissing(
+            target, ServiceKeys.Spotify, link.Url, link.Image);
+        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(target)) &&
+            !string.IsNullOrWhiteSpace(link.Id))
         {
-            target.Urls.Spotify = link.Url;
-            updated = true;
-        }
-
-        if (target.Images?.Spotify == null && link.Image != null)
-        {
-            target.Images ??= new EpisodeImages();
-            target.Images.Spotify = link.Image;
-            updated = true;
-        }
-
-        if (string.IsNullOrWhiteSpace(target.SpotifyId) && !string.IsNullOrWhiteSpace(link.Id))
-        {
-            target.SpotifyId = link.Id;
+            EpisodeServicePresence.SetSpotifyIdentity(target, link.Id);
             updated = true;
         }
 
@@ -73,26 +61,13 @@ public sealed class EpisodePlatformApplier : IEpisodePlatformApplier
 
     private static bool ApplyAppleLink(Episode target, PlatformLink link)
     {
-        var updated = false;
-
-        if (target.Urls.Apple == null && link.Url != null)
-        {
-            target.Urls.Apple = link.Url;
-            updated = true;
-        }
-
-        if (target.Images?.Apple == null && link.Image != null)
-        {
-            target.Images ??= new EpisodeImages();
-            target.Images.Apple = link.Image;
-            updated = true;
-        }
-
-        if (target.AppleId == null &&
+        var updated = EpisodeServicePresence.TryFillMissing(
+            target, ServiceKeys.Apple, link.Url, link.Image);
+        if (EpisodeServicePresence.AppleEpisodeId(target) is null &&
             !string.IsNullOrWhiteSpace(link.Id) &&
             long.TryParse(link.Id, out var appleId))
         {
-            target.AppleId = appleId;
+            EpisodeServicePresence.SetAppleIdentity(target, appleId);
             updated = true;
         }
 
@@ -101,24 +76,12 @@ public sealed class EpisodePlatformApplier : IEpisodePlatformApplier
 
     private static bool ApplyYouTubeLink(Episode target, PlatformLink link)
     {
-        var updated = false;
-
-        if (target.Urls.YouTube == null && link.Url != null)
+        var updated = EpisodeServicePresence.TryFillMissing(
+            target, ServiceKeys.YouTube, link.Url, link.Image);
+        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(target)) &&
+            !string.IsNullOrWhiteSpace(link.Id))
         {
-            target.Urls.YouTube = link.Url;
-            updated = true;
-        }
-
-        if (target.Images?.YouTube == null && link.Image != null)
-        {
-            target.Images ??= new EpisodeImages();
-            target.Images.YouTube = link.Image;
-            updated = true;
-        }
-
-        if (string.IsNullOrWhiteSpace(target.YouTubeId) && !string.IsNullOrWhiteSpace(link.Id))
-        {
-            target.YouTubeId = link.Id;
+            EpisodeServicePresence.SetYouTubeIdentity(target, link.Id);
             updated = true;
         }
 

@@ -61,7 +61,8 @@ public class AppleEpisodeResolver(
                 ? null
                 : e =>
                 {
-                    var source = podcastEpisodes.FirstOrDefault(x => x.Id == e.AppleId);
+                    var source = podcastEpisodes.FirstOrDefault(x =>
+                        x.Id == EpisodeServicePresence.AppleEpisodeId(e));
                     return source != null && reducer(source);
                 };
 
@@ -91,7 +92,8 @@ public class AppleEpisodeResolver(
 
             matchingEpisode = match == null
                 ? null
-                : podcastEpisodes.FirstOrDefault(x => x.Id == match.AppleId);
+                : podcastEpisodes.FirstOrDefault(x =>
+                    x.Id == EpisodeServicePresence.AppleEpisodeId(match));
         }
         else if (matchingEpisode == null && podcastEpisodes != null && !request.PodcastAppleId.HasValue)
         {
@@ -151,15 +153,18 @@ public class AppleEpisodeResolver(
             Release = request.Released ?? DateTime.MinValue
         };
 
-    private static Episode ToCatalogueEpisode(AppleEpisode episode) =>
-        new()
+    private static Episode ToCatalogueEpisode(AppleEpisode episode)
+    {
+        var mapped = new Episode
         {
             Title = WebUtility.HtmlDecode(episode.Title.Trim()),
             Description = episode.Description ?? string.Empty,
             Length = episode.Duration,
-            Release = episode.Release,
-            AppleId = episode.Id
+            Release = episode.Release
         };
+        EpisodeServicePresence.SetAppleIdentity(mapped, episode.Id);
+        return mapped;
+    }
 
     private static Podcast CreateLookupPodcast(FindAppleEpisodeRequest request) =>
         new()

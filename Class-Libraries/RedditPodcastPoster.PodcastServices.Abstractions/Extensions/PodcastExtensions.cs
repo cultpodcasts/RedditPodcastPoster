@@ -93,7 +93,8 @@ public static class PodcastExtensions
 
     private static bool IsAudioPodcastAwaitingYouTubeRelease(Podcast podcast, Episode episode)
     {
-        return episode.Urls.YouTube == null && podcast.YouTubePublishingDelay() > TimeSpan.Zero;
+        return !EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube) &&
+               podcast.YouTubePublishingDelay() > TimeSpan.Zero;
     }
 
     private static bool IsYouTubeAuthorityAwaitingAudioRelease(Podcast podcast)

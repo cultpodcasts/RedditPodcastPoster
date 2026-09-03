@@ -179,8 +179,8 @@ public class AppleEpisodeEnricherCatalogueRules
             .WithLength(sharedLength)
             .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
             .Create();
-        episode.AppleId = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
         var appleEpisode = new AppleEpisode(
             appleEpisodeId,
             sharedTitle,
@@ -223,8 +223,8 @@ public class AppleEpisodeEnricherCatalogueRules
             .WithRelease(inWindowRelease)
             .WithLength(_fixture.CreateDuration())
             .Create();
-        episode.AppleId = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
         var resolver = new TrackingAppleEpisodeResolver();
         var sut = CreateEnricher(resolver);
         var enrichmentContext = new EnrichmentContext();
@@ -249,7 +249,7 @@ public class AppleEpisodeEnricherCatalogueRules
         var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.AppleId = null;
+            EpisodeServicePresence.SetAppleIdentity(e, null);
             e.Urls = new ServiceUrls();
         });
         var sut = CreateEnricher(new TrackingAppleEpisodeResolver());
@@ -334,8 +334,8 @@ public class AppleEpisodeEnricherCatalogueRules
             .WithLength(sharedLength)
             .WithSpotify(_fixture.CreateSpotifyId(), _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()))
             .Create();
-        episode.AppleId = null;
-        episode.Urls.Apple = null;
+        EpisodeServicePresence.SetAppleIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, null, null);
         var appleEpisode = new AppleEpisode(
             appleEpisodeId,
             sharedTitle,
@@ -374,7 +374,7 @@ public class AppleEpisodeEnricherCatalogueRules
         var podcast = _fixture.CreatePodcast(p => p.AppleId = null);
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            e.AppleId = null;
+            EpisodeServicePresence.SetAppleIdentity(e, null);
             e.Urls = new ServiceUrls();
         });
         var resolver = new TrackingAppleEpisodeResolver();
@@ -416,6 +416,7 @@ public class AppleEpisodeEnricherCatalogueRules
     {
         public Task AddId(Podcast podcast)
         {
+            // Arrange
             podcast.AppleId = appleId;
             return Task.CompletedTask;
         }

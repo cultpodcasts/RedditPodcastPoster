@@ -44,6 +44,13 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
     public required string InternetArchive { get; set; }
 
+    /// <summary>
+    /// Compact service URLs that are not reconstructed from Spotify/Apple/YouTube ids
+    /// (<c>key:payload|...</c>). Empty string when none — never null (Azure Search merge ignores null).
+    /// </summary>
+    [SimpleField(IsSortable = false, IsFilterable = false, IsFacetable = false)]
+    public string Svc { get; set; } = string.Empty;
+
     [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene)]
     public required string[] Subjects { get; set; }
 

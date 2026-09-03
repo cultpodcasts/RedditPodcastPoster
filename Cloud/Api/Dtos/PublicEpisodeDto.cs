@@ -37,9 +37,13 @@ public class PublicEpisodeDto
     [JsonPropertyOrder(90)]
     public List<string> Subjects { get; set; } = [];
 
-    [JsonPropertyName("urls")]
+    [JsonPropertyName("ids")]
     [JsonPropertyOrder(100)]
-    public ServiceUrls Urls { get; set; } = new();
+    public EpisodeIds? Ids { get; set; }
+
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(101)]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]

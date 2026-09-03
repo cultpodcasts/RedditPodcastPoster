@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Episodes;
+
 namespace Api.Dtos.Extensions;
 
 public static class PublicEpisodeExtension
@@ -6,6 +8,7 @@ public static class PublicEpisodeExtension
         this RedditPodcastPoster.Models.Episodes.Episode episode,
         RedditPodcastPoster.Models.Podcasts.Podcast podcast)
     {
+        EpisodeServicePresence.NormalizeCatalog(episode);
         return new PublicEpisodeDto
         {
             PodcastName = podcast.Name,
@@ -15,12 +18,10 @@ public static class PublicEpisodeExtension
             Release = episode.Release,
             Length = episode.Length,
             Explicit = episode.Explicit,
-            Urls = episode.Urls,
+            Ids = episode.Ids,
+            Services = episode.Services,
             Subjects = episode.Subjects,
-            Image = episode.Images?.YouTube ??
-                    episode.Images?.Spotify ??
-                    episode.Images?.Apple ??
-                    episode.Images?.Other
+            Image = EpisodeServicePresence.CoalescedImage(episode)
         };
     }
 }

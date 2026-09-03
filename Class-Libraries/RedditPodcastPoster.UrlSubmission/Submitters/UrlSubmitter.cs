@@ -32,6 +32,32 @@ public class UrlSubmitter(
                 if (submitOptions.PodcastId != null)
                 {
                     podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
+                    if (podcast == null)
+                    {
+                        logger.LogWarning(
+                            "Submit referenced podcast id '{PodcastId}' which does not exist.",
+                            submitOptions.PodcastId.Value);
+                        throw new SubmitPodcastNotFoundException(submitOptions.PodcastId.Value);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(submitOptions.PodcastName))
+                {
+                    var matches = await PodcastNameAttachLookup.FindByName(
+                        podcastRepository,
+                        submitOptions.PodcastName);
+                    if (matches.Count > 1)
+                    {
+                        logger.LogWarning(
+                            "Podcast name '{PodcastName}' matches {Count} rows; refusing first-iterator attach. Ids: {Ids}.",
+                            submitOptions.PodcastName,
+                            matches.Count,
+                            string.Join(", ", matches.Select(x => x.Id)));
+                        throw new AmbiguousPodcastNameException(
+                            submitOptions.PodcastName,
+                            matches.Select(x => x.Id).ToArray());
+                    }
+
+                    podcast = matches.Count == 1 ? matches[0] : null;
                 }
                 else
                 {
@@ -73,6 +99,14 @@ public class UrlSubmitter(
             }
 
             return submitResult;
+        }
+        catch (AmbiguousPodcastNameException)
+        {
+            throw;
+        }
+        catch (SubmitPodcastNotFoundException)
+        {
+            throw;
         }
         catch (HttpRequestException e)
         {

@@ -6,5 +6,6 @@ namespace RedditPodcastPoster.UrlSubmission.Factories;
 public interface IPodcastAndEpisodeFactory
 {
     Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
-        CategorisedItem categorisedItem);
+        CategorisedItem categorisedItem,
+        string? podcastName = null);
 }

@@ -1,10 +1,11 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple.Models;
@@ -13,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
@@ -20,11 +22,18 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
 /// <summary>
 /// MatchOtherServices must narrow Spotify/Apple lookups with ReleasedSince derived from the
-/// authority platform release (Apple âˆ’1 day; YouTube Â± publishing delay as coded).
+/// authority platform release (Apple −1 day; YouTube ± publishing delay as coded).
 /// </summary>
 public class UrlCategoriserReleasedSinceRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public UrlCategoriserReleasedSinceRules()
+    {
+        _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create());
+        _mocker.Use<IEpisodeRepository>(new InMemoryEpisodeRepository());
+    }
 
     [Fact(DisplayName =
         "When MatchOtherServices resolves Spotify from an Apple URL, ReleasedSince is the Apple release minus one day " +
@@ -35,8 +44,7 @@ public class UrlCategoriserReleasedSinceRules
         var release = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(14));
         var appleUrl = new Uri($"https://podcasts.apple.com/us/podcast/x/id{_fixture.CreateAppleId()}?i={_fixture.CreateAppleId()}");
         IndexingContext? capturedContext = null;
-        var apple = new Mock<IAppleUrlCategoriser>();
-        apple
+        _mocker.GetMock<IAppleUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IEnumerable<Episode>>(),
@@ -44,8 +52,7 @@ public class UrlCategoriserReleasedSinceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateAppleItem(appleUrl, release));
 
-        var spotify = new Mock<ISpotifyUrlCategoriser>();
-        spotify
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
@@ -54,7 +61,7 @@ public class UrlCategoriserReleasedSinceRules
                 capturedContext = ctx)
             .ReturnsAsync((ResolvedSpotifyItem?)null);
 
-        var sut = CreateSut(spotify.Object, apple.Object, Mock.Of<IYouTubeUrlCategoriser>());
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
         var podcast = _fixture.CreatePodcast(p => p.SpotifyId = string.Empty);
 
         // Act
@@ -77,8 +84,7 @@ public class UrlCategoriserReleasedSinceRules
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         IndexingContext? capturedContext = null;
 
-        var youTube = new Mock<IYouTubeUrlCategoriser>();
-        youTube
+        _mocker.GetMock<IYouTubeUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IList<Episode>>(),
@@ -86,8 +92,7 @@ public class UrlCategoriserReleasedSinceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateYouTubeItem(youTubeUrl, youTubeId, release));
 
-        var spotify = new Mock<ISpotifyUrlCategoriser>();
-        spotify
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
@@ -96,7 +101,7 @@ public class UrlCategoriserReleasedSinceRules
                 capturedContext = ctx)
             .ReturnsAsync((ResolvedSpotifyItem?)null);
 
-        var sut = CreateSut(spotify.Object, Mock.Of<IAppleUrlCategoriser>(), youTube.Object);
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.SpotifyId = string.Empty;
@@ -124,8 +129,7 @@ public class UrlCategoriserReleasedSinceRules
         var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
         IndexingContext? capturedContext = null;
 
-        var youTube = new Mock<IYouTubeUrlCategoriser>();
-        youTube
+        _mocker.GetMock<IYouTubeUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IList<Episode>>(),
@@ -133,8 +137,7 @@ public class UrlCategoriserReleasedSinceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateYouTubeItem(youTubeUrl, youTubeId, release));
 
-        var apple = new Mock<IAppleUrlCategoriser>();
-        apple
+        _mocker.GetMock<IAppleUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
@@ -143,15 +146,14 @@ public class UrlCategoriserReleasedSinceRules
                 capturedContext = ctx)
             .ReturnsAsync((ResolvedAppleItem?)null);
 
-        var spotify = new Mock<ISpotifyUrlCategoriser>();
-        spotify
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync((ResolvedSpotifyItem?)null);
 
-        var sut = CreateSut(spotify.Object, apple.Object, youTube.Object);
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.AppleId = null;
@@ -179,8 +181,7 @@ public class UrlCategoriserReleasedSinceRules
         var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyId}");
         IndexingContext? capturedContext = null;
 
-        var spotify = new Mock<ISpotifyUrlCategoriser>();
-        spotify
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IEnumerable<Episode>>(),
@@ -188,8 +189,7 @@ public class UrlCategoriserReleasedSinceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSpotifyItem(spotifyUrl, spotifyId, release));
 
-        var apple = new Mock<IAppleUrlCategoriser>();
-        apple
+        _mocker.GetMock<IAppleUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
@@ -198,7 +198,7 @@ public class UrlCategoriserReleasedSinceRules
                 capturedContext = ctx)
             .ReturnsAsync((ResolvedAppleItem?)null);
 
-        var sut = CreateSut(spotify.Object, apple.Object, Mock.Of<IYouTubeUrlCategoriser>());
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.AppleId = null;
@@ -226,8 +226,7 @@ public class UrlCategoriserReleasedSinceRules
         var spotifyUrl = new Uri($"https://open.spotify.com/episode/{spotifyId}");
         IndexingContext? capturedContext = null;
 
-        var spotify = new Mock<ISpotifyUrlCategoriser>();
-        spotify
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IEnumerable<Episode>>(),
@@ -235,8 +234,7 @@ public class UrlCategoriserReleasedSinceRules
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CreateSpotifyItem(spotifyUrl, spotifyId, release));
 
-        var youTube = new Mock<IYouTubeUrlCategoriser>();
-        youTube
+        _mocker.GetMock<IYouTubeUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
@@ -246,15 +244,14 @@ public class UrlCategoriserReleasedSinceRules
                 capturedContext = ctx)
             .ReturnsAsync((ResolvedYouTubeItem?)null);
 
-        var apple = new Mock<IAppleUrlCategoriser>();
-        apple
+        _mocker.GetMock<IAppleUrlCategoriser>()
             .Setup(x => x.Resolve(
                 It.IsAny<PodcastServiceSearchCriteria>(),
                 It.IsAny<Podcast?>(),
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync((ResolvedAppleItem?)null);
 
-        var sut = CreateSut(spotify.Object, apple.Object, youTube.Object);
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.SpotifyId = _fixture.CreateSpotifyId();
@@ -270,18 +267,6 @@ public class UrlCategoriserReleasedSinceRules
         capturedContext.Should().NotBeNull();
         capturedContext!.ReleasedSince.Should().Be(release.Add(delay));
     }
-
-    private static UrlCategoriser CreateSut(
-        ISpotifyUrlCategoriser spotify,
-        IAppleUrlCategoriser apple,
-        IYouTubeUrlCategoriser youTube) =>
-        new(
-            spotify,
-            apple,
-            youTube,
-            new InMemoryEpisodeRepository(),
-            Mock.Of<INonPodcastServiceCategoriser>(),
-            NullLogger<UrlCategoriser>.Instance);
 
     private ResolvedAppleItem CreateAppleItem(Uri url, DateTime release) =>
         new(

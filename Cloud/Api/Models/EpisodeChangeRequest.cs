@@ -45,6 +45,9 @@ public class EpisodeChangeRequest
     [JsonPropertyName("images")]
     public ServiceImageUrls? Images { get; set; }
 
+    [JsonPropertyName("services")]
+    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
+
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 
@@ -74,6 +77,7 @@ public class EpisodeChangeRequest
         Duration != null ||
         Urls != null ||
         Images != null ||
+        Services != null ||
         Subjects != null ||
         SearchTerms != null ||
         HashTag != null ||

@@ -1,12 +1,15 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Podcasts;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -19,7 +22,8 @@ public class PodcastAndEpisodeFactory(
 ) : IPodcastAndEpisodeFactory
 {
     public async Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
-        CategorisedItem categorisedItem)
+        CategorisedItem categorisedItem,
+        string? podcastName = null)
     {
         string showName;
         string publisher;
@@ -38,11 +42,17 @@ public class PodcastAndEpisodeFactory(
                 publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
                 break;
             case Service.Other:
-                showName = categorisedItem.ResolvedNonPodcastServiceItem!.Title!;
-                publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher!;
+                showName = NonPodcastShowNameResolver.ResolveForCreate(
+                    categorisedItem.ResolvedNonPodcastServiceItem!);
+                publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher ?? string.Empty;
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcastName))
+        {
+            showName = podcastName.Trim();
         }
 
         var newPodcast = await podcastFactory.Create(showName);
@@ -65,13 +75,9 @@ public class PodcastAndEpisodeFactory(
         var guestsResult = await guestEnricher.EnrichGuests(episode);
         logger.LogInformation("Created podcast with name '{ShowName}' with id '{NewPodcastId}'.", showName, newPodcast.Id);
 
-        var submitEpisodeDetails = new SubmitEpisodeDetails(
-            episode.Urls.Spotify != null,
-            episode.Urls.Apple != null,
-            episode.Urls.YouTube != null,
+        var submitEpisodeDetails = SubmitEpisodeDetails.FromEpisode(
+            episode,
             subjectsResult.Additions,
-            episode.Urls.BBC != null,
-            episode.Urls.InternetArchive != null,
             guestsResult.Additions,
             guestsResult.SkippedLowConfidence);
         episode.SetPodcastProperties(newPodcast, inheritLanguageIfUnset: true);

@@ -88,7 +88,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/channel/UCexample") };
             })
             .Create();
@@ -127,7 +127,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Length = youTubeInput.Duration;
                 e.Release = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages { YouTube = _fixture.Create<Uri>() };
             })
@@ -175,7 +175,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls { YouTube = youTubeInput.YouTubeUrl };
             })
             .Create();
@@ -211,7 +211,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Length = youTubeInput.Duration;
                 e.Release = youTubeInput.Release;
                 e.Description = string.Empty;
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -271,7 +271,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Length = youTubeInput.Duration;
                 e.Release = youTubeInput.Release;
                 e.Description = string.Empty;
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -341,9 +341,9 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
                 e.Release = midnightRelease;
-                e.AppleId = null;
+                EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Description = _fixture.Create<string>();
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages { YouTube = _fixture.Create<Uri>() };
             })
@@ -386,7 +386,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Length = youTubeInput.Duration;
                 e.Release = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages { YouTube = _fixture.Create<Uri>() };
             })
@@ -433,7 +433,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithLength(sharedLength)
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -484,7 +484,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
                 e.Length = youTubeInput.Duration;
                 e.Release = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Images = new EpisodeImages();
             })
@@ -546,7 +546,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -587,7 +587,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .WithLength(_fixture.CreateDuration())
             .Customize(e =>
             {
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
             .Create();
@@ -635,7 +635,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             .Customize(e =>
             {
                 e.Title = sharedTitle;
-                e.YouTubeId = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
                 e.Description = _fixture.CreateTitle();
                 e.Images = new EpisodeImages { YouTube = image };

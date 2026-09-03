@@ -37,21 +37,23 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(existingEpisode.SpotifyId) &&
-            !string.IsNullOrWhiteSpace(incomingEpisode.SpotifyId))
+        if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(existingEpisode)) &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(incomingEpisode)))
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(existingEpisode.YouTubeId) &&
-            !string.IsNullOrWhiteSpace(incomingEpisode.YouTubeId))
+        if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(existingEpisode)) &&
+            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(incomingEpisode)))
         {
-            return existingEpisode.YouTubeId == incomingEpisode.YouTubeId;
+            return EpisodeServicePresence.YouTubeEpisodeId(existingEpisode) ==
+                   EpisodeServicePresence.YouTubeEpisodeId(incomingEpisode);
         }
 
-        if (existingEpisode.AppleId.HasValue && incomingEpisode.AppleId.HasValue)
+        if (EpisodeServicePresence.AppleEpisodeId(existingEpisode) is { } existingApple &&
+            EpisodeServicePresence.AppleEpisodeId(incomingEpisode) is { } incomingApple)
         {
-            return existingEpisode.AppleId.Value == incomingEpisode.AppleId.Value;
+            return existingApple == incomingApple;
         }
 
         return MatchesByTitleHeuristics(existingEpisode, incomingEpisode, episodeMatchRegex, podcast);

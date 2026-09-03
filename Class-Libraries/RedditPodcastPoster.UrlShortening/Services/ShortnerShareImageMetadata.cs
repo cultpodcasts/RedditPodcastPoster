@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.UrlShortening.Services;
 
@@ -26,8 +27,9 @@ public static class ShortnerShareImageMetadata
 
     public static void Apply(MetaData metadata, Episode episode)
     {
-        var youTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId) ? null : episode.YouTubeId;
-        var image = CompactFromEpisode(episode.Images, youTubeId);
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var coalesced = EpisodeServicePresence.CoalescedImage(episode);
+        var image = coalesced is null ? null : Compact(coalesced.ToString(), youTubeId) ?? coalesced.ToString();
         if (string.IsNullOrEmpty(image))
         {
             return;
@@ -52,7 +54,9 @@ public static class ShortnerShareImageMetadata
             return ShareImageAspect.Wide;
         }
 
-        if (IsBbcIplayer(episode.Urls.BBC) || episode.Urls.InternetArchive is not null)
+        if (IsBbcIplayer(EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
+                         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds)) ||
+            EpisodeServicePresence.HasUrl(episode, ServiceKeys.InternetArchive))
         {
             return ShareImageAspect.Wide;
         }
@@ -60,10 +64,10 @@ public static class ShortnerShareImageMetadata
         return ShareImageAspect.Square;
     }
 
-    /// <summary>Same selection as SearchEpisodeImage.From: youtube ?? spotify ?? apple ?? other, then compact.</summary>
-    private static string? CompactFromEpisode(EpisodeImages? images, string? youTubeId)
+    /// <summary>Same selection as SearchEpisodeImage.From: ImageCoalesceOrder then compact.</summary>
+    private static string? CompactFromEpisode(Episode episode, string? youTubeId)
     {
-        var selected = images?.YouTube ?? images?.Spotify ?? images?.Apple ?? images?.Other;
+        var selected = EpisodeServicePresence.CoalescedImage(episode);
         if (selected is null)
         {
             return null;

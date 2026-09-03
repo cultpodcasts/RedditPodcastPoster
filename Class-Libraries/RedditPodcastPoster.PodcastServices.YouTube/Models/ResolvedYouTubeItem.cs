@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
@@ -37,7 +38,7 @@ public class ResolvedYouTubeItem
     public ResolvedYouTubeItem(PodcastEpisode podcastEpisode)
     {
         ShowId = podcastEpisode.Podcast.YouTubeChannelId;
-        EpisodeId = podcastEpisode.Episode.YouTubeId;
+        EpisodeId = EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode) ?? string.Empty;
         ShowName = podcastEpisode.Podcast.Name;
         Publisher = podcastEpisode.Podcast.Publisher;
         EpisodeTitle = podcastEpisode.Episode.Title;
@@ -45,12 +46,8 @@ public class ResolvedYouTubeItem
         Release = podcastEpisode.Episode.Release;
         Duration = podcastEpisode.Episode.Length;
         Explicit = podcastEpisode.Episode.Explicit;
-        if (podcastEpisode.Episode.Urls.YouTube != null)
-        {
-            Url = podcastEpisode.Episode.Urls.YouTube;
-        }
-
-        Image = podcastEpisode.Episode.Images?.YouTube;
+        Url = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.YouTube);
+        Image = EpisodeServicePresence.TryGetImage(podcastEpisode.Episode, ServiceKeys.YouTube);
         PlaylistId = podcastEpisode.Podcast.YouTubePlaylistId;
     }
 
