@@ -86,6 +86,61 @@ public class AmazonPrimePageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Prime Video page extract recovers title and ShowName from ATV embedded JSON when og:title is missing, " +
+        "because live season pages often expose only parentTitle plus a document title.")]
+    public async Task extracts_series_from_atv_json_when_og_title_missing()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var seasonLabel = $"{seriesName} - Season 1";
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                $"<html><head><title>Prime Video: {seasonLabel}</title></head>" +
+                $"<body><script>window.__ATV={{\"titleType\":\"season\",\"entityType\":\"TV Show\"," +
+                $"\"parentTitle\":\"{seriesName}\"}};</script></body></html>",
+                Encoding.UTF8,
+                "text/html")
+        };
+        var sut = _mocker.CreateInstance<AmazonPrimePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seasonLabel);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Amazon Prime Video");
+    }
+
+    [Fact(DisplayName =
+        "Prime Video movie pages leave ShowName null even when ATV JSON is present, " +
+        "because a film has no parent series for podcastName attach.")]
+    public async Task movie_pages_do_not_set_show_name()
+    {
+        // Arrange
+        var filmTitle = _fixture.CreateTitle();
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                $"<html><head><title>Prime Video: {filmTitle}</title></head>" +
+                $"<body><script>window.__ATV={{\"titleType\":\"movie\",\"entityType\":\"Movie\"}};</script></body></html>",
+                Encoding.UTF8,
+                "text/html")
+        };
+        var sut = _mocker.CreateInstance<AmazonPrimePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(filmTitle);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Prime Video page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

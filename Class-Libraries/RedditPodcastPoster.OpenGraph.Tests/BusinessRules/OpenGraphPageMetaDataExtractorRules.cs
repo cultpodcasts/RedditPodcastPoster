@@ -110,6 +110,65 @@ public class OpenGraphPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Open Graph extract sets ShowName from JSON-LD TVSeries.name on catalogue pages, " +
+        "so Netflix series title pages return podcastName for attach-by-name without og:video:series.")]
+    public async Task json_ld_tv_series_name_is_show_name_on_catalogue_pages()
+    {
+        // Arrange
+        var marketingTitle = $"Watch {_fixture.CreateTitle()} | Netflix Official Site";
+        var seriesName = _fixture.CreateTitle();
+        var publisher = "Netflix";
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{marketingTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}" +
+            $"</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(marketingTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.ShowName.Should().NotBe(publisher);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract does not set ShowName from JSON-LD Movie.name, " +
+        "because a film has no parent series and podcastName must stay null.")]
+    public async Task json_ld_movie_name_is_not_show_name()
+    {
+        // Arrange
+        var marketingTitle = $"Watch {_fixture.CreateTitle()} | Netflix Official Site";
+        var movieName = _fixture.CreateTitle();
+        var publisher = "Netflix";
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{marketingTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"name\":\"{movieName}\"}}" +
+            $"</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(marketingTitle);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Open Graph extract does not set ShowName to og:title alone, because og:title on watch pages is the episode title, not the series.")]
     public async Task og_title_alone_is_not_show_name()
     {

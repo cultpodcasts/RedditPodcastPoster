@@ -46,8 +46,28 @@ public class BbcSeriesNameRules
     }
 
     [Fact(DisplayName =
-        "iPlayer redux subtitle or og:video:series is the brand when it differs from the episode title.")]
-    public void iplayer_subtitle_or_og_series_is_brand_when_distinct()
+        "iPlayer redux episode.title is the programme brand when it differs from the episode subtitle/label, " +
+        "because live pages no longer expose og:video:series and subtitle is the episode not the brand.")]
+    public void iplayer_redux_brand_is_preferred_over_subtitle()
+    {
+        // Arrange
+        var brand = string.Join(' ', _fixture.CreateMany<string>(2));
+        var episodeLabel = string.Join(' ', _fixture.CreateMany<string>(3));
+
+        // Act
+        var fromBrand = BbcSeriesName.FromProgrammeBrand(brand, episodeLabel);
+        var subtitleMustNotWin = BbcSeriesName.FromDistinctCandidates(episodeLabel, null, episodeLabel);
+        var ogFallback = BbcSeriesName.FromDistinctCandidates(episodeLabel, brand);
+
+        // Assert
+        fromBrand.Should().Be(brand);
+        subtitleMustNotWin.Should().BeNull();
+        ogFallback.Should().Be(brand);
+    }
+
+    [Fact(DisplayName =
+        "iPlayer og:video:series remains a valid brand candidate when redux brand is absent and it differs from the episode title.")]
+    public void iplayer_og_series_is_brand_when_distinct()
     {
         // Arrange
         var episodeTitle = string.Join(' ', _fixture.CreateMany<string>(3));
@@ -55,12 +75,10 @@ public class BbcSeriesNameRules
 
         // Act
         var fromOg = BbcSeriesName.FromDistinctCandidates(episodeTitle, brand, null);
-        var fromSubtitle = BbcSeriesName.FromDistinctCandidates(episodeTitle, null, brand);
         var sameAsEpisode = BbcSeriesName.FromDistinctCandidates(episodeTitle, episodeTitle, episodeTitle);
 
         // Assert
         fromOg.Should().Be(brand);
-        fromSubtitle.Should().Be(brand);
         sameAsEpisode.Should().BeNull();
     }
 }

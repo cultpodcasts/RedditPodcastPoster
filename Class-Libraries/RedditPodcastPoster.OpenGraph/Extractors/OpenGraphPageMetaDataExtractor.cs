@@ -65,7 +65,8 @@ public class OpenGraphPageMetaDataExtractor
         TimeSpan? duration = null;
         DateTime? release = null;
         string? series = null;
-        var scripts = document.DocumentNode.SelectNodes("//script[@type='application/ld+json']");
+        var scripts = document.DocumentNode.SelectNodes(
+            "//script[@type='application/ld+json'] | //script[contains(@type,'ld+json')]");
         if (scripts == null)
         {
             return (null, null, null);
@@ -75,7 +76,8 @@ public class OpenGraphPageMetaDataExtractor
         {
             try
             {
-                using var json = JsonDocument.Parse(script.InnerText);
+                var jsonText = System.Net.WebUtility.HtmlDecode(script.InnerText);
+                using var json = JsonDocument.Parse(jsonText);
                 ReadNode(json.RootElement, ref duration, ref release, ref series);
             }
             catch (JsonException)
@@ -141,9 +143,45 @@ public class OpenGraphPageMetaDataExtractor
             series = seriesName.GetString();
         }
 
+        // Catalogue pages expose @type TVSeries with name (not partOfSeries). Movies must not become ShowName.
+        if (series is null &&
+            IsJsonLdType(element, "TVSeries") &&
+            element.TryGetProperty("name", out var tvSeriesName) &&
+            tvSeriesName.ValueKind == JsonValueKind.String)
+        {
+            series = tvSeriesName.GetString();
+        }
+
         if (element.TryGetProperty("@graph", out var graph))
         {
             ReadNode(graph, ref duration, ref release, ref series);
         }
+    }
+
+    private static bool IsJsonLdType(JsonElement element, string expectedType)
+    {
+        if (!element.TryGetProperty("@type", out var typeElement))
+        {
+            return false;
+        }
+
+        if (typeElement.ValueKind == JsonValueKind.String)
+        {
+            return string.Equals(typeElement.GetString(), expectedType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (typeElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in typeElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String &&
+                    string.Equals(item.GetString(), expectedType, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
