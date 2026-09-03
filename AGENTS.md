@@ -1,5 +1,12 @@
 # Cult Podcasts / RedditPodcastPoster — agent notes
 
+## Auth0 permissions (api-infra)
+
+Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `ClientPrincipal.HasScope` — not ID-token roles. Submit URL: `["curate", "submit"]` on `SubmitUrlController`.
+
+- Cross-repo map: [`website/cultpodcasts/docs/auth0-roles-and-permissions.md`](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md)
+- Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
+
 ## Unit tests (HARD)
 
 Any agent (Cursor, Codex, Copilot, etc.) editing tests **MUST** follow:

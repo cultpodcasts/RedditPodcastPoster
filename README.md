@@ -2,6 +2,8 @@
 
 A .NET solution for [cultpodcasts.com](https://cultpodcasts.com): discover podcasts, index episodes from multiple providers, enrich metadata, publish to social channels, and expose a public API.
 
+**Auth0 roles and permissions** (SPA roles vs JWT scopes; Azure `HandleRequest` gates): [`website/cultpodcasts/docs/auth0-roles-and-permissions.md`](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md)
+
 Primary data is stored in **Azure Cosmos DB** with detached `Podcasts` and `Episodes` containers. Episode search uses **Azure AI Search**.
 
 Licensed under the MIT license.
