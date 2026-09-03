@@ -15,14 +15,18 @@ internal static class NonPodcastSubmitAdapterResolverSupport
 {
     public static INonPodcastServiceAdapterResolver Create(
         IBBCPageMetaDataExtractor? bbcExtractor = null,
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? vimeoExtract = null) =>
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? vimeoExtract = null,
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? netflixExtract = null,
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? primeExtract = null,
+        IInternetArchivePageMetaDataExtractor? archiveExtractor = null) =>
         new NonPodcastServiceAdapterResolver(
         [
             new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
-            new InternetArchiveNonPodcastServiceAdapter(Mock.Of<IInternetArchivePageMetaDataExtractor>()),
+            new InternetArchiveNonPodcastServiceAdapter(
+                archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
             CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
-            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl),
-            CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl)
+            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
+            CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
 
     private static INonPodcastServiceAdapter CatalogAdapter(

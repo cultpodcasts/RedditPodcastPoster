@@ -16,7 +16,15 @@ public static class NonPodcastShowNameResolver
     {
         if (!string.IsNullOrWhiteSpace(showName))
         {
-            return showName.Trim();
+            var resolved = showName.Trim();
+            if (service != NonPodcastService.Vimeo &&
+                !string.IsNullOrWhiteSpace(publisher) &&
+                string.Equals(resolved, publisher.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return resolved;
         }
 
         if (service == NonPodcastService.Vimeo &&

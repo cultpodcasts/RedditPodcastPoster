@@ -51,7 +51,38 @@ public class AmazonPrimePageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("Amazon Prime Video");
+        meta.ShowName.Should().BeNull();
         _handler.LastRequestUri.Should().Be(url);
+    }
+
+    [Fact(DisplayName =
+        "Prime Video page extract populates ShowName from structured series metadata when distinct from the episode title, " +
+        "so GET submit lookup can return podcastName for unknown Prime URLs.")]
+    public async Task extracts_series_name_for_lookup()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                $"<html><head>" +
+                $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+                $"<meta property=\"og:series\" content=\"{seriesName}\" />" +
+                $"</head></html>",
+                Encoding.UTF8,
+                "text/html")
+        };
+        var sut = _mocker.CreateInstance<AmazonPrimePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Amazon Prime Video");
     }
 
     [Fact(DisplayName =

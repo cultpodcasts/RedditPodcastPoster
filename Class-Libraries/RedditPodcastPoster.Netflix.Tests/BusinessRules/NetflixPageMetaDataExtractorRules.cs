@@ -46,7 +46,33 @@ public class NetflixPageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("Netflix");
+        meta.ShowName.Should().BeNull();
         _handler.LastRequestUri.Should().Be(url);
+    }
+
+    [Fact(DisplayName =
+        "Netflix page extract populates ShowName from og:video:series when distinct from the episode title, " +
+        "so GET submit lookup can return podcastName for unknown Netflix URLs.")]
+    public async Task extracts_series_name_for_lookup()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:video:series\" content=\"{seriesName}\" />" +
+            $"</head></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Netflix");
     }
 
     [Fact(DisplayName =

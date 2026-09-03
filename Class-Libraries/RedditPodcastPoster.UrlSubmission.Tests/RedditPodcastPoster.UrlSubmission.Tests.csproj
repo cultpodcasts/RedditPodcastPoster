@@ -31,9 +31,16 @@
     <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.InternetArchive\RedditPodcastPoster.InternetArchive.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.OpenGraph\RedditPodcastPoster.OpenGraph.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TestData\StreamingScrapers\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -4,6 +4,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -22,6 +23,8 @@ public class UrlMembershipLookupRules
     private readonly InMemoryEpisodeRepository _episodes = new();
     private readonly InMemoryPodcastRepository _podcasts = new();
     private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _vimeoExtract;
+    private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _netflixExtract;
+    private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _primeExtract;
 
     public UrlMembershipLookupRules()
     {
@@ -31,7 +34,14 @@ public class UrlMembershipLookupRules
             _mocker.GetMock<IBBCPageMetaDataExtractor>().Object,
             url => _vimeoExtract != null
                 ? _vimeoExtract(url)
-                : throw new InvalidOperationException("Extract is not used in submit routing tests.")));
+                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
+            url => _netflixExtract != null
+                ? _netflixExtract(url)
+                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
+            url => _primeExtract != null
+                ? _primeExtract(url)
+                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
+            _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object));
     }
 
     [Fact(DisplayName =
@@ -303,6 +313,84 @@ public class UrlMembershipLookupRules
         result.PodcastName.Should().Be(author);
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an unknown Netflix URL has og:video:series metadata, URL membership lookup returns that series as podcastName " +
+        "and never the Netflix platform publisher.")]
+    public async Task unknown_netflix_extracts_series_name()
+    {
+        // Arrange
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
+        var seriesName = _fixture.CreateTitle();
+        _netflixExtract = _ => Task.FromResult(new NonPodcastServiceItemMetaData(
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            Publisher: "Netflix",
+            ShowName: seriesName));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().Be(seriesName);
+        result.PodcastName.Should().NotBe("Netflix");
+    }
+
+    [Fact(DisplayName =
+        "When an unknown Prime Video URL has structured series metadata, URL membership lookup returns that series as podcastName " +
+        "and never the Amazon Prime platform publisher.")]
+    public async Task unknown_prime_extracts_series_name()
+    {
+        // Arrange
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        var seriesName = _fixture.CreateTitle();
+        _primeExtract = _ => Task.FromResult(new NonPodcastServiceItemMetaData(
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            Publisher: "Amazon Prime Video",
+            ShowName: seriesName));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().Be(seriesName);
+        result.PodcastName.Should().NotBe("Amazon Prime Video");
+    }
+
+    [Fact(DisplayName =
+        "When an unknown Internet Archive playlist URL has a distinct collection title, URL membership lookup returns it as podcastName " +
+        "and not the uploader publisher.")]
+    public async Task unknown_archive_extracts_collection_show_name()
+    {
+        // Arrange
+        var url = new Uri($"https://archive.org/details/{_fixture.CreateYouTubeId()}");
+        var collectionName = _fixture.CreateTitle();
+        var uploader = _fixture.Create<string>();
+        _mocker.GetMock<IInternetArchivePageMetaDataExtractor>()
+            .Setup(e => e.GetMetaData(url))
+            .ReturnsAsync(new NonPodcastServiceItemMetaData(
+                Title: _fixture.CreateTitle(),
+                Description: _fixture.Create<string>(),
+                Publisher: uploader,
+                ShowName: collectionName));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().Be(collectionName);
+        result.PodcastName.Should().NotBe(uploader);
     }
 
     [Fact(DisplayName =

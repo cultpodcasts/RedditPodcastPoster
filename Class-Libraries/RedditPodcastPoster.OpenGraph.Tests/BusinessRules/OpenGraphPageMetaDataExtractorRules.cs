@@ -46,6 +46,116 @@ public class OpenGraphPageMetaDataExtractorRules
         meta.Publisher.Should().Be(publisher);
         meta.Duration.Should().Be(new TimeSpan(1, 2, 3));
         meta.Release.Should().Be(DateTime.Parse("2024-03-15T18:00:00Z").ToUniversalTime());
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract sets ShowName from og:video:series when it differs from og:title, " +
+        "so Netflix/Prime lookup can return podcastName without treating the platform publisher as the series.")]
+    public async Task og_video_series_is_show_name_when_distinct_from_title()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:video:series\" content=\"{seriesName}\" />" +
+            $"</head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.ShowName.Should().NotBe(meta.Title);
+        meta.ShowName.Should().NotBe(publisher);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract sets ShowName from JSON-LD partOfSeries when it differs from og:title, " +
+        "because episode pages often omit og:video:series but still expose structured series metadata.")]
+    public async Task json_ld_part_of_series_is_show_name_when_distinct_from_title()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVEpisode\",\"name\":\"{episodeTitle}\"," +
+            $"\"partOfSeries\":{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}}}" +
+            $"</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract does not set ShowName to og:title alone, because og:title on watch pages is the episode title, not the series.")]
+    public async Task og_title_alone_is_not_show_name()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var publisher = "Netflix";
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{episodeTitle}\" /></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract ignores a series candidate that equals the platform publisher, " +
+        "so podcastName is never the Netflix or Prime brand.")]
+    public async Task platform_publisher_is_not_show_name()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var publisher = "Netflix";
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:video:series\" content=\"{publisher}\" />" +
+            $"</head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.ShowName.Should().BeNull();
     }
 
     [Fact(DisplayName =
