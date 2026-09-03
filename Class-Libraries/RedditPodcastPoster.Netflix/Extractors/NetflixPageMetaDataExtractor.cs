@@ -99,9 +99,23 @@ internal static partial class NetflixCatalogMeta
             showName);
     }
 
-    public static bool IsMovie(string html) =>
-        MovieTypeRegex().IsMatch(html) ||
-        SoftWallMovieTypeRegex().IsMatch(html);
+    /// <summary>
+    /// True when the <em>primary</em> soft-wall <c>type</c> or catalogue <c>@type</c> is Movie.
+    /// Whole-document Movie matches are ignored so recommended/carousel film blobs cannot
+    /// null <c>ShowName</c> on series catalogue pages.
+    /// </summary>
+    public static bool IsMovie(string html)
+    {
+        var softWall = SoftWallPrimaryTypeRegex().Match(html);
+        if (softWall.Success)
+        {
+            return softWall.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var catalogue = CataloguePrimaryTypeRegex().Match(html);
+        return catalogue.Success &&
+               catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static bool IsCatalogueMarketingTitle(string? title) =>
         !string.IsNullOrWhiteSpace(title) &&
@@ -179,11 +193,13 @@ internal static partial class NetflixCatalogMeta
     private static NonPodcastServiceMetaDataExtractionException MissingTitle(Uri url) =>
         new(url, "Netflix page has neither og:title nor a recoverable title/show heading.");
 
-    [GeneratedRegex("\"@type\"\\s*:\\s*\"Movie\"", RegexOptions.CultureInvariant)]
-    private static partial Regex MovieTypeRegex();
+    /// <summary>First soft-wall <c>type</c> of Show or Movie — treated as the page primary.</summary>
+    [GeneratedRegex("\"type\"\\s*:\\s*\"(Show|Movie)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex SoftWallPrimaryTypeRegex();
 
-    [GeneratedRegex("\"type\"\\s*:\\s*\"Movie\"", RegexOptions.CultureInvariant)]
-    private static partial Regex SoftWallMovieTypeRegex();
+    /// <summary>First catalogue ld+json <c>@type</c> of TVSeries or Movie — treated as the page primary.</summary>
+    [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex CataloguePrimaryTypeRegex();
 
     [GeneratedRegex("\"type\"\\s*:\\s*\"Show\"", RegexOptions.CultureInvariant)]
     private static partial Regex SoftWallShowTypeRegex();

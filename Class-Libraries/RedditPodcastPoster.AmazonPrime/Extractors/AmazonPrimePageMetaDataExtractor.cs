@@ -91,7 +91,14 @@ internal static partial class AmazonPrimeAtvMeta
             return null;
         }
 
-        var parentTitle = FirstGroup(html, ParentTitleRegex());
+        // Prefer parentTitle co-located with season / TV Show markers so carousel
+        // related-title blobs earlier in the HTML cannot win.
+        var parentTitle =
+            FirstGroup(html, TitleTypeThenParentTitleRegex())
+            ?? FirstGroup(html, ParentTitleThenTitleTypeRegex())
+            ?? FirstGroup(html, EntityTypeThenParentTitleRegex())
+            ?? FirstGroup(html, ParentTitleThenEntityTypeRegex())
+            ?? FirstGroup(html, ParentTitleRegex());
         return string.IsNullOrWhiteSpace(parentTitle) ? null : parentTitle.Trim();
     }
 
@@ -149,6 +156,26 @@ internal static partial class AmazonPrimeAtvMeta
 
     [GeneratedRegex("\"parentTitle\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.CultureInvariant)]
     private static partial Regex ParentTitleRegex();
+
+    [GeneratedRegex(
+        "\"titleType\"\\s*:\\s*\"(?:season|series)\"[\\s\\S]{0,800}?\"parentTitle\"\\s*:\\s*\"([^\"]+)\"",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex TitleTypeThenParentTitleRegex();
+
+    [GeneratedRegex(
+        "\"parentTitle\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]{0,800}?\"titleType\"\\s*:\\s*\"(?:season|series)\"",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ParentTitleThenTitleTypeRegex();
+
+    [GeneratedRegex(
+        "\"entityType\"\\s*:\\s*\"TV Show\"[\\s\\S]{0,800}?\"parentTitle\"\\s*:\\s*\"([^\"]+)\"",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex EntityTypeThenParentTitleRegex();
+
+    [GeneratedRegex(
+        "\"parentTitle\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]{0,800}?\"entityType\"\\s*:\\s*\"TV Show\"",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex ParentTitleThenEntityTypeRegex();
 
     [GeneratedRegex("\"titleType\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.CultureInvariant)]
     private static partial Regex TitleTypeRegex();

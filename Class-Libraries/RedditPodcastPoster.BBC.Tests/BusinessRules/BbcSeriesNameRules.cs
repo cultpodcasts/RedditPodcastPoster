@@ -46,6 +46,21 @@ public class BbcSeriesNameRules
     }
 
     [Fact(DisplayName =
+        "Sounds brand container that equals the episode title is a one-off: FromProgrammeBrand returns null " +
+        "and must not be forced back to Container.Title for ShowName / podcastName.")]
+    public void sounds_brand_equal_to_episode_is_not_forced_as_series()
+    {
+        // Arrange
+        var oneOff = string.Join(' ', _fixture.CreateMany<string>(3));
+
+        // Act
+        var fromBrand = BbcSeriesName.FromProgrammeBrand(oneOff, oneOff);
+
+        // Assert
+        fromBrand.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "iPlayer redux episode.title is the programme brand when it differs from the episode subtitle/label, " +
         "because live pages no longer expose og:video:series and subtitle is the episode not the brand.")]
     public void iplayer_redux_brand_is_preferred_over_subtitle()

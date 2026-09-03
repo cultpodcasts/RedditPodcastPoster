@@ -61,8 +61,8 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
         if (string.Equals(programme.Container?.Type, "brand", StringComparison.OrdinalIgnoreCase) &&
             !string.IsNullOrWhiteSpace(programme.Container?.Title))
         {
-            return BbcSeriesName.FromProgrammeBrand(programme.Container.Title, programme.Titles.Title)
-                   ?? programme.Container.Title.Trim();
+            // One-offs: brand title equals episode title → null (do not force Container.Title).
+            return BbcSeriesName.FromProgrammeBrand(programme.Container.Title, programme.Titles.Title);
         }
 
         return programme.Titles.SeriesName;

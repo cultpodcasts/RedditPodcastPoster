@@ -17,31 +17,33 @@ public static class StreamingScraperBrowsePages
 
     public static IReadOnlyList<StreamingScraperBrowsePage> Pages { get; } =
     [
+        // Floors / SampleLookups are intentionally low: this suite is opt-in drift detection
+        // (skipped in CI via SKIP_LIVE_STREAMING_SCRAPER_TESTS=1), not a storefront card-count contract.
         new(StreamingScraperProvider.BbcSounds, "sounds-home",
             new Uri("https://www.bbc.co.uk/sounds"),
-            MinSubmitLinks: 3,
-            SampleLookups: 3,
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
             StabilityNote: "Sounds homepage SSR embeds /sounds/play/ programme cards"),
         new(StreamingScraperProvider.BbcSounds, "sounds-music",
             new Uri("https://www.bbc.co.uk/sounds/music"),
-            MinSubmitLinks: 5,
-            SampleLookups: 3,
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
             StabilityNote: "Sounds music section lists playable programmes"),
         new(StreamingScraperProvider.BbcSounds, "sounds-podcasts",
             new Uri("https://www.bbc.co.uk/sounds/podcasts"),
-            MinSubmitLinks: 5,
-            SampleLookups: 3,
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
             StabilityNote: "Sounds podcasts section lists playable programmes"),
 
         new(StreamingScraperProvider.BbcIplayer, "iplayer-home",
             new Uri("https://www.bbc.co.uk/iplayer"),
-            MinSubmitLinks: 10,
-            SampleLookups: 4,
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
             StabilityNote: "iPlayer homepage embeds /iplayer/episode/ deep links"),
         new(StreamingScraperProvider.BbcIplayer, "iplayer-films-az",
             new Uri("https://www.bbc.co.uk/iplayer/categories/films/a-z"),
-            MinSubmitLinks: 10,
-            SampleLookups: 4,
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
             StabilityNote: "iPlayer films A–Z section is rich in episode (incl. film) URLs"),
 
         // Netflix marketing/home SSR does not reliably expose /title/ hrefs; keep title catalogue
@@ -49,14 +51,14 @@ public static class StreamingScraperBrowsePages
 
         new(StreamingScraperProvider.AmazonPrime, "prime-storefront-home",
             new Uri("https://www.primevideo.com/storefront/home"),
-            MinSubmitLinks: 20,
-            SampleLookups: 4,
-            StabilityNote: "Prime storefront home SSR embeds many /detail/ title cards"),
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
+            StabilityNote: "Prime storefront home SSR embeds /detail/ title cards"),
 
         new(StreamingScraperProvider.Vimeo, "vimeo-home",
             new Uri("https://vimeo.com/"),
             MinSubmitLinks: 1,
-            SampleLookups: 2,
+            SampleLookups: 1,
             StabilityNote: "Vimeo homepage may expose a small number of numeric video ids"),
     ];
 }

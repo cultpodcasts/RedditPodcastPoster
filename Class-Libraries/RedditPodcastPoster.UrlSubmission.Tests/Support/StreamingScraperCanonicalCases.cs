@@ -5,11 +5,15 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 /// Browse homepage/section discovery lives in <see cref="StreamingScraperBrowsePages"/>.
 /// </summary>
 /// <remarks>
-/// <para>Live HTTP is the default path (detects provider HTML drift). Set <c>SKIP_LIVE_STREAMING_SCRAPER_TESTS=1</c> only in constrained environments.</para>
+/// <para>
+/// Live HTTP Theories detect provider HTML drift. CI sets <c>SKIP_LIVE_STREAMING_SCRAPER_TESTS=1</c>
+/// (see <c>.github/workflows/dotnet.yml</c> / <c>deploy.yml</c> test job) so Build stays fully mocked.
+/// Run locally or on a nightly job without that env (or with value other than <c>1</c>) to exercise live scrapes.
+/// </para>
 /// <para>
 /// Static cases pin exact <c>podcastName</c> expectations (series, films, one-offs).
 /// Homepage/section pages harvest additional submit URLs under
-/// <see cref="BusinessRules.UrlSubmission.StreamingScraperBrowsePageHarvestRules"/>.
+/// <see cref="BusinessRules.UrlSubmission.StreamingScraperBrowsePageHarvestRules"/> (same live gate).
 /// </para>
 /// </remarks>
 public static class StreamingScraperCanonicalCases

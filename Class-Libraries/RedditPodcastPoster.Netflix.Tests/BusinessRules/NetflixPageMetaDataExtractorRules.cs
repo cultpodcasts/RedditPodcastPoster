@@ -211,6 +211,54 @@ public class NetflixPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Netflix series catalogue keeps ShowName from the primary TVSeries even when a recommended Movie blob appears later in the HTML, " +
+        "because whole-document Movie matches must not null podcastName for series title pages.")]
+    public async Task series_primary_ignores_later_recommended_movie_blob()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var recommendedFilm = _fixture.CreateTitle();
+        var marketingTitle = $"Watch {seriesName} | Netflix Official Site";
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{marketingTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}" +
+            $"</script></head>" +
+            $"<body><div>{{\"@type\":\"Movie\",\"name\":\"{recommendedFilm}\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
+        "Netflix soft-walled show pages keep ShowName from the h1 when primary soft-wall type is Show, " +
+        "even if a recommended Movie soft-wall type appears later in the HTML.")]
+    public async Task soft_wall_show_primary_ignores_later_movie_type()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><title>Netflix</title></head>" +
+            $"<body><h1>{seriesName}</h1><script>{{\"type\":\"Show\"}}</script>" +
+            $"<div>{{\"type\":\"Movie\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seriesName);
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
         "Netflix page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

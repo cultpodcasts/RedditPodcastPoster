@@ -141,6 +141,37 @@ public class AmazonPrimePageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Prime Video season pages prefer parentTitle co-located with titleType/entityType season markers, " +
+        "so an earlier carousel parentTitle in the HTML cannot become podcastName.")]
+    public async Task prefers_season_parent_title_over_earlier_carousel_parent()
+    {
+        // Arrange
+        var carouselNoise = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var seasonLabel = $"{seriesName} - Season 1";
+        var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                $"<html><head><title>Prime Video: {seasonLabel}</title></head>" +
+                $"<body><script>window.__RELATED={{\"parentTitle\":\"{carouselNoise}\"}};</script>" +
+                $"<script>window.__ATV={{\"titleType\":\"season\",\"entityType\":\"TV Show\"," +
+                $"\"parentTitle\":\"{seriesName}\"}};</script></body></html>",
+                Encoding.UTF8,
+                "text/html")
+        };
+        var sut = _mocker.CreateInstance<AmazonPrimePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seasonLabel);
+        meta.ShowName.Should().Be(seriesName);
+        meta.ShowName.Should().NotBe(carouselNoise);
+    }
+
+    [Fact(DisplayName =
         "Prime Video page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {
