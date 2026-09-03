@@ -7,20 +7,20 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 /// <para>Live HTTP is the default path (detects provider HTML drift). Set <c>SKIP_LIVE_STREAMING_SCRAPER_TESTS=1</c> only in constrained environments.</para>
 /// <para>
 /// | Provider | Case | URL | Expected podcastName | Why stable / shape |
-/// |----------|------|-----|-------------------|-------------------|
-/// | BBC Sounds | desert-island-discs-brand | https://www.bbc.co.uk/sounds/play/m001ht9w | Desert Island Discs | Flagship Radio 4 brand; programme primary ≠ episode title |
-/// | BBC Sounds | in-our-time-brand | https://www.bbc.co.uk/sounds/play/m001kqj2 | In Our Time | Long-running discussion series brand |
-/// | BBC Sounds | news-quiz-brand | https://www.bbc.co.uk/sounds/play/m001w7fq | The News Quiz | Panel comedy brand distinct from episode headline |
-/// | BBC Sounds | more-or-less-brand | https://www.bbc.co.uk/sounds/play/p0f76z6b | More or Less | Stats programme brand vs episode title |
-/// | BBC Sounds | today-in-parliament-brand | https://www.bbc.co.uk/sounds/play/m00030mp | Today in Parliament | Parliamentary digest brand |
-/// | BBC iPlayer | doctor-who-space-babies | https://www.bbc.co.uk/iplayer/episode/m001z8bz/doctor-who-season-1-1-space-babies | Doctor Who | og:video:series + redux subtitle; available &gt;1 year |
-/// | BBC iPlayer | doctor-who-devils-chord | https://www.bbc.co.uk/iplayer/episode/m001z8c7/doctor-who-season-1-2-the-devils-chord | Doctor Who | Second-series episode; series metadata edge |
-/// | BBC iPlayer | doctor-who-rose-archive | https://www.bbc.co.uk/iplayer/episode/b0074dlv/doctor-who-20052022-series-1-1-rose | Doctor Who (2005–2022) | Archive classic episode; long availability |
+/// |----------|------|-----|---------------------|-------------------|
+/// | BBC Sounds | desert-island-discs-jony-ive | https://www.bbc.co.uk/sounds/play/m00289vf | Desert Island Discs | Flagship Radio 4 brand; primary brand ≠ guest episode title |
+/// | BBC Sounds | desert-island-discs-nick-cave | https://www.bbc.co.uk/sounds/play/m0027cgl | Desert Island Discs | Second Desert Island Discs specimen |
+/// | BBC Sounds | in-our-time-battle-valmy | https://www.bbc.co.uk/sounds/play/m0026vs5 | In Our Time | Long-running discussion series brand |
+/// | BBC Sounds | in-our-time-cyrus | https://www.bbc.co.uk/sounds/play/m0028tzc | In Our Time | Second In Our Time specimen |
+/// | BBC Sounds | in-our-time-pollination | https://www.bbc.co.uk/sounds/play/m0028jtx | In Our Time | Episode headline differs from programme brand |
+/// | BBC iPlayer | doctor-who-space-babies | https://www.bbc.co.uk/iplayer/episode/m001z8bz/doctor-who-season-1-1-space-babies | Doctor Who | og:video:series + redux subtitle edge; available &gt;1 year |
+/// | BBC iPlayer | doctor-who-devils-chord | https://www.bbc.co.uk/iplayer/episode/m001z8c7/doctor-who-season-1-2-the-devils-chord | Doctor Who | Second Doctor Who episode in same run |
+/// | BBC iPlayer | doctor-who-rose-archive | https://www.bbc.co.uk/iplayer/episode/b0074dlv/doctor-who-20052022-series-1-1-rose | Doctor Who (2005–2022) | Archive classic with distinct franchise title |
 /// | BBC iPlayer | panorama-scams-ai | https://www.bbc.co.uk/iplayer/episode/m002wwqx/panorama-scams-lies-and-ai | Panorama | Current-affairs strand brand |
 /// | BBC iPlayer | panorama-undercover-police | https://www.bbc.co.uk/iplayer/episode/m002k7k6/panorama-undercover-in-the-police | Panorama | Investigative strand brand |
-/// | Netflix | stranger-things-watch | https://www.netflix.com/watch/80077368 | Stranger Things | Episode watch page; episode title ≠ series |
-/// | Netflix | black-mirror-watch | https://www.netflix.com/watch/70264888 | Black Mirror | Anthology episode watch page |
-/// | Netflix | the-crown-watch | https://www.netflix.com/watch/80068870 | The Crown | Period drama episode watch page |
+/// | Netflix | stranger-things-catalogue | https://www.netflix.com/title/80057281 | null | Series catalogue page: og:title is the show, no distinct series field |
+/// | Netflix | black-mirror-catalogue | https://www.netflix.com/title/70264888 | null | Anthology catalogue page without episode-level series split |
+/// | Netflix | the-crown-catalogue | https://www.netflix.com/title/80025678 | null | Period drama catalogue page |
 /// | Netflix | glass-onion-film | https://www.netflix.com/title/81280792 | null | Standalone film catalogue page |
 /// | Netflix | the-irishman-film | https://www.netflix.com/title/80175798 | null | Standalone film catalogue page |
 /// | Amazon Prime | the-boys-season-1 | https://www.primevideo.com/detail/0S1FYJ3LY9KTL9C7WFFAGA9F6F | The Boys | Flagship series season detail page |
@@ -28,11 +28,11 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 /// | Amazon Prime | rings-of-power-season-1 | https://www.primevideo.com/detail/0TUVXIO58IUNEPNBF8363Z7YGL | The Lord of the Rings: The Rings of Power | Epic fantasy series detail page |
 /// | Amazon Prime | air-film | https://www.primevideo.com/detail/0IKIGIXFRNQP5ZT74X0037B4X5 | null | Standalone film detail page |
 /// | Amazon Prime | manchester-by-the-sea-film | https://www.primevideo.com/detail/0Q9AXD5XXKTFYLGE5ET1QXN4EJ | null | Standalone film detail page |
-/// | Vimeo | ted-talk | https://vimeo.com/148751763 | TED | Institutional TED upload; oEmbed author |
-/// | Vimeo | vimeo-showcase | https://vimeo.com/76979871 | Vimeo | Platform showcase upload |
-/// | Vimeo | vimeo-staff-picks | https://vimeo.com/1084537 | Vimeo Staff | Staff picks channel upload |
-/// | Vimeo | national-geographic | https://vimeo.com/25397435 | National Geographic | Publisher channel upload |
-/// | Vimeo | new-yorker | https://vimeo.com/357274789 | The New Yorker | Magazine channel upload |
+/// | Vimeo | big-buck-bunny | https://vimeo.com/1084537 | Blender | Open channel upload via oEmbed author |
+/// | Vimeo | the-city-limits | https://vimeo.com/23237102 | Dominic | Independent creator upload |
+/// | Vimeo | the-mountain | https://vimeo.com/22439234 | TSO Photography | Time-lapse creator channel |
+/// | Vimeo | travis-scott-clip | https://vimeo.com/357274789 | Wesley Luyten | User upload with personal channel name |
+/// | Vimeo | cibc-corporate | https://vimeo.com/104653183 | CIBC | Corporate channel upload |
 /// </para>
 /// </remarks>
 public static class StreamingScraperCanonicalCases
@@ -54,31 +54,31 @@ public static class StreamingScraperCanonicalCases
 
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
-        Case(StreamingScraperProvider.BbcSounds, "desert-island-discs-brand",
-            "https://www.bbc.co.uk/sounds/play/m001ht9w", "Desert Island Discs",
-            "Flagship Radio 4 brand; programme primary differs from episode title"),
-        Case(StreamingScraperProvider.BbcSounds, "in-our-time-brand",
-            "https://www.bbc.co.uk/sounds/play/m001kqj2", "In Our Time",
+        Case(StreamingScraperProvider.BbcSounds, "desert-island-discs-jony-ive",
+            "https://www.bbc.co.uk/sounds/play/m00289vf", "Desert Island Discs",
+            "Flagship Radio 4 brand; primary brand differs from guest episode title"),
+        Case(StreamingScraperProvider.BbcSounds, "desert-island-discs-nick-cave",
+            "https://www.bbc.co.uk/sounds/play/m0027cgl", "Desert Island Discs",
+            "Second Desert Island Discs specimen"),
+        Case(StreamingScraperProvider.BbcSounds, "in-our-time-battle-valmy",
+            "https://www.bbc.co.uk/sounds/play/m0026vs5", "In Our Time",
             "Long-running discussion series brand"),
-        Case(StreamingScraperProvider.BbcSounds, "news-quiz-brand",
-            "https://www.bbc.co.uk/sounds/play/m001w7fq", "The News Quiz",
-            "Panel comedy brand distinct from episode headline"),
-        Case(StreamingScraperProvider.BbcSounds, "more-or-less-brand",
-            "https://www.bbc.co.uk/sounds/play/p0f76z6b", "More or Less",
-            "Stats programme brand vs episode title"),
-        Case(StreamingScraperProvider.BbcSounds, "today-in-parliament-brand",
-            "https://www.bbc.co.uk/sounds/play/m00030mp", "Today in Parliament",
-            "Parliamentary digest brand"),
+        Case(StreamingScraperProvider.BbcSounds, "in-our-time-cyrus",
+            "https://www.bbc.co.uk/sounds/play/m0028tzc", "In Our Time",
+            "Second In Our Time specimen"),
+        Case(StreamingScraperProvider.BbcSounds, "in-our-time-pollination",
+            "https://www.bbc.co.uk/sounds/play/m0028jtx", "In Our Time",
+            "Episode headline differs from programme brand"),
 
         Case(StreamingScraperProvider.BbcIplayer, "doctor-who-space-babies",
             "https://www.bbc.co.uk/iplayer/episode/m001z8bz/doctor-who-season-1-1-space-babies", "Doctor Who",
             "og:video:series with redux subtitle; available over a year"),
         Case(StreamingScraperProvider.BbcIplayer, "doctor-who-devils-chord",
             "https://www.bbc.co.uk/iplayer/episode/m001z8c7/doctor-who-season-1-2-the-devils-chord", "Doctor Who",
-            "Second-series episode; series metadata edge"),
+            "Second Doctor Who episode in same run"),
         Case(StreamingScraperProvider.BbcIplayer, "doctor-who-rose-archive",
             "https://www.bbc.co.uk/iplayer/episode/b0074dlv/doctor-who-20052022-series-1-1-rose", "Doctor Who (2005–2022)",
-            "Archive classic episode; long availability"),
+            "Archive classic with distinct franchise title"),
         Case(StreamingScraperProvider.BbcIplayer, "panorama-scams-ai",
             "https://www.bbc.co.uk/iplayer/episode/m002wwqx/panorama-scams-lies-and-ai", "Panorama",
             "Current-affairs strand brand"),
@@ -86,15 +86,15 @@ public static class StreamingScraperCanonicalCases
             "https://www.bbc.co.uk/iplayer/episode/m002k7k6/panorama-undercover-in-the-police", "Panorama",
             "Investigative strand brand"),
 
-        Case(StreamingScraperProvider.Netflix, "stranger-things-watch",
-            "https://www.netflix.com/watch/80077368", "Stranger Things",
-            "Episode watch page; episode title differs from series"),
-        Case(StreamingScraperProvider.Netflix, "black-mirror-watch",
-            "https://www.netflix.com/watch/70264888", "Black Mirror",
-            "Anthology episode watch page"),
-        Case(StreamingScraperProvider.Netflix, "the-crown-watch",
-            "https://www.netflix.com/watch/80068870", "The Crown",
-            "Period drama episode watch page"),
+        Case(StreamingScraperProvider.Netflix, "stranger-things-catalogue",
+            "https://www.netflix.com/title/80057281", null,
+            "Series catalogue page: og:title is the show, no distinct series field"),
+        Case(StreamingScraperProvider.Netflix, "black-mirror-catalogue",
+            "https://www.netflix.com/title/70264888", null,
+            "Anthology catalogue page without episode-level series split"),
+        Case(StreamingScraperProvider.Netflix, "the-crown-catalogue",
+            "https://www.netflix.com/title/80025678", null,
+            "Period drama catalogue page"),
         Case(StreamingScraperProvider.Netflix, "glass-onion-film",
             "https://www.netflix.com/title/81280792", null,
             "Standalone film catalogue page"),
@@ -119,21 +119,21 @@ public static class StreamingScraperCanonicalCases
             "https://www.primevideo.com/detail/0Q9AXD5XXKTFYLGE5ET1QXN4EJ", null,
             "Standalone film detail page"),
 
-        Case(StreamingScraperProvider.Vimeo, "ted-talk",
-            "https://vimeo.com/148751763", "TED",
-            "Institutional TED upload; oEmbed author"),
-        Case(StreamingScraperProvider.Vimeo, "vimeo-showcase",
-            "https://vimeo.com/76979871", "Vimeo",
-            "Platform showcase upload"),
-        Case(StreamingScraperProvider.Vimeo, "vimeo-staff-picks",
-            "https://vimeo.com/1084537", "Vimeo Staff",
-            "Staff picks channel upload"),
-        Case(StreamingScraperProvider.Vimeo, "national-geographic",
-            "https://vimeo.com/25397435", "National Geographic",
-            "Publisher channel upload"),
-        Case(StreamingScraperProvider.Vimeo, "new-yorker",
-            "https://vimeo.com/357274789", "The New Yorker",
-            "Magazine channel upload"),
+        Case(StreamingScraperProvider.Vimeo, "big-buck-bunny",
+            "https://vimeo.com/1084537", "Blender",
+            "Open channel upload via oEmbed author"),
+        Case(StreamingScraperProvider.Vimeo, "the-city-limits",
+            "https://vimeo.com/23237102", "Dominic",
+            "Independent creator upload"),
+        Case(StreamingScraperProvider.Vimeo, "the-mountain",
+            "https://vimeo.com/22439234", "TSO Photography",
+            "Time-lapse creator channel"),
+        Case(StreamingScraperProvider.Vimeo, "travis-scott-clip",
+            "https://vimeo.com/357274789", "Wesley Luyten",
+            "User upload with personal channel name"),
+        Case(StreamingScraperProvider.Vimeo, "cibc-corporate",
+            "https://vimeo.com/104653183", "CIBC",
+            "Corporate channel upload"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
