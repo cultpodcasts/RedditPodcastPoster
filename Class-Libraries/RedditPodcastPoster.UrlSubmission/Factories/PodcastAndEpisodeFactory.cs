@@ -6,6 +6,7 @@ using RedditPodcastPoster.People;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -41,7 +42,8 @@ public class PodcastAndEpisodeFactory(
                 publisher = categorisedItem.ResolvedYouTubeItem.Publisher;
                 break;
             case Service.Other:
-                showName = ResolveNonPodcastShowName(categorisedItem.ResolvedNonPodcastServiceItem!);
+                showName = NonPodcastShowNameResolver.ResolveForCreate(
+                    categorisedItem.ResolvedNonPodcastServiceItem!);
                 publisher = categorisedItem.ResolvedNonPodcastServiceItem!.Publisher ?? string.Empty;
                 break;
             default:
@@ -80,22 +82,5 @@ public class PodcastAndEpisodeFactory(
             guestsResult.SkippedLowConfidence);
         episode.SetPodcastProperties(newPodcast, inheritLanguageIfUnset: true);
         return new CreatePodcastWithEpisodeResponse(newPodcast, episode, submitEpisodeDetails);
-    }
-
-    private static string ResolveNonPodcastShowName(
-        ResolvedNonPodcastServiceItem item)
-    {
-        if (!string.IsNullOrWhiteSpace(item.ShowName))
-        {
-            return item.ShowName.Trim();
-        }
-
-        if (item.NonPodcastService == NonPodcastService.Vimeo &&
-            !string.IsNullOrWhiteSpace(item.Publisher))
-        {
-            return item.Publisher.Trim();
-        }
-
-        return item.Title ?? string.Empty;
     }
 }

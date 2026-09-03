@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -15,7 +16,8 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 public class UrlMembershipLookup(
     IEpisodeRepository episodeRepository,
     IPodcastRepository podcastRepository,
-    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver)
+    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
+    ILogger<UrlMembershipLookup> logger)
     : IUrlMembershipLookup
 {
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
@@ -73,11 +75,17 @@ public class UrlMembershipLookup(
             }
 
             var meta = await adapter.ExtractMetaData(url);
-            var name = string.IsNullOrWhiteSpace(meta.ShowName) ? meta.Publisher : meta.ShowName;
-            return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            return NonPodcastShowNameResolver.TrySeriesName(
+                meta.ShowName,
+                meta.Publisher,
+                adapter.Service);
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning(
+                ex,
+                "Submit URL membership lookup failed to extract a series name from '{url}'.",
+                url);
             return null;
         }
     }
