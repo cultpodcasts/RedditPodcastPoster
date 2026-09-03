@@ -12,10 +12,11 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
 internal static class NonPodcastSubmitAdapterResolverSupport
 {
-    public static INonPodcastServiceAdapterResolver Create() =>
+    public static INonPodcastServiceAdapterResolver Create(
+        IBBCPageMetaDataExtractor? bbcExtractor = null) =>
         new NonPodcastServiceAdapterResolver(
         [
-            new BbcNonPodcastServiceAdapter(Mock.Of<IBBCPageMetaDataExtractor>()),
+            new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
             new InternetArchiveNonPodcastServiceAdapter(Mock.Of<IInternetArchivePageMetaDataExtractor>()),
             CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl),
             CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl),

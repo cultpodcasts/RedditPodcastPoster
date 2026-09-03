@@ -56,7 +56,30 @@ public class UrlMembershipLookup(
             }
         }
 
-        return new UrlMembershipLookupResult(false, kind);
+        var extractedName = kind == UrlMembershipLookupKinds.Streaming
+            ? await TryExtractShowName(url)
+            : null;
+        return new UrlMembershipLookupResult(false, kind, PodcastName: extractedName);
+    }
+
+    private async Task<string?> TryExtractShowName(Uri url)
+    {
+        try
+        {
+            var adapter = nonPodcastServiceAdapterResolver.ForExtract(url);
+            if (adapter == null)
+            {
+                return null;
+            }
+
+            var meta = await adapter.ExtractMetaData(url);
+            var name = string.IsNullOrWhiteSpace(meta.ShowName) ? meta.Publisher : meta.ShowName;
+            return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string Classify(Uri url, out Expression<Func<Episode, bool>>? storedUrlEquals)

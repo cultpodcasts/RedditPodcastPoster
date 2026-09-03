@@ -1,10 +1,14 @@
 using FluentAssertions;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -184,6 +188,35 @@ public class UrlMembershipLookupRules
         result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
             false,
             UrlMembershipLookupKinds.Streaming));
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a streaming URL is not stored, URL membership lookup extracts the adapter series name " +
+        "so general drop can persist podcastName without a curator picker.")]
+    public async Task unknown_streaming_extracts_show_name()
+    {
+        // Arrange
+        var url = BbcSoundsUrl();
+        var showName = _fixture.CreateTitle();
+        var extractor = new Mock<IBBCPageMetaDataExtractor>();
+        extractor
+            .Setup(e => e.GetMetaData(url))
+            .ReturnsAsync(new NonPodcastServiceItemMetaData(
+                Title: _fixture.CreateTitle(),
+                Description: _fixture.Create<string>(),
+                ShowName: showName));
+        _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create(extractor.Object));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().Be(showName);
+        result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
