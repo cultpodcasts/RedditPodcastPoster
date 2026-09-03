@@ -7,5 +7,14 @@ public enum NonPodcastService
     InternetArchive,
     Vimeo,
     Netflix,
-    AmazonPrime
+    AmazonPrime,
+    Itvx,
+    Channel4,
+    Fawesome,
+    DisneyPlus,
+    DiscoveryPlus,
+    ParamountPlus,
+    HboMax,
+    PlaySuisse,
+    TvnzPlus
 }

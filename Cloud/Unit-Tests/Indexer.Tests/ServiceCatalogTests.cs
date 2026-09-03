@@ -19,6 +19,12 @@ public class ServiceCatalogTests
     [InlineData("https://www.hbomax.com/series/urn:hbo:series:example", "hboMax")]
     [InlineData("https://www.playsuisse.ch/watch/example", "playSuisse")]
     [InlineData("https://www.tvnz.co.nz/shows/example", "tvnzPlus")]
+    [InlineData("https://www.itv.com/watch/example/1a2345", "itvx")]
+    [InlineData("https://www.channel4.com/programmes/example", "channel4")]
+    [InlineData("https://www.all4.com/programmes/example", "channel4")]
+    [InlineData("https://fawesome.tv/movies/1/example", "fawesome")]
+    [InlineData("https://www.disneyplus.com/series/example", "disneyPlus")]
+    [InlineData("https://www.discoveryplus.com/show/example", "discoveryPlus")]
     public void Resolves_well_known_hosts_to_stable_json_keys(string url, string expectedKey)
     {
         // Arrange

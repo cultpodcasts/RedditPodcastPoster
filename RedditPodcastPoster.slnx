@@ -6,6 +6,24 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime/RedditPodcastPoster.AmazonPrime.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.Channel4/RedditPodcastPoster.Channel4.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus/RedditPodcastPoster.DiscoveryPlus.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.DisneyPlus/RedditPodcastPoster.DisneyPlus.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Fawesome/RedditPodcastPoster.Fawesome.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.HboMax/RedditPodcastPoster.HboMax.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.Itvx/RedditPodcastPoster.Itvx.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.ParamountPlus/RedditPodcastPoster.ParamountPlus.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.PlaySuisse/RedditPodcastPoster.PlaySuisse.csproj" />
+
+    <Project Path="Class-Libraries/RedditPodcastPoster.TvnzPlus/RedditPodcastPoster.TvnzPlus.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.Auth0/RedditPodcastPoster.Auth0.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC/RedditPodcastPoster.BBC.csproj" />
@@ -91,6 +109,15 @@
   <Folder Name="/Class-Libraries/Tests/">
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime.Tests/RedditPodcastPoster.AmazonPrime.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Channel4.Tests/RedditPodcastPoster.Channel4.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus.Tests/RedditPodcastPoster.DiscoveryPlus.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DisneyPlus.Tests/RedditPodcastPoster.DisneyPlus.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Fawesome.Tests/RedditPodcastPoster.Fawesome.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.HboMax.Tests/RedditPodcastPoster.HboMax.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Itvx.Tests/RedditPodcastPoster.Itvx.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.ParamountPlus.Tests/RedditPodcastPoster.ParamountPlus.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PlaySuisse.Tests/RedditPodcastPoster.PlaySuisse.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.TvnzPlus.Tests/RedditPodcastPoster.TvnzPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />

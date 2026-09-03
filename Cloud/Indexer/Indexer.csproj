@@ -49,9 +49,6 @@
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />

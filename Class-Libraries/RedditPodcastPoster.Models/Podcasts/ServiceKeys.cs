@@ -18,4 +18,9 @@ public static class ServiceKeys
     public const string HboMax = "hboMax";
     public const string PlaySuisse = "playSuisse";
     public const string TvnzPlus = "tvnzPlus";
+    public const string Itvx = "itvx";
+    public const string Channel4 = "channel4";
+    public const string Fawesome = "fawesome";
+    public const string DisneyPlus = "disneyPlus";
+    public const string DiscoveryPlus = "discoveryPlus";
 }

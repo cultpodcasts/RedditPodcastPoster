@@ -1,11 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.AmazonPrime.Extensions;
-using RedditPodcastPoster.BBC.Extensions;
-using RedditPodcastPoster.Netflix.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Categorisers;
-using RedditPodcastPoster.Vimeo.Extensions;
+using RedditPodcastPoster.PodcastServices.Extensions;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
@@ -22,10 +19,7 @@ internal static class LiveStreamingScraperAdapterResolverSupport
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
         services.AddHttpClient();
         services
-            .AddBBCServices()
-            .AddNetflixServices()
-            .AddAmazonPrimeServices()
-            .AddVimeoServices()
+            .AddNonPodcastScrapers()
             .AddScoped<INonPodcastServiceAdapter, BbcNonPodcastServiceAdapter>()
             .AddScoped<INonPodcastServiceAdapterResolver, NonPodcastServiceAdapterResolver>();
 

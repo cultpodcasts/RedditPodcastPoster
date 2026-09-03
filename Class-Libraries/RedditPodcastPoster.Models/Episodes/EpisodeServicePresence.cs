@@ -29,7 +29,12 @@ public static class EpisodeServicePresence
         ServiceKeys.ParamountPlus,
         ServiceKeys.HboMax,
         ServiceKeys.PlaySuisse,
-        ServiceKeys.TvnzPlus
+        ServiceKeys.TvnzPlus,
+        ServiceKeys.Itvx,
+        ServiceKeys.Channel4,
+        ServiceKeys.Fawesome,
+        ServiceKeys.DisneyPlus,
+        ServiceKeys.DiscoveryPlus
     ];
 
     /// <summary>

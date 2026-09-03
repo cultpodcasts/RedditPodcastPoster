@@ -8,7 +8,6 @@ using Api.Services.Discovery;
 using Azure.Diagnostics;
 using iTunesSearch.Library;
 using RedditPodcastPoster.Auth0.Extensions;
-using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.CloudflareRedirect.Extensions;
@@ -23,10 +22,6 @@ using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
-using RedditPodcastPoster.InternetArchive.Extensions;
-using RedditPodcastPoster.AmazonPrime.Extensions;
-using RedditPodcastPoster.Netflix.Extensions;
-using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
@@ -79,11 +74,7 @@ public static class Ioc
             .AddPushSubscriptionsRepository()
             .AddScoped<IClientPrincipalFactory, ClientPrincipalFactory>()
             .AddAuth0Validation()
-            .AddBBCServices()
-            .AddInternetArchiveServices()
-            .AddVimeoServices()
-            .AddNetflixServices()
-            .AddAmazonPrimeServices()
+            .AddNonPodcastScrapers()
             .AddHttpClient()
             .AddEpisodeSearchIndexerService()
             .AddApiEpisodes()

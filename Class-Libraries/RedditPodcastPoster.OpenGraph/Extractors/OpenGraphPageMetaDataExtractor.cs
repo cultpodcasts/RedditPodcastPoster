@@ -56,7 +56,9 @@ public class OpenGraphPageMetaDataExtractor
         var node = document.DocumentNode.SelectSingleNode(
             $"/html/head/meta[@property='{property}']")
                    ?? document.DocumentNode.SelectSingleNode(
-                       $"//meta[@property='{property}']");
+                       $"//meta[@property='{property}']")
+                   ?? document.DocumentNode.SelectSingleNode(
+                       $"//meta[@name='{property}']");
         return node?.GetAttributeValue("content", null);
     }
 

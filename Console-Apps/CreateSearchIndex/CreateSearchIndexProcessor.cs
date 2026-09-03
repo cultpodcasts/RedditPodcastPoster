@@ -483,7 +483,7 @@ public partial class CreateSearchIndexProcessor(
         const string appleImageExpr = @"e.services.apple.image";
         const string appleUrlExpr = @"e.services.apple.url";
         var coalescedImageFallback =
-            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image";
+            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image ?? e.services.itvx.image ?? e.services.channel4.image ?? e.services.fawesome.image ?? e.services.disneyPlus.image ?? e.services.discoveryPlus.image";
         var isYouTubeToken =
             @$"(IS_DEFINED({youtubeImageExpr}) AND {youTubeIdExpr} != """"
                 AND STARTSWITH({youtubeImageExpr}, CONCAT(""https://i.ytimg.com/vi/"", {youTubeIdExpr}, ""/""))
@@ -545,7 +545,12 @@ public partial class CreateSearchIndexProcessor(
                                 IIF(IS_DEFINED(e.services.paramountPlus.url), CONCAT(""paramountPlus:"", e.services.paramountPlus.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.hboMax.url), CONCAT(""hboMax:"", e.services.hboMax.url, ""|""), """"),
                                 IIF(IS_DEFINED(e.services.playSuisse.url), CONCAT(""playSuisse:"", e.services.playSuisse.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.tvnzPlus.url), CONCAT(""tvnzPlus:"", e.services.tvnzPlus.url, ""|""), """")
+                                IIF(IS_DEFINED(e.services.tvnzPlus.url), CONCAT(""tvnzPlus:"", e.services.tvnzPlus.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.itvx.url), CONCAT(""itvx:"", e.services.itvx.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.channel4.url), CONCAT(""channel4:"", e.services.channel4.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.fawesome.url), CONCAT(""fawesome:"", e.services.fawesome.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.disneyPlus.url), CONCAT(""disneyPlus:"", e.services.disneyPlus.url, ""|""), """"),
+                                IIF(IS_DEFINED(e.services.discoveryPlus.url), CONCAT(""discoveryPlus:"", e.services.discoveryPlus.url, ""|""), """")
                             ), ""|"") as svc,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
