@@ -31,7 +31,7 @@ public class SubmitUrlController(
         CancellationToken ct
     ) => HandleRequest(
             req,
-            ["submit"],
+            ["curate", "submit"],
             submitUrlModel,
             Handle,
             Unauthorised,
@@ -45,7 +45,7 @@ public class SubmitUrlController(
         CancellationToken ct
     ) => HandleRequest(
             req,
-            ["submit"],
+            ["curate", "submit"],
             HandleLookup,
             Unauthorised,
             ct);
