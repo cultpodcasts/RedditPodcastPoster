@@ -11,8 +11,11 @@ Production deploys are defined by:
 | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Build, test, provision (bicep), deploy all three function apps |
 | [`Infrastructure/function.bicep`](../Infrastructure/function.bicep) | Flex Consumption hosting, blob-container deployment target, app settings |
 | [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) | Per-app settings and module wiring |
+| [`global.json`](../global.json) | Pins **stable .NET SDK 10.0.x** for local CLI (`rollForward: latestFeature`). Never publish Functions with a preview SDK (e.g. .NET 11 preview). |
 
 **CI does not use local PowerShell scripts.** Agents must not replace or extend the CI mechanism without explicit user approval.
+
+Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-discover.ps1` / `deploy-indexer.ps1`) **refuses** to publish if `dotnet --version` is not stable `10.x` (preview/RC or other majors fail fast).
 
 ## CI vs local (1:1)
 
