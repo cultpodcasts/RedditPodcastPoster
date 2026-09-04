@@ -49,7 +49,6 @@ public static class ServiceCollectionExtensions
     internal static SocketsHttpHandler CreateItvxSocketsHandler() =>
         new()
         {
-            AutomaticDecompression = DecompressionMethods.All,
-            AllowAutoRedirect = true
+            AutomaticDecompression = DecompressionMethods.All
         };
 }
