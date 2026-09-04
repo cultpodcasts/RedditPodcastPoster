@@ -53,7 +53,11 @@ public class SubmitUrlService(
                 }
             }
 
-            var submitOptions = new SubmitOptions(podcastId, true, PodcastName: submitUrlModel.PodcastName);
+            var submitOptions = new SubmitOptions(
+                podcastId,
+                true,
+                PodcastName: submitUrlModel.PodcastName,
+                PrefetchedMeta: submitUrlModel.PrefetchedMeta);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext

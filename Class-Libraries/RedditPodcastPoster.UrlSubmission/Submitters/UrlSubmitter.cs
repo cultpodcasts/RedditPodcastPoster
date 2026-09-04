@@ -72,7 +72,12 @@ public class UrlSubmitter(
             }
 
             var categorisedItem =
-                await urlCategoriser.Categorise(podcast, url, indexingContext, submitOptions.MatchOtherServices);
+                await urlCategoriser.Categorise(
+                    podcast,
+                    url,
+                    indexingContext,
+                    submitOptions.MatchOtherServices,
+                    submitOptions.PrefetchedMeta);
 
             var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
 

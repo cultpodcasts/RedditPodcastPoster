@@ -9,7 +9,6 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -22,9 +21,6 @@ public class UrlMembershipLookupRules
     private readonly AutoMocker _mocker = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
     private readonly InMemoryPodcastRepository _podcasts = new();
-    private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _vimeoExtract;
-    private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _netflixExtract;
-    private Func<Uri, Task<NonPodcastServiceItemMetaData>>? _primeExtract;
 
     public UrlMembershipLookupRules()
     {
@@ -32,16 +28,7 @@ public class UrlMembershipLookupRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create(
             _mocker.GetMock<IBBCPageMetaDataExtractor>().Object,
-            url => _vimeoExtract != null
-                ? _vimeoExtract(url)
-                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
-            url => _netflixExtract != null
-                ? _netflixExtract(url)
-                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
-            url => _primeExtract != null
-                ? _primeExtract(url)
-                : throw new InvalidOperationException("Extract is not used in submit routing tests."),
-            _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object));
+            archiveExtractor: _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object));
     }
 
     [Fact(DisplayName =
@@ -173,12 +160,6 @@ public class UrlMembershipLookupRules
         var url = BbcSoundsUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcSoundsLookup(e, url));
-        _mocker.GetMock<IBBCPageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(It.IsAny<Uri>()))
-            .ReturnsAsync(new NonPodcastServiceItemMetaData(
-                Title: _fixture.CreateTitle(),
-                Description: _fixture.Create<string>(),
-                ShowName: _fixture.CreateTitle()));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -197,7 +178,8 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
-        "When a streaming URL is not stored, URL membership lookup returns unknown streaming with service key without a series name unless extract supplies ShowName.")]
+        "When a streaming URL is not stored, URL membership lookup returns unknown streaming with service key and null podcastName, " +
+        "never calls the adapter extractor, because membership classifies only and prepare owns HTML fetch.")]
     public async Task unknown_sounds_url_returns_streaming()
     {
         // Arrange
@@ -212,7 +194,10 @@ public class UrlMembershipLookupRules
             false,
             UrlMembershipLookupKinds.Streaming,
             Service: ServiceKeys.BbcSounds));
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
+        _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -224,12 +209,6 @@ public class UrlMembershipLookupRules
         var url = BbcIplayerUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcIplayerLookup(e, url));
-        _mocker.GetMock<IBBCPageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(It.IsAny<Uri>()))
-            .ReturnsAsync(new NonPodcastServiceItemMetaData(
-                Title: _fixture.CreateTitle(),
-                Description: _fixture.Create<string>(),
-                ShowName: _fixture.CreateTitle()));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -248,8 +227,8 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
-        "When a BBC iPlayer episode URL is not stored, URL membership lookup returns unknown streaming with ServiceKeys.BbcIplayer " +
-        "because ServiceCatalog.TryResolveKey prefers /iplayer/ over the shared BBC adapter identity.")]
+        "When a BBC iPlayer episode URL is not stored, URL membership lookup returns unknown streaming with ServiceKeys.BbcIplayer and null podcastName " +
+        "because ServiceCatalog.TryResolveKey prefers /iplayer/ and membership does not scrape.")]
     public async Task unknown_iplayer_url_returns_streaming_with_bbc_iplayer_service()
     {
         // Arrange
@@ -264,101 +243,18 @@ public class UrlMembershipLookupRules
             false,
             UrlMembershipLookupKinds.Streaming,
             Service: ServiceKeys.BbcIplayer));
-        _episodes.SavedEpisodes.Should().BeEmpty();
-    }
-
-    [Fact(DisplayName =
-        "When a streaming URL is not stored, URL membership lookup extracts the adapter series/show name " +
-        "so drop can persist podcastName; known stays false because membership is URL-only.")]
-    public async Task unknown_streaming_extracts_show_name()
-    {
-        // Arrange
-        var url = BbcSoundsUrl();
-        var showName = _fixture.CreateTitle();
-        _mocker.GetMock<IBBCPageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(url))
-            .ReturnsAsync(new NonPodcastServiceItemMetaData(
-                Title: _fixture.CreateTitle(),
-                Description: _fixture.Create<string>(),
-                ShowName: showName));
-        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
-
-        // Act
-        var result = await sut.Lookup(url, CancellationToken.None);
-
-        // Assert
-        result.Known.Should().BeFalse();
-        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcSounds);
-        result.PodcastName.Should().Be(showName);
-        result.PodcastId.Should().BeNull();
-        _episodes.SavedEpisodes.Should().BeEmpty();
-    }
-
-    [Fact(DisplayName =
-        "When unknown streaming metadata has a publisher but no series/show name, URL membership lookup leaves PodcastName null " +
-        "because publisher is a platform brand, not a series, and drop must not name-attach to it.")]
-    public async Task unknown_streaming_publisher_only_leaves_podcast_name_null()
-    {
-        // Arrange
-        var url = BbcSoundsUrl();
-        _mocker.GetMock<IBBCPageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(url))
-            .ReturnsAsync(new NonPodcastServiceItemMetaData(
-                Title: _fixture.CreateTitle(),
-                Description: _fixture.Create<string>(),
-                Publisher: _fixture.Create<string>(),
-                ShowName: null));
-        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
-
-        // Act
-        var result = await sut.Lookup(url, CancellationToken.None);
-
-        // Assert
-        result.Known.Should().BeFalse();
-        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcSounds);
-        result.PodcastName.Should().BeNull();
-        result.PodcastId.Should().BeNull();
-        _episodes.SavedEpisodes.Should().BeEmpty();
-    }
-
-    [Fact(DisplayName =
-        "When streaming metadata extract throws, URL membership lookup still returns unknown streaming with a null podcastName " +
-        "so GET lookup does not fail the request.")]
-    public async Task unknown_streaming_extract_failure_leaves_podcast_name_null()
-    {
-        // Arrange
-        var url = BbcSoundsUrl();
-        _mocker.GetMock<IBBCPageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(url))
-            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
-        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
-
-        // Act
-        var result = await sut.Lookup(url, CancellationToken.None);
-
-        // Assert
-        result.Known.Should().BeFalse();
-        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcSounds);
         result.PodcastName.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
+        _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When an unknown Vimeo URL has no series/show name, URL membership lookup uses the author as podcastName " +
-        "because Vimeo publisher is the uploader, not a platform brand.")]
-    public async Task unknown_vimeo_publisher_is_series_name()
+        "When an unknown Vimeo URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape the Vimeo author.")]
+    public async Task unknown_vimeo_leaves_podcast_name_null()
     {
         // Arrange
         var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
-        var author = _fixture.Create<string>();
-        _vimeoExtract = _ => Task.FromResult(new NonPodcastServiceItemMetaData(
-            Title: _fixture.CreateTitle(),
-            Description: _fixture.Create<string>(),
-            Publisher: author,
-            ShowName: null));
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -368,24 +264,18 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.Vimeo);
-        result.PodcastName.Should().Be(author);
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "When an unknown Netflix URL has og:video:series metadata, URL membership lookup returns that series as podcastName " +
-        "and never the Netflix platform publisher.")]
-    public async Task unknown_netflix_extracts_series_name()
+        "When an unknown Netflix URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape series metadata.")]
+    public async Task unknown_netflix_leaves_podcast_name_null()
     {
         // Arrange
         var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
-        var seriesName = _fixture.CreateTitle();
-        _netflixExtract = _ => Task.FromResult(new NonPodcastServiceItemMetaData(
-            Title: _fixture.CreateTitle(),
-            Description: _fixture.Create<string>(),
-            Publisher: "Netflix",
-            ShowName: seriesName));
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -395,23 +285,16 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.Netflix);
-        result.PodcastName.Should().Be(seriesName);
-        result.PodcastName.Should().NotBe("Netflix");
+        result.PodcastName.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "When an unknown Prime Video URL has structured series metadata, URL membership lookup returns that series as podcastName " +
-        "and never the Amazon Prime platform publisher.")]
-    public async Task unknown_prime_extracts_series_name()
+        "When an unknown Prime Video URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape series metadata.")]
+    public async Task unknown_prime_leaves_podcast_name_null()
     {
         // Arrange
         var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
-        var seriesName = _fixture.CreateTitle();
-        _primeExtract = _ => Task.FromResult(new NonPodcastServiceItemMetaData(
-            Title: _fixture.CreateTitle(),
-            Description: _fixture.Create<string>(),
-            Publisher: "Amazon Prime Video",
-            ShowName: seriesName));
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -421,26 +304,16 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.AmazonPrime);
-        result.PodcastName.Should().Be(seriesName);
-        result.PodcastName.Should().NotBe("Amazon Prime Video");
+        result.PodcastName.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "When an unknown Internet Archive playlist URL has a distinct collection title, URL membership lookup returns it as podcastName " +
-        "and not the uploader publisher.")]
-    public async Task unknown_archive_extracts_collection_show_name()
+        "When an unknown Internet Archive playlist URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape collection metadata.")]
+    public async Task unknown_archive_leaves_podcast_name_null()
     {
         // Arrange
         var url = new Uri($"https://archive.org/details/{_fixture.CreateYouTubeId()}");
-        var collectionName = _fixture.CreateTitle();
-        var uploader = _fixture.Create<string>();
-        _mocker.GetMock<IInternetArchivePageMetaDataExtractor>()
-            .Setup(e => e.GetMetaData(url))
-            .ReturnsAsync(new NonPodcastServiceItemMetaData(
-                Title: _fixture.CreateTitle(),
-                Description: _fixture.Create<string>(),
-                Publisher: uploader,
-                ShowName: collectionName));
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -450,8 +323,8 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.InternetArchive);
-        result.PodcastName.Should().Be(collectionName);
-        result.PodcastName.Should().NotBe(uploader);
+        result.PodcastName.Should().BeNull();
+        _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =

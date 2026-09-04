@@ -51,18 +51,8 @@ public class StreamingScraperBrowsePageHarvestRules
             result.Known.Should().BeFalse($"harvested {url} should not match stored membership");
             result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
             result.PodcastId.Should().BeNull();
-            result.PodcastName.Should().NotBe("Netflix");
-            result.PodcastName.Should().NotBe("Amazon Prime Video");
-            result.PodcastName.Should().NotBe("BBC");
-            result.PodcastName.Should().NotBe("ITVX");
-            result.PodcastName.Should().NotBe("Channel 4");
-            result.PodcastName.Should().NotBe("Fawesome");
-            result.PodcastName.Should().NotBe("Paramount+");
-            result.PodcastName.Should().NotBe("HBO Max");
-            result.PodcastName.Should().NotBe("Play Suisse");
-            result.PodcastName.Should().NotBe("TVNZ+");
-            result.PodcastName.Should().NotBe("Disney+");
-            result.PodcastName.Should().NotBe("discovery+");
+            result.PodcastName.Should().BeNull(
+                "membership does not scrape; prepare owns show-name extract");
             _episodes.SavedEpisodes.Should().BeEmpty();
         }
     }

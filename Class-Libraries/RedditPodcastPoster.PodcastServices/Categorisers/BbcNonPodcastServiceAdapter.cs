@@ -31,4 +31,8 @@ public class BbcNonPodcastServiceAdapter(
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>
         bbcPageMetaDataExtractor.GetMetaData(url);
+
+    public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url, string html) =>
+        throw new NotSupportedException(
+            "HTML extract is not registered for BBC; Browser Rendering allowlist starts at itvx only.");
 }

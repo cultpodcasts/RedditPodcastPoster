@@ -55,7 +55,8 @@ public class UrlSubmitterNameLookupTests
                 It.IsAny<Podcast?>(),
                 It.IsAny<Uri>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Never);
         _mocker.GetMock<ICategorisedItemProcessor>().Verify(
             p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()),
@@ -85,7 +86,8 @@ public class UrlSubmitterNameLookupTests
                 It.Is<Podcast?>(p => p != null && p.Id == podcast.Id),
                 url,
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Once);
     }
 
@@ -119,7 +121,8 @@ public class UrlSubmitterNameLookupTests
                 It.Is<Podcast?>(p => p != null && p.Id == chosen.Id),
                 url,
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Once);
     }
 
@@ -149,7 +152,8 @@ public class UrlSubmitterNameLookupTests
                 It.IsAny<Podcast?>(),
                 It.IsAny<Uri>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Never);
     }
 
@@ -177,7 +181,8 @@ public class UrlSubmitterNameLookupTests
                 It.Is<Podcast?>(p => p != null && p.Id == podcast.Id),
                 url,
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Once);
         _mocker.GetMock<IPodcastService>().Verify(
             s => s.GetPodcastFromEpisodeUrl(It.IsAny<Uri>(), It.IsAny<IndexingContext>()),
@@ -207,7 +212,8 @@ public class UrlSubmitterNameLookupTests
                 It.Is<Podcast?>(p => p == null),
                 url,
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>()),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()),
             Times.Once);
     }
 

@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -16,8 +15,7 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 public class UrlMembershipLookup(
     IEpisodeRepository episodeRepository,
     IPodcastRepository podcastRepository,
-    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
-    ILogger<UrlMembershipLookup> logger)
+    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver)
     : IUrlMembershipLookup
 {
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
@@ -60,40 +58,12 @@ public class UrlMembershipLookup(
             }
         }
 
-        var extractedName = kind == UrlMembershipLookupKinds.Streaming
-            ? await TryExtractShowName(url)
-            : null;
+        // Unknown streaming: classify only — prepare owns HTML fetch / show-name extract.
         return new UrlMembershipLookupResult(
             false,
             kind,
-            PodcastName: extractedName,
+            PodcastName: null,
             Service: streamingService);
-    }
-
-    private async Task<string?> TryExtractShowName(Uri url)
-    {
-        try
-        {
-            var adapter = nonPodcastServiceAdapterResolver.ForExtract(url);
-            if (adapter == null)
-            {
-                return null;
-            }
-
-            var meta = await adapter.ExtractMetaData(url);
-            return NonPodcastShowNameResolver.TrySeriesName(
-                meta.ShowName,
-                meta.Publisher,
-                adapter.Service);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(
-                ex,
-                "Submit URL membership lookup failed to extract a series name from '{url}'.",
-                url);
-            return null;
-        }
     }
 
     private string Classify(

@@ -19,8 +19,11 @@ public class NonPodcastServiceCategoriser(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : INonPodcastServiceCategoriser
 {
-    public async Task<ResolvedNonPodcastServiceItem?> Resolve(Podcast? podcast, Uri url,
-        IndexingContext indexingContext)
+    public async Task<ResolvedNonPodcastServiceItem?> Resolve(
+        Podcast? podcast,
+        Uri url,
+        IndexingContext indexingContext,
+        NonPodcastServiceItemMetaData? prefetchedMeta = null)
     {
         if (podcast == null)
         {
@@ -77,6 +80,7 @@ public class NonPodcastServiceCategoriser(
                 : await seriesEpisodes.ToListAsync();
         }
 
-        return await streamingServiceMetaDataHandler.ResolveServiceItem(podcast, podcastEpisodes, url);
+        return await streamingServiceMetaDataHandler.ResolveServiceItem(
+            podcast, podcastEpisodes, url, prefetchedMeta);
     }
 }

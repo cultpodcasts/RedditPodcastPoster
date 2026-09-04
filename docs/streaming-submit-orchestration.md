@@ -17,12 +17,13 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 
 1. **`ServiceCatalog.SearchEncodedKeys`** must equal contract `streamingServiceKeys` (enforced by `StreamingSubmitContractRules`).
 2. **Membership** (`GET api/SubmitUrl`):
-   - **Now:** returns `service` (ServiceKeys) for streaming URLs.
-   - **Until prepare lands:** unknown streaming membership may still extract a show name via adapter `ExtractMetaData` (HTML scrape).
-   - **After prepare:** membership must **not** scrape; prepare owns HTML fetch. Contract flag `membershipDoesNotScrape: true` is that **target** state (not a claim that scrape-free membership is already live).
-3. **Prepare extract** accepts trusted HTML / returns `NonPodcastServiceItemMetaData` (implementation PR).
-4. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
-5. Podcast-service platforms remain API-based — not in this contract.
+   - Returns `service` (ServiceKeys) for streaming URLs.
+   - Does **not** scrape HTML. Unknown streaming returns `{ known: false, kind: streaming, service }` with `podcastName` null.
+   - Prepare owns HTML fetch / show-name extract. Contract flag `membershipDoesNotScrape: true` is live.
+3. **Prepare** (`POST api/SubmitUrl/prepare`) fetches HTML via adapter `ExtractMetaData(url)` and returns meta + `service`.
+4. **Extract** (`POST api/SubmitUrl/extract`) accepts trusted HTML (`ExtractMetaData(url, html)`) — Worker Browser Rendering path.
+5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
+6. Podcast-service platforms remain API-based — not in this contract.
 
 ## Tests
 

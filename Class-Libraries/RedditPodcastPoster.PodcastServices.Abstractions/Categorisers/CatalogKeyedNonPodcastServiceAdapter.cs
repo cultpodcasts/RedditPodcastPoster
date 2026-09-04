@@ -14,7 +14,8 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     string catalogKey,
     Func<Uri, bool> isSubmitUrl,
     Func<Uri, bool> canExtract,
-    Func<Uri, Task<NonPodcastServiceItemMetaData>> extract
+    Func<Uri, Task<NonPodcastServiceItemMetaData>> extract,
+    Func<Uri, string, Task<NonPodcastServiceItemMetaData>>? extractFromHtml = null
 ) : INonPodcastServiceAdapter
 {
     public NonPodcastService Service { get; } = service;
@@ -31,4 +32,10 @@ public class CatalogKeyedNonPodcastServiceAdapter(
             EpisodeServicePresence.TryGetUrl(episode, catalogKey) == url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
+
+    public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url, string html) =>
+        extractFromHtml != null
+            ? extractFromHtml(url, html)
+            : throw new NotSupportedException(
+                $"HTML extract is not registered for service '{service}'.");
 }

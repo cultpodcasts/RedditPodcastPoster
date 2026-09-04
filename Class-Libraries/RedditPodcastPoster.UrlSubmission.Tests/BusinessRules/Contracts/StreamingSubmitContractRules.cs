@@ -76,7 +76,7 @@ public class StreamingSubmitContractRules
     }
 
     [Fact(DisplayName =
-        "Streaming-submit contract flags membershipReturnsService as true now and membershipDoesNotScrape as the target after prepare owns HTML fetch, because today membership may still extract show name.")]
+        "Streaming-submit contract flags membershipReturnsService and membershipDoesNotScrape as true now, because membership classifies only and prepare owns HTML fetch.")]
     public void streaming_contract_documents_membership_vs_prepare_split()
     {
         // Arrange
@@ -94,8 +94,7 @@ public class StreamingSubmitContractRules
         // Assert
         membershipReturnsService.Should().BeTrue();
         membershipDoesNotScrape.Should().BeTrue(
-            "membershipDoesNotScrape is the target orchestration state after prepare lands; " +
-            "api-infra membership may still ExtractMetaData for unknown streaming URLs until then");
+            "membershipDoesNotScrape is live: membership must not scrape; prepare owns HTML fetch");
         prepareFetchesHtml.Should().BeTrue();
         submitUsesPrefetchedMetaWhenCached.Should().BeTrue();
         azureDoesNotCallCloudflare.Should().BeTrue();

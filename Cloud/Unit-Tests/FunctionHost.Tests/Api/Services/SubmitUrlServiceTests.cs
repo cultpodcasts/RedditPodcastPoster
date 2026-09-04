@@ -229,6 +229,54 @@ public class SubmitUrlServiceTests
         result.AmbiguousPodcasts.Should().BeEquivalentTo([firstId, secondId]);
     }
 
+    [Fact(DisplayName =
+        "When submit includes PrefetchedMeta from prepare cache, SubmitOptions forwards that specimen " +
+        "so the submitter can skip a second scrape (submitUsesPrefetchedMetaWhenCached).")]
+    public async Task prefetched_meta_is_forwarded_into_submit_options()
+    {
+        // Arrange
+        var meta = new NonPodcastServiceItemMetaData(
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: _fixture.CreateTitle(),
+            Publisher: _fixture.Create<string>());
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}"),
+            PrefetchedMeta = meta
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _capturedOptions.Should().NotBeNull();
+        _capturedOptions!.PrefetchedMeta.Should().Be(meta);
+    }
+
+    [Fact(DisplayName =
+        "When PrefetchedMeta is omitted on submit, SubmitOptions.PrefetchedMeta stays null " +
+        "so the submitter falls back to live extract.")]
+    public async Task omitted_prefetched_meta_leaves_submit_options_null()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}")
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _capturedOptions.Should().NotBeNull();
+        _capturedOptions!.PrefetchedMeta.Should().BeNull();
+    }
+
     private static string FlipCasing(string value)
     {
         var upper = value.ToUpperInvariant();

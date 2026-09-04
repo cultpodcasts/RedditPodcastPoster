@@ -27,4 +27,10 @@ public interface INonPodcastServiceAdapter
     Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url);
 
     Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url);
+
+    /// <summary>
+    /// Extract metadata from already-fetched HTML (Worker Browser Rendering / prepare extract).
+    /// Services without a registered HTML path throw <see cref="NotSupportedException"/>.
+    /// </summary>
+    Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url, string html);
 }

@@ -23,10 +23,10 @@ public class StreamingScraperUrlMembershipLookupRules
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown BBC Sounds canonical URL is scraped live, URL membership lookup returns the expected podcastName " +
-        "from programme brand metadata and does not write episodes.")]
+        "When an unknown BBC Sounds canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(BbcSoundsCanonicalCases))]
-    public async Task bbc_sounds_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task bbc_sounds_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -37,16 +37,16 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown BBC iPlayer canonical URL is scraped live, URL membership lookup returns the expected podcastName " +
-        "from series metadata and does not write episodes.")]
+        "When an unknown BBC iPlayer canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(BbcIplayerCanonicalCases))]
-    public async Task bbc_iplayer_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task bbc_iplayer_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -57,16 +57,16 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown Netflix canonical URL is scraped live, URL membership lookup returns the expected podcastName " +
-        "and never treats the Netflix platform publisher as the series name.")]
+        "When an unknown Netflix canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(NetflixCanonicalCases))]
-    public async Task netflix_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task netflix_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -77,17 +77,16 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
-        result.PodcastName.Should().NotBe("Netflix");
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown Prime Video canonical URL is scraped live, URL membership lookup returns the expected podcastName " +
-        "and never treats the Amazon Prime Video platform publisher as the series name.")]
+        "When an unknown Prime Video canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(AmazonPrimeCanonicalCases))]
-    public async Task amazon_prime_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task amazon_prime_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -98,17 +97,16 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
-        result.PodcastName.Should().NotBe("Amazon Prime Video");
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown Vimeo canonical URL is scraped live via oEmbed, URL membership lookup uses the uploader author " +
-        "as podcastName because Vimeo publisher is the channel owner.")]
+        "When an unknown Vimeo canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(VimeoCanonicalCases))]
-    public async Task vimeo_live_lookup_returns_uploader_as_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task vimeo_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -119,16 +117,16 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown next-wave streaming canonical URL is scraped live, URL membership lookup returns the expected " +
-        "podcastName and never treats the platform publisher as the series name.")]
+        "When an unknown next-wave streaming canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(NextWaveCanonicalCases))]
-    public async Task next_wave_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    public async Task next_wave_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -139,16 +137,7 @@ public class StreamingScraperUrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
-        result.PodcastName.Should().NotBe("ITVX");
-        result.PodcastName.Should().NotBe("Channel 4");
-        result.PodcastName.Should().NotBe("Fawesome");
-        result.PodcastName.Should().NotBe("Paramount+");
-        result.PodcastName.Should().NotBe("HBO Max");
-        result.PodcastName.Should().NotBe("Play Suisse");
-        result.PodcastName.Should().NotBe("TVNZ+");
-        result.PodcastName.Should().NotBe("Disney+");
-        result.PodcastName.Should().NotBe("discovery+");
+        result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }

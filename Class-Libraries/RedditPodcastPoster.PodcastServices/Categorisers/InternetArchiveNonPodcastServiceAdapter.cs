@@ -29,4 +29,8 @@ public class InternetArchiveNonPodcastServiceAdapter(
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>
         internetArchivePageMetaDataExtractor.GetMetaData(url);
+
+    public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url, string html) =>
+        throw new NotSupportedException(
+            "HTML extract is not registered for Internet Archive; Browser Rendering allowlist starts at itvx only.");
 }
