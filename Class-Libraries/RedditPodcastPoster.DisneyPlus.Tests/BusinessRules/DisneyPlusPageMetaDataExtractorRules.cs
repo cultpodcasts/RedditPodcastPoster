@@ -46,7 +46,7 @@ public class DisneyPlusPageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("Disney+");
-        meta.ShowName.Should().Be(title);
+        meta.ShowName.Should().BeNull();
         _handler.LastRequestUri.Should().Be(url);
     }
 

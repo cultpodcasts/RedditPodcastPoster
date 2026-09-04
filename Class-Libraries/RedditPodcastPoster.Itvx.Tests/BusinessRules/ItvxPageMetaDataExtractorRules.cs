@@ -46,20 +46,24 @@ public class ItvxPageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("ITVX");
-        meta.ShowName.Should().Be(title);
+        meta.ShowName.Should().BeNull();
         _handler.LastRequestUri.Should().Be(url);
     }
 
     [Fact(DisplayName =
-        "ITVX catalogue hub extract sets ShowName from og:title when it equals the series brand and JSON-LD is absent, " +
-        "so GET submit lookup still returns podcastName for series hubs.")]
+        "ITVX brand watch extract sets ShowName from JSON-LD TVSeries even when that name equals og:title, " +
+        "so GET submit lookup still returns podcastName when Open Graph skips title-equal series candidates.")]
     public async Task extracts_hub_title_as_show_name()
     {
         // Arrange
         var seriesName = _fixture.CreateTitle();
         var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
         _handler.Response = OkHtml(
-            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head></html>");
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{seriesName}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}" +
+            $"</script></head></html>");
         var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
 
         // Act

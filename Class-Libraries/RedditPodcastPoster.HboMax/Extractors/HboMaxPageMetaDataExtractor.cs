@@ -70,8 +70,12 @@ internal static partial class HboMaxCatalogMeta
         else
         {
             showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // Catalogue hubs often use the series brand as the page title with no distinct episode label.
-            showName ??= title;
+            // Catalogue hubs: title-as-ShowName only on series paths. Ambiguous /watch/{id}
+            // pages without Movie markers must not inherit the title as podcastName.
+            if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
+            {
+                showName = title;
+            }
         }
 
         if (string.Equals(showName, HboMaxPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
