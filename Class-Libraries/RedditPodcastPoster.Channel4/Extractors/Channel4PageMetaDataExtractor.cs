@@ -40,6 +40,7 @@ public class Channel4PageMetaDataExtractor(
         }
         catch (NonPodcastServiceMetaDataExtractionException)
         {
+            // Soft-walled / non-catalogue shells often omit og:title; fall through to HTML recovery.
         }
 
         return Channel4CatalogMeta.Merge(url, html, openGraph);

@@ -51,6 +51,27 @@ public class FawesomePageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Fawesome catalogue hub extract sets ShowName from og:title when it equals the series brand and JSON-LD is absent, " +
+        "so GET submit lookup still returns podcastName for series hubs.")]
+    public async Task extracts_hub_title_as_show_name()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://fawesome.tv/shows/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head></html>");
+        var sut = _mocker.CreateInstance<FawesomePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seriesName);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Fawesome");
+    }
+
+    [Fact(DisplayName =
         "Fawesome series extract populates ShowName from JSON-LD TVSeries, " +
         "so GET submit lookup can return podcastName for a series catalogue page.")]
     public async Task extracts_tvseries_show_name()
@@ -58,7 +79,7 @@ public class FawesomePageMetaDataExtractorRules
         // Arrange
         var seriesName = _fixture.CreateTitle();
         var episodeTitle = _fixture.CreateTitle();
-        var url = new Uri($"https://fawesome.tv/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://fawesome.tv/shows/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
         _handler.Response = OkHtml(
             $"<html><head>" +
             $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +

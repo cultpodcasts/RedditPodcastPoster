@@ -46,8 +46,50 @@ public class ParamountPlusPageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("Paramount+");
-        meta.ShowName.Should().BeNull();
+        meta.ShowName.Should().Be(title);
         _handler.LastRequestUri.Should().Be(url);
+    }
+
+    [Fact(DisplayName =
+        "Paramount+ catalogue hub extract sets ShowName from og:title when it equals the series brand and JSON-LD is absent, " +
+        "so GET submit lookup still returns podcastName for series hubs.")]
+    public async Task extracts_hub_title_as_show_name()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.paramountplus.com/shows/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head></html>");
+        var sut = _mocker.CreateInstance<ParamountPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seriesName);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Paramount+");
+    }
+
+    [Fact(DisplayName =
+        "Paramount+ series path keeps ShowName from the hub title even when a later Movie JSON-LD blob appears, " +
+        "because carousel film markup must not clear podcastName on series catalogue pages.")]
+    public async Task series_path_ignores_later_movie_blob()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var otherFilm = _fixture.CreateTitle();
+        var url = new Uri($"https://www.paramountplus.com/shows/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head>" +
+            $"<body><div>{{\"@type\":\"Movie\",\"name\":\"{otherFilm}\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<ParamountPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(seriesName);
     }
 
     [Fact(DisplayName =
@@ -83,7 +125,7 @@ public class ParamountPlusPageMetaDataExtractorRules
     {
         // Arrange
         var filmTitle = _fixture.CreateTitle();
-        var url = new Uri($"https://www.paramountplus.com/shows/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.paramountplus.com/movies/{_fixture.CreateYouTubeId()}");
         _handler.Response = OkHtml(
             $"<html><head>" +
             $"<meta property=\"og:title\" content=\"{filmTitle}\" />" +
