@@ -301,6 +301,19 @@ public class ItvxPageMetaDataExtractorRules
         client.Timeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 
+    [Fact(DisplayName =
+        "AddItvxServices enables AutomaticDecompression on the ITVX SocketsHttpHandler, " +
+        "because IHttpClientFactory defaults omit Accept-Encoding and ITVX hangs/resets those scrapes.")]
+    public void add_itvx_services_enables_automatic_decompression()
+    {
+        // Arrange / Act
+        using var handler = ServiceCollectionExtensions.CreateItvxSocketsHandler();
+
+        // Assert
+        handler.AutomaticDecompression.Should().Be(DecompressionMethods.All);
+        handler.AllowAutoRedirect.Should().BeTrue();
+    }
+
     private static HttpResponseMessage OkHtml(string html) =>
         new(HttpStatusCode.OK)
         {
