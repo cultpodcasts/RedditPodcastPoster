@@ -14,9 +14,9 @@ public static class DiscoveryPlusUrlMatcher
         var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         for (var i = 0; i < parts.Length - 1; i++)
         {
-            if ((parts[i].Equals("show", StringComparison.OrdinalIgnoreCase) ||
-                 parts[i].Equals("video", StringComparison.OrdinalIgnoreCase)) &&
-                parts[i + 1].Length > 0)
+            if (parts[i].Equals("show", StringComparison.OrdinalIgnoreCase) ||
+                parts[i].Equals("video", StringComparison.OrdinalIgnoreCase) ||
+                parts[i].Equals("movie", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

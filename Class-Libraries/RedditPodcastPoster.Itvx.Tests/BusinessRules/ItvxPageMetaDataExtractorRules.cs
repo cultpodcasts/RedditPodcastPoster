@@ -301,6 +301,48 @@ public class ItvxPageMetaDataExtractorRules
         client.Timeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 
+    [Fact(DisplayName =
+        "AddItvxServices enables AutomaticDecompression on the ITVX SocketsHttpHandler, " +
+        "because IHttpClientFactory defaults omit Accept-Encoding and ITVX hangs/resets those scrapes.")]
+    public void add_itvx_services_enables_automatic_decompression()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddItvxServices();
+        using var provider = services.BuildServiceProvider();
+        var handlerFactory = provider.GetRequiredService<IHttpMessageHandlerFactory>();
+
+        // Act
+        var handler = handlerFactory.CreateHandler(nameof(ItvxPageMetaDataExtractor));
+        var sockets = UnwrapToSocketsHttpHandler(handler);
+
+        // Assert
+        sockets.Should().NotBeNull(
+            "AddItvxServices must ConfigurePrimaryHttpMessageHandler(CreateItvxSocketsHandler)");
+        sockets!.AutomaticDecompression.Should().Be(DecompressionMethods.All);
+    }
+
+    private static SocketsHttpHandler? UnwrapToSocketsHttpHandler(HttpMessageHandler handler)
+    {
+        for (HttpMessageHandler? current = handler; current != null;)
+        {
+            if (current is SocketsHttpHandler sockets)
+            {
+                return sockets;
+            }
+
+            if (current is DelegatingHandler delegating)
+            {
+                current = delegating.InnerHandler;
+                continue;
+            }
+
+            break;
+        }
+
+        return null;
+    }
+
     private static HttpResponseMessage OkHtml(string html) =>
         new(HttpStatusCode.OK)
         {
