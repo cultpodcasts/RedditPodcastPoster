@@ -124,6 +124,35 @@ public class StreamingScraperUrlMembershipLookupRules
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
+    [LiveStreamingTheory(DisplayName =
+        "When an unknown next-wave streaming canonical URL is scraped live, URL membership lookup returns the expected " +
+        "podcastName and never treats the platform publisher as the series name.")]
+    [MemberData(nameof(NextWaveCanonicalCases))]
+    public async Task next_wave_live_lookup_returns_expected_podcast_name(StreamingScraperCanonicalCase canonical)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(canonical.Url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().Be(canonical.ExpectedPodcastName);
+        result.PodcastName.Should().NotBe("ITVX");
+        result.PodcastName.Should().NotBe("Channel 4");
+        result.PodcastName.Should().NotBe("Fawesome");
+        result.PodcastName.Should().NotBe("Paramount+");
+        result.PodcastName.Should().NotBe("HBO Max");
+        result.PodcastName.Should().NotBe("Play Suisse");
+        result.PodcastName.Should().NotBe("TVNZ+");
+        result.PodcastName.Should().NotBe("Disney+");
+        result.PodcastName.Should().NotBe("discovery+");
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
     public static TheoryData<StreamingScraperCanonicalCase> BbcSoundsCanonicalCases() =>
         StreamingScraperCanonicalCases.BbcSoundsCases();
 
@@ -138,4 +167,24 @@ public class StreamingScraperUrlMembershipLookupRules
 
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCanonicalCases() =>
         StreamingScraperCanonicalCases.VimeoCases();
+
+    public static TheoryData<StreamingScraperCanonicalCase> NextWaveCanonicalCases()
+    {
+        var data = new TheoryData<StreamingScraperCanonicalCase>();
+        foreach (var canonical in StreamingScraperCanonicalCases.All.Where(c =>
+                     c.Provider is StreamingScraperProvider.Itvx
+                         or StreamingScraperProvider.Channel4
+                         or StreamingScraperProvider.Fawesome
+                         or StreamingScraperProvider.ParamountPlus
+                         or StreamingScraperProvider.HboMax
+                         or StreamingScraperProvider.PlaySuisse
+                         or StreamingScraperProvider.TvnzPlus
+                         or StreamingScraperProvider.DisneyPlus
+                         or StreamingScraperProvider.DiscoveryPlus))
+        {
+            data.Add(canonical);
+        }
+
+        return data;
+    }
 }

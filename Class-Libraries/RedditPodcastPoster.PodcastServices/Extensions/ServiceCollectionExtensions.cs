@@ -1,4 +1,16 @@
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.BBC.Extensions;
+using RedditPodcastPoster.Channel4.Extensions;
+using RedditPodcastPoster.DiscoveryPlus.Extensions;
+using RedditPodcastPoster.DisneyPlus.Extensions;
+using RedditPodcastPoster.Fawesome.Extensions;
+using RedditPodcastPoster.HboMax.Extensions;
+using RedditPodcastPoster.InternetArchive.Extensions;
+using RedditPodcastPoster.Itvx.Extensions;
+using RedditPodcastPoster.Netflix.Extensions;
+using RedditPodcastPoster.ParamountPlus.Extensions;
+using RedditPodcastPoster.PlaySuisse.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
@@ -16,6 +28,8 @@ using RedditPodcastPoster.PodcastServices.Merging;
 using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.TvnzPlus.Extensions;
+using RedditPodcastPoster.Vimeo.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
 
@@ -40,6 +54,25 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
                 .AddScoped<IImageUpdater, ImageUpdater>()
                 .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>();
+        }
+
+        public IServiceCollection AddNonPodcastScrapers()
+        {
+            return services
+                .AddBBCServices()
+                .AddInternetArchiveServices()
+                .AddVimeoServices()
+                .AddNetflixServices()
+                .AddAmazonPrimeServices()
+                .AddItvxServices()
+                .AddChannel4Services()
+                .AddFawesomeServices()
+                .AddDisneyPlusServices()
+                .AddDiscoveryPlusServices()
+                .AddParamountPlusServices()
+                .AddHboMaxServices()
+                .AddPlaySuisseServices()
+                .AddTvnzPlusServices();
         }
 
         public IServiceCollection AddRemoteClient()

@@ -218,6 +218,30 @@ public class OpenGraphPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Open Graph extract reads og:title from a name attribute when property is absent, " +
+        "because Channel 4 SSR emits name=\"og:title\" rather than property=\"og:title\".")]
+    public async Task name_attribute_og_title_is_accepted()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.channel4.com/programmes/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head><meta name=\"og:title\" content=\"{title}\" /></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be(publisher);
+    }
+
+    [Fact(DisplayName =
         "Open Graph extract fails when og:title is missing, because an episode cannot be created without a title.")]
     public async Task missing_title_fails_extract()
     {

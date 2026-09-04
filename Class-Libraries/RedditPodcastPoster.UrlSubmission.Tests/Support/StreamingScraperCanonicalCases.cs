@@ -33,6 +33,33 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Vimeo));
 
+    public static TheoryData<StreamingScraperCanonicalCase> ItvxCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Itvx));
+
+    public static TheoryData<StreamingScraperCanonicalCase> Channel4Cases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Channel4));
+
+    public static TheoryData<StreamingScraperCanonicalCase> FawesomeCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Fawesome));
+
+    public static TheoryData<StreamingScraperCanonicalCase> ParamountPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.ParamountPlus));
+
+    public static TheoryData<StreamingScraperCanonicalCase> HboMaxCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.HboMax));
+
+    public static TheoryData<StreamingScraperCanonicalCase> PlaySuisseCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.PlaySuisse));
+
+    public static TheoryData<StreamingScraperCanonicalCase> TvnzPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.TvnzPlus));
+
+    public static TheoryData<StreamingScraperCanonicalCase> DisneyPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.DisneyPlus));
+
+    public static TheoryData<StreamingScraperCanonicalCase> DiscoveryPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.DiscoveryPlus));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -165,6 +192,72 @@ public static class StreamingScraperCanonicalCases
         Case(StreamingScraperProvider.Vimeo, "vimeo-home-canine-massage",
             "https://vimeo.com/1074471464", "Emma D. Miller",
             "Harvested from Vimeo homepage"),
+
+        // ITVX — brand watch pages (often geo-walled outside the UK)
+        Case(StreamingScraperProvider.Itvx, "love-island-brand",
+            "https://www.itv.com/watch/love-island/2a3697", "Love Island",
+            "ITVX series brand page; live scrape may reset outside the UK"),
+        Case(StreamingScraperProvider.Itvx, "vera-brand",
+            "https://www.itv.com/watch/vera/1a7314", "Vera",
+            "ITVX drama brand page"),
+
+        // Channel 4 — programme hubs + on-demand episode
+        Case(StreamingScraperProvider.Channel4, "great-british-bake-off-hub",
+            "https://www.channel4.com/programmes/the-great-british-bake-off", "The Great British Bake Off",
+            "SSR programme hub; brandTitle is the series name"),
+        Case(StreamingScraperProvider.Channel4, "countdown-on-demand",
+            "https://www.channel4.com/programmes/countdown/on-demand/75051-091", "Countdown",
+            "On-demand episode under a long-running series brand"),
+        Case(StreamingScraperProvider.Channel4, "channel-4-news-hub",
+            "https://www.channel4.com/programmes/channel-4-news", "Channel 4 News",
+            "News strand brand is distinct from the Channel 4 platform publisher"),
+
+        // Fawesome — AVOD film (homepage does not SSR deep links)
+        Case(StreamingScraperProvider.Fawesome, "calla-lily-film",
+            "https://fawesome.tv/movies/10527435/calla-lily", null,
+            "Standalone film; ShowName must stay null"),
+
+        // Paramount+
+        Case(StreamingScraperProvider.ParamountPlus, "tulsa-king-show",
+            "https://www.paramountplus.com/shows/tulsa-king/", "Tulsa King",
+            "Series catalogue with og:type video.tv_show"),
+        Case(StreamingScraperProvider.ParamountPlus, "strange-new-worlds-show",
+            "https://www.paramountplus.com/shows/star-trek-strange-new-worlds/", "Star Trek: Strange New Worlds",
+            "Series catalogue"),
+        Case(StreamingScraperProvider.ParamountPlus, "top-gun-maverick-film",
+            "https://www.paramountplus.com/movies/top-gun-maverick/", null,
+            "Film path; ShowName must stay null"),
+
+        // HBO Max / Max — often geo/auth walled
+        Case(StreamingScraperProvider.HboMax, "last-of-us-show",
+            "https://www.max.com/shows/the-last-of-us", "The Last of Us",
+            "Max series page; live scrape may 404 outside a licensed region"),
+        Case(StreamingScraperProvider.HboMax, "dune-film",
+            "https://www.max.com/movies/dune", null,
+            "Movie path; ShowName must stay null; live scrape may 404 outside a licensed region"),
+
+        // Play Suisse — watch/detail numeric ids; homepage is marketing-only
+        Case(StreamingScraperProvider.PlaySuisse, "play-suisse-watch",
+            "https://www.playsuisse.ch/watch/2261604", null,
+            "Numeric watch id; film/one-off expected unless JSON-LD TVSeries is present"),
+
+        // TVNZ+
+        Case(StreamingScraperProvider.TvnzPlus, "shortland-street-show",
+            "https://www.tvnz.co.nz/shows/shortland-street", "Shortland Street",
+            "Angular SSR document title is the series brand"),
+
+        // Disney+ — often geo/auth walled
+        Case(StreamingScraperProvider.DisneyPlus, "andor-series",
+            "https://www.disneyplus.com/series/andor", "Andor",
+            "Series path; live scrape may 404 outside a licensed region"),
+        Case(StreamingScraperProvider.DisneyPlus, "encanto-film",
+            "https://www.disneyplus.com/movies/encanto", null,
+            "Movie path; ShowName must stay null; live scrape may 404 outside a licensed region"),
+
+        // discovery+ — often geo/auth walled
+        Case(StreamingScraperProvider.DiscoveryPlus, "gold-rush-show",
+            "https://www.discoveryplus.com/show/gold-rush", "Gold Rush",
+            "Show path; live scrape may 404 outside a licensed region"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -182,7 +275,16 @@ public enum StreamingScraperProvider
     BbcIplayer,
     Netflix,
     AmazonPrime,
-    Vimeo
+    Vimeo,
+    Itvx,
+    Channel4,
+    Fawesome,
+    ParamountPlus,
+    HboMax,
+    PlaySuisse,
+    TvnzPlus,
+    DisneyPlus,
+    DiscoveryPlus
 }
 
 public sealed record StreamingScraperCanonicalCase(

@@ -2,7 +2,16 @@ using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.AmazonPrime.Matching;
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.Channel4.Matching;
+using RedditPodcastPoster.DiscoveryPlus.Matching;
+using RedditPodcastPoster.DisneyPlus.Matching;
+using RedditPodcastPoster.Fawesome.Matching;
+using RedditPodcastPoster.HboMax.Matching;
+using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.Netflix.Matching;
+using RedditPodcastPoster.ParamountPlus.Matching;
+using RedditPodcastPoster.PlaySuisse.Matching;
+using RedditPodcastPoster.TvnzPlus.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -60,6 +69,16 @@ public static class StreamingScraperBrowsePages
             MinSubmitLinks: 1,
             SampleLookups: 1,
             StabilityNote: "Vimeo homepage may expose a small number of numeric video ids"),
+
+        new(StreamingScraperProvider.Channel4, "channel4-home",
+            new Uri("https://www.channel4.com/"),
+            MinSubmitLinks: 1,
+            SampleLookups: 1,
+            StabilityNote: "Channel 4 homepage SSR embeds /programmes/ catalogue cards"),
+
+        // Fawesome / Disney+ / discovery+ / Max / Play Suisse / ITVX / TVNZ+ / Paramount+
+        // marketing or geo-walled shells do not reliably SSR submit deep links; keep coverage
+        // in StreamingScraperCanonicalCases instead of browse harvest.
     ];
 }
 
@@ -109,6 +128,15 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.Netflix => NetflixUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.AmazonPrime => AmazonPrimeUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Vimeo => VimeoUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.Itvx => ItvxUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.Channel4 => Channel4UrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.Fawesome => FawesomeUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.ParamountPlus => ParamountPlusUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.HboMax => HboMaxUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.PlaySuisse => PlaySuisseUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.TvnzPlus => TvnzPlusUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.DisneyPlus => DisneyPlusUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.DiscoveryPlus => DiscoveryPlusUrlMatcher.IsSubmitUrl(url),
             _ => false
         };
 

@@ -14,10 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
-    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.InternetArchive\RedditPodcastPoster.InternetArchive.csproj" />

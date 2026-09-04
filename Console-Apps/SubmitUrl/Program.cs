@@ -5,16 +5,11 @@ using Microsoft.Extensions.Hosting;
 using CommandLine;
 using iTunesSearch.Library;
 using SubmitUrl;
-using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.InternetArchive.Extensions;
-using RedditPodcastPoster.AmazonPrime.Extensions;
-using RedditPodcastPoster.Netflix.Extensions;
-using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -59,11 +54,7 @@ builder.Services
     .AddTextSanitiser()
     .AddScoped<SubmitUrlProcessor>()
     .AddEpisodeSearchIndexerService()
-    .AddBBCServices()
-    .AddInternetArchiveServices()
-    .AddVimeoServices()
-    .AddNetflixServices()
-    .AddAmazonPrimeServices()
+    .AddNonPodcastScrapers()
     .AddHttpClient();
 
 builder.Services.AddPostingCriteria();

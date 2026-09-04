@@ -54,6 +54,15 @@ public class StreamingScraperBrowsePageHarvestRules
             result.PodcastName.Should().NotBe("Netflix");
             result.PodcastName.Should().NotBe("Amazon Prime Video");
             result.PodcastName.Should().NotBe("BBC");
+            result.PodcastName.Should().NotBe("ITVX");
+            result.PodcastName.Should().NotBe("Channel 4");
+            result.PodcastName.Should().NotBe("Fawesome");
+            result.PodcastName.Should().NotBe("Paramount+");
+            result.PodcastName.Should().NotBe("HBO Max");
+            result.PodcastName.Should().NotBe("Play Suisse");
+            result.PodcastName.Should().NotBe("TVNZ+");
+            result.PodcastName.Should().NotBe("Disney+");
+            result.PodcastName.Should().NotBe("discovery+");
             _episodes.SavedEpisodes.Should().BeEmpty();
         }
     }

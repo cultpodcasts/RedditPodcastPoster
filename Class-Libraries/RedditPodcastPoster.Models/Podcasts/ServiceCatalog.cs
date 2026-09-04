@@ -29,7 +29,12 @@ public static class ServiceCatalog
         new(ServiceKeys.ParamountPlus, "Paramount+", "paramount-plus", false, true, ["paramountplus.com"]),
         new(ServiceKeys.HboMax, "HBO Max", "hbo-max", false, true, ["max.com", "hbomax.com"]),
         new(ServiceKeys.PlaySuisse, "Play Suisse", "play-suisse", false, true, ["playsuisse.ch"]),
-        new(ServiceKeys.TvnzPlus, "TVNZ+", "tvnz-plus", false, true, ["tvnz.co.nz"])
+        new(ServiceKeys.TvnzPlus, "TVNZ+", "tvnz-plus", false, true, ["tvnz.co.nz"]),
+        new(ServiceKeys.Itvx, "ITVX", "itvx", false, true, ["itv.com"]),
+        new(ServiceKeys.Channel4, "Channel 4", "channel4", false, true, ["channel4.com", "all4.com"]),
+        new(ServiceKeys.Fawesome, "Fawesome", "fawesome", false, true, ["fawesome.tv"]),
+        new(ServiceKeys.DisneyPlus, "Disney+", "disney-plus", false, true, ["disneyplus.com"]),
+        new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"])
     ];
 
     private static readonly Dictionary<string, Descriptor> ByKey =
@@ -52,7 +57,12 @@ public static class ServiceCatalog
         ServiceKeys.ParamountPlus,
         ServiceKeys.HboMax,
         ServiceKeys.PlaySuisse,
-        ServiceKeys.TvnzPlus
+        ServiceKeys.TvnzPlus,
+        ServiceKeys.Itvx,
+        ServiceKeys.Channel4,
+        ServiceKeys.Fawesome,
+        ServiceKeys.DisneyPlus,
+        ServiceKeys.DiscoveryPlus
     ];
 
     /// <summary>Editor default slots: Spotify, Apple, YouTube (same identity as <see cref="IndexIdKeys"/>, UI order).</summary>
@@ -83,7 +93,12 @@ public static class ServiceCatalog
         ServiceKeys.ParamountPlus,
         ServiceKeys.HboMax,
         ServiceKeys.PlaySuisse,
-        ServiceKeys.TvnzPlus
+        ServiceKeys.TvnzPlus,
+        ServiceKeys.Itvx,
+        ServiceKeys.Channel4,
+        ServiceKeys.Fawesome,
+        ServiceKeys.DisneyPlus,
+        ServiceKeys.DiscoveryPlus
     ];
 
     public static bool TryGet(string key, out Descriptor descriptor) =>
@@ -173,6 +188,31 @@ public static class ServiceCatalog
         if (IsHost(host, "tvnz.co.nz"))
         {
             return ServiceKeys.TvnzPlus;
+        }
+
+        if (IsHost(host, "itv.com"))
+        {
+            return ServiceKeys.Itvx;
+        }
+
+        if (IsHost(host, "channel4.com") || IsHost(host, "all4.com"))
+        {
+            return ServiceKeys.Channel4;
+        }
+
+        if (IsHost(host, "fawesome.tv"))
+        {
+            return ServiceKeys.Fawesome;
+        }
+
+        if (IsHost(host, "disneyplus.com"))
+        {
+            return ServiceKeys.DisneyPlus;
+        }
+
+        if (IsHost(host, "discoveryplus.com"))
+        {
+            return ServiceKeys.DiscoveryPlus;
         }
 
         return null;
