@@ -204,6 +204,31 @@ public class StreamingServiceMetaDataHandlerRules
             .WithMessage($"*{url}*");
     }
 
+    [Fact(DisplayName =
+        "When resolving with prefetched metadata, the handler builds the resolved item from that meta and never calls adapter ExtractMetaData, " +
+        "because Worker prepare already fetched HTML.")]
+    public async Task prefetched_meta_skips_adapter_extract()
+    {
+        // Arrange
+        var url = BbcSoundsUrl();
+        var prefetched = CreateMetaData();
+        var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
+
+        // Act
+        var resolved = await sut.ResolveServiceItem(null, [], url, prefetched);
+
+        // Assert
+        resolved.NonPodcastService.Should().Be(NonPodcastService.BBC);
+        resolved.Url.Should().Be(url);
+        resolved.Title.Should().Be(prefetched.Title);
+        resolved.Description.Should().Be(prefetched.Description);
+        resolved.ShowName.Should().Be(prefetched.ShowName);
+        _mocker.GetMock<IBBCPageMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+        _mocker.GetMock<IInternetArchivePageMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+    }
+
     private NonPodcastServiceItemMetaData CreateMetaData() =>
         new(
             _fixture.CreateTitle(),

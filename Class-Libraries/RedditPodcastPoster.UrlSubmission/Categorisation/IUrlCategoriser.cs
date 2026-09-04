@@ -8,7 +8,8 @@ public interface IUrlCategoriser
 {
     Task<CategorisedItem> Categorise(
         Podcast? podcast,
-        Uri url, 
+        Uri url,
         IndexingContext indexingContext,
-        bool matchOtherServices);
+        bool matchOtherServices,
+        NonPodcastServiceItemMetaData? prefetchedMeta = null);
 }

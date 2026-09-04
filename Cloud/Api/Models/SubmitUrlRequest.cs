@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Models;
 
@@ -9,6 +10,8 @@ public class SubmitUrlRequest
     public Guid? PodcastId { get; set; }
 
     public string? PodcastName { get; set; }
+
+    public NonPodcastServiceItemMetaData? PrefetchedMeta { get; set; }
 
     /// <summary>
     /// Isolated <c>required Uri</c> only means the JSON property was present.

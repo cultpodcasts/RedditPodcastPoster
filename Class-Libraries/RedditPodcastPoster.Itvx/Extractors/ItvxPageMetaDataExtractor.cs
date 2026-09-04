@@ -11,6 +11,8 @@ namespace RedditPodcastPoster.Itvx.Extractors;
 public interface IItvxPageMetaDataExtractor
 {
     Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url);
+
+    Task<NonPodcastServiceItemMetaData> GetMetaDataFromHtml(Uri url, string html);
 }
 
 public class ItvxPageMetaDataExtractor(
@@ -30,6 +32,11 @@ public class ItvxPageMetaDataExtractor(
         }
 
         var html = await pageResponse.Content.ReadAsStringAsync();
+        return await GetMetaDataFromHtml(url, html);
+    }
+
+    public async Task<NonPodcastServiceItemMetaData> GetMetaDataFromHtml(Uri url, string html)
+    {
         NonPodcastServiceItemMetaData? openGraph = null;
         try
         {

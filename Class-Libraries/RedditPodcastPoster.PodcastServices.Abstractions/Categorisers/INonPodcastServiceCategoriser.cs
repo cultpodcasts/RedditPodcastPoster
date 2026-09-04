@@ -5,5 +5,9 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
 public interface INonPodcastServiceCategoriser
 {
-    Task<ResolvedNonPodcastServiceItem?> Resolve(Podcast? podcast, Uri url, IndexingContext indexingContext);
+    Task<ResolvedNonPodcastServiceItem?> Resolve(
+        Podcast? podcast,
+        Uri url,
+        IndexingContext indexingContext,
+        NonPodcastServiceItemMetaData? prefetchedMeta = null);
 }

@@ -121,8 +121,11 @@ public static class ApiAreaServiceCollectionExtensions
         services
             .AddScoped<IPostSubmitUrlHandler, PostSubmitUrlHandler>()
             .AddScoped<IGetSubmitUrlLookupHandler, GetSubmitUrlLookupHandler>()
+            .AddScoped<IPostSubmitUrlPrepareHandler, PostSubmitUrlPrepareHandler>()
+            .AddScoped<IPostSubmitUrlExtractHandler, PostSubmitUrlExtractHandler>()
             .AddScoped<ISubmitUrlService, SubmitUrlService>()
-            .AddScoped<ISubmitUrlLookupService, SubmitUrlLookupService>();
+            .AddScoped<ISubmitUrlLookupService, SubmitUrlLookupService>()
+            .AddScoped<ISubmitUrlPrepareService, SubmitUrlPrepareService>();
 
     public static IServiceCollection AddApiDiscovery(this IServiceCollection services) =>
         services

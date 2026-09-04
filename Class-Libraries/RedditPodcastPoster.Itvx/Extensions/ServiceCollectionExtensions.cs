@@ -38,12 +38,16 @@ public static class ServiceCollectionExtensions
             .AddOpenGraphExtractor()
             .AddScoped<IItvxPageMetaDataExtractor, ItvxPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
-                new CatalogKeyedNonPodcastServiceAdapter(
+            {
+                var extractor = provider.GetRequiredService<IItvxPageMetaDataExtractor>();
+                return new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Itvx,
                     ServiceKeys.Itvx,
                     ItvxUrlMatcher.IsSubmitUrl,
                     ItvxUrlMatcher.IsSubmitUrl,
-                    provider.GetRequiredService<IItvxPageMetaDataExtractor>().GetMetaData));
+                    extractor.GetMetaData,
+                    extractor.GetMetaDataFromHtml);
+            });
     }
 
     internal static SocketsHttpHandler CreateItvxSocketsHandler() =>

@@ -35,8 +35,9 @@ public class NonPodcastServiceCategoriserRules
             .Setup(x => x.ResolveServiceItem(
                 It.IsAny<Podcast?>(),
                 It.IsAny<IEnumerable<Episode>>(),
-                It.IsAny<Uri>()))
-            .ReturnsAsync((Podcast? podcast, IEnumerable<Episode> episodes, Uri _) =>
+                It.IsAny<Uri>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()))
+            .ReturnsAsync((Podcast? podcast, IEnumerable<Episode> episodes, Uri _, NonPodcastServiceItemMetaData? __) =>
             {
                 _handlerPodcast = podcast;
                 _handlerEpisodes = episodes.ToList();
@@ -89,7 +90,8 @@ public class NonPodcastServiceCategoriserRules
                 x => x.ResolveServiceItem(
                     It.IsAny<Podcast?>(),
                     It.IsAny<IEnumerable<Episode>>(),
-                    It.IsAny<Uri>()),
+                    It.IsAny<Uri>(),
+                    It.IsAny<NonPodcastServiceItemMetaData?>()),
                 Times.Never);
     }
 
@@ -174,7 +176,8 @@ public class NonPodcastServiceCategoriserRules
                 x => x.ResolveServiceItem(
                     It.IsAny<Podcast?>(),
                     It.IsAny<IEnumerable<Episode>>(),
-                    url),
+                    url,
+                    It.IsAny<NonPodcastServiceItemMetaData?>()),
                 Times.Once);
     }
 

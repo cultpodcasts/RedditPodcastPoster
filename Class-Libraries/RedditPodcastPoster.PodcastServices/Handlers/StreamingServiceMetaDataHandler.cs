@@ -14,12 +14,13 @@ public class StreamingServiceMetaDataHandler(
     public async Task<ResolvedNonPodcastServiceItem> ResolveServiceItem(
         Podcast? podcast,
         IEnumerable<Episode> episodes,
-        Uri url)
+        Uri url,
+        NonPodcastServiceItemMetaData? prefetchedMeta = null)
     {
         var adapter = adapterResolver.ForExtract(url)
                       ?? throw new InvalidOperationException($"Url $'{url}' cannot be handled");
 
-        var metaData = await adapter.ExtractMetaData(url);
+        var metaData = prefetchedMeta ?? await adapter.ExtractMetaData(url);
         var matchingEpisode = adapter.FindMatchingEpisode(episodes, url);
         if (episodes.Count(episode => adapter.FindMatchingEpisode([episode], url) != null) > 1)
         {

@@ -27,7 +27,11 @@ public class NonPodcastUrlCategoriserRules
         _mocker.Use<IEpisodeRepository>(new InMemoryEpisodeRepository());
         _mocker.Use(NonPodcastSubmitAdapterResolverSupport.Create());
         _mocker.GetMock<INonPodcastServiceCategoriser>()
-            .Setup(x => x.Resolve(It.IsAny<Podcast?>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>()))
+            .Setup(x => x.Resolve(
+                It.IsAny<Podcast?>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()))
             .ReturnsAsync(() => _resolvedNonPodcast);
     }
 
@@ -114,8 +118,13 @@ public class NonPodcastUrlCategoriserRules
         var podcast = _fixture.CreatePodcast();
         Podcast? capturedPodcast = null;
         _mocker.GetMock<INonPodcastServiceCategoriser>()
-            .Setup(x => x.Resolve(It.IsAny<Podcast?>(), url, It.IsAny<IndexingContext>()))
-            .Callback<Podcast?, Uri, IndexingContext>((p, _, _) => capturedPodcast = p)
+            .Setup(x => x.Resolve(
+                It.IsAny<Podcast?>(),
+                url,
+                It.IsAny<IndexingContext>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>()))
+            .Callback<Podcast?, Uri, IndexingContext, NonPodcastServiceItemMetaData?>(
+                (p, _, _, _) => capturedPodcast = p)
             .ReturnsAsync(() => _resolvedNonPodcast);
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
             NonPodcastService.BBC,
@@ -191,7 +200,11 @@ public class NonPodcastUrlCategoriserRules
             .WithMessage("*Could not match url*");
         _mocker.GetMock<INonPodcastServiceCategoriser>()
             .Verify(
-                x => x.Resolve(It.IsAny<Podcast?>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>()),
+                x => x.Resolve(
+                    It.IsAny<Podcast?>(),
+                    It.IsAny<Uri>(),
+                    It.IsAny<IndexingContext>(),
+                    It.IsAny<NonPodcastServiceItemMetaData?>()),
                 Times.Never);
     }
 

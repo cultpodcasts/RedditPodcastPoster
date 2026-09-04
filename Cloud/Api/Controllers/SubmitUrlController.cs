@@ -16,6 +16,8 @@ namespace Api.Controllers;
 public class SubmitUrlController(
     IPostSubmitUrlHandler postSubmitUrlHandler,
     IGetSubmitUrlLookupHandler getSubmitUrlLookupHandler,
+    IPostSubmitUrlPrepareHandler postSubmitUrlPrepareHandler,
+    IPostSubmitUrlExtractHandler postSubmitUrlExtractHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<SubmitUrlController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -50,6 +52,36 @@ public class SubmitUrlController(
             Unauthorised,
             ct);
 
+    [Function("SubmitUrlPrepare")]
+    public Task<HttpResponseData> Prepare(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SubmitUrl/prepare")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        [FromBody] SubmitUrlPrepareRequest prepareRequest,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["curate", "submit"],
+            prepareRequest,
+            HandlePrepare,
+            Unauthorised,
+            ct);
+
+    [Function("SubmitUrlExtract")]
+    public Task<HttpResponseData> Extract(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SubmitUrl/extract")]
+        HttpRequestData req,
+        FunctionContext executionContext,
+        [FromBody] SubmitUrlExtractRequest extractRequest,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["curate", "submit"],
+            extractRequest,
+            HandleExtract,
+            Unauthorised,
+            ct);
+
     private Task<HttpResponseData> Handle(
         IHandlerContext ctx,
         SubmitUrlRequest submitUrlModel,
@@ -77,5 +109,42 @@ public class SubmitUrlController(
         }
 
         return getSubmitUrlLookupHandler.Handle(ctx, parsed, c);
+    }
+
+    private Task<HttpResponseData> HandlePrepare(
+        IHandlerContext ctx,
+        SubmitUrlPrepareRequest prepareRequest,
+        CancellationToken c)
+    {
+        if (!prepareRequest.HasUsableHttpUrl())
+        {
+            return ctx.BadRequest(
+                ApiErrorResponse.Failure("Url must be an absolute http or https URL"),
+                c);
+        }
+
+        return postSubmitUrlPrepareHandler.Handle(ctx, prepareRequest, c);
+    }
+
+    private Task<HttpResponseData> HandleExtract(
+        IHandlerContext ctx,
+        SubmitUrlExtractRequest extractRequest,
+        CancellationToken c)
+    {
+        if (!extractRequest.HasUsableHttpUrl())
+        {
+            return ctx.BadRequest(
+                ApiErrorResponse.Failure("Url must be an absolute http or https URL"),
+                c);
+        }
+
+        if (string.IsNullOrWhiteSpace(extractRequest.Html))
+        {
+            return ctx.BadRequest(
+                ApiErrorResponse.Failure("Html is required"),
+                c);
+        }
+
+        return postSubmitUrlExtractHandler.Handle(ctx, extractRequest, c);
     }
 }

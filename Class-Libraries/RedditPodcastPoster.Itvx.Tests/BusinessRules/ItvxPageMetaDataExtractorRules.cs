@@ -29,6 +29,28 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "ITVX GetMetaDataFromHtml extracts Open Graph from fixture HTML without a network fetch, " +
+        "so Worker Browser Rendering can pass trusted HTML into Azure extract.")]
+    public async Task get_meta_data_from_html_uses_fixture_html_without_network()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("ITVX");
+        meta.ShowName.Should().Be(title);
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "ITVX brand watch extract sets ShowName from og:title when no TVSeries name exists, " +
         "because /watch/{brand}/{id} is the ITVX catalogue shape for series podcastName.")]
     public async Task extracts_open_graph_from_page()
