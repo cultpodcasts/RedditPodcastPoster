@@ -196,6 +196,40 @@ public class SubmitUrlRequestFromBodyBindingTests
         bound.Url.AbsolutePath.Should().Be($"/{path}");
     }
 
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: camelCase prefetchedMeta nested object binds NonPodcastServiceItemMetaData " +
+        "so Worker prepare-cache inject does not silently null and force a second scrape.")]
+    public async Task prefetched_meta_camel_case_binds_nested_fields()
+    {
+        // Arrange
+        var path = _fixture.CreateGuid().ToString("N");
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var showName = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var json = JsonSerializer.Serialize(new
+        {
+            url = $"https://example.com/{path}",
+            prefetchedMeta = new
+            {
+                title,
+                description,
+                showName,
+                publisher
+            }
+        });
+
+        // Act
+        var bound = await BindAsync(json);
+
+        // Assert
+        bound.PrefetchedMeta.Should().NotBeNull();
+        bound.PrefetchedMeta!.Title.Should().Be(title);
+        bound.PrefetchedMeta.Description.Should().Be(description);
+        bound.PrefetchedMeta.ShowName.Should().Be(showName);
+        bound.PrefetchedMeta.Publisher.Should().Be(publisher);
+    }
+
     private static async Task<SubmitUrlRequest> BindAsync(string json)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

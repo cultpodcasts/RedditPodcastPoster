@@ -11,6 +11,11 @@ public class SubmitUrlRequest
 
     public string? PodcastName { get; set; }
 
+    /// <summary>
+    /// Worker-injected streaming metadata from StreamMeta KV after prepare/extract
+    /// (<c>submitUsesPrefetchedMetaWhenCached</c>). Azure trusts the authenticated Worker
+    /// caller — do not forward SPA-supplied meta on public submit bodies.
+    /// </summary>
     public NonPodcastServiceItemMetaData? PrefetchedMeta { get; set; }
 
     /// <summary>
