@@ -55,11 +55,11 @@ internal static partial class ItvxCatalogMeta
         NonPodcastServiceItemMetaData? openGraph)
     {
         var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
-        if (string.IsNullOrWhiteSpace(title))
+        if (IsUnusableTitle(title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
                 url,
-                "ITVX page has neither og:title nor a usable document title. Geo/login walls often reset the connection.");
+                "ITVX page has neither og:title nor a usable document title. Geo/login walls often reset the connection or return the homepage shell.");
         }
 
         var showName = openGraph?.ShowName;
@@ -70,9 +70,9 @@ internal static partial class ItvxCatalogMeta
         else
         {
             showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // Catalogue hubs: title-as-ShowName only on series paths. Ambiguous /watch/{id}
-            // pages without Movie markers must not inherit the title as podcastName.
-            if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
+            // ITVX catalogue is /watch/{brand}/{programmeId}[/episodeId] — not /shows/.
+            // Brand and episode pages inherit title as ShowName when no TVSeries name exists.
+            if (showName is null && IsItvxWatchCataloguePath(url))
             {
                 showName = title;
             }
@@ -108,7 +108,8 @@ internal static partial class ItvxCatalogMeta
             return true;
         }
 
-        if (StreamingCataloguePathHints.IsSeriesPath(url))
+        // Prefer ITVX watch brand/episode paths over document-wide Movie blobs.
+        if (IsItvxWatchCataloguePath(url) || StreamingCataloguePathHints.IsSeriesPath(url))
         {
             return false;
         }
@@ -122,6 +123,25 @@ internal static partial class ItvxCatalogMeta
         return catalogue.Success &&
                catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// <c>/watch/{brandSlug}/{programmeId}</c> optional episode segment — ITVX's
+    /// catalogue shape (distinct from Play Suisse bare <c>/watch/{id}</c>).
+    /// </summary>
+    internal static bool IsItvxWatchCataloguePath(Uri url)
+    {
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 3 &&
+               parts[0].Equals("watch", StringComparison.OrdinalIgnoreCase) &&
+               !parts[1].Equals("news", StringComparison.OrdinalIgnoreCase) &&
+               parts[1].Length > 0 &&
+               parts[2].Length > 0;
+    }
+
+    private static bool IsUnusableTitle(string title) =>
+        string.IsNullOrWhiteSpace(title) ||
+        title.Equals("ITVX Homepage", StringComparison.OrdinalIgnoreCase) ||
+        title.Equals(ItvxPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase);
 
     private static string CleanTitle(string? raw)
     {

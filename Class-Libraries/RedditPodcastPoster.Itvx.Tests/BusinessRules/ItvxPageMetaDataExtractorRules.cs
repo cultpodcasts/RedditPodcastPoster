@@ -29,8 +29,8 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "ITVX page extract GETs the catalogue URL and reads Open Graph fields, " +
-        "so submit can ingest a ITVX watch/title page as a non-podcast episode.")]
+        "ITVX brand watch extract sets ShowName from og:title when no TVSeries name exists, " +
+        "because /watch/{brand}/{id} is the ITVX catalogue shape for series podcastName.")]
     public async Task extracts_open_graph_from_page()
     {
         // Arrange
@@ -46,8 +46,46 @@ public class ItvxPageMetaDataExtractorRules
         // Assert
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("ITVX");
-        meta.ShowName.Should().BeNull();
+        meta.ShowName.Should().Be(title);
         _handler.LastRequestUri.Should().Be(url);
+    }
+
+    [Fact(DisplayName =
+        "ITVX episode watch URLs also set ShowName from og:title when no TVSeries blob exists, " +
+        "so submit lookup can attach podcastName for /watch/{brand}/{programme}/{episode}.")]
+    public async Task episode_watch_path_sets_show_name_from_title()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>");
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.ShowName.Should().Be(title);
+    }
+
+    [Fact(DisplayName =
+        "ITVX soft-wall homepage title without og:title fails extract, " +
+        "because the shell is not catalogue metadata.")]
+    public async Task homepage_shell_title_without_og_fails()
+    {
+        // Arrange
+        var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml("<html><head><title>ITVX Homepage</title></head></html>");
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var act = async () => await sut.GetMetaData(url);
+
+        // Assert
+        await act.Should().ThrowAsync<NonPodcastServiceMetaDataExtractionException>();
     }
 
     [Fact(DisplayName =
@@ -158,6 +196,27 @@ public class ItvxPageMetaDataExtractorRules
 
         // Assert
         adapter.Service.Should().Be(NonPodcastService.Itvx);
+    }
+
+    [Fact(DisplayName =
+        "AddItvxServices configures Accept-Language and Sec-Fetch headers on the named HttpClient, " +
+        "because ITVX forcibly closes bare scrapes that omit them.")]
+    public void add_itvx_services_sets_browser_fetch_headers()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddItvxServices();
+        using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+
+        // Act
+        var client = factory.CreateClient(nameof(ItvxPageMetaDataExtractor));
+
+        // Assert
+        client.DefaultRequestHeaders.AcceptLanguage.ToString().Should().Contain("en-GB");
+        client.DefaultRequestHeaders.Contains("Sec-Fetch-Mode").Should().BeTrue();
+        client.DefaultRequestHeaders.GetValues("Sec-Fetch-Mode").Single().Should().Be("navigate");
+        client.Timeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 
     private static HttpResponseMessage OkHtml(string html) =>
