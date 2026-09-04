@@ -13,4 +13,9 @@ public record UrlMembershipLookupResult(
     Guid? PodcastId = null,
     string? PodcastName = null,
     bool Ambiguous = false,
-    IReadOnlyList<Guid>? PodcastIds = null);
+    IReadOnlyList<Guid>? PodcastIds = null,
+    /// <summary>
+    /// Streaming <see cref="RedditPodcastPoster.Models.Podcasts.ServiceKeys"/> wire value when
+    /// <see cref="Kind"/> is streaming; null for podcast-service / unrecognised.
+    /// </summary>
+    string? Service = null);
