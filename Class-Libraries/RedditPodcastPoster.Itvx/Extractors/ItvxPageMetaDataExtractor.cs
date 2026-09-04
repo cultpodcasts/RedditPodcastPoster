@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -70,9 +71,9 @@ internal static partial class ItvxCatalogMeta
         else
         {
             showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // ITVX catalogue is /watch/{brand}/{programmeId}[/episodeId] — not /shows/.
-            // Brand and episode pages inherit title as ShowName when no TVSeries name exists.
-            if (showName is null && IsItvxWatchCataloguePath(url))
+            // Brand/programme hubs only: title ≈ show. Episode watch paths use
+            // og:title for the episode, so title-as-ShowName would poison podcastName.
+            if (showName is null && ItvxUrlMatcher.IsWatchBrandHubPath(url))
             {
                 showName = title;
             }
@@ -96,8 +97,11 @@ internal static partial class ItvxCatalogMeta
 
     /// <summary>
     /// True when og:type is a movie, the URL is a film catalogue path, or the
-    /// <em>primary</em> catalogue <c>@type</c> is Movie. Series paths win over later
-    /// document-wide Movie blobs so recommended/carousel film JSON-LD cannot null ShowName.
+    /// <em>primary</em> catalogue <c>@type</c> is Movie. Series evidence
+    /// (TVSeries name blob or generic series path) wins over carousel Movie
+    /// JSON-LD so recommended films cannot null ShowName on series pages.
+    /// Watch catalogue paths without TVSeries still classify via primary
+    /// <c>@type=Movie</c> (films need not rely solely on og:type).
     /// </summary>
     public static bool IsMovie(Uri url, string html)
     {
@@ -108,8 +112,9 @@ internal static partial class ItvxCatalogMeta
             return true;
         }
 
-        // Prefer ITVX watch brand/episode paths over document-wide Movie blobs.
-        if (IsItvxWatchCataloguePath(url) || StreamingCataloguePathHints.IsSeriesPath(url))
+        // Series evidence beats document-wide / earlier carousel Movie blobs.
+        if (StreamingCataloguePathHints.IsSeriesPath(url) ||
+            FirstGroup(html, TvSeriesNameRegex()) is not null)
         {
             return false;
         }
@@ -122,20 +127,6 @@ internal static partial class ItvxCatalogMeta
         var catalogue = CataloguePrimaryTypeRegex().Match(html);
         return catalogue.Success &&
                catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// <c>/watch/{brandSlug}/{programmeId}</c> optional episode segment — ITVX's
-    /// catalogue shape (distinct from Play Suisse bare <c>/watch/{id}</c>).
-    /// </summary>
-    internal static bool IsItvxWatchCataloguePath(Uri url)
-    {
-        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length >= 3 &&
-               parts[0].Equals("watch", StringComparison.OrdinalIgnoreCase) &&
-               !parts[1].Equals("news", StringComparison.OrdinalIgnoreCase) &&
-               parts[1].Length > 0 &&
-               parts[2].Length > 0;
     }
 
     private static bool IsUnusableTitle(string title) =>

@@ -60,4 +60,41 @@ public class ItvxUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "IsWatchCataloguePath is path-only and still true for a non-itv host with the ITVX watch shape, " +
+        "so IsSubmitUrl remains the host∧path conjunction.")]
+    public void watch_catalogue_path_is_host_agnostic()
+    {
+        // Arrange
+        var url = new Uri($"https://example.test/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var pathOnly = ItvxUrlMatcher.IsWatchCataloguePath(url);
+        var submit = ItvxUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        pathOnly.Should().BeTrue();
+        submit.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "IsWatchBrandHubPath is true only for /watch/{brand}/{programmeId} (depth 3), " +
+        "not for episode watch paths with a fourth segment.")]
+    public void brand_hub_excludes_episode_segment()
+    {
+        // Arrange
+        var brand = _fixture.CreateYouTubeId();
+        var programme = _fixture.CreateYouTubeId();
+        var hub = new Uri($"https://www.itv.com/watch/{brand}/{programme}");
+        var episode = new Uri($"https://www.itv.com/watch/{brand}/{programme}/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var hubIsBrand = ItvxUrlMatcher.IsWatchBrandHubPath(hub);
+        var episodeIsBrand = ItvxUrlMatcher.IsWatchBrandHubPath(episode);
+
+        // Assert
+        hubIsBrand.Should().BeTrue();
+        episodeIsBrand.Should().BeFalse();
+    }
 }

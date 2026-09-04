@@ -51,9 +51,9 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "ITVX episode watch URLs also set ShowName from og:title when no TVSeries blob exists, " +
-        "so submit lookup can attach podcastName for /watch/{brand}/{programme}/{episode}.")]
-    public async Task episode_watch_path_sets_show_name_from_title()
+        "ITVX episode watch URLs leave ShowName null when no TVSeries blob exists, " +
+        "because og:title is the episode title and must not poison podcastName.")]
+    public async Task episode_watch_path_does_not_set_show_name_from_title()
     {
         // Arrange
         var title = _fixture.CreateTitle();
@@ -68,7 +68,33 @@ public class ItvxPageMetaDataExtractorRules
 
         // Assert
         meta.Title.Should().Be(title);
-        meta.ShowName.Should().Be(title);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "ITVX episode watch extract sets ShowName from JSON-LD TVSeries when present, " +
+        "so podcastName attach still works without title fallback.")]
+    public async Task episode_watch_path_sets_show_name_from_tvseries()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}" +
+            $"</script></head></html>");
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
     }
 
     [Fact(DisplayName =
@@ -165,6 +191,59 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "ITVX watch film without og:type still classifies as movie via primary @type=Movie, " +
+        "so ShowName stays null and title fallback does not invent a podcastName.")]
+    public async Task watch_path_movie_json_ld_without_og_type_is_movie()
+    {
+        // Arrange
+        var filmTitle = _fixture.CreateTitle();
+        var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{filmTitle}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"name\":\"{filmTitle}\"}}" +
+            $"</script></head></html>";
+        _handler.Response = OkHtml(html);
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(filmTitle);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "ITVX series watch keeps ShowName from TVSeries even when a recommended Movie blob appears earlier, " +
+        "because series evidence wins over carousel film JSON-LD.")]
+    public async Task series_watch_prefers_tvseries_over_earlier_carousel_movie()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var filmTitle = _fixture.CreateTitle();
+        var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{seriesName}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"name\":\"{filmTitle}\"}}" +
+            $"</script>" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}" +
+            $"</script></head></html>";
+        _handler.Response = OkHtml(html);
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
         "ITVX page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {
@@ -214,8 +293,11 @@ public class ItvxPageMetaDataExtractorRules
 
         // Assert
         client.DefaultRequestHeaders.AcceptLanguage.ToString().Should().Contain("en-GB");
-        client.DefaultRequestHeaders.Contains("Sec-Fetch-Mode").Should().BeTrue();
+        client.DefaultRequestHeaders.Accept.ToString().Should().Contain("text/html");
+        client.DefaultRequestHeaders.GetValues("Sec-Fetch-Dest").Single().Should().Be("document");
         client.DefaultRequestHeaders.GetValues("Sec-Fetch-Mode").Single().Should().Be("navigate");
+        client.DefaultRequestHeaders.GetValues("Sec-Fetch-Site").Single().Should().Be("none");
+        client.DefaultRequestHeaders.GetValues("Sec-Fetch-User").Single().Should().Be("?1");
         client.Timeout.Should().Be(TimeSpan.FromSeconds(30));
     }
 
