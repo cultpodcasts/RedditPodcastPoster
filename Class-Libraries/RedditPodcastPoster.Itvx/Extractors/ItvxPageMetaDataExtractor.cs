@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -55,11 +56,11 @@ internal static partial class ItvxCatalogMeta
         NonPodcastServiceItemMetaData? openGraph)
     {
         var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
-        if (string.IsNullOrWhiteSpace(title))
+        if (IsUnusableTitle(title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
                 url,
-                "ITVX page has neither og:title nor a usable document title. Geo/login walls often reset the connection.");
+                "ITVX page has neither og:title nor a usable document title. Geo/login walls often reset the connection or return the homepage shell.");
         }
 
         var showName = openGraph?.ShowName;
@@ -70,9 +71,9 @@ internal static partial class ItvxCatalogMeta
         else
         {
             showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // Catalogue hubs: title-as-ShowName only on series paths. Ambiguous /watch/{id}
-            // pages without Movie markers must not inherit the title as podcastName.
-            if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
+            // Brand/programme hubs only: title ≈ show. Episode watch paths use
+            // og:title for the episode, so title-as-ShowName would poison podcastName.
+            if (showName is null && ItvxUrlMatcher.IsWatchBrandHubPath(url))
             {
                 showName = title;
             }
@@ -96,8 +97,11 @@ internal static partial class ItvxCatalogMeta
 
     /// <summary>
     /// True when og:type is a movie, the URL is a film catalogue path, or the
-    /// <em>primary</em> catalogue <c>@type</c> is Movie. Series paths win over later
-    /// document-wide Movie blobs so recommended/carousel film JSON-LD cannot null ShowName.
+    /// <em>primary</em> catalogue <c>@type</c> is Movie. Series evidence
+    /// (TVSeries name blob or generic series path) wins over carousel Movie
+    /// JSON-LD so recommended films cannot null ShowName on series pages.
+    /// Watch catalogue paths without TVSeries still classify via primary
+    /// <c>@type=Movie</c> (films need not rely solely on og:type).
     /// </summary>
     public static bool IsMovie(Uri url, string html)
     {
@@ -108,7 +112,9 @@ internal static partial class ItvxCatalogMeta
             return true;
         }
 
-        if (StreamingCataloguePathHints.IsSeriesPath(url))
+        // Series evidence beats document-wide / earlier carousel Movie blobs.
+        if (StreamingCataloguePathHints.IsSeriesPath(url) ||
+            FirstGroup(html, TvSeriesNameRegex()) is not null)
         {
             return false;
         }
@@ -122,6 +128,11 @@ internal static partial class ItvxCatalogMeta
         return catalogue.Success &&
                catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsUnusableTitle(string title) =>
+        string.IsNullOrWhiteSpace(title) ||
+        title.Equals("ITVX Homepage", StringComparison.OrdinalIgnoreCase) ||
+        title.Equals(ItvxPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase);
 
     private static string CleanTitle(string? raw)
     {
