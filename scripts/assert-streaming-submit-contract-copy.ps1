@@ -17,14 +17,14 @@ Set-StrictMode -Version Latest
 
 $rppRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $copyPath = Join-Path $rppRoot 'docs\contracts\streaming-submit-contract.json'
-$apiPath = Join-Path $rppRoot '..\..\Api\tests\fixtures\streaming-submit-contract.json'
-# Workspace layout: cultpodcasts/RedditPodcastPoster → ../../Api when Api is sibling of cultpodcasts
-# Also try ../Api when Api is sibling of RedditPodcastPoster parent (website-style)
-$apiAlt = Join-Path $rppRoot '..\..\..\Api\tests\fixtures\streaming-submit-contract.json'
-# Common local: C:\Users\...\source\repos\Api and ...\cultpodcasts\RedditPodcastPoster
-$apiReposSibling = Join-Path $rppRoot '..\..\Api\tests\fixtures\streaming-submit-contract.json'
 
-$candidates = @($apiPath, $apiAlt, $apiReposSibling) | Select-Object -Unique
+# Layout A: repos/Api beside repos/cultpodcasts/RedditPodcastPoster → ../../Api
+# Layout B: Api sibling of the RPP git root → ../Api
+$candidates = @(
+    (Join-Path $rppRoot '..\..\Api\tests\fixtures\streaming-submit-contract.json'),
+    (Join-Path $rppRoot '..\Api\tests\fixtures\streaming-submit-contract.json')
+) | Select-Object -Unique
+
 $resolvedApi = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
 if (-not (Test-Path -LiteralPath $copyPath)) {

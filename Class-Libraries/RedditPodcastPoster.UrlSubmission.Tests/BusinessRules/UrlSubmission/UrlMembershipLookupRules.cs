@@ -216,6 +216,58 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
+        "When a BBC iPlayer episode URL is already stored on one series, URL membership lookup returns that podcast with ServiceKeys.BbcIplayer " +
+        "because catalogue path resolution distinguishes iPlayer from Sounds, and does not scrape metadata.")]
+    public async Task known_iplayer_url_returns_unique_series_with_bbc_iplayer_service()
+    {
+        // Arrange
+        var url = BbcIplayerUrl();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcIplayerLookup(e, url));
+        _mocker.GetMock<IBBCPageMetaDataExtractor>()
+            .Setup(e => e.GetMetaData(It.IsAny<Uri>()))
+            .ReturnsAsync(new NonPodcastServiceItemMetaData(
+                Title: _fixture.CreateTitle(),
+                Description: _fixture.Create<string>(),
+                ShowName: _fixture.CreateTitle()));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.PodcastName.Should().Be(podcast.Name);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcIplayer);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+        _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a BBC iPlayer episode URL is not stored, URL membership lookup returns unknown streaming with ServiceKeys.BbcIplayer " +
+        "because ServiceCatalog.TryResolveKey prefers /iplayer/ over the shared BBC adapter identity.")]
+    public async Task unknown_iplayer_url_returns_streaming_with_bbc_iplayer_service()
+    {
+        // Arrange
+        var url = BbcIplayerUrl();
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
+            false,
+            UrlMembershipLookupKinds.Streaming,
+            Service: ServiceKeys.BbcIplayer));
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When a streaming URL is not stored, URL membership lookup extracts the adapter series/show name " +
         "so drop can persist podcastName; known stays false because membership is URL-only.")]
     public async Task unknown_streaming_extracts_show_name()
@@ -467,12 +519,24 @@ public class UrlMembershipLookupRules
     private Uri BbcSoundsUrl() =>
         new($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
 
+    private Uri BbcIplayerUrl() =>
+        new($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+
     private static void SeedBbcSoundsLookup(Episode episode, Uri soundsUrl)
     {
         episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
         {
             [ServiceKeys.BbcIplayer] = new(),
             [ServiceKeys.BbcSounds] = new() { Url = soundsUrl }
+        };
+    }
+
+    private static void SeedBbcIplayerLookup(Episode episode, Uri iplayerUrl)
+    {
+        episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
+        {
+            [ServiceKeys.BbcIplayer] = new() { Url = iplayerUrl },
+            [ServiceKeys.BbcSounds] = new()
         };
     }
 }

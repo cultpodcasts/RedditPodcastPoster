@@ -9,6 +9,7 @@ using Api.Handlers;
 using Api.Handlers.SubmitUrl;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 using FunctionHost.Tests.Api;
@@ -30,7 +31,8 @@ public class GetSubmitUrlLookupHandlerTests
     }
 
     [Fact(DisplayName =
-        "When membership lookup finds a unique series, GET submit lookup responds 200 with known true, podcastId, and podcastName.")]
+        "When membership lookup finds a unique series, GET submit lookup responds 200 with known true, podcastId, and podcastName " +
+        "and omits service because podcast-service platforms are not streaming ServiceKeys.")]
     public async Task known_unique_series_returns_200()
     {
         // Arrange
@@ -62,11 +64,12 @@ public class GetSubmitUrlLookupHandlerTests
         body.GetProperty("podcastId").GetGuid().Should().Be(podcastId);
         body.GetProperty("podcastName").GetString().Should().Be(podcastName);
         body.GetProperty("kind").GetString().Should().Be(UrlMembershipLookupKinds.PodcastService);
+        body.TryGetProperty("service", out _).Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "When membership lookup is ambiguous, GET submit lookup responds 200 with known false, ambiguous true, and podcastIds, " +
-        "because the Add Podcast Series field must still be shown.")]
+        "When membership lookup is ambiguous, GET submit lookup responds 200 with known false, ambiguous true, podcastIds, and service, " +
+        "because the Add Podcast Series field must still be shown and siblings need the streaming ServiceKeys value.")]
     public async Task ambiguous_returns_200_with_ids()
     {
         // Arrange
@@ -80,7 +83,8 @@ public class GetSubmitUrlLookupHandlerTests
                 Known = false,
                 Kind = UrlMembershipLookupKinds.Streaming,
                 Ambiguous = true,
-                PodcastIds = [first, second]
+                PodcastIds = [first, second],
+                Service = ServiceKeys.BbcSounds
             });
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
@@ -98,11 +102,13 @@ public class GetSubmitUrlLookupHandlerTests
         body.GetProperty("ambiguous").GetBoolean().Should().BeTrue();
         body.GetProperty("podcastIds").EnumerateArray().Select(x => x.GetGuid())
             .Should().BeEquivalentTo([first, second]);
+        body.GetProperty("service").GetString().Should().Be(ServiceKeys.BbcSounds);
     }
 
     [Fact(DisplayName =
-        "When membership lookup finds no stored URL, GET submit lookup responds 200 with known false and the classified kind.")]
-    public async Task unknown_streaming_returns_200_with_kind()
+        "When membership lookup finds no stored streaming URL, GET submit lookup responds 200 with known false, kind streaming, and service " +
+        "so Worker/website clients receive the wire ServiceKeys property.")]
+    public async Task unknown_streaming_returns_200_with_kind_and_service()
     {
         // Arrange
         var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
@@ -111,7 +117,8 @@ public class GetSubmitUrlLookupHandlerTests
             .ReturnsAsync(new SubmitUrlLookupResponse
             {
                 Known = false,
-                Kind = UrlMembershipLookupKinds.Streaming
+                Kind = UrlMembershipLookupKinds.Streaming,
+                Service = ServiceKeys.BbcSounds
             });
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
@@ -127,5 +134,6 @@ public class GetSubmitUrlLookupHandlerTests
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("known").GetBoolean().Should().BeFalse();
         body.GetProperty("kind").GetString().Should().Be(UrlMembershipLookupKinds.Streaming);
+        body.GetProperty("service").GetString().Should().Be(ServiceKeys.BbcSounds);
     }
 }

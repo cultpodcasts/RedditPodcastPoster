@@ -6,7 +6,8 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.Contracts;
 
 /// <summary>
 /// Cross-repo streaming-submit contract: JSON published by Api, copied under docs/contracts.
-/// Production membership <c>service</c> field lands in a later PR; this locks ServiceKeys parity first.
+/// Locks JSON ↔ <see cref="ServiceCatalog.SearchEncodedKeys"/> (and rule/case-id completeness)
+/// alongside the membership <c>service</c> field shipped in this PR.
 /// </summary>
 public class StreamingSubmitContractRules
 {
@@ -41,12 +42,19 @@ public class StreamingSubmitContractRules
             .Select(e => e.GetString()!)
             .ToHashSet(StringComparer.Ordinal);
 
-        // Act / Assert
-        fromContract.Should().NotContain(ServiceKeys.Spotify);
-        fromContract.Should().NotContain(ServiceKeys.Apple);
-        fromContract.Should().NotContain(ServiceKeys.YouTube);
-        fromContract.Should().Contain(ServiceKeys.Itvx);
-        fromContract.Should().Contain(ServiceKeys.DiscoveryPlus);
+        // Act
+        var containsSpotify = fromContract.Contains(ServiceKeys.Spotify);
+        var containsApple = fromContract.Contains(ServiceKeys.Apple);
+        var containsYouTube = fromContract.Contains(ServiceKeys.YouTube);
+        var containsItvx = fromContract.Contains(ServiceKeys.Itvx);
+        var containsDiscoveryPlus = fromContract.Contains(ServiceKeys.DiscoveryPlus);
+
+        // Assert
+        containsSpotify.Should().BeFalse();
+        containsApple.Should().BeFalse();
+        containsYouTube.Should().BeFalse();
+        containsItvx.Should().BeTrue();
+        containsDiscoveryPlus.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -60,24 +68,38 @@ public class StreamingSubmitContractRules
             .Select(e => e.GetString()!)
             .ToArray();
 
-        // Act / Assert
-        allow.Should().Equal(ServiceKeys.Itvx);
+        // Act
+        var expected = new[] { ServiceKeys.Itvx };
+
+        // Assert
+        allow.Should().Equal(expected);
     }
 
     [Fact(DisplayName =
-        "Streaming-submit contract rules flag membershipReturnsService and membershipDoesNotScrape, because lookup classifies only and prepare owns HTML fetch.")]
+        "Streaming-submit contract flags membershipReturnsService as true now and membershipDoesNotScrape as the target after prepare owns HTML fetch, because today membership may still extract show name.")]
     public void streaming_contract_documents_membership_vs_prepare_split()
     {
         // Arrange
         var rules = Contract.RootElement.GetProperty("rules");
 
-        // Act / Assert
-        rules.GetProperty("membershipReturnsService").GetBoolean().Should().BeTrue();
-        rules.GetProperty("membershipDoesNotScrape").GetBoolean().Should().BeTrue();
-        rules.GetProperty("prepareFetchesHtml").GetBoolean().Should().BeTrue();
-        rules.GetProperty("submitUsesPrefetchedMetaWhenCached").GetBoolean().Should().BeTrue();
-        rules.GetProperty("azureDoesNotCallCloudflare").GetBoolean().Should().BeTrue();
-        rules.GetProperty("podcastServicesOutOfScope").GetBoolean().Should().BeTrue();
+        // Act
+        var membershipReturnsService = rules.GetProperty("membershipReturnsService").GetBoolean();
+        var membershipDoesNotScrape = rules.GetProperty("membershipDoesNotScrape").GetBoolean();
+        var prepareFetchesHtml = rules.GetProperty("prepareFetchesHtml").GetBoolean();
+        var submitUsesPrefetchedMetaWhenCached =
+            rules.GetProperty("submitUsesPrefetchedMetaWhenCached").GetBoolean();
+        var azureDoesNotCallCloudflare = rules.GetProperty("azureDoesNotCallCloudflare").GetBoolean();
+        var podcastServicesOutOfScope = rules.GetProperty("podcastServicesOutOfScope").GetBoolean();
+
+        // Assert
+        membershipReturnsService.Should().BeTrue();
+        membershipDoesNotScrape.Should().BeTrue(
+            "membershipDoesNotScrape is the target orchestration state after prepare lands; " +
+            "api-infra membership may still ExtractMetaData for unknown streaming URLs until then");
+        prepareFetchesHtml.Should().BeTrue();
+        submitUsesPrefetchedMetaWhenCached.Should().BeTrue();
+        azureDoesNotCallCloudflare.Should().BeTrue();
+        podcastServicesOutOfScope.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -101,9 +123,13 @@ public class StreamingSubmitContractRules
             .Select(e => e.GetString()!)
             .ToArray();
 
-        // Act / Assert
-        membershipIds.Should().HaveCount(keys.Length * 3);
-        orchestrationIds.Should().HaveCount(keys.Length);
+        // Act
+        var expectedMembershipCount = keys.Length * 3;
+        var expectedOrchestrationCount = keys.Length;
+
+        // Assert
+        membershipIds.Should().HaveCount(expectedMembershipCount);
+        orchestrationIds.Should().HaveCount(expectedOrchestrationCount);
         foreach (var key in keys)
         {
             membershipIds.Should().Contain($"membership-{key}-known");

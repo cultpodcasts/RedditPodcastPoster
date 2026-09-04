@@ -125,7 +125,8 @@ public class UrlMembershipLookup(
         if (adapter != null)
         {
             storedUrlEquals = adapter.StoredUrlEquals(url);
-            // Prefer catalogue host/path resolution (bbcSounds vs bbcIplayer); fall back to key.
+            // Prefer catalogue host/path resolution (bbcSounds vs bbcIplayer). A matched streaming
+            // adapter without a catalog key is an invariant violation — throw rather than guess.
             streamingService = key ?? throw new InvalidOperationException(
                 $"Streaming adapter matched '{url}' but ServiceCatalog.TryResolveKey returned null.");
             return UrlMembershipLookupKinds.Streaming;
