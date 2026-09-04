@@ -191,12 +191,13 @@ public class UrlMembershipLookupRules
         result.PodcastId.Should().Be(podcast.Id);
         result.PodcastName.Should().Be(podcast.Name);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcSounds);
         _episodes.SavedEpisodes.Should().BeEmpty();
         _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When a streaming URL is not stored, URL membership lookup returns unknown streaming without a series name unless extract supplies ShowName.")]
+        "When a streaming URL is not stored, URL membership lookup returns unknown streaming with service key without a series name unless extract supplies ShowName.")]
     public async Task unknown_sounds_url_returns_streaming()
     {
         // Arrange
@@ -209,7 +210,8 @@ public class UrlMembershipLookupRules
         // Assert
         result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
             false,
-            UrlMembershipLookupKinds.Streaming));
+            UrlMembershipLookupKinds.Streaming,
+            Service: ServiceKeys.BbcSounds));
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -235,6 +237,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcSounds);
         result.PodcastName.Should().Be(showName);
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -262,6 +265,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcSounds);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -285,6 +289,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcSounds);
         result.PodcastName.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
@@ -310,6 +315,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Vimeo);
         result.PodcastName.Should().Be(author);
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -336,6 +342,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Netflix);
         result.PodcastName.Should().Be(seriesName);
         result.PodcastName.Should().NotBe("Netflix");
     }
@@ -361,6 +368,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.AmazonPrime);
         result.PodcastName.Should().Be(seriesName);
         result.PodcastName.Should().NotBe("Amazon Prime Video");
     }
@@ -389,6 +397,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.InternetArchive);
         result.PodcastName.Should().Be(collectionName);
         result.PodcastName.Should().NotBe(uploader);
     }
@@ -414,6 +423,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Ambiguous.Should().BeTrue();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BbcSounds);
         result.PodcastIds.Should().BeEquivalentTo([first.Id, second.Id]);
         _episodes.SavedEpisodes.Should().BeEmpty();
     }

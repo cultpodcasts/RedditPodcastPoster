@@ -22,7 +22,7 @@ public class UrlMembershipLookup(
 {
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
     {
-        var kind = Classify(url, out var storedUrlEquals);
+        var kind = Classify(url, out var storedUrlEquals, out var streamingService);
         if (kind == UrlMembershipLookupKinds.Unrecognised || storedUrlEquals is null)
         {
             return new UrlMembershipLookupResult(false, UrlMembershipLookupKinds.Unrecognised);
@@ -41,7 +41,8 @@ public class UrlMembershipLookup(
                 false,
                 Kind: kind,
                 Ambiguous: true,
-                PodcastIds: matchingPodcastIds);
+                PodcastIds: matchingPodcastIds,
+                Service: streamingService);
         }
 
         if (matchingPodcastIds.Count == 1)
@@ -54,14 +55,19 @@ public class UrlMembershipLookup(
                     true,
                     Kind: kind,
                     PodcastId: podcast.Id,
-                    PodcastName: podcast.Name);
+                    PodcastName: podcast.Name,
+                    Service: streamingService);
             }
         }
 
         var extractedName = kind == UrlMembershipLookupKinds.Streaming
             ? await TryExtractShowName(url)
             : null;
-        return new UrlMembershipLookupResult(false, kind, PodcastName: extractedName);
+        return new UrlMembershipLookupResult(
+            false,
+            kind,
+            PodcastName: extractedName,
+            Service: streamingService);
     }
 
     private async Task<string?> TryExtractShowName(Uri url)
@@ -90,8 +96,12 @@ public class UrlMembershipLookup(
         }
     }
 
-    private string Classify(Uri url, out Expression<Func<Episode, bool>>? storedUrlEquals)
+    private string Classify(
+        Uri url,
+        out Expression<Func<Episode, bool>>? storedUrlEquals,
+        out string? streamingService)
     {
+        streamingService = null;
         var key = ServiceCatalog.TryResolveKey(url);
         if (key == ServiceKeys.Spotify)
         {
@@ -115,6 +125,9 @@ public class UrlMembershipLookup(
         if (adapter != null)
         {
             storedUrlEquals = adapter.StoredUrlEquals(url);
+            // Prefer catalogue host/path resolution (bbcSounds vs bbcIplayer); fall back to key.
+            streamingService = key ?? throw new InvalidOperationException(
+                $"Streaming adapter matched '{url}' but ServiceCatalog.TryResolveKey returned null.");
             return UrlMembershipLookupKinds.Streaming;
         }
 

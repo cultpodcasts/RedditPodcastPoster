@@ -26,6 +26,12 @@
   </ItemGroup>
   
   <ItemGroup>
+    <None Include="..\..\docs\contracts\streaming-submit-contract.json" Link="contracts\streaming-submit-contract.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Channel4\RedditPodcastPoster.Channel4.csproj" />

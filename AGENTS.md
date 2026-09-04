@@ -25,6 +25,10 @@ pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged -BaseRef origin/main
 
 Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
+## Streaming submit orchestration (contracts)
+
+Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`docs/streaming-submit-orchestration.md`](docs/streaming-submit-orchestration.md). JSON copy under `docs/contracts/` must match Api fixture — `pwsh ./scripts/assert-streaming-submit-contract-copy.ps1`.
+
 ## Episode language (HARD)
 
 `Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`.

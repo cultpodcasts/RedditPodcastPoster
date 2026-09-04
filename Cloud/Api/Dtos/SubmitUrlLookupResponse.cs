@@ -27,6 +27,11 @@ public class SubmitUrlLookupResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<Guid>? PodcastIds { get; init; }
 
+    /// <summary>Streaming ServiceKeys value when kind is streaming; omitted otherwise.</summary>
+    [JsonPropertyName("service")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Service { get; init; }
+
     public static SubmitUrlLookupResponse From(RedditPodcastPoster.UrlSubmission.Models.UrlMembershipLookupResult result) =>
         new()
         {
@@ -35,6 +40,7 @@ public class SubmitUrlLookupResponse
             PodcastId = result.PodcastId,
             PodcastName = result.PodcastName,
             Ambiguous = result.Ambiguous,
-            PodcastIds = result.PodcastIds
+            PodcastIds = result.PodcastIds,
+            Service = result.Service
         };
 }
