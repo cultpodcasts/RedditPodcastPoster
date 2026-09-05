@@ -6,8 +6,4 @@ namespace RedditPodcastPoster.UrlSubmission.Processors;
 public interface IPodcastProcessor
 {
     Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem);
-
-    Task<SubmitResult> AddEpisodeToExistingPodcast(
-        CategorisedItem categorisedItem,
-        bool refreshMeta);
 }

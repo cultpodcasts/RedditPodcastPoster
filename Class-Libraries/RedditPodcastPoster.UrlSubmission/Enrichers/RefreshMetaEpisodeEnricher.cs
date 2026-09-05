@@ -8,13 +8,14 @@ using RedditPodcastPoster.UrlSubmission.Models;
 namespace RedditPodcastPoster.UrlSubmission.Enrichers;
 
 /// <summary>
-/// Decorator over <see cref="IEpisodeEnricher"/> that applies non-podcast overwrite
+/// Decorator over <see cref="EpisodeEnricher"/> that applies non-podcast overwrite
 /// behaviour (refresh-meta) instead of fill-missing-only enrichment.
+/// Registered as <see cref="IEpisodeEnricher"/> when SubmitUrl is started with <c>-r</c>.
 /// </summary>
 public sealed class RefreshMetaEpisodeEnricher(
     EpisodeEnricher inner,
     IDescriptionHelper descriptionHelper,
-    ILogger<RefreshMetaEpisodeEnricher> logger) : IRefreshMetaEpisodeEnricher
+    ILogger<RefreshMetaEpisodeEnricher> logger) : IEpisodeEnricher
 {
     public ApplyResolvePodcastServicePropertiesResponse ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
