@@ -1,5 +1,4 @@
 using FluentAssertions;
-using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
@@ -9,7 +8,7 @@ public class SearchIndexCosmosSqlTests
 {
     [Fact(DisplayName =
         "Cosmos pull-path svc SQL includes every ServiceCatalog.SearchEncodedKeys entry as e.services.{key}.url, " +
-        "because a hardcoded list omitted streaming keys like itvx and left search svc empty after SubmitUrl.")]
+        "because hardcoded lists could drift behind ServiceCatalog / live datasource SQL could lag the repo and leave search svc empty after SubmitUrl.")]
     public void svc_projection_includes_every_search_encoded_key()
     {
         // Arrange

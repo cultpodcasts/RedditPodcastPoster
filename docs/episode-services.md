@@ -61,7 +61,7 @@ Grammar (source of truth: `SearchEpisodeServices`):
 
 The coalesced cover `image` token is unchanged (YouTube → Spotify → Apple → remaining service art).
 
-Pull-path Cosmos SQL for `svc` / `image` is generated from `ServiceCatalog.SearchEncodedKeys` / `ImageCoalesceOrder` (`SearchIndexCosmosSql`) — **all** streaming catalog keys (ITVX, discovery+, Disney+, Channel 4, Netflix, …), not a hardcoded subset. Push-path C# (`SearchEpisodeServices` / `SearchEpisodeImage`) already walks the same catalog.
+Pull-path Cosmos SQL for `svc` / `image` is generated from `ServiceCatalog.SearchEncodedKeys` / `ImageCoalesceOrder` (`SearchIndexCosmosSql` in Models) — **all** streaming catalog keys (ITVX, discovery+, Disney+, Channel 4, Netflix, …), not a hardcoded subset. Keys stay aligned with push-path C# (`SearchEpisodeServices` / `SearchEpisodeImage`), but the **payload dialect does not**: Cosmos SQL keeps the legacy form `key:` + raw `e.services.*.url` (no `u` prefix, no `|`/`%` escape). Push `Encode()` uses the compact grammar above. Clients (`expandSvc` / `TryExpandCompactUrl`) accept both. Aligning SQL with `Encode()` is optional follow-up, not required for catalog-key parity.
 
 ### Ops: after datasource SQL update
 

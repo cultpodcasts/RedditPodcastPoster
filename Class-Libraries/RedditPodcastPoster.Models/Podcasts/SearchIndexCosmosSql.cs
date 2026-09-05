@@ -1,6 +1,4 @@
-using RedditPodcastPoster.Models.Podcasts;
-
-namespace RedditPodcastPoster.EntitySearchIndexer.Models;
+namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Cosmos SQL fragments for the Azure AI Search pull-path datasource.
@@ -8,10 +6,19 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 /// <see cref="ServiceCatalog.ImageCoalesceOrder"/> so new streaming keys (ITVX, Channel 4, …)
 /// cannot be omitted from <c>svc</c> / <c>image</c> while C# push-path indexing includes them.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <c>SvcProjection</c> emits the legacy full-URL dialect (<c>key:</c> + raw
+/// <c>e.services.*.url</c>) — not the push-path <c>SearchEpisodeServices.Encode()</c> compact
+/// grammar (<c>u</c> prefix / <c>|</c>% escape). Clients accept both; aligning SQL with
+/// <c>Encode()</c> is optional follow-up.
+/// </para>
+/// </remarks>
 public static class SearchIndexCosmosSql
 {
     /// <summary>
-    /// <c>RTRIM(CONCAT(...), "|")</c> projecting every non-index-id catalog URL into <c>svc</c>.
+    /// <c>RTRIM(CONCAT(...), "|")</c> projecting every non-index-id catalog URL into <c>svc</c>
+    /// as <c>key:</c> + raw URL (pull dialect; see type remarks).
     /// </summary>
     public static string SvcProjection()
     {
