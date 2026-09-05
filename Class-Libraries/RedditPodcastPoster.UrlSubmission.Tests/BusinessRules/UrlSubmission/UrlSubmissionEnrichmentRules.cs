@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
@@ -1092,6 +1093,274 @@ public class UrlSubmissionEnrichmentRules
             Service.Spotify);
     }
 
+    [Fact(DisplayName =
+        "When refresh-meta is requested for an existing streaming episode, UrlSubmission enrichment overwrites " +
+        "title, description, release, length, and service image even when the streaming URL is already present.")]
+    public void refresh_meta_overwrites_non_podcast_fields_when_streaming_url_already_present()
+    {
+        // Arrange
+        var enricher = CreateRefreshMetaEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var staleTitle = _fixture.CreateTitle();
+        var freshTitle = _fixture.CreateTitle();
+        var freshDescription = _fixture.Create<string>();
+        var staleRelease = DomainTestFixture.UtcAtTime(-40, new TimeSpan(10, 30, 15));
+        var freshRelease = DomainTestFixture.UtcAtTime(-10, new TimeSpan(21, 15, 0));
+        var freshLength = _fixture.CreateDuration();
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = staleTitle;
+            e.Description = _fixture.Create<string>();
+            e.Release = staleRelease;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: freshTitle,
+            Description: freshDescription,
+            Image: freshImage,
+            Release: freshRelease,
+            Duration: freshLength);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Title.Should().Be(freshTitle);
+        episode.Description.Should().Be(freshDescription);
+        episode.Release.Should().Be(freshRelease);
+        episode.Length.Should().Be(freshLength);
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Itvx).Should().Be(itvxUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(freshImage);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull(
+            "streaming URL was already present so the service was not newly added");
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta is requested but title, description, release, length, URL, and image already match, " +
+        "enrichment does not report Enriched or claim the streaming service was added.")]
+    public void refresh_meta_noop_when_non_podcast_fields_already_match()
+    {
+        // Arrange
+        var enricher = CreateRefreshMetaEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var release = DomainTestFixture.UtcAtTime(-10, new TimeSpan(21, 15, 0));
+        var length = _fixture.CreateDuration();
+        var image = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Description = description;
+            e.Release = release;
+            e.Length = length;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, image);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: title,
+            Description: description,
+            Image: image,
+            Release: release,
+            Duration: length);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Title.Should().Be(title);
+        episode.Description.Should().Be(description);
+        episode.Release.Should().Be(release);
+        episode.Length.Should().Be(length);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(image);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta extract description is empty but the categorised item also carries a Spotify " +
+        "resolved description, stored episode description is left unchanged (no cross-platform fill-missing).")]
+    public void refresh_meta_empty_extract_description_does_not_fill_from_spotify()
+    {
+        // Arrange
+        var storedDescription = _fixture.CreateTitle() + " " + _fixture.Create<string>();
+        var spotifyFillIn = _fixture.CreateTitle() + " " + _fixture.Create<string>();
+        Mock<IDescriptionHelper>? descriptionHelper = null;
+        var enricher = CreateRefreshMetaEnricherWithLogger(dh =>
+        {
+            descriptionHelper = dh;
+            dh.Setup(x => x.CollapseDescription(It.IsAny<string?>()))
+                .Returns<string?>(d => string.IsNullOrWhiteSpace(d) ? null : d.Trim());
+            dh.Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
+                .Returns(spotifyFillIn);
+        }).Enricher;
+
+        var podcast = _fixture.CreatePodcast();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithDescription(spotifyFillIn));
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Description = storedDescription;
+            EpisodeServicePresence.SetSpotifyIdentity(e, spotifyInput.EpisodeId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, spotifyInput.Url, null);
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, null);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: episode.Title,
+            Description: null,
+            Image: null,
+            Release: episode.Release,
+            Duration: episode.Length);
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            new CategorisedSpotifyItem(
+                podcast.SpotifyId,
+                spotifyInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                string.Empty,
+                episode.Title,
+                spotifyFillIn,
+                episode.Release,
+                episode.Length,
+                spotifyInput.Url!,
+                false,
+                null),
+            null,
+            null,
+            nonPodcastItem,
+            Service.Other);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(storedDescription);
+        descriptionHelper!.Verify(
+            x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta overwrites fields, enrichment logs a field-by-field plan with from -> to values " +
+        "so dry-run and persist runs show what would change.")]
+    public void refresh_meta_logs_field_plan_with_from_to_deltas()
+    {
+        // Arrange
+        var (enricher, logger) = CreateRefreshMetaEnricherWithLogger();
+        var podcast = _fixture.CreatePodcast();
+        var staleTitle = _fixture.CreateTitle();
+        var freshTitle = _fixture.CreateTitle();
+        var freshLength = _fixture.CreateDuration();
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = staleTitle;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: freshTitle,
+            Description: episode.Description,
+            Image: freshImage,
+            Release: episode.Release,
+            Duration: freshLength);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(podcast, categorisedItem, episode);
+
+        // Assert
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains("Refresh-meta plan", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains($"title: '{staleTitle}' -> '{freshTitle}'", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains("length:", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains("image:", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains(" -> ", StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta is off and the streaming URL is already present, UrlSubmission enrichment leaves " +
+        "existing title, length, release, and image unchanged.")]
+    public void without_refresh_meta_existing_streaming_meta_is_left_alone()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var staleRelease = DomainTestFixture.UtcAtTime(-40, new TimeSpan(10, 30, 15));
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Description = description;
+            e.Release = staleRelease;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            Image: freshImage,
+            Release: DomainTestFixture.UtcAtTime(-10, new TimeSpan(21, 15, 0)),
+            Duration: _fixture.CreateDuration());
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Title.Should().Be(title);
+        episode.Description.Should().Be(description);
+        episode.Release.Should().Be(staleRelease);
+        episode.Length.Should().Be(TimeSpan.Zero);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(staleImage);
+    }
+
     private static CategorisedItem CreateNonPodcastOnlyCategorisedItem(
         Podcast podcast,
         Episode episode,
@@ -1121,5 +1390,27 @@ public class UrlSubmissionEnrichmentRules
         mocker.Use(EpisodeDomainTestServices.CreateEnrichmentApplicator());
         mocker.Use(NullLogger<EpisodeEnricher>.Instance);
         return mocker.CreateInstance<EpisodeEnricher>();
+    }
+
+    private static RefreshMetaEpisodeEnricher CreateRefreshMetaEnricher() =>
+        CreateRefreshMetaEnricherWithLogger().Enricher;
+
+    private static (RefreshMetaEpisodeEnricher Enricher, Mock<ILogger<RefreshMetaEpisodeEnricher>> Logger)
+        CreateRefreshMetaEnricherWithLogger(
+            Action<Mock<IDescriptionHelper>>? configureDescriptionHelper = null)
+    {
+        var inner = CreateEnricher();
+        var mocker = new AutoMocker();
+        mocker.Use(inner);
+        var descriptionHelper = mocker.GetMock<IDescriptionHelper>();
+        descriptionHelper
+            .Setup(x => x.CollapseDescription(It.IsAny<string?>()))
+            .Returns<string?>(d => string.IsNullOrWhiteSpace(d) ? null : d.Trim());
+        descriptionHelper
+            .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
+            .Returns("Resolved description");
+        configureDescriptionHelper?.Invoke(descriptionHelper);
+        var enricher = mocker.CreateInstance<RefreshMetaEpisodeEnricher>();
+        return (enricher, mocker.GetMock<ILogger<RefreshMetaEpisodeEnricher>>());
     }
 }

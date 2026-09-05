@@ -23,9 +23,16 @@ public static class ServiceCollectionExtensions
     /// explicitly at the composition root (required for <c>IEpisodeEnricher</c> →
     /// <c>IPlatformEnrichmentApplicator</c>).
     /// </summary>
-    public static IServiceCollection AddUrlSubmission(this IServiceCollection services)
+    /// <param name="useRefreshMetaEnricher">
+    /// When true (SubmitUrl CLI <c>-r</c>), resolve <see cref="IEpisodeEnricher"/> to
+    /// <see cref="RefreshMetaEpisodeEnricher"/>. Otherwise use fill-missing
+    /// <see cref="EpisodeEnricher"/>. Composition roots that never refresh meta omit this.
+    /// </param>
+    public static IServiceCollection AddUrlSubmission(
+        this IServiceCollection services,
+        bool useRefreshMetaEnricher = false)
     {
-        return services
+        services
             .AddPeopleServices()
             .AddScoped<IUrlCategoriser, UrlCategoriser>()
             .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
@@ -37,7 +44,18 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IDescriptionHelper, DescriptionHelper>()
             .AddSingleton<IEpisodeHelper, EpisodeHelper>()
             .AddScoped<IEpisodeFactory, EpisodeFactory>()
-            .AddScoped<IEpisodeEnricher, EpisodeEnricher>()
+            .AddScoped<EpisodeEnricher>();
+
+        if (useRefreshMetaEnricher)
+        {
+            services.AddScoped<IEpisodeEnricher, RefreshMetaEpisodeEnricher>();
+        }
+        else
+        {
+            services.AddScoped<IEpisodeEnricher>(sp => sp.GetRequiredService<EpisodeEnricher>());
+        }
+
+        return services
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()

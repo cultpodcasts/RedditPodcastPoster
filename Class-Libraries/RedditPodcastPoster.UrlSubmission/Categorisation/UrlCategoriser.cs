@@ -32,7 +32,8 @@ public class UrlCategoriser(
         Uri url,
         IndexingContext indexingContext,
         bool matchOtherServices,
-        NonPodcastServiceItemMetaData? prefetchedMeta = null)
+        NonPodcastServiceItemMetaData? prefetchedMeta = null,
+        bool forceMetaExtract = false)
     {
         CategorisedSpotifyItem? resolvedSpotifyItem = null;
         CategorisedAppleItem? resolvedAppleItem = null;
@@ -85,7 +86,12 @@ public class UrlCategoriser(
         else if (nonPodcastServiceAdapterResolver.ForSubmit(url) != null)
         {
             resolvedNonPodcastServiceItem =
-                await nonPodcastServiceCategoriser.Resolve(podcast, url, indexingContext, prefetchedMeta);
+                await nonPodcastServiceCategoriser.Resolve(
+                    podcast,
+                    url,
+                    indexingContext,
+                    prefetchedMeta,
+                    forceMetaExtract);
             if (resolvedNonPodcastServiceItem != null)
             {
                 authority = Service.Other;

@@ -51,6 +51,189 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "ITVX extract prefers __NEXT_DATA__ episode art, ISO duration, and broadcast release over Open Graph, " +
+        "because watch pages expose the ITVX brand logo as og:image and often omit length/date in JSON-LD.")]
+    public async Task next_data_wins_over_open_graph_for_image_duration_release()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var duration = TimeSpan.FromHours(1) + TimeSpan.FromMinutes(16);
+        var release = DomainTestFixture.UtcAtTime(-30, new TimeSpan(21, 15, 0));
+        var imageId = _fixture.CreateYouTubeId();
+        var catalogueImage =
+            $"https://ovp.itv.com/v2/images/special/{imageId}/itv_hub/01_Hero_DesktopCTV/16x9?distributionPartner=itv_hub&fallback=standard&w=2236&q=80&blur=0&bg=false";
+        var brandLogo =
+            "https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/itvx-logo-for-light-backgrounds.jpg?q=80&w=1366";
+        var slug = _fixture.CreateYouTubeId();
+        var programmeId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.itv.com/watch/{slug}/{programmeId}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    programme = new
+                    {
+                        title = seriesName,
+                        imagePresets = new Dictionary<string, Dictionary<string, string>>
+                        {
+                            ["1920"] = new() { ["2x"] = catalogueImage }
+                        }
+                    },
+                    episode = new
+                    {
+                        episodeTitle,
+                        longDescription = description,
+                        notFormattedDuration = "PT1H16M",
+                        broadcastDateTime = release.ToString("o")
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:image\" content=\"{brandLogo}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Description.Should().Be(description);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.Image.Should().Be(new Uri(catalogueImage));
+    }
+
+    [Fact(DisplayName =
+        "ITVX extract parses human-readable __NEXT_DATA__ duration such as '1h 16m' when the ISO field is absent, " +
+        "because some watch pages only expose the display duration string.")]
+    public async Task next_data_human_duration_is_parsed_when_iso_absent()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var expectedDuration = TimeSpan.FromHours(1) + TimeSpan.FromMinutes(16);
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    episode = new
+                    {
+                        episodeTitle,
+                        duration = "1h 16m"
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Duration.Should().Be(expectedDuration);
+    }
+
+    [Fact(DisplayName =
+        "ITVX extract returns null Image when both __NEXT_DATA__ and Open Graph only offer brand logos, " +
+        "so prepare/submit does not store ITVX chrome as episode art.")]
+    public async Task brand_logo_only_images_yield_null_catalogue_image()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var brandLogo =
+            "https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/itvx-logo-for-light-backgrounds.jpg?q=80&w=1366";
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    episode = new
+                    {
+                        episodeTitle,
+                        image = brandLogo
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:image\" content=\"{brandLogo}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "ITVX extract resolves catalogue image templates from __NEXT_DATA__ when imagePresets are absent, " +
+        "so prepare/submit still stores episode art instead of the brand logo.")]
+    public async Task next_data_image_template_is_resolved_when_presets_missing()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var imageId = _fixture.CreateYouTubeId();
+        var template =
+            $"https://ovp.itv.com/v2/images/special/{imageId}/itv_hub/01_Hero_DesktopCTV/16x9?distributionPartner=itv_hub&fallback=standard&w={{width}}&h={{height}}&q={{quality}}&blur={{blur}}&bg={{bg}}";
+        var expected =
+            $"https://ovp.itv.com/v2/images/special/{imageId}/itv_hub/01_Hero_DesktopCTV/16x9?distributionPartner=itv_hub&fallback=standard&w=1920&h=1080&q=80&blur=0&bg=false";
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    episode = new
+                    {
+                        episodeTitle,
+                        image = template
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Image.Should().Be(new Uri(expected));
+    }
+
+    [Fact(DisplayName =
         "ITVX brand watch extract sets ShowName from og:title when no TVSeries name exists, " +
         "because /watch/{brand}/{id} is the ITVX catalogue shape for series podcastName.")]
     public async Task extracts_open_graph_from_page()

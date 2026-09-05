@@ -25,43 +25,8 @@ using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.Configuration;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
-
-builder.Configuration
-    .AddJsonFile("appsettings.json", true)
-    .AddEnvironmentVariables("RedditPodcastPoster_")
-    .AddCommandLine(args)
-    .AddSecrets(Assembly.GetExecutingAssembly());
-
-builder.Services
-    .AddLogging()
-    .AddEpisodesDomain()
-    .AddRepositories()
-    .AddCatalogueServices()
-    .AddPodcastServices()
-    .AddEdgeApiClient(bypassCertificateValidation: false)
-    .AddSpotifyServices()
-    .AddAppleServices()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddScoped<IRemoteClient, RemoteClient>()
-    .AddScoped(s => new iTunesSearchManager())
-    .AddPeopleServices()
-    .AddUrlSubmission()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider()
-    .AddTextSanitiser()
-    .AddScoped<SubmitUrlProcessor>()
-    .AddEpisodeSearchIndexerService()
-    .AddNonPodcastScrapers()
-    .AddHttpClient();
-
-builder.Services.AddPostingCriteria();
-
-using var host = builder.Build();
 return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs =>
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest, args), errs =>
     {
         if (errs.Any(x => x is VersionRequestedError))
         {
@@ -72,7 +37,7 @@ return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
         return Task.FromResult(-1);
     });
 
-async Task<int> Run(SubmitUrlRequest request)
+async Task<int> Run(SubmitUrlRequest request, string[] hostArgs)
 {
     if (request.Version)
     {
@@ -80,7 +45,42 @@ async Task<int> Run(SubmitUrlRequest request)
         return 0;
     }
 
-    var urlSubmitter = host.Services.GetService<SubmitUrlProcessor>()!;
+    var builder = Host.CreateApplicationBuilder(hostArgs);
+
+    builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
+
+    builder.Configuration
+        .AddJsonFile("appsettings.json", true)
+        .AddEnvironmentVariables("RedditPodcastPoster_")
+        .AddCommandLine(hostArgs)
+        .AddSecrets(Assembly.GetExecutingAssembly());
+
+    builder.Services
+        .AddLogging()
+        .AddEpisodesDomain()
+        .AddRepositories()
+        .AddCatalogueServices()
+        .AddPodcastServices()
+        .AddEdgeApiClient(bypassCertificateValidation: false)
+        .AddSpotifyServices()
+        .AddAppleServices()
+        .AddYouTubeServices(ApplicationUsage.Cli)
+        .AddScoped<IRemoteClient, RemoteClient>()
+        .AddScoped(s => new iTunesSearchManager())
+        .AddPeopleServices()
+        .AddUrlSubmission(useRefreshMetaEnricher: request.RefreshMeta)
+        .AddSubjectServices()
+        .AddCachedSubjectProvider()
+        .AddTextSanitiser()
+        .AddScoped<SubmitUrlProcessor>()
+        .AddEpisodeSearchIndexerService()
+        .AddNonPodcastScrapers()
+        .AddHttpClient();
+
+    builder.Services.AddPostingCriteria();
+
+    using var host = builder.Build();
+    var urlSubmitter = host.Services.GetRequiredService<SubmitUrlProcessor>();
     await urlSubmitter.Process(request);
     return 0;
 }

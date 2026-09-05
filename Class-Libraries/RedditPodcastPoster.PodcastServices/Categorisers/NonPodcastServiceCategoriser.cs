@@ -23,7 +23,8 @@ public class NonPodcastServiceCategoriser(
         Podcast? podcast,
         Uri url,
         IndexingContext indexingContext,
-        NonPodcastServiceItemMetaData? prefetchedMeta = null)
+        NonPodcastServiceItemMetaData? prefetchedMeta = null,
+        bool forceMetaExtract = false)
     {
         if (podcast == null)
         {
@@ -63,7 +64,14 @@ public class NonPodcastServiceCategoriser(
                         $"Found episodes with url '{url}'. Podcast-id: '{podcast.Id}'. Episode-ids: {string.Join(", ", episodes)}.");
                 }
 
-                return new ResolvedNonPodcastServiceItem(adapter.Service, podcast, episodes.Single());
+                // Known URL: skip scrape unless refresh-meta (or prefetched meta) needs fields to apply.
+                if (!forceMetaExtract && prefetchedMeta is null)
+                {
+                    return new ResolvedNonPodcastServiceItem(adapter.Service, podcast, episodes.Single(), Url: url);
+                }
+
+                return await streamingServiceMetaDataHandler.ResolveServiceItem(
+                    podcast, episodes, url, prefetchedMeta);
             }
         }
 

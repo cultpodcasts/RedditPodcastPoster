@@ -85,6 +85,7 @@ public class NonPodcastServiceCategoriserRules
         resolved!.NonPodcastService.Should().Be(NonPodcastService.BBC);
         resolved.Podcast!.Id.Should().Be(podcast.Id);
         resolved.Episode!.Id.Should().Be(episode.Id);
+        resolved.Url.Should().Be(url);
         _mocker.GetMock<IStreamingServiceMetaDataHandler>()
             .Verify(
                 x => x.ResolveServiceItem(
@@ -93,6 +94,41 @@ public class NonPodcastServiceCategoriserRules
                     It.IsAny<Uri>(),
                     It.IsAny<NonPodcastServiceItemMetaData?>()),
                 Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta forces extract on a known streaming URL, submit scrapes metadata even though " +
+        "the episode already stores that URL, so overwrite enrichment has title/length/image to apply.")]
+    public async Task force_meta_extract_on_known_url_calls_handler()
+    {
+        // Arrange
+        var url = BbcSoundsUrl();
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcSoundsLookup(e, url));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _handlerResult = CreateResolved(NonPodcastService.BBC, url, podcast, episode);
+        var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
+
+        // Act
+        var resolved = await sut.Resolve(
+            null,
+            url,
+            new IndexingContext(),
+            forceMetaExtract: true);
+
+        // Assert
+        resolved.Should().BeSameAs(_handlerResult);
+        _handlerPodcast!.Id.Should().Be(podcast.Id);
+        _handlerEpisodes.Should().ContainSingle(e => e.Id == episode.Id);
+        _mocker.GetMock<IStreamingServiceMetaDataHandler>()
+            .Verify(
+                x => x.ResolveServiceItem(
+                    It.IsAny<Podcast?>(),
+                    It.IsAny<IEnumerable<Episode>>(),
+                    url,
+                    null),
+                Times.Once);
     }
 
     [Fact(DisplayName =

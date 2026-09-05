@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -204,12 +205,7 @@ public class EpisodeEnricher(
 
             if (categorisedItem.ResolvedNonPodcastServiceItem.Image is { } nonPodcastImage)
             {
-                var imageKey = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl is { } bbcForImage
-                    ? ServiceCatalog.TryResolveKey(bbcForImage) ?? ServiceKeys.BbcSounds
-                    : categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null
-                        ? ServiceKeys.InternetArchive
-                        : ServiceCatalog.TryResolveKey(categorisedItem.ResolvedNonPodcastServiceItem.Url!)
-                          ?? ServiceCatalog.KeyFromUnknownHost(categorisedItem.ResolvedNonPodcastServiceItem.Url!);
+                var imageKey = ResolveNonPodcastImageKey(categorisedItem.ResolvedNonPodcastServiceItem);
                 if (imageKey != null &&
                     EpisodeServicePresence.TryFillMissing(
                         matchingEpisode, imageKey, null, nonPodcastImage))
@@ -288,4 +284,7 @@ public class EpisodeEnricher(
             descriptionHelper.EnrichMissingDescription(categorisedItem);
         return candidate with { Description = description };
     }
+
+    private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item) =>
+        NonPodcastServiceKeys.Resolve(item);
 }

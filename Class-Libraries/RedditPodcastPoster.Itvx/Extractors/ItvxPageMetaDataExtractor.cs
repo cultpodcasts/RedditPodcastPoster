@@ -62,7 +62,9 @@ internal static partial class ItvxCatalogMeta
         string html,
         NonPodcastServiceItemMetaData? openGraph)
     {
-        var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
+        var next = ItvxNextDataMeta.TryParse(html);
+        var title = CleanTitle(
+            next?.Title ?? openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
         if (IsUnusableTitle(title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -70,7 +72,7 @@ internal static partial class ItvxCatalogMeta
                 "ITVX page has neither og:title nor a usable document title. Geo/login walls often reset the connection or return the homepage shell.");
         }
 
-        var showName = openGraph?.ShowName;
+        var showName = next?.ShowName ?? openGraph?.ShowName;
         if (IsMovie(url, html))
         {
             showName = null;
@@ -91,15 +93,39 @@ internal static partial class ItvxCatalogMeta
             showName = null;
         }
 
+        var description = PreferNonEmpty(next?.Description, openGraph?.Description) ?? string.Empty;
+        var duration = next?.Duration ?? openGraph?.Duration;
+        var release = next?.Release ?? openGraph?.Release;
+        var image = PreferCatalogueImage(next?.Image, openGraph?.Image);
+
         return new NonPodcastServiceItemMetaData(
             title,
-            openGraph?.Description ?? string.Empty,
-            openGraph?.Duration,
-            openGraph?.Release,
-            openGraph?.Image,
+            description,
+            duration,
+            release,
+            image,
             openGraph?.Explicit,
             ItvxPageMetaDataExtractor.Publisher,
             showName);
+    }
+
+    private static string? PreferNonEmpty(string? preferred, string? fallback) =>
+        !string.IsNullOrWhiteSpace(preferred) ? preferred : fallback;
+
+    private static Uri? PreferCatalogueImage(Uri? nextImage, Uri? openGraphImage)
+    {
+        if (nextImage is not null && !ItvxNextDataMeta.IsBrandLogo(nextImage))
+        {
+            return nextImage;
+        }
+
+        if (openGraphImage is not null && !ItvxNextDataMeta.IsBrandLogo(openGraphImage))
+        {
+            return openGraphImage;
+        }
+
+        // Brand logos are not catalogue art — store nothing rather than ITVX chrome.
+        return null;
     }
 
     /// <summary>
