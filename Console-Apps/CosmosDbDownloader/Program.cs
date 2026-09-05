@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using CommandLine;
 using CosmosDbDownloader;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -22,8 +23,11 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
+// Spectre progress owns the console. Keep ILogger at Error+ so Info/Warning from this
+// app or Cosmos/SDK providers cannot interleave with ANSI progress bars.
+builder.Logging.SetMinimumLevel(LogLevel.Error);
+
 builder.Services
-    .AddLogging()
     .AddRepositories()
     .AddPeopleServices()
     .AddSubjectServices()
