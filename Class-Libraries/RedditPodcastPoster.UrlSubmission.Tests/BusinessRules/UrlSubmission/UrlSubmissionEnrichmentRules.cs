@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
@@ -1194,6 +1195,55 @@ public class UrlSubmissionEnrichmentRules
     }
 
     [Fact(DisplayName =
+        "When refresh-meta overwrites fields, enrichment logs a field-by-field plan with from -> to values " +
+        "so dry-run and persist runs show what would change.")]
+    public void refresh_meta_logs_field_plan_with_from_to_deltas()
+    {
+        // Arrange
+        var (enricher, logger) = CreateRefreshMetaEnricherWithLogger();
+        var podcast = _fixture.CreatePodcast();
+        var staleTitle = _fixture.CreateTitle();
+        var freshTitle = _fixture.CreateTitle();
+        var freshLength = _fixture.CreateDuration();
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = staleTitle;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: freshTitle,
+            Description: episode.Description,
+            Image: freshImage,
+            Release: episode.Release,
+            Duration: freshLength);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(podcast, categorisedItem, episode);
+
+        // Assert
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains("Refresh-meta plan", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains($"title: '{staleTitle}' -> '{freshTitle}'", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains("length:", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains("image:", StringComparison.Ordinal) &&
+                    state.ToString()!.Contains(" -> ", StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact(DisplayName =
         "When refresh-meta is off and the streaming URL is already present, UrlSubmission enrichment leaves " +
         "existing title, length, release, and image unchanged.")]
     public void without_refresh_meta_existing_streaming_meta_is_left_alone()
@@ -1270,10 +1320,15 @@ public class UrlSubmissionEnrichmentRules
         return mocker.CreateInstance<EpisodeEnricher>();
     }
 
-    private static RefreshMetaEpisodeEnricher CreateRefreshMetaEnricher()
+    private static RefreshMetaEpisodeEnricher CreateRefreshMetaEnricher() =>
+        CreateRefreshMetaEnricherWithLogger().Enricher;
+
+    private static (RefreshMetaEpisodeEnricher Enricher, Mock<ILogger<RefreshMetaEpisodeEnricher>> Logger)
+        CreateRefreshMetaEnricherWithLogger()
     {
         var inner = CreateEnricher();
         var mocker = new AutoMocker();
+        mocker.Use(inner);
         var descriptionHelper = mocker.GetMock<IDescriptionHelper>();
         descriptionHelper
             .Setup(x => x.CollapseDescription(It.IsAny<string?>()))
@@ -1281,9 +1336,7 @@ public class UrlSubmissionEnrichmentRules
         descriptionHelper
             .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
             .Returns("Resolved description");
-        return new RefreshMetaEpisodeEnricher(
-            inner,
-            descriptionHelper.Object,
-            NullLogger<RefreshMetaEpisodeEnricher>.Instance);
+        var enricher = mocker.CreateInstance<RefreshMetaEpisodeEnricher>();
+        return (enricher, mocker.GetMock<ILogger<RefreshMetaEpisodeEnricher>>());
     }
 }

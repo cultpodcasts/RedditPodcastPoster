@@ -31,6 +31,13 @@ public sealed class RefreshMetaEpisodeEnricher(
 
         if (categorisedItem.ResolvedNonPodcastServiceItem == null || matchingEpisode == null)
         {
+            if (matchingEpisode != null)
+            {
+                logger.LogWarning(
+                    "Refresh-meta: no resolved non-podcast item for episode '{EpisodeId}' — nothing to compare or overwrite.",
+                    matchingEpisode.Id);
+            }
+
             return response;
         }
 
@@ -75,36 +82,106 @@ public sealed class RefreshMetaEpisodeEnricher(
         SubmitResultState episodeResult)
     {
         var item = categorisedItem.ResolvedNonPodcastServiceItem!;
-        var changed = false;
-
-        if (!string.IsNullOrWhiteSpace(item.Title) &&
-            !string.Equals(matchingEpisode.Title, item.Title, StringComparison.Ordinal))
-        {
-            matchingEpisode.Title = item.Title;
-            changed = true;
-        }
-
         var description =
             descriptionHelper.CollapseDescription(item.Description) ??
             descriptionHelper.EnrichMissingDescription(categorisedItem);
-        if (!string.IsNullOrWhiteSpace(description) &&
-            !string.Equals(matchingEpisode.Description, description, StringComparison.Ordinal))
+
+        var streamingKey = ResolveStreamingServiceKey(item);
+        var existingImage = streamingKey != null
+            ? EpisodeServicePresence.TryGetImage(matchingEpisode, streamingKey)
+            : null;
+        var existingUrl = streamingKey != null
+            ? EpisodeServicePresence.TryGetUrl(matchingEpisode, streamingKey)
+            : null;
+
+        var updates = new List<string>();
+        var changeCount = 0;
+
+        void Note(string field, string? from, string? to, bool willUpdate)
+        {
+            if (willUpdate)
+            {
+                changeCount++;
+                updates.Add($"{field}: '{NullDisplay(from)}' -> '{NullDisplay(to)}'");
+            }
+            else
+            {
+                var reason = string.IsNullOrWhiteSpace(to)
+                    ? " — extract had no new value"
+                    : " — extract matches stored";
+                updates.Add($"{field}: unchanged ('{NullDisplay(from)}'){reason}");
+            }
+        }
+
+        var titleUpdate = !string.IsNullOrWhiteSpace(item.Title) &&
+                          !string.Equals(matchingEpisode.Title, item.Title, StringComparison.Ordinal);
+        Note("title", matchingEpisode.Title, item.Title, titleUpdate);
+
+        var descriptionUpdate = !string.IsNullOrWhiteSpace(description) &&
+                                !string.Equals(matchingEpisode.Description, description, StringComparison.Ordinal);
+        Note("description", Truncate(matchingEpisode.Description), Truncate(description), descriptionUpdate);
+
+        var releaseUpdate = item.Release is { } release && matchingEpisode.Release != release;
+        Note(
+            "release",
+            matchingEpisode.Release.ToString("o"),
+            item.Release?.ToString("o"),
+            releaseUpdate);
+
+        var lengthUpdate = item.Duration is { } duration &&
+                           duration > TimeSpan.Zero &&
+                           matchingEpisode.Length != duration;
+        Note(
+            "length",
+            matchingEpisode.Length.ToString(),
+            item.Duration?.ToString(),
+            lengthUpdate);
+
+        var imageUpdate = item.Image is not null &&
+                          (existingImage is null || !UriEquals(existingImage, item.Image));
+        Note(
+            "image",
+            existingImage?.ToString(),
+            item.Image?.ToString(),
+            imageUpdate);
+
+        var urlUpdate = item.Url is not null && streamingKey != null &&
+                        (existingUrl is null || !UriEquals(existingUrl, item.Url));
+        Note(
+            "url",
+            existingUrl?.ToString(),
+            item.Url?.ToString(),
+            urlUpdate);
+
+        logger.LogInformation(
+            "Refresh-meta plan for episode '{EpisodeId}' (service={Service}): {Plan}",
+            matchingEpisode.Id,
+            item.NonPodcastService,
+            string.Join("; ", updates));
+
+        var changed = false;
+
+        if (titleUpdate)
+        {
+            matchingEpisode.Title = item.Title!;
+            changed = true;
+        }
+
+        if (descriptionUpdate)
         {
             matchingEpisode.Description = description;
             changed = true;
         }
 
-        if (item.Release is { } release && matchingEpisode.Release != release)
+        if (releaseUpdate)
         {
-            matchingEpisode.Release = release;
+            matchingEpisode.Release = item.Release!.Value;
             changed = true;
         }
 
-        if (item.Duration is { } duration &&
-            duration > TimeSpan.Zero &&
-            matchingEpisode.Length != duration)
+        if (lengthUpdate)
         {
-            matchingEpisode.Length = duration;
+            matchingEpisode.Length = item.Duration!.Value;
             changed = true;
         }
 
@@ -139,35 +216,30 @@ public sealed class RefreshMetaEpisodeEnricher(
 
             changed |= upsert.Changed;
         }
-        else if (item.Url is { } streamingUrl)
+        else if (item.Url is { } streamingUrl && streamingKey != null)
         {
-            var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl)
-                               ?? ServiceCatalog.KeyFromUnknownHost(streamingUrl);
-            if (streamingKey != null)
+            var upsert = ApplyServiceUpsertIfChanged(
+                matchingEpisode,
+                streamingKey,
+                streamingUrl,
+                item.Image);
+            if (upsert.UrlWasMissing)
             {
-                var upsert = ApplyServiceUpsertIfChanged(
-                    matchingEpisode,
-                    streamingKey,
-                    streamingUrl,
-                    item.Image);
-                if (upsert.UrlWasMissing)
-                {
-                    addedExtraKeys.Add(streamingKey);
-                }
-
-                changed |= upsert.Changed;
+                addedExtraKeys.Add(streamingKey);
             }
+
+            changed |= upsert.Changed;
         }
         else if (item.Image is { } imageOnly)
         {
             var imageKey = ResolveNonPodcastImageKey(item);
             if (imageKey != null)
             {
-                var existingUrl = EpisodeServicePresence.TryGetUrl(matchingEpisode, imageKey);
-                var existingImage = EpisodeServicePresence.TryGetImage(matchingEpisode, imageKey);
-                if (existingImage is null || !UriEquals(existingImage, imageOnly))
+                var existingServiceUrl = EpisodeServicePresence.TryGetUrl(matchingEpisode, imageKey);
+                var existingServiceImage = EpisodeServicePresence.TryGetImage(matchingEpisode, imageKey);
+                if (existingServiceImage is null || !UriEquals(existingServiceImage, imageOnly))
                 {
-                    EpisodeServicePresence.Upsert(matchingEpisode, imageKey, existingUrl, imageOnly);
+                    EpisodeServicePresence.Upsert(matchingEpisode, imageKey, existingServiceUrl, imageOnly);
                     changed = true;
                 }
             }
@@ -177,11 +249,43 @@ public sealed class RefreshMetaEpisodeEnricher(
         {
             episodeResult = SubmitResultState.Enriched;
             logger.LogInformation(
-                "Refresh-meta overwrote non-podcast fields on episode '{matchingEpisodeId}'.",
-                matchingEpisode.Id);
+                "Refresh-meta would update episode '{EpisodeId}' ({ChangeCount} field(s)).",
+                matchingEpisode.Id,
+                changeCount);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Refresh-meta would update nothing on episode '{EpisodeId}'. Extracted title='{Title}', duration={Duration}, release={Release}, image='{Image}', url='{Url}'.",
+                matchingEpisode.Id,
+                item.Title,
+                item.Duration?.ToString() ?? "(none)",
+                item.Release?.ToString("o") ?? "(none)",
+                item.Image?.ToString() ?? "(none)",
+                item.Url?.ToString() ?? "(none)");
         }
 
         return episodeResult;
+    }
+
+    private static string? ResolveStreamingServiceKey(ResolvedNonPodcastServiceItem item)
+    {
+        if (item.BBCUrl is { } bbc)
+        {
+            return ServiceCatalog.TryResolveKey(bbc) ?? ServiceKeys.BbcSounds;
+        }
+
+        if (item.InternetArchiveUrl != null)
+        {
+            return ServiceKeys.InternetArchive;
+        }
+
+        if (item.Url is { } url)
+        {
+            return ServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
+        }
+
+        return null;
     }
 
     private static ServiceUpsertOutcome ApplyServiceUpsertIfChanged(
@@ -216,23 +320,20 @@ public sealed class RefreshMetaEpisodeEnricher(
             UriFormat.UriEscaped,
             StringComparison.OrdinalIgnoreCase) == 0;
 
-    private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item)
+    private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item) =>
+        ResolveStreamingServiceKey(item);
+
+    private static string NullDisplay(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "(none)" : value;
+
+    private static string? Truncate(string? value)
     {
-        if (item.BBCUrl is { } bbcForImage)
+        if (string.IsNullOrWhiteSpace(value))
         {
-            return ServiceCatalog.TryResolveKey(bbcForImage) ?? ServiceKeys.BbcSounds;
+            return value;
         }
 
-        if (item.InternetArchiveUrl != null)
-        {
-            return ServiceKeys.InternetArchive;
-        }
-
-        if (item.Url is { } url)
-        {
-            return ServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
-        }
-
-        return null;
+        const int max = 80;
+        return value.Length <= max ? value : value[..max] + "…";
     }
 }
