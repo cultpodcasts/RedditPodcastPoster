@@ -61,4 +61,16 @@ Grammar (source of truth: `SearchEpisodeServices`):
 
 The coalesced cover `image` token is unchanged (YouTube → Spotify → Apple → remaining service art).
 
+Pull-path Cosmos SQL for `svc` / `image` is generated from `ServiceCatalog.SearchEncodedKeys` / `ImageCoalesceOrder` (`SearchIndexCosmosSql`) — **all** streaming catalog keys (ITVX, discovery+, Disney+, Channel 4, Netflix, …), not a hardcoded subset. Push-path C# (`SearchEpisodeServices` / `SearchEpisodeImage`) already walks the same catalog.
+
+### Ops: after datasource SQL update
+
+Updating live `cultpodcasts-ds` (`CreateSearchIndex --update-existing --datasource cultpodcasts-ds --index cultpodcasts`) only changes the **pull projection**. Existing search documents keep stale empty `svc`/`image` until they are rewritten:
+
+1. **Targeted:** `Index --reindex-search -n "<podcast name>"` (or `--podcast-id`) — push path from Cosmos; preferred for spot fixes.
+2. **Bulk:** run the Azure Search pull indexer in batches. Free-tier (~10k docs/day) means a full corpus after HWM reset needs **multiple days** of continued indexer runs — do not assume one run refreshes every streaming episode.
+3. Spot-check search REST: `filter=id eq '<episodeId>'`, assert non-empty `svc` and `image` for streaming-only episodes.
+
+Do **not** treat “SQL includes discoveryPlus” as “every episode already has svc/image in search.”
+
 Index schema: **add** `svc` (retrievable). Do not treat this document as approval to recreate or deploy the live index.
