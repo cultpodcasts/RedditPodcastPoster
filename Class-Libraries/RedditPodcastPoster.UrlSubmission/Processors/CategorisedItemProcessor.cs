@@ -52,7 +52,9 @@ public class CategorisedItemProcessor(
         SubmitResult submitResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
+            submitResult = submitOptions.RefreshMeta
+                ? await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem, refreshMeta: true)
+                : await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
 
             if (submitOptions.PersistToDatabase)
             {

@@ -1092,6 +1092,103 @@ public class UrlSubmissionEnrichmentRules
             Service.Spotify);
     }
 
+    [Fact(DisplayName =
+        "When refresh-meta is requested for an existing streaming episode, UrlSubmission enrichment overwrites " +
+        "title, description, release, length, and service image even when the streaming URL is already present.")]
+    public void refresh_meta_overwrites_non_podcast_fields_when_streaming_url_already_present()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var staleTitle = _fixture.CreateTitle();
+        var freshTitle = _fixture.CreateTitle();
+        var freshDescription = _fixture.Create<string>();
+        var staleRelease = DateTime.MinValue;
+        var freshRelease = DomainTestFixture.UtcAtTime(-10, new TimeSpan(21, 15, 0));
+        var freshLength = _fixture.CreateDuration();
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = staleTitle;
+            e.Description = _fixture.Create<string>();
+            e.Release = staleRelease;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: freshTitle,
+            Description: freshDescription,
+            Image: freshImage,
+            Release: freshRelease,
+            Duration: freshLength);
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode,
+            refreshMeta: true);
+
+        // Assert
+        episode.Title.Should().Be(freshTitle);
+        episode.Description.Should().Be(freshDescription);
+        episode.Release.Should().Be(freshRelease);
+        episode.Length.Should().Be(freshLength);
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Itvx).Should().Be(itvxUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(freshImage);
+        response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
+        "When refresh-meta is off and the streaming URL is already present, UrlSubmission enrichment leaves " +
+        "existing title, length, and image unchanged.")]
+    public void without_refresh_meta_existing_streaming_meta_is_left_alone()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var podcast = _fixture.CreatePodcast();
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var staleImage = new Uri($"https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/{_fixture.CreateYouTubeId()}.jpg");
+        var freshImage = new Uri($"https://ovp.itv.com/v2/images/special/{_fixture.CreateYouTubeId()}/hero.jpg");
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Description = description;
+            e.Release = DateTime.MinValue;
+            e.Length = TimeSpan.Zero;
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            Image: freshImage,
+            Release: DomainTestFixture.UtcAtTime(-10, new TimeSpan(21, 15, 0)),
+            Duration: _fixture.CreateDuration());
+        var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode,
+            refreshMeta: false);
+
+        // Assert
+        episode.Title.Should().Be(title);
+        episode.Description.Should().Be(description);
+        episode.Length.Should().Be(TimeSpan.Zero);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(staleImage);
+    }
+
     private static CategorisedItem CreateNonPodcastOnlyCategorisedItem(
         Podcast podcast,
         Episode episode,

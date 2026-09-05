@@ -107,6 +107,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `-i, --no-index` | Do not reindex search index |
 | `-l, --is-internet-archive-playlist` | URL is an Internet Archive playlist |
 | `-c, --create-podcast` | Create new podcast |
+| `-r, --refresh-meta` | Overwrite title/description/release/length/image on an existing matched episode |
 
 ---
 

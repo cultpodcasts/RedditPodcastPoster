@@ -25,7 +25,12 @@ public class PodcastProcessor(
     IEpisodeGuestEnricher guestEnricher,
     ILogger<PodcastProcessor> logger) : IPodcastProcessor
 {
-    public async Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem)
+    public Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem) =>
+        AddEpisodeToExistingPodcast(categorisedItem, refreshMeta: false);
+
+    public async Task<SubmitResult> AddEpisodeToExistingPodcast(
+        CategorisedItem categorisedItem,
+        bool refreshMeta)
     {
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
@@ -49,8 +54,13 @@ public class PodcastProcessor(
             "Modifying podcast with name '{matchingPodcastName}' and id '{matchingPodcastId}'.",
             categorisedItem.MatchingPodcast!.Name, categorisedItem.MatchingPodcast.Id);
 
-        var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) =
-            episodeEnricher.ApplyResolvedPodcastServiceProperties(
+        var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) = refreshMeta
+            ? episodeEnricher.ApplyResolvedPodcastServiceProperties(
+                categorisedItem.MatchingPodcast,
+                categorisedItem,
+                matchingEpisode,
+                refreshMeta: true)
+            : episodeEnricher.ApplyResolvedPodcastServiceProperties(
                 categorisedItem.MatchingPodcast,
                 categorisedItem,
                 matchingEpisode);

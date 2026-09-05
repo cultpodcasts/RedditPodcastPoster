@@ -40,6 +40,10 @@ public class SubmitUrlRequest
     [Option('c', "create-podcast", Default = false, HelpText = "Create new podcast")]
     public bool CreatePodcast { get; set; }
 
+    [Option('r', "refresh-meta", Required = false, Default = false,
+        HelpText = "Overwrite title/description/release/length/image on an existing matched episode from freshly extracted meta")]
+    public bool RefreshMeta { get; set; }
+
     [Option("version", HelpText = "Display version information")]
     public bool Version { get; set; }
 }

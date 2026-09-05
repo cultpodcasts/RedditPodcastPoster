@@ -10,5 +10,6 @@ public interface IEpisodeEnricher
     ApplyResolvePodcastServicePropertiesResponse ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
         CategorisedItem categorisedItem,
-        Episode? matchingEpisode);
+        Episode? matchingEpisode,
+        bool refreshMeta = false);
 }

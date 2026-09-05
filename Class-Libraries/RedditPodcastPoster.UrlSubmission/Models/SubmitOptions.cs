@@ -11,4 +11,5 @@ public record SubmitOptions(
     bool CreatePodcast = false,
     string? PodcastName = null,
     EpisodeCreationSource CreationSource = EpisodeCreationSource.SubmitUrl,
-    NonPodcastServiceItemMetaData? PrefetchedMeta = null);
+    NonPodcastServiceItemMetaData? PrefetchedMeta = null,
+    bool RefreshMeta = false);
