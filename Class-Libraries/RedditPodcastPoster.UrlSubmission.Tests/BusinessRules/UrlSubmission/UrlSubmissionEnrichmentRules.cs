@@ -1195,6 +1195,78 @@ public class UrlSubmissionEnrichmentRules
     }
 
     [Fact(DisplayName =
+        "When refresh-meta extract description is empty but the categorised item also carries a Spotify " +
+        "resolved description, stored episode description is left unchanged (no cross-platform fill-missing).")]
+    public void refresh_meta_empty_extract_description_does_not_fill_from_spotify()
+    {
+        // Arrange
+        var storedDescription = _fixture.CreateTitle() + " " + _fixture.Create<string>();
+        var spotifyFillIn = _fixture.CreateTitle() + " " + _fixture.Create<string>();
+        Mock<IDescriptionHelper>? descriptionHelper = null;
+        var enricher = CreateRefreshMetaEnricherWithLogger(dh =>
+        {
+            descriptionHelper = dh;
+            dh.Setup(x => x.CollapseDescription(It.IsAny<string?>()))
+                .Returns<string?>(d => string.IsNullOrWhiteSpace(d) ? null : d.Trim());
+            dh.Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
+                .Returns(spotifyFillIn);
+        }).Enricher;
+
+        var podcast = _fixture.CreatePodcast();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        var spotifyInput = _fixture.CreateResolvedSpotifyItemInput(b => b.WithDescription(spotifyFillIn));
+        var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Description = storedDescription;
+            EpisodeServicePresence.SetSpotifyIdentity(e, spotifyInput.EpisodeId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, spotifyInput.Url, null);
+        });
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, null);
+        var nonPodcastItem = new ResolvedNonPodcastServiceItem(
+            NonPodcastService.Itvx,
+            Url: itvxUrl,
+            Title: episode.Title,
+            Description: null,
+            Image: null,
+            Release: episode.Release,
+            Duration: episode.Length);
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            new CategorisedSpotifyItem(
+                podcast.SpotifyId,
+                spotifyInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                string.Empty,
+                episode.Title,
+                spotifyFillIn,
+                episode.Release,
+                episode.Length,
+                spotifyInput.Url!,
+                false,
+                null),
+            null,
+            null,
+            nonPodcastItem,
+            Service.Other);
+
+        // Act
+        enricher.ApplyResolvedPodcastServiceProperties(
+            podcast,
+            categorisedItem,
+            episode);
+
+        // Assert
+        episode.Description.Should().Be(storedDescription);
+        descriptionHelper!.Verify(
+            x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When refresh-meta overwrites fields, enrichment logs a field-by-field plan with from -> to values " +
         "so dry-run and persist runs show what would change.")]
     public void refresh_meta_logs_field_plan_with_from_to_deltas()
@@ -1324,7 +1396,8 @@ public class UrlSubmissionEnrichmentRules
         CreateRefreshMetaEnricherWithLogger().Enricher;
 
     private static (RefreshMetaEpisodeEnricher Enricher, Mock<ILogger<RefreshMetaEpisodeEnricher>> Logger)
-        CreateRefreshMetaEnricherWithLogger()
+        CreateRefreshMetaEnricherWithLogger(
+            Action<Mock<IDescriptionHelper>>? configureDescriptionHelper = null)
     {
         var inner = CreateEnricher();
         var mocker = new AutoMocker();
@@ -1332,10 +1405,11 @@ public class UrlSubmissionEnrichmentRules
         var descriptionHelper = mocker.GetMock<IDescriptionHelper>();
         descriptionHelper
             .Setup(x => x.CollapseDescription(It.IsAny<string?>()))
-            .Returns<string?>(description => description ?? string.Empty);
+            .Returns<string?>(d => string.IsNullOrWhiteSpace(d) ? null : d.Trim());
         descriptionHelper
             .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
             .Returns("Resolved description");
+        configureDescriptionHelper?.Invoke(descriptionHelper);
         var enricher = mocker.CreateInstance<RefreshMetaEpisodeEnricher>();
         return (enricher, mocker.GetMock<ILogger<RefreshMetaEpisodeEnricher>>());
     }

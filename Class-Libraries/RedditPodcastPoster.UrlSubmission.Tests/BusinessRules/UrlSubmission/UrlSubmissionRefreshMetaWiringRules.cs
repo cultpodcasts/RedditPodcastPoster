@@ -12,6 +12,8 @@ using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.UrlSubmission.Services;
+using RedditPodcastPoster.UrlSubmission.Submitters;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -95,6 +97,66 @@ public class UrlSubmissionRefreshMetaWiringRules
         // Assert
         _mocker.GetMock<IPodcastProcessor>().Verify(
             x => x.AddEpisodeToExistingPodcast(categorisedItem),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When UrlSubmitter.Submit receives SubmitOptions.RefreshMeta true, Categorise is called with forceMetaExtract true.")]
+    public async Task url_submitter_refresh_meta_passes_force_meta_extract()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        var url = new Uri($"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}");
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [episode],
+            episode,
+            null,
+            null,
+            null,
+            null,
+            Service.Other);
+
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.GetPodcastFromEpisodeUrl(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(podcast);
+
+        _mocker.GetMock<IUrlCategoriser>()
+            .Setup(c => c.Categorise(
+                It.IsAny<Podcast?>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(categorisedItem);
+
+        _mocker.GetMock<ICategorisedItemProcessor>()
+            .Setup(p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.EpisodeAlreadyExists,
+                SubmitResultState.None,
+                Episode: episode,
+                Podcast: podcast));
+
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(
+            url,
+            new IndexingContext(),
+            new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: false, RefreshMeta: true));
+
+        // Assert
+        _mocker.GetMock<IUrlCategoriser>().Verify(
+            c => c.Categorise(
+                It.IsAny<Podcast?>(),
+                url,
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>(),
+                true),
             Times.Once);
     }
 }

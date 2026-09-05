@@ -285,23 +285,6 @@ public class EpisodeEnricher(
         return candidate with { Description = description };
     }
 
-    private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item)
-    {
-        if (item.BBCUrl is { } bbcForImage)
-        {
-            return ServiceCatalog.TryResolveKey(bbcForImage) ?? ServiceKeys.BbcSounds;
-        }
-
-        if (item.InternetArchiveUrl != null)
-        {
-            return ServiceKeys.InternetArchive;
-        }
-
-        if (item.Url is { } url)
-        {
-            return ServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
-        }
-
-        return null;
-    }
+    private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item) =>
+        NonPodcastServiceKeys.Resolve(item);
 }

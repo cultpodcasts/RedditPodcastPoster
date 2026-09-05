@@ -54,6 +54,8 @@ public class SubmitUrlProcessor(
         foreach (var url in urls)
         {
             logger.LogInformation("Ingesting '{url}'.", url);
+            // -r / RefreshMeta: Program registers overwrite enricher via
+            // AddUrlSubmission(useRefreshMetaEnricher); this flag only forces known-URL meta extract.
             var result = await urlSubmitter.Submit(
                 new Uri(url, UriKind.Absolute),
                 indexOptions,

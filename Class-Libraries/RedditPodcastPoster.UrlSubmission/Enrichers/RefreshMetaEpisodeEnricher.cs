@@ -83,11 +83,11 @@ public sealed class RefreshMetaEpisodeEnricher(
         SubmitResultState episodeResult)
     {
         var item = categorisedItem.ResolvedNonPodcastServiceItem!;
-        var description =
-            descriptionHelper.CollapseDescription(item.Description) ??
-            descriptionHelper.EnrichMissingDescription(categorisedItem);
+        // Collapse-only: do not call EnrichMissingDescription — that fills from other
+        // platforms and would overwrite a good stored description when scrape is empty.
+        var description = descriptionHelper.CollapseDescription(item.Description);
 
-        var streamingKey = ResolveStreamingServiceKey(item);
+        var streamingKey = NonPodcastServiceKeys.Resolve(item);
         var existingImage = streamingKey != null
             ? EpisodeServicePresence.TryGetImage(matchingEpisode, streamingKey)
             : null;
@@ -170,7 +170,7 @@ public sealed class RefreshMetaEpisodeEnricher(
 
         if (descriptionUpdate)
         {
-            matchingEpisode.Description = description;
+            matchingEpisode.Description = description!;
             changed = true;
         }
 
@@ -250,14 +250,14 @@ public sealed class RefreshMetaEpisodeEnricher(
         {
             episodeResult = SubmitResultState.Enriched;
             logger.LogInformation(
-                "Refresh-meta would update episode '{EpisodeId}' ({ChangeCount} field(s)).",
-                matchingEpisode.Id,
-                changeCount);
+                "Refresh-meta applied {ChangeCount} field(s) on episode '{EpisodeId}'.",
+                changeCount,
+                matchingEpisode.Id);
         }
         else
         {
             logger.LogWarning(
-                "Refresh-meta would update nothing on episode '{EpisodeId}'. Extracted title='{Title}', duration={Duration}, release={Release}, image='{Image}', url='{Url}'.",
+                "Refresh-meta applied nothing on episode '{EpisodeId}'. Extracted title='{Title}', duration={Duration}, release={Release}, image='{Image}', url='{Url}'.",
                 matchingEpisode.Id,
                 item.Title,
                 item.Duration?.ToString() ?? "(none)",
@@ -267,26 +267,6 @@ public sealed class RefreshMetaEpisodeEnricher(
         }
 
         return episodeResult;
-    }
-
-    private static string? ResolveStreamingServiceKey(ResolvedNonPodcastServiceItem item)
-    {
-        if (item.BBCUrl is { } bbc)
-        {
-            return ServiceCatalog.TryResolveKey(bbc) ?? ServiceKeys.BbcSounds;
-        }
-
-        if (item.InternetArchiveUrl != null)
-        {
-            return ServiceKeys.InternetArchive;
-        }
-
-        if (item.Url is { } url)
-        {
-            return ServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
-        }
-
-        return null;
     }
 
     private static ServiceUpsertOutcome ApplyServiceUpsertIfChanged(
@@ -322,7 +302,7 @@ public sealed class RefreshMetaEpisodeEnricher(
             StringComparison.OrdinalIgnoreCase) == 0;
 
     private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item) =>
-        ResolveStreamingServiceKey(item);
+        NonPodcastServiceKeys.Resolve(item);
 
     private static string NullDisplay(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "(none)" : value;
