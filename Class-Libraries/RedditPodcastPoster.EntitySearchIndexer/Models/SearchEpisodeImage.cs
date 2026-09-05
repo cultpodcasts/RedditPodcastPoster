@@ -5,8 +5,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 /// <summary>
 ///     The cover-art projection for a single episode's search document.
 ///     <para>
-///         The image is the first available cover art, YouTube-first:
-///         <c>image = youtube ?? spotify ?? apple ?? other</c>.
+///         The image is the first available cover art, YouTube-first via
+///         <see cref="RedditPodcastPoster.Models.Podcasts.ServiceCatalog.ImageCoalesceOrder"/>
+///         (YouTube → Spotify → Apple → streaming catalog keys).
 ///     </para>
 ///     <para>
 ///         <b>Loss-less compaction.</b> The three platforms whose URL is a fixed prefix plus an
