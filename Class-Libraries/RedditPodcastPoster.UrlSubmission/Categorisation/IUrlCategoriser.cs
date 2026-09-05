@@ -11,5 +11,6 @@ public interface IUrlCategoriser
         Uri url,
         IndexingContext indexingContext,
         bool matchOtherServices,
-        NonPodcastServiceItemMetaData? prefetchedMeta = null);
+        NonPodcastServiceItemMetaData? prefetchedMeta = null,
+        bool forceMetaExtract = false);
 }

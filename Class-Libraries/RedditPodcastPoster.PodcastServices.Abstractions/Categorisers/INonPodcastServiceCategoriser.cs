@@ -9,5 +9,6 @@ public interface INonPodcastServiceCategoriser
         Podcast? podcast,
         Uri url,
         IndexingContext indexingContext,
-        NonPodcastServiceItemMetaData? prefetchedMeta = null);
+        NonPodcastServiceItemMetaData? prefetchedMeta = null,
+        bool forceMetaExtract = false);
 }

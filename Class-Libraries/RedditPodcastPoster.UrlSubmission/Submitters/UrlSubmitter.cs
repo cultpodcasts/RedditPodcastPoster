@@ -77,7 +77,8 @@ public class UrlSubmitter(
                     url,
                     indexingContext,
                     submitOptions.MatchOtherServices,
-                    submitOptions.PrefetchedMeta);
+                    submitOptions.PrefetchedMeta,
+                    forceMetaExtract: submitOptions.RefreshMeta);
 
             var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
 
