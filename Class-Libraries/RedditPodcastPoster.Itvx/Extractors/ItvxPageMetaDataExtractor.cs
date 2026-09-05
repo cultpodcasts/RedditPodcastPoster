@@ -124,7 +124,8 @@ internal static partial class ItvxCatalogMeta
             return openGraphImage;
         }
 
-        return nextImage ?? openGraphImage;
+        // Brand logos are not catalogue art — store nothing rather than ITVX chrome.
+        return null;
     }
 
     /// <summary>

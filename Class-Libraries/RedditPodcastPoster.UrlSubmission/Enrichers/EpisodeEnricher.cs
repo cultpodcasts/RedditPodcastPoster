@@ -23,8 +23,7 @@ public class EpisodeEnricher(
     public ApplyResolvePodcastServicePropertiesResponse ApplyResolvedPodcastServiceProperties(
         Podcast matchingPodcast,
         CategorisedItem categorisedItem,
-        Episode? matchingEpisode,
-        bool refreshMeta = false)
+        Episode? matchingEpisode)
     {
         var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
             (false, false, false, false, false);
@@ -130,101 +129,88 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedNonPodcastServiceItem != null && matchingEpisode != null)
         {
-            if (refreshMeta)
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcIplayer) &&
+                !EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcSounds) &&
+                categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
             {
-                episodeResult = ApplyNonPodcastRefreshMeta(
+                addedBBC = true;
+                var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
+                var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+                EpisodeServicePresence.Upsert(
                     matchingEpisode,
-                    categorisedItem,
-                    addedExtraKeys,
-                    ref addedBBC,
-                    ref addedInternetArchive,
-                    episodeResult);
+                    bbcKey,
+                    bbcUrl,
+                    categorisedItem.ResolvedNonPodcastServiceItem.Image);
+                addedExtraKeys.Add(bbcKey);
+                episodeResult = SubmitResultState.Enriched;
+                logger.LogInformation(
+                    "Enriched episode '{matchingEpisodeId}' with bbc details with bbc-url {resolvedNonPodcastServiceItemBBCUrl}.",
+                    matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl);
             }
-            else
+
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.InternetArchive) &&
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
             {
-                if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcIplayer) &&
-                    !EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.BbcSounds) &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
+                addedInternetArchive = true;
+                EpisodeServicePresence.Upsert(
+                    matchingEpisode,
+                    ServiceKeys.InternetArchive,
+                    categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
+                    null);
+                addedExtraKeys.Add(ServiceKeys.InternetArchive);
+                episodeResult = SubmitResultState.Enriched;
+                logger.LogInformation(
+                    "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",
+                    matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl);
+            }
+
+            if (categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl == null &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Url is { } streamingUrl)
+            {
+                var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl);
+                if (streamingKey != null &&
+                    !EpisodeServicePresence.HasUrl(matchingEpisode, streamingKey))
                 {
-                    addedBBC = true;
-                    var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
-                    var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
                     EpisodeServicePresence.Upsert(
                         matchingEpisode,
-                        bbcKey,
-                        bbcUrl,
+                        streamingKey,
+                        streamingUrl,
                         categorisedItem.ResolvedNonPodcastServiceItem.Image);
-                    addedExtraKeys.Add(bbcKey);
+                    addedExtraKeys.Add(streamingKey);
                     episodeResult = SubmitResultState.Enriched;
                     logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with bbc details with bbc-url {resolvedNonPodcastServiceItemBBCUrl}.",
-                        matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl);
+                        "Enriched episode '{matchingEpisodeId}' with {serviceKey} url {streamingUrl}.",
+                        matchingEpisode.Id, streamingKey, streamingUrl);
                 }
+            }
 
-                if (!EpisodeServicePresence.HasUrl(matchingEpisode, ServiceKeys.InternetArchive) &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
+            if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Release.HasValue &&
+                categorisedItem.ResolvedNonPodcastServiceItem.Release.Value.TimeOfDay != TimeSpan.Zero)
+            {
+                matchingEpisode.Release = categorisedItem.ResolvedNonPodcastServiceItem.Release.Value;
+                episodeResult = SubmitResultState.Enriched;
+            }
+
+            var description =
+                descriptionHelper.CollapseDescription(categorisedItem.ResolvedNonPodcastServiceItem.Description) ??
+                descriptionHelper.EnrichMissingDescription(categorisedItem);
+            if (matchingEpisode.Description.Trim().EndsWith("...") &&
+                description.Length > matchingEpisode.Description.Length)
+            {
+                matchingEpisode.Description = description;
+                episodeResult = SubmitResultState.Enriched;
+            }
+
+            if (categorisedItem.ResolvedNonPodcastServiceItem.Image is { } nonPodcastImage)
+            {
+                var imageKey = ResolveNonPodcastImageKey(categorisedItem.ResolvedNonPodcastServiceItem);
+                if (imageKey != null &&
+                    EpisodeServicePresence.TryFillMissing(
+                        matchingEpisode, imageKey, null, nonPodcastImage))
                 {
-                    addedInternetArchive = true;
-                    EpisodeServicePresence.Upsert(
-                        matchingEpisode,
-                        ServiceKeys.InternetArchive,
-                        categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
-                        null);
-                    addedExtraKeys.Add(ServiceKeys.InternetArchive);
                     episodeResult = SubmitResultState.Enriched;
-                    logger.LogInformation(
-                        "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",
-                        matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl);
-                }
-
-                if (categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl == null &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl == null &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.Url is { } streamingUrl)
-                {
-                    var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl);
-                    if (streamingKey != null &&
-                        !EpisodeServicePresence.HasUrl(matchingEpisode, streamingKey))
-                    {
-                        EpisodeServicePresence.Upsert(
-                            matchingEpisode,
-                            streamingKey,
-                            streamingUrl,
-                            categorisedItem.ResolvedNonPodcastServiceItem.Image);
-                        addedExtraKeys.Add(streamingKey);
-                        episodeResult = SubmitResultState.Enriched;
-                        logger.LogInformation(
-                            "Enriched episode '{matchingEpisodeId}' with {serviceKey} url {streamingUrl}.",
-                            matchingEpisode.Id, streamingKey, streamingUrl);
-                    }
-                }
-
-                if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.Release.HasValue &&
-                    categorisedItem.ResolvedNonPodcastServiceItem.Release.Value.TimeOfDay != TimeSpan.Zero)
-                {
-                    matchingEpisode.Release = categorisedItem.ResolvedNonPodcastServiceItem.Release.Value;
-                    episodeResult = SubmitResultState.Enriched;
-                }
-
-                var description =
-                    descriptionHelper.CollapseDescription(categorisedItem.ResolvedNonPodcastServiceItem.Description) ??
-                    descriptionHelper.EnrichMissingDescription(categorisedItem);
-                if (matchingEpisode.Description.Trim().EndsWith("...") &&
-                    description.Length > matchingEpisode.Description.Length)
-                {
-                    matchingEpisode.Description = description;
-                    episodeResult = SubmitResultState.Enriched;
-                }
-
-                if (categorisedItem.ResolvedNonPodcastServiceItem.Image is { } nonPodcastImage)
-                {
-                    var imageKey = ResolveNonPodcastImageKey(categorisedItem.ResolvedNonPodcastServiceItem);
-                    if (imageKey != null &&
-                        EpisodeServicePresence.TryFillMissing(
-                            matchingEpisode, imageKey, null, nonPodcastImage))
-                    {
-                        episodeResult = SubmitResultState.Enriched;
-                    }
                 }
             }
         }
@@ -297,100 +283,6 @@ public class EpisodeEnricher(
             descriptionHelper.CollapseDescription(resolvedDescription) ??
             descriptionHelper.EnrichMissingDescription(categorisedItem);
         return candidate with { Description = description };
-    }
-
-    private SubmitResultState ApplyNonPodcastRefreshMeta(
-        Episode matchingEpisode,
-        CategorisedItem categorisedItem,
-        HashSet<string> addedExtraKeys,
-        ref bool addedBBC,
-        ref bool addedInternetArchive,
-        SubmitResultState episodeResult)
-    {
-        var item = categorisedItem.ResolvedNonPodcastServiceItem!;
-        var changed = false;
-
-        if (!string.IsNullOrWhiteSpace(item.Title) &&
-            !string.Equals(matchingEpisode.Title, item.Title, StringComparison.Ordinal))
-        {
-            matchingEpisode.Title = item.Title;
-            changed = true;
-        }
-
-        var description =
-            descriptionHelper.CollapseDescription(item.Description) ??
-            descriptionHelper.EnrichMissingDescription(categorisedItem);
-        if (!string.IsNullOrWhiteSpace(description) &&
-            !string.Equals(matchingEpisode.Description, description, StringComparison.Ordinal))
-        {
-            matchingEpisode.Description = description;
-            changed = true;
-        }
-
-        if (item.Release is { } release && matchingEpisode.Release != release)
-        {
-            matchingEpisode.Release = release;
-            changed = true;
-        }
-
-        if (item.Duration is { } duration &&
-            duration > TimeSpan.Zero &&
-            matchingEpisode.Length != duration)
-        {
-            matchingEpisode.Length = duration;
-            changed = true;
-        }
-
-        if (item.BBCUrl is { } bbcUrl)
-        {
-            addedBBC = true;
-            var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
-            EpisodeServicePresence.Upsert(matchingEpisode, bbcKey, bbcUrl, item.Image);
-            addedExtraKeys.Add(bbcKey);
-            changed = true;
-        }
-        else if (item.InternetArchiveUrl is { } internetArchiveUrl)
-        {
-            addedInternetArchive = true;
-            EpisodeServicePresence.Upsert(
-                matchingEpisode,
-                ServiceKeys.InternetArchive,
-                internetArchiveUrl,
-                item.Image);
-            addedExtraKeys.Add(ServiceKeys.InternetArchive);
-            changed = true;
-        }
-        else if (item.Url is { } streamingUrl)
-        {
-            var streamingKey = ServiceCatalog.TryResolveKey(streamingUrl)
-                               ?? ServiceCatalog.KeyFromUnknownHost(streamingUrl);
-            if (streamingKey != null)
-            {
-                EpisodeServicePresence.Upsert(matchingEpisode, streamingKey, streamingUrl, item.Image);
-                addedExtraKeys.Add(streamingKey);
-                changed = true;
-            }
-        }
-        else if (item.Image is { } imageOnly)
-        {
-            var imageKey = ResolveNonPodcastImageKey(item);
-            if (imageKey != null)
-            {
-                var existingUrl = EpisodeServicePresence.TryGetUrl(matchingEpisode, imageKey);
-                EpisodeServicePresence.Upsert(matchingEpisode, imageKey, existingUrl, imageOnly);
-                changed = true;
-            }
-        }
-
-        if (changed)
-        {
-            episodeResult = SubmitResultState.Enriched;
-            logger.LogInformation(
-                "Refresh-meta overwrote non-podcast fields on episode '{matchingEpisodeId}'.",
-                matchingEpisode.Id);
-        }
-
-        return episodeResult;
     }
 
     private static string? ResolveNonPodcastImageKey(ResolvedNonPodcastServiceItem item)

@@ -114,6 +114,84 @@ public class ItvxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "ITVX extract parses human-readable __NEXT_DATA__ duration such as '1h 16m' when the ISO field is absent, " +
+        "because some watch pages only expose the display duration string.")]
+    public async Task next_data_human_duration_is_parsed_when_iso_absent()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var expectedDuration = TimeSpan.FromHours(1) + TimeSpan.FromMinutes(16);
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    episode = new
+                    {
+                        episodeTitle,
+                        duration = "1h 16m"
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Duration.Should().Be(expectedDuration);
+    }
+
+    [Fact(DisplayName =
+        "ITVX extract returns null Image when both __NEXT_DATA__ and Open Graph only offer brand logos, " +
+        "so prepare/submit does not store ITVX chrome as episode art.")]
+    public async Task brand_logo_only_images_yield_null_catalogue_image()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var brandLogo =
+            "https://app.10ft.itv.com/itvstatic/assets/images/brands/itvx/itvx-logo-for-light-backgrounds.jpg?q=80&w=1366";
+        var url = new Uri(
+            $"https://www.itv.com/watch/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}/{_fixture.CreateYouTubeId()}");
+        var nextData = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            props = new
+            {
+                pageProps = new
+                {
+                    episode = new
+                    {
+                        episodeTitle,
+                        image = brandLogo
+                    }
+                }
+            }
+        });
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle}\" />" +
+            $"<meta property=\"og:image\" content=\"{brandLogo}\" />" +
+            $"<script id=\"__NEXT_DATA__\" type=\"application/json\">{nextData}</script>" +
+            $"</head></html>";
+        var sut = _mocker.CreateInstance<ItvxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaDataFromHtml(url, html);
+
+        // Assert
+        meta.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "ITVX extract resolves catalogue image templates from __NEXT_DATA__ when imagePresets are absent, " +
         "so prepare/submit still stores episode art instead of the brand logo.")]
     public async Task next_data_image_template_is_resolved_when_presets_missing()

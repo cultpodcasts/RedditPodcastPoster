@@ -23,7 +23,8 @@ public class PodcastProcessor(
     ISubjectEnricher subjectEnricher,
     ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
-    ILogger<PodcastProcessor> logger) : IPodcastProcessor
+    ILogger<PodcastProcessor> logger,
+    IRefreshMetaEpisodeEnricher? refreshMetaEpisodeEnricher = null) : IPodcastProcessor
 {
     public Task<SubmitResult> AddEpisodeToExistingPodcast(CategorisedItem categorisedItem) =>
         AddEpisodeToExistingPodcast(categorisedItem, refreshMeta: false);
@@ -54,13 +55,17 @@ public class PodcastProcessor(
             "Modifying podcast with name '{matchingPodcastName}' and id '{matchingPodcastId}'.",
             categorisedItem.MatchingPodcast!.Name, categorisedItem.MatchingPodcast.Id);
 
-        var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) = refreshMeta
-            ? episodeEnricher.ApplyResolvedPodcastServiceProperties(
-                categorisedItem.MatchingPodcast,
-                categorisedItem,
-                matchingEpisode,
-                refreshMeta: true)
-            : episodeEnricher.ApplyResolvedPodcastServiceProperties(
+        if (refreshMeta && refreshMetaEpisodeEnricher is null)
+        {
+            throw new InvalidOperationException(
+                "Refresh-meta was requested but IRefreshMetaEpisodeEnricher is not registered.");
+        }
+
+        IEpisodeEnricher enricher = refreshMeta
+            ? refreshMetaEpisodeEnricher!
+            : episodeEnricher;
+        var (podcastResult, appliedEpisodeResult, submitEpisodeDetails) =
+            enricher.ApplyResolvedPodcastServiceProperties(
                 categorisedItem.MatchingPodcast,
                 categorisedItem,
                 matchingEpisode);
