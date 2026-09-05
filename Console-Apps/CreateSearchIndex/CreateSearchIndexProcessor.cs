@@ -11,6 +11,7 @@ using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 using RedditPodcastPoster.Models.Extensions;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -482,8 +483,10 @@ public partial class CreateSearchIndexProcessor(
         const string spotifyImageExpr = @"e.services.spotify.image";
         const string appleImageExpr = @"e.services.apple.image";
         const string appleUrlExpr = @"e.services.apple.url";
-        var coalescedImageFallback =
-            @$"{youtubeImageExpr} ?? {spotifyImageExpr} ?? {appleImageExpr} ?? e.services.bbcIplayer.image ?? e.services.bbcSounds.image ?? e.services.internetArchive.image ?? e.services.vimeo.image ?? e.services.netflix.image ?? e.services.amazonPrime.image ?? e.services.paramountPlus.image ?? e.services.hboMax.image ?? e.services.playSuisse.image ?? e.services.tvnzPlus.image ?? e.services.itvx.image ?? e.services.channel4.image ?? e.services.fawesome.image ?? e.services.disneyPlus.image ?? e.services.discoveryPlus.image";
+        // Catalog-driven: must match ServiceCatalog.ImageCoalesceOrder / SearchEncodedKeys
+        // (and therefore SearchEpisodeImage / SearchEpisodeServices push-path).
+        var coalescedImageFallback = SearchIndexCosmosSql.CoalescedImageFallback();
+        var svcProjection = SearchIndexCosmosSql.SvcProjection();
         var isYouTubeToken =
             @$"(IS_DEFINED({youtubeImageExpr}) AND {youTubeIdExpr} != """"
                 AND STARTSWITH({youtubeImageExpr}, CONCAT(""https://i.ytimg.com/vi/"", {youTubeIdExpr}, ""/""))
@@ -535,23 +538,7 @@ public partial class CreateSearchIndexProcessor(
                             IIF({youTubeIdExpr} != """", {youTubeIdExpr}, null) as youtubeId,
                             (e.services.bbcIplayer.url ?? e.services.bbcSounds.url) as bbc,
                             e.services.internetArchive.url as internetArchive,
-                            RTRIM(CONCAT(
-                                IIF(IS_DEFINED(e.services.bbcSounds.url), CONCAT(""bbcSounds:"", e.services.bbcSounds.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.bbcIplayer.url), CONCAT(""bbcIplayer:"", e.services.bbcIplayer.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.internetArchive.url), CONCAT(""internetArchive:"", e.services.internetArchive.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.vimeo.url), CONCAT(""vimeo:"", e.services.vimeo.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.netflix.url), CONCAT(""netflix:"", e.services.netflix.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.amazonPrime.url), CONCAT(""amazonPrime:"", e.services.amazonPrime.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.paramountPlus.url), CONCAT(""paramountPlus:"", e.services.paramountPlus.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.hboMax.url), CONCAT(""hboMax:"", e.services.hboMax.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.playSuisse.url), CONCAT(""playSuisse:"", e.services.playSuisse.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.tvnzPlus.url), CONCAT(""tvnzPlus:"", e.services.tvnzPlus.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.itvx.url), CONCAT(""itvx:"", e.services.itvx.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.channel4.url), CONCAT(""channel4:"", e.services.channel4.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.fawesome.url), CONCAT(""fawesome:"", e.services.fawesome.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.disneyPlus.url), CONCAT(""disneyPlus:"", e.services.disneyPlus.url, ""|""), """"),
-                                IIF(IS_DEFINED(e.services.discoveryPlus.url), CONCAT(""discoveryPlus:"", e.services.discoveryPlus.url, ""|""), """")
-                            ), ""|"") as svc,
+                            {svcProjection} as svc,
                             e.subjects as subjects,
                             e.podcastSearchTerms as podcastSearchTerms,
                             e.searchTerms as episodeSearchTerms,
