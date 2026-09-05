@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Threading.Channels;
-using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using static RedditPodcastPoster.Models.Cosmos.FileKeyFactory;
 using RedditPodcastPoster.Models.Cosmos;
@@ -23,8 +22,7 @@ public class CosmosDbDownloader(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPushSubscriptionRepository pushSubscriptionRepository,
     IPersonRepository personRepository,
-    IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
-    ILogger<CosmosDbDownloader> logger)
+    IJsonSerializerOptionsProvider jsonSerializerOptionsProvider)
 {
     private const string FileExtension = ".json";
 
@@ -332,7 +330,6 @@ public class CosmosDbDownloader(
         {
             if (string.IsNullOrWhiteSpace(subject.FileKey))
             {
-                logger.LogInformation("Subject with id '{SubjectId}' missing a file-key.", subject.Id);
                 subject.FileKey = GetFileKey(subject.Name);
                 await subjectRepository.Save(subject);
             }
@@ -360,8 +357,6 @@ public class CosmosDbDownloader(
         {
             if (string.IsNullOrWhiteSpace(document.FileKey))
             {
-                logger.LogInformation(
-                    "Discovery-Results-Document with id '{Guid}' missing a file-key.", document.Id);
                 document.FileKey = GetFileKey("dr " + document.Id);
                 await discoveryResultsRepository.Save(document);
             }
@@ -389,8 +384,6 @@ public class CosmosDbDownloader(
         {
             if (string.IsNullOrWhiteSpace(subscription.FileKey))
             {
-                logger.LogInformation(
-                    "Push-Subscription-Document with id '{Guid}' missing a file-key.", subscription.Id);
                 subscription.FileKey = GetFileKey("ps_" + subscription.Id);
                 await pushSubscriptionRepository.Save(subscription);
             }
@@ -471,10 +464,6 @@ public class CosmosDbDownloader(
         // instead of looking like a hung parallel progress bar at N-1/N.
         foreach (var document in documents)
         {
-            logger.LogInformation(
-                "Title-casing rules: language={Language} file={FileName}",
-                document.Language,
-                ToSafeFileName(document.FileKey));
             await WriteJson("titlecasing", document.FileKey, document);
             progress.Increment(1);
         }
