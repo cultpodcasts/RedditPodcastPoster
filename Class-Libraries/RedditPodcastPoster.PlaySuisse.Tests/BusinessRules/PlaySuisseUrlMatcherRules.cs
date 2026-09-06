@@ -60,4 +60,32 @@ public class PlaySuisseUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "A Play Suisse show URL with a numeric id is a submit URL, because canonical og:url uses /show rather than /detail.")]
+    public void show_id_is_submit_url()
+    {
+        // Arrange
+        var url = new Uri($"https://www.playsuisse.ch/show/{_fixture.CreateAppleId()}");
+
+        // Act
+        var matches = PlaySuisseUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A locale-prefixed Play Suisse show URL is a submit URL, because regional /fr/show paths still identify a title id.")]
+    public void locale_show_is_submit_url()
+    {
+        // Arrange
+        var url = new Uri($"https://www.playsuisse.ch/fr/show/{_fixture.CreateAppleId()}");
+
+        // Act
+        var matches = PlaySuisseUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
 }

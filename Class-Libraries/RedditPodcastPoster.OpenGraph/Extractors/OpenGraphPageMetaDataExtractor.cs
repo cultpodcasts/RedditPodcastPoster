@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 using HtmlAgilityPack;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
@@ -9,6 +10,9 @@ namespace RedditPodcastPoster.OpenGraph.Extractors;
 
 public class OpenGraphPageMetaDataExtractor
 {
+    private static readonly Regex IsoDurationWithYearsMonths = new(
+        @"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
     public async Task<NonPodcastServiceItemMetaData> Extract(
         Uri url,
         HttpResponseMessage pageResponse,
@@ -115,13 +119,7 @@ public class OpenGraphPageMetaDataExtractor
             durationElement.ValueKind == JsonValueKind.String &&
             duration is null)
         {
-            try
-            {
-                duration = XmlConvert.ToTimeSpan(durationElement.GetString()!);
-            }
-            catch (FormatException)
-            {
-            }
+            duration = TryParseIsoDuration(durationElement.GetString());
         }
 
         if (element.TryGetProperty("datePublished", out var published) &&
@@ -131,9 +129,21 @@ public class OpenGraphPageMetaDataExtractor
                 published.GetString(),
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var parsed))
+                out var parsedPublished))
         {
-            release = parsed;
+            release = parsedPublished;
+        }
+
+        if (element.TryGetProperty("uploadDate", out var uploaded) &&
+            uploaded.ValueKind == JsonValueKind.String &&
+            release is null &&
+            DateTime.TryParse(
+                uploaded.GetString(),
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsedUpload))
+        {
+            release = parsedUpload;
         }
 
         if (series is null &&
@@ -186,4 +196,42 @@ public class OpenGraphPageMetaDataExtractor
 
         return false;
     }
+
+    private static TimeSpan? TryParseIsoDuration(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            return XmlConvert.ToTimeSpan(raw);
+        }
+        catch (FormatException)
+        {
+        }
+
+        var match = IsoDurationWithYearsMonths.Match(raw);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var days = ParseDurationInt(match, 3);
+        var hours = ParseDurationInt(match, 4);
+        var minutes = ParseDurationInt(match, 5);
+        var seconds = ParseDurationInt(match, 6);
+        if (days == 0 && hours == 0 && minutes == 0 && seconds == 0)
+        {
+            return null;
+        }
+
+        return new TimeSpan(days, hours, minutes, seconds);
+    }
+
+    private static int ParseDurationInt(Match match, int group) =>
+        match.Groups[group].Success
+            ? int.Parse(match.Groups[group].Value, CultureInfo.InvariantCulture)
+            : 0;
 }

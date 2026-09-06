@@ -167,6 +167,7 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.ParamountPlus
                          or StreamingScraperProvider.HboMax
                          or StreamingScraperProvider.PlaySuisse
+                         or StreamingScraperProvider.PlayRts
                          or StreamingScraperProvider.TvnzPlus
                          or StreamingScraperProvider.DisneyPlus
                          or StreamingScraperProvider.DiscoveryPlus))

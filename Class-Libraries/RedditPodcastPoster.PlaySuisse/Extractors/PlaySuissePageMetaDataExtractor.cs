@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -54,7 +55,23 @@ internal static partial class PlaySuisseCatalogMeta
         string html,
         NonPodcastServiceItemMetaData? openGraph)
     {
+        var decodedHtml = html.Replace("\\\"", "\"", StringComparison.Ordinal);
+        var seriesName = openGraph?.ShowName ?? FirstGroup(decodedHtml, TvSeriesNameRegex());
+        var firstEpisodeName = FirstGroup(decodedHtml, FirstEpisodeNameRegex()) ??
+                               FirstGroup(decodedHtml, FirstEpisodeNameNumberFirstRegex());
         var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
+        title = StripSeasonHubSuffix(title);
+        var seriesHub = IsSeriesHub(decodedHtml, title, seriesName);
+
+        if (!string.IsNullOrWhiteSpace(firstEpisodeName) && seriesHub)
+        {
+            title = firstEpisodeName;
+        }
+        else if (string.IsNullOrWhiteSpace(title))
+        {
+            title = seriesName ?? string.Empty;
+        }
+
         if (string.IsNullOrWhiteSpace(title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -62,16 +79,13 @@ internal static partial class PlaySuisseCatalogMeta
                 "Play Suisse page has neither og:title nor a usable document title. Geo/login walls often return a non-catalogue shell.");
         }
 
-        var showName = openGraph?.ShowName;
+        var showName = seriesName;
         if (IsMovie(url, html))
         {
             showName = null;
         }
         else
         {
-            showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // Catalogue hubs: title-as-ShowName only on series paths. Ambiguous /watch/{id}
-            // pages without Movie markers must not inherit the title as podcastName.
             if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
             {
                 showName = title;
@@ -86,9 +100,9 @@ internal static partial class PlaySuisseCatalogMeta
         return new NonPodcastServiceItemMetaData(
             title,
             openGraph?.Description ?? string.Empty,
-            openGraph?.Duration,
-            openGraph?.Release,
-            openGraph?.Image,
+            openGraph?.Duration ?? TryParseSeconds(FirstGroup(decodedHtml, FirstEpisodeDurationRegex())),
+            DropYearOnlyHubRelease(openGraph?.Release, seriesHub),
+            PreferCatalogueImage(decodedHtml, openGraph?.Image),
             openGraph?.Explicit,
             PlaySuissePageMetaDataExtractor.Publisher,
             showName);
@@ -123,6 +137,75 @@ internal static partial class PlaySuisseCatalogMeta
                catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsSeriesHub(string html, string title, string? seriesName)
+    {
+        if (FirstGroup(html, FirstEpisodeDurationRegex()) is not null ||
+            FirstGroup(html, FirstEpisodeNameRegex()) is not null ||
+            FirstGroup(html, FirstEpisodeNameNumberFirstRegex()) is not null)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(seriesName))
+        {
+            return false;
+        }
+
+        return title.Equals(seriesName, StringComparison.OrdinalIgnoreCase) ||
+               title.StartsWith(seriesName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Uri? PreferCatalogueImage(string html, Uri? openGraphImage)
+    {
+        var jsonLdImage = ExpandImageTemplate(FirstGroup(html, JsonLdImageRegex()));
+        if (jsonLdImage is not null)
+        {
+            return jsonLdImage;
+        }
+
+        return ExpandImageTemplate(openGraphImage?.ToString()) ?? openGraphImage;
+    }
+
+    private static Uri? ExpandImageTemplate(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var resolved = WebUtility.HtmlDecode(raw)
+            .Replace("{width}", "1920", StringComparison.Ordinal);
+        return Uri.TryCreate(resolved, UriKind.Absolute, out var url) ? url : null;
+    }
+
+    private static DateTime? DropYearOnlyHubRelease(DateTime? release, bool seriesHub)
+    {
+        if (!seriesHub || release is null)
+        {
+            return release;
+        }
+
+        if (release is { Month: 1, Day: 1 } && release.Value.TimeOfDay == TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        return release;
+    }
+
+    private static TimeSpan? TryParseSeconds(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) &&
+               seconds > 0
+            ? TimeSpan.FromSeconds(seconds)
+            : null;
+    }
+
     private static string CleanTitle(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -144,7 +227,13 @@ internal static partial class PlaySuisseCatalogMeta
             }
         }
 
-        return title;
+        return StripSeasonHubSuffix(title);
+    }
+
+    private static string StripSeasonHubSuffix(string title)
+    {
+        var stripped = SeasonHubSuffixRegex().Replace(title, string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(stripped) ? title : stripped;
     }
 
     private static string? FirstGroup(string html, Regex regex)
@@ -166,4 +255,25 @@ internal static partial class PlaySuisseCatalogMeta
         "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
         RegexOptions.CultureInvariant)]
     private static partial Regex TvSeriesNameRegex();
+
+    [GeneratedRegex(
+        "\"@type\"\\s*:\\s*\"TVEpisode\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]{0,200}?\"episodeNumber\"\\s*:\\s*1\\b",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex FirstEpisodeNameRegex();
+
+    [GeneratedRegex(
+        "\"@type\"\\s*:\\s*\"TVEpisode\"[\\s\\S]{0,400}?\"episodeNumber\"\\s*:\\s*1\\b[\\s\\S]{0,200}?\"name\"\\s*:\\s*\"([^\"]+)\"",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex FirstEpisodeNameNumberFirstRegex();
+
+    [GeneratedRegex("\"firstEpisodeDuration\"\\s*:\\s*\"?(\\d+)\"?", RegexOptions.CultureInvariant)]
+    private static partial Regex FirstEpisodeDurationRegex();
+
+    [GeneratedRegex("\"image\"\\s*:\\s*\"(https://playsuisse-img[^\"]+)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex JsonLdImageRegex();
+
+    [GeneratedRegex(
+        "\\s*-\\s*(?:Saison|Staffel|Stagione|Season)\\s+\\d+\\s*-\\s*(?:Série|Serie|Series)\\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SeasonHubSuffixRegex();
 }

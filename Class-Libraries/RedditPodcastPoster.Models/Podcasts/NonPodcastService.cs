@@ -16,5 +16,6 @@ public enum NonPodcastService
     ParamountPlus,
     HboMax,
     PlaySuisse,
+    PlayRts,
     TvnzPlus
 }

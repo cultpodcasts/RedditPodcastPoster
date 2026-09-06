@@ -156,6 +156,48 @@ public class PlaySuissePageMetaDataExtractorRules
         adapter.Service.Should().Be(NonPodcastService.PlaySuisse);
     }
 
+
+    [Fact(DisplayName =
+        "Play Suisse season-hub extract uses the first TVEpisode name, firstEpisodeDuration seconds, and JSON-LD image, " +
+        "so submit does not keep the Saison/Série og:title, a zero duration, a year-only 1 Jan midnight release, or the templated og:image poster.")]
+    public async Task season_hub_uses_first_episode_title_duration_and_json_ld_image()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var seconds = (int)duration.TotalSeconds;
+        var posterId = _fixture.CreateYouTubeId();
+        var heroId = _fixture.CreateYouTubeId();
+        var year = DomainTestFixture.UtcToday.Year;
+        var url = new Uri($"https://www.playsuisse.ch/detail/{_fixture.CreateAppleId()}");
+        var ogImage = $"https://playsuisse-img.akamaized.net/Service.svc/GetImage/p/1/entry_id/{posterId}/version/0?imwidth={{width}}";
+        var jsonLdImage = $"https://playsuisse-img.akamaized.net/Service.svc/GetImage/p/1/entry_id/{heroId}/version/0?imwidth=1200&w=1200";
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{seriesName} - Saison 1 - Série | Play Suisse\" />" +
+            $"<meta property=\"og:image\" content=\"{ogImage}\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"[{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"," +
+            $"\"datePublished\":\"{year}-01-01T00:00:00.000Z\"," +
+            $"\"image\":\"{jsonLdImage}\"}}," +
+            $"{{\"@type\":\"TVEpisode\",\"name\":\"{episodeTitle}\",\"episodeNumber\":1}}]" +
+            "</script></head>" +
+            $"<body>\\\"firstEpisodeDuration\\\":\\\"{seconds}\\\"</body></html>");
+        var sut = _mocker.CreateInstance<PlaySuissePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Duration.Should().Be(TimeSpan.FromSeconds(seconds));
+        meta.Release.Should().BeNull();
+        meta.Image.Should().Be(new Uri(jsonLdImage));
+        meta.Publisher.Should().Be("Play Suisse");
+    }
+
     private static HttpResponseMessage OkHtml(string html) =>
         new(HttpStatusCode.OK)
         {

@@ -18,6 +18,7 @@ public class ServiceCatalogTests
     [InlineData("https://www.max.com/shows/example", "hboMax")]
     [InlineData("https://www.hbomax.com/series/urn:hbo:series:example", "hboMax")]
     [InlineData("https://www.playsuisse.ch/watch/example", "playSuisse")]
+    [InlineData("https://www.rts.ch/play/tv/example-show/video/example-episode", "playRts")]
     [InlineData("https://www.tvnz.co.nz/shows/example", "tvnzPlus")]
     [InlineData("https://www.itv.com/watch/example/1a2345", "itvx")]
     [InlineData("https://www.channel4.com/programmes/example", "channel4")]

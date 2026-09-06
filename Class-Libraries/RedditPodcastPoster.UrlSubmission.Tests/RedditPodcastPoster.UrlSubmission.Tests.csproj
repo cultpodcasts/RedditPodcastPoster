@@ -45,6 +45,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.OpenGraph\RedditPodcastPoster.OpenGraph.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.ParamountPlus\RedditPodcastPoster.ParamountPlus.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PlayRts\RedditPodcastPoster.PlayRts.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlaySuisse\RedditPodcastPoster.PlaySuisse.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.TvnzPlus\RedditPodcastPoster.TvnzPlus.csproj" />

@@ -22,6 +22,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PlaySuisse/RedditPodcastPoster.PlaySuisse.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.PlayRts/RedditPodcastPoster.PlayRts.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.TvnzPlus/RedditPodcastPoster.TvnzPlus.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Auth0/RedditPodcastPoster.Auth0.csproj" />
@@ -117,6 +119,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Itvx.Tests/RedditPodcastPoster.Itvx.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.ParamountPlus.Tests/RedditPodcastPoster.ParamountPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.PlaySuisse.Tests/RedditPodcastPoster.PlaySuisse.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PlayRts.Tests/RedditPodcastPoster.PlayRts.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.TvnzPlus.Tests/RedditPodcastPoster.TvnzPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />

@@ -10,6 +10,7 @@ using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Itvx.Extensions;
 using RedditPodcastPoster.Netflix.Extensions;
 using RedditPodcastPoster.ParamountPlus.Extensions;
+using RedditPodcastPoster.PlayRts.Extensions;
 using RedditPodcastPoster.PlaySuisse.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
@@ -72,6 +73,7 @@ public static class ServiceCollectionExtensions
                 .AddParamountPlusServices()
                 .AddHboMaxServices()
                 .AddPlaySuisseServices()
+                .AddPlayRtsServices()
                 .AddTvnzPlusServices();
         }
 
