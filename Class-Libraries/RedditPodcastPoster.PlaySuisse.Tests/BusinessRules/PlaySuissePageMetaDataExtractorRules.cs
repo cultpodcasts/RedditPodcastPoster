@@ -178,10 +178,10 @@ public class PlaySuissePageMetaDataExtractorRules
             $"<meta property=\"og:title\" content=\"{seriesName} - Saison 1 - Série | Play Suisse\" />" +
             $"<meta property=\"og:image\" content=\"{ogImage}\" />" +
             "<script type=\"application/ld+json\">" +
-            $"[{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"," +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"," +
             $"\"datePublished\":\"{year}-01-01T00:00:00.000Z\"," +
-            $"\"image\":\"{jsonLdImage}\"}}," +
-            $"{{\"@type\":\"TVEpisode\",\"name\":\"{episodeTitle}\",\"episodeNumber\":1}}]" +
+            $"\"image\":\"{jsonLdImage}\"," +
+            $"\"episode\":[{{\"@type\":\"TVEpisode\",\"name\":\"{episodeTitle}\",\"episodeNumber\":1}}]}}" +
             "</script></head>" +
             $"<body>\\\"firstEpisodeDuration\\\":\\\"{seconds}\\\"</body></html>");
         var sut = _mocker.CreateInstance<PlaySuissePageMetaDataExtractor>();
