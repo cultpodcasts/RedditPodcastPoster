@@ -4,15 +4,15 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.PlayRts.Extensions; // pragma: allowlist secret
-using RedditPodcastPoster.PlayRts.Extractors; // pragma: allowlist secret
+using RedditPodcastPoster.PlayRts.Extensions;
+using RedditPodcastPoster.PlayRts.Extractors;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures; // pragma: allowlist secret
 using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using RedditPodcastPoster.OpenGraph.Extractors; // pragma: allowlist secret
+using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PlayRts.Tests.BusinessRules; // pragma: allowlist secret
+namespace RedditPodcastPoster.PlayRts.Tests.BusinessRules;
 
 public class PlayRtsPageMetaDataExtractorRules
 {
@@ -66,6 +66,77 @@ public class PlayRtsPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Play RTS episode extract prefers JSON-LD name even when name appears before @type, " +
+        "so a TVEpisode object that serializes name first still wins over a suffixed og:title.")]
+    public async Task json_ld_name_before_type_wins_over_suffixed_og_title()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-5, duration);
+        var show = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{show}/video/{episode}");
+        var iso = $"P0Y0M0DT{duration.Hours}H{duration.Minutes}M{duration.Seconds}S";
+        var upload = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{episodeTitle} - {seriesName} - Play RTS\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"name\":\"{episodeTitle}\",\"@type\":\"TVEpisode\"," +
+            $"\"duration\":\"{iso}\",\"uploadDate\":\"{upload}\"," +
+            $"\"partOfSeries\":{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}}}" +
+            "</script></head></html>");
+        var sut = _mocker.CreateInstance<PlayRtsPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.Publisher.Should().Be("Play RTS");
+    }
+
+    [Fact(DisplayName =
+        "Play RTS extract recovers title, duration, and release from JSON-LD when og:title is missing, " +
+        "because soft-walled catalogue shells still expose TVEpisode name, duration, and uploadDate.")]
+    public async Task missing_og_title_recovers_title_duration_release_from_json_ld()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesName = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-2, duration);
+        var show = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{show}/video/{episode}");
+        var iso = $"P0Y0M0DT{duration.Hours}H{duration.Minutes}M{duration.Seconds}S";
+        var upload = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"name\":\"{episodeTitle}\",\"@type\":\"TVEpisode\"," +
+            $"\"duration\":\"{iso}\",\"uploadDate\":\"{upload}\"," +
+            $"\"partOfSeries\":{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"}}}}" +
+            "</script></head></html>");
+        var sut = _mocker.CreateInstance<PlayRtsPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.Publisher.Should().Be("Play RTS");
+    }
+
+    [Fact(DisplayName =
         "Play RTS series hub extract uses the document title as ShowName when JSON-LD has no partOfSeries, " +
         "because /play/tv/{slug} is a catalogue series page rather than a movie.")]
     public async Task series_hub_without_part_of_series_uses_title_as_show_name()
@@ -88,7 +159,7 @@ public class PlayRtsPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "Play RTS film pages leave ShowName null when og:type is a movie, because a film has no parent series for podcastName attach.")] // pragma: allowlist secret
+        "Play RTS film pages leave ShowName null when og:type is a movie, because a film has no parent series for podcastName attach.")]
     public async Task movie_pages_do_not_set_show_name()
     {
         // Arrange

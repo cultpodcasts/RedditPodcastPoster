@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.OpenGraph\RedditPodcastPoster.OpenGraph.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.OpenGraph\RedditPodcastPoster.OpenGraph.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" /> <!-- pragma: allowlist secret -->
   </ItemGroup>
 

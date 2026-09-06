@@ -1,14 +1,12 @@
-using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml;
-using RedditPodcastPoster.OpenGraph.Extractors; // pragma: allowlist secret
-using RedditPodcastPoster.PlayRts.Matching; // pragma: allowlist secret
+using RedditPodcastPoster.OpenGraph.Extractors;
+using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions; // pragma: allowlist secret
 using RedditPodcastPoster.PodcastServices.Abstractions.Models; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PlayRts.Extractors; // pragma: allowlist secret
+namespace RedditPodcastPoster.PlayRts.Extractors;
 
 public interface IPlayRtsPageMetaDataExtractor
 {
@@ -57,11 +55,9 @@ internal static partial class PlayRtsCatalogMeta
         string html,
         NonPodcastServiceItemMetaData? openGraph) // pragma: allowlist secret
     {
-        var episodeTitle = FirstGroup(html, TvEpisodeNameRegex()) ??
-                           FirstGroup(html, VideoObjectNameRegex());
         var title = CleanTitle(
-            episodeTitle ?? openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
-        var showName = openGraph?.ShowName ?? FirstGroup(html, PartOfSeriesNameRegex());
+            openGraph?.JsonLdName ?? openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
+        var showName = openGraph?.ShowName;
         title = StripShowNameSuffix(title, showName);
 
         if (string.IsNullOrWhiteSpace(title))
@@ -88,8 +84,8 @@ internal static partial class PlayRtsCatalogMeta
         return new NonPodcastServiceItemMetaData( // pragma: allowlist secret
             title,
             openGraph?.Description ?? FirstGroup(html, OgDescriptionRegex()) ?? string.Empty,
-            openGraph?.Duration ?? TryParseIsoDuration(FirstGroup(html, JsonLdDurationRegex())),
-            openGraph?.Release ?? TryParseTimestamp(FirstGroup(html, UploadDateRegex())),
+            openGraph?.Duration,
+            openGraph?.Release,
             openGraph?.Image,
             openGraph?.Explicit,
             PlayRtsPageMetaDataExtractor.Publisher,
@@ -151,60 +147,6 @@ internal static partial class PlayRtsCatalogMeta
             : title;
     }
 
-    private static TimeSpan? TryParseIsoDuration(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
-
-        try
-        {
-            return XmlConvert.ToTimeSpan(raw);
-        }
-        catch (FormatException)
-        {
-        }
-
-        var match = IsoDurationWithYearsMonthsRegex().Match(raw);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        var days = ParseInt(match, 3);
-        var hours = ParseInt(match, 4);
-        var minutes = ParseInt(match, 5);
-        var seconds = ParseInt(match, 6);
-        if (days == 0 && hours == 0 && minutes == 0 && seconds == 0)
-        {
-            return null;
-        }
-
-        return new TimeSpan(days, hours, minutes, seconds);
-    }
-
-    private static DateTime? TryParseTimestamp(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
-
-        return DateTime.TryParse(
-            raw,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-            out var parsed)
-            ? parsed
-            : null;
-    }
-
-    private static int ParseInt(Match match, int group) =>
-        match.Groups[group].Success
-            ? int.Parse(match.Groups[group].Value, CultureInfo.InvariantCulture)
-            : 0;
-
     private static string? FirstGroup(string html, Regex regex)
     {
         var match = regex.Match(html);
@@ -222,30 +164,4 @@ internal static partial class PlayRtsCatalogMeta
 
     [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
     private static partial Regex CataloguePrimaryTypeRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVEpisode\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex TvEpisodeNameRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"VideoObject\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex VideoObjectNameRegex();
-
-    [GeneratedRegex(
-        "\"partOfSeries\"\\s*:\\s*\\{[\\s\\S]{0,200}?\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,200}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex PartOfSeriesNameRegex();
-
-    [GeneratedRegex("\"duration\"\\s*:\\s*\"(P[^\"]+)\"", RegexOptions.CultureInvariant)]
-    private static partial Regex JsonLdDurationRegex();
-
-    [GeneratedRegex("\"uploadDate\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.CultureInvariant)]
-    private static partial Regex UploadDateRegex();
-
-    [GeneratedRegex(
-        "^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?)?$",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex IsoDurationWithYearsMonthsRegex();
 }

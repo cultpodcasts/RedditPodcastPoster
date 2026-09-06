@@ -31,7 +31,12 @@ public class OpenGraphPageMetaDataExtractor
             image = imageUrl;
         }
 
-        var (duration, release, jsonLdSeries) = ReadJsonLd(document);
+        var (duration, release, jsonLdSeries, jsonLdName) = ReadJsonLd(document);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = jsonLdName;
+        }
+
         var showName = OpenGraphSeriesName.FromDistinctCandidates(
             title,
             publisher,
@@ -53,7 +58,8 @@ public class OpenGraphPageMetaDataExtractor
             release,
             image,
             Publisher: publisher,
-            ShowName: showName);
+            ShowName: showName,
+            JsonLdName: jsonLdName);
     }
 
     private static string? MetaContent(HtmlDocument document, string property)
@@ -68,16 +74,17 @@ public class OpenGraphPageMetaDataExtractor
         return content is null ? null : WebUtility.HtmlDecode(content);
     }
 
-    private static (TimeSpan? Duration, DateTime? Release, string? Series) ReadJsonLd(HtmlDocument document)
+    private static (TimeSpan? Duration, DateTime? Release, string? Series, string? Name) ReadJsonLd(HtmlDocument document)
     {
         TimeSpan? duration = null;
         DateTime? release = null;
         string? series = null;
+        string? name = null;
         var scripts = document.DocumentNode.SelectNodes(
             "//script[@type='application/ld+json'] | //script[contains(@type,'ld+json')]");
         if (scripts == null)
         {
-            return (null, null, null);
+            return (null, null, null, null);
         }
 
         foreach (var script in scripts)
@@ -86,27 +93,28 @@ public class OpenGraphPageMetaDataExtractor
             {
                 var jsonText = System.Net.WebUtility.HtmlDecode(script.InnerText);
                 using var json = JsonDocument.Parse(jsonText);
-                ReadNode(json.RootElement, ref duration, ref release, ref series);
+                ReadNode(json.RootElement, ref duration, ref release, ref series, ref name);
             }
             catch (JsonException)
             {
             }
         }
 
-        return (duration, release, series);
+        return (duration, release, series, name);
     }
 
     private static void ReadNode(
         JsonElement element,
         ref TimeSpan? duration,
         ref DateTime? release,
-        ref string? series)
+        ref string? series,
+        ref string? name)
     {
         if (element.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in element.EnumerateArray())
             {
-                ReadNode(item, ref duration, ref release, ref series);
+                ReadNode(item, ref duration, ref release, ref series, ref name);
             }
 
             return;
@@ -115,6 +123,14 @@ public class OpenGraphPageMetaDataExtractor
         if (element.ValueKind != JsonValueKind.Object)
         {
             return;
+        }
+
+        if (name is null &&
+            (IsJsonLdType(element, "TVEpisode") || IsJsonLdType(element, "VideoObject")) &&
+            element.TryGetProperty("name", out var jsonLdName) &&
+            jsonLdName.ValueKind == JsonValueKind.String)
+        {
+            name = jsonLdName.GetString();
         }
 
         if (element.TryGetProperty("duration", out var durationElement) &&
@@ -168,7 +184,7 @@ public class OpenGraphPageMetaDataExtractor
 
         if (element.TryGetProperty("@graph", out var graph))
         {
-            ReadNode(graph, ref duration, ref release, ref series);
+            ReadNode(graph, ref duration, ref release, ref series, ref name);
         }
     }
 

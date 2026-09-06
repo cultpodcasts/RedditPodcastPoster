@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
-using RedditPodcastPoster.OpenGraph.Extensions; // pragma: allowlist secret
-using RedditPodcastPoster.PlayRts.Extractors; // pragma: allowlist secret
-using RedditPodcastPoster.PlayRts.Matching; // pragma: allowlist secret
+using RedditPodcastPoster.OpenGraph.Extensions;
+using RedditPodcastPoster.PlayRts.Extractors;
+using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PlayRts.Extensions; // pragma: allowlist secret
+namespace RedditPodcastPoster.PlayRts.Extensions;
 
 public static class ServiceCollectionExtensions
 {
