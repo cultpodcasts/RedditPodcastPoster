@@ -7,6 +7,8 @@ namespace Indexer.Tests;
 
 public class ServiceCatalogTests
 {
+    private readonly Fixture _fixture = new();
+
     [Theory(DisplayName =
         "Service catalog maps a URL host and path to the JSON key used for icons, so Vimeo/Netflix/BBC Sounds/iPlayer are identifiable without a hard-coded UI switch.")]
     [InlineData("https://vimeo.com/123456789", "vimeo")]
@@ -47,8 +49,7 @@ public class ServiceCatalogTests
     public void rts_news_path_is_not_play_rts()
     {
         // Arrange
-        var fixture = new Fixture();
-        var uri = new Uri($"https://www.rts.ch/info/{fixture.Create<Guid>():N}");
+        var uri = new Uri($"https://www.rts.ch/info/{_fixture.Create<Guid>():N}");
 
         // Act
         var key = ServiceCatalog.TryResolveKey(uri);
