@@ -25,6 +25,23 @@ public class PlayRtsUrlMatcherRules
     }
 
     [Fact(DisplayName =
+        "A Play RTS TV episode URL with a urn query is a submit URL, because Play RTS identity lives in the urn and must be kept.")]
+    public void tv_episode_with_urn_query_is_submit_url()
+    {
+        // Arrange
+        var show = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateYouTubeId();
+        var urn = _fixture.CreateGuid();
+        var url = new Uri($"https://www.rts.ch/play/tv/{show}/video/{episode}?urn=urn:rts:video:{urn}");
+
+        // Act
+        var matches = PlayRtsUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A Play RTS TV series hub URL with a show slug is a submit URL, because the catalogue page still identifies a title.")]
     public void tv_series_hub_is_submit_url()
     {

@@ -35,6 +35,19 @@ public class PlaySuisseUrlMatcherRules
         matches.Should().BeTrue();
     }
     [Fact(DisplayName =
+        "A Play Suisse detail URL with a locale query is a submit URL, because regional ?locale=fr still identifies the same title id.")]
+    public void detail_id_with_locale_query_is_submit_url()
+    {
+        // Arrange
+        var url = new Uri($"https://www.playsuisse.ch/detail/{_fixture.CreateAppleId()}?locale=fr");
+
+        // Act
+        var matches = PlaySuisseUrlMatcher.IsSubmitUrl(url);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+    [Fact(DisplayName =
         "A locale-prefixed Play Suisse watch URL is a submit URL, because regional paths still identify a title id.")]
     public void locale_watch_is_submit_url()
     {

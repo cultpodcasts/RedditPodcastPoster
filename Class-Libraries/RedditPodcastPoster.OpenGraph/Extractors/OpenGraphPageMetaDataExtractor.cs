@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -63,7 +64,8 @@ public class OpenGraphPageMetaDataExtractor
                        $"//meta[@property='{property}']")
                    ?? document.DocumentNode.SelectSingleNode(
                        $"//meta[@name='{property}']");
-        return node?.GetAttributeValue("content", null);
+        var content = node?.GetAttributeValue("content", null);
+        return content is null ? null : WebUtility.HtmlDecode(content);
     }
 
     private static (TimeSpan? Duration, DateTime? Release, string? Series) ReadJsonLd(HtmlDocument document)

@@ -300,6 +300,34 @@ public class OpenGraphPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Open Graph extract HTML-decodes og:image query ampersands, " +
+        "so catalogue image URLs that encode & as &amp; stay fetchable.")]
+    public async Task html_encoded_image_query_ampersands_are_decoded()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var artId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var expectedImage = new Uri($"https://images.example.test/resize?imageUrl=https%3A%2F%2Fcdn.example.test%2F{artId}.jpg&format=jpg&width=960");
+        var html =
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{title}\" />" +
+            $"<meta property=\"og:image\" content=\"https://images.example.test/resize?imageUrl=https%3A%2F%2Fcdn.example.test%2F{artId}.jpg&amp;format=jpg&amp;width=960\" />" +
+            "</head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Image.Should().Be(expectedImage);
+    }
+
+    [Fact(DisplayName =
         "Open Graph extract fails when og:title is missing, because an episode cannot be created without a title.")]
     public async Task missing_title_fails_extract()
     {
