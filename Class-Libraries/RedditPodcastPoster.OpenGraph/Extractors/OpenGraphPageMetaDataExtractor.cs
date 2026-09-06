@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 using HtmlAgilityPack;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
@@ -9,6 +11,9 @@ namespace RedditPodcastPoster.OpenGraph.Extractors;
 
 public class OpenGraphPageMetaDataExtractor
 {
+    private static readonly Regex IsoDurationWithYearsMonths = new(
+        @"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
     public async Task<NonPodcastServiceItemMetaData> Extract(
         Uri url,
         HttpResponseMessage pageResponse,
@@ -26,7 +31,12 @@ public class OpenGraphPageMetaDataExtractor
             image = imageUrl;
         }
 
-        var (duration, release, jsonLdSeries) = ReadJsonLd(document);
+        var (duration, release, jsonLdSeries, jsonLdName) = ReadJsonLd(document);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = jsonLdName;
+        }
+
         var showName = OpenGraphSeriesName.FromDistinctCandidates(
             title,
             publisher,
@@ -48,7 +58,8 @@ public class OpenGraphPageMetaDataExtractor
             release,
             image,
             Publisher: publisher,
-            ShowName: showName);
+            ShowName: showName,
+            JsonLdName: jsonLdName);
     }
 
     private static string? MetaContent(HtmlDocument document, string property)
@@ -59,19 +70,21 @@ public class OpenGraphPageMetaDataExtractor
                        $"//meta[@property='{property}']")
                    ?? document.DocumentNode.SelectSingleNode(
                        $"//meta[@name='{property}']");
-        return node?.GetAttributeValue("content", null);
+        var content = node?.GetAttributeValue("content", null);
+        return content is null ? null : WebUtility.HtmlDecode(content);
     }
 
-    private static (TimeSpan? Duration, DateTime? Release, string? Series) ReadJsonLd(HtmlDocument document)
+    private static (TimeSpan? Duration, DateTime? Release, string? Series, string? Name) ReadJsonLd(HtmlDocument document)
     {
         TimeSpan? duration = null;
         DateTime? release = null;
         string? series = null;
+        string? name = null;
         var scripts = document.DocumentNode.SelectNodes(
             "//script[@type='application/ld+json'] | //script[contains(@type,'ld+json')]");
         if (scripts == null)
         {
-            return (null, null, null);
+            return (null, null, null, null);
         }
 
         foreach (var script in scripts)
@@ -80,27 +93,28 @@ public class OpenGraphPageMetaDataExtractor
             {
                 var jsonText = System.Net.WebUtility.HtmlDecode(script.InnerText);
                 using var json = JsonDocument.Parse(jsonText);
-                ReadNode(json.RootElement, ref duration, ref release, ref series);
+                ReadNode(json.RootElement, ref duration, ref release, ref series, ref name);
             }
             catch (JsonException)
             {
             }
         }
 
-        return (duration, release, series);
+        return (duration, release, series, name);
     }
 
     private static void ReadNode(
         JsonElement element,
         ref TimeSpan? duration,
         ref DateTime? release,
-        ref string? series)
+        ref string? series,
+        ref string? name)
     {
         if (element.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in element.EnumerateArray())
             {
-                ReadNode(item, ref duration, ref release, ref series);
+                ReadNode(item, ref duration, ref release, ref series, ref name);
             }
 
             return;
@@ -111,17 +125,19 @@ public class OpenGraphPageMetaDataExtractor
             return;
         }
 
+        if (name is null &&
+            (IsJsonLdType(element, "TVEpisode") || IsJsonLdType(element, "VideoObject")) &&
+            element.TryGetProperty("name", out var jsonLdName) &&
+            jsonLdName.ValueKind == JsonValueKind.String)
+        {
+            name = jsonLdName.GetString();
+        }
+
         if (element.TryGetProperty("duration", out var durationElement) &&
             durationElement.ValueKind == JsonValueKind.String &&
             duration is null)
         {
-            try
-            {
-                duration = XmlConvert.ToTimeSpan(durationElement.GetString()!);
-            }
-            catch (FormatException)
-            {
-            }
+            duration = TryParseIsoDuration(durationElement.GetString());
         }
 
         if (element.TryGetProperty("datePublished", out var published) &&
@@ -131,9 +147,21 @@ public class OpenGraphPageMetaDataExtractor
                 published.GetString(),
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var parsed))
+                out var parsedPublished))
         {
-            release = parsed;
+            release = parsedPublished;
+        }
+
+        if (element.TryGetProperty("uploadDate", out var uploaded) &&
+            uploaded.ValueKind == JsonValueKind.String &&
+            release is null &&
+            DateTime.TryParse(
+                uploaded.GetString(),
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var parsedUpload))
+        {
+            release = parsedUpload;
         }
 
         if (series is null &&
@@ -156,7 +184,7 @@ public class OpenGraphPageMetaDataExtractor
 
         if (element.TryGetProperty("@graph", out var graph))
         {
-            ReadNode(graph, ref duration, ref release, ref series);
+            ReadNode(graph, ref duration, ref release, ref series, ref name);
         }
     }
 
@@ -186,4 +214,42 @@ public class OpenGraphPageMetaDataExtractor
 
         return false;
     }
+
+    private static TimeSpan? TryParseIsoDuration(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            return XmlConvert.ToTimeSpan(raw);
+        }
+        catch (FormatException)
+        {
+        }
+
+        var match = IsoDurationWithYearsMonths.Match(raw);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var days = ParseDurationInt(match, 3);
+        var hours = ParseDurationInt(match, 4);
+        var minutes = ParseDurationInt(match, 5);
+        var seconds = ParseDurationInt(match, 6);
+        if (days == 0 && hours == 0 && minutes == 0 && seconds == 0)
+        {
+            return null;
+        }
+
+        return new TimeSpan(days, hours, minutes, seconds);
+    }
+
+    private static int ParseDurationInt(Match match, int group) =>
+        match.Groups[group].Success
+            ? int.Parse(match.Groups[group].Value, CultureInfo.InvariantCulture)
+            : 0;
 }

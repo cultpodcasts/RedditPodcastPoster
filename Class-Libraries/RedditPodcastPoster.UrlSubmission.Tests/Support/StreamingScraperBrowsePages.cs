@@ -10,6 +10,7 @@ using RedditPodcastPoster.HboMax.Matching;
 using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.Netflix.Matching;
 using RedditPodcastPoster.ParamountPlus.Matching;
+using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PlaySuisse.Matching;
 using RedditPodcastPoster.TvnzPlus.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
@@ -134,6 +135,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.ParamountPlus => ParamountPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.HboMax => HboMaxUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.PlaySuisse => PlaySuisseUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.PlayRts => PlayRtsUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.TvnzPlus => TvnzPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.DisneyPlus => DisneyPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.DiscoveryPlus => DiscoveryPlusUrlMatcher.IsSubmitUrl(url),

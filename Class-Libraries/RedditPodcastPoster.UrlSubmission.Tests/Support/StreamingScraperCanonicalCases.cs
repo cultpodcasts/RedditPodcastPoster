@@ -51,6 +51,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> PlaySuisseCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.PlaySuisse));
 
+    public static TheoryData<StreamingScraperCanonicalCase> PlayRtsCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.PlayRts));
+
     public static TheoryData<StreamingScraperCanonicalCase> TvnzPlusCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.TvnzPlus));
 
@@ -240,6 +243,15 @@ public static class StreamingScraperCanonicalCases
         Case(StreamingScraperProvider.PlaySuisse, "play-suisse-watch",
             "https://www.playsuisse.ch/watch/2261604", null,
             "Numeric watch id; film/one-off expected unless JSON-LD TVSeries is present"),
+        Case(StreamingScraperProvider.PlaySuisse, "play-suisse-season-hub",
+            "https://www.playsuisse.ch/detail/4511637?locale=fr", "Le faiseur d'anges",
+            "Season hub JSON-LD TVSeries; first episode title/duration recovered in extract"),
+
+        // Play RTS — /play/tv|radio series and episode paths
+        Case(StreamingScraperProvider.PlayRts, "play-rts-episode",
+            "https://www.rts.ch/play/tv/le-faiseur-danges/video/vatti-et-ses-anges-episode-1?urn=urn:rts:video:4d31f1b0-c306-3f91-9fd3-d7e5d2cfccdf",
+            "Le faiseur d'anges",
+            "Play RTS TVEpisode JSON-LD; duration is P0Y0M0DT ISO and uploadDate is the release"),
 
         // TVNZ+
         Case(StreamingScraperProvider.TvnzPlus, "shortland-street-show",
@@ -282,6 +294,7 @@ public enum StreamingScraperProvider
     ParamountPlus,
     HboMax,
     PlaySuisse,
+    PlayRts,
     TvnzPlus,
     DisneyPlus,
     DiscoveryPlus

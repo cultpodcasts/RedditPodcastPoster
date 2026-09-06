@@ -26,7 +26,8 @@ public static class PlaySuisseUrlMatcher
         var kind = parts[localeOffset];
         var id = parts[localeOffset + 1];
         return (kind.Equals("watch", StringComparison.OrdinalIgnoreCase) ||
-                kind.Equals("detail", StringComparison.OrdinalIgnoreCase)) &&
+                kind.Equals("detail", StringComparison.OrdinalIgnoreCase) ||
+                kind.Equals("show", StringComparison.OrdinalIgnoreCase)) &&
                id.Any(char.IsDigit);
     }
 }

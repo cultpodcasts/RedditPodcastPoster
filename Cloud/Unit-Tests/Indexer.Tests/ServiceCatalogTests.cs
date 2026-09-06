@@ -1,3 +1,4 @@
+using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
@@ -6,6 +7,8 @@ namespace Indexer.Tests;
 
 public class ServiceCatalogTests
 {
+    private readonly Fixture _fixture = new();
+
     [Theory(DisplayName =
         "Service catalog maps a URL host and path to the JSON key used for icons, so Vimeo/Netflix/BBC Sounds/iPlayer are identifiable without a hard-coded UI switch.")]
     [InlineData("https://vimeo.com/123456789", "vimeo")]
@@ -18,6 +21,7 @@ public class ServiceCatalogTests
     [InlineData("https://www.max.com/shows/example", "hboMax")]
     [InlineData("https://www.hbomax.com/series/urn:hbo:series:example", "hboMax")]
     [InlineData("https://www.playsuisse.ch/watch/example", "playSuisse")]
+    [InlineData("https://www.rts.ch/play/tv/example-show/video/example-episode", "playRts")]
     [InlineData("https://www.tvnz.co.nz/shows/example", "tvnzPlus")]
     [InlineData("https://www.itv.com/watch/example/1a2345", "itvx")]
     [InlineData("https://www.channel4.com/programmes/example", "channel4")]
@@ -37,6 +41,22 @@ public class ServiceCatalogTests
         key.Should().Be(expectedKey);
         ServiceCatalog.TryGet(key!, out var descriptor).Should().BeTrue();
         descriptor.Icon.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact(DisplayName =
+        "Service catalog does not map an rts.ch news path to playRts, " +
+        "because only /play/ catalogue URLs are Play RTS and news articles must not get that icon.")]
+    public void rts_news_path_is_not_play_rts()
+    {
+        // Arrange
+        var uri = new Uri($"https://www.rts.ch/info/{_fixture.Create<Guid>():N}");
+
+        // Act
+        var key = ServiceCatalog.TryResolveKey(uri);
+
+        // Assert
+        key.Should().BeNull();
+        key.Should().NotBe(ServiceKeys.PlayRts);
     }
 
     [Fact(DisplayName =

@@ -8,4 +8,5 @@ public record NonPodcastServiceItemMetaData(
     Uri? Image = null,
     bool? Explicit = null,
     string? Publisher = null,
-    string? ShowName = null);
+    string? ShowName = null,
+    string? JsonLdName = null);

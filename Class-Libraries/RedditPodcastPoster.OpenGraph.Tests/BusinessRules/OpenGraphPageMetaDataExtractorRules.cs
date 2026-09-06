@@ -242,7 +242,158 @@ public class OpenGraphPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "Open Graph extract fails when og:title is missing, because an episode cannot be created without a title.")]
+        "Open Graph extract parses ISO-8601 duration that includes zero years and months, " +
+        "because XmlConvert.ToTimeSpan rejects P0Y0M0DT forms used by Play RTS VideoObject JSON-LD.")]
+    public async Task iso_duration_with_years_and_months_is_parsed()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var iso = $"P0Y0M0DT{duration.Hours}H{duration.Minutes}M{duration.Seconds}S";
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{title}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"VideoObject\",\"duration\":\"{iso}\"}}" +
+            $"</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Duration.Should().Be(duration);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract uses JSON-LD uploadDate when datePublished is absent, " +
+        "because Play RTS VideoObject emits uploadDate rather than datePublished.")]
+    public async Task upload_date_is_release_when_date_published_is_absent()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var release = DomainTestFixture.UtcAtTime(-4, _fixture.CreateDuration());
+        var upload = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var html =
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{title}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"VideoObject\",\"uploadDate\":\"{upload}\"}}" +
+            $"</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Release.Should().Be(release);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract HTML-decodes og:image query ampersands, " +
+        "so catalogue image URLs that encode & as &amp; stay fetchable.")]
+    public async Task html_encoded_image_query_ampersands_are_decoded()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var artId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var expectedImage = new Uri($"https://images.example.test/resize?imageUrl=https%3A%2F%2Fcdn.example.test%2F{artId}.jpg&format=jpg&width=960");
+        var html =
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{title}\" />" +
+            $"<meta property=\"og:image\" content=\"https://images.example.test/resize?imageUrl=https%3A%2F%2Fcdn.example.test%2F{artId}.jpg&amp;format=jpg&amp;width=960\" />" +
+            "</head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Image.Should().Be(expectedImage);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract returns TVEpisode JSON-LD name as JsonLdName without replacing og:title, " +
+        "including when name appears before @type, so Netflix/Prime keep suffixed og:title while Play RTS can prefer the structured name.")]
+    public async Task json_ld_episode_name_is_exposed_without_replacing_og_title()
+    {
+        // Arrange
+        var ogTitle = _fixture.CreateTitle();
+        var jsonLdName = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var html =
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{ogTitle}\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"name\":\"{jsonLdName}\",\"@type\":\"TVEpisode\"}}" +
+            "</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(ogTitle);
+        meta.JsonLdName.Should().Be(jsonLdName);
+        meta.JsonLdName.Should().NotBe(meta.Title);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract recovers Title from JSON-LD TVEpisode name when og:title is missing, " +
+        "so Play RTS can still read duration and uploadDate from the same structured node.")]
+    public async Task missing_og_title_recovers_json_ld_episode_name()
+    {
+        // Arrange
+        var jsonLdName = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.rts.ch/play/tv/{_fixture.CreateYouTubeId()}/video/{_fixture.CreateYouTubeId()}");
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-6, duration);
+        var iso = $"P0Y0M0DT{duration.Hours}H{duration.Minutes}M{duration.Seconds}S";
+        var upload = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var html =
+            "<html><head>" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"name\":\"{jsonLdName}\",\"@type\":\"TVEpisode\"," +
+            $"\"duration\":\"{iso}\",\"uploadDate\":\"{upload}\"}}" +
+            "</script></head></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html")
+        };
+
+        // Act
+        var meta = await _sut.Extract(url, response, publisher);
+
+        // Assert
+        meta.Title.Should().Be(jsonLdName);
+        meta.JsonLdName.Should().Be(jsonLdName);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+    }
+
+    [Fact(DisplayName =
+        "Open Graph extract fails when og:title and JSON-LD TVEpisode/VideoObject name are both missing, " +
+        "because an episode cannot be created without a title.")]
     public async Task missing_title_fails_extract()
     {
         // Arrange
