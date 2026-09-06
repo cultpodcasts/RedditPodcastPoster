@@ -1,6 +1,6 @@
 using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PlayRts.Matching; // pragma: allowlist secret
+namespace RedditPodcastPoster.PlayRts.Matching;
 
 public static class PlayRtsUrlMatcher
 {
@@ -35,17 +35,15 @@ public static class PlayRtsUrlMatcher
             return true;
         }
 
-        return parts.Length >= 5 &&
-               (parts[3].Equals("video", StringComparison.OrdinalIgnoreCase) ||
-                parts[3].Equals("audio", StringComparison.OrdinalIgnoreCase)) &&
-               !string.IsNullOrWhiteSpace(parts[4]);
+        return IsEpisodePath(url);
     }
 
     public static bool IsEpisodePath(Uri url)
     {
         var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Any(part =>
-            part.Equals("video", StringComparison.OrdinalIgnoreCase) ||
-            part.Equals("audio", StringComparison.OrdinalIgnoreCase));
+        return parts.Length >= 5 &&
+               (parts[3].Equals("video", StringComparison.OrdinalIgnoreCase) ||
+                parts[3].Equals("audio", StringComparison.OrdinalIgnoreCase)) &&
+               !string.IsNullOrWhiteSpace(parts[4]);
     }
 }

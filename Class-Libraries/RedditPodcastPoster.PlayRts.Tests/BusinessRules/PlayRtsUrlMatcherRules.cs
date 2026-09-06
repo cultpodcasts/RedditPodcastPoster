@@ -1,8 +1,8 @@
 using FluentAssertions;
-using RedditPodcastPoster.PlayRts.Matching; // pragma: allowlist secret
+using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PlayRts.Tests.BusinessRules; // pragma: allowlist secret
+namespace RedditPodcastPoster.PlayRts.Tests.BusinessRules;
 
 public class PlayRtsUrlMatcherRules
 {
@@ -98,5 +98,68 @@ public class PlayRtsUrlMatcherRules
 
         // Assert
         matches.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A Play RTS series hub path is not an episode path, because /play/tv/{slug} is the catalogue show rather than a video or audio asset.")]
+    public void series_hub_is_not_episode_path()
+    {
+        // Arrange
+        var show = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{show}");
+
+        // Act
+        var isEpisode = PlayRtsUrlMatcher.IsEpisodePath(url);
+
+        // Assert
+        isEpisode.Should().BeFalse();
+        PlayRtsUrlMatcher.IsSubmitUrl(url).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A Play RTS TV video URL is an episode path, because /play/tv/{slug}/video/{episode} is the catalogue asset.")]
+    public void tv_video_is_episode_path()
+    {
+        // Arrange
+        var show = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/{show}/video/{episode}");
+
+        // Act
+        var isEpisode = PlayRtsUrlMatcher.IsEpisodePath(url);
+
+        // Assert
+        isEpisode.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A Play RTS series slug of video is not an episode path, because /play/tv/video is a show slug rather than a video|audio segment at index 3.")]
+    public void series_slug_video_is_not_episode_path()
+    {
+        // Arrange
+        var url = new Uri("https://www.rts.ch/play/tv/video");
+
+        // Act
+        var isEpisode = PlayRtsUrlMatcher.IsEpisodePath(url);
+
+        // Assert
+        isEpisode.Should().BeFalse();
+        PlayRtsUrlMatcher.IsSubmitUrl(url).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A Play RTS episode under a series slug of video is an episode path, because video at path index 3 is the medium and index 4 is the episode slug.")]
+    public void series_slug_video_with_episode_is_episode_path()
+    {
+        // Arrange
+        var episode = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.rts.ch/play/tv/video/video/{episode}");
+
+        // Act
+        var isEpisode = PlayRtsUrlMatcher.IsEpisodePath(url);
+
+        // Assert
+        isEpisode.Should().BeTrue();
+        PlayRtsUrlMatcher.IsSubmitUrl(url).Should().BeTrue();
     }
 }
