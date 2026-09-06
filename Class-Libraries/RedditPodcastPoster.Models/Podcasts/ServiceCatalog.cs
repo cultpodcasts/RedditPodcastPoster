@@ -190,7 +190,12 @@ public static class ServiceCatalog
 
         if (IsHost(host, "rts.ch"))
         {
-            return ServiceKeys.PlayRts;
+            if (path.StartsWith("/play/", StringComparison.OrdinalIgnoreCase))
+            {
+                return ServiceKeys.PlayRts;
+            }
+
+            return null;
         }
 
         if (IsHost(host, "tvnz.co.nz"))

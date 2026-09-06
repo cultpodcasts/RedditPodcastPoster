@@ -1,3 +1,4 @@
+using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
@@ -38,6 +39,23 @@ public class ServiceCatalogTests
         key.Should().Be(expectedKey);
         ServiceCatalog.TryGet(key!, out var descriptor).Should().BeTrue();
         descriptor.Icon.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact(DisplayName =
+        "Service catalog does not map an rts.ch news path to playRts, " +
+        "because only /play/ catalogue URLs are Play RTS and news articles must not get that icon.")]
+    public void rts_news_path_is_not_play_rts()
+    {
+        // Arrange
+        var fixture = new Fixture();
+        var uri = new Uri($"https://www.rts.ch/info/{fixture.Create<Guid>():N}");
+
+        // Act
+        var key = ServiceCatalog.TryResolveKey(uri);
+
+        // Assert
+        key.Should().BeNull();
+        key.Should().NotBe(ServiceKeys.PlayRts);
     }
 
     [Fact(DisplayName =
