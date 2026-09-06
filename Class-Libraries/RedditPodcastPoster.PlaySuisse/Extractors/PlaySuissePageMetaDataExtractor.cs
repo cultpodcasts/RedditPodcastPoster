@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
@@ -57,13 +58,12 @@ internal static partial class PlaySuisseCatalogMeta
     {
         var decodedHtml = html.Replace("\\\"", "\"", StringComparison.Ordinal);
         var seriesName = openGraph?.ShowName ?? FirstGroup(decodedHtml, TvSeriesNameRegex());
-        var firstEpisodeName = FirstGroup(decodedHtml, FirstEpisodeNameRegex()) ??
-                               FirstGroup(decodedHtml, FirstEpisodeNameNumberFirstRegex());
-        var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
-        title = StripSeasonHubSuffix(title);
-        var seriesHub = IsSeriesHub(decodedHtml, title, seriesName);
+        var rawTitle = openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex());
+        var title = StripSeasonHubSuffix(CleanTitle(rawTitle));
+        var (rootEpisodeArray, firstEpisodeName) = ReadRootTvSeriesHub(html);
+        var seriesHub = IsSeriesHub(url, rawTitle, rootEpisodeArray);
 
-        if (!string.IsNullOrWhiteSpace(firstEpisodeName) && seriesHub)
+        if (seriesHub && !string.IsNullOrWhiteSpace(firstEpisodeName))
         {
             title = firstEpisodeName;
         }
@@ -97,10 +97,16 @@ internal static partial class PlaySuisseCatalogMeta
             showName = null;
         }
 
+        var duration = openGraph?.Duration;
+        if (seriesHub)
+        {
+            duration ??= TryParseSeconds(FirstGroup(decodedHtml, FirstEpisodeDurationRegex()));
+        }
+
         return new NonPodcastServiceItemMetaData(
             title,
             openGraph?.Description ?? string.Empty,
-            openGraph?.Duration ?? TryParseSeconds(FirstGroup(decodedHtml, FirstEpisodeDurationRegex())),
+            duration,
             DropYearOnlyHubRelease(openGraph?.Release, seriesHub),
             PreferCatalogueImage(decodedHtml, openGraph?.Image),
             openGraph?.Explicit,
@@ -137,22 +143,159 @@ internal static partial class PlaySuisseCatalogMeta
                catalogue.Groups[1].Value.Equals("Movie", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsSeriesHub(string html, string title, string? seriesName)
+    /// <summary>
+    /// Season-hub rewrite (first-episode title, firstEpisodeDuration, year-only release drop)
+    /// is gated on catalogue URL shape <c>/detail</c> or <c>/show</c> — never <c>/watch</c> —
+    /// plus a season-suffix og:title and/or a <em>root</em> <c>TVSeries.episode</c> array.
+    /// Watch pages that embed series JSON-LD must keep their own og:title.
+    /// </summary>
+    private static bool IsSeriesHub(Uri url, string? rawTitle, bool rootEpisodeArray)
     {
-        if (FirstGroup(html, FirstEpisodeDurationRegex()) is not null ||
-            FirstGroup(html, FirstEpisodeNameRegex()) is not null ||
-            FirstGroup(html, FirstEpisodeNameNumberFirstRegex()) is not null)
-        {
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(seriesName))
+        if (!IsSeasonHubCataloguePath(url))
         {
             return false;
         }
 
-        return title.Equals(seriesName, StringComparison.OrdinalIgnoreCase) ||
-               title.StartsWith(seriesName, StringComparison.OrdinalIgnoreCase);
+        return rootEpisodeArray || HasSeasonHubSuffix(rawTitle);
+    }
+
+    private static bool IsSeasonHubCataloguePath(Uri url)
+    {
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var localeOffset = parts.Length > 0 && parts[0].Length == 2 ? 1 : 0;
+        if (parts.Length <= localeOffset)
+        {
+            return false;
+        }
+
+        var kind = parts[localeOffset];
+        return kind.Equals("detail", StringComparison.OrdinalIgnoreCase) ||
+               kind.Equals("show", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasSeasonHubSuffix(string? rawTitle)
+    {
+        if (string.IsNullOrWhiteSpace(rawTitle))
+        {
+            return false;
+        }
+
+        return SeasonHubSuffixRegex().IsMatch(CleanTitle(rawTitle));
+    }
+
+    private static (bool HasEpisodeArray, string? FirstEpisodeName) ReadRootTvSeriesHub(string html)
+    {
+        var hasEpisodeArray = false;
+        string? firstEpisodeName = null;
+        foreach (Match script in JsonLdScriptRegex().Matches(html))
+        {
+            try
+            {
+                using var json = JsonDocument.Parse(WebUtility.HtmlDecode(script.Groups[1].Value));
+                WalkRootTvSeries(json.RootElement, ref hasEpisodeArray, ref firstEpisodeName);
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        return (hasEpisodeArray, firstEpisodeName);
+    }
+
+    private static void WalkRootTvSeries(
+        JsonElement element,
+        ref bool hasEpisodeArray,
+        ref string? firstEpisodeName)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                WalkRootTvSeries(item, ref hasEpisodeArray, ref firstEpisodeName);
+            }
+
+            return;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (element.TryGetProperty("@graph", out var graph))
+        {
+            WalkRootTvSeries(graph, ref hasEpisodeArray, ref firstEpisodeName);
+            return;
+        }
+
+        if (!IsJsonLdType(element, "TVSeries") ||
+            !element.TryGetProperty("episode", out var hubItems) ||
+            hubItems.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        hasEpisodeArray = true;
+        foreach (var episode in hubItems.EnumerateArray())
+        {
+            if (episode.ValueKind != JsonValueKind.Object ||
+                !IsJsonLdType(episode, "TVEpisode") ||
+                !IsEpisodeNumberOne(episode))
+            {
+                continue;
+            }
+
+            if (episode.TryGetProperty("name", out var name) &&
+                name.ValueKind == JsonValueKind.String)
+            {
+                firstEpisodeName ??= name.GetString();
+                return;
+            }
+        }
+    }
+
+    private static bool IsJsonLdType(JsonElement element, string expectedType)
+    {
+        if (!element.TryGetProperty("@type", out var typeElement))
+        {
+            return false;
+        }
+
+        if (typeElement.ValueKind == JsonValueKind.String)
+        {
+            return string.Equals(typeElement.GetString(), expectedType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (typeElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in typeElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String &&
+                    string.Equals(item.GetString(), expectedType, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsEpisodeNumberOne(JsonElement episode)
+    {
+        if (!episode.TryGetProperty("episodeNumber", out var number))
+        {
+            return false;
+        }
+
+        if (number.ValueKind == JsonValueKind.Number && number.TryGetInt32(out var asInt))
+        {
+            return asInt == 1;
+        }
+
+        return number.ValueKind == JsonValueKind.String &&
+               int.TryParse(number.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) &&
+               parsed == 1;
     }
 
     private static Uri? PreferCatalogueImage(string html, Uri? openGraphImage)
@@ -227,7 +370,7 @@ internal static partial class PlaySuisseCatalogMeta
             }
         }
 
-        return StripSeasonHubSuffix(title);
+        return title;
     }
 
     private static string StripSeasonHubSuffix(string title)
@@ -257,14 +400,9 @@ internal static partial class PlaySuisseCatalogMeta
     private static partial Regex TvSeriesNameRegex();
 
     [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVEpisode\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]{0,200}?\"episodeNumber\"\\s*:\\s*1\\b",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex FirstEpisodeNameRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVEpisode\"[\\s\\S]{0,400}?\"episodeNumber\"\\s*:\\s*1\\b[\\s\\S]{0,200}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex FirstEpisodeNameNumberFirstRegex();
+        "<script[^>]*type\\s*=\\s*[\"']application/ld\\+json[\"'][^>]*>([\\s\\S]*?)</script>",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex JsonLdScriptRegex();
 
     [GeneratedRegex("\"firstEpisodeDuration\"\\s*:\\s*\"?(\\d+)\"?", RegexOptions.CultureInvariant)]
     private static partial Regex FirstEpisodeDurationRegex();

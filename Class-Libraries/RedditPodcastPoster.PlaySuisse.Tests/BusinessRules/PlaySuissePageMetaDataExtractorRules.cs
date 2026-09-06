@@ -198,6 +198,43 @@ public class PlaySuissePageMetaDataExtractorRules
         meta.Publisher.Should().Be("Play Suisse");
     }
 
+    [Fact(DisplayName =
+        "Play Suisse /watch extract keeps the watch og:title and does not take nested episode-1 duration or drop a year-only release, " +
+        "because hub rewrite is gated on /detail or /show catalogue paths rather than any firstEpisodeDuration or TVEpisode episodeNumber 1 blob.")]
+    public async Task watch_page_with_nested_episode_one_keeps_watch_title()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var watchTitle = _fixture.CreateTitle();
+        var episodeOneTitle = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var seconds = (int)duration.TotalSeconds;
+        var year = DomainTestFixture.UtcToday.Year;
+        var yearOnlyRelease = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var url = new Uri($"https://www.playsuisse.ch/watch/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{watchTitle}\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"TVSeries\",\"name\":\"{seriesName}\"," +
+            $"\"datePublished\":\"{year}-01-01T00:00:00.000Z\"," +
+            $"\"episode\":[{{\"@type\":\"TVEpisode\",\"name\":\"{episodeOneTitle}\",\"episodeNumber\":1}}]}}" +
+            "</script></head>" +
+            $"<body>\\\"firstEpisodeDuration\\\":\\\"{seconds}\\\"</body></html>");
+        var sut = _mocker.CreateInstance<PlaySuissePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(watchTitle);
+        meta.Title.Should().NotBe(episodeOneTitle);
+        meta.Duration.Should().BeNull();
+        meta.Release.Should().Be(yearOnlyRelease);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Play Suisse");
+    }
+
     private static HttpResponseMessage OkHtml(string html) =>
         new(HttpStatusCode.OK)
         {
