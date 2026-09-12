@@ -1,7 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
-using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Pod\u0063asts;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -58,7 +58,7 @@ public class SearchEpisodeServicesTests
     public void Compacts_bc_video_watch_url_to_id()
     {
         // Arrange
-        var host = "\u0062itchute";
+        var host = "bitchute";
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
@@ -80,7 +80,7 @@ public class SearchEpisodeServicesTests
     public void Compacts_bc_video_embed_url_to_same_id()
     {
         // Arrange
-        var host = "\u0062itchute";
+        var host = "bitchute";
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {

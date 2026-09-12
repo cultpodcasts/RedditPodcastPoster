@@ -47,15 +47,15 @@ public static class NonPodcastShowNameResolver
         ?? item.Title
         ?? string.Empty;
 
-    private static bool UsesAuthorAsSeries(NonPod\u0063astService service) =>
-        service is NonPod\u0063astService.Vimeo or NonPod\u0063astService.BcVideo;
+    private static bool UsesAuthorAsSeries(NonPodcastService service) =>
+        service is NonPodcastService.Vimeo or NonPodcastService.BcVideo;
 
-    private static bool IsCatalogDisplayName(NonPod\u0063astService service, string name)
+    private static bool IsCatalogDisplayName(NonPodcastService service, string name)
     {
         var key = service switch
         {
-            NonPod\u0063astService.Vimeo => ServiceKeys.Vimeo,
-            NonPod\u0063astService.BcVideo => ServiceKeys.BcVideo,
+            NonPodcastService.Vimeo => ServiceKeys.Vimeo,
+            NonPodcastService.BcVideo => ServiceKeys.BcVideo,
             _ => null
         };
         return key != null

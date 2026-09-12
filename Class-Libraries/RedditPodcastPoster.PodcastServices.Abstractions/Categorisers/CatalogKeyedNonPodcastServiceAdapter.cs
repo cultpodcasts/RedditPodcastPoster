@@ -14,10 +14,10 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     string catalogKey,
     Func<Uri, bool> isSubmitUrl,
     Func<Uri, bool> canExtract,
-    Func<Uri, Task<NonPod\u0063astServiceItemMetaData>> extract,
-    Func<Uri, string, Task<NonPod\u0063astServiceItemMetaData>>? extractFromHtml = null,
+    Func<Uri, Task<NonPodcastServiceItemMetaData>> extract,
+    Func<Uri, string, Task<NonPodcastServiceItemMetaData>>? extractFromHtml = null,
     Func<Uri, Uri>? canonicalizeUrl = null
-) : INonPod\u0063astServiceAdapter
+) : INonPodcastServiceAdapter
 {
     public NonPodcastService Service { get; } = service;
 

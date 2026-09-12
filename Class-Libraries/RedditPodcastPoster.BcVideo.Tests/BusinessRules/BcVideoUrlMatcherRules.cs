@@ -1,7 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.BcVideo.Matching;
-using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Pod\u0063asts;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.BcVideo.Tests.BusinessRules;
 
@@ -11,7 +11,7 @@ public class BcVideoUrlMatcherRules
 
     private string VideoId() => _fixture.CreateBcVideoId();
 
-    private static string Host => "\u0062itchute.com";
+    private static string Host => "bitchute.com";
 
     [Fact(DisplayName =
         "A hyphenated BcVideo /video/{id} is a submit URL, because real video ids include hyphens and underscores.")]

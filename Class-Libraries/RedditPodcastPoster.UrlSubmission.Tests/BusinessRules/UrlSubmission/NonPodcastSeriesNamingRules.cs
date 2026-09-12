@@ -167,7 +167,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         ServiceCatalog.TryGet(ServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
         var videoTitle = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPod\u0063astService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
+        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -189,7 +189,7 @@ public class NonPodcastSeriesNamingRules
         {
             NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
             NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
-            NonPod\u0063astService.BcVideo => $"https://www.\u0062itchute.com/video/{_fixture.CreateBcVideoId()}/",
+            NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{_fixture.CreateBcVideoId()}/",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

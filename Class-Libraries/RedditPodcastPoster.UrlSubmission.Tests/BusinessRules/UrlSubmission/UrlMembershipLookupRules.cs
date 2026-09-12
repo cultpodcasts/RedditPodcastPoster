@@ -276,7 +276,7 @@ public class UrlMembershipLookupRules
     {
         // Arrange
         var id = _fixture.CreateBcVideoId();
-        var host = "\u0062itchute.com";
+        var host = "bitchute.com";
         var url = new Uri($"https://www.{host}/video/{id}/");
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -289,7 +289,7 @@ public class UrlMembershipLookupRules
         result.Service.Should().Be(ServiceKeys.BcVideo);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
-        _episodes.Saved\u0045pisodes.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -299,14 +299,14 @@ public class UrlMembershipLookupRules
     {
         // Arrange
         var id = _fixture.CreateBcVideoId();
-        var host = "\u0062itchute.com";
+        var host = "bitchute.com";
         var storedUrl = new Uri($"https://www.{host}/video/{id}");
         var embedUrl = new Uri($"https://www.{host}/embed/{id}");
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
             EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
         _podcasts.Seed(podcast);
-        _\u0065pisodes.Seed(episode);
+        _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -317,7 +317,7 @@ public class UrlMembershipLookupRules
         result.PodcastId.Should().Be(podcast.Id);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.BcVideo);
-        _\u0065pisodes.Saved\u0045pisodes.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -327,13 +327,13 @@ public class UrlMembershipLookupRules
     {
         // Arrange
         var id = _fixture.CreateBcVideoId();
-        var host = "\u0062itchute.com";
+        var host = "bitchute.com";
         var storedUrl = new Uri($"https://www.{host}/video/{id}");
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
             EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
         _podcasts.Seed(podcast);
-        _\u0065pisodes.Seed(episode);
+        _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -344,7 +344,7 @@ public class UrlMembershipLookupRules
         result.PodcastId.Should().Be(podcast.Id);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.Service.Should().Be(ServiceKeys.BcVideo);
-        _\u0065pisodes.Saved\u0045pisodes.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

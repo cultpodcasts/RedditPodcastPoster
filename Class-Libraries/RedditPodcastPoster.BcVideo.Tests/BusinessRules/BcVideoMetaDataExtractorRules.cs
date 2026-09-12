@@ -28,7 +28,7 @@ public class BcVideoMetaDataExtractorRules
 
     private string VideoId() => _fixture.CreateBcVideoId();
 
-    private static string Host => "\u0062itchute.com";
+    private static string Host => "bitchute.com";
 
     [Fact(DisplayName =
         "BcVideo extract reads title, thumbnail, and author from oEmbed JSON, " +

@@ -138,12 +138,12 @@ public class NonPodcastEpisodeFactoryRules
     {
         // Arrange
         var id = _fixture.CreateBcVideoId();
-        var host = "\u0062itchute.com";
+        var host = "bitchute.com";
         var embedUrl = new Uri($"https://www.{host}/embed/{id}");
         var canonicalUrl = new Uri($"https://www.{host}/video/{id}");
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPod\u0063astService.BcVideo,
+            NonPodcastService.BcVideo,
             embedUrl,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
