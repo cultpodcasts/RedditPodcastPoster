@@ -11,17 +11,25 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddBcVideoServices(this IServiceCollection services)
     {
         services.AddHttpClient(nameof(BcVideoMetaDataExtractor), client =>
-            client.DefaultRequestHeaders.Accept.ParseAdd("application/json"));
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0");
+        });
 
         return services
             .AddScoped<IBcVideoMetaDataExtractor, BcVideoMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
-                new CatalogKeyedNonPodcastServiceAdapter(
+            {
+                var extractor = provider.GetRequiredService<IBcVideoMetaDataExtractor>();
+                return new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.BcVideo,
                     ServiceKeys.BcVideo,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     BcVideoUrlMatcher.IsSubmitUrl,
-                    provider.GetRequiredService<IBcVideoMetaDataExtractor>().GetMetaData,
-                    canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl));
+                    extractor.GetMetaData,
+                    extractor.GetMetaData,
+                    BcVideoUrlMatcher.CanonicalUrl);
+            });
     }
 }

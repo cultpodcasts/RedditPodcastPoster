@@ -69,6 +69,7 @@ public class BcVideoMetaDataExtractorRules
         meta.Publisher.Should().Be(author);
         meta.Image.Should().Be(image);
         meta.ShowName.Should().BeNull();
+        _handler.Requests.Should().ContainSingle();
         _handler.LastRequestMethod.Should().Be(HttpMethod.Post);
         _handler.LastRequestUri.Should().NotBeNull();
         _handler.LastRequestUri!.Host.Should().Be("api.bitchute.com");
@@ -121,12 +122,149 @@ public class BcVideoMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "BcVideo extract fails when video JSON has no title, because an episode cannot be created without a title.")]
+        "When the video JSON API is forbidden, BcVideo extract falls back to oEmbed title/author plus watch-page description, " +
+        "because a UK Azure outbound often cannot POST the video API even when oEmbed GET still works.")]
+    public async Task video_api_forbidden_falls_back_to_oembed_and_watch_html()
+    {
+        // Arrange
+        var id = VideoId();
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var author = _fixture.Create<string>();
+        var image = new Uri($"https://example.test/art/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.{Host}/video/{id}/");
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Post &&
+            request.RequestUri!.AbsolutePath == "/api/beta/video"
+                ? new HttpResponseMessage(HttpStatusCode.Forbidden)
+                : null);
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Get &&
+            request.RequestUri!.AbsolutePath == "/oembed/"
+                ? JsonResponse(new
+                {
+                    title,
+                    thumbnail_url = image.ToString(),
+                    author_name = author
+                })
+                : null);
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Get &&
+            request.RequestUri!.Host == $"www.{Host}"
+                ? HtmlResponse(title, description)
+                : null);
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Publisher.Should().Be(author);
+        meta.Image.Should().Be(image);
+        meta.Duration.Should().BeNull();
+        meta.Release.Should().BeNull();
+        _handler.Requests.Should().HaveCount(3);
+        _handler.Requests[0].Uri!.AbsolutePath.Should().Be("/api/beta/video");
+        _handler.Requests[1].Uri!.AbsolutePath.Should().Be("/oembed/");
+        _handler.Requests[2].Uri!.Host.Should().Be($"www.{Host}");
+    }
+
+    [Fact(DisplayName =
+        "When falling back from an /embed/{id} URL, oEmbed is queried with the canonical /video/{id} watch URL, " +
+        "because oEmbed 404s on embed paths.")]
+    public async Task embed_fallback_oembed_uses_canonical_watch_url()
+    {
+        // Arrange
+        var id = VideoId();
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.{Host}/embed/{id}");
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Post
+                ? new HttpResponseMessage(HttpStatusCode.Forbidden)
+                : null);
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Get &&
+            request.RequestUri!.AbsolutePath == "/oembed/"
+                ? JsonResponse(new { title, author_name = _fixture.Create<string>() })
+                : null);
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        var oEmbed = _handler.Requests.Single(request => request.Uri!.AbsolutePath == "/oembed/");
+        var query = Uri.UnescapeDataString(oEmbed.Uri!.Query);
+        query.Should().Contain($"/video/{id}");
+        query.Should().NotContain($"/embed/{id}");
+    }
+
+    [Fact(DisplayName =
+        "BcVideo HTML extract reads a posted video JSON body without calling the host, " +
+        "so the Worker can prefetch the video API from a non-UK network and Azure can map duration and release.")]
+    public async Task extract_from_html_parses_video_api_json()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var author = _fixture.Create<string>();
+        var duration = new TimeSpan(1, 1, 33);
+        var release = DomainTestFixture.UtcAtTime(-5, TimeSpan.FromHours(18) + TimeSpan.FromMinutes(12));
+        var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        var html = JsonSerializer.Serialize(new
+        {
+            video_name = title,
+            description,
+            duration = "1:01:33",
+            date_published = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+            channel = new { channel_name = author }
+        });
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.Publisher.Should().Be(author);
+        _handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "BcVideo HTML extract reads og:title and description from a watch-page shell, " +
+        "because the SPA HTML has those meta tags even when duration and release are absent.")]
+    public async Task extract_from_html_parses_watch_page_og_tags()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url, WatchHtml(title, description));
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Duration.Should().BeNull();
+        meta.Release.Should().BeNull();
+        _handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "BcVideo extract fails when video JSON, oEmbed, and watch HTML all omit a title, because an episode cannot be created without a title.")]
     public async Task missing_title_fails_extract()
     {
         // Arrange
         var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
-        _handler.Response = JsonResponse(new { video_name = "" });
+        _handler.Routes.Add(_ => JsonResponse(new { video_name = "" }));
         var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
 
         // Act
@@ -137,22 +275,27 @@ public class BcVideoMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "AddBcVideoServices registers a catalog-keyed adapter for BcVideo URLs, so submit routing finds the plugin without the aggregator knowing the host.")]
-    public void add_bc_video_services_registers_adapter()
+        "AddBcVideoServices registers a catalog-keyed adapter that can extract from posted HTML/JSON, " +
+        "so Worker-prefetched video JSON is accepted on SubmitUrl/extract.")]
+    public async Task add_bc_video_services_registers_html_extract()
     {
         // Arrange
         var services = new ServiceCollection();
         services.AddBcVideoServices();
         using var provider = services.BuildServiceProvider();
         var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        var title = _fixture.CreateTitle();
+        var html = JsonSerializer.Serialize(new { video_name = title });
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()
             .Single(candidate => candidate.IsSubmitUrl(url));
+        var meta = await adapter.ExtractMetaData(url, html);
 
         // Assert
         adapter.Service.Should().Be(NonPodcastService.BcVideo);
         adapter.CanExtract(url).Should().BeTrue();
+        meta.Title.Should().Be(title);
     }
 
     private static HttpResponseMessage JsonResponse(object payload) =>
@@ -164,6 +307,22 @@ public class BcVideoMetaDataExtractorRules
                 "application/json")
         };
 
+    private static HttpResponseMessage HtmlResponse(string title, string description) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(WatchHtml(title, description), Encoding.UTF8, "text/html")
+        };
+
+    private static string WatchHtml(string title, string description)
+    {
+        var encodedTitle = WebUtility.HtmlEncode(title);
+        var encodedDescription = WebUtility.HtmlEncode(description);
+        return $"<html><head><title>{encodedTitle}</title>" +
+               $"<meta name=\"description\" content=\"{encodedDescription}\" />" +
+               $"<meta property=\"og:title\" content=\"{encodedTitle}\" />" +
+               $"<meta property=\"og:description\" content=\"{encodedDescription}\" /></head><body></body></html>";
+    }
+
     private static string FormatClock(TimeSpan duration) =>
         duration.TotalHours >= 1
             ? $"{(int)duration.TotalHours}:{duration.Minutes:D2}:{duration.Seconds:D2}"
@@ -172,6 +331,8 @@ public class BcVideoMetaDataExtractorRules
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? Response { get; set; }
+        public List<Func<HttpRequestMessage, HttpResponseMessage?>> Routes { get; } = [];
+        public List<(HttpMethod Method, Uri? Uri, string Body)> Requests { get; } = [];
         public Uri? LastRequestUri { get; private set; }
         public HttpMethod? LastRequestMethod { get; private set; }
         public string LastRequestBody { get; private set; } = string.Empty;
@@ -182,9 +343,19 @@ public class BcVideoMetaDataExtractorRules
         {
             LastRequestUri = request.RequestUri;
             LastRequestMethod = request.Method;
-            if (request.Content != null)
+            var body = request.Content == null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            LastRequestBody = body;
+            Requests.Add((request.Method, request.RequestUri, body));
+
+            foreach (var route in Routes)
             {
-                LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+                var mapped = route(request);
+                if (mapped != null)
+                {
+                    return mapped;
+                }
             }
 
             return Response ?? new HttpResponseMessage(HttpStatusCode.InternalServerError);
