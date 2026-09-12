@@ -1195,7 +1195,7 @@ public sealed class DomainTestFixture
   {
     const string alnum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     var body = CreateRandomString(fixture, alnum, 10);
-    return string.Concat(body.AsSpan(0, 4), "-", body.AsSpan(4, 3), "_", body.AsSpan(7));
+    return $"{body[..4]}-{body[4..7]}_{body[7..]}";
   }
 
   internal static TimeSpan CreateDurationSpecimen(Fixture fixture) =>
