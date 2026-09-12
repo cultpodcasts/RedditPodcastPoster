@@ -280,6 +280,17 @@ public static class ServiceCatalog
         };
     }
 
+    public static Uri CanonicalUrlOrSelf(string key, Uri url)
+    {
+        var compact = TryCompactUrl(key, url);
+        if (compact is null)
+        {
+            return url;
+        }
+
+        return TryExpandCompactUrl(key, compact) ?? url;
+    }
+
     public static Uri? TryExpandCompactUrl(string key, string payload)
     {
         if (string.IsNullOrEmpty(payload) || payload.StartsWith("http", StringComparison.Ordinal))
@@ -350,7 +361,7 @@ public static class ServiceCatalog
     }
 
     internal static bool IsBcVideoId(string part) =>
-        part.Length >= 6 && part.All(char.IsLetterOrDigit);
+        part.Length >= 6 && part.All(c => char.IsLetterOrDigit(c) || c is '-' or '_');
 
     private static string? TryTrimPrefixHostPath(
         string url,

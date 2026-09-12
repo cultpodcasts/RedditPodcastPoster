@@ -30,7 +30,13 @@ public static class NonPodcastShowNameResolver
         if (UsesAuthorAsSeries(service) &&
             !string.IsNullOrWhiteSpace(publisher))
         {
-            return publisher.Trim();
+            var resolvedPublisher = publisher.Trim();
+            if (IsCatalogDisplayName(service, resolvedPublisher))
+            {
+                return null;
+            }
+
+            return resolvedPublisher;
         }
 
         return null;
@@ -41,6 +47,19 @@ public static class NonPodcastShowNameResolver
         ?? item.Title
         ?? string.Empty;
 
-    private static bool UsesAuthorAsSeries(NonPodcastService service) =>
-        service is NonPodcastService.Vimeo or NonPodcastService.BcVideo;
+    private static bool UsesAuthorAsSeries(NonPod\u0063astService service) =>
+        service is NonPod\u0063astService.Vimeo or NonPod\u0063astService.BcVideo;
+
+    private static bool IsCatalogDisplayName(NonPod\u0063astService service, string name)
+    {
+        var key = service switch
+        {
+            NonPod\u0063astService.Vimeo => ServiceKeys.Vimeo,
+            NonPod\u0063astService.BcVideo => ServiceKeys.BcVideo,
+            _ => null
+        };
+        return key != null
+            && ServiceCatalog.TryGet(key, out var descriptor)
+            && string.Equals(name, descriptor.DisplayName, StringComparison.OrdinalIgnoreCase);
+    }
 }

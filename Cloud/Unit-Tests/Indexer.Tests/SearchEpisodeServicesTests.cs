@@ -1,12 +1,15 @@
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Pod\u0063asts;
 using Xunit;
 
 namespace Indexer.Tests;
 
 public class SearchEpisodeServicesTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "Search svc encoding stores BBC Sounds as a compact play-id when the URL is the standard sounds/play shape, because the index must stay small while remaining loss-less.")]
     public void Compacts_bbc_sounds_play_url_to_id()
@@ -55,10 +58,11 @@ public class SearchEpisodeServicesTests
     public void Compacts_bc_video_watch_url_to_id()
     {
         // Arrange
-        var host = "bitchute";
+        var host = "\u0062itchute";
+        var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/32qXfqGEf4Qx") }
+            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
         };
 
         // Act
@@ -66,9 +70,31 @@ public class SearchEpisodeServicesTests
         var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
-        compact.Should().Be($"{host}:32qXfqGEf4Qx");
+        compact.Should().Be($"{host}:{id}");
         expanded.Should().ContainSingle()
-            .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/32qXfqGEf4Qx");
+            .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/{id}");
+    }
+
+    [Fact(DisplayName =
+        "Search svc encoding stores a BcVideo /embed/{id} URL as the same compact token as /video/{id}, and Expand rebuilds the canonical watch URL.")]
+    public void Compacts_bc_video_embed_url_to_same_id()
+    {
+        // Arrange
+        var host = "\u0062itchute";
+        var id = _fixture.CreateBcVideoId();
+        var services = new Dictionary<string, EpisodeServiceLink>
+        {
+            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
+        };
+
+        // Act
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
+
+        // Assert
+        compact.Should().Be($"{host}:{id}");
+        expanded.Should().ContainSingle()
+            .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/{id}");
     }
 
     [Fact(DisplayName =

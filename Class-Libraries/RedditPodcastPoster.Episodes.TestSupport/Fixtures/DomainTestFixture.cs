@@ -304,6 +304,11 @@ public sealed class DomainTestFixture
   /// <summary>Production-like YouTube video ID for generic tests (11 chars).</summary>
   public string CreateYouTubeId() => CreateYouTubeIdSpecimen(_fixture);
 
+  /// <summary>
+  /// Production-like video-host id: letters, digits, hyphen, underscore; length 12; always includes hyphen and underscore.
+  /// </summary>
+  public string CreateBcVideoId() => CreateBcVideoIdSpecimen(_fixture);
+
   /// <summary>Realistic episode duration (1–120 minutes).</summary>
   public TimeSpan CreateDuration() => CreateDurationSpecimen(_fixture);
 
@@ -1185,6 +1190,13 @@ public sealed class DomainTestFixture
 
   internal static string CreateYouTubeIdSpecimen(Fixture fixture) =>
     CreateRandomString(fixture, YouTubeIdAlphabet, 11);
+
+  internal static string CreateBcVideoIdSpecimen(Fixture fixture)
+  {
+    const string alnum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    var body = CreateRandomString(fixture, alnum, 10);
+    return string.Concat(body.AsSpan(0, 4), "-", body.AsSpan(4, 3), "_", body.AsSpan(7));
+  }
 
   internal static TimeSpan CreateDurationSpecimen(Fixture fixture) =>
     TimeSpan.FromMinutes(fixture.Create<int>() % 120 + 1);

@@ -116,7 +116,7 @@ public class EpisodeFactory(
                 EpisodeServicePresence.Upsert(
                     newEpisode,
                     catalogKey,
-                    nonPodcastUrl,
+                    ServiceCatalog.CanonicalUrlOrSelf(catalogKey, nonPodcastUrl),
                     categorisedItem.ResolvedNonPodcastServiceItem.Image);
             }
         }

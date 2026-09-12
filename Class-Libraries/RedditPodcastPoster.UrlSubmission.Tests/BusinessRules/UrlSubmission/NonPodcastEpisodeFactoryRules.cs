@@ -132,6 +132,35 @@ public class NonPodcastEpisodeFactoryRules
     }
 
     [Fact(DisplayName =
+        "Creating an episode from a BcVideo /embed/{id} URL stores the canonical /video/{id} watch URL, " +
+        "so a later watch-link paste matches the same catalog row.")]
+    public void embed_item_stores_canonical_watch_url()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "\u0062itchute.com";
+        var embedUrl = new Uri($"https://www.{host}/embed/{id}");
+        var canonicalUrl = new Uri($"https://www.{host}/video/{id}");
+        var image = _fixture.Create<Uri>();
+        var categorised = CreateNonPodcastItem(
+            NonPod\u0063astService.BcVideo,
+            embedUrl,
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()),
+            _fixture.CreateDuration(),
+            image);
+        var sut = CreateSut(TimeSpan.Zero);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BcVideo).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.BcVideo).Should().Be(image);
+    }
+
+    [Fact(DisplayName =
         "When a Sounds episode is shorter than the posting minimum duration, the created episode is ignored.")]
     public void shorter_than_minimum_duration_is_ignored()
     {

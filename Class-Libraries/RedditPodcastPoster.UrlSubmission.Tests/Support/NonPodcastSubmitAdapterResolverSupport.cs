@@ -25,21 +25,24 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
             new InternetArchiveNonPodcastServiceAdapter(
                 archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
-            CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
-            CatalogAdapter(NonPodcastService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl),
-            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
+            CatalogAdapter(NonPod\u0063astService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
+            CatalogAdapter(NonPod\u0063astService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
+                canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl),
+            CatalogAdapter(NonPod\u0063astService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
             CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
 
-    private static INonPodcastServiceAdapter CatalogAdapter(
-        NonPodcastService service,
+    private static INonPod\u0063astServiceAdapter CatalogAdapter(
+        NonPod\u0063astService service,
         string catalogKey,
         Func<Uri, bool> isSubmitUrl,
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null) =>
-        new CatalogKeyedNonPodcastServiceAdapter(
+        Func<Uri, Task<NonPod\u0063astServiceItemMetaData>>? extract = null,
+        Func<Uri, Uri>? canonicalizeUrl = null) =>
+        new CatalogKeyedNonPod\u0063astServiceAdapter(
             service,
             catalogKey,
             isSubmitUrl,
             isSubmitUrl,
-            extract ?? (_ => throw new InvalidOperationException("Extract is not used in submit routing tests.")));
+            extract ?? (_ => throw new InvalidOperationException("Extract is not used in submit routing tests.")),
+            canonicalizeUrl: canonicalizeUrl);
 }

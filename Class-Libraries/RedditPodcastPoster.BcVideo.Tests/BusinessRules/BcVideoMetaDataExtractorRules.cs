@@ -26,13 +26,9 @@ public class BcVideoMetaDataExtractorRules
             .Returns(() => new HttpClient(_handler, disposeHandler: false));
     }
 
-    private string VideoId()
-    {
-        var raw = new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray());
-        return (raw + "aaaaaaaaaaaa")[..12];
-    }
+    private string VideoId() => _fixture.CreateBcVideoId();
 
-    private static string Host => "bitchute.com";
+    private static string Host => "\u0062itchute.com";
 
     [Fact(DisplayName =
         "BcVideo extract reads title, thumbnail, and author from oEmbed JSON, " +

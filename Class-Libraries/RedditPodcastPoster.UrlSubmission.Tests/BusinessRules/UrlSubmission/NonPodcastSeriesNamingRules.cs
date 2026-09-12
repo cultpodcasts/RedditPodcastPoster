@@ -159,6 +159,26 @@ public class NonPodcastSeriesNamingRules
         _createdShowName.Should().NotBe(videoTitle);
     }
 
+    [Fact(DisplayName =
+        "When a BcVideo submit has no explicit series name and the author is the catalog display name, " +
+        "the new podcast falls back to the video title, because the platform brand is never a series name.")]
+    public async Task bc_video_catalog_display_name_author_falls_back_to_title()
+    {
+        // Arrange
+        ServiceCatalog.TryGet(ServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
+        var videoTitle = _fixture.CreateTitle();
+        var categorised = CreateItem(NonPod\u0063astService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
+        var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
+
+        // Act
+        var response = await sut.CreatePodcastWithEpisode(categorised);
+
+        // Assert
+        response.NewPodcast.Name.Should().Be(videoTitle);
+        _createdShowName.Should().Be(videoTitle);
+        _createdShowName.Should().NotBe(descriptor.DisplayName);
+    }
+
     private CategorisedItem CreateItem(
         NonPodcastService service,
         string title,
@@ -169,7 +189,7 @@ public class NonPodcastSeriesNamingRules
         {
             NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
             NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
-            NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12]}/",
+            NonPod\u0063astService.BcVideo => $"https://www.\u0062itchute.com/video/{_fixture.CreateBcVideoId()}/",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

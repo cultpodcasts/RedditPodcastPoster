@@ -175,7 +175,7 @@ public class EpisodeEnricher(
                     EpisodeServicePresence.Upsert(
                         matchingEpisode,
                         streamingKey,
-                        streamingUrl,
+                        ServiceCatalog.CanonicalUrlOrSelf(streamingKey, streamingUrl),
                         categorisedItem.ResolvedNonPodcastServiceItem.Image);
                     addedExtraKeys.Add(streamingKey);
                     episodeResult = SubmitResultState.Enriched;

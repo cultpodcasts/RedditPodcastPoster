@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
                     ServiceKeys.BcVideo,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     BcVideoUrlMatcher.IsSubmitUrl,
-                    provider.GetRequiredService<IBcVideoMetaDataExtractor>().GetMetaData));
+                    provider.GetRequiredService<IBcVideoMetaDataExtractor>().GetMetaData,
+                    canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl));
     }
 }

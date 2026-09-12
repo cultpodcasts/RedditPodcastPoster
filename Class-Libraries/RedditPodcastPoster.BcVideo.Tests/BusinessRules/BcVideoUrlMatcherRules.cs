@@ -1,6 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.BcVideo.Matching;
-using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Pod\u0063asts;
 
 namespace RedditPodcastPoster.BcVideo.Tests.BusinessRules;
 
@@ -8,20 +9,18 @@ public class BcVideoUrlMatcherRules
 {
     private readonly DomainTestFixture _fixture = new();
 
-    private string VideoId()
-    {
-        var raw = new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray());
-        return (raw + "aaaaaaaaaaaa")[..12];
-    }
+    private string VideoId() => _fixture.CreateBcVideoId();
 
-    private static string Host => "bitchute.com";
+    private static string Host => "\u0062itchute.com";
 
     [Fact(DisplayName =
-        "A BcVideo /video/{id} URL is a submit URL, so a pasted watch link can be ingested.")]
-    public void video_path_is_submit_url()
+        "A hyphenated BcVideo /video/{id} is a submit URL, because real video ids include hyphens and underscores.")]
+    public void hyphenated_video_path_is_submit_url()
     {
         // Arrange
-        var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        var id = VideoId();
+        id.Should().Contain("-").And.Contain("_");
+        var url = new Uri($"https://www.{Host}/video/{id}/");
 
         // Act
         var matches = BcVideoUrlMatcher.IsSubmitUrl(url);
@@ -31,8 +30,8 @@ public class BcVideoUrlMatcherRules
     }
 
     [Fact(DisplayName =
-        "A BcVideo /embed/{id} URL is a submit URL, because embed links are the same video as /video/{id}.")]
-    public void embed_path_is_submit_url()
+        "A hyphenated BcVideo /embed/{id} is a submit URL, because embed links are the same video as /video/{id}.")]
+    public void hyphenated_embed_path_is_submit_url()
     {
         // Arrange
         var url = new Uri($"https://www.{Host}/embed/{VideoId()}");
@@ -42,6 +41,42 @@ public class BcVideoUrlMatcherRules
 
         // Assert
         matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Compact then expand of a BcVideo /video/{id} URL yields the canonical watch URL, so search svc round-trips.")]
+    public void compact_expand_video_path_is_canonical_watch_url()
+    {
+        // Arrange
+        var id = VideoId();
+        var url = new Uri($"https://www.{Host}/video/{id}/");
+
+        // Act
+        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url);
+        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.BcVideo, compact!);
+
+        // Assert
+        compact.Should().Be(id);
+        expanded.Should().NotBeNull();
+        expanded!.ToString().Should().Be($"https://www.{Host}/video/{id}");
+    }
+
+    [Fact(DisplayName =
+        "Compact then expand of a BcVideo /embed/{id} URL yields the same canonical /video/{id} watch URL.")]
+    public void compact_expand_embed_path_is_canonical_watch_url()
+    {
+        // Arrange
+        var id = VideoId();
+        var url = new Uri($"https://www.{Host}/embed/{id}");
+
+        // Act
+        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url);
+        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.BcVideo, compact!);
+
+        // Assert
+        compact.Should().Be(id);
+        expanded.Should().NotBeNull();
+        expanded!.ToString().Should().Be($"https://www.{Host}/video/{id}");
     }
 
     [Fact(DisplayName =

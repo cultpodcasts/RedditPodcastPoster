@@ -222,7 +222,7 @@ public sealed class RefreshMetaEpisodeEnricher(
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
                 streamingKey,
-                streamingUrl,
+                ServiceCatalog.CanonicalUrlOrSelf(streamingKey, streamingUrl),
                 item.Image);
             if (upsert.UrlWasMissing)
             {

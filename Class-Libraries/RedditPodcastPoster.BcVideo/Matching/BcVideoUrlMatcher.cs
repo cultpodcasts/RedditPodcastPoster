@@ -1,31 +1,13 @@
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Pod\u0063asts;
 
 namespace RedditPodcastPoster.BcVideo.Matching;
 
 public static class BcVideoUrlMatcher
 {
-    public static bool IsSubmitUrl(Uri url)
-    {
-        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "bitchute.com"))
-        {
-            return false;
-        }
+    public static bool IsSubmitUrl(Uri url) =>
+        ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "\u0062itchute.com")
+        && ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url) != null;
 
-        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 2)
-        {
-            return false;
-        }
-
-        if (!parts[0].Equals("video", StringComparison.OrdinalIgnoreCase) &&
-            !parts[0].Equals("embed", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return IsVideoId(parts[1]);
-    }
-
-    internal static bool IsVideoId(string part) =>
-        part.Length >= 6 && part.All(char.IsLetterOrDigit);
+    public static Uri CanonicalUrl(Uri url) =>
+        ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BcVideo, url);
 }
