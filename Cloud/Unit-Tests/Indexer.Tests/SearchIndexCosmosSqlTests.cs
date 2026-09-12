@@ -1,6 +1,5 @@
-// pragma: allowlist secret
 using FluentAssertions;
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -30,7 +29,7 @@ public class SearchIndexCosmosSqlTests
         sql.Should().StartWith("RTRIM(CONCAT(");
 
         // Streaming matrix: every non-index-id ServiceKeys constant must be in SearchEncodedKeys
-        // and therefore in svc SQL — not ITVX-only (discoveryPlus / disneyPlus / channel4 / …). // pragma: allowlist secret
+        // and therefore in svc SQL — not ITVX-only (discoveryPlus / disneyPlus / channel4 / …).
         var streamingKeys = new[]
         {
             ServiceKeys.BbcSounds,
@@ -48,8 +47,8 @@ public class SearchIndexCosmosSqlTests
             ServiceKeys.Channel4,
             ServiceKeys.Fawesome,
             ServiceKeys.DisneyPlus,
-            ServiceKeys.BitChute, // pragma: allowlist secret
-            ServiceKeys.DiscoveryPlus // pragma: allowlist secret
+            ServiceKeys.BcVideo,
+            ServiceKeys.DiscoveryPlus
         };
         streamingKeys.Should().BeEquivalentTo(
             ServiceCatalog.SearchEncodedKeys,
@@ -68,7 +67,7 @@ public class SearchIndexCosmosSqlTests
 
     [Fact(DisplayName =
         "Cosmos pull-path image coalesce SQL walks ServiceCatalog.ImageCoalesceOrder for every catalog " +
-        "service (including discoveryPlus and other streaming) when Spotify/Apple/YouTube art is absent.")] // pragma: allowlist secret
+        "service (including discoveryPlus and other streaming) when Spotify/Apple/YouTube art is absent.")]
     public void image_fallback_includes_every_image_coalesce_order_key()
     {
         // Arrange

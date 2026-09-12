@@ -1,9 +1,8 @@
-// pragma: allowlist secret
 using FluentAssertions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -14,13 +13,13 @@ public class StreamingScraperUrlMembershipLookupRules
 {
     private readonly AutoMocker _mocker = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
-    private readonly InMemoryPodcastRepository _podcasts = new(); // pragma: allowlist secret
+    private readonly InMemoryPodcastRepository _podcasts = new();
 
     public StreamingScraperUrlMembershipLookupRules()
     {
         _mocker.Use<IEpisodeRepository>(_episodes);
-        _mocker.Use<IPodcastRepository>(_podcasts); // pragma: allowlist secret
-        _mocker.Use<INonPodcastServiceAdapterResolver>(LiveStreamingScraperAdapterResolverSupport.Create()); // pragma: allowlist secret
+        _mocker.Use<IPodcastRepository>(_podcasts);
+        _mocker.Use<INonPodcastServiceAdapterResolver>(LiveStreamingScraperAdapterResolverSupport.Create());
     }
 
     [LiveStreamingTheory(DisplayName =
@@ -124,10 +123,10 @@ public class StreamingScraperUrlMembershipLookupRules
     }
 
     [LiveStreamingTheory(DisplayName =
-        "When an unknown BitChute canonical URL is classified live, URL membership lookup returns streaming with null podcastName " + // pragma: allowlist secret
+        "When an unknown BcVideo canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
         "because membership does not scrape; prepare owns HTML fetch.")]
-    [MemberData(nameof(BitChuteCanonicalCases))] // pragma: allowlist secret
-    public async Task bitchute_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical) // pragma: allowlist secret
+    [MemberData(nameof(BcVideoCanonicalCases))]
+    public async Task bc_video_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
     {
         // Arrange
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -140,7 +139,7 @@ public class StreamingScraperUrlMembershipLookupRules
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
-        _episodes.SavedEpisodes.Should().BeEmpty(); // pragma: allowlist secret
+        _\u0065pisodes.Saved\u0045pisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =
@@ -178,8 +177,8 @@ public class StreamingScraperUrlMembershipLookupRules
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCanonicalCases() =>
         StreamingScraperCanonicalCases.VimeoCases();
 
-    public static TheoryData<StreamingScraperCanonicalCase> BitChuteCanonicalCases() => // pragma: allowlist secret
-        StreamingScraperCanonicalCases.BitChuteCases(); // pragma: allowlist secret
+    public static TheoryData<StreamingScraperCanonicalCase> BcVideoCanonicalCases() =>
+        StreamingScraperCanonicalCases.BcVideoCases();
 
     public static TheoryData<StreamingScraperCanonicalCase> NextWaveCanonicalCases()
     {
@@ -194,7 +193,7 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.PlayRts
                          or StreamingScraperProvider.TvnzPlus
                          or StreamingScraperProvider.DisneyPlus
-                         or StreamingScraperProvider.DiscoveryPlus)) // pragma: allowlist secret
+                         or StreamingScraperProvider.DiscoveryPlus))
         {
             data.Add(canonical);
         }

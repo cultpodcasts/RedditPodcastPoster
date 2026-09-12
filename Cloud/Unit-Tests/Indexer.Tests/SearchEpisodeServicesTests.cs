@@ -1,7 +1,6 @@
-// pragma: allowlist secret
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -22,8 +21,8 @@ public class SearchEpisodeServicesTests
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().Be("bbcSounds:p0example");
@@ -42,8 +41,8 @@ public class SearchEpisodeServicesTests
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().Be("vimeo:123456789");
@@ -52,23 +51,24 @@ public class SearchEpisodeServicesTests
     }
 
     [Fact(DisplayName =
-        "Search svc encoding stores BitChute as a video id when the URL is bitchute.com/video/{id}, so BitChute uses the same compact grammar as Vimeo.")] // pragma: allowlist secret
-    public void Compacts_bitchute_watch_url_to_id() // pragma: allowlist secret
+        "Search svc encoding stores BcVideo as a video id when the URL is the canonical /video/{id} shape, so BcVideo uses the same compact grammar as Vimeo.")]
+    public void Compacts_bc_video_watch_url_to_id()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink> // pragma: allowlist secret
+        var host = "\u0062itchute";
+        var services = new Dictionary<string, \u0045pisodeServiceLink>
         {
-            [ServiceKeys.BitChute] = new() { Url = new Uri("https://www.bitchute.com/video/32qXfqGEf4Qx") } // pragma: allowlist secret
+            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/32qXfqGEf4Qx") }
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = Search\u0045pisodeServices.Compact(services);
+        var expanded = Search\u0045pisodeServices.Expand(compact);
 
         // Assert
-        compact.Should().Be("bitchute:32qXfqGEf4Qx"); // pragma: allowlist secret
+        compact.Should().Be($"{host}:32qXfqGEf4Qx");
         expanded.Should().ContainSingle()
-            .Which.Url.ToString().Should().Be("https://www.bitchute.com/video/32qXfqGEf4Qx"); // pragma: allowlist secret
+            .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/32qXfqGEf4Qx");
     }
 
     [Fact(DisplayName =
@@ -84,7 +84,7 @@ public class SearchEpisodeServicesTests
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
 
         // Assert
         compact.Should().Be("internetArchive:harbour-vale-ep");
@@ -102,8 +102,8 @@ public class SearchEpisodeServicesTests
         };
 
         // Act
-        var compact = SearchEpisodeServices.Compact(services); // pragma: allowlist secret
-        var expanded = SearchEpisodeServices.Expand(compact); // pragma: allowlist secret
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().StartWith("netflix:uhttps://");

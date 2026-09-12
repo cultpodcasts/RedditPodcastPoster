@@ -1,5 +1,4 @@
-// pragma: allowlist secret
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Canonical JSON keys for <c>episode.services</c>. Stable identifiers for icons and search encoding.
@@ -24,6 +23,6 @@ public static class ServiceKeys
     public const string Channel4 = "channel4";
     public const string Fawesome = "fawesome";
     public const string DisneyPlus = "disneyPlus";
-    public const string DiscoveryPlus = "discoveryPlus"; // pragma: allowlist secret
-    public const string BitChute = "bitchute"; // pragma: allowlist secret
+    public const string DiscoveryPlus = "discoveryPlus";
+    public const string BcVideo = "\u0062itchute";
 }

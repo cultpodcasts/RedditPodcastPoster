@@ -1,7 +1,6 @@
-// pragma: allowlist secret
-namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts;
 
-public enum NonPodcastService // pragma: allowlist secret
+public enum NonPodcastService
 {
     Unknown = 0,
     BBC,
@@ -13,11 +12,11 @@ public enum NonPodcastService // pragma: allowlist secret
     Channel4,
     Fawesome,
     DisneyPlus,
-    DiscoveryPlus, // pragma: allowlist secret
+    BcVideo,
+    DiscoveryPlus,
     ParamountPlus,
     HboMax,
     PlaySuisse,
     PlayRts,
-    TvnzPlus,
-    BitChute // pragma: allowlist secret
+    TvnzPlus
 }

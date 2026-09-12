@@ -31,7 +31,7 @@ public class NonPodcastUrlCategoriserRules
                 It.IsAny<Podcast?>(),
                 It.IsAny<Uri>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<NonPodcastServiceItemMetaData?>(), // pragma: allowlist secret
+                It.IsAny<NonPodcastServiceItemMetaData?>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(() => _resolvedNonPodcast);
     }
@@ -123,9 +123,9 @@ public class NonPodcastUrlCategoriserRules
                 It.IsAny<Podcast?>(),
                 url,
                 It.IsAny<IndexingContext>(),
-                It.IsAny<NonPodcastServiceItemMetaData?>(), // pragma: allowlist secret
+                It.IsAny<NonPodcastServiceItemMetaData?>(),
                 It.IsAny<bool>()))
-            .Callback<Podcast?, Uri, IndexingContext, NonPodcastServiceItemMetaData?, bool>( // pragma: allowlist secret
+            .Callback<Podcast?, Uri, IndexingContext, NonPodcastServiceItemMetaData?, bool>(
                 (p, _, _, _, _) => capturedPodcast = p)
             .ReturnsAsync(() => _resolvedNonPodcast);
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
@@ -206,7 +206,7 @@ public class NonPodcastUrlCategoriserRules
                     It.IsAny<Podcast?>(),
                     It.IsAny<Uri>(),
                     It.IsAny<IndexingContext>(),
-                    It.IsAny<NonPodcastServiceItemMetaData?>(), // pragma: allowlist secret
+                    It.IsAny<NonPodcastServiceItemMetaData?>(),
                     It.IsAny<bool>()),
                 Times.Never);
     }

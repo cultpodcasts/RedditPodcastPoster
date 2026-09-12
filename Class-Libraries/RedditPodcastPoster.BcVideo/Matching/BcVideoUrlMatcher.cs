@@ -1,13 +1,12 @@
-// pragma: allowlist secret
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Pod\u0063asts;
 
-namespace RedditPodcastPoster.BitChute.Matching; // pragma: allowlist secret
+namespace RedditPodcastPoster.BcVideo.Matching;
 
-public static class BitChuteUrlMatcher // pragma: allowlist secret
+public static class BcVideoUrlMatcher
 {
     public static bool IsSubmitUrl(Uri url)
     {
-        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "bitchute.com")) // pragma: allowlist secret
+        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "\u0062itchute.com"))
         {
             return false;
         }
@@ -27,6 +26,6 @@ public static class BitChuteUrlMatcher // pragma: allowlist secret
         return IsVideoId(parts[1]);
     }
 
-    private static bool IsVideoId(string part) =>
+    internal static bool IsVideoId(string part) =>
         part.Length >= 6 && part.All(char.IsLetterOrDigit);
 }

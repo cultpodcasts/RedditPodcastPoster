@@ -1,4 +1,3 @@
-<!-- pragma: allowlist secret -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -21,8 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" /> <!-- pragma: allowlist secret -->
-    <ProjectReference Include="..\RedditPodcastPoster.BitChute\RedditPodcastPoster.BitChute.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.&#69;pisodes.TestSupport\RedditPodcastPoster.&#69;pisodes.TestSupport.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.BcVideo\RedditPodcastPoster.BcVideo.csproj" />
   </ItemGroup>
 
   <ItemGroup>

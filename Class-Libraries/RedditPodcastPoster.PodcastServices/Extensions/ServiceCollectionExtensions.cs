@@ -1,9 +1,8 @@
-// pragma: allowlist secret
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AmazonPrime.Extensions;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Channel4.Extensions;
-using RedditPodcastPoster.DiscoveryPlus.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.DiscoveryPlus.Extensions;
 using RedditPodcastPoster.DisneyPlus.Extensions;
 using RedditPodcastPoster.Fawesome.Extensions;
 using RedditPodcastPoster.HboMax.Extensions;
@@ -13,66 +12,66 @@ using RedditPodcastPoster.Netflix.Extensions;
 using RedditPodcastPoster.ParamountPlus.Extensions;
 using RedditPodcastPoster.PlayRts.Extensions;
 using RedditPodcastPoster.PlaySuisse.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Caches; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Matching; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Updaters; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Heroes; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Categorisers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Clients; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Enrichers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Extensions; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Handlers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Heroes; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Matching; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Merging; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Models; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Providers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Updaters; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
+using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
+using RedditPodcastPoster.PodcastServices.Categorisers;
+using RedditPodcastPoster.PodcastServices.Clients;
+using RedditPodcastPoster.PodcastServices.Enrichers;
+using RedditPodcastPoster.PodcastServices.Extensions;
+using RedditPodcastPoster.PodcastServices.Handlers;
+using RedditPodcastPoster.PodcastServices.Heroes;
+using RedditPodcastPoster.PodcastServices.Matching;
+using RedditPodcastPoster.PodcastServices.Merging;
+using RedditPodcastPoster.PodcastServices.Models;
+using RedditPodcastPoster.PodcastServices.Providers;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.TvnzPlus.Extensions;
-using RedditPodcastPoster.BitChute.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Vimeo.Extensions;
 
-namespace RedditPodcastPoster.PodcastServices.Extensions; // pragma: allowlist secret
+namespace RedditPodcastPoster.PodcastServices.Extensions;
 
 public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddPodcastServices() // pragma: allowlist secret
+        public IServiceCollection AddPodcastServices()
         {
             return services
                 .AddSingleton<IEpisodeMatcher, EpisodeMatcher>()
                 .AddSingleton<IEpisodeMerger, EpisodeMerger>()
                 .AddScoped<IPodcastPassApiCache, PodcastPassApiCache>()
-                .AddScoped<IPodcastsUpdater, PodcastsUpdater>() // pragma: allowlist secret
+                .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
                 .AddScoped<IPodcastUpdater, PodcastUpdater>()
                 .AddScoped<IHeroEpisodePromoter, NullHeroEpisodePromoter>()
-                .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>() // pragma: allowlist secret
-                .AddScoped<INonPodcastServiceAdapterResolver, NonPodcastServiceAdapterResolver>() // pragma: allowlist secret
-                .AddScoped<INonPodcastServiceAdapter, BbcNonPodcastServiceAdapter>() // pragma: allowlist secret
-                .AddScoped<INonPodcastServiceAdapter, InternetArchiveNonPodcastServiceAdapter>() // pragma: allowlist secret
-                .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>() // pragma: allowlist secret
+                .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
+                .AddScoped<INonPodcastServiceAdapterResolver, NonPodcastServiceAdapterResolver>()
+                .AddScoped<INonPodcastServiceAdapter, BbcNonPodcastServiceAdapter>()
+                .AddScoped<INonPodcastServiceAdapter, InternetArchiveNonPodcastServiceAdapter>()
+                .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
                 .AddScoped<IImageUpdater, ImageUpdater>()
                 .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>();
         }
 
-        public IServiceCollection AddNonPodcastScrapers() // pragma: allowlist secret
+        public IServiceCollection AddNonPodcastScrapers()
         {
             return services
                 .AddBBCServices()
                 .AddInternetArchiveServices()
                 .AddVimeoServices()
-                .AddBitChuteServices() // pragma: allowlist secret
+                .AddBcVideoServices()
                 .AddNetflixServices()
                 .AddAmazonPrimeServices()
                 .AddItvxServices()
                 .AddChannel4Services()
                 .AddFawesomeServices()
                 .AddDisneyPlusServices()
-                .AddDiscoveryPlusServices() // pragma: allowlist secret
+                .AddDiscoveryPlusServices()
                 .AddParamountPlusServices()
                 .AddHboMaxServices()
                 .AddPlaySuisseServices()

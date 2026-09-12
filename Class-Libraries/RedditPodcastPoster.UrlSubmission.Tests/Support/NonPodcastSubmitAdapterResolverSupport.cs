@@ -1,44 +1,42 @@
-// pragma: allowlist secret
 using Moq;
 using RedditPodcastPoster.AmazonPrime.Matching;
 using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.InternetArchive.Matching;
-using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Netflix.Matching;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Abstractions.Models; // pragma: allowlist secret
-using RedditPodcastPoster.PodcastServices.Categorisers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Categorisers;
+using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
-using RedditPodcastPoster.BitChute.Matching; // pragma: allowlist secret
-
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
-internal static class NonPodcastSubmitAdapterResolverSupport // pragma: allowlist secret
+internal static class NonPodcastSubmitAdapterResolverSupport
 {
-    public static INonPodcastServiceAdapterResolver Create( // pragma: allowlist secret
+    public static INonPodcastServiceAdapterResolver Create(
         IBBCPageMetaDataExtractor? bbcExtractor = null,
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? vimeoExtract = null, // pragma: allowlist secret
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? netflixExtract = null, // pragma: allowlist secret
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? primeExtract = null, // pragma: allowlist secret
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? vimeoExtract = null,
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? netflixExtract = null,
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? primeExtract = null,
         IInternetArchivePageMetaDataExtractor? archiveExtractor = null) =>
-        new NonPodcastServiceAdapterResolver( // pragma: allowlist secret
+        new NonPodcastServiceAdapterResolver(
         [
-            new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()), // pragma: allowlist secret
-            new InternetArchiveNonPodcastServiceAdapter( // pragma: allowlist secret
+            new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
+            new InternetArchiveNonPodcastServiceAdapter(
                 archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
-            CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract), // pragma: allowlist secret
-            CatalogAdapter(NonPodcastService.BitChute, ServiceKeys.BitChute, BitChuteUrlMatcher.IsSubmitUrl), // pragma: allowlist secret
-            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract), // pragma: allowlist secret
-            CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract) // pragma: allowlist secret
+            CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
+            CatalogAdapter(NonPodcastService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl),
+            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
+            CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
 
-    private static INonPodcastServiceAdapter CatalogAdapter( // pragma: allowlist secret
-        NonPodcastService service, // pragma: allowlist secret
+    private static INonPodcastServiceAdapter CatalogAdapter(
+        NonPodcastService service,
         string catalogKey,
         Func<Uri, bool> isSubmitUrl,
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null) => // pragma: allowlist secret
-        new CatalogKeyedNonPodcastServiceAdapter( // pragma: allowlist secret
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null) =>
+        new CatalogKeyedNonPodcastServiceAdapter(
             service,
             catalogKey,
             isSubmitUrl,

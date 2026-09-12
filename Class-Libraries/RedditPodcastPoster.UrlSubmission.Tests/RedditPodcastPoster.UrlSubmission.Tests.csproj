@@ -35,7 +35,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Channel4\RedditPodcastPoster.Channel4.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DisneyPlus\RedditPodcastPoster.DisneyPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Fawesome\RedditPodcastPoster.Fawesome.csproj" />
@@ -47,11 +47,11 @@
     <ProjectReference Include="..\RedditPodcastPoster.ParamountPlus\RedditPodcastPoster.ParamountPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlayRts\RedditPodcastPoster.PlayRts.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlaySuisse\RedditPodcastPoster.PlaySuisse.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices\RedditPodcastPoster.PodcastServices.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.TvnzPlus\RedditPodcastPoster.TvnzPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.BitChute\RedditPodcastPoster.BitChute.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.BcVideo\RedditPodcastPoster.BcVideo.csproj" />
   </ItemGroup>
 
   <ItemGroup>
