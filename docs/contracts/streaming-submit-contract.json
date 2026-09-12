@@ -18,6 +18,7 @@
     "channel4",
     "fawesome",
     "disneyPlus",
+    "bitchute",
     "discoveryPlus"
   ],
   "membershipKinds": [
@@ -48,6 +49,7 @@
     "channel4": "https://www.channel4.com/programmes/example-slug",
     "fawesome": "https://fawesome.tv/movies/1/example-slug",
     "disneyPlus": "https://www.disneyplus.com/series/example-slug",
+    "bitchute": "https://www.bitchute.com/video/exampleVideoId",
     "discoveryPlus": "https://www.discoveryplus.com/show/example-slug"
   },
   "streamingMembershipShapeCaseIds": [
@@ -96,6 +98,9 @@
     "membership-disneyPlus-known",
     "membership-disneyPlus-unknown",
     "membership-disneyPlus-ambiguous",
+    "membership-bitchute-known",
+    "membership-bitchute-unknown",
+    "membership-bitchute-ambiguous",
     "membership-discoveryPlus-known",
     "membership-discoveryPlus-unknown",
     "membership-discoveryPlus-ambiguous"
@@ -116,6 +121,7 @@
     "stream-channel4-unknown-prepare-submit",
     "stream-fawesome-unknown-prepare-submit",
     "stream-disneyPlus-unknown-prepare-submit",
+    "stream-bitchute-unknown-prepare-submit",
     "stream-discoveryPlus-unknown-prepare-submit"
   ],
   "rules": {

@@ -6,7 +6,8 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 /// Compact encoding for service URLs that are not reconstructed from Spotify/Apple/YouTube ids.
 /// Spotify/YouTube/Apple stay as id fields; this field is <c>svc</c>.
 /// Grammar: <c>key:payload|key:payload</c>. Payload is a compact id when the catalog can
-/// round-trip the URL, otherwise <c>u</c> plus the full URL. Pipe in a URL is stored as %7C.
+/// compact the URL and expand it back (including alternate path shapes such as embed vs watch),
+/// otherwise <c>u</c> plus the full URL. Pipe in a URL is stored as %7C.
 /// Clients expand with the same catalog. Empty string when none
 /// (never null — Azure Search merge ignores null).
 /// </summary>
@@ -83,13 +84,10 @@ public static class SearchEpisodeServices
     private static string Encode(string key, Uri url)
     {
         var compact = ServiceCatalog.TryCompactUrl(key, url);
-        if (compact is not null)
+        if (compact is not null &&
+            ServiceCatalog.TryExpandCompactUrl(key, compact) is not null)
         {
-            var expanded = ServiceCatalog.TryExpandCompactUrl(key, compact);
-            if (expanded is not null && expanded.ToString() == url.ToString())
-            {
-                return key + ":" + compact;
-            }
+            return key + ":" + compact;
         }
 
         return key + ":u" + Escape(url.ToString());

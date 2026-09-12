@@ -84,6 +84,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo/RedditPodcastPoster.Vimeo.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.BcVideo/RedditPodcastPoster.BcVideo.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PushSubscriptions/RedditPodcastPoster.PushSubscriptions.csproj" />
 
@@ -139,6 +140,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo.Tests/RedditPodcastPoster.Vimeo.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.BcVideo.Tests/RedditPodcastPoster.BcVideo.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 

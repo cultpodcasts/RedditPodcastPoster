@@ -24,4 +24,5 @@ public static class ServiceKeys
     public const string Fawesome = "fawesome";
     public const string DisneyPlus = "disneyPlus";
     public const string DiscoveryPlus = "discoveryPlus";
+    public const string BcVideo = "bitchute";
 }

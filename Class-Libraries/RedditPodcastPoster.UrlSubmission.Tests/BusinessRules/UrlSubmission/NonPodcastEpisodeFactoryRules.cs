@@ -132,6 +132,63 @@ public class NonPodcastEpisodeFactoryRules
     }
 
     [Fact(DisplayName =
+        "Creating an episode from a BcVideo /embed/{id} URL stores the canonical /video/{id} watch URL, " +
+        "so a later watch-link paste matches the same catalog row.")]
+    public void embed_item_stores_canonical_watch_url()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "bitchute.com";
+        var embedUrl = new Uri($"https://www.{host}/embed/{id}");
+        var canonicalUrl = new Uri($"https://www.{host}/video/{id}");
+        var image = _fixture.Create<Uri>();
+        var categorised = CreateNonPodcastItem(
+            NonPodcastService.BcVideo,
+            embedUrl,
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()),
+            _fixture.CreateDuration(),
+            image);
+        var sut = CreateSut(TimeSpan.Zero);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BcVideo).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.BcVideo).Should().Be(image);
+    }
+
+    [Fact(DisplayName =
+        "Creating an episode from a Vimeo /video/{id} URL stores the compact https://vimeo.com/{id} watch URL, " +
+        "so a later /video/{id} paste matches the same catalog row.")]
+    public void vimeo_video_prefix_stores_compact_watch_url()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var pasted = new Uri($"https://vimeo.com/video/{id}");
+        var canonical = new Uri($"https://vimeo.com/{id}");
+        var image = _fixture.Create<Uri>();
+        var categorised = CreateNonPodcastItem(
+            NonPodcastService.Vimeo,
+            pasted,
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()),
+            _fixture.CreateDuration(),
+            image);
+        var sut = CreateSut(TimeSpan.Zero);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Vimeo).Should().Be(canonical);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(image);
+    }
+
+    [Fact(DisplayName =
         "When a Sounds episode is shorter than the posting minimum duration, the created episode is ignored.")]
     public void shorter_than_minimum_duration_is_ignored()
     {
@@ -154,6 +211,33 @@ public class NonPodcastEpisodeFactoryRules
         // Assert
         episode.Ignored.Should().BeTrue();
         episode.Length.Should().Be(duration);
+    }
+
+    [Fact(DisplayName =
+        "When a BcVideo prepare fallback has no duration, the created episode is not ignored, " +
+        "because unknown length is not treated as shorter than the posting minimum.")]
+    public void unknown_duration_is_not_ignored_as_short()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "bitchute.com";
+        var minimum = _fixture.CreateDuration();
+        var categorised = CreateNonPodcastItem(
+            NonPodcastService.BcVideo,
+            new Uri($"https://www.{host}/video/{id}/"),
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()),
+            null,
+            null);
+        var sut = CreateSut(minimum);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        episode.Ignored.Should().BeFalse();
+        episode.Length.Should().Be(TimeSpan.Zero);
     }
 
     [Fact(DisplayName =
@@ -210,7 +294,7 @@ public class NonPodcastEpisodeFactoryRules
         string title,
         string description,
         DateTime release,
-        TimeSpan duration,
+        TimeSpan? duration,
         Uri? image) =>
         new(
             null,

@@ -8,6 +8,7 @@ using RedditPodcastPoster.Netflix.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
+using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
@@ -25,6 +26,8 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             new InternetArchiveNonPodcastServiceAdapter(
                 archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
             CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
+            CatalogAdapter(NonPodcastService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
+                canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl),
             CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
             CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
@@ -33,11 +36,13 @@ internal static class NonPodcastSubmitAdapterResolverSupport
         NonPodcastService service,
         string catalogKey,
         Func<Uri, bool> isSubmitUrl,
-        Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null) =>
+        Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null,
+        Func<Uri, Uri>? canonicalizeUrl = null) =>
         new CatalogKeyedNonPodcastServiceAdapter(
             service,
             catalogKey,
             isSubmitUrl,
             isSubmitUrl,
-            extract ?? (_ => throw new InvalidOperationException("Extract is not used in submit routing tests.")));
+            extract ?? (_ => throw new InvalidOperationException("Extract is not used in submit routing tests.")),
+            canonicalizeUrl: canonicalizeUrl);
 }

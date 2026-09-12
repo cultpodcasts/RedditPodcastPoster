@@ -13,6 +13,7 @@ using RedditPodcastPoster.ParamountPlus.Matching;
 using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PlaySuisse.Matching;
 using RedditPodcastPoster.TvnzPlus.Matching;
+using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -129,6 +130,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.Netflix => NetflixUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.AmazonPrime => AmazonPrimeUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Vimeo => VimeoUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.BcVideo => BcVideoUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Itvx => ItvxUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Channel4 => Channel4UrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Fawesome => FawesomeUrlMatcher.IsSubmitUrl(url),
@@ -170,6 +172,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
                     .ToLowerInvariant(),
             StreamingScraperProvider.Netflix => path.ToLowerInvariant(),
             StreamingScraperProvider.Vimeo => path.ToLowerInvariant(),
+            StreamingScraperProvider.BcVideo => path.ToLowerInvariant(),
             _ => url.GetLeftPart(UriPartial.Path).ToLowerInvariant()
         };
     }

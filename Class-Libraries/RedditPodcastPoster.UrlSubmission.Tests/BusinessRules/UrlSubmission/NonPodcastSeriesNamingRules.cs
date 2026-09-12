@@ -139,6 +139,46 @@ public class NonPodcastSeriesNamingRules
         _createdShowName.Should().NotBe(videoTitle);
     }
 
+    [Fact(DisplayName =
+        "When a BcVideo submit has no explicit series name, the new podcast is named after the author/channel, " +
+        "not the video title, because BcVideo oEmbed has no BBC-style series field.")]
+    public async Task bc_video_without_explicit_name_uses_author()
+    {
+        // Arrange
+        var videoTitle = _fixture.CreateTitle();
+        var author = _fixture.Create<string>();
+        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, author, showName: null);
+        var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
+
+        // Act
+        var response = await sut.CreatePodcastWithEpisode(categorised);
+
+        // Assert
+        response.NewPodcast.Name.Should().Be(author);
+        response.NewPodcast.Publisher.Should().Be(author);
+        _createdShowName.Should().NotBe(videoTitle);
+    }
+
+    [Fact(DisplayName =
+        "When a BcVideo submit has no explicit series name and the author is the catalog display name, " +
+        "the new podcast falls back to the video title, because the platform brand is never a series name.")]
+    public async Task bc_video_catalog_display_name_author_falls_back_to_title()
+    {
+        // Arrange
+        ServiceCatalog.TryGet(ServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
+        var videoTitle = _fixture.CreateTitle();
+        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
+        var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
+
+        // Act
+        var response = await sut.CreatePodcastWithEpisode(categorised);
+
+        // Assert
+        response.NewPodcast.Name.Should().Be(videoTitle);
+        _createdShowName.Should().Be(videoTitle);
+        _createdShowName.Should().NotBe(descriptor.DisplayName);
+    }
+
     private CategorisedItem CreateItem(
         NonPodcastService service,
         string title,
@@ -149,6 +189,7 @@ public class NonPodcastSeriesNamingRules
         {
             NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
             NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
+            NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{_fixture.CreateBcVideoId()}/",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

@@ -18,14 +18,20 @@ public class InternetArchiveNonPodcastServiceAdapter(
 
     public bool CanExtract(Uri url) => InternetArchiveUrlMatcher.IsInternetArchiveUrl(url);
 
-    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url) =>
-        episode =>
+    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
+    {
+        var stored = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.InternetArchive, url);
+        return episode =>
             episode.Services != null &&
-            episode.Services[ServiceKeys.InternetArchive].Url == url;
+            episode.Services[ServiceKeys.InternetArchive].Url == stored;
+    }
 
-    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url) =>
-        episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive) == url);
+    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
+    {
+        var stored = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.InternetArchive, url);
+        return episodes.FirstOrDefault(episode =>
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive) == stored);
+    }
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>
         internetArchivePageMetaDataExtractor.GetMetaData(url);

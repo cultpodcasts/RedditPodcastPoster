@@ -123,6 +123,26 @@ public class StreamingScraperUrlMembershipLookupRules
     }
 
     [LiveStreamingTheory(DisplayName =
+        "When an unknown BcVideo canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
+        "because membership does not scrape; prepare owns HTML fetch.")]
+    [MemberData(nameof(BcVideoCanonicalCases))]
+    public async Task bc_video_live_lookup_returns_service_without_podcast_name(StreamingScraperCanonicalCase canonical)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(canonical.Url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse($"case {canonical.CaseId} should not match stored membership");
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [LiveStreamingTheory(DisplayName =
         "When an unknown next-wave streaming canonical URL is classified live, URL membership lookup returns streaming with null podcastName " +
         "because membership does not scrape; prepare owns HTML fetch.")]
     [MemberData(nameof(NextWaveCanonicalCases))]
@@ -156,6 +176,9 @@ public class StreamingScraperUrlMembershipLookupRules
 
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCanonicalCases() =>
         StreamingScraperCanonicalCases.VimeoCases();
+
+    public static TheoryData<StreamingScraperCanonicalCase> BcVideoCanonicalCases() =>
+        StreamingScraperCanonicalCases.BcVideoCases();
 
     public static TheoryData<StreamingScraperCanonicalCase> NextWaveCanonicalCases()
     {

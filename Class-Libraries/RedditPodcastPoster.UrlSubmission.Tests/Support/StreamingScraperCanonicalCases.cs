@@ -33,6 +33,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Vimeo));
 
+    public static TheoryData<StreamingScraperCanonicalCase> BcVideoCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.BcVideo));
+
     public static TheoryData<StreamingScraperCanonicalCase> ItvxCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Itvx));
 
@@ -196,6 +199,11 @@ public static class StreamingScraperCanonicalCases
             "https://vimeo.com/1074471464", "Emma D. Miller",
             "Harvested from Vimeo homepage"),
 
+        // BcVideo — oEmbed author/channel
+        Case(StreamingScraperProvider.BcVideo, "move-confrontation-1978",
+            "https://www.bitchute.com/video/32qXfqGEf4Qx/", "NurLogic",
+            "Open video via oEmbed author"),
+
         // ITVX — brand watch pages (often geo-walled outside the UK)
         Case(StreamingScraperProvider.Itvx, "love-island-brand",
             "https://www.itv.com/watch/love-island/2a3697", "Love Island",
@@ -297,6 +305,7 @@ public enum StreamingScraperProvider
     PlayRts,
     TvnzPlus,
     DisneyPlus,
+    BcVideo,
     DiscoveryPlus
 }
 

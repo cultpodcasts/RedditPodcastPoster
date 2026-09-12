@@ -18,16 +18,24 @@ public class BbcNonPodcastServiceAdapter(
 
     public bool CanExtract(Uri url) => BBCUrlMatcher.IsBBCUrl(url);
 
-    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url) =>
-        episode =>
+    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
+    {
+        var iplayer = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BbcIplayer, url);
+        var sounds = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BbcSounds, url);
+        return episode =>
             episode.Services != null &&
-            (episode.Services[ServiceKeys.BbcIplayer].Url == url ||
-             episode.Services[ServiceKeys.BbcSounds].Url == url);
+            (episode.Services[ServiceKeys.BbcIplayer].Url == iplayer ||
+             episode.Services[ServiceKeys.BbcSounds].Url == sounds);
+    }
 
-    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url) =>
-        episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) == url ||
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds) == url);
+    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
+    {
+        var iplayer = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BbcIplayer, url);
+        var sounds = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BbcSounds, url);
+        return episodes.FirstOrDefault(episode =>
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) == iplayer ||
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds) == sounds);
+    }
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>
         bbcPageMetaDataExtractor.GetMetaData(url);

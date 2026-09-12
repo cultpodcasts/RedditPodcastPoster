@@ -270,6 +270,111 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
+        "When a stored Vimeo URL is https://vimeo.com/{id} and the pasted URL is /video/{id}, " +
+        "URL membership lookup returns that podcast as known, because both forms are the same video.")]
+    public async Task stored_compact_vimeo_url_matches_video_prefix_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var storedUrl = new Uri($"https://vimeo.com/{id}");
+        var pasted = new Uri($"https://vimeo.com/video/{id}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Vimeo, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Vimeo);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an unknown BcVideo URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape the BcVideo author.")]
+    public async Task unknown_bc_video_leaves_podcast_name_null()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "bitchute.com";
+        var url = new Uri($"https://www.{host}/video/{id}/");
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BcVideo);
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored BcVideo watch URL is /video/{id} and the pasted URL is /embed/{id}, " +
+        "URL membership lookup returns that podcast as known, because embed and watch are the same video.")]
+    public async Task stored_watch_url_matches_embed_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "bitchute.com";
+        var storedUrl = new Uri($"https://www.{host}/video/{id}");
+        var embedUrl = new Uri($"https://www.{host}/embed/{id}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(embedUrl, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BcVideo);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored BcVideo URL is the canonical /video/{id} watch form, " +
+        "looking up that same watch URL returns known, which is the inverse of an embed paste after store.")]
+    public async Task stored_canonical_watch_url_matches_watch_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateBcVideoId();
+        var host = "bitchute.com";
+        var storedUrl = new Uri($"https://www.{host}/video/{id}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(storedUrl, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BcVideo);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When an unknown Netflix URL is classified, URL membership lookup returns service without podcastName " +
         "because membership does not scrape series metadata.")]
     public async Task unknown_netflix_leaves_podcast_name_null()

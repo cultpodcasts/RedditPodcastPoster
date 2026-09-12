@@ -30,6 +30,7 @@ using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.TvnzPlus.Extensions;
+using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Vimeo.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
@@ -63,6 +64,7 @@ public static class ServiceCollectionExtensions
                 .AddBBCServices()
                 .AddInternetArchiveServices()
                 .AddVimeoServices()
+                .AddBcVideoServices()
                 .AddNetflixServices()
                 .AddAmazonPrimeServices()
                 .AddItvxServices()

@@ -35,6 +35,7 @@ public static class EpisodeServicePresence
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
+        ServiceKeys.BcVideo,
         ServiceKeys.DiscoveryPlus
     ];
 

@@ -35,6 +35,7 @@ public static class ServiceCatalog
         new(ServiceKeys.Channel4, "Channel 4", "channel4", false, true, ["channel4.com", "all4.com"]),
         new(ServiceKeys.Fawesome, "Fawesome", "fawesome", false, true, ["fawesome.tv"]),
         new(ServiceKeys.DisneyPlus, "Disney+", "disney-plus", false, true, ["disneyplus.com"]),
+        new(ServiceKeys.BcVideo, "BitChute", "bitchute", false, true, ["bitchute.com"]),
         new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"])
     ];
 
@@ -64,6 +65,7 @@ public static class ServiceCatalog
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
+        ServiceKeys.BcVideo,
         ServiceKeys.DiscoveryPlus
     ];
 
@@ -101,6 +103,7 @@ public static class ServiceCatalog
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
+        ServiceKeys.BcVideo,
         ServiceKeys.DiscoveryPlus
     ];
 
@@ -223,6 +226,11 @@ public static class ServiceCatalog
             return ServiceKeys.DisneyPlus;
         }
 
+        if (IsHost(host, "bitchute.com"))
+        {
+            return ServiceKeys.BcVideo;
+        }
+
         if (IsHost(host, "discoveryplus.com"))
         {
             return ServiceKeys.DiscoveryPlus;
@@ -266,9 +274,21 @@ public static class ServiceCatalog
             ServiceKeys.BbcIplayer => TryTrimPrefixHostPath(text, ["/iplayer/episode/"], allowSlug: true),
             ServiceKeys.InternetArchive => TryTrimPrefixHostPath(text, ["/details/"], allowSlug: false, hosts: ["archive.org"]),
             ServiceKeys.Vimeo => TryVimeoId(url),
+            ServiceKeys.BcVideo => TryBcVideoId(url),
             ServiceKeys.Netflix => TryTrimPrefixHostPath(text, ["/title/"], allowSlug: false, hosts: ["netflix.com"]),
             _ => null
         };
+    }
+
+    public static Uri CanonicalUrlOrSelf(string key, Uri url)
+    {
+        var compact = TryCompactUrl(key, url);
+        if (compact is null)
+        {
+            return url;
+        }
+
+        return TryExpandCompactUrl(key, compact) ?? url;
     }
 
     public static Uri? TryExpandCompactUrl(string key, string payload)
@@ -293,6 +313,7 @@ public static class ServiceCatalog
             ServiceKeys.BbcIplayer => Uri.TryCreate($"https://www.bbc.co.uk/iplayer/episode/{body}", UriKind.Absolute, out var bi) ? bi : null,
             ServiceKeys.InternetArchive => Uri.TryCreate($"https://archive.org/details/{body}", UriKind.Absolute, out var ia) ? ia : null,
             ServiceKeys.Vimeo => Uri.TryCreate($"https://vimeo.com/{body}", UriKind.Absolute, out var v) ? v : null,
+            ServiceKeys.BcVideo => Uri.TryCreate($"https://www.bitchute.com/video/{body}", UriKind.Absolute, out var bc) ? bc : null,
             ServiceKeys.Netflix => Uri.TryCreate($"https://www.netflix.com/title/{body}", UriKind.Absolute, out var n) ? n : null,
             _ => null
         };
@@ -321,6 +342,26 @@ public static class ServiceCatalog
         var candidate = parts[0] == "video" && parts.Length > 1 ? parts[1] : parts[0];
         return candidate.All(char.IsDigit) ? candidate : null;
     }
+
+    private static string? TryBcVideoId(Uri url)
+    {
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        if (!parts[0].Equals("video", StringComparison.OrdinalIgnoreCase) &&
+            !parts[0].Equals("embed", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return IsBcVideoId(parts[1]) ? parts[1] : null;
+    }
+
+    internal static bool IsBcVideoId(string part) =>
+        part.Length >= 6 && part.All(c => char.IsLetterOrDigit(c) || c is '-' or '_');
 
     private static string? TryTrimPrefixHostPath(
         string url,

@@ -15,7 +15,8 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     Func<Uri, bool> isSubmitUrl,
     Func<Uri, bool> canExtract,
     Func<Uri, Task<NonPodcastServiceItemMetaData>> extract,
-    Func<Uri, string, Task<NonPodcastServiceItemMetaData>>? extractFromHtml = null
+    Func<Uri, string, Task<NonPodcastServiceItemMetaData>>? extractFromHtml = null,
+    Func<Uri, Uri>? canonicalizeUrl = null
 ) : INonPodcastServiceAdapter
 {
     public NonPodcastService Service { get; } = service;
@@ -24,12 +25,21 @@ public class CatalogKeyedNonPodcastServiceAdapter(
 
     public bool CanExtract(Uri url) => canExtract(url);
 
-    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url) =>
-        episode => episode.Services != null && episode.Services[catalogKey].Url == url;
+    public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
+    {
+        var stored = CanonicalStoredUrl(url);
+        return episode => episode.Services != null && episode.Services[catalogKey].Url == stored;
+    }
 
-    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url) =>
-        episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, catalogKey) == url);
+    public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
+    {
+        var stored = CanonicalStoredUrl(url);
+        return episodes.FirstOrDefault(episode =>
+            EpisodeServicePresence.TryGetUrl(episode, catalogKey) == stored);
+    }
+
+    private Uri CanonicalStoredUrl(Uri url) =>
+        canonicalizeUrl?.Invoke(url) ?? ServiceCatalog.CanonicalUrlOrSelf(catalogKey, url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
 

@@ -12,6 +12,7 @@ public enum NonPodcastService
     Channel4,
     Fawesome,
     DisneyPlus,
+    BcVideo,
     DiscoveryPlus,
     ParamountPlus,
     HboMax,

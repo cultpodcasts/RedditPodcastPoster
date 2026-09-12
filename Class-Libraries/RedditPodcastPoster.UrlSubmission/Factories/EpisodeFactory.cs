@@ -116,7 +116,7 @@ public class EpisodeFactory(
                 EpisodeServicePresence.Upsert(
                     newEpisode,
                     catalogKey,
-                    nonPodcastUrl,
+                    ServiceCatalog.CanonicalUrlOrSelf(catalogKey, nonPodcastUrl),
                     categorisedItem.ResolvedNonPodcastServiceItem.Image);
             }
         }
@@ -133,14 +133,12 @@ public class EpisodeFactory(
             }
             else
             {
-                newEpisode.Ignored = length <
-                                     (categorisedItem.MatchingPodcast.MinimumDuration ??
-                                      _postingCriteria.MinimumDuration);
+                newEpisode.Ignored = IsShorterThanPostingMinimum(categorisedItem, length);
             }
         }
         else
         {
-            newEpisode.Ignored = length < _postingCriteria.MinimumDuration;
+            newEpisode.Ignored = IsShorterThanPostingMinimum(categorisedItem, length);
         }
 
         if (categorisedItem.MatchingPodcast != null && categorisedItem.MatchingPodcast.HasIgnoreAllEpisodes())
@@ -153,5 +151,17 @@ public class EpisodeFactory(
             categorisedItem.ResolvedSpotifyItem?.EpisodeId, categorisedItem.ResolvedAppleItem?.EpisodeId,
             categorisedItem.ResolvedYouTubeItem?.EpisodeId, newEpisode.Id);
         return newEpisode;
+    }
+
+    private bool IsShorterThanPostingMinimum(CategorisedItem categorisedItem, TimeSpan length)
+    {
+        if (categorisedItem.Authority == Service.Other &&
+            categorisedItem.ResolvedNonPodcastServiceItem?.Duration is null)
+        {
+            return false;
+        }
+
+        var minimum = categorisedItem.MatchingPodcast?.MinimumDuration ?? _postingCriteria.MinimumDuration;
+        return length < minimum;
     }
 }
