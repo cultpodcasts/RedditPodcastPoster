@@ -48,8 +48,8 @@ public class SearchIndexCosmosSqlTests
             ServiceKeys.Channel4,
             ServiceKeys.Fawesome,
             ServiceKeys.DisneyPlus,
-            ServiceKeys.DiscoveryPlus, // pragma: allowlist secret
-            ServiceKeys.BitChute // pragma: allowlist secret
+            ServiceKeys.BitChute, // pragma: allowlist secret
+            ServiceKeys.DiscoveryPlus // pragma: allowlist secret
         };
         streamingKeys.Should().BeEquivalentTo(
             ServiceCatalog.SearchEncodedKeys,

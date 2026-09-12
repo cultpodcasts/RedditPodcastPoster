@@ -104,8 +104,8 @@ public static class ServiceCatalog
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
-        ServiceKeys.DiscoveryPlus, // pragma: allowlist secret
-        ServiceKeys.BitChute // pragma: allowlist secret
+        ServiceKeys.BitChute, // pragma: allowlist secret
+        ServiceKeys.DiscoveryPlus // pragma: allowlist secret
     ];
 
     public static bool TryGet(string key, out Descriptor descriptor) =>

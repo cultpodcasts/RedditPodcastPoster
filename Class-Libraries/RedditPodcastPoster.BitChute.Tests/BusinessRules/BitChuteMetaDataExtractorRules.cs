@@ -46,9 +46,7 @@ public class BitChuteMetaDataExtractorRules // pragma: allowlist secret
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                $$"""
-                  {"title":"{{title}}","author_name":"{{author}}","thumbnail_url":"{{image}}","provider_name":"BitChute"} // pragma: allowlist secret
-                  """,
+                $$"""{"title":"{{title}}","author_name":"{{author}}","thumbnail_url":"{{image}}"}""",
                 Encoding.UTF8,
                 "application/json")
         };
