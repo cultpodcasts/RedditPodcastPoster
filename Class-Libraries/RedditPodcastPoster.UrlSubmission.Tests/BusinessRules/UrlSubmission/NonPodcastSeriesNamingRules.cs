@@ -147,7 +147,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var videoTitle = _fixture.CreateTitle();
         var author = _fixture.Create<string>();
-        var categorised = CreateItem(NonPod\u0063astService.BcVideo, videoTitle, author, showName: null);
+        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, author, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -169,7 +169,7 @@ public class NonPodcastSeriesNamingRules
         {
             NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
             NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
-            NonPod\u0063astService.BcVideo => $"https://www.\u0062itchute.com/video/{new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12]}/",
+            NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12]}/",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.&#69;pisodes.TestSupport\RedditPodcastPoster.&#69;pisodes.TestSupport.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BcVideo\RedditPodcastPoster.BcVideo.csproj" />
   </ItemGroup>
 

@@ -35,7 +35,7 @@ public static class ServiceCatalog
         new(ServiceKeys.Channel4, "Channel 4", "channel4", false, true, ["channel4.com", "all4.com"]),
         new(ServiceKeys.Fawesome, "Fawesome", "fawesome", false, true, ["fawesome.tv"]),
         new(ServiceKeys.DisneyPlus, "Disney+", "disney-plus", false, true, ["disneyplus.com"]),
-        new(ServiceKeys.BcVideo, "\u0042itChute", "\u0062itchute", false, true, ["\u0062itchute.com"]),
+        new(ServiceKeys.BcVideo, "BitChute", "bitchute", false, true, ["bitchute.com"]),
         new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"])
     ];
 
@@ -226,7 +226,7 @@ public static class ServiceCatalog
             return ServiceKeys.DisneyPlus;
         }
 
-        if (IsHost(host, "\u0062itchute.com"))
+        if (IsHost(host, "bitchute.com"))
         {
             return ServiceKeys.BcVideo;
         }
@@ -302,7 +302,7 @@ public static class ServiceCatalog
             ServiceKeys.BbcIplayer => Uri.TryCreate($"https://www.bbc.co.uk/iplayer/episode/{body}", UriKind.Absolute, out var bi) ? bi : null,
             ServiceKeys.InternetArchive => Uri.TryCreate($"https://archive.org/details/{body}", UriKind.Absolute, out var ia) ? ia : null,
             ServiceKeys.Vimeo => Uri.TryCreate($"https://vimeo.com/{body}", UriKind.Absolute, out var v) ? v : null,
-            ServiceKeys.BcVideo => Uri.TryCreate($"https://www.\u0062itchute.com/video/{body}", UriKind.Absolute, out var bc) ? bc : null,
+            ServiceKeys.BcVideo => Uri.TryCreate($"https://www.bitchute.com/video/{body}", UriKind.Absolute, out var bc) ? bc : null,
             ServiceKeys.Netflix => Uri.TryCreate($"https://www.netflix.com/title/{body}", UriKind.Absolute, out var n) ? n : null,
             _ => null
         };

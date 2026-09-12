@@ -201,7 +201,7 @@ public static class StreamingScraperCanonicalCases
 
         // BcVideo — oEmbed author/channel
         Case(StreamingScraperProvider.BcVideo, "move-confrontation-1978",
-            "https://www.\u0062itchute.com/video/32qXfqGEf4Qx/", "NurLogic",
+            "https://www.bitchute.com/video/32qXfqGEf4Qx/", "NurLogic",
             "Open video via oEmbed author"),
 
         // ITVX — brand watch pages (often geo-walled outside the UK)

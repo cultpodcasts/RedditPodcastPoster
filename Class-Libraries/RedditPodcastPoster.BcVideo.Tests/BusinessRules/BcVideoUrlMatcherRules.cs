@@ -1,6 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.BcVideo.Matching;
-using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
 namespace RedditPodcastPoster.BcVideo.Tests.BusinessRules;
 
@@ -14,7 +14,7 @@ public class BcVideoUrlMatcherRules
         return (raw + "aaaaaaaaaaaa")[..12];
     }
 
-    private static string Host => "\u0062itchute.com";
+    private static string Host => "bitchute.com";
 
     [Fact(DisplayName =
         "A BcVideo /video/{id} URL is a submit URL, so a pasted watch link can be ingested.")]

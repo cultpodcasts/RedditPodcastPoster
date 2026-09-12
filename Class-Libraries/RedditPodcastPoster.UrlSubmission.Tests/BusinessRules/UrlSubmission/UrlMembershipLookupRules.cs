@@ -276,7 +276,7 @@ public class UrlMembershipLookupRules
     {
         // Arrange
         var id = new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12];
-        var url = new Uri($"https://www.\u0062itchute.com/video/{id}/");
+        var url = new Uri($"https://www.bitchute.com/video/{id}/");
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
         // Act
@@ -288,7 +288,7 @@ public class UrlMembershipLookupRules
         result.Service.Should().Be(ServiceKeys.BcVideo);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
-        _\u0065pisodes.Saved\u0045pisodes.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

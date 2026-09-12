@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RedditPodcastPoster.Pod&#99;astServices.Abstractions\RedditPodcastPoster.Pod&#99;astServices.Abstractions.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,33 +1,33 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Pod\u0063astServices.Abstractions.Exceptions;
-using RedditPodcastPoster.Pod\u0063astServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.BcVideo.Extractors;
 
 public interface IBcVideoMetaDataExtractor
 {
-    Task<NonPod\u0063astServiceItemMetaData> GetMetaData(Uri url);
+    Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url);
 }
 
 public class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFactory) : IBcVideoMetaDataExtractor
 {
-    public async Task<NonPod\u0063astServiceItemMetaData> GetMetaData(Uri url)
+    public async Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url)
     {
         var oEmbedUrl = new Uri(
-            $"https://api.\u0062itchute.com/oembed/?url={Uri.EscapeDataString(url.ToString())}&format=json");
+            $"https://api.bitchute.com/oembed/?url={Uri.EscapeDataString(url.ToString())}&format=json");
         var client = httpClientFactory.CreateClient(nameof(BcVideoMetaDataExtractor));
         using var response = await client.GetAsync(oEmbedUrl);
         if (!response.IsSuccessStatusCode)
         {
-            throw new NonPod\u0063astServiceMetaDataExtractionException(url, response.StatusCode);
+            throw new NonPodcastServiceMetaDataExtractionException(url, response.StatusCode);
         }
 
         var payload = await response.Content.ReadFromJsonAsync<BcVideoOEmbedResponse>()
-                      ?? throw new NonPod\u0063astServiceMetaDataExtractionException(url, "Empty BcVideo oEmbed payload.");
+                      ?? throw new NonPodcastServiceMetaDataExtractionException(url, "Empty BcVideo oEmbed payload.");
         if (string.IsNullOrWhiteSpace(payload.Title))
         {
-            throw new NonPod\u0063astServiceMetaDataExtractionException(url, "BcVideo oEmbed did not include a title.");
+            throw new NonPodcastServiceMetaDataExtractionException(url, "BcVideo oEmbed did not include a title.");
         }
 
         Uri? image = null;
@@ -37,7 +37,7 @@ public class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFactory) : IB
             image = thumbnail;
         }
 
-        return new NonPod\u0063astServiceItemMetaData(
+        return new NonPodcastServiceItemMetaData(
             payload.Title,
             payload.Description ?? string.Empty,
             Image: image,

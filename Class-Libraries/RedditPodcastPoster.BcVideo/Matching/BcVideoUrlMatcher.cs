@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Models.Pod\u0063asts;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.BcVideo.Matching;
 
@@ -6,7 +6,7 @@ public static class BcVideoUrlMatcher
 {
     public static bool IsSubmitUrl(Uri url)
     {
-        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "\u0062itchute.com"))
+        if (!ServiceCatalog.IsHost(ServiceCatalog.CanonicalHost(url), "bitchute.com"))
         {
             return false;
         }

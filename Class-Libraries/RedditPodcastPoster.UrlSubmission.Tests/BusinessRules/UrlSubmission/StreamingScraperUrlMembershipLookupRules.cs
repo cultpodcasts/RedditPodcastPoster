@@ -139,7 +139,7 @@ public class StreamingScraperUrlMembershipLookupRules
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
-        _\u0065pisodes.Saved\u0045pisodes.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [LiveStreamingTheory(DisplayName =

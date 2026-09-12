@@ -41,6 +41,6 @@ public static class NonPodcastShowNameResolver
         ?? item.Title
         ?? string.Empty;
 
-    private static bool UsesAuthorAsSeries(NonPod\u0063astService service) =>
-        service is NonPod\u0063astService.Vimeo or NonPod\u0063astService.BcVideo;
+    private static bool UsesAuthorAsSeries(NonPodcastService service) =>
+        service is NonPodcastService.Vimeo or NonPodcastService.BcVideo;
 }

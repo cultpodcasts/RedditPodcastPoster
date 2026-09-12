@@ -6,10 +6,10 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.BcVideo.Extractors;
-using RedditPodcastPoster.\u0045pisodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Pod\u0063asts;
-using RedditPodcastPoster.Pod\u0063astServices.Abstractions.Categorisers;
-using RedditPodcastPoster.Pod\u0063astServices.Abstractions.Exceptions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 
 namespace RedditPodcastPoster.BcVideo.Tests.BusinessRules;
 
@@ -32,7 +32,7 @@ public class BcVideoMetaDataExtractorRules
         return (raw + "aaaaaaaaaaaa")[..12];
     }
 
-    private static string Host => "\u0062itchute.com";
+    private static string Host => "bitchute.com";
 
     [Fact(DisplayName =
         "BcVideo extract reads title, thumbnail, and author from oEmbed JSON, " +
@@ -62,7 +62,7 @@ public class BcVideoMetaDataExtractorRules
         meta.Image.Should().Be(image);
         meta.ShowName.Should().BeNull();
         _handler.LastRequestUri.Should().NotBeNull();
-        _handler.LastRequestUri!.Host.Should().Be("api.\u0062itchute.com");
+        _handler.LastRequestUri!.Host.Should().Be("api.bitchute.com");
         _handler.LastRequestUri.AbsolutePath.Should().Be("/oembed/");
     }
 
@@ -82,7 +82,7 @@ public class BcVideoMetaDataExtractorRules
         var act = async () => await sut.GetMetaData(url);
 
         // Assert
-        await act.Should().ThrowAsync<NonPod\u0063astServiceMetaDataExtractionException>();
+        await act.Should().ThrowAsync<NonPodcastServiceMetaDataExtractionException>();
     }
 
     [Fact(DisplayName =
@@ -96,11 +96,11 @@ public class BcVideoMetaDataExtractorRules
         var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
 
         // Act
-        var adapter = provider.GetServices<INonPod\u0063astServiceAdapter>()
+        var adapter = provider.GetServices<INonPodcastServiceAdapter>()
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPod\u0063astService.BcVideo);
+        adapter.Service.Should().Be(NonPodcastService.BcVideo);
         adapter.CanExtract(url).Should().BeTrue();
     }
 

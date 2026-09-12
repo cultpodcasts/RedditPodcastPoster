@@ -55,15 +55,15 @@ public class SearchEpisodeServicesTests
     public void Compacts_bc_video_watch_url_to_id()
     {
         // Arrange
-        var host = "\u0062itchute";
-        var services = new Dictionary<string, \u0045pisodeServiceLink>
+        var host = "bitchute";
+        var services = new Dictionary<string, EpisodeServiceLink>
         {
             [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/32qXfqGEf4Qx") }
         };
 
         // Act
-        var compact = Search\u0045pisodeServices.Compact(services);
-        var expanded = Search\u0045pisodeServices.Expand(compact);
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
 
         // Assert
         compact.Should().Be($"{host}:32qXfqGEf4Qx");
