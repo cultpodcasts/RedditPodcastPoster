@@ -27,16 +27,19 @@ public class CatalogKeyedNonPodcastServiceAdapter(
 
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
-        var stored = canonicalizeUrl?.Invoke(url) ?? url;
+        var stored = CanonicalStoredUrl(url);
         return episode => episode.Services != null && episode.Services[catalogKey].Url == stored;
     }
 
     public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
     {
-        var stored = canonicalizeUrl?.Invoke(url) ?? url;
+        var stored = CanonicalStoredUrl(url);
         return episodes.FirstOrDefault(episode =>
             EpisodeServicePresence.TryGetUrl(episode, catalogKey) == stored);
     }
+
+    private Uri CanonicalStoredUrl(Uri url) =>
+        canonicalizeUrl?.Invoke(url) ?? ServiceCatalog.CanonicalUrlOrSelf(catalogKey, url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
 

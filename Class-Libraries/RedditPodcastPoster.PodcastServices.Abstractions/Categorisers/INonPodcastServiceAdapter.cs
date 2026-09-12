@@ -29,8 +29,8 @@ public interface INonPodcastServiceAdapter
     Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url);
 
     /// <summary>
-    /// Extract metadata from already-fetched HTML (Worker Browser Rendering / prepare extract).
-    /// Services without a registered HTML path throw <see cref="NotSupportedException"/>.
+    /// Extract metadata from already-fetched HTML or trusted JSON (Worker Browser Rendering / prepare extract).
+    /// Services without a registered HTML/JSON path throw <see cref="NotSupportedException"/>.
     /// </summary>
     Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url, string html);
 }

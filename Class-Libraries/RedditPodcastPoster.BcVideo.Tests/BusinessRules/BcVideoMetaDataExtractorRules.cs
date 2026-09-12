@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.BcVideo.Extensions;
@@ -122,6 +124,27 @@ public class BcVideoMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "BcVideo extract parses a clock duration whose minutes exceed 59 as total minutes rather than throwing, " +
+        "because a malformed API clock must not 502 prepare.")]
+    public async Task clock_duration_with_overflow_minutes_is_parsed()
+    {
+        // Arrange
+        var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        _handler.Response = JsonResponse(new
+        {
+            video_name = _fixture.CreateTitle(),
+            duration = "90:00"
+        });
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Duration.Should().Be(TimeSpan.FromMinutes(90));
+    }
+
+    [Fact(DisplayName =
         "When the video JSON API is forbidden, BcVideo extract falls back to oEmbed title/author plus watch-page description, " +
         "because a UK Azure outbound often cannot POST the video API even when oEmbed GET still works.")]
     public async Task video_api_forbidden_falls_back_to_oembed_and_watch_html()
@@ -167,8 +190,47 @@ public class BcVideoMetaDataExtractorRules
         meta.Release.Should().BeNull();
         _handler.Requests.Should().HaveCount(3);
         _handler.Requests[0].Uri!.AbsolutePath.Should().Be("/api/beta/video");
-        _handler.Requests[1].Uri!.AbsolutePath.Should().Be("/oembed/");
-        _handler.Requests[2].Uri!.Host.Should().Be($"www.{Host}");
+        _handler.Requests.Should().Contain(request => request.Uri!.AbsolutePath == "/oembed/");
+        _handler.Requests.Should().Contain(request => request.Uri!.Host == $"www.{Host}");
+        ShouldHaveLogged(LogLevel.Warning, "BcVideo video-api non-success");
+        ShouldHaveLogged(LogLevel.Information, "BcVideo extract fell back to oEmbed/HTML");
+    }
+
+    [Fact(DisplayName =
+        "When the video JSON API POST is canceled or times out, BcVideo extract still merges oEmbed title/author plus watch-page description, " +
+        "because a hung UK Azure POST must fail over rather than wait out the full client timeout.")]
+    public async Task video_api_timeout_falls_back_to_oembed_and_watch_html()
+    {
+        // Arrange
+        var id = VideoId();
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var author = _fixture.Create<string>();
+        var url = new Uri($"https://www.{Host}/video/{id}/");
+        _handler.ThrowOnVideoApi = new TaskCanceledException();
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Get &&
+            request.RequestUri!.AbsolutePath == "/oembed/"
+                ? JsonResponse(new { title, author_name = author })
+                : null);
+        _handler.Routes.Add(request =>
+            request.Method == HttpMethod.Get &&
+            request.RequestUri!.Host == $"www.{Host}"
+                ? HtmlResponse(title, description)
+                : null);
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Publisher.Should().Be(author);
+        meta.Duration.Should().BeNull();
+        meta.Release.Should().BeNull();
+        ShouldHaveLogged(LogLevel.Warning, "BcVideo video-api request failed");
+        ShouldHaveLogged(LogLevel.Information, "BcVideo extract fell back to oEmbed/HTML");
     }
 
     [Fact(DisplayName =
@@ -237,6 +299,28 @@ public class BcVideoMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "BcVideo extract reads a posted oEmbed JSON body without calling the host, " +
+        "so a Worker-prefetched oEmbed payload still yields title and author.")]
+    public async Task extract_from_html_parses_oembed_json()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var author = _fixture.Create<string>();
+        var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
+        var html = JsonSerializer.Serialize(new { title, author_name = author });
+        var sut = _mocker.CreateInstance<BcVideoMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be(author);
+        meta.Duration.Should().BeNull();
+        _handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "BcVideo HTML extract reads og:title and description from a watch-page shell, " +
         "because the SPA HTML has those meta tags even when duration and release are absent.")]
     public async Task extract_from_html_parses_watch_page_og_tags()
@@ -281,6 +365,7 @@ public class BcVideoMetaDataExtractorRules
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddSingleton<ILogger<BcVideoMetaDataExtractor>>(NullLogger<BcVideoMetaDataExtractor>.Instance);
         services.AddBcVideoServices();
         using var provider = services.BuildServiceProvider();
         var url = new Uri($"https://www.{Host}/video/{VideoId()}/");
@@ -328,9 +413,23 @@ public class BcVideoMetaDataExtractorRules
             ? $"{(int)duration.TotalHours}:{duration.Minutes:D2}:{duration.Seconds:D2}"
             : $"{duration.Minutes}:{duration.Seconds:D2}";
 
+    private void ShouldHaveLogged(LogLevel level, string fragment)
+    {
+        _mocker.GetMock<ILogger<BcVideoMetaDataExtractor>>().Verify(
+            x => x.Log(
+                level,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(fragment)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
+        private readonly object _gate = new();
         public HttpResponseMessage? Response { get; set; }
+        public Exception? ThrowOnVideoApi { get; set; }
         public List<Func<HttpRequestMessage, HttpResponseMessage?>> Routes { get; } = [];
         public List<(HttpMethod Method, Uri? Uri, string Body)> Requests { get; } = [];
         public Uri? LastRequestUri { get; private set; }
@@ -341,13 +440,23 @@ public class BcVideoMetaDataExtractorRules
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            LastRequestUri = request.RequestUri;
-            LastRequestMethod = request.Method;
             var body = request.Content == null
                 ? string.Empty
                 : await request.Content.ReadAsStringAsync(cancellationToken);
-            LastRequestBody = body;
-            Requests.Add((request.Method, request.RequestUri, body));
+            lock (_gate)
+            {
+                LastRequestUri = request.RequestUri;
+                LastRequestMethod = request.Method;
+                LastRequestBody = body;
+                Requests.Add((request.Method, request.RequestUri, body));
+            }
+
+            if (ThrowOnVideoApi != null &&
+                request.Method == HttpMethod.Post &&
+                request.RequestUri!.AbsolutePath == "/api/beta/video")
+            {
+                throw ThrowOnVideoApi;
+            }
 
             foreach (var route in Routes)
             {

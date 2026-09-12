@@ -270,6 +270,33 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
+        "When a stored Vimeo URL is https://vimeo.com/{id} and the pasted URL is /video/{id}, " +
+        "URL membership lookup returns that podcast as known, because both forms are the same video.")]
+    public async Task stored_compact_vimeo_url_matches_video_prefix_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var storedUrl = new Uri($"https://vimeo.com/{id}");
+        var pasted = new Uri($"https://vimeo.com/video/{id}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Vimeo, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Vimeo);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When an unknown BcVideo URL is classified, URL membership lookup returns service without podcastName " +
         "because membership does not scrape the BcVideo author.")]
     public async Task unknown_bc_video_leaves_podcast_name_null()

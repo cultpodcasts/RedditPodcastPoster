@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -16,9 +17,16 @@ public interface IBcVideoMetaDataExtractor
     Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url, string html);
 }
 
-public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFactory) : IBcVideoMetaDataExtractor
+public partial class BcVideoMetaDataExtractor(
+    IHttpClientFactory httpClientFactory,
+    ILogger<BcVideoMetaDataExtractor> logger) : IBcVideoMetaDataExtractor
 {
     private static readonly Uri VideoApi = new("https://api.bitchute.com/api/beta/video");
+    private static readonly TimeSpan VideoApiRequestTimeout = TimeSpan.FromSeconds(3);
+    private static readonly JsonSerializerOptions ExtractJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public async Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url)
     {
@@ -31,9 +39,10 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
         }
 
         var canonical = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BcVideo, url);
-        var oEmbed = await TryOEmbedAsync(client, canonical);
-        var html = await TryWatchHtmlAsync(client, canonical);
-        var merged = Merge(oEmbed, html);
+        var oEmbedTask = TryOEmbedAsync(client, canonical);
+        var htmlTask = TryWatchHtmlAsync(client, canonical);
+        await Task.WhenAll(oEmbedTask, htmlTask);
+        var merged = Merge(await oEmbedTask, await htmlTask);
         if (merged == null || string.IsNullOrWhiteSpace(merged.Title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -41,13 +50,17 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
                 "BcVideo extract could not obtain a title.");
         }
 
+        logger.LogInformation(
+            "BcVideo extract fell back to oEmbed/HTML with title; duration-missing {DurationMissing} release-missing {ReleaseMissing}.",
+            merged.Duration is null,
+            merged.Release is null);
         return merged;
     }
 
     public Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url, string html)
     {
         RequireVideoId(url);
-        var fromJson = TryParseVideoApiJson(html);
+        var fromJson = TryParseExtractJson(html);
         if (fromJson != null)
         {
             return Task.FromResult(fromJson);
@@ -77,7 +90,7 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
         return videoId;
     }
 
-    private static async Task<NonPodcastServiceItemMetaData?> TryVideoApiAsync(
+    private async Task<NonPodcastServiceItemMetaData?> TryVideoApiAsync(
         HttpClient client,
         Uri url,
         string videoId)
@@ -90,17 +103,27 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
             };
             request.Headers.TryAddWithoutValidation("Accept", "application/json");
             request.Headers.Referrer = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BcVideo, url);
-            using var response = await client.SendAsync(request);
+            using var timeout = new CancellationTokenSource(VideoApiRequestTimeout);
+            using var response = await client.SendAsync(request, timeout.Token);
             if (!response.IsSuccessStatusCode)
             {
+                logger.LogWarning(
+                    "BcVideo video-api non-success: status {StatusCode} url {Url} video-id {VideoId}.",
+                    (int)response.StatusCode,
+                    url,
+                    videoId);
                 return null;
             }
 
-            var payload = await response.Content.ReadFromJsonAsync<BcVideoApiResponse>();
+            var payload = await response.Content.ReadFromJsonAsync<BcVideoApiResponse>(ExtractJsonOptions);
             return MapIfTitled(payload);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
+            logger.LogWarning(
+                ex,
+                "BcVideo video-api request failed for video-id {VideoId}.",
+                videoId);
             return null;
         }
     }
@@ -119,24 +142,8 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
                 return null;
             }
 
-            var payload = await response.Content.ReadFromJsonAsync<BcVideoOEmbedResponse>();
-            if (payload == null || string.IsNullOrWhiteSpace(payload.Title))
-            {
-                return null;
-            }
-
-            Uri? image = null;
-            if (!string.IsNullOrWhiteSpace(payload.ThumbnailUrl) &&
-                Uri.TryCreate(payload.ThumbnailUrl, UriKind.Absolute, out var thumbnail))
-            {
-                image = thumbnail;
-            }
-
-            return new NonPodcastServiceItemMetaData(
-                payload.Title,
-                payload.Description ?? string.Empty,
-                Image: image,
-                Publisher: payload.AuthorName);
+            var payload = await response.Content.ReadFromJsonAsync<BcVideoOEmbedResponse>(ExtractJsonOptions);
+            return MapOEmbed(payload);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -163,7 +170,7 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
         }
     }
 
-    private static NonPodcastServiceItemMetaData? TryParseVideoApiJson(string html)
+    private static NonPodcastServiceItemMetaData? TryParseExtractJson(string html)
     {
         var trimmed = html.TrimStart();
         if (trimmed.Length == 0 || trimmed[0] != '{')
@@ -173,7 +180,13 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
 
         try
         {
-            return MapIfTitled(JsonSerializer.Deserialize<BcVideoApiResponse>(html));
+            var fromApi = MapIfTitled(JsonSerializer.Deserialize<BcVideoApiResponse>(html, ExtractJsonOptions));
+            if (fromApi != null)
+            {
+                return fromApi;
+            }
+
+            return MapOEmbed(JsonSerializer.Deserialize<BcVideoOEmbedResponse>(html, ExtractJsonOptions));
         }
         catch (JsonException)
         {
@@ -213,6 +226,27 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
             release,
             image,
             Publisher: payload.Channel?.ChannelName);
+    }
+
+    private static NonPodcastServiceItemMetaData? MapOEmbed(BcVideoOEmbedResponse? payload)
+    {
+        if (payload == null || string.IsNullOrWhiteSpace(payload.Title))
+        {
+            return null;
+        }
+
+        Uri? image = null;
+        if (!string.IsNullOrWhiteSpace(payload.ThumbnailUrl) &&
+            Uri.TryCreate(payload.ThumbnailUrl, UriKind.Absolute, out var thumbnail))
+        {
+            image = thumbnail;
+        }
+
+        return new NonPodcastServiceItemMetaData(
+            payload.Title,
+            payload.Description ?? string.Empty,
+            Image: image,
+            Publisher: payload.AuthorName);
     }
 
     private static NonPodcastServiceItemMetaData? ParseWatchHtml(string html)
@@ -342,8 +376,8 @@ public partial class BcVideoMetaDataExtractor(IHttpClientFactory httpClientFacto
         return parts.Length switch
         {
             1 => TimeSpan.FromSeconds(values[0]),
-            2 => new TimeSpan(0, values[0], values[1]),
-            3 => new TimeSpan(values[0], values[1], values[2]),
+            2 => TimeSpan.FromMinutes(values[0]) + TimeSpan.FromSeconds(values[1]),
+            3 => TimeSpan.FromHours(values[0]) + TimeSpan.FromMinutes(values[1]) + TimeSpan.FromSeconds(values[2]),
             _ => null
         };
     }
