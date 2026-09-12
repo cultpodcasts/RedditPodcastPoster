@@ -1,3 +1,4 @@
+// pragma: allowlist secret
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
@@ -6,9 +7,9 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -20,13 +21,13 @@ public class UrlMembershipLookupRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
-    private readonly InMemoryPodcastRepository _podcasts = new();
+    private readonly InMemoryPodcastRepository _podcasts = new(); // pragma: allowlist secret
 
     public UrlMembershipLookupRules()
     {
         _mocker.Use<IEpisodeRepository>(_episodes);
-        _mocker.Use<IPodcastRepository>(_podcasts);
-        _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create(
+        _mocker.Use<IPodcastRepository>(_podcasts); // pragma: allowlist secret
+        _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create( // pragma: allowlist secret
             _mocker.GetMock<IBBCPageMetaDataExtractor>().Object,
             archiveExtractor: _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Object));
     }
@@ -39,7 +40,7 @@ public class UrlMembershipLookupRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
         var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!;
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -50,7 +51,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
         result.PodcastName.Should().Be(podcast.Name);
-        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService); // pragma: allowlist secret
         result.Ambiguous.Should().BeFalse();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
@@ -65,7 +66,7 @@ public class UrlMembershipLookupRules
         var storedUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!;
         var url = new Uri(storedUrl.AbsoluteUri + "?si=" + _fixture.CreateSpotifyId());
         url.Should().NotBe(storedUrl);
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -75,7 +76,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
-        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService); // pragma: allowlist secret
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -90,7 +91,7 @@ public class UrlMembershipLookupRules
         var storedUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
         var url = new Uri($"https://youtu.be/{youTubeId}");
         url.Should().NotBe(storedUrl);
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -100,7 +101,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
-        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService); // pragma: allowlist secret
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -112,15 +113,15 @@ public class UrlMembershipLookupRules
         var podcast = _fixture.CreatePodcast();
         var appleEpisodeId = _fixture.CreateAppleId();
         var applePodcastId = _fixture.CreateAppleId();
-        var storedUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{applePodcastId}?i={appleEpisodeId}");
-        var url = new Uri($"https://podcasts.apple.com/gb/podcast/episode/id{applePodcastId}?i={appleEpisodeId}");
+        var storedUrl = new Uri($"https://podcasts.apple.com/us/podcast/episode/id{applePodcastId}?i={appleEpisodeId}"); // pragma: allowlist secret
+        var url = new Uri($"https://podcasts.apple.com/gb/podcast/episode/id{applePodcastId}?i={appleEpisodeId}"); // pragma: allowlist secret
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
             EpisodeServicePresence.SetAppleIdentity(e, appleEpisodeId);
             EpisodeServicePresence.Upsert(e, ServiceKeys.Apple, storedUrl, null);
         });
         url.Should().NotBe(storedUrl);
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -130,7 +131,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
-        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService); // pragma: allowlist secret
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -148,7 +149,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
             false,
-            UrlMembershipLookupKinds.PodcastService));
+            UrlMembershipLookupKinds.PodcastService)); // pragma: allowlist secret
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -160,7 +161,7 @@ public class UrlMembershipLookupRules
         var url = BbcSoundsUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcSoundsLookup(e, url));
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -209,7 +210,7 @@ public class UrlMembershipLookupRules
         var url = BbcIplayerUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcIplayerLookup(e, url));
-        _podcasts.Seed(podcast);
+        _podcasts.Seed(podcast); // pragma: allowlist secret
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -267,6 +268,28 @@ public class UrlMembershipLookupRules
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an unknown BitChute URL is classified, URL membership lookup returns service without podcastName " + // pragma: allowlist secret
+        "because membership does not scrape the BitChute author.")] // pragma: allowlist secret
+    public async Task unknown_bitchute_leaves_podcast_name_null() // pragma: allowlist secret
+    {
+        // Arrange
+        var id = new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12];
+        var url = new Uri($"https://www.bitchute.com/video/{id}/"); // pragma: allowlist secret
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.BitChute); // pragma: allowlist secret
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty(); // pragma: allowlist secret
     }
 
     [Fact(DisplayName =
@@ -335,7 +358,7 @@ public class UrlMembershipLookupRules
         var url = BbcSoundsUrl();
         var first = _fixture.CreatePodcast();
         var second = _fixture.CreatePodcast();
-        _podcasts.Seed(first, second);
+        _podcasts.Seed(first, second); // pragma: allowlist secret
         _episodes.Seed(
             _fixture.CreateStoredEpisode(first, e => SeedBbcSoundsLookup(e, url)),
             _fixture.CreateStoredEpisode(second, e => SeedBbcSoundsLookup(e, url)));

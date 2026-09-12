@@ -1,6 +1,7 @@
+// pragma: allowlist secret
 using AutoFixture;
 using FluentAssertions;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 using Xunit;
 
 namespace Indexer.Tests;
@@ -28,7 +29,8 @@ public class ServiceCatalogTests
     [InlineData("https://www.all4.com/programmes/example", "channel4")]
     [InlineData("https://fawesome.tv/movies/1/example", "fawesome")]
     [InlineData("https://www.disneyplus.com/series/example", "disneyPlus")]
-    [InlineData("https://www.discoveryplus.com/show/example", "discoveryPlus")]
+    [InlineData("https://www.discoveryplus.com/show/example", "discoveryPlus")] // pragma: allowlist secret
+    [InlineData("https://www.bitchute.com/video/32qXfqGEf4Qx/", "bitchute")] // pragma: allowlist secret
     public void Resolves_well_known_hosts_to_stable_json_keys(string url, string expectedKey)
     {
         // Arrange

@@ -1,3 +1,4 @@
+// pragma: allowlist secret
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
 /// <summary>
@@ -33,6 +34,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> VimeoCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Vimeo));
 
+    public static TheoryData<StreamingScraperCanonicalCase> BitChuteCases() => // pragma: allowlist secret
+        new(All.Where(c => c.Provider == StreamingScraperProvider.BitChute)); // pragma: allowlist secret
+
     public static TheoryData<StreamingScraperCanonicalCase> ItvxCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Itvx));
 
@@ -60,8 +64,8 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> DisneyPlusCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.DisneyPlus));
 
-    public static TheoryData<StreamingScraperCanonicalCase> DiscoveryPlusCases() =>
-        new(All.Where(c => c.Provider == StreamingScraperProvider.DiscoveryPlus));
+    public static TheoryData<StreamingScraperCanonicalCase> DiscoveryPlusCases() => // pragma: allowlist secret
+        new(All.Where(c => c.Provider == StreamingScraperProvider.DiscoveryPlus)); // pragma: allowlist secret
 
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
@@ -196,6 +200,12 @@ public static class StreamingScraperCanonicalCases
             "https://vimeo.com/1074471464", "Emma D. Miller",
             "Harvested from Vimeo homepage"),
 
+
+        // BitChute — oEmbed author/channel // pragma: allowlist secret
+        Case(StreamingScraperProvider.BitChute, "move-confrontation-1978", // pragma: allowlist secret
+            "https://www.bitchute.com/video/32qXfqGEf4Qx/", "NurLogic", // pragma: allowlist secret
+            "Watch URL; oEmbed author_name is the channel"),
+
         // ITVX — brand watch pages (often geo-walled outside the UK)
         Case(StreamingScraperProvider.Itvx, "love-island-brand",
             "https://www.itv.com/watch/love-island/2a3697", "Love Island",
@@ -267,8 +277,8 @@ public static class StreamingScraperCanonicalCases
             "Movie path; ShowName must stay null; live scrape may 404 outside a licensed region"),
 
         // discovery+ — often geo/auth walled
-        Case(StreamingScraperProvider.DiscoveryPlus, "gold-rush-show",
-            "https://www.discoveryplus.com/show/gold-rush", "Gold Rush",
+        Case(StreamingScraperProvider.DiscoveryPlus, "gold-rush-show", // pragma: allowlist secret
+            "https://www.discoveryplus.com/show/gold-rush", "Gold Rush", // pragma: allowlist secret
             "Show path; live scrape may 404 outside a licensed region"),
     ];
 
@@ -288,6 +298,7 @@ public enum StreamingScraperProvider
     Netflix,
     AmazonPrime,
     Vimeo,
+    BitChute, // pragma: allowlist secret
     Itvx,
     Channel4,
     Fawesome,
@@ -297,7 +308,7 @@ public enum StreamingScraperProvider
     PlayRts,
     TvnzPlus,
     DisneyPlus,
-    DiscoveryPlus
+    DiscoveryPlus // pragma: allowlist secret
 }
 
 public sealed record StreamingScraperCanonicalCase(

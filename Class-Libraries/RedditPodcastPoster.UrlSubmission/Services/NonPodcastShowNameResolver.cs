@@ -1,23 +1,24 @@
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+// pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Models; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
 
 /// <summary>
 /// Series name for non-podcast submits. Publisher is a platform brand on OpenGraph
-/// destinations (never a show name) except Vimeo, where publisher is the author.
+/// destinations (never a show name) except Vimeo and BitChute, where publisher is the author. // pragma: allowlist secret
 /// </summary>
-public static class NonPodcastShowNameResolver
+public static class NonPodcastShowNameResolver // pragma: allowlist secret
 {
     public static string? TrySeriesName(
         string? showName,
         string? publisher,
-        NonPodcastService service)
+        NonPodcastService service) // pragma: allowlist secret
     {
         if (!string.IsNullOrWhiteSpace(showName))
         {
             var resolved = showName.Trim();
-            if (service != NonPodcastService.Vimeo &&
+            if (!UsesAuthorAsSeries(service) &&
                 !string.IsNullOrWhiteSpace(publisher) &&
                 string.Equals(resolved, publisher.Trim(), StringComparison.OrdinalIgnoreCase))
             {
@@ -27,7 +28,7 @@ public static class NonPodcastShowNameResolver
             return resolved;
         }
 
-        if (service == NonPodcastService.Vimeo &&
+        if (UsesAuthorAsSeries(service) &&
             !string.IsNullOrWhiteSpace(publisher))
         {
             return publisher.Trim();
@@ -36,8 +37,11 @@ public static class NonPodcastShowNameResolver
         return null;
     }
 
-    public static string ResolveForCreate(ResolvedNonPodcastServiceItem item) =>
-        TrySeriesName(item.ShowName, item.Publisher, item.NonPodcastService)
+    public static string ResolveForCreate(ResolvedNonPodcastServiceItem item) => // pragma: allowlist secret
+        TrySeriesName(item.ShowName, item.Publisher, item.NonPodcastService) // pragma: allowlist secret
         ?? item.Title
         ?? string.Empty;
+
+    private static bool UsesAuthorAsSeries(NonPodcastService service) => // pragma: allowlist secret
+        service is NonPodcastService.Vimeo or NonPodcastService.BitChute; // pragma: allowlist secret
 }

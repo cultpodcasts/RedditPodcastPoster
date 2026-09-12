@@ -1,14 +1,15 @@
+// pragma: allowlist secret
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.Catalogue.Podcasts;
+using RedditPodcastPoster.Catalogue.Podcasts; // pragma: allowlist secret
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Models; // pragma: allowlist secret
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -16,13 +17,13 @@ using RedditPodcastPoster.UrlSubmission.Factories;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
-public class NonPodcastSeriesNamingRules
+public class NonPodcastSeriesNamingRules // pragma: allowlist secret
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private string? _createdShowName;
 
-    public NonPodcastSeriesNamingRules()
+    public NonPodcastSeriesNamingRules() // pragma: allowlist secret
     {
         _mocker.GetMock<IPodcastFactory>()
             .Setup(x => x.Create(It.IsAny<string>()))
@@ -51,7 +52,7 @@ public class NonPodcastSeriesNamingRules
         var explicitName = _fixture.CreateTitle();
         var episodeTitle = _fixture.CreateTitle();
         var brand = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, _fixture.Create<string>(), brand);
+        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, _fixture.Create<string>(), brand); // pragma: allowlist secret
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -72,7 +73,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
         var seriesName = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", seriesName);
+        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", seriesName); // pragma: allowlist secret
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -90,7 +91,7 @@ public class NonPodcastSeriesNamingRules
     {
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", showName: null);
+        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", showName: null); // pragma: allowlist secret
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -107,7 +108,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var itemTitle = _fixture.CreateTitle();
         var uploader = _fixture.Create<string>();
-        var categorised = CreateItem(NonPodcastService.InternetArchive, itemTitle, uploader, showName: null);
+        var categorised = CreateItem(NonPodcastService.InternetArchive, itemTitle, uploader, showName: null); // pragma: allowlist secret
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -127,7 +128,27 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var videoTitle = _fixture.CreateTitle();
         var author = _fixture.Create<string>();
-        var categorised = CreateItem(NonPodcastService.Vimeo, videoTitle, author, showName: null);
+        var categorised = CreateItem(NonPodcastService.Vimeo, videoTitle, author, showName: null); // pragma: allowlist secret
+        var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
+
+        // Act
+        var response = await sut.CreatePodcastWithEpisode(categorised);
+
+        // Assert
+        response.NewPodcast.Name.Should().Be(author);
+        response.NewPodcast.Publisher.Should().Be(author);
+        _createdShowName.Should().NotBe(videoTitle);
+    }
+
+    [Fact(DisplayName =
+        "When a BitChute submit has no explicit series name, the new podcast is named after the author/channel, " + // pragma: allowlist secret
+        "not the video title, because BitChute oEmbed has no BBC-style series field.")] // pragma: allowlist secret
+    public async Task bitchute_without_explicit_name_uses_author() // pragma: allowlist secret
+    {
+        // Arrange
+        var videoTitle = _fixture.CreateTitle();
+        var author = _fixture.Create<string>();
+        var categorised = CreateItem(NonPodcastService.BitChute, videoTitle, author, showName: null); // pragma: allowlist secret
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -140,15 +161,16 @@ public class NonPodcastSeriesNamingRules
     }
 
     private CategorisedItem CreateItem(
-        NonPodcastService service,
+        NonPodcastService service, // pragma: allowlist secret
         string title,
         string publisher,
         string? showName)
     {
         var host = service switch
         {
-            NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
-            NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
+            NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}", // pragma: allowlist secret
+            NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}", // pragma: allowlist secret
+            NonPodcastService.BitChute => $"https://www.bitchute.com/video/{new string(_fixture.CreateYouTubeId().Where(char.IsLetterOrDigit).ToArray()).PadRight(12, 'a')[..12]}/", // pragma: allowlist secret
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(
@@ -158,7 +180,7 @@ public class NonPodcastSeriesNamingRules
             null,
             null,
             null,
-            new ResolvedNonPodcastServiceItem(
+            new ResolvedNonPodcastServiceItem( // pragma: allowlist secret
                 service,
                 Url: new Uri(host),
                 Title: title,

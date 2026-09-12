@@ -1,3 +1,4 @@
+<!-- pragma: allowlist secret -->
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -16,7 +17,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Channel4\RedditPodcastPoster.Channel4.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" /> <!-- pragma: allowlist secret -->
     <ProjectReference Include="..\RedditPodcastPoster.DisneyPlus\RedditPodcastPoster.DisneyPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Fawesome\RedditPodcastPoster.Fawesome.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.HboMax\RedditPodcastPoster.HboMax.csproj" />
@@ -26,12 +27,13 @@
     <ProjectReference Include="..\RedditPodcastPoster.ParamountPlus\RedditPodcastPoster.ParamountPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlayRts\RedditPodcastPoster.PlayRts.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlaySuisse\RedditPodcastPoster.PlaySuisse.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" /> <!-- pragma: allowlist secret -->
     <ProjectReference Include="..\RedditPodcastPoster.TvnzPlus\RedditPodcastPoster.TvnzPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
-    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.BitChute\RedditPodcastPoster.BitChute.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" /> <!-- pragma: allowlist secret -->
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" /> <!-- pragma: allowlist secret -->
   </ItemGroup>
 
   <ItemGroup>

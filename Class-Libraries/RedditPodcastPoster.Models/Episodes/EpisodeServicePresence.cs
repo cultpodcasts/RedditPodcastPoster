@@ -1,4 +1,5 @@
-using RedditPodcastPoster.Models.Podcasts;
+// pragma: allowlist secret
+using RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.Models.Episodes;
 
@@ -35,7 +36,8 @@ public static class EpisodeServicePresence
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
-        ServiceKeys.DiscoveryPlus
+        ServiceKeys.DiscoveryPlus, // pragma: allowlist secret
+        ServiceKeys.BitChute // pragma: allowlist secret
     ];
 
     /// <summary>

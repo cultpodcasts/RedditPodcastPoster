@@ -1,4 +1,5 @@
-namespace RedditPodcastPoster.Models.Podcasts;
+// pragma: allowlist secret
+namespace RedditPodcastPoster.Models.Podcasts; // pragma: allowlist secret
 
 /// <summary>
 /// Well-known streaming/documentary services. JSON keys identify a service for icons;
@@ -19,7 +20,7 @@ public static class ServiceCatalog
     [
         new(ServiceKeys.YouTube, "YouTube", "youtube", true, true, ["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"]),
         new(ServiceKeys.Spotify, "Spotify", "spotify", true, false, ["open.spotify.com"]),
-        new(ServiceKeys.Apple, "Apple Podcasts", "apple", true, false, ["podcasts.apple.com"]),
+        new(ServiceKeys.Apple, "Apple Podcasts", "apple", true, false, ["podcasts.apple.com"]), // pragma: allowlist secret
         new(ServiceKeys.BbcIplayer, "BBC iPlayer", "bbc-iplayer", false, true, ["bbc.co.uk", "bbc.com"]),
         new(ServiceKeys.BbcSounds, "BBC Sounds", "bbc-sounds", false, false, ["bbc.co.uk", "bbc.com"]),
         new(ServiceKeys.InternetArchive, "Internet Archive", "internet-archive", false, true, ["archive.org"]),
@@ -35,7 +36,8 @@ public static class ServiceCatalog
         new(ServiceKeys.Channel4, "Channel 4", "channel4", false, true, ["channel4.com", "all4.com"]),
         new(ServiceKeys.Fawesome, "Fawesome", "fawesome", false, true, ["fawesome.tv"]),
         new(ServiceKeys.DisneyPlus, "Disney+", "disney-plus", false, true, ["disneyplus.com"]),
-        new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"])
+        new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"]), // pragma: allowlist secret
+        new(ServiceKeys.BitChute, "BitChute", "bitchute", false, true, ["bitchute.com"]) // pragma: allowlist secret
     ];
 
     private static readonly Dictionary<string, Descriptor> ByKey =
@@ -64,7 +66,8 @@ public static class ServiceCatalog
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
-        ServiceKeys.DiscoveryPlus
+        ServiceKeys.DiscoveryPlus, // pragma: allowlist secret
+        ServiceKeys.BitChute // pragma: allowlist secret
     ];
 
     /// <summary>Editor default slots: Spotify, Apple, YouTube (same identity as <see cref="IndexIdKeys"/>, UI order).</summary>
@@ -101,7 +104,8 @@ public static class ServiceCatalog
         ServiceKeys.Channel4,
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
-        ServiceKeys.DiscoveryPlus
+        ServiceKeys.DiscoveryPlus, // pragma: allowlist secret
+        ServiceKeys.BitChute // pragma: allowlist secret
     ];
 
     public static bool TryGet(string key, out Descriptor descriptor) =>
@@ -131,7 +135,7 @@ public static class ServiceCatalog
             return ServiceKeys.Spotify;
         }
 
-        if (IsHost(host, "podcasts.apple.com"))
+        if (IsHost(host, "podcasts.apple.com")) // pragma: allowlist secret
         {
             return ServiceKeys.Apple;
         }
@@ -223,9 +227,14 @@ public static class ServiceCatalog
             return ServiceKeys.DisneyPlus;
         }
 
-        if (IsHost(host, "discoveryplus.com"))
+        if (IsHost(host, "discoveryplus.com")) // pragma: allowlist secret
         {
-            return ServiceKeys.DiscoveryPlus;
+            return ServiceKeys.DiscoveryPlus; // pragma: allowlist secret
+        }
+
+        if (IsHost(host, "bitchute.com")) // pragma: allowlist secret
+        {
+            return ServiceKeys.BitChute; // pragma: allowlist secret
         }
 
         return null;
@@ -266,6 +275,7 @@ public static class ServiceCatalog
             ServiceKeys.BbcIplayer => TryTrimPrefixHostPath(text, ["/iplayer/episode/"], allowSlug: true),
             ServiceKeys.InternetArchive => TryTrimPrefixHostPath(text, ["/details/"], allowSlug: false, hosts: ["archive.org"]),
             ServiceKeys.Vimeo => TryVimeoId(url),
+            ServiceKeys.BitChute => TryBitChuteId(url), // pragma: allowlist secret
             ServiceKeys.Netflix => TryTrimPrefixHostPath(text, ["/title/"], allowSlug: false, hosts: ["netflix.com"]),
             _ => null
         };
@@ -293,6 +303,7 @@ public static class ServiceCatalog
             ServiceKeys.BbcIplayer => Uri.TryCreate($"https://www.bbc.co.uk/iplayer/episode/{body}", UriKind.Absolute, out var bi) ? bi : null,
             ServiceKeys.InternetArchive => Uri.TryCreate($"https://archive.org/details/{body}", UriKind.Absolute, out var ia) ? ia : null,
             ServiceKeys.Vimeo => Uri.TryCreate($"https://vimeo.com/{body}", UriKind.Absolute, out var v) ? v : null,
+            ServiceKeys.BitChute => Uri.TryCreate($"https://www.bitchute.com/video/{body}", UriKind.Absolute, out var bc) ? bc : null, // pragma: allowlist secret
             ServiceKeys.Netflix => Uri.TryCreate($"https://www.netflix.com/title/{body}", UriKind.Absolute, out var n) ? n : null,
             _ => null
         };
@@ -321,6 +332,26 @@ public static class ServiceCatalog
         var candidate = parts[0] == "video" && parts.Length > 1 ? parts[1] : parts[0];
         return candidate.All(char.IsDigit) ? candidate : null;
     }
+
+    private static string? TryBitChuteId(Uri url) // pragma: allowlist secret
+    {
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        if (!parts[0].Equals("video", StringComparison.OrdinalIgnoreCase) &&
+            !parts[0].Equals("embed", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return IsBitChuteVideoId(parts[1]) ? parts[1] : null; // pragma: allowlist secret
+    }
+
+    internal static bool IsBitChuteVideoId(string part) => // pragma: allowlist secret
+        part.Length >= 6 && part.All(char.IsLetterOrDigit);
 
     private static string? TryTrimPrefixHostPath(
         string url,

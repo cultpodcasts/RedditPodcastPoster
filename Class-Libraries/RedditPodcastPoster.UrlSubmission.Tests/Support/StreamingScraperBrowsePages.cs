@@ -1,9 +1,10 @@
+// pragma: allowlist secret
 using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.AmazonPrime.Matching;
 using RedditPodcastPoster.BBC.Matching;
 using RedditPodcastPoster.Channel4.Matching;
-using RedditPodcastPoster.DiscoveryPlus.Matching;
+using RedditPodcastPoster.DiscoveryPlus.Matching; // pragma: allowlist secret
 using RedditPodcastPoster.DisneyPlus.Matching;
 using RedditPodcastPoster.Fawesome.Matching;
 using RedditPodcastPoster.HboMax.Matching;
@@ -14,6 +15,7 @@ using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PlaySuisse.Matching;
 using RedditPodcastPoster.TvnzPlus.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
+using RedditPodcastPoster.BitChute.Matching; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
@@ -39,11 +41,11 @@ public static class StreamingScraperBrowsePages
             MinSubmitLinks: 1,
             SampleLookups: 1,
             StabilityNote: "Sounds music section lists playable programmes"),
-        new(StreamingScraperProvider.BbcSounds, "sounds-podcasts",
-            new Uri("https://www.bbc.co.uk/sounds/podcasts"),
+        new(StreamingScraperProvider.BbcSounds, "sounds-podcasts", // pragma: allowlist secret
+            new Uri("https://www.bbc.co.uk/sounds/podcasts"), // pragma: allowlist secret
             MinSubmitLinks: 1,
             SampleLookups: 1,
-            StabilityNote: "Sounds podcasts section lists playable programmes"),
+            StabilityNote: "Sounds podcasts section lists playable programmes"), // pragma: allowlist secret
 
         new(StreamingScraperProvider.BbcIplayer, "iplayer-home",
             new Uri("https://www.bbc.co.uk/iplayer"),
@@ -129,6 +131,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.Netflix => NetflixUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.AmazonPrime => AmazonPrimeUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Vimeo => VimeoUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.BitChute => BitChuteUrlMatcher.IsSubmitUrl(url), // pragma: allowlist secret
             StreamingScraperProvider.Itvx => ItvxUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Channel4 => Channel4UrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Fawesome => FawesomeUrlMatcher.IsSubmitUrl(url),
@@ -138,7 +141,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.PlayRts => PlayRtsUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.TvnzPlus => TvnzPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.DisneyPlus => DisneyPlusUrlMatcher.IsSubmitUrl(url),
-            StreamingScraperProvider.DiscoveryPlus => DiscoveryPlusUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.DiscoveryPlus => DiscoveryPlusUrlMatcher.IsSubmitUrl(url), // pragma: allowlist secret
             _ => false
         };
 
@@ -170,6 +173,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
                     .ToLowerInvariant(),
             StreamingScraperProvider.Netflix => path.ToLowerInvariant(),
             StreamingScraperProvider.Vimeo => path.ToLowerInvariant(),
+            StreamingScraperProvider.BitChute => path.ToLowerInvariant(), // pragma: allowlist secret
             _ => url.GetLeftPart(UriPartial.Path).ToLowerInvariant()
         };
     }

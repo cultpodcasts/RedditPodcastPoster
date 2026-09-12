@@ -8,7 +8,7 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Channel4/RedditPodcastPoster.Channel4.csproj" />
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus/RedditPodcastPoster.DiscoveryPlus.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus/RedditPodcastPoster.DiscoveryPlus.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DisneyPlus/RedditPodcastPoster.DisneyPlus.csproj" />
 
@@ -69,21 +69,22 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/RedditPodcastPoster.Persistence.Abstractions.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj" />
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/RedditPodcastPoster.PodcastServices.Abstractions.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/RedditPodcastPoster.PodcastServices.Apple.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/RedditPodcastPoster.PodcastServices.Apple.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/RedditPodcastPoster.PodcastServices.Spotify.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/RedditPodcastPoster.PodcastServices.Spotify.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Taddy/RedditPodcastPoster.PodcastServices.Taddy.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Taddy/RedditPodcastPoster.PodcastServices.Taddy.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/RedditPodcastPoster.PodcastServices.YouTube.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/RedditPodcastPoster.PodcastServices.YouTube.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices/RedditPodcastPoster.PodcastServices.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo/RedditPodcastPoster.Vimeo.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.BitChute/RedditPodcastPoster.BitChute.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PushSubscriptions/RedditPodcastPoster.PushSubscriptions.csproj" />
 
@@ -112,7 +113,7 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime.Tests/RedditPodcastPoster.AmazonPrime.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Channel4.Tests/RedditPodcastPoster.Channel4.Tests.csproj" />
-    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus.Tests/RedditPodcastPoster.DiscoveryPlus.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus.Tests/RedditPodcastPoster.DiscoveryPlus.Tests.csproj" /> <!-- pragma: allowlist secret -->
     <Project Path="Class-Libraries/RedditPodcastPoster.DisneyPlus.Tests/RedditPodcastPoster.DisneyPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Fawesome.Tests/RedditPodcastPoster.Fawesome.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.HboMax.Tests/RedditPodcastPoster.HboMax.Tests.csproj" />
@@ -136,15 +137,16 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.OpenGraph.Tests/RedditPodcastPoster.OpenGraph.Tests.csproj" />
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Vimeo.Tests/RedditPodcastPoster.Vimeo.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.BitChute.Tests/RedditPodcastPoster.BitChute.Tests.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj" /> <!-- pragma: allowlist secret -->
 
-    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Reddit.Tests/RedditPodcastPoster.Reddit.Tests.csproj" />
 
@@ -194,7 +196,7 @@
 
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
 
-    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
+    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
 
@@ -214,11 +216,11 @@
 
     <Project Path="Console-Apps/SeedSupportedLanguages/SeedSupportedLanguages.csproj" />
 
-    <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
+    <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
 
-    <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
+    <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" /> <!-- pragma: allowlist secret -->
 
     <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
 
