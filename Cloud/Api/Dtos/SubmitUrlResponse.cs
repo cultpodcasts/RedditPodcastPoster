@@ -55,11 +55,6 @@ public class SubmitUrlResponse
             resultSubmitEpisodeDetails.Spotify,
             resultSubmitEpisodeDetails.Apple,
             resultSubmitEpisodeDetails.YouTube,
-            resultSubmitEpisodeDetails.BBC,
-            resultSubmitEpisodeDetails.InternetArchive,
-            resultSubmitEpisodeDetails.Vimeo,
-            resultSubmitEpisodeDetails.Netflix,
-            resultSubmitEpisodeDetails.AmazonPrime,
             resultSubmitEpisodeDetails.ExtraServiceKeys ?? [],
             resultSubmitEpisodeDetails.Subjects ?? [],
             (resultSubmitEpisodeDetails.People ?? [])
@@ -119,11 +114,6 @@ public class SubmitUrlResponse
         bool spotify,
         bool apple,
         bool youTube,
-        bool bbc,
-        bool internetArchive,
-        bool vimeo,
-        bool netflix,
-        bool amazonPrime,
         string[]? extraServiceKeys,
         string[]? subjects,
         string[]? people,
@@ -137,21 +127,6 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("youtube")]
         public bool YouTube { get; private set; } = youTube;
-
-        [JsonPropertyName("bbc")]
-        public bool BBC { get; private set; } = bbc;
-
-        [JsonPropertyName("internetArchive")]
-        public bool InternetArchive { get; private set; } = internetArchive;
-
-        [JsonPropertyName("vimeo")]
-        public bool Vimeo { get; private set; } = vimeo;
-
-        [JsonPropertyName("netflix")]
-        public bool Netflix { get; private set; } = netflix;
-
-        [JsonPropertyName("amazonPrime")]
-        public bool AmazonPrime { get; private set; } = amazonPrime;
 
         [JsonPropertyName("extraServiceKeys")]
         public string[]? ExtraServiceKeys { get; private set; } = extraServiceKeys;

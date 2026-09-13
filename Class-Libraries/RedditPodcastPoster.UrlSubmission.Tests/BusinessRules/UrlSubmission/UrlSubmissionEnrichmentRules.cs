@@ -556,7 +556,6 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.BBC.Should().Be(bbcUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.BBC.Should().BeTrue();
         response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.BbcSounds);
     }
 
@@ -586,7 +585,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.InternetArchive.Should().Be(internetArchiveUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeTrue();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.InternetArchive);
     }
 
     [Fact(DisplayName =
@@ -652,13 +651,12 @@ public class UrlSubmissionEnrichmentRules
         EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.InternetArchive).Should().BeNull();
         EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.Vimeo.Should().BeTrue();
         response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.Vimeo);
     }
 
     [Fact(DisplayName =
         "When an existing episode is missing a Netflix link and a resolved Netflix item is present, " +
-        "UrlSubmission enrichment fills the Netflix catalog URL and sets the Netflix submit flag.")]
+        "UrlSubmission enrichment fills the Netflix catalog URL and records netflix in ExtraServiceKeys.")]
     public void enrich_fills_missing_netflix_url_from_non_podcast_item()
     {
         // Arrange
@@ -682,14 +680,12 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Netflix).Should().Be(netflixUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.Netflix.Should().BeTrue();
-        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Equal(StreamingServiceKeys.Netflix);
     }
 
     [Fact(DisplayName =
         "When an existing episode is missing a Prime Video link and a resolved Prime item is present, " +
-        "UrlSubmission enrichment fills the amazonPrime catalog URL and sets the Amazon Prime submit flag.")]
+        "UrlSubmission enrichment fills the amazonPrime catalog URL and records amazonPrime in ExtraServiceKeys.")]
     public void enrich_fills_missing_prime_url_from_non_podcast_item()
     {
         // Arrange
@@ -713,8 +709,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.AmazonPrime).Should().Be(primeUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.AmazonPrime.Should().BeTrue();
-        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.AmazonPrime);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Equal(StreamingServiceKeys.AmazonPrime);
     }
 
     [Fact(DisplayName =
@@ -779,7 +774,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.BBC.Should().Be(existingBbcUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
-        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -810,7 +805,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.InternetArchive.Should().Be(existingUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
     }
 
     [Fact(DisplayName =

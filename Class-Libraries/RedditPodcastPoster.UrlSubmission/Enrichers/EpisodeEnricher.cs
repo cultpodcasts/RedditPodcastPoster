@@ -26,8 +26,7 @@ public class EpisodeEnricher(
         CategorisedItem categorisedItem,
         Episode? matchingEpisode)
     {
-        var (addedSpotify, addedApple, addedYouTube, addedBBC, addedInternetArchive) =
-            (false, false, false, false, false);
+        var (addedSpotify, addedApple, addedYouTube) = (false, false, false);
         var addedExtraKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var podcastResult = SubmitResultState.None;
@@ -134,7 +133,6 @@ public class EpisodeEnricher(
                 !EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceKeys.BbcSounds) &&
                 categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
             {
-                addedBBC = true;
                 var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
                 var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
                 EpisodeServicePresence.Upsert(
@@ -152,7 +150,6 @@ public class EpisodeEnricher(
             if (!EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceKeys.InternetArchive) &&
                 categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
             {
-                addedInternetArchive = true;
                 EpisodeServicePresence.Upsert(
                     matchingEpisode,
                     StreamingServiceKeys.InternetArchive,
@@ -222,11 +219,6 @@ public class EpisodeEnricher(
                 addedApple,
                 addedYouTube,
                 [],
-                addedBBC,
-                addedInternetArchive,
-                Vimeo: addedExtraKeys.Contains(StreamingServiceKeys.Vimeo),
-                Netflix: addedExtraKeys.Contains(StreamingServiceKeys.Netflix),
-                AmazonPrime: addedExtraKeys.Contains(StreamingServiceKeys.AmazonPrime),
                 ExtraServiceKeys: addedExtraKeys.Count == 0 ? null : addedExtraKeys.ToArray()));
     }
 

@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -10,13 +10,8 @@ public record SubmitEpisodeDetails(
     bool Apple,
     bool YouTube,
     string[]? Subjects = null,
-    bool BBC = false,
-    bool InternetArchive = false,
     PersonMatch[]? People = null,
     PersonMatch[]? GuestSuggestions = null,
-    bool Vimeo = false,
-    bool Netflix = false,
-    bool AmazonPrime = false,
     string[]? ExtraServiceKeys = null
 )
 {
@@ -30,14 +25,8 @@ public record SubmitEpisodeDetails(
             EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple),
             EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube),
             subjects,
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcIplayer) ||
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds),
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.InternetArchive),
             people,
             guestSuggestions,
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.Vimeo),
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.Netflix),
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.AmazonPrime),
             ExtraKeysOn(episode));
 
     public static string[]? ExtraKeysOn(Episode episode)
