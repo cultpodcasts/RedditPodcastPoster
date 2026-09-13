@@ -125,6 +125,74 @@ public class TubiPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Tubi extract fills title, description, image, duration, and release from catalogue head meta, " +
+        "so prepare can create a film episode without a podcast catalogue API.")]
+    public async Task extracts_title_description_image_duration_and_release()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var description = $"{_fixture.CreateTitle()} it's {_fixture.CreateTitle()}";
+        var image = new Uri($"https://example.test/poster/{_fixture.CreateYouTubeId()}.jpg");
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-(_fixture.Create<int>() % 365 + 1), TimeSpan.FromHours(14));
+        var url = new Uri($"https://tubitv.com/en-au/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(TubiCatalogueHead(
+            Meta("og:title", title),
+            Meta("og:type", "video.movie"),
+            Meta("og:description", description),
+            Meta("og:image", image.ToString()),
+            Meta("video:duration", ((int)duration.TotalSeconds).ToString()),
+            Meta("video:release_date", release.ToString("yyyy-MM-ddTHH:mm:ssZ"))));
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Image.Should().Be(image);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.ShowName.Should().BeNull();
+        meta.Publisher.Should().Be("Tubi");
+    }
+
+    [Fact(DisplayName =
+        "Tubi HTML recovery fills title, description, image, duration, and release when og:title is absent, " +
+        "so Worker-posted catalogue HTML still maps after Open Graph extract fails.")]
+    public async Task html_recovery_fills_catalogue_fields_when_open_graph_omits_title()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var description = _fixture.CreateTitle();
+        var image = new Uri($"https://example.test/poster/{_fixture.CreateYouTubeId()}.jpg");
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-(_fixture.Create<int>() % 365 + 1), TimeSpan.FromHours(12));
+        var url = new Uri($"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(
+            url,
+            $"<html><head><title>{WebUtility.HtmlEncode(title)} | Tubi</title>" +
+            Meta("og:description", description) +
+            Meta("og:image", image.ToString()) +
+            Meta("video:duration", ((int)duration.TotalSeconds).ToString()) +
+            Meta("video:release_date", release.ToString("yyyy-MM-ddTHH:mm:ssZ")) +
+            "</head></html>");
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Description.Should().Be(description);
+        meta.Image.Should().Be(image);
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+        meta.Publisher.Should().Be("Tubi");
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Tubi HTML extract reads og:title from posted HTML without calling the host, " +
         "so the Worker can POST prefetched catalogue HTML to Azure extract.")]
     public async Task html_extract_does_not_call_host()
@@ -186,6 +254,12 @@ public class TubiPageMetaDataExtractorRules
         {
             Content = new StringContent(html, Encoding.UTF8, "text/html")
         };
+
+    private static string TubiCatalogueHead(params string[] metas) =>
+        "<html><head>" + string.Concat(metas) + "</head></html>";
+
+    private static string Meta(string property, string content) =>
+        $"<meta property=\"{property}\" content=\"{WebUtility.HtmlEncode(content)}\" data-tubi-ssr=\"\"/>";
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {

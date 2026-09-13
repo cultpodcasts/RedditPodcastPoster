@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -60,7 +62,8 @@ internal static partial class TubiCatalogMeta
         string html,
         NonPodcastServiceItemMetaData? openGraph)
     {
-        var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
+        var title = CleanTitle(
+            openGraph?.Title ?? MetaContent(html, "og:title") ?? FirstGroup(html, DocumentTitleRegex()));
         if (string.IsNullOrWhiteSpace(title))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -95,16 +98,29 @@ internal static partial class TubiCatalogMeta
             {
                 duration = TimeSpan.FromSeconds(seconds.Value);
             }
+            else
+            {
+                duration = TryIsoDuration(html);
+            }
         }
 
-        var release = openGraph?.Release ?? TryDateCreated(html);
+        var release = TryMetaDate(html, "video:release_date")
+                      ?? openGraph?.Release
+                      ?? TryDateCreated(html);
+
+        var description = FirstNonEmpty(
+            openGraph?.Description,
+            MetaContent(html, "og:description"),
+            MetaContent(html, "description")) ?? string.Empty;
+
+        var image = openGraph?.Image ?? TryAbsoluteUri(MetaContent(html, "og:image"));
 
         return new NonPodcastServiceItemMetaData(
             title,
-            openGraph?.Description ?? string.Empty,
+            description,
             duration,
             release,
-            openGraph?.Image,
+            image,
             openGraph?.Explicit,
             TubiPageMetaDataExtractor.Publisher,
             showName);
@@ -117,7 +133,7 @@ internal static partial class TubiCatalogMeta
     /// </summary>
     public static bool IsMovie(Uri url, string html)
     {
-        var ogType = FirstGroup(html, OgTypeRegex());
+        var ogType = MetaContent(html, "og:type");
         if (string.Equals(ogType, "video.movie", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(ogType, "movie", StringComparison.OrdinalIgnoreCase))
         {
@@ -165,13 +181,37 @@ internal static partial class TubiCatalogMeta
 
     private static int? TryVideoDurationSeconds(string html)
     {
-        var raw = FirstGroup(html, VideoDurationRegex());
-        return int.TryParse(raw, out var seconds) && seconds > 0 ? seconds : null;
+        var raw = MetaContent(html, "video:duration");
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) &&
+               seconds > 0
+            ? seconds
+            : null;
     }
 
-    private static DateTime? TryDateCreated(string html)
+    private static TimeSpan? TryIsoDuration(string html)
     {
-        var raw = FirstGroup(html, DateCreatedRegex());
+        var raw = FirstGroup(html, IsoDurationRegex());
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            return XmlConvert.ToTimeSpan(raw);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static DateTime? TryMetaDate(string html, string key) => TryParseUtc(MetaContent(html, key));
+
+    private static DateTime? TryDateCreated(string html) => TryParseUtc(FirstGroup(html, DateCreatedRegex()));
+
+    private static DateTime? TryParseUtc(string? raw)
+    {
         if (string.IsNullOrWhiteSpace(raw))
         {
             return null;
@@ -179,11 +219,56 @@ internal static partial class TubiCatalogMeta
 
         return DateTime.TryParse(
             raw,
-            System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
             out var parsed)
             ? parsed
             : null;
+    }
+
+    private static Uri? TryAbsoluteUri(string? raw) =>
+        !string.IsNullOrWhiteSpace(raw) && Uri.TryCreate(raw, UriKind.Absolute, out var uri)
+            ? uri
+            : null;
+
+    private static string? MetaContent(string html, string key)
+    {
+        foreach (Match match in MetaTag().Matches(html))
+        {
+            var name = match.Groups["name"].Value;
+            if (name.Length == 0)
+            {
+                name = match.Groups["nameAlt"].Value;
+            }
+
+            if (!name.Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var value = match.Groups["content"].Value;
+            if (value.Length == 0)
+            {
+                value = match.Groups["contentAlt"].Value;
+            }
+
+            return string.IsNullOrWhiteSpace(value) ? null : WebUtility.HtmlDecode(value).Trim();
+        }
+
+        return null;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
     }
 
     private static string? FirstGroup(string html, Regex regex)
@@ -195,11 +280,13 @@ internal static partial class TubiCatalogMeta
     [GeneratedRegex("<title>([^<]*)</title>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DocumentTitleRegex();
 
-    [GeneratedRegex("(?:property|name)=\"og:type\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex OgTypeRegex();
+    [GeneratedRegex(
+        @"<meta\b(?=[^>]*\b(?:property|name)\s*=\s*[""'](?<name>[^""']+)[""'])(?=[^>]*\bcontent\s*=\s*[""'](?<content>[^""']*)[""'])[^>]*>|<meta\b(?=[^>]*\bcontent\s*=\s*[""'](?<contentAlt>[^""']*)[""'])(?=[^>]*\b(?:property|name)\s*=\s*[""'](?<nameAlt>[^""']+)[""'])[^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex MetaTag();
 
-    [GeneratedRegex("(?:property|name)=\"video:duration\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex VideoDurationRegex();
+    [GeneratedRegex("\"duration\"\\s*:\\s*\"(PT[^\"]+)\"", RegexOptions.CultureInvariant)]
+    private static partial Regex IsoDurationRegex();
 
     [GeneratedRegex("\"dateCreated\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.CultureInvariant)]
     private static partial Regex DateCreatedRegex();
