@@ -48,24 +48,23 @@ public static class KnownStreamingServices
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys =
-    [
-        StreamingServiceKeys.BbcIplayer,
-        StreamingServiceKeys.BbcSounds,
-        StreamingServiceKeys.InternetArchive,
-        StreamingServiceKeys.Vimeo,
-        StreamingServiceKeys.Netflix,
-        StreamingServiceKeys.AmazonPrime,
-        StreamingServiceKeys.ParamountPlus,
-        StreamingServiceKeys.HboMax,
-        StreamingServiceKeys.PlaySuisse,
-        StreamingServiceKeys.PlayRts,
-        StreamingServiceKeys.TvnzPlus,
-        StreamingServiceKeys.Itvx,
-        StreamingServiceKeys.Channel4,
-        StreamingServiceKeys.Fawesome,
-        StreamingServiceKeys.DisneyPlus,
-        StreamingServiceKeys.BcVideo,
-        StreamingServiceKeys.Tubi,
-        StreamingServiceKeys.DiscoveryPlus
-    ];
+        DeriveImageCoalesceStreamingKeys(All);
+
+    /// <summary>
+    /// Cover-art order is search-encode order with BBC iPlayer before Sounds.
+    /// A new provider is added only to <see cref="All"/>.
+    /// </summary>
+    private static string[] DeriveImageCoalesceStreamingKeys(
+        IReadOnlyList<IStreamingServiceRegistration> registrations)
+    {
+        var keys = registrations.Select(r => r.Descriptor.Key).ToArray();
+        var sounds = Array.IndexOf(keys, StreamingServiceKeys.BbcSounds);
+        var iplayer = Array.IndexOf(keys, StreamingServiceKeys.BbcIplayer);
+        if (sounds >= 0 && iplayer >= 0 && iplayer > sounds)
+        {
+            (keys[sounds], keys[iplayer]) = (keys[iplayer], keys[sounds]);
+        }
+
+        return keys;
+    }
 }

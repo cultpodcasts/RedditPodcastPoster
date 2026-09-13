@@ -13,11 +13,21 @@ public static class StreamingServiceCatalog
     private static Dictionary<string, IStreamingServiceRegistration> _byKey = new(StringComparer.Ordinal);
     private static string[] _imageCoalesceStreamingKeys = [];
 
+    public const string CatalogNotLoadedMessage =
+        "StreamingServiceCatalog has no registrations. Call StreamingCatalogLoader.EnsureLoaded() from a host that references RedditPodcastPoster.StreamingCatalog.";
+
     public static void Use(
         IReadOnlyList<IStreamingServiceRegistration> registrations,
         IReadOnlyList<string>? imageCoalesceStreamingKeys = null)
     {
         ArgumentNullException.ThrowIfNull(registrations);
+        if (registrations.Count == 0)
+        {
+            throw new ArgumentException(
+                "StreamingServiceCatalog.Use requires at least one registration. Call StreamingCatalogLoader.EnsureLoaded().",
+                nameof(registrations));
+        }
+
         _registrations = registrations;
         _byKey = registrations.ToDictionary(r => r.Descriptor.Key, StringComparer.Ordinal);
         _imageCoalesceStreamingKeys = imageCoalesceStreamingKeys?.ToArray()
@@ -27,11 +37,23 @@ public static class StreamingServiceCatalog
     public static IReadOnlyList<ServiceCatalog.Descriptor> All =>
         [..ServiceCatalog.PodcastPlatforms, .._registrations.Select(r => r.Descriptor)];
 
-    public static string[] SearchEncodedKeys =>
-        _registrations.Select(r => r.Descriptor.Key).ToArray();
+    public static string[] SearchEncodedKeys
+    {
+        get
+        {
+            EnsureLoaded();
+            return _registrations.Select(r => r.Descriptor.Key).ToArray();
+        }
+    }
 
-    public static string[] ImageCoalesceOrder =>
-        [..ServiceCatalog.IndexIdImageOrder, .._imageCoalesceStreamingKeys];
+    public static string[] ImageCoalesceOrder
+    {
+        get
+        {
+            EnsureLoaded();
+            return [..ServiceCatalog.IndexIdImageOrder, .._imageCoalesceStreamingKeys];
+        }
+    }
 
     public static bool TryGet(string key, out ServiceCatalog.Descriptor descriptor)
     {
@@ -67,6 +89,8 @@ public static class StreamingServiceCatalog
             return podcast;
         }
 
+        EnsureLoaded();
+
         foreach (var registration in _registrations)
         {
             var key = registration.TryResolveKey(url);
@@ -84,6 +108,7 @@ public static class StreamingServiceCatalog
 
     public static string? TryCompactUrl(string key, Uri url)
     {
+        EnsureLoaded();
         if (!_byKey.TryGetValue(key, out var registration))
         {
             return null;
@@ -120,11 +145,20 @@ public static class StreamingServiceCatalog
             return Uri.TryCreate(body, UriKind.Absolute, out var full) ? full : null;
         }
 
+        EnsureLoaded();
         if (!_byKey.TryGetValue(key, out var registration))
         {
             return null;
         }
 
         return registration.TryExpandCompactUrl(body);
+    }
+
+    private static void EnsureLoaded()
+    {
+        if (_registrations.Count == 0)
+        {
+            throw new InvalidOperationException(CatalogNotLoadedMessage);
+        }
     }
 }

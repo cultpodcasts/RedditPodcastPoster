@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using Xunit;
@@ -7,6 +8,8 @@ namespace Indexer.Tests.BusinessRules;
 
 public class StreamingServiceCatalogRules
 {
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "The composed streaming catalog lists bbcIplayer before bbcSounds in ImageCoalesceOrder, " +
         "because iPlayer cover art is preferred when both BBC slots are populated.")]
@@ -51,5 +54,76 @@ public class StreamingServiceCatalogRules
         // Assert
         found.Should().BeTrue();
         descriptor.Key.Should().Be(ServiceKeys.YouTube);
+    }
+
+    [Fact(DisplayName =
+        "ImageCoalesceOrder after IndexIdImageOrder is a permutation of SearchEncodedKeys, and iPlayer still precedes Sounds, because cover-art preference reorders BBC without dropping a streaming key.")]
+    public void image_coalesce_streaming_keys_are_search_encoded_keys_permutation()
+    {
+        // Arrange
+        var coalesceStreaming = StreamingServiceCatalog.ImageCoalesceOrder
+            .Skip(ServiceCatalog.IndexIdImageOrder.Length)
+            .ToArray();
+        var encoded = StreamingServiceCatalog.SearchEncodedKeys;
+
+        // Act
+        var iplayer = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceKeys.BbcIplayer);
+        var sounds = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceKeys.BbcSounds);
+
+        // Assert
+        coalesceStreaming.Should().BeEquivalentTo(encoded);
+        iplayer.Should().BeGreaterThanOrEqualTo(0);
+        sounds.Should().BeGreaterThan(iplayer);
+    }
+
+    [Fact(DisplayName =
+        "StreamingServiceCatalog.Use rejects an empty registration list, because replacing a loaded catalog with none would fail-open SearchEncodedKeys and compact.")]
+    public void use_rejects_empty_registrations()
+    {
+        // Arrange
+        IReadOnlyList<IStreamingServiceRegistration> empty = [];
+
+        // Act
+        var act = () => StreamingServiceCatalog.Use(empty);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("registrations")
+            .WithMessage("*EnsureLoaded*");
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotBeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "After the catalog is loaded, SearchEncodedKeys is non-empty and a specimen Tubi movie URL compact round-trips, because search encode must not skip the ordered plugin list.")]
+    public void loaded_catalog_search_encoded_keys_compact_tubi_round_trips()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var url = new Uri($"https://tubitv.com/movies/{id}");
+
+        // Act
+        var keys = StreamingServiceCatalog.SearchEncodedKeys;
+        var compact = StreamingServiceCatalog.TryCompactUrl(StreamingServiceKeys.Tubi, url);
+        var expanded = StreamingServiceCatalog.TryExpandCompactUrl(StreamingServiceKeys.Tubi, compact!);
+
+        // Assert
+        keys.Should().NotBeEmpty();
+        keys.Should().Contain(StreamingServiceKeys.Tubi);
+        compact.Should().Be($"movies/{id}");
+        expanded.Should().Be(new Uri($"https://tubitv.com/movies/{id}"));
+    }
+
+    [Fact(DisplayName =
+        "TryResolveKey maps an iPlayer episode URL to bbcIplayer, because an unloaded or Sounds-first fallback would store Sounds for iPlayer pastes.")]
+    public void try_resolve_key_maps_iplayer_url_to_bbc_iplayer()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var key = StreamingServiceCatalog.TryResolveKey(url);
+
+        // Assert
+        key.Should().Be(StreamingServiceKeys.BbcIplayer);
     }
 }

@@ -60,4 +60,48 @@ public class EpisodeCatalogNormalizeRules
         service.Should().Be(Service.Other);
         catalogLog.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
     }
+
+    [Fact(DisplayName =
+        "When an episode has both BBC iPlayer and BBC Sounds listen URLs, TryGetPreferredSocialPost with ImageCoalesceOrder picks the iPlayer URL, because iPlayer precedes Sounds in social-share order.")]
+    public void preferred_social_post_prefers_iplayer_before_sounds()
+    {
+        // Arrange
+        var soundsUrl = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+        var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, soundsUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcIplayer, iplayerUrl, null);
+        });
+
+        // Act
+        var found = EpisodeServicePresence.TryGetPreferredSocialPost(
+            episode,
+            StreamingServiceCatalog.ImageCoalesceOrder,
+            out var url,
+            out var key,
+            out var service);
+
+        // Assert
+        found.Should().BeTrue();
+        url.Should().Be(iplayerUrl);
+        key.Should().Be(StreamingServiceKeys.BbcIplayer);
+        service.Should().Be(Service.Other);
+    }
+
+    [Fact(DisplayName =
+        "When fixture Urls.BBC is an iPlayer episode URI, ApplyBbc stores StreamingServiceKeys.BbcIplayer, not Sounds, because the composed catalog resolves /iplayer/ before the Sounds fallback.")]
+    public void fixture_bbc_iplayer_url_stores_bbc_iplayer_key()
+    {
+        // Arrange
+        var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateEpisode();
+
+        // Act
+        episode.Urls.BBC = iplayerUrl;
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().Be(iplayerUrl);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
+    }
 }
