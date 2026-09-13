@@ -2,6 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests;
 
@@ -12,10 +13,10 @@ public class ServiceCatalogTests
     [Theory(DisplayName =
         "Service catalog maps a URL host and path to the JSON key used for icons, so Vimeo/Netflix/BBC Sounds/iPlayer are identifiable without a hard-coded UI switch.")]
     [InlineData("https://vimeo.com/123456789", "vimeo")]
-    [InlineData("https://www.netflix.com/title/80057281", "netflix")]
+    [InlineData("https://www.netflix.com/title/1", "netflix")]
     [InlineData("https://www.bbc.co.uk/sounds/play/p0example", "bbcSounds")]
     [InlineData("https://www.bbc.co.uk/iplayer/episode/p0abcd12", "bbcIplayer")]
-    [InlineData("https://archive.org/details/harbour-vale-ep", "internetArchive")]
+    [InlineData("https://archive.org/details/example-item", "internetArchive")]
     [InlineData("https://www.primevideo.com/detail/0EXAMPLE", "amazonPrime")]
     [InlineData("https://www.paramountplus.com/shows/example/", "paramountPlus")]
     [InlineData("https://www.max.com/shows/example", "hboMax")]
@@ -29,6 +30,7 @@ public class ServiceCatalogTests
     [InlineData("https://fawesome.tv/movies/1/example", "fawesome")]
     [InlineData("https://www.disneyplus.com/series/example", "disneyPlus")]
     [InlineData("https://www.bitchute.com/video/exampleVideoId", "bitchute")]
+    [InlineData("https://tubitv.com/en-au/movies/1/example-slug", "tubi")]
     [InlineData("https://www.discoveryplus.com/show/example", "discoveryPlus")]
     public void Resolves_well_known_hosts_to_stable_json_keys(string url, string expectedKey)
     {
@@ -36,11 +38,11 @@ public class ServiceCatalogTests
         var uri = new Uri(url);
 
         // Act
-        var key = ServiceCatalog.TryResolveKey(uri);
+        var key = StreamingServiceCatalog.TryResolveKey(uri);
 
         // Assert
         key.Should().Be(expectedKey);
-        ServiceCatalog.TryGet(key!, out var descriptor).Should().BeTrue();
+        StreamingServiceCatalog.TryGet(key!, out var descriptor).Should().BeTrue();
         descriptor.Icon.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -53,11 +55,11 @@ public class ServiceCatalogTests
         var uri = new Uri($"https://www.rts.ch/info/{_fixture.Create<Guid>():N}");
 
         // Act
-        var key = ServiceCatalog.TryResolveKey(uri);
+        var key = StreamingServiceCatalog.TryResolveKey(uri);
 
         // Assert
         key.Should().BeNull();
-        key.Should().NotBe(ServiceKeys.PlayRts);
+        key.Should().NotBe(StreamingServiceKeys.PlayRts);
     }
 
     [Fact(DisplayName =
@@ -68,11 +70,11 @@ public class ServiceCatalogTests
         var uri = new Uri("https://www.dailymotion.com/video/xexample");
 
         // Act
-        var key = ServiceCatalog.ResolveOrHostKey(uri);
+        var key = StreamingServiceCatalog.ResolveOrHostKey(uri);
 
         // Assert
         key.Should().Be("dailymotioncom");
-        ServiceCatalog.TryGet("other", out _).Should().BeFalse();
+        StreamingServiceCatalog.TryGet("other", out _).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -83,12 +85,12 @@ public class ServiceCatalogTests
         var hostWithNoAlnum = new Uri("http://-/");
 
         // Act
-        var keys = ServiceCatalog.All.Select(d => d.Key).ToArray();
+        var keys = StreamingServiceCatalog.All.Select(d => d.Key).ToArray();
 
         // Assert
         keys.Should().NotContain("other");
-        ServiceCatalog.ImageCoalesceOrder.Should().NotContain("other");
-        ServiceCatalog.SearchEncodedKeys.Should().NotContain("other");
+        StreamingServiceCatalog.ImageCoalesceOrder.Should().NotContain("other");
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain("other");
         ServiceCatalog.KeyFromUnknownHost(hostWithNoAlnum).Should().BeNull();
     }
 }

@@ -9,7 +9,9 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.BcVideo.Matching;
+using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
 internal static class NonPodcastSubmitAdapterResolverSupport
@@ -25,11 +27,13 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
             new InternetArchiveNonPodcastServiceAdapter(
                 archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
-            CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
-            CatalogAdapter(NonPodcastService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
+            CatalogAdapter(NonPodcastService.Vimeo, StreamingServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
+            CatalogAdapter(NonPodcastService.BcVideo, StreamingServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
                 canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl),
-            CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
-            CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
+            CatalogAdapter(NonPodcastService.Tubi, StreamingServiceKeys.Tubi, TubiUrlMatcher.IsSubmitUrl,
+                canonicalizeUrl: TubiUrlMatcher.CanonicalUrl),
+            CatalogAdapter(NonPodcastService.Netflix, StreamingServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
+            CatalogAdapter(NonPodcastService.AmazonPrime, StreamingServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
 
     private static INonPodcastServiceAdapter CatalogAdapter(

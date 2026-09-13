@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
 
@@ -72,7 +73,7 @@ public class UrlMembershipLookup(
         out string? streamingService)
     {
         streamingService = null;
-        var key = ServiceCatalog.TryResolveKey(url);
+        var key = StreamingServiceCatalog.TryResolveKey(url);
         if (key == ServiceKeys.Spotify)
         {
             storedUrlEquals = SpotifyStoredEquals(url);
@@ -98,7 +99,7 @@ public class UrlMembershipLookup(
             // Prefer catalogue host/path resolution (bbcSounds vs bbcIplayer). A matched streaming
             // adapter without a catalog key is an invariant violation — throw rather than guess.
             streamingService = key ?? throw new InvalidOperationException(
-                $"Streaming adapter matched '{url}' but ServiceCatalog.TryResolveKey returned null.");
+                $"Streaming adapter matched '{url}' but StreamingServiceCatalog.TryResolveKey returned null.");
             return UrlMembershipLookupKinds.Streaming;
         }
 

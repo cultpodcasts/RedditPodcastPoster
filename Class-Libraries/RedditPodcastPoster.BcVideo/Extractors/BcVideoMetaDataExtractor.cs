@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -38,7 +39,7 @@ public partial class BcVideoMetaDataExtractor(
             return fromApi;
         }
 
-        var canonical = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BcVideo, url);
+        var canonical = BcVideoUrlMatcher.CanonicalUrl(url);
         var oEmbedTask = TryOEmbedAsync(client, canonical);
         var htmlTask = TryWatchHtmlAsync(client, canonical);
         await Task.WhenAll(oEmbedTask, htmlTask);
@@ -79,7 +80,7 @@ public partial class BcVideoMetaDataExtractor(
 
     private static string RequireVideoId(Uri url)
     {
-        var videoId = ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url);
+        var videoId = BcVideoUrlMatcher.TryCompactPayload(url);
         if (string.IsNullOrWhiteSpace(videoId))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -102,7 +103,7 @@ public partial class BcVideoMetaDataExtractor(
                 Content = JsonContent.Create(new { video_id = videoId })
             };
             request.Headers.TryAddWithoutValidation("Accept", "application/json");
-            request.Headers.Referrer = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.BcVideo, url);
+            request.Headers.Referrer = BcVideoUrlMatcher.CanonicalUrl(url);
             using var timeout = new CancellationTokenSource(VideoApiRequestTimeout);
             using var response = await client.SendAsync(request, timeout.Token);
             if (!response.IsSuccessStatusCode)

@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -172,7 +173,7 @@ public class UrlMembershipLookupRules
         result.PodcastId.Should().Be(podcast.Id);
         result.PodcastName.Should().Be(podcast.Name);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcSounds);
+        result.Service.Should().Be(StreamingServiceKeys.BbcSounds);
         _episodes.SavedEpisodes.Should().BeEmpty();
         _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
@@ -193,7 +194,7 @@ public class UrlMembershipLookupRules
         result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
             false,
             UrlMembershipLookupKinds.Streaming,
-            Service: ServiceKeys.BbcSounds));
+            Service: StreamingServiceKeys.BbcSounds));
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -201,7 +202,7 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
-        "When a BBC iPlayer episode URL is already stored on one series, URL membership lookup returns that podcast with ServiceKeys.BbcIplayer " +
+        "When a BBC iPlayer episode URL is already stored on one series, URL membership lookup returns that podcast with StreamingServiceKeys.BbcIplayer " +
         "because catalogue path resolution distinguishes iPlayer from Sounds, and does not scrape metadata.")]
     public async Task known_iplayer_url_returns_unique_series_with_bbc_iplayer_service()
     {
@@ -221,14 +222,14 @@ public class UrlMembershipLookupRules
         result.PodcastId.Should().Be(podcast.Id);
         result.PodcastName.Should().Be(podcast.Name);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcIplayer);
+        result.Service.Should().Be(StreamingServiceKeys.BbcIplayer);
         _episodes.SavedEpisodes.Should().BeEmpty();
         _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When a BBC iPlayer episode URL is not stored, URL membership lookup returns unknown streaming with ServiceKeys.BbcIplayer and null podcastName " +
-        "because ServiceCatalog.TryResolveKey prefers /iplayer/ and membership does not scrape.")]
+        "When a BBC iPlayer episode URL is not stored, URL membership lookup returns unknown streaming with StreamingServiceKeys.BbcIplayer and null podcastName " +
+        "because StreamingServiceCatalog.TryResolveKey prefers /iplayer/ and membership does not scrape.")]
     public async Task unknown_iplayer_url_returns_streaming_with_bbc_iplayer_service()
     {
         // Arrange
@@ -242,7 +243,7 @@ public class UrlMembershipLookupRules
         result.Should().BeEquivalentTo(new UrlMembershipLookupResult(
             false,
             UrlMembershipLookupKinds.Streaming,
-            Service: ServiceKeys.BbcIplayer));
+            Service: StreamingServiceKeys.BbcIplayer));
         result.PodcastName.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
         _mocker.GetMock<IBBCPageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
@@ -263,7 +264,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.Vimeo);
+        result.Service.Should().Be(StreamingServiceKeys.Vimeo);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -280,7 +281,7 @@ public class UrlMembershipLookupRules
         var pasted = new Uri($"https://vimeo.com/video/{id}");
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.Vimeo, storedUrl, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Vimeo, storedUrl, null));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -292,7 +293,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.Vimeo);
+        result.Service.Should().Be(StreamingServiceKeys.Vimeo);
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -313,7 +314,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BcVideo);
+        result.Service.Should().Be(StreamingServiceKeys.BcVideo);
         result.PodcastName.Should().BeNull();
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
@@ -331,7 +332,7 @@ public class UrlMembershipLookupRules
         var embedUrl = new Uri($"https://www.{host}/embed/{id}");
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BcVideo, storedUrl, null));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -343,7 +344,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BcVideo);
+        result.Service.Should().Be(StreamingServiceKeys.BcVideo);
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
@@ -358,7 +359,7 @@ public class UrlMembershipLookupRules
         var storedUrl = new Uri($"https://www.{host}/video/{id}");
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.BcVideo, storedUrl, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BcVideo, storedUrl, null));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
@@ -370,9 +371,60 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeTrue();
         result.PodcastId.Should().Be(podcast.Id);
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BcVideo);
+        result.Service.Should().Be(StreamingServiceKeys.BcVideo);
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
+
+
+    [Fact(DisplayName =
+        "When an unknown Tubi URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape the film title.")]
+    public async Task unknown_tubi_leaves_podcast_name_null()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(StreamingServiceKeys.Tubi);
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored Tubi URL is the canonical /movies/{id} form and the pasted URL is locale plus slug, " +
+        "URL membership lookup returns that podcast as known, because both forms are the same title.")]
+    public async Task stored_canonical_tubi_url_matches_locale_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var storedUrl = new Uri($"https://tubitv.com/movies/{id}");
+        var pasted = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Tubi, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(StreamingServiceKeys.Tubi);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
 
     [Fact(DisplayName =
         "When an unknown Netflix URL is classified, URL membership lookup returns service without podcastName " +
@@ -389,7 +441,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.Netflix);
+        result.Service.Should().Be(StreamingServiceKeys.Netflix);
         result.PodcastName.Should().BeNull();
     }
 
@@ -408,7 +460,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.AmazonPrime);
+        result.Service.Should().Be(StreamingServiceKeys.AmazonPrime);
         result.PodcastName.Should().BeNull();
     }
 
@@ -427,7 +479,7 @@ public class UrlMembershipLookupRules
         // Assert
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.InternetArchive);
+        result.Service.Should().Be(StreamingServiceKeys.InternetArchive);
         result.PodcastName.Should().BeNull();
         _mocker.GetMock<IInternetArchivePageMetaDataExtractor>().Verify(e => e.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
@@ -453,7 +505,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Ambiguous.Should().BeTrue();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
-        result.Service.Should().Be(ServiceKeys.BbcSounds);
+        result.Service.Should().Be(StreamingServiceKeys.BbcSounds);
         result.PodcastIds.Should().BeEquivalentTo([first.Id, second.Id]);
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
@@ -504,8 +556,8 @@ public class UrlMembershipLookupRules
     {
         episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
         {
-            [ServiceKeys.BbcIplayer] = new(),
-            [ServiceKeys.BbcSounds] = new() { Url = soundsUrl }
+            [StreamingServiceKeys.BbcIplayer] = new(),
+            [StreamingServiceKeys.BbcSounds] = new() { Url = soundsUrl }
         };
     }
 
@@ -513,8 +565,8 @@ public class UrlMembershipLookupRules
     {
         episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
         {
-            [ServiceKeys.BbcIplayer] = new() { Url = iplayerUrl },
-            [ServiceKeys.BbcSounds] = new()
+            [StreamingServiceKeys.BbcIplayer] = new() { Url = iplayerUrl },
+            [StreamingServiceKeys.BbcSounds] = new()
         };
     }
 }

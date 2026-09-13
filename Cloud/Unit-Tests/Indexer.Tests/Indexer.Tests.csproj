@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.StreamingCatalog\RedditPodcastPoster.StreamingCatalog.csproj" />
     <ProjectReference Include="..\..\Indexer\Indexer.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj" />

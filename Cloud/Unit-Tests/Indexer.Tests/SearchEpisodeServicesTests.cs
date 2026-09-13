@@ -3,6 +3,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests;
 
@@ -17,7 +18,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.BbcSounds] = new()
+            [StreamingServiceKeys.BbcSounds] = new()
             {
                 Url = new Uri("https://www.bbc.co.uk/sounds/play/p0example")
             }
@@ -40,7 +41,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.Vimeo] = new() { Url = new Uri("https://vimeo.com/123456789") }
+            [StreamingServiceKeys.Vimeo] = new() { Url = new Uri("https://vimeo.com/123456789") }
         };
 
         // Act
@@ -62,7 +63,7 @@ public class SearchEpisodeServicesTests
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
+            [StreamingServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
         };
 
         // Act
@@ -84,7 +85,7 @@ public class SearchEpisodeServicesTests
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
+            [StreamingServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
         };
 
         // Act
@@ -97,6 +98,29 @@ public class SearchEpisodeServicesTests
             .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/{id}");
     }
 
+
+    [Fact(DisplayName =
+        "Search svc encoding stores Tubi as movies/{id} when the URL is a locale movie page, so Expand rebuilds the canonical /movies/{id} URL.")]
+    public void Compacts_tubi_locale_movie_url_to_kind_and_id()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var services = new Dictionary<string, EpisodeServiceLink>
+        {
+            [StreamingServiceKeys.Tubi] = new() { Url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}") }
+        };
+
+        // Act
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
+
+        // Assert
+        compact.Should().Be($"tubi:movies/{id}");
+        expanded.Should().ContainSingle()
+            .Which.Url.ToString().Should().Be($"https://tubitv.com/movies/{id}");
+    }
+
+
     [Fact(DisplayName =
         "Search svc encoding omits Spotify/YouTube/Apple because those URLs are rebuilt from index id fields, keeping quota for services that are not id-derivable.")]
     public void Omits_reconstructable_platform_ids()
@@ -106,7 +130,7 @@ public class SearchEpisodeServicesTests
         {
             [ServiceKeys.Spotify] = new() { Url = new Uri("https://open.spotify.com/episode/opaqueid00000000000000") },
             [ServiceKeys.YouTube] = new() { Url = new Uri("https://www.youtube.com/watch?v=griffinsong42") },
-            [ServiceKeys.InternetArchive] = new() { Url = new Uri("https://archive.org/details/harbour-vale-ep") }
+            [StreamingServiceKeys.InternetArchive] = new() { Url = new Uri("https://archive.org/details/harbour-vale-ep") }
         };
 
         // Act
@@ -124,7 +148,7 @@ public class SearchEpisodeServicesTests
         var url = new Uri("https://www.netflix.com/watch/81040344?trackId=14262865");
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [ServiceKeys.Netflix] = new() { Url = url }
+            [StreamingServiceKeys.Netflix] = new() { Url = url }
         };
 
         // Act

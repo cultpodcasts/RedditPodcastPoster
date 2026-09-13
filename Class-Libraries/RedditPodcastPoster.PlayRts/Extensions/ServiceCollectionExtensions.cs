@@ -4,6 +4,7 @@ using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PlayRts.Extractors;
 using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PlayRts.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider => // pragma: allowlist secret
                 new CatalogKeyedNonPodcastServiceAdapter( // pragma: allowlist secret
                     NonPodcastService.PlayRts, // pragma: allowlist secret
-                    ServiceKeys.PlayRts,
+                    StreamingServiceKeys.PlayRts,
                     PlayRtsUrlMatcher.IsSubmitUrl,
                     PlayRtsUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IPlayRtsPageMetaDataExtractor>().GetMetaData));

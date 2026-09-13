@@ -4,6 +4,7 @@ using RedditPodcastPoster.TvnzPlus.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.TvnzPlus.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.TvnzPlus,
-                    ServiceKeys.TvnzPlus,
+                    StreamingServiceKeys.TvnzPlus,
                     TvnzPlusUrlMatcher.IsSubmitUrl,
                     TvnzPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<ITvnzPlusPageMetaDataExtractor>().GetMetaData));

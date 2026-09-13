@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 namespace EpisodeServiceBackfill;
 
 /// <summary>
@@ -130,10 +131,10 @@ public sealed class LeftoverEpisodeDocument : Episode
             EpisodeServicePresence.TryFillMissing(this, ServiceKeys.Spotify, Urls.Spotify, null);
             EpisodeServicePresence.TryFillMissing(this, ServiceKeys.Apple, Urls.Apple, null);
             EpisodeServicePresence.TryFillMissing(this, ServiceKeys.YouTube, Urls.YouTube, null);
-            EpisodeServicePresence.TryFillMissing(this, ServiceKeys.InternetArchive, Urls.InternetArchive, null);
+            EpisodeServicePresence.TryFillMissing(this, StreamingServiceKeys.InternetArchive, Urls.InternetArchive, null);
             if (Urls.BBC is not null)
             {
-                var key = ServiceCatalog.TryResolveKey(Urls.BBC) ?? ServiceKeys.BbcSounds;
+                var key = StreamingServiceCatalog.TryResolveKey(Urls.BBC) ?? StreamingServiceKeys.BbcSounds;
                 EpisodeServicePresence.TryFillMissing(this, key, Urls.BBC, null);
             }
         }
@@ -183,7 +184,7 @@ public sealed class LeftoverEpisodeDocument : Episode
             return;
         }
 
-        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+        foreach (var key in StreamingServiceCatalog.ImageCoalesceOrder)
         {
             if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
             {
@@ -221,14 +222,14 @@ public sealed class LeftoverEpisodeDocument : Episode
             return true;
         }
 
-        if (Urls.InternetArchive is not null && !HasServiceUrl(ServiceKeys.InternetArchive))
+        if (Urls.InternetArchive is not null && !HasServiceUrl(StreamingServiceKeys.InternetArchive))
         {
             return true;
         }
 
         if (Urls.BBC is not null)
         {
-            var key = ServiceCatalog.TryResolveKey(Urls.BBC) ?? ServiceKeys.BbcSounds;
+            var key = StreamingServiceCatalog.TryResolveKey(Urls.BBC) ?? StreamingServiceKeys.BbcSounds;
             if (!HasServiceUrl(key))
             {
                 return true;

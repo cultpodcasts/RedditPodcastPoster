@@ -4,6 +4,7 @@ using RedditPodcastPoster.AmazonPrime.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.AmazonPrime.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.AmazonPrime,
-                    ServiceKeys.AmazonPrime,
+                    StreamingServiceKeys.AmazonPrime,
                     AmazonPrimeUrlMatcher.IsSubmitUrl,
                     AmazonPrimeUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IAmazonPrimePageMetaDataExtractor>().GetMetaData));

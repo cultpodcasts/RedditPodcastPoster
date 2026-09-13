@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 using FunctionHost.Tests.Api;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
@@ -84,7 +85,7 @@ public class GetSubmitUrlLookupHandlerTests
                 Kind = UrlMembershipLookupKinds.Streaming,
                 Ambiguous = true,
                 PodcastIds = [first, second],
-                Service = ServiceKeys.BbcSounds
+                Service = StreamingServiceKeys.BbcSounds
             });
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
@@ -102,7 +103,7 @@ public class GetSubmitUrlLookupHandlerTests
         body.GetProperty("ambiguous").GetBoolean().Should().BeTrue();
         body.GetProperty("podcastIds").EnumerateArray().Select(x => x.GetGuid())
             .Should().BeEquivalentTo([first, second]);
-        body.GetProperty("service").GetString().Should().Be(ServiceKeys.BbcSounds);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.BbcSounds);
     }
 
     [Fact(DisplayName =
@@ -118,7 +119,7 @@ public class GetSubmitUrlLookupHandlerTests
             {
                 Known = false,
                 Kind = UrlMembershipLookupKinds.Streaming,
-                Service = ServiceKeys.BbcSounds
+                Service = StreamingServiceKeys.BbcSounds
             });
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
@@ -134,6 +135,6 @@ public class GetSubmitUrlLookupHandlerTests
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("known").GetBoolean().Should().BeFalse();
         body.GetProperty("kind").GetString().Should().Be(UrlMembershipLookupKinds.Streaming);
-        body.GetProperty("service").GetString().Should().Be(ServiceKeys.BbcSounds);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.BbcSounds);
     }
 }

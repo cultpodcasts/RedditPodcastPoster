@@ -4,6 +4,7 @@ using RedditPodcastPoster.Channel4.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Channel4.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Channel4,
-                    ServiceKeys.Channel4,
+                    StreamingServiceKeys.Channel4,
                     Channel4UrlMatcher.IsSubmitUrl,
                     Channel4UrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IChannel4PageMetaDataExtractor>().GetMetaData));

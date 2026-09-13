@@ -27,7 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-        <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
+        <ProjectReference Include="..\RedditPodcastPoster.StreamingCatalog\RedditPodcastPoster.StreamingCatalog.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.InternetArchive\RedditPodcastPoster.InternetArchive.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />

@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 
@@ -24,7 +25,7 @@ public static class SearchEpisodeServices
 
         var parts = new List<string>();
         var encoded = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var key in ServiceCatalog.SearchEncodedKeys)
+        foreach (var key in StreamingServiceCatalog.SearchEncodedKeys)
         {
             if (!services.TryGetValue(key, out var link) || link.Url is null)
             {
@@ -71,7 +72,7 @@ public static class SearchEpisodeServices
 
             var key = entry[..colon];
             var payload = Unescape(entry[(colon + 1)..]);
-            var url = ServiceCatalog.TryExpandCompactUrl(key, payload);
+            var url = StreamingServiceCatalog.TryExpandCompactUrl(key, payload);
             if (url is not null)
             {
                 results.Add((key, url));
@@ -83,9 +84,9 @@ public static class SearchEpisodeServices
 
     private static string Encode(string key, Uri url)
     {
-        var compact = ServiceCatalog.TryCompactUrl(key, url);
+        var compact = StreamingServiceCatalog.TryCompactUrl(key, url);
         if (compact is not null &&
-            ServiceCatalog.TryExpandCompactUrl(key, compact) is not null)
+            StreamingServiceCatalog.TryExpandCompactUrl(key, compact) is not null)
         {
             return key + ":" + compact;
         }

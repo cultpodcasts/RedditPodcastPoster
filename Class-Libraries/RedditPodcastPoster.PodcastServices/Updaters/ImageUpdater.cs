@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.BBC.Extractors;
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Updaters;
 
@@ -111,14 +112,14 @@ public class ImageUpdater(
             }
         }
 
-        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
-                     EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds);
+        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
+                     EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds);
         if (updateRequest.UpdateBBCImage == true && bbcUrl != null)
         {
             try
             {
                 var metaData = await bbcPageMetaDataExtractor.GetMetaData(bbcUrl);
-                var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+                var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
                 EpisodeServicePresence.Upsert(episode, bbcKey, bbcUrl, metaData.Image);
                 updated = true;
             }

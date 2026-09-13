@@ -4,6 +4,7 @@ using RedditPodcastPoster.DisneyPlus.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.DisneyPlus.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.DisneyPlus,
-                    ServiceKeys.DisneyPlus,
+                    StreamingServiceKeys.DisneyPlus,
                     DisneyPlusUrlMatcher.IsSubmitUrl,
                     DisneyPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IDisneyPlusPageMetaDataExtractor>().GetMetaData));

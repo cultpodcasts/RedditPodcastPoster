@@ -33,6 +33,11 @@ public record SubmitResult(
         {
             results.Add(
                 $"spotify: {SubmitEpisodeDetails.Spotify}, apple: {SubmitEpisodeDetails.Apple}, youtube: {SubmitEpisodeDetails.YouTube}");
+            if (SubmitEpisodeDetails.ExtraServiceKeys is { Length: > 0 } extraKeys)
+            {
+                results.Add($"extra-service-keys: '{string.Join("', '", extraKeys)}'");
+            }
+
             if (SubmitEpisodeDetails.Subjects != null)
             {
                 results.Add($"subjects: '{string.Join("', '", SubmitEpisodeDetails.Subjects)}'");

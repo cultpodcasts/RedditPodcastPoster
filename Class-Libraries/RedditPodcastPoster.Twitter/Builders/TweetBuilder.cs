@@ -12,6 +12,7 @@ using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Dtos;
 
@@ -130,7 +131,10 @@ public class TweetBuilder(
         }
 
         if (!EpisodeServicePresence.TryGetPreferredSocialPostUrl(
-                podcastEpisode.Episode, out var postUrl, out _))
+                podcastEpisode.Episode,
+                StreamingServiceCatalog.ImageCoalesceOrder,
+                out var postUrl,
+                out _))
         {
             throw new InvalidOperationException("No link found to tweet");
         }

@@ -12,6 +12,7 @@ using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 
@@ -131,7 +132,10 @@ public class BlueskyEmbedCardPostFactory(
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
         if (!EpisodeServicePresence.TryGetPreferredSocialPostUrl(
-                podcastEpisode.Episode, out var url, out var urlPodcastService))
+                podcastEpisode.Episode,
+                StreamingServiceCatalog.ImageCoalesceOrder,
+                out var url,
+                out var urlPodcastService))
         {
             throw new InvalidOperationException(
                 $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Id}'.");

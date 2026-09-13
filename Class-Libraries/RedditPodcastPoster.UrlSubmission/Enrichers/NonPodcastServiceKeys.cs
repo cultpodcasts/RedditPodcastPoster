@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Enrichers;
 
@@ -13,17 +14,17 @@ internal static class NonPodcastServiceKeys
     {
         if (item.BBCUrl is { } bbc)
         {
-            return ServiceCatalog.TryResolveKey(bbc) ?? ServiceKeys.BbcSounds;
+            return StreamingServiceCatalog.TryResolveKey(bbc) ?? StreamingServiceKeys.BbcSounds;
         }
 
         if (item.InternetArchiveUrl != null)
         {
-            return ServiceKeys.InternetArchive;
+            return StreamingServiceKeys.InternetArchive;
         }
 
         if (item.Url is { } url)
         {
-            return ServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
+            return StreamingServiceCatalog.TryResolveKey(url) ?? ServiceCatalog.KeyFromUnknownHost(url);
         }
 
         return null;

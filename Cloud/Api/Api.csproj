@@ -18,7 +18,8 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
   </ItemGroup>
   <ItemGroup>
-        <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
+        <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.StreamingCatalog\RedditPodcastPoster.StreamingCatalog.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Auth0\RedditPodcastPoster.Auth0.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />

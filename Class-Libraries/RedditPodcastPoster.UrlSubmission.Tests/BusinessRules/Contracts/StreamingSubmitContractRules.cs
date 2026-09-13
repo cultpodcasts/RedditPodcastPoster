@@ -1,12 +1,13 @@
 using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.Contracts;
 
 /// <summary>
 /// Cross-repo streaming-submit contract: JSON published by Api, copied under docs/contracts.
-/// Locks JSON ↔ <see cref="ServiceCatalog.SearchEncodedKeys"/> (and rule/case-id completeness)
+/// Locks JSON ↔ <see cref="StreamingServiceCatalog.SearchEncodedKeys"/> (and rule/case-id completeness)
 /// alongside the membership <c>service</c> field shipped in this PR.
 /// </summary>
 public class StreamingSubmitContractRules
@@ -14,7 +15,7 @@ public class StreamingSubmitContractRules
     private static readonly JsonDocument Contract = LoadContract();
 
     [Fact(DisplayName =
-        "Streaming-submit contract JSON lists exactly ServiceCatalog.SearchEncodedKeys, because wire service enums must match RPP ServiceKeys.")]
+        "Streaming-submit contract JSON lists exactly StreamingServiceCatalog.SearchEncodedKeys, because wire service enums must match StreamingServiceKeys.")]
     public void streaming_contract_service_keys_match_search_encoded_keys()
     {
         // Arrange
@@ -25,7 +26,7 @@ public class StreamingSubmitContractRules
             .ToArray();
 
         // Act
-        var fromCatalog = ServiceCatalog.SearchEncodedKeys;
+        var fromCatalog = StreamingServiceCatalog.SearchEncodedKeys;
 
         // Assert
         fromContract.Should().Equal(fromCatalog);
@@ -46,8 +47,8 @@ public class StreamingSubmitContractRules
         var containsSpotify = fromContract.Contains(ServiceKeys.Spotify);
         var containsApple = fromContract.Contains(ServiceKeys.Apple);
         var containsYouTube = fromContract.Contains(ServiceKeys.YouTube);
-        var containsItvx = fromContract.Contains(ServiceKeys.Itvx);
-        var containsDiscoveryPlus = fromContract.Contains(ServiceKeys.DiscoveryPlus);
+        var containsItvx = fromContract.Contains(StreamingServiceKeys.Itvx);
+        var containsDiscoveryPlus = fromContract.Contains(StreamingServiceKeys.DiscoveryPlus);
 
         // Assert
         containsSpotify.Should().BeFalse();
@@ -69,7 +70,7 @@ public class StreamingSubmitContractRules
             .ToArray();
 
         // Act
-        var expected = new[] { ServiceKeys.Itvx };
+        var expected = new[] { StreamingServiceKeys.Itvx };
 
         // Assert
         allow.Should().Equal(expected);

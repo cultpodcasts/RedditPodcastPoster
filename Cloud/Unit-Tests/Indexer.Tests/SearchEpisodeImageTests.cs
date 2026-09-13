@@ -3,6 +3,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests;
 
@@ -186,7 +187,7 @@ public class SearchEpisodeImageTests
         EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, appleImage);
         if (otherImage is not null)
         {
-            EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Vimeo, otherImage);
+            EpisodeServicePresence.SetCatalogImage(episode, StreamingServiceKeys.Vimeo, otherImage);
         }
 
         return episode;

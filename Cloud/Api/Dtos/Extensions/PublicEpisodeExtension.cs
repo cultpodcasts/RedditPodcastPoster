@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Dtos.Extensions;
 
@@ -21,7 +22,7 @@ public static class PublicEpisodeExtension
             Ids = episode.Ids,
             Services = episode.Services,
             Subjects = episode.Subjects,
-            Image = EpisodeServicePresence.CoalescedImage(episode)
+            Image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder)
         };
     }
 }

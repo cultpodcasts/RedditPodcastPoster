@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests;
 
@@ -87,7 +88,7 @@ public class EpisodeServicePresenceTests
         {
             e.Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [ServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoArt }
+                [StreamingServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoArt }
             };
         });
 
@@ -96,9 +97,9 @@ public class EpisodeServicePresenceTests
 
         // Assert
         projected.Should().BeNull();
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(vimeoArt);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(vimeoArt);
         EpisodeServicePresence.CoalescedImage(episode).Should().Be(vimeoArt);
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer).Should().BeNull();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -114,7 +115,7 @@ public class EpisodeServicePresenceTests
         {
             e.Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [ServiceKeys.Vimeo] = new() { Image = vimeoArt },
+                [StreamingServiceKeys.Vimeo] = new() { Image = vimeoArt },
                 [ServiceKeys.Apple] = new() { Image = appleArt },
                 [ServiceKeys.Spotify] = new() { Image = spotifyArt },
                 [ServiceKeys.YouTube] = new() { Image = youTubeArt }

@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests.BusinessRules;
 
@@ -44,7 +45,7 @@ public class EpisodeCatalogNormalizeRules
         var netflixUrl = new Uri($"https://www.netflix.com/title/{Math.Abs(_fixture.Create<int>())}");
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.Upsert(e, ServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
         });
 
         // Act
@@ -55,8 +56,52 @@ public class EpisodeCatalogNormalizeRules
         // Assert
         found.Should().BeTrue();
         url.Should().Be(netflixUrl);
-        key.Should().Be(ServiceKeys.Netflix);
+        key.Should().Be(StreamingServiceKeys.Netflix);
         service.Should().Be(Service.Other);
-        catalogLog.Should().Contain($"{ServiceKeys.Netflix}={netflixUrl}");
+        catalogLog.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
+    }
+
+    [Fact(DisplayName =
+        "When an episode has both BBC iPlayer and BBC Sounds listen URLs, TryGetPreferredSocialPost with ImageCoalesceOrder picks the iPlayer URL, because iPlayer precedes Sounds in social-share order.")]
+    public void preferred_social_post_prefers_iplayer_before_sounds()
+    {
+        // Arrange
+        var soundsUrl = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+        var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, soundsUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcIplayer, iplayerUrl, null);
+        });
+
+        // Act
+        var found = EpisodeServicePresence.TryGetPreferredSocialPost(
+            episode,
+            StreamingServiceCatalog.ImageCoalesceOrder,
+            out var url,
+            out var key,
+            out var service);
+
+        // Assert
+        found.Should().BeTrue();
+        url.Should().Be(iplayerUrl);
+        key.Should().Be(StreamingServiceKeys.BbcIplayer);
+        service.Should().Be(Service.Other);
+    }
+
+    [Fact(DisplayName =
+        "When fixture Urls.BBC is an iPlayer episode URI, ApplyBbc stores StreamingServiceKeys.BbcIplayer, not Sounds, because the composed catalog resolves /iplayer/ before the Sounds fallback.")]
+    public void fixture_bbc_iplayer_url_stores_bbc_iplayer_key()
+    {
+        // Arrange
+        var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var episode = _fixture.CreateEpisode();
+
+        // Act
+        episode.Urls.BBC = iplayerUrl;
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().Be(iplayerUrl);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
     }
 }

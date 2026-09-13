@@ -91,21 +91,18 @@ The add/edit dialogs keep **dedicated slots** for Spotify, Apple, YouTube (`DEFA
 
 **Posters read catalog `services`.** Dual-write is off.
 
-`TweetBuilder` and `BlueskyEmbedCardPostFactory` choose one outbound link from **catalog** `services` (`TryGetPreferredSocialPostUrl`), in this order:
+`TweetBuilder` and `BlueskyEmbedCardPostFactory` choose one outbound link from **catalog** `services` (`TryGetPreferredSocialPostUrl` with `StreamingServiceCatalog.ImageCoalesceOrder`), in this order:
 
 1. YouTube
 2. Spotify
 3. Apple
-4. Internet Archive
-5. BBC iPlayer, then BBC Sounds
+4. Remaining streaming keys in image-coalesce order (BBC iPlayer before BBC Sounds, then Internet Archive, Vimeo, Netflix, …)
 
-If none exist, tweet build throws `No link found to tweet`.
+If none exist, tweet build throws `No link found to tweet`. A streaming-only episode (for example Netflix with no index-id URL) still posts that URL.
 
 Bluesky embed thumbnails resolve via nested `ids.spotify` (leftover top-level `spotifyId` is ignored on typed `Episode`).
 
 `hashTag` and posted/tweeted/bluesky flags are unchanged.
-
-Vimeo / Netflix / Prime **do not** appear in tweets today. Adding them is a product decision, not part of this branch.
 
 ---
 

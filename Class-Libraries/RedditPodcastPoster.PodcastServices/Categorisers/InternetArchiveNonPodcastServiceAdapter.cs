@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Categorisers;
 
@@ -20,17 +21,17 @@ public class InternetArchiveNonPodcastServiceAdapter(
 
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
-        var stored = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.InternetArchive, url);
+        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.InternetArchive, url);
         return episode =>
             episode.Services != null &&
-            episode.Services[ServiceKeys.InternetArchive].Url == stored;
+            episode.Services[StreamingServiceKeys.InternetArchive].Url == stored;
     }
 
     public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
     {
-        var stored = ServiceCatalog.CanonicalUrlOrSelf(ServiceKeys.InternetArchive, url);
+        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.InternetArchive, url);
         return episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive) == stored);
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive) == stored);
     }
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>

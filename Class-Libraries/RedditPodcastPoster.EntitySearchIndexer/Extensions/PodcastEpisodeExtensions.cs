@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
@@ -25,7 +26,7 @@ public static class PodcastEpisodeExtensions
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
-            InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.InternetArchive)
+            InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, StreamingServiceKeys.InternetArchive)
                 ?.ToString() ?? string.Empty,
             // Episode.Language only — null means English. Do not fall back to podcast language
             // (that undid curator "English" / "No Language" clears on non-English shows).
@@ -43,8 +44,8 @@ public static class PodcastEpisodeExtensions
     }
 
     private static string BbcSearchField(Episode episode) =>
-        (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
-         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds))?.ToString() ?? string.Empty;
+        (EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
+         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds))?.ToString() ?? string.Empty;
 
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;

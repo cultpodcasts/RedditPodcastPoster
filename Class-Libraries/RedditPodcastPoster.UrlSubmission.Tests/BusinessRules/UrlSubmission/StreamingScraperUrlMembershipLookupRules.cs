@@ -187,6 +187,7 @@ public class StreamingScraperUrlMembershipLookupRules
                      c.Provider is StreamingScraperProvider.Itvx
                          or StreamingScraperProvider.Channel4
                          or StreamingScraperProvider.Fawesome
+                         or StreamingScraperProvider.Tubi
                          or StreamingScraperProvider.ParamountPlus
                          or StreamingScraperProvider.HboMax
                          or StreamingScraperProvider.PlaySuisse

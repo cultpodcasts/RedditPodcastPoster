@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -47,10 +48,10 @@ public class NonPodcastEpisodeFactoryRules
         episode.Description.Should().Be(description);
         episode.Release.Should().Be(release);
         episode.Length.Should().Be(duration);
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.BbcSounds).Should().Be(image);
-        EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcIplayer).Should().BeFalse();
-        EpisodeServicePresence.HasUrl(episode, ServiceKeys.InternetArchive).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.BbcSounds).Should().Be(image);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeFalse();
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.InternetArchive).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -74,8 +75,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer).Should().Be(url);
-        EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcSounds).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().Be(url);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -99,10 +100,10 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.InternetArchive).Should().Be(image);
-        EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcSounds).Should().BeFalse();
-        EpisodeServicePresence.HasUrl(episode, ServiceKeys.BbcIplayer).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.InternetArchive).Should().Be(image);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -127,8 +128,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Vimeo).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Vimeo).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -156,8 +157,36 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BcVideo).Should().Be(canonicalUrl);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.BcVideo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BcVideo).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.BcVideo).Should().Be(image);
+    }
+
+    [Fact(DisplayName =
+        "Creating an episode from a locale Tubi movie URL stores the canonical /movies/{id} URL, " +
+        "so a later paste of the same title without locale matches the same catalog row.")]
+    public void locale_tubi_item_stores_canonical_movies_url()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var pasted = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var canonicalUrl = new Uri($"https://tubitv.com/movies/{id}");
+        var image = _fixture.Create<Uri>();
+        var categorised = CreateNonPodcastItem(
+            NonPodcastService.Tubi,
+            pasted,
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()),
+            _fixture.CreateDuration(),
+            image);
+        var sut = CreateSut(TimeSpan.Zero);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Tubi).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Tubi).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -184,8 +213,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Vimeo).Should().Be(canonical);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Vimeo).Should().Be(canonical);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(image);
     }
 
     [Fact(DisplayName =

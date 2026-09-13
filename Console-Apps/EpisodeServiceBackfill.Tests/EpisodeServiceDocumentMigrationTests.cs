@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace EpisodeServiceBackfill.Tests;
 
@@ -172,10 +173,10 @@ public class EpisodeServiceDocumentMigrationTests
 
         // Assert
         episode.Services.Should().ContainKey(ServiceKeys.Spotify);
-        episode.Services.Should().ContainKey(ServiceKeys.BbcIplayer);
+        episode.Services.Should().ContainKey(StreamingServiceKeys.BbcIplayer);
         episode.Ids!.Spotify.Should().Be(spotifyId);
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().Be(spotifyUrl);
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer).Should().NotBeNull();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().NotBeNull();
         second.Should().BeFalse();
     }
 }

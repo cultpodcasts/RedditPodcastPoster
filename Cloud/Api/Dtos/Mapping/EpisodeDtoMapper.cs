@@ -10,6 +10,7 @@ using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Dtos.Mapping;
 
@@ -85,7 +86,7 @@ public class EpisodeDtoMapper(
             ReleaseAuthority = podcast.ReleaseAuthority,
             PrimaryPostService = podcast.PrimaryPostService,
             Image =
-                EpisodeServicePresence.CoalescedImage(episode),
+                EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
             Language = episode.Language,
             Guests = episode.Guests,
             DisplayTitle = await textSanitiser.SanitiseTitle(

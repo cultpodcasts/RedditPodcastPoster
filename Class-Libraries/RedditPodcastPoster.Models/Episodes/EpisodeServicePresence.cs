@@ -6,38 +6,20 @@ namespace RedditPodcastPoster.Models.Episodes;
 /// Catalog accessors for <c>services</c> / nested <c>ids</c>.
 /// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not on <see cref="Episode"/>;
 /// they wither on full <c>Save()</c>. Application code must not write those leftover members.
-/// Cover art coalesces from <c>services.*.image</c> via <see cref="ServiceCatalog.ImageCoalesceOrder"/>.
+/// Cover art coalesces from <c>services.*.image</c> in
+/// <see cref="ServiceCatalog.IndexIdImageOrder"/> then remaining service keys.
+/// Streaming destinations register above Models; leftover BBC/IA DTO slots use JSON key literals.
 /// </summary>
 public static class EpisodeServicePresence
 {
     /// <summary>
-    /// Outbound Tweet/Bluesky URL preference. YouTube, then Spotify, then Apple, then remaining
-    /// catalog listen destinations so a Netflix (or other) URL can be posted when it is the only one.
-    /// Same sequence as <see cref="ServiceCatalog.ImageCoalesceOrder"/>.
+    /// Index-id listen URL preference (YouTube, then Spotify, then Apple).
+    /// Production Tweet/Bluesky callers pass <c>StreamingServiceCatalog.ImageCoalesceOrder</c>
+    /// so streaming destinations keep a deterministic share order (iPlayer before Sounds).
+    /// Remaining catalog keys not in the supplied list are walked after it so a Netflix
+    /// (or other streaming) URL can still be posted when it is the only one.
     /// </summary>
-    public static readonly string[] SocialPostUrlOrder =
-    [
-        ServiceKeys.YouTube,
-        ServiceKeys.Spotify,
-        ServiceKeys.Apple,
-        ServiceKeys.BbcIplayer,
-        ServiceKeys.BbcSounds,
-        ServiceKeys.InternetArchive,
-        ServiceKeys.Vimeo,
-        ServiceKeys.Netflix,
-        ServiceKeys.AmazonPrime,
-        ServiceKeys.ParamountPlus,
-        ServiceKeys.HboMax,
-        ServiceKeys.PlaySuisse,
-        ServiceKeys.PlayRts,
-        ServiceKeys.TvnzPlus,
-        ServiceKeys.Itvx,
-        ServiceKeys.Channel4,
-        ServiceKeys.Fawesome,
-        ServiceKeys.DisneyPlus,
-        ServiceKeys.BcVideo,
-        ServiceKeys.DiscoveryPlus
-    ];
+    public static readonly string[] SocialPostUrlOrder = ServiceCatalog.IndexIdImageOrder;
 
     /// <summary>
     /// Drop the retired <c>other</c> catalog key and keep nested ids aligned.
@@ -129,9 +111,9 @@ public static class EpisodeServicePresence
             Spotify = TryGetUrl(episode, ServiceKeys.Spotify),
             Apple = TryGetUrl(episode, ServiceKeys.Apple),
             YouTube = TryGetUrl(episode, ServiceKeys.YouTube),
-            InternetArchive = TryGetUrl(episode, ServiceKeys.InternetArchive),
-            BBC = TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
-                  TryGetUrl(episode, ServiceKeys.BbcSounds)
+            InternetArchive = TryGetUrl(episode, "internetArchive"),
+            BBC = TryGetUrl(episode, "bbcIplayer") ??
+                  TryGetUrl(episode, "bbcSounds")
         };
     }
 
@@ -154,32 +136,47 @@ public static class EpisodeServicePresence
         };
     }
 
-    public static Uri? PreferredSocialPostUrl(Episode episode)
+    public static Uri? PreferredSocialPostUrl(Episode episode) =>
+        PreferredSocialPostUrl(episode, SocialPostUrlOrder);
+
+    public static Uri? PreferredSocialPostUrl(Episode episode, IReadOnlyList<string> keyOrder)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        foreach (var key in SocialPostUrlOrder)
+        if (TryGetPreferredSocialPost(episode, keyOrder, out var url, out _, out _))
         {
-            var url = TryGetUrl(episode, key);
-            if (url is not null)
-            {
-                return url;
-            }
+            return url;
         }
 
         return null;
     }
 
     public static bool TryGetPreferredSocialPostUrl(Episode episode, out Uri url, out Service service) =>
-        TryGetPreferredSocialPost(episode, out url, out _, out service);
+        TryGetPreferredSocialPostUrl(episode, SocialPostUrlOrder, out url, out service);
+
+    public static bool TryGetPreferredSocialPostUrl(
+        Episode episode,
+        IReadOnlyList<string> keyOrder,
+        out Uri url,
+        out Service service) =>
+        TryGetPreferredSocialPost(episode, keyOrder, out url, out _, out service);
 
     public static bool TryGetPreferredSocialPost(
         Episode episode,
         out Uri url,
         out string serviceKey,
+        out Service service) =>
+        TryGetPreferredSocialPost(episode, SocialPostUrlOrder, out url, out serviceKey, out service);
+
+    public static bool TryGetPreferredSocialPost(
+        Episode episode,
+        IReadOnlyList<string> keyOrder,
+        out Uri url,
+        out string serviceKey,
         out Service service)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        foreach (var key in SocialPostUrlOrder)
+        ArgumentNullException.ThrowIfNull(keyOrder);
+        foreach (var key in keyOrder)
         {
             var found = TryGetUrl(episode, key);
             if (found is null)
@@ -189,26 +186,21 @@ public static class EpisodeServicePresence
 
             url = found;
             serviceKey = key;
-            service = key switch
-            {
-                ServiceKeys.YouTube => Service.YouTube,
-                ServiceKeys.Spotify => Service.Spotify,
-                ServiceKeys.Apple => Service.Apple,
-                _ => Service.Other
-            };
+            service = MapSocialPostService(key);
             return true;
         }
 
+        var seen = new HashSet<string>(keyOrder, StringComparer.Ordinal);
         foreach (var (key, link) in episode.Services ?? [])
         {
-            if (link.Url is null)
+            if (link.Url is null || !seen.Add(key))
             {
                 continue;
             }
 
             url = link.Url;
             serviceKey = key;
-            service = Service.Other;
+            service = MapSocialPostService(key);
             return true;
         }
 
@@ -219,11 +211,18 @@ public static class EpisodeServicePresence
     }
 
     /// <summary>
-    /// Catalog listen URLs that are present, SocialPostUrlOrder first then remaining keys.
+    /// Catalog listen URLs that are present, <see cref="SocialPostUrlOrder"/> first then remaining keys.
     /// </summary>
-    public static string FormatCatalogUrlsForLog(Episode episode)
+    public static string FormatCatalogUrlsForLog(Episode episode) =>
+        FormatCatalogUrlsForLog(episode, SocialPostUrlOrder);
+
+    /// <summary>
+    /// Catalog listen URLs that are present, <paramref name="keyOrder"/> first then remaining keys.
+    /// </summary>
+    public static string FormatCatalogUrlsForLog(Episode episode, IReadOnlyList<string> keyOrder)
     {
         ArgumentNullException.ThrowIfNull(episode);
+        ArgumentNullException.ThrowIfNull(keyOrder);
         if (episode.Services is not { Count: > 0 })
         {
             return "";
@@ -231,15 +230,15 @@ public static class EpisodeServicePresence
 
         var parts = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var key in SocialPostUrlOrder)
+        foreach (var key in keyOrder)
         {
-            var url = TryGetUrl(episode, key);
-            if (url is null)
+            var found = TryGetUrl(episode, key);
+            if (found is null)
             {
                 continue;
             }
 
-            parts.Add($"{key}={url}");
+            parts.Add($"{key}={found}");
             seen.Add(key);
         }
 
@@ -255,6 +254,15 @@ public static class EpisodeServicePresence
 
         return string.Join(";", parts);
     }
+
+    private static Service MapSocialPostService(string key) =>
+        key switch
+        {
+            ServiceKeys.YouTube => Service.YouTube,
+            ServiceKeys.Spotify => Service.Spotify,
+            ServiceKeys.Apple => Service.Apple,
+            _ => Service.Other
+        };
 
     public static void SetSpotifyIdentity(Episode episode, string? id)
     {
@@ -284,22 +292,32 @@ public static class EpisodeServicePresence
     /// Cover art for search/share only: YouTube, then Spotify, then Apple, then remaining catalog keys.
     /// Extra service art stays on <c>services.{key}.image</c> and is not collapsed into leftover <c>images.other</c>.
     /// </summary>
-    public static Uri? CoalescedImage(Episode episode)
+    public static Uri? CoalescedImage(Episode episode) =>
+        CoalescedImage(episode, ServiceCatalog.IndexIdImageOrder);
+
+    public static Uri? CoalescedImage(Episode episode, IReadOnlyList<string> keyOrder)
     {
         ArgumentNullException.ThrowIfNull(episode);
+        ArgumentNullException.ThrowIfNull(keyOrder);
         NormalizeCatalog(episode);
-        return CoalescedImage(episode.Services);
+        return CoalescedImage(episode.Services, keyOrder);
     }
 
     public static Uri? CoalescedImage(
-        IReadOnlyDictionary<string, EpisodeServiceLink>? services)
+        IReadOnlyDictionary<string, EpisodeServiceLink>? services) =>
+        CoalescedImage(services, ServiceCatalog.IndexIdImageOrder);
+
+    public static Uri? CoalescedImage(
+        IReadOnlyDictionary<string, EpisodeServiceLink>? services,
+        IReadOnlyList<string> keyOrder)
     {
+        ArgumentNullException.ThrowIfNull(keyOrder);
         if (services is not { Count: > 0 })
         {
             return null;
         }
 
-        foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+        foreach (var key in keyOrder)
         {
             if (services.TryGetValue(key, out var link) && link.Image is not null)
             {

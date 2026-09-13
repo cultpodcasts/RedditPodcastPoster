@@ -3,6 +3,7 @@ using RedditPodcastPoster.BcVideo.Extractors;
 using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.BcVideo.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
                 var extractor = provider.GetRequiredService<IBcVideoMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.BcVideo,
-                    ServiceKeys.BcVideo,
+                    StreamingServiceKeys.BcVideo,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

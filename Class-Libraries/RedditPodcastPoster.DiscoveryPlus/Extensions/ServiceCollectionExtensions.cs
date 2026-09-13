@@ -4,6 +4,7 @@ using RedditPodcastPoster.DiscoveryPlus.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.DiscoveryPlus.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.DiscoveryPlus,
-                    ServiceKeys.DiscoveryPlus,
+                    StreamingServiceKeys.DiscoveryPlus,
                     DiscoveryPlusUrlMatcher.IsSubmitUrl,
                     DiscoveryPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IDiscoveryPlusPageMetaDataExtractor>().GetMetaData));

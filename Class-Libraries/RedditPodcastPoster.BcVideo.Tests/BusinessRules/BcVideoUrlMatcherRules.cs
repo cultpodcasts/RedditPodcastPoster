@@ -52,8 +52,8 @@ public class BcVideoUrlMatcherRules
         var url = new Uri($"https://www.{Host}/video/{id}/");
 
         // Act
-        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url);
-        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.BcVideo, compact!);
+        var compact = BcVideoUrlMatcher.TryCompactPayload(url);
+        var expanded = BcVideoUrlMatcher.TryExpandPayload(compact!);
 
         // Assert
         compact.Should().Be(id);
@@ -70,8 +70,8 @@ public class BcVideoUrlMatcherRules
         var url = new Uri($"https://www.{Host}/embed/{id}");
 
         // Act
-        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.BcVideo, url);
-        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.BcVideo, compact!);
+        var compact = BcVideoUrlMatcher.TryCompactPayload(url);
+        var expanded = BcVideoUrlMatcher.TryExpandPayload(compact!);
 
         // Assert
         compact.Should().Be(id);

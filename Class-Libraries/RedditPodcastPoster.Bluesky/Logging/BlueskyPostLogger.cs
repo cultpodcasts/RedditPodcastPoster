@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -63,9 +64,14 @@ public static class BlueskyPostLogger
 
     private static (Uri? PostedUrl, string PostedService, string CatalogUrls) PostedUrlFields(Episode episode)
     {
-        var catalogUrls = EpisodeServicePresence.FormatCatalogUrlsForLog(episode);
+        var catalogUrls = EpisodeServicePresence.FormatCatalogUrlsForLog(
+            episode, StreamingServiceCatalog.ImageCoalesceOrder);
         if (EpisodeServicePresence.TryGetPreferredSocialPost(
-                episode, out var url, out var serviceKey, out _))
+                episode,
+                StreamingServiceCatalog.ImageCoalesceOrder,
+                out var url,
+                out var serviceKey,
+                out _))
         {
             return (url, serviceKey, catalogUrls);
         }

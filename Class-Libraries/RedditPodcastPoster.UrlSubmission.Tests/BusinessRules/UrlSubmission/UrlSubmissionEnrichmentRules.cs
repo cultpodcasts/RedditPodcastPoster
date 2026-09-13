@@ -15,6 +15,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -231,7 +232,7 @@ public class UrlSubmissionEnrichmentRules
             episode,
             new CategorisedSpotifyItem(
                 podcast.SpotifyId,
-                EpisodeServicePresence.SpotifyEpisodeId(episode),
+                EpisodeServicePresence.SpotifyEpisodeId(episode)!,
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -257,7 +258,7 @@ public class UrlSubmissionEnrichmentRules
                 null),
             new CategorisedYouTubeItem(
                 podcast.YouTubeChannelId,
-                EpisodeServicePresence.YouTubeEpisodeId(episode),
+                EpisodeServicePresence.YouTubeEpisodeId(episode)!,
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -555,8 +556,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.BBC.Should().Be(bbcUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.BBC.Should().BeTrue();
-        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.BbcSounds);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.BbcSounds);
     }
 
     [Fact(DisplayName =
@@ -585,7 +585,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.InternetArchive.Should().Be(internetArchiveUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeTrue();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.InternetArchive);
     }
 
     [Fact(DisplayName =
@@ -605,7 +605,7 @@ public class UrlSubmissionEnrichmentRules
             Description: episode.Description,
             Image: image);
         var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
-        var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+        var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
 
         // Act
         enricher.ApplyResolvedPodcastServiceProperties(
@@ -617,7 +617,7 @@ public class UrlSubmissionEnrichmentRules
         EpisodeServicePresence.TryGetImage(episode, bbcKey).Should().Be(image);
         EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
         EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube).Should().BeNull();
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.InternetArchive).Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.InternetArchive).Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -646,18 +646,17 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Vimeo).Should().Be(image);
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Vimeo).Should().Be(vimeoUrl);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.InternetArchive).Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Vimeo).Should().Be(vimeoUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.InternetArchive).Should().BeNull();
         EpisodeServicePresence.ToEpisodeImages(episode)?.Other.Should().BeNull();
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.Vimeo.Should().BeTrue();
-        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.Vimeo);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.Vimeo);
     }
 
     [Fact(DisplayName =
         "When an existing episode is missing a Netflix link and a resolved Netflix item is present, " +
-        "UrlSubmission enrichment fills the Netflix catalog URL and sets the Netflix submit flag.")]
+        "UrlSubmission enrichment fills the Netflix catalog URL and records netflix in ExtraServiceKeys.")]
     public void enrich_fills_missing_netflix_url_from_non_podcast_item()
     {
         // Arrange
@@ -679,16 +678,14 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Netflix).Should().Be(netflixUrl);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Netflix).Should().Be(netflixUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.Netflix.Should().BeTrue();
-        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Equal(StreamingServiceKeys.Netflix);
     }
 
     [Fact(DisplayName =
         "When an existing episode is missing a Prime Video link and a resolved Prime item is present, " +
-        "UrlSubmission enrichment fills the amazonPrime catalog URL and sets the Amazon Prime submit flag.")]
+        "UrlSubmission enrichment fills the amazonPrime catalog URL and records amazonPrime in ExtraServiceKeys.")]
     public void enrich_fills_missing_prime_url_from_non_podcast_item()
     {
         // Arrange
@@ -710,10 +707,9 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.AmazonPrime).Should().Be(primeUrl);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.AmazonPrime).Should().Be(primeUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
-        response.SubmitEpisodeDetails.AmazonPrime.Should().BeTrue();
-        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Contain(ServiceKeys.AmazonPrime);
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().Equal(StreamingServiceKeys.AmazonPrime);
     }
 
     [Fact(DisplayName =
@@ -778,7 +774,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.BBC.Should().Be(existingBbcUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
-        response.SubmitEpisodeDetails.BBC.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -809,7 +805,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Urls.InternetArchive.Should().Be(existingUrl);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
-        response.SubmitEpisodeDetails.InternetArchive.Should().BeFalse();
+        response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -1117,7 +1113,7 @@ public class UrlSubmissionEnrichmentRules
             e.Release = staleRelease;
             e.Length = TimeSpan.Zero;
         });
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Itvx, itvxUrl, staleImage);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.Itvx,
             Url: itvxUrl,
@@ -1139,8 +1135,8 @@ public class UrlSubmissionEnrichmentRules
         episode.Description.Should().Be(freshDescription);
         episode.Release.Should().Be(freshRelease);
         episode.Length.Should().Be(freshLength);
-        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Itvx).Should().Be(itvxUrl);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(freshImage);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Itvx).Should().Be(itvxUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Itvx).Should().Be(freshImage);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
         response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull(
             "streaming URL was already present so the service was not newly added");
@@ -1167,7 +1163,7 @@ public class UrlSubmissionEnrichmentRules
             e.Release = release;
             e.Length = length;
         });
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, image);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Itvx, itvxUrl, image);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.Itvx,
             Url: itvxUrl,
@@ -1189,7 +1185,7 @@ public class UrlSubmissionEnrichmentRules
         episode.Description.Should().Be(description);
         episode.Release.Should().Be(release);
         episode.Length.Should().Be(length);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(image);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Itvx).Should().Be(image);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         response.SubmitEpisodeDetails.ExtraServiceKeys.Should().BeNull();
     }
@@ -1222,7 +1218,7 @@ public class UrlSubmissionEnrichmentRules
             EpisodeServicePresence.SetSpotifyIdentity(e, spotifyInput.EpisodeId);
             EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, spotifyInput.Url, null);
         });
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, null);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Itvx, itvxUrl, null);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.Itvx,
             Url: itvxUrl,
@@ -1285,7 +1281,7 @@ public class UrlSubmissionEnrichmentRules
             e.Title = staleTitle;
             e.Length = TimeSpan.Zero;
         });
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Itvx, itvxUrl, staleImage);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.Itvx,
             Url: itvxUrl,
@@ -1336,7 +1332,7 @@ public class UrlSubmissionEnrichmentRules
             e.Release = staleRelease;
             e.Length = TimeSpan.Zero;
         });
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Itvx, itvxUrl, staleImage);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Itvx, itvxUrl, staleImage);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             NonPodcastService.Itvx,
             Url: itvxUrl,
@@ -1358,7 +1354,7 @@ public class UrlSubmissionEnrichmentRules
         episode.Description.Should().Be(description);
         episode.Release.Should().Be(staleRelease);
         episode.Length.Should().Be(TimeSpan.Zero);
-        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Itvx).Should().Be(staleImage);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Itvx).Should().Be(staleImage);
     }
 
     private static CategorisedItem CreateNonPodcastOnlyCategorisedItem(

@@ -4,6 +4,7 @@ using RedditPodcastPoster.HboMax.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.HboMax.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.HboMax,
-                    ServiceKeys.HboMax,
+                    StreamingServiceKeys.HboMax,
                     HboMaxUrlMatcher.IsSubmitUrl,
                     HboMaxUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IHboMaxPageMetaDataExtractor>().GetMetaData));

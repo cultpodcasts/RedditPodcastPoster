@@ -4,6 +4,7 @@ using RedditPodcastPoster.Fawesome.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Fawesome.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Fawesome,
-                    ServiceKeys.Fawesome,
+                    StreamingServiceKeys.Fawesome,
                     FawesomeUrlMatcher.IsSubmitUrl,
                     FawesomeUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IFawesomePageMetaDataExtractor>().GetMetaData));

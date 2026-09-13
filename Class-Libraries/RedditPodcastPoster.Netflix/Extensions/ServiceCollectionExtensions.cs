@@ -4,6 +4,7 @@ using RedditPodcastPoster.Netflix.Extractors;
 using RedditPodcastPoster.Netflix.Matching;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Netflix.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Netflix,
-                    ServiceKeys.Netflix,
+                    StreamingServiceKeys.Netflix,
                     NetflixUrlMatcher.IsSubmitUrl,
                     NetflixUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<INetflixPageMetaDataExtractor>().GetMetaData));

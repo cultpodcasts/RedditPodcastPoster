@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlShortening.Services;
 
@@ -28,7 +29,7 @@ public static class ShortnerShareImageMetadata
     public static void Apply(MetaData metadata, Episode episode)
     {
         var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
-        var coalesced = EpisodeServicePresence.CoalescedImage(episode);
+        var coalesced = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
         var image = coalesced is null ? null : Compact(coalesced.ToString(), youTubeId) ?? coalesced.ToString();
         if (string.IsNullOrEmpty(image))
         {
@@ -54,9 +55,9 @@ public static class ShortnerShareImageMetadata
             return ShareImageAspect.Wide;
         }
 
-        if (IsBbcIplayer(EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
-                         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds)) ||
-            EpisodeServicePresence.HasUrl(episode, ServiceKeys.InternetArchive))
+        if (IsBbcIplayer(EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
+                         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds)) ||
+            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.InternetArchive))
         {
             return ShareImageAspect.Wide;
         }
@@ -67,7 +68,7 @@ public static class ShortnerShareImageMetadata
     /// <summary>Same selection as SearchEpisodeImage.From: ImageCoalesceOrder then compact.</summary>
     private static string? CompactFromEpisode(Episode episode, string? youTubeId)
     {
-        var selected = EpisodeServicePresence.CoalescedImage(episode);
+        var selected = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
         if (selected is null)
         {
             return null;
