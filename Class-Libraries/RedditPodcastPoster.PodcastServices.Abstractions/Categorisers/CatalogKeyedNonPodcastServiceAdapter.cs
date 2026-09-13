@@ -48,5 +48,5 @@ public class CatalogKeyedNonPodcastServiceAdapter(
         extractFromHtml != null
             ? extractFromHtml(url, html)
             : throw new NotSupportedException(
-                $"HTML extract is not registered for service '{service}'.");
+                $"HTML extract is not registered for service '{Service}'.");
 }

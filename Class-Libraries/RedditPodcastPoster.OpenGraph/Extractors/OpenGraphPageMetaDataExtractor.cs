@@ -70,8 +70,8 @@ public class OpenGraphPageMetaDataExtractor
                        $"//meta[@property='{property}']")
                    ?? document.DocumentNode.SelectSingleNode(
                        $"//meta[@name='{property}']");
-        var content = node?.GetAttributeValue("content", null);
-        return content is null ? null : WebUtility.HtmlDecode(content);
+        var content = node?.GetAttributeValue("content", string.Empty);
+        return string.IsNullOrEmpty(content) ? null : WebUtility.HtmlDecode(content);
     }
 
     private static (TimeSpan? Duration, DateTime? Release, string? Series, string? Name) ReadJsonLd(HtmlDocument document)
