@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests.BusinessRules;
 
@@ -44,7 +45,7 @@ public class EpisodeCatalogNormalizeRules
         var netflixUrl = new Uri($"https://www.netflix.com/title/{Math.Abs(_fixture.Create<int>())}");
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.Upsert(e, ServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
         });
 
         // Act
@@ -55,8 +56,8 @@ public class EpisodeCatalogNormalizeRules
         // Assert
         found.Should().BeTrue();
         url.Should().Be(netflixUrl);
-        key.Should().Be(ServiceKeys.Netflix);
+        key.Should().Be(StreamingServiceKeys.Netflix);
         service.Should().Be(Service.Other);
-        catalogLog.Should().Contain($"{ServiceKeys.Netflix}={netflixUrl}");
+        catalogLog.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
     }
 }

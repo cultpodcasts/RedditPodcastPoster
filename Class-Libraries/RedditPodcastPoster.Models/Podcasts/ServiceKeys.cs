@@ -1,29 +1,12 @@
 namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
-/// Canonical JSON keys for <c>episode.services</c>. Stable identifiers for icons and search encoding.
+/// Canonical JSON keys for Spotify, Apple, and YouTube on <c>episode.services</c> / <c>ids</c>.
+/// Streaming keys live on <c>StreamingServiceKeys</c> next to provider registrations.
 /// </summary>
 public static class ServiceKeys
 {
     public const string Spotify = "spotify";
     public const string Apple = "apple";
     public const string YouTube = "youtube";
-    public const string BbcSounds = "bbcSounds";
-    public const string BbcIplayer = "bbcIplayer";
-    public const string InternetArchive = "internetArchive";
-    public const string Vimeo = "vimeo";
-    public const string Netflix = "netflix";
-    public const string AmazonPrime = "amazonPrime";
-    public const string ParamountPlus = "paramountPlus";
-    public const string HboMax = "hboMax";
-    public const string PlaySuisse = "playSuisse";
-    public const string PlayRts = "playRts";
-    public const string TvnzPlus = "tvnzPlus";
-    public const string Itvx = "itvx";
-    public const string Channel4 = "channel4";
-    public const string Fawesome = "fawesome";
-    public const string DisneyPlus = "disneyPlus";
-    public const string DiscoveryPlus = "discoveryPlus";
-    public const string BcVideo = "bitchute";
-    public const string Tubi = "tubi";
 }

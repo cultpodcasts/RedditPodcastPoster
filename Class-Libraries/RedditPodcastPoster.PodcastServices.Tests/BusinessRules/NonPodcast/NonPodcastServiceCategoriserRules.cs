@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Handlers;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.NonPodcast;
 
@@ -140,7 +141,7 @@ public class NonPodcastServiceCategoriserRules
         var url = InternetArchiveUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.InternetArchive, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.InternetArchive, url, null));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
@@ -244,8 +245,8 @@ public class NonPodcastServiceCategoriserRules
     {
         episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
         {
-            [ServiceKeys.BbcIplayer] = new(),
-            [ServiceKeys.BbcSounds] = new() { Url = soundsUrl }
+            [StreamingServiceKeys.BbcIplayer] = new(),
+            [StreamingServiceKeys.BbcSounds] = new() { Url = soundsUrl }
         };
     }
 

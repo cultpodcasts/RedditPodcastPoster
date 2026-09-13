@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Factories;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
 
@@ -87,11 +88,11 @@ public class EmbedCardRequestFactory(
                     podcastEpisode.Episode.Title,
                     podcastEpisode.Episode.Description,
                     embedPost.Url);
-                var catalogKey = ServiceCatalog.TryResolveKey(embedPost.Url);
+                var catalogKey = StreamingServiceCatalog.TryResolveKey(embedPost.Url);
                 var otherImage = catalogKey is not null
                     ? EpisodeServicePresence.TryGetImage(podcastEpisode.Episode, catalogKey)
                     : null;
-                otherImage ??= EpisodeServicePresence.CoalescedImage(podcastEpisode.Episode);
+                otherImage ??= EpisodeServicePresence.CoalescedImage(podcastEpisode.Episode, StreamingServiceCatalog.ImageCoalesceOrder);
                 if (otherImage != null)
                 {
                     embedCardRequest.ThumbUrl = otherImage;

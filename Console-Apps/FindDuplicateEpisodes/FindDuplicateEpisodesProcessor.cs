@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Configuration;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FindDuplicateEpisodes;
 
@@ -531,9 +532,9 @@ public class FindDuplicateEpisodesProcessor(
                      ServiceKeys.Spotify,
                      ServiceKeys.Apple,
                      ServiceKeys.YouTube,
-                     ServiceKeys.BbcIplayer,
-                     ServiceKeys.BbcSounds,
-                     ServiceKeys.InternetArchive
+                     StreamingServiceKeys.BbcIplayer,
+                     StreamingServiceKeys.BbcSounds,
+                     StreamingServiceKeys.InternetArchive
                  })
         {
             if (EpisodeServicePresence.TryFillMissing(

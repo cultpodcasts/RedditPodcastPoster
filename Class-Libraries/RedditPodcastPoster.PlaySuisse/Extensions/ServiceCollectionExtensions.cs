@@ -4,6 +4,7 @@ using RedditPodcastPoster.PlaySuisse.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PlaySuisse.Extensions;
 
@@ -24,7 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.PlaySuisse,
-                    ServiceKeys.PlaySuisse,
+                    StreamingServiceKeys.PlaySuisse,
                     PlaySuisseUrlMatcher.IsSubmitUrl,
                     PlaySuisseUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IPlaySuissePageMetaDataExtractor>().GetMetaData));

@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.BBC.Matching;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Services.Episodes;
 
@@ -189,14 +190,14 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.BBC.ToString() == string.Empty)
             {
-                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcIplayer, null, null);
-                EpisodeServicePresence.Upsert(episode, ServiceKeys.BbcSounds, null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.BbcIplayer, null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.BbcSounds, null, null);
             }
             else
             {
                 if (BBCUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.BBC))
                 {
-                    var bbcKey = ServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? ServiceKeys.BbcSounds;
+                    var bbcKey = StreamingServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? StreamingServiceKeys.BbcSounds;
                     EpisodeServicePresence.Upsert(episode, bbcKey, episodeChangeRequest.Urls.BBC, null);
                     changeState.UpdateBBCImage = true;
                 }
@@ -207,7 +208,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.InternetArchive.ToString() == string.Empty)
             {
-                EpisodeServicePresence.Upsert(episode, ServiceKeys.InternetArchive, null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.InternetArchive, null, null);
             }
             else
             {
@@ -215,7 +216,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 {
                     EpisodeServicePresence.Upsert(
                         episode,
-                        ServiceKeys.InternetArchive,
+                        StreamingServiceKeys.InternetArchive,
                         episodeChangeRequest.Urls.InternetArchive,
                         null);
                 }
@@ -277,7 +278,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 var key = pair.Key;
                 if (url is not null)
                 {
-                    key = ServiceCatalog.TryResolveKey(url) ?? pair.Key;
+                    key = StreamingServiceCatalog.TryResolveKey(url) ?? pair.Key;
                 }
 
                 EpisodeServicePresence.Upsert(episode, key, url, image);

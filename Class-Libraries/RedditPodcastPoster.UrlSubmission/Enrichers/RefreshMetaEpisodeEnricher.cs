@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Enrichers;
 
@@ -60,9 +61,9 @@ public sealed class RefreshMetaEpisodeEnricher(
         {
             BBC = addedBBC,
             InternetArchive = addedInternetArchive,
-            Vimeo = addedExtraKeys.Contains(ServiceKeys.Vimeo) || response.SubmitEpisodeDetails.Vimeo,
-            Netflix = addedExtraKeys.Contains(ServiceKeys.Netflix) || response.SubmitEpisodeDetails.Netflix,
-            AmazonPrime = addedExtraKeys.Contains(ServiceKeys.AmazonPrime) ||
+            Vimeo = addedExtraKeys.Contains(StreamingServiceKeys.Vimeo) || response.SubmitEpisodeDetails.Vimeo,
+            Netflix = addedExtraKeys.Contains(StreamingServiceKeys.Netflix) || response.SubmitEpisodeDetails.Netflix,
+            AmazonPrime = addedExtraKeys.Contains(StreamingServiceKeys.AmazonPrime) ||
                           response.SubmitEpisodeDetails.AmazonPrime,
             ExtraServiceKeys = addedExtraKeys.Count == 0 ? null : addedExtraKeys.ToArray()
         };
@@ -188,7 +189,7 @@ public sealed class RefreshMetaEpisodeEnricher(
 
         if (item.BBCUrl is { } bbcUrl)
         {
-            var bbcKey = ServiceCatalog.TryResolveKey(bbcUrl) ?? ServiceKeys.BbcSounds;
+            var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
                 bbcKey,
@@ -206,13 +207,13 @@ public sealed class RefreshMetaEpisodeEnricher(
         {
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
-                ServiceKeys.InternetArchive,
+                StreamingServiceKeys.InternetArchive,
                 internetArchiveUrl,
                 item.Image);
             if (upsert.UrlWasMissing)
             {
                 addedInternetArchive = true;
-                addedExtraKeys.Add(ServiceKeys.InternetArchive);
+                addedExtraKeys.Add(StreamingServiceKeys.InternetArchive);
             }
 
             changed |= upsert.Changed;
@@ -222,7 +223,7 @@ public sealed class RefreshMetaEpisodeEnricher(
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
                 streamingKey,
-                ServiceCatalog.CanonicalUrlOrSelf(streamingKey, streamingUrl),
+                StreamingServiceCatalog.CanonicalUrlOrSelf(streamingKey, streamingUrl),
                 item.Image);
             if (upsert.UrlWasMissing)
             {

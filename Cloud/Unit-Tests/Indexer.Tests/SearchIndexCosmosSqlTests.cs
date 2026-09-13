@@ -1,22 +1,23 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Indexer.Tests;
 
 public class SearchIndexCosmosSqlTests
 {
     [Fact(DisplayName =
-        "Cosmos pull-path svc SQL includes every ServiceCatalog.SearchEncodedKeys entry as e.services.{key}.url, " +
+        "Cosmos pull-path svc SQL includes every StreamingServiceCatalog.SearchEncodedKeys entry as e.services.{key}.url, " +
         "because hardcoded lists could drift behind ServiceCatalog / live datasource SQL could lag the repo and leave search svc empty after SubmitUrl.")]
     public void svc_projection_includes_every_search_encoded_key()
     {
         // Arrange
         // Act
-        var sql = SearchIndexCosmosSql.SvcProjection();
+        var sql = SearchIndexCosmosSql.SvcProjection(StreamingServiceCatalog.SearchEncodedKeys);
 
         // Assert
-        foreach (var key in ServiceCatalog.SearchEncodedKeys)
+        foreach (var key in StreamingServiceCatalog.SearchEncodedKeys)
         {
             sql.Should().Contain(
                 $@"e.services.{key}.url",
@@ -32,27 +33,27 @@ public class SearchIndexCosmosSqlTests
         // and therefore in svc SQL — not ITVX-only (discoveryPlus / disneyPlus / channel4 / …).
         var streamingKeys = new[]
         {
-            ServiceKeys.BbcSounds,
-            ServiceKeys.BbcIplayer,
-            ServiceKeys.InternetArchive,
-            ServiceKeys.Vimeo,
-            ServiceKeys.Netflix,
-            ServiceKeys.AmazonPrime,
-            ServiceKeys.ParamountPlus,
-            ServiceKeys.HboMax,
-            ServiceKeys.PlaySuisse,
-            ServiceKeys.PlayRts,
-            ServiceKeys.TvnzPlus,
-            ServiceKeys.Itvx,
-            ServiceKeys.Channel4,
-            ServiceKeys.Fawesome,
-            ServiceKeys.DisneyPlus,
-            ServiceKeys.BcVideo,
-            ServiceKeys.Tubi,
-            ServiceKeys.DiscoveryPlus
+            StreamingServiceKeys.BbcSounds,
+            StreamingServiceKeys.BbcIplayer,
+            StreamingServiceKeys.InternetArchive,
+            StreamingServiceKeys.Vimeo,
+            StreamingServiceKeys.Netflix,
+            StreamingServiceKeys.AmazonPrime,
+            StreamingServiceKeys.ParamountPlus,
+            StreamingServiceKeys.HboMax,
+            StreamingServiceKeys.PlaySuisse,
+            StreamingServiceKeys.PlayRts,
+            StreamingServiceKeys.TvnzPlus,
+            StreamingServiceKeys.Itvx,
+            StreamingServiceKeys.Channel4,
+            StreamingServiceKeys.Fawesome,
+            StreamingServiceKeys.DisneyPlus,
+            StreamingServiceKeys.BcVideo,
+            StreamingServiceKeys.Tubi,
+            StreamingServiceKeys.DiscoveryPlus
         };
         streamingKeys.Should().BeEquivalentTo(
-            ServiceCatalog.SearchEncodedKeys,
+            StreamingServiceCatalog.SearchEncodedKeys,
             because: "SearchEncodedKeys must list every streaming/catalog URL key that can appear under Episode.services");
         foreach (var key in streamingKeys)
         {
@@ -61,27 +62,27 @@ public class SearchIndexCosmosSqlTests
                 because: $"streaming key '{key}' must be in Cosmos datasource svc SQL so search is not empty after SubmitUrl");
         }
 
-        ServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Spotify);
-        ServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Apple);
-        ServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.YouTube);
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Spotify);
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Apple);
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.YouTube);
     }
 
     [Fact(DisplayName =
-        "Cosmos pull-path image coalesce SQL walks ServiceCatalog.ImageCoalesceOrder for every catalog " +
+        "Cosmos pull-path image coalesce SQL walks StreamingServiceCatalog.ImageCoalesceOrder for every catalog " +
         "service (including discoveryPlus and other streaming) when Spotify/Apple/YouTube art is absent.")]
     public void image_fallback_includes_every_image_coalesce_order_key()
     {
         // Arrange
         // Act
-        var sql = SearchIndexCosmosSql.CoalescedImageFallback();
+        var sql = SearchIndexCosmosSql.CoalescedImageFallback(StreamingServiceCatalog.ImageCoalesceOrder);
 
         // Assert
         var expected = string.Join(
             " ?? ",
-            ServiceCatalog.ImageCoalesceOrder.Select(key => $"e.services.{key}.image"));
+            StreamingServiceCatalog.ImageCoalesceOrder.Select(key => $"e.services.{key}.image"));
         sql.Should().Be(expected);
         sql.Should().StartWith($"e.services.{ServiceKeys.YouTube}.image");
-        foreach (var key in ServiceCatalog.SearchEncodedKeys)
+        foreach (var key in StreamingServiceCatalog.SearchEncodedKeys)
         {
             sql.Should().Contain(
                 $"e.services.{key}.image",
@@ -90,18 +91,18 @@ public class SearchIndexCosmosSqlTests
     }
 
     [Fact(DisplayName =
-        "ServiceCatalog.All keys minus index-id platforms equal SearchEncodedKeys so generated SQL cannot " +
+        "StreamingServiceCatalog.All keys minus index-id platforms equal SearchEncodedKeys so generated SQL cannot " +
         "silently omit a newly added streaming service.")]
     public void search_encoded_keys_cover_every_non_index_id_catalog_entry()
     {
         // Arrange
-        var catalogNonIndexIdKeys = ServiceCatalog.All
+        var catalogNonIndexIdKeys = StreamingServiceCatalog.All
             .Select(d => d.Key)
             .Where(key => !ServiceCatalog.IsIndexIdKey(key))
             .ToArray();
 
         // Act
-        var encoded = ServiceCatalog.SearchEncodedKeys;
+        var encoded = StreamingServiceCatalog.SearchEncodedKeys;
 
         // Assert
         encoded.Should().BeEquivalentTo(

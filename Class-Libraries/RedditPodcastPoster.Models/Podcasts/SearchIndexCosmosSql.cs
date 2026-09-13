@@ -2,9 +2,9 @@ namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Cosmos SQL fragments for the Azure AI Search pull-path datasource.
-/// Kept in lock-step with <see cref="ServiceCatalog.SearchEncodedKeys"/> and
-/// <see cref="ServiceCatalog.ImageCoalesceOrder"/> so new streaming keys (ITVX, Channel 4, …)
-/// cannot be omitted from <c>svc</c> / <c>image</c> while C# push-path indexing includes them.
+/// Callers pass the composed catalog's search-encoded keys and image-coalesce order
+/// so new streaming keys cannot be omitted from <c>svc</c> / <c>image</c> while C#
+/// push-path indexing includes them. Models does not own streaming URL grammar.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -20,19 +20,23 @@ public static class SearchIndexCosmosSql
     /// <c>RTRIM(CONCAT(...), "|")</c> projecting every non-index-id catalog URL into <c>svc</c>
     /// as <c>key:</c> + raw URL (pull dialect; see type remarks).
     /// </summary>
-    public static string SvcProjection()
+    public static string SvcProjection(IReadOnlyList<string> searchEncodedKeys)
     {
-        var parts = ServiceCatalog.SearchEncodedKeys.Select(key =>
+        ArgumentNullException.ThrowIfNull(searchEncodedKeys);
+        var parts = searchEncodedKeys.Select(key =>
             $@"IIF(IS_DEFINED(e.services.{key}.url), CONCAT(""{key}:"", e.services.{key}.url, ""|""), """")");
         return $@"RTRIM(CONCAT({string.Join(", ", parts)}), ""|"")";
     }
 
     /// <summary>
-    /// Null-coalescing chain of <c>e.services.*.image</c> in
-    /// <see cref="ServiceCatalog.ImageCoalesceOrder"/> (YouTube-first).
+    /// Null-coalescing chain of <c>e.services.*.image</c> in the supplied key order
+    /// (YouTube-first when callers pass the composed image-coalesce list).
     /// </summary>
-    public static string CoalescedImageFallback() =>
-        string.Join(
+    public static string CoalescedImageFallback(IReadOnlyList<string> imageCoalesceOrder)
+    {
+        ArgumentNullException.ThrowIfNull(imageCoalesceOrder);
+        return string.Join(
             " ?? ",
-            ServiceCatalog.ImageCoalesceOrder.Select(key => $"e.services.{key}.image"));
+            imageCoalesceOrder.Select(key => $"e.services.{key}.image"));
+    }
 }

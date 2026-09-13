@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.Vimeo.Extractors;
 using RedditPodcastPoster.Vimeo.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Vimeo.Extensions;
 
@@ -18,7 +19,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Vimeo,
-                    ServiceKeys.Vimeo,
+                    StreamingServiceKeys.Vimeo,
                     VimeoUrlMatcher.IsSubmitUrl,
                     VimeoUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IVimeoMetaDataExtractor>().GetMetaData));

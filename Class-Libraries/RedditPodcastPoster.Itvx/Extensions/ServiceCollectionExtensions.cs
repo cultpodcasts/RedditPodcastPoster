@@ -5,6 +5,7 @@ using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Itvx.Extensions;
 
@@ -42,7 +43,7 @@ public static class ServiceCollectionExtensions
                 var extractor = provider.GetRequiredService<IItvxPageMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Itvx,
-                    ServiceKeys.Itvx,
+                    StreamingServiceKeys.Itvx,
                     ItvxUrlMatcher.IsSubmitUrl,
                     ItvxUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

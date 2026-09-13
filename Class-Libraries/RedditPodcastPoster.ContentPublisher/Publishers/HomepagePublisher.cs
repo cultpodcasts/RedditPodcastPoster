@@ -18,6 +18,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
@@ -234,7 +235,7 @@ public class HomepagePublisher(
             Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = EpisodeServicePresence.CoalescedImage(x.Services),
+            Image = EpisodeServicePresence.CoalescedImage(x.Services, StreamingServiceCatalog.ImageCoalesceOrder),
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }

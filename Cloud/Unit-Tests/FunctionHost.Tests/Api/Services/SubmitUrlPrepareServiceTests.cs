@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FunctionHost.Tests.Api.Services;
 
@@ -119,7 +120,7 @@ public class SubmitUrlPrepareServiceTests
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
         result.Response.Should().BeEquivalentTo(
             SubmitUrlPrepareResponse.From(url, _liveMeta, NonPodcastService.Itvx));
-        result.Response!.Service.Should().Be(ServiceKeys.Itvx);
+        result.Response!.Service.Should().Be(StreamingServiceKeys.Itvx);
         result.Response.Title.Should().Be(title);
         result.Response.ShowName.Should().Be(showName);
         result.Response.PodcastName.Should().Be(showName);
@@ -150,7 +151,7 @@ public class SubmitUrlPrepareServiceTests
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
         result.Response.Should().BeEquivalentTo(
             SubmitUrlPrepareResponse.From(url, _liveMeta, NonPodcastService.Itvx));
-        result.Response!.Service.Should().Be(ServiceKeys.Itvx);
+        result.Response!.Service.Should().Be(StreamingServiceKeys.Itvx);
         result.Response.Title.Should().Be(title);
         _adapter.Verify(a => a.ExtractMetaData(url, html), Times.Once);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>()), Times.Never);

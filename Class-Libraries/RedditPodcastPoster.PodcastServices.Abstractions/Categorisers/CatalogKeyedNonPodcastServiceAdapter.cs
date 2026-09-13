@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
@@ -39,7 +40,7 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     }
 
     private Uri CanonicalStoredUrl(Uri url) =>
-        canonicalizeUrl?.Invoke(url) ?? ServiceCatalog.CanonicalUrlOrSelf(catalogKey, url);
+        canonicalizeUrl?.Invoke(url) ?? StreamingServiceCatalog.CanonicalUrlOrSelf(catalogKey, url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
 

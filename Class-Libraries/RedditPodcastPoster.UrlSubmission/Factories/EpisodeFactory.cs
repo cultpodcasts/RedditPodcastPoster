@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Factories;
 
@@ -109,14 +110,14 @@ public class EpisodeFactory(
 
         if (categorisedItem.ResolvedNonPodcastServiceItem?.Url is { } nonPodcastUrl)
         {
-            var catalogKey = ServiceCatalog.TryResolveKey(nonPodcastUrl)
+            var catalogKey = StreamingServiceCatalog.TryResolveKey(nonPodcastUrl)
                              ?? ServiceCatalog.KeyFromUnknownHost(nonPodcastUrl);
             if (catalogKey != null)
             {
                 EpisodeServicePresence.Upsert(
                     newEpisode,
                     catalogKey,
-                    ServiceCatalog.CanonicalUrlOrSelf(catalogKey, nonPodcastUrl),
+                    StreamingServiceCatalog.CanonicalUrlOrSelf(catalogKey, nonPodcastUrl),
                     categorisedItem.ResolvedNonPodcastServiceItem.Image);
             }
         }

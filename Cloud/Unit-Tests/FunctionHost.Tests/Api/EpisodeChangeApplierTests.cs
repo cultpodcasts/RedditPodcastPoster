@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FunctionHost.Tests.Api;
 
@@ -620,14 +621,14 @@ public class EpisodeChangeApplierTests
         {
             Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [ServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoImage }
+                [StreamingServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
         });
 
         // Assert
-        episode.Services.Should().ContainKey(ServiceKeys.Vimeo);
-        episode.Services![ServiceKeys.Vimeo].Url.Should().Be(vimeoUrl);
-        episode.Services[ServiceKeys.Vimeo].Image.Should().Be(vimeoImage);
+        episode.Services.Should().ContainKey(StreamingServiceKeys.Vimeo);
+        episode.Services![StreamingServiceKeys.Vimeo].Url.Should().Be(vimeoUrl);
+        episode.Services[StreamingServiceKeys.Vimeo].Image.Should().Be(vimeoImage);
         episode.Images?.Other.Should().BeNull();
         EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
     }

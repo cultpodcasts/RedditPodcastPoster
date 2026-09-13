@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.SocialPosting.Factories;
 
@@ -68,8 +69,8 @@ public class PostModelFactory(
             id,
             episode.Release,
             episode.Subjects.ToArray(),
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer) ??
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds),
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive));
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds),
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive));
     }
 }

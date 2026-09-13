@@ -16,6 +16,7 @@ using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Search.Services;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace CreateSearchIndex;
 
@@ -483,10 +484,10 @@ public partial class CreateSearchIndexProcessor(
         const string spotifyImageExpr = @"e.services.spotify.image";
         const string appleImageExpr = @"e.services.apple.image";
         const string appleUrlExpr = @"e.services.apple.url";
-        // Catalog-driven: must match ServiceCatalog.ImageCoalesceOrder / SearchEncodedKeys
+        // Catalog-driven: must match StreamingServiceCatalog.ImageCoalesceOrder / SearchEncodedKeys
         // (and therefore SearchEpisodeImage / SearchEpisodeServices push-path).
-        var coalescedImageFallback = SearchIndexCosmosSql.CoalescedImageFallback();
-        var svcProjection = SearchIndexCosmosSql.SvcProjection();
+        var coalescedImageFallback = SearchIndexCosmosSql.CoalescedImageFallback(StreamingServiceCatalog.ImageCoalesceOrder);
+        var svcProjection = SearchIndexCosmosSql.SvcProjection(StreamingServiceCatalog.SearchEncodedKeys);
         var isYouTubeToken =
             @$"(IS_DEFINED({youtubeImageExpr}) AND {youTubeIdExpr} != """"
                 AND STARTSWITH({youtubeImageExpr}, CONCAT(""https://i.ytimg.com/vi/"", {youTubeIdExpr}, ""/""))

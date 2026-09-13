@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 
@@ -6,7 +7,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 ///     The cover-art projection for a single episode's search document.
 ///     <para>
 ///         The image is the first available cover art, YouTube-first via
-///         <see cref="RedditPodcastPoster.Models.Podcasts.ServiceCatalog.ImageCoalesceOrder"/>
+///         <see cref="RedditPodcastPoster.PodcastServices.Abstractions.Streaming.StreamingServiceCatalog.ImageCoalesceOrder"/>
 ///         (YouTube → Spotify → Apple → streaming catalog keys).
 ///     </para>
 ///     <para>
@@ -79,7 +80,7 @@ public readonly record struct SearchEpisodeImage(string Image)
     public static SearchEpisodeImage From(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        var image = EpisodeServicePresence.CoalescedImage(episode);
+        var image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
         if (image is null)
         {
             return new SearchEpisodeImage(string.Empty);

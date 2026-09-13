@@ -62,8 +62,8 @@ public class TubiUrlMatcherRules
         var url = new Uri($"https://www.tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
 
         // Act
-        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, url);
-        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.Tubi, compact!);
+        var compact = TubiUrlMatcher.TryCompactPayload(url);
+        var expanded = TubiUrlMatcher.TryExpandPayload(compact!);
 
         // Assert
         compact.Should().Be($"movies/{id}");
@@ -80,8 +80,8 @@ public class TubiUrlMatcherRules
         var url = new Uri($"https://tubitv.com/en-au/tv-shows/{id}/{_fixture.CreateYouTubeId()}");
 
         // Act
-        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, url);
-        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.Tubi, compact!);
+        var compact = TubiUrlMatcher.TryCompactPayload(url);
+        var expanded = TubiUrlMatcher.TryExpandPayload(compact!);
 
         // Assert
         compact.Should().Be($"tv-shows/{id}");
@@ -99,8 +99,8 @@ public class TubiUrlMatcherRules
 
         // Act
         var matches = TubiUrlMatcher.IsSubmitUrl(url);
-        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, url);
-        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.Tubi, compact!);
+        var compact = TubiUrlMatcher.TryCompactPayload(url);
+        var expanded = TubiUrlMatcher.TryExpandPayload(compact!);
 
         // Assert
         matches.Should().BeTrue();
@@ -119,8 +119,8 @@ public class TubiUrlMatcherRules
         var movieUrl = new Uri($"https://tubitv.com/movies/{id}");
 
         // Act
-        var videoCompact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, videoUrl);
-        var movieCompact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, movieUrl);
+        var videoCompact = TubiUrlMatcher.TryCompactPayload(videoUrl);
+        var movieCompact = TubiUrlMatcher.TryCompactPayload(movieUrl);
 
         // Assert
         videoCompact.Should().Be($"video/{id}");

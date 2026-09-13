@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
 
@@ -54,12 +55,12 @@ public static class NonPodcastShowNameResolver
     {
         var key = service switch
         {
-            NonPodcastService.Vimeo => ServiceKeys.Vimeo,
-            NonPodcastService.BcVideo => ServiceKeys.BcVideo,
+            NonPodcastService.Vimeo => StreamingServiceKeys.Vimeo,
+            NonPodcastService.BcVideo => StreamingServiceKeys.BcVideo,
             _ => null
         };
         return key != null
-            && ServiceCatalog.TryGet(key, out var descriptor)
+            && StreamingServiceCatalog.TryGet(key, out var descriptor)
             && string.Equals(name, descriptor.DisplayName, StringComparison.OrdinalIgnoreCase);
     }
 }

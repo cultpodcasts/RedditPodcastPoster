@@ -4,6 +4,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FunctionHost.Tests.Api;
 
@@ -24,7 +25,7 @@ public class BlueskyPostLoggerRules
         {
             EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
             EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, youTubeUrl, null);
-            EpisodeServicePresence.Upsert(e, ServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
         });
         var caller = _fixture.Create<string>();
 
@@ -41,7 +42,7 @@ public class BlueskyPostLoggerRules
         message.Should().Contain($"posted-url='{youTubeUrl}'");
         message.Should().Contain($"posted-service='{ServiceKeys.YouTube}'");
         message.Should().Contain($"{ServiceKeys.YouTube}={youTubeUrl}");
-        message.Should().Contain($"{ServiceKeys.Netflix}={netflixUrl}");
+        message.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
     }
 
     [Fact(DisplayName =
@@ -53,7 +54,7 @@ public class BlueskyPostLoggerRules
         var netflixUrl = new Uri($"https://www.netflix.com/title/{Math.Abs(_fixture.Create<int>())}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            EpisodeServicePresence.Upsert(e, ServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
         });
         var caller = _fixture.Create<string>();
 
@@ -62,7 +63,7 @@ public class BlueskyPostLoggerRules
 
         // Assert
         message.Should().Contain($"posted-url='{netflixUrl}'");
-        message.Should().Contain($"posted-service='{ServiceKeys.Netflix}'");
-        message.Should().Contain($"{ServiceKeys.Netflix}={netflixUrl}");
+        message.Should().Contain($"posted-service='{StreamingServiceKeys.Netflix}'");
+        message.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
     }
 }

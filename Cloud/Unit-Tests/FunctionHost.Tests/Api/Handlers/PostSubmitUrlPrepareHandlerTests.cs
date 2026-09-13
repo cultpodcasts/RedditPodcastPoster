@@ -13,6 +13,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using FunctionHost.Tests.Api;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
@@ -45,7 +46,7 @@ public class PostSubmitUrlPrepareHandlerTests
                 SubmitUrlPrepareStatus.Ok,
                 new SubmitUrlPrepareResponse
                 {
-                    Service = ServiceKeys.Itvx,
+                    Service = StreamingServiceKeys.Itvx,
                     PodcastName = showName,
                     Title = title,
                     Description = _fixture.Create<string>(),
@@ -63,7 +64,7 @@ public class PostSubmitUrlPrepareHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonBodyAsync(result);
-        body.GetProperty("service").GetString().Should().Be(ServiceKeys.Itvx);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.Itvx);
         body.GetProperty("title").GetString().Should().Be(title);
         body.GetProperty("podcastName").GetString().Should().Be(showName);
     }
@@ -83,7 +84,7 @@ public class PostSubmitUrlPrepareHandlerTests
                 SubmitUrlPrepareStatus.Ok,
                 new SubmitUrlPrepareResponse
                 {
-                    Service = ServiceKeys.Itvx,
+                    Service = StreamingServiceKeys.Itvx,
                     Title = title,
                     Description = _fixture.Create<string>()
                 }));
@@ -99,7 +100,7 @@ public class PostSubmitUrlPrepareHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonBodyAsync(result);
-        body.GetProperty("service").GetString().Should().Be(ServiceKeys.Itvx);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.Itvx);
         body.GetProperty("title").GetString().Should().Be(title);
     }
 }

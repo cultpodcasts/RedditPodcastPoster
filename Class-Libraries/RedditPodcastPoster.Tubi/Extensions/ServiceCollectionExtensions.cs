@@ -4,6 +4,7 @@ using RedditPodcastPoster.OpenGraph.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.Tubi.Extractors;
 using RedditPodcastPoster.Tubi.Matching;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.Tubi.Extensions;
 
@@ -26,7 +27,7 @@ public static class ServiceCollectionExtensions
                 var extractor = provider.GetRequiredService<ITubiPageMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
                     NonPodcastService.Tubi,
-                    ServiceKeys.Tubi,
+                    StreamingServiceKeys.Tubi,
                     TubiUrlMatcher.IsSubmitUrl,
                     TubiUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

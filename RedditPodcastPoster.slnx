@@ -72,6 +72,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.StreamingCatalog/RedditPodcastPoster.StreamingCatalog.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/RedditPodcastPoster.PodcastServices.Apple.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj" />

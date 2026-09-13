@@ -1,3 +1,6 @@
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+
 namespace RedditPodcastPoster.InternetArchive.Matching;
 
 public static class InternetArchiveUrlMatcher
@@ -11,4 +14,10 @@ public static class InternetArchiveUrlMatcher
 
     /// <summary>Item pages under /details only — not search or other archive.org paths.</summary>
     public static bool IsSubmitUrl(Uri url) => IsDetailsUrl(url);
+
+    public static string? TryCompactPayload(Uri url) =>
+        StreamingUrlCodecs.TryTrimPrefixHostPath(url, ["/details/"], allowSlug: false, hosts: ["archive.org"]);
+
+    public static Uri? TryExpandPayload(string payload) =>
+        StreamingUrlCodecs.TryCreate($"https://archive.org/details/{payload}");
 }

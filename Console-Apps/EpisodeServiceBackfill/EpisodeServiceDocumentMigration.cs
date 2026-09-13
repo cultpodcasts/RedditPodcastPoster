@@ -1,6 +1,7 @@
 using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace EpisodeServiceBackfill;
 
@@ -117,11 +118,11 @@ public static class EpisodeServiceDocumentMigration
             MergeRawUrl(episode, urls, "spotify", ServiceKeys.Spotify);
             MergeRawUrl(episode, urls, "apple", ServiceKeys.Apple);
             MergeRawUrl(episode, urls, "youtube", ServiceKeys.YouTube);
-            MergeRawUrl(episode, urls, "internetArchive", ServiceKeys.InternetArchive);
+            MergeRawUrl(episode, urls, "internetArchive", StreamingServiceKeys.InternetArchive);
             if (TryGetUrl(urls, "bbc", out var bbc) &&
                 Uri.TryCreate(bbc, UriKind.Absolute, out var bbcUri))
             {
-                var key = ServiceCatalog.TryResolveKey(bbcUri) ?? ServiceKeys.BbcSounds;
+                var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceKeys.BbcSounds;
                 EpisodeServicePresence.TryFillMissing(episode, key, bbcUri, null);
             }
         }
@@ -154,7 +155,7 @@ public static class EpisodeServiceDocumentMigration
             if (TryGetUrl(images, "other", out var other) &&
                 Uri.TryCreate(other, UriKind.Absolute, out var otherUri))
             {
-                foreach (var key in ServiceCatalog.ImageCoalesceOrder)
+                foreach (var key in StreamingServiceCatalog.ImageCoalesceOrder)
                 {
                     if (key is ServiceKeys.YouTube or ServiceKeys.Spotify or ServiceKeys.Apple)
                     {
@@ -232,7 +233,7 @@ public static class EpisodeServiceDocumentMigration
             return true;
         }
 
-        if (UrlUncovered(urls, "internetArchive", services, ServiceKeys.InternetArchive))
+        if (UrlUncovered(urls, "internetArchive", services, StreamingServiceKeys.InternetArchive))
         {
             return true;
         }
@@ -240,7 +241,7 @@ public static class EpisodeServiceDocumentMigration
         if (TryGetUrl(urls, "bbc", out var bbc) &&
             Uri.TryCreate(bbc, UriKind.Absolute, out var bbcUri))
         {
-            var key = ServiceCatalog.TryResolveKey(bbcUri) ?? ServiceKeys.BbcSounds;
+            var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceKeys.BbcSounds;
             if (!HasServiceUrl(services, key))
             {
                 return true;

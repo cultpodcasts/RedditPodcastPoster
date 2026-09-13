@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Handlers;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 using RedditPodcastPoster.Vimeo.Extractors;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.NonPodcast;
 
@@ -110,9 +111,9 @@ public class StreamingServiceMetaDataHandlerRules
         _bbcMeta = CreateMetaData();
         var podcast = _fixture.CreatePodcast();
         var matching = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.BbcSounds, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, url, null));
         var other = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.BbcSounds, BbcSoundsUrl(), null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, BbcSoundsUrl(), null));
         var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
 
         // Act
@@ -134,7 +135,7 @@ public class StreamingServiceMetaDataHandlerRules
         _archiveMeta = CreateMetaData();
         var podcast = _fixture.CreatePodcast();
         var matching = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, ServiceKeys.InternetArchive, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.InternetArchive, url, null));
         var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
 
         // Act

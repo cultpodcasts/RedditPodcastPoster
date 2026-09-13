@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Writers;
 using Spectre.Console;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace CultPodcasts.DatabasePublisher;
 
@@ -111,9 +112,9 @@ public class PublicDatabasePublisher(
                     Apple = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
                     Spotify = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
                     YouTube = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
-                    BBC = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcIplayer)
-                          ?? EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.BbcSounds),
-                    InternetArchive = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.InternetArchive)
+                    BBC = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer)
+                          ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds),
+                    InternetArchive = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive)
                 },
                 Subjects = episode.Subjects.Any() ? episode.Subjects : null
             });

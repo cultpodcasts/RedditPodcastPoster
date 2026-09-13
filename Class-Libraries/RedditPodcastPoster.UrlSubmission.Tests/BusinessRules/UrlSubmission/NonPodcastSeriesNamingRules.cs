@@ -13,6 +13,7 @@ using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -165,7 +166,7 @@ public class NonPodcastSeriesNamingRules
     public async Task bc_video_catalog_display_name_author_falls_back_to_title()
     {
         // Arrange
-        ServiceCatalog.TryGet(ServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
+        StreamingServiceCatalog.TryGet(StreamingServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
         var videoTitle = _fixture.CreateTitle();
         var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
