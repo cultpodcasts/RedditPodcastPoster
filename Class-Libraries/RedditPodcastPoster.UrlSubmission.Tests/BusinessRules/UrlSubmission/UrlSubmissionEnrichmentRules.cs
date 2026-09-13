@@ -232,7 +232,7 @@ public class UrlSubmissionEnrichmentRules
             episode,
             new CategorisedSpotifyItem(
                 podcast.SpotifyId,
-                EpisodeServicePresence.SpotifyEpisodeId(episode),
+                EpisodeServicePresence.SpotifyEpisodeId(episode)!,
                 podcast.Name,
                 string.Empty,
                 publisher,
@@ -258,7 +258,7 @@ public class UrlSubmissionEnrichmentRules
                 null),
             new CategorisedYouTubeItem(
                 podcast.YouTubeChannelId,
-                EpisodeServicePresence.YouTubeEpisodeId(episode),
+                EpisodeServicePresence.YouTubeEpisodeId(episode)!,
                 podcast.Name,
                 string.Empty,
                 publisher,
