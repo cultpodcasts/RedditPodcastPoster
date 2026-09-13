@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Xml;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -103,6 +104,27 @@ public class TubiPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "Tubi catalogue hub extract sets ShowName from og:title when JSON-LD TVSeries is absent, " +
+        "so GET submit lookup still returns podcastName for a series path.")]
+    public async Task extracts_hub_title_as_show_name()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://tubitv.com/tv-shows/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head></html>");
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seriesName);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Tubi");
+    }
+
+    [Fact(DisplayName =
         "Tubi extract reads video:duration integer seconds when JSON-LD duration is absent, " +
         "so prepare still gets a length for a film page.")]
     public async Task extracts_video_duration_seconds()
@@ -122,6 +144,80 @@ public class TubiPageMetaDataExtractorRules
 
         // Assert
         meta.Duration.Should().Be(TimeSpan.FromSeconds(6124));
+    }
+
+    [Fact(DisplayName =
+        "Tubi extract fills Release from date-only video:release_date (yyyy-MM-dd, no time), " +
+        "because live catalogue head uses that production format.")]
+    public async Task extracts_date_only_video_release_date()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var release = DomainTestFixture.UtcDateDaysAgo(40);
+        var url = new Uri($"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(
+            url,
+            $"<html><head>" +
+            Meta("og:title", title) +
+            Meta("video:release_date", release.ToString("yyyy-MM-dd")) +
+            "</head></html>");
+
+        // Assert
+        meta.Release.Should().Be(release);
+        meta.Publisher.Should().Be("Tubi");
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Tubi extract fills Release from JSON-LD dateCreated when video:release_date is absent, " +
+        "so prepare still gets a date from the catalogue script.")]
+    public async Task extracts_json_ld_date_created_when_video_release_date_absent()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var release = DomainTestFixture.UtcDateDaysAgo(80);
+        var url = new Uri($"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(
+            url,
+            $"<html><head>" +
+            Meta("og:title", title) +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"dateCreated\":\"{release:yyyy-MM-dd}\"}}" +
+            $"</script></head></html>");
+
+        // Assert
+        meta.Release.Should().Be(release);
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Tubi extract fills Duration from JSON-LD ISO duration when video:duration is absent, " +
+        "so prepare still gets a length from the catalogue script.")]
+    public async Task extracts_iso_duration_when_video_duration_absent()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var url = new Uri($"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<TubiPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(
+            url,
+            $"<html><head><title>{WebUtility.HtmlEncode(title)} | Tubi</title>" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"duration\":\"{XmlConvert.ToString(duration)}\"}}" +
+            $"</script></head></html>");
+
+        // Assert
+        meta.Duration.Should().Be(duration);
+        _handler.LastRequestUri.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -232,21 +328,27 @@ public class TubiPageMetaDataExtractorRules
     [Fact(DisplayName =
         "AddTubiServices registers a catalog-keyed adapter that can extract from posted HTML, " +
         "so Worker-prefetched catalogue HTML maps without a second Azure GET.")]
-    public void add_tubi_services_registers_adapter()
+    public async Task add_tubi_services_registers_adapter()
     {
         // Arrange
         var services = new ServiceCollection();
         services.AddTubiServices();
         using var provider = services.BuildServiceProvider();
         var url = new Uri($"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}");
+        var title = _fixture.CreateTitle();
+        var html = $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()
             .Single(candidate => candidate.IsSubmitUrl(url));
+        var meta = await adapter.ExtractMetaData(url, html);
 
         // Assert
         adapter.Service.Should().Be(NonPodcastService.Tubi);
         adapter.CanExtract(url).Should().BeTrue();
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("Tubi");
+        _handler.LastRequestUri.Should().BeNull();
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

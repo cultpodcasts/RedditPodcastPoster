@@ -72,6 +72,63 @@ public class TubiUrlMatcherRules
     }
 
     [Fact(DisplayName =
+        "Compact then expand of a locale Tubi tv-shows URL yields https://tubitv.com/tv-shows/{id}, so search svc round-trips a series page without locale or slug.")]
+    public void locale_tv_show_compacts_to_canonical_tv_shows_id()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var url = new Uri($"https://tubitv.com/en-au/tv-shows/{id}/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, url);
+        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.Tubi, compact!);
+
+        // Assert
+        compact.Should().Be($"tv-shows/{id}");
+        expanded.Should().Be(new Uri($"https://tubitv.com/tv-shows/{id}"));
+        TubiUrlMatcher.CanonicalUrl(url).Should().Be(expanded);
+    }
+
+    [Fact(DisplayName =
+        "A Tubi /video/{id} URL is a submit URL and compact/expand round-trips as video/{id} → https://tubitv.com/video/{id}, because video is a first-class compact kind.")]
+    public void video_path_is_submit_url_and_round_trips_video_id()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var url = new Uri($"https://tubitv.com/video/{id}");
+
+        // Act
+        var matches = TubiUrlMatcher.IsSubmitUrl(url);
+        var compact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, url);
+        var expanded = ServiceCatalog.TryExpandCompactUrl(ServiceKeys.Tubi, compact!);
+
+        // Assert
+        matches.Should().BeTrue();
+        compact.Should().Be($"video/{id}");
+        expanded.Should().Be(new Uri($"https://tubitv.com/video/{id}"));
+        TubiUrlMatcher.CanonicalUrl(url).Should().Be(expanded);
+    }
+
+    [Fact(DisplayName =
+        "A Tubi /video/{id} URL does not share the /movies/{id} compact payload, because /video/ is not a movie alias and membership must not treat them as the same catalog row.")]
+    public void video_path_is_not_the_same_catalog_row_as_movies_path()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var videoUrl = new Uri($"https://tubitv.com/video/{id}");
+        var movieUrl = new Uri($"https://tubitv.com/movies/{id}");
+
+        // Act
+        var videoCompact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, videoUrl);
+        var movieCompact = ServiceCatalog.TryCompactUrl(ServiceKeys.Tubi, movieUrl);
+
+        // Assert
+        videoCompact.Should().Be($"video/{id}");
+        movieCompact.Should().Be($"movies/{id}");
+        TubiUrlMatcher.CanonicalUrl(videoUrl).Should().NotBe(TubiUrlMatcher.CanonicalUrl(movieUrl));
+    }
+
+    [Fact(DisplayName =
         "The Tubi site root is not a submit URL, because it is marketing rather than a catalogue title.")]
     public void site_root_is_not_submit_url()
     {
