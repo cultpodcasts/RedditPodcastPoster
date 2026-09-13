@@ -14,6 +14,7 @@ using RedditPodcastPoster.PlayRts.Matching;
 using RedditPodcastPoster.PlaySuisse.Matching;
 using RedditPodcastPoster.TvnzPlus.Matching;
 using RedditPodcastPoster.BcVideo.Matching;
+using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -131,6 +132,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.AmazonPrime => AmazonPrimeUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Vimeo => VimeoUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.BcVideo => BcVideoUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.Tubi => TubiUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Itvx => ItvxUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Channel4 => Channel4UrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.Fawesome => FawesomeUrlMatcher.IsSubmitUrl(url),

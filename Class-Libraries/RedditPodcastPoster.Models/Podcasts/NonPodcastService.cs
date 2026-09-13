@@ -13,6 +13,7 @@ public enum NonPodcastService
     Fawesome,
     DisneyPlus,
     BcVideo,
+    Tubi,
     DiscoveryPlus,
     ParamountPlus,
     HboMax,

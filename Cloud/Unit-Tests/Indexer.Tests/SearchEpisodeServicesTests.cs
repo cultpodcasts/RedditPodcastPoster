@@ -97,6 +97,29 @@ public class SearchEpisodeServicesTests
             .Which.Url.ToString().Should().Be($"https://www.{host}.com/video/{id}");
     }
 
+
+    [Fact(DisplayName =
+        "Search svc encoding stores Tubi as movies/{id} when the URL is a locale movie page, so Expand rebuilds the canonical /movies/{id} URL.")]
+    public void Compacts_tubi_locale_movie_url_to_kind_and_id()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var services = new Dictionary<string, EpisodeServiceLink>
+        {
+            [ServiceKeys.Tubi] = new() { Url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}") }
+        };
+
+        // Act
+        var compact = SearchEpisodeServices.Compact(services);
+        var expanded = SearchEpisodeServices.Expand(compact);
+
+        // Assert
+        compact.Should().Be($"tubi:movies/{id}");
+        expanded.Should().ContainSingle()
+            .Which.Url.ToString().Should().Be($"https://tubitv.com/movies/{id}");
+    }
+
+
     [Fact(DisplayName =
         "Search svc encoding omits Spotify/YouTube/Apple because those URLs are rebuilt from index id fields, keeping quota for services that are not id-derivable.")]
     public void Omits_reconstructable_platform_ids()

@@ -36,6 +36,7 @@ public static class ServiceCatalog
         new(ServiceKeys.Fawesome, "Fawesome", "fawesome", false, true, ["fawesome.tv"]),
         new(ServiceKeys.DisneyPlus, "Disney+", "disney-plus", false, true, ["disneyplus.com"]),
         new(ServiceKeys.BcVideo, "BitChute", "bitchute", false, true, ["bitchute.com"]),
+        new(ServiceKeys.Tubi, "Tubi", "tubi", false, true, ["tubitv.com"]),
         new(ServiceKeys.DiscoveryPlus, "discovery+", "discovery-plus", false, true, ["discoveryplus.com"])
     ];
 
@@ -66,6 +67,7 @@ public static class ServiceCatalog
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
         ServiceKeys.BcVideo,
+        ServiceKeys.Tubi,
         ServiceKeys.DiscoveryPlus
     ];
 
@@ -104,6 +106,7 @@ public static class ServiceCatalog
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
         ServiceKeys.BcVideo,
+        ServiceKeys.Tubi,
         ServiceKeys.DiscoveryPlus
     ];
 
@@ -231,6 +234,11 @@ public static class ServiceCatalog
             return ServiceKeys.BcVideo;
         }
 
+        if (IsHost(host, "tubitv.com"))
+        {
+            return ServiceKeys.Tubi;
+        }
+
         if (IsHost(host, "discoveryplus.com"))
         {
             return ServiceKeys.DiscoveryPlus;
@@ -275,6 +283,7 @@ public static class ServiceCatalog
             ServiceKeys.InternetArchive => TryTrimPrefixHostPath(text, ["/details/"], allowSlug: false, hosts: ["archive.org"]),
             ServiceKeys.Vimeo => TryVimeoId(url),
             ServiceKeys.BcVideo => TryBcVideoId(url),
+            ServiceKeys.Tubi => TryTubiCompactPayload(url),
             ServiceKeys.Netflix => TryTrimPrefixHostPath(text, ["/title/"], allowSlug: false, hosts: ["netflix.com"]),
             _ => null
         };
@@ -314,6 +323,7 @@ public static class ServiceCatalog
             ServiceKeys.InternetArchive => Uri.TryCreate($"https://archive.org/details/{body}", UriKind.Absolute, out var ia) ? ia : null,
             ServiceKeys.Vimeo => Uri.TryCreate($"https://vimeo.com/{body}", UriKind.Absolute, out var v) ? v : null,
             ServiceKeys.BcVideo => Uri.TryCreate($"https://www.bitchute.com/video/{body}", UriKind.Absolute, out var bc) ? bc : null,
+            ServiceKeys.Tubi => Uri.TryCreate($"https://tubitv.com/{body}", UriKind.Absolute, out var tb) ? tb : null,
             ServiceKeys.Netflix => Uri.TryCreate($"https://www.netflix.com/title/{body}", UriKind.Absolute, out var n) ? n : null,
             _ => null
         };
@@ -362,6 +372,97 @@ public static class ServiceCatalog
 
     internal static bool IsBcVideoId(string part) =>
         part.Length >= 6 && part.All(c => char.IsLetterOrDigit(c) || c is '-' or '_');
+
+    private static string? TryTubiCompactPayload(Uri url)
+    {
+        if (!IsHost(CanonicalHost(url), "tubitv.com"))
+        {
+            return null;
+        }
+
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var index = 0;
+        if (parts.Length >= 2 &&
+            IsTubiLocaleSegment(parts[0]) &&
+            TryNormalizeTubiKind(parts[1], out _))
+        {
+            index = 1;
+        }
+
+        if (parts.Length < index + 2)
+        {
+            return null;
+        }
+
+        if (!TryNormalizeTubiKind(parts[index], out var kind))
+        {
+            return null;
+        }
+
+        var id = parts[index + 1];
+        if (id.Length == 0 || !id.All(char.IsDigit))
+        {
+            return null;
+        }
+
+        var remaining = parts.Length - (index + 2);
+        if (remaining > 1)
+        {
+            return null;
+        }
+
+        return $"{kind}/{id}";
+    }
+
+    private static bool TryNormalizeTubiKind(string segment, out string kind)
+    {
+        if (segment.Equals("movies", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("movie", StringComparison.OrdinalIgnoreCase))
+        {
+            kind = "movies";
+            return true;
+        }
+
+        if (segment.Equals("tv-shows", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("tv", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("shows", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("series", StringComparison.OrdinalIgnoreCase))
+        {
+            kind = "tv-shows";
+            return true;
+        }
+
+        if (segment.Equals("video", StringComparison.OrdinalIgnoreCase))
+        {
+            kind = "video";
+            return true;
+        }
+
+        kind = null!;
+        return false;
+    }
+
+    private static bool IsTubiLocaleSegment(string segment)
+    {
+        if (segment.Length is not (2 or 5))
+        {
+            return false;
+        }
+
+        if (!char.IsAsciiLetter(segment[0]) || !char.IsAsciiLetter(segment[1]))
+        {
+            return false;
+        }
+
+        if (segment.Length == 2)
+        {
+            return true;
+        }
+
+        return segment[2] == '-' &&
+               char.IsAsciiLetter(segment[3]) &&
+               char.IsAsciiLetter(segment[4]);
+    }
 
     private static string? TryTrimPrefixHostPath(
         string url,

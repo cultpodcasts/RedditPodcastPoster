@@ -52,6 +52,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BcVideo\RedditPodcastPoster.BcVideo.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Tubi\RedditPodcastPoster.Tubi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

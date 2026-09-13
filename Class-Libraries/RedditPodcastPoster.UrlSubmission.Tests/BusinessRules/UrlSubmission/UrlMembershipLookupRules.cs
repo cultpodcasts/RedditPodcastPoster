@@ -374,6 +374,57 @@ public class UrlMembershipLookupRules
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
+
+    [Fact(DisplayName =
+        "When an unknown Tubi URL is classified, URL membership lookup returns service without podcastName " +
+        "because membership does not scrape the film title.")]
+    public async Task unknown_tubi_leaves_podcast_name_null()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Tubi);
+        result.PodcastName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored Tubi URL is the canonical /movies/{id} form and the pasted URL is locale plus slug, " +
+        "URL membership lookup returns that podcast as known, because both forms are the same title.")]
+    public async Task stored_canonical_tubi_url_matches_locale_paste()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var storedUrl = new Uri($"https://tubitv.com/movies/{id}");
+        var pasted = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Tubi, storedUrl, null));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.PodcastId.Should().Be(podcast.Id);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        result.Service.Should().Be(ServiceKeys.Tubi);
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+
     [Fact(DisplayName =
         "When an unknown Netflix URL is classified, URL membership lookup returns service without podcastName " +
         "because membership does not scrape series metadata.")]

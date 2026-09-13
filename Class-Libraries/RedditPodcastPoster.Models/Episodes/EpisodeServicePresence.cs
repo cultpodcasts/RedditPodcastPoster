@@ -36,6 +36,7 @@ public static class EpisodeServicePresence
         ServiceKeys.Fawesome,
         ServiceKeys.DisneyPlus,
         ServiceKeys.BcVideo,
+        ServiceKeys.Tubi,
         ServiceKeys.DiscoveryPlus
     ];
 

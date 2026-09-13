@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.BcVideo.Matching;
+using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
@@ -28,6 +29,8 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             CatalogAdapter(NonPodcastService.Vimeo, ServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
             CatalogAdapter(NonPodcastService.BcVideo, ServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
                 canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl),
+            CatalogAdapter(NonPodcastService.Tubi, ServiceKeys.Tubi, TubiUrlMatcher.IsSubmitUrl,
+                canonicalizeUrl: TubiUrlMatcher.CanonicalUrl),
             CatalogAdapter(NonPodcastService.Netflix, ServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
             CatalogAdapter(NonPodcastService.AmazonPrime, ServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);

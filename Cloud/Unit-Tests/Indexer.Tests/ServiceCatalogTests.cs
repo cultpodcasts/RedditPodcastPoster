@@ -29,6 +29,7 @@ public class ServiceCatalogTests
     [InlineData("https://fawesome.tv/movies/1/example", "fawesome")]
     [InlineData("https://www.disneyplus.com/series/example", "disneyPlus")]
     [InlineData("https://www.bitchute.com/video/exampleVideoId", "bitchute")]
+    [InlineData("https://tubitv.com/en-au/movies/1/example-slug", "tubi")]
     [InlineData("https://www.discoveryplus.com/show/example", "discoveryPlus")]
     public void Resolves_well_known_hosts_to_stable_json_keys(string url, string expectedKey)
     {

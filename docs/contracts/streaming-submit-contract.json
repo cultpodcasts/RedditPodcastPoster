@@ -19,6 +19,7 @@
     "fawesome",
     "disneyPlus",
     "bitchute",
+    "tubi",
     "discoveryPlus"
   ],
   "membershipKinds": [
@@ -50,6 +51,7 @@
     "fawesome": "https://fawesome.tv/movies/1/example-slug",
     "disneyPlus": "https://www.disneyplus.com/series/example-slug",
     "bitchute": "https://www.bitchute.com/video/exampleVideoId",
+    "tubi": "https://tubitv.com/movies/1/example-slug",
     "discoveryPlus": "https://www.discoveryplus.com/show/example-slug"
   },
   "streamingMembershipShapeCaseIds": [
@@ -101,6 +103,9 @@
     "membership-bitchute-known",
     "membership-bitchute-unknown",
     "membership-bitchute-ambiguous",
+    "membership-tubi-known",
+    "membership-tubi-unknown",
+    "membership-tubi-ambiguous",
     "membership-discoveryPlus-known",
     "membership-discoveryPlus-unknown",
     "membership-discoveryPlus-ambiguous"
@@ -122,6 +127,7 @@
     "stream-fawesome-unknown-prepare-submit",
     "stream-disneyPlus-unknown-prepare-submit",
     "stream-bitchute-unknown-prepare-submit",
+    "stream-tubi-unknown-prepare-submit",
     "stream-discoveryPlus-unknown-prepare-submit"
   ],
   "rules": {

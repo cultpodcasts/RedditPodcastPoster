@@ -190,6 +190,7 @@ public class NonPodcastSeriesNamingRules
             NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
             NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
             NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{_fixture.CreateBcVideoId()}/",
+            NonPodcastService.Tubi => $"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

@@ -48,6 +48,7 @@ public class SearchIndexCosmosSqlTests
             ServiceKeys.Fawesome,
             ServiceKeys.DisneyPlus,
             ServiceKeys.BcVideo,
+            ServiceKeys.Tubi,
             ServiceKeys.DiscoveryPlus
         };
         streamingKeys.Should().BeEquivalentTo(

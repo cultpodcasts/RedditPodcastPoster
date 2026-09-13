@@ -161,6 +161,34 @@ public class NonPodcastEpisodeFactoryRules
     }
 
     [Fact(DisplayName =
+        "Creating an episode from a locale Tubi movie URL stores the canonical /movies/{id} URL, " +
+        "so a later paste of the same title without locale matches the same catalog row.")]
+    public void locale_tubi_item_stores_canonical_movies_url()
+    {
+        // Arrange
+        var id = _fixture.CreateAppleId();
+        var pasted = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}");
+        var canonicalUrl = new Uri($"https://tubitv.com/movies/{id}");
+        var image = _fixture.Create<Uri>();
+        var categorised = CreateNonPodcastItem(
+            NonPodcastService.Tubi,
+            pasted,
+            _fixture.CreateTitle(),
+            _fixture.Create<string>(),
+            DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()),
+            _fixture.CreateDuration(),
+            image);
+        var sut = CreateSut(TimeSpan.Zero);
+
+        // Act
+        var episode = sut.CreateEpisode(categorised);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Tubi).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Tubi).Should().Be(image);
+    }
+
+    [Fact(DisplayName =
         "Creating an episode from a Vimeo /video/{id} URL stores the compact https://vimeo.com/{id} watch URL, " +
         "so a later /video/{id} paste matches the same catalog row.")]
     public void vimeo_video_prefix_stores_compact_watch_url()

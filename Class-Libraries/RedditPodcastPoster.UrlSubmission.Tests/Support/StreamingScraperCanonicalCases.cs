@@ -36,6 +36,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> BcVideoCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.BcVideo));
 
+    public static TheoryData<StreamingScraperCanonicalCase> TubiCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Tubi));
+
     public static TheoryData<StreamingScraperCanonicalCase> ItvxCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Itvx));
 
@@ -204,6 +207,11 @@ public static class StreamingScraperCanonicalCases
             "https://www.bitchute.com/video/32qXfqGEf4Qx/", "NurLogic",
             "Open video via oEmbed author"),
 
+        // Tubi — AVOD film (locale storefront; ShowName must stay null)
+        Case(StreamingScraperProvider.Tubi, "the-family-film",
+            "https://tubitv.com/en-au/movies/100041774/the-family", null,
+            "Standalone film; ShowName must stay null"),
+
         // ITVX — brand watch pages (often geo-walled outside the UK)
         Case(StreamingScraperProvider.Itvx, "love-island-brand",
             "https://www.itv.com/watch/love-island/2a3697", "Love Island",
@@ -306,6 +314,7 @@ public enum StreamingScraperProvider
     TvnzPlus,
     DisneyPlus,
     BcVideo,
+    Tubi,
     DiscoveryPlus
 }
 
