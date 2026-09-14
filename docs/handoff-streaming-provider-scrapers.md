@@ -10,7 +10,7 @@ Prior session transcript (context only): [`f40da660-f9c4-4c8c-87f6-2e040beead0b`
 
 ## 1. Goal
 
-Add **new streaming-provider plugins** (matcher + page/oEmbed extractor + DI + `NonPodcastService` + catalog key + live/canonical tests) so users can:
+Add **new streaming-provider plugins** (matcher + page/oEmbed extractor + DI + `StreamingService` member with `[JsonPropertyName]` / `[StreamingServiceInfo]` + catalog key + live/canonical tests) so users can:
 
 1. `GET /submit/lookup` an unknown URL → `kind: streaming` + best-effort **`podcastName`** (series brand), or `null` for films/one-offs.
 2. `POST /submit` with `{ url, podcastName? }` → attach via name lookup or create Podcast + Episode under today’s Podcast/Episode model.
@@ -65,7 +65,7 @@ Submit UX docs: `website/cultpodcasts/docs/submit-url-flows.md`
 
 ## 3. Target providers
 
-**Priority = user-named next wave.** Catalog-only rows already have keys/hosts but **no** extractors / `NonPodcastService` enum values.
+**Priority = user-named next wave.** Catalog-only rows already have keys/hosts but **no** extractors / `StreamingService` members. (Historical note: PR 966 used a separate `NonPodcastService` enum; that type was removed — add members on `StreamingService` only.)
 
 | Provider | Hosts / notes | Catalog today? | Work needed |
 |----------|---------------|----------------|-------------|
@@ -74,7 +74,7 @@ Submit UX docs: `website/cultpodcasts/docs/submit-url-flows.md`
 | **4oD / Channel 4** | channel4.com / All4 — user called “Channel 4 OD”; **not** in catalog yet | **No** | Same; watch redirects (channel4.com ↔ all4.com) |
 | **Disney+** | disneyplus.com — user-requested; **not** in catalog | **No** | New key + scraper; expect geo/auth walls — document failure modes |
 | **Discovery+** | discoveryplus.com — user-requested; **not** in catalog | **No** | Same |
-| **Paramount+** | paramountplus.com | **Yes** (`paramountPlus`) | Extractor + `NonPodcastService` + DI + live cases (catalog key exists) |
+| **Paramount+** | paramountplus.com | **Yes** (`paramountPlus`) | Extractor + `StreamingService` + `[JsonPropertyName]` / `[StreamingServiceInfo]` + DI + live cases (catalog key exists) |
 | **HBO Max** | max.com, hbomax.com | **Yes** (`hboMax`) | Same |
 | **Play Suisse** | playsuisse.ch | **Yes** (`playSuisse`) | Same |
 | **TVNZ+** | tvnz.co.nz | **Yes** (`tvnzPlus`) | Same |

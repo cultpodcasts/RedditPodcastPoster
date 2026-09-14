@@ -113,6 +113,70 @@ public class FranceTvPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "France TV episode extract strips Documentaire-en-replay SEO marketing from og:title, " +
+        "keeping the usable {series} - {episode} catalogue title for submit.")]
+    public async Task cleans_documentaire_en_replay_marketing_from_og_title()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var episodeName = _fixture.CreateTitle();
+        var channel = _fixture.CreateYouTubeId();
+        var show = _fixture.CreateYouTubeId();
+        var url = new Uri(
+            $"https://www.france.tv/{channel}/{show}/{_fixture.CreateAppleId()}-{_fixture.CreateYouTubeId()}.html");
+        var marketingOg =
+            $"{seriesName} - {episodeName} - Documentaire en replay {seriesName}";
+        _handler.Response = OkHtml(
+            $"<html><head>" +
+            $"<meta property=\"og:title\" content=\"{marketingOg}\" />" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"BreadcrumbList\",\"itemListElement\":[" +
+            $"{{\"@type\":\"ListItem\",\"position\":1,\"name\":\"france.tv\"}}," +
+            $"{{\"@type\":\"ListItem\",\"position\":2,\"name\":\"{seriesName}\"}}" +
+            $"]}}</script></head></html>");
+        var sut = _mocker.CreateInstance<FranceTvPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be($"{seriesName} - {episodeName}");
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
+        "France TV page extract recovers a cleaned document title when Open Graph omits og:title, " +
+        "so soft-walled shells still yield a usable episode name.")]
+    public async Task recovers_cleaned_document_title_when_og_title_missing()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var episodeName = _fixture.CreateTitle();
+        var channel = _fixture.CreateYouTubeId();
+        var show = _fixture.CreateYouTubeId();
+        var url = new Uri(
+            $"https://www.france.tv/{channel}/{show}/{_fixture.CreateAppleId()}-{_fixture.CreateYouTubeId()}.html");
+        var documentTitle =
+            $"{seriesName} - {episodeName} - Documentaire en replay {seriesName} | France TV";
+        _handler.Response = OkHtml(
+            $"<html><head><title>{documentTitle}</title>" +
+            $"<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"BreadcrumbList\",\"itemListElement\":[" +
+            $"{{\"@type\":\"ListItem\",\"position\":1,\"name\":\"france.tv\"}}," +
+            $"{{\"@type\":\"ListItem\",\"position\":2,\"name\":\"{seriesName}\"}}" +
+            $"]}}</script></head></html>");
+        var sut = _mocker.CreateInstance<FranceTvPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be($"{seriesName} - {episodeName}");
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("France TV");
+    }
+
+    [Fact(DisplayName =
         "France TV page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

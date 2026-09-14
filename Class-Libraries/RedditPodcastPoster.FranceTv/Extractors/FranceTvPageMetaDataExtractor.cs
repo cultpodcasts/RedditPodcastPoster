@@ -149,6 +149,9 @@ internal static partial class FranceTvCatalogMeta
             }
         }
 
+        // Live OG titles append SEO marketing such as
+        // " - Documentaire en replay {series brand}" after "{series} - {episode}".
+        title = ReplayMarketingTailRegex().Replace(title, string.Empty).Trim();
         return title;
     }
 
@@ -160,6 +163,15 @@ internal static partial class FranceTvCatalogMeta
 
     [GeneratedRegex("<title>([^<]*)</title>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DocumentTitleRegex();
+
+    /// <summary>
+    /// Trailing France TV SEO clause: optional genre word + "en replay" + rest of string.
+    /// Keeps the preceding "{series} - {episode}" (or series-only) title.
+    /// </summary>
+    [GeneratedRegex(
+        @"\s+-\s+(?:\p{L}+\s+)?en\s+replay\b.*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ReplayMarketingTailRegex();
 
     [GeneratedRegex("(?:property|name)=\"og:type\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex OgTypeRegex();
