@@ -289,7 +289,7 @@ public class NetflixPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Netflix);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Netflix);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

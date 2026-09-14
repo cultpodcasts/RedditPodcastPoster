@@ -9,20 +9,19 @@ public sealed class StreamingServiceRegistration : IStreamingServiceRegistration
     private readonly Func<string, Uri?>? _tryExpand;
 
     public StreamingServiceRegistration(
-        string key,
-        string displayName,
-        string icon,
-        bool wideImage,
-        IReadOnlyList<string> hosts,
+        StreamingService service,
         Func<Uri, string?>? tryResolve = null,
         Func<Uri, string?>? tryCompact = null,
         Func<string, Uri?>? tryExpand = null)
     {
-        Descriptor = new ServiceCatalog.Descriptor(key, displayName, icon, false, wideImage, hosts);
+        Service = service;
+        Descriptor = StreamingServiceWire.ToDescriptor(service);
         _tryResolve = tryResolve;
         _tryCompact = tryCompact;
         _tryExpand = tryExpand;
     }
+
+    public StreamingService Service { get; }
 
     public ServiceCatalog.Descriptor Descriptor { get; }
 

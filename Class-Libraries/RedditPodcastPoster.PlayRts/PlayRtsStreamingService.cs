@@ -5,14 +5,10 @@ namespace RedditPodcastPoster.PlayRts;
 
 public static class PlayRtsStreamingService
 {
-    public const string Key = StreamingServiceKeys.PlayRts;
+    public static readonly StreamingService Service = StreamingService.PlayRts;
 
     public static readonly IStreamingServiceRegistration Registration = new StreamingServiceRegistration(
-        Key,
-        "Play RTS",
-        "play-rts",
-        true,
-        ["rts.ch"],
+        Service,
         tryResolve: url =>
         {
             if (!url.IsAbsoluteUri)
@@ -27,7 +23,7 @@ public static class PlayRtsStreamingService
             }
 
             return url.AbsolutePath.StartsWith("/play/", StringComparison.OrdinalIgnoreCase)
-                ? Key
+                ? StreamingServiceWire.ToKey(Service)
                 : null;
         });
 }

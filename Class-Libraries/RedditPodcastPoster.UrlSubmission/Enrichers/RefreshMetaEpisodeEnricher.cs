@@ -146,7 +146,7 @@ public sealed class RefreshMetaEpisodeEnricher(
         logger.LogInformation(
             "Refresh-meta plan for episode '{EpisodeId}' (service={Service}): {Plan}",
             matchingEpisode.Id,
-            item.NonPodcastService,
+            item.StreamingService,
             string.Join("; ", updates));
 
         var changed = false;
@@ -177,7 +177,7 @@ public sealed class RefreshMetaEpisodeEnricher(
 
         if (item.BBCUrl is { } bbcUrl)
         {
-            var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
+            var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
                 bbcKey,
@@ -194,12 +194,12 @@ public sealed class RefreshMetaEpisodeEnricher(
         {
             var upsert = ApplyServiceUpsertIfChanged(
                 matchingEpisode,
-                StreamingServiceKeys.InternetArchive,
+                StreamingServiceWire.ToKey(StreamingService.InternetArchive),
                 internetArchiveUrl,
                 item.Image);
             if (upsert.UrlWasMissing)
             {
-                addedExtraKeys.Add(StreamingServiceKeys.InternetArchive);
+                addedExtraKeys.Add(StreamingServiceWire.ToKey(StreamingService.InternetArchive));
             }
 
             changed |= upsert.Changed;

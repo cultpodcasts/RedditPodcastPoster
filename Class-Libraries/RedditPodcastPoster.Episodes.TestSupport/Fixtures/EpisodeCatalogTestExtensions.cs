@@ -124,15 +124,15 @@ public sealed class EpisodeCatalogUrls
 
     public Uri? InternetArchive
     {
-        get => Read(StreamingServiceKeys.InternetArchive, _internetArchive);
-        set => Write(StreamingServiceKeys.InternetArchive, value, ref _internetArchive);
+        get => Read(StreamingServiceWire.ToKey(StreamingService.InternetArchive), _internetArchive);
+        set => Write(StreamingServiceWire.ToKey(StreamingService.InternetArchive), value, ref _internetArchive);
     }
 
     public Uri? BBC
     {
         get => _live is not null
-            ? EpisodeServicePresence.TryGetUrl(_live, StreamingServiceKeys.BbcIplayer) ??
-              EpisodeServicePresence.TryGetUrl(_live, StreamingServiceKeys.BbcSounds)
+            ? EpisodeServicePresence.TryGetUrl(_live, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
+              EpisodeServicePresence.TryGetUrl(_live, StreamingServiceWire.ToKey(StreamingService.BbcSounds))
             : _bbc;
         set
         {
@@ -152,7 +152,7 @@ public sealed class EpisodeCatalogUrls
         episode.ApplyListenUrl(ServiceKeys.Spotify, urls?.Spotify);
         episode.ApplyListenUrl(ServiceKeys.Apple, urls?.Apple);
         episode.ApplyListenUrl(ServiceKeys.YouTube, urls?.YouTube);
-        episode.ApplyListenUrl(StreamingServiceKeys.InternetArchive, urls?.InternetArchive);
+        episode.ApplyListenUrl(StreamingServiceWire.ToKey(StreamingService.InternetArchive), urls?.InternetArchive);
         ApplyBbc(episode, urls?.BBC);
     }
 
@@ -172,14 +172,14 @@ public sealed class EpisodeCatalogUrls
 
     private static void ApplyBbc(Episode episode, Uri? url)
     {
-        episode.ApplyListenUrl(StreamingServiceKeys.BbcIplayer, null);
-        episode.ApplyListenUrl(StreamingServiceKeys.BbcSounds, null);
+        episode.ApplyListenUrl(StreamingServiceWire.ToKey(StreamingService.BbcIplayer), null);
+        episode.ApplyListenUrl(StreamingServiceWire.ToKey(StreamingService.BbcSounds), null);
         if (url is null)
         {
             return;
         }
 
-        var key = StreamingServiceCatalog.TryResolveKey(url) ?? StreamingServiceKeys.BbcSounds;
+        var key = StreamingServiceCatalog.TryResolveKey(url) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
         episode.ApplyListenUrl(key, url);
     }
 }

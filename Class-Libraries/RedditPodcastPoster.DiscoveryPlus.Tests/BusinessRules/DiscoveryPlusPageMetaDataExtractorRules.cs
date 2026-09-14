@@ -153,7 +153,7 @@ public class DiscoveryPlusPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.DiscoveryPlus);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.DiscoveryPlus);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

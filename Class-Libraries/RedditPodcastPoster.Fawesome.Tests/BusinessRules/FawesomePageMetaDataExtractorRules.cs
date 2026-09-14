@@ -153,7 +153,7 @@ public class FawesomePageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Fawesome);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Fawesome);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

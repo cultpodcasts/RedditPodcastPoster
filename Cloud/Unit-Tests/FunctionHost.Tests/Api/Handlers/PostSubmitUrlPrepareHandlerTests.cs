@@ -46,7 +46,7 @@ public class PostSubmitUrlPrepareHandlerTests
                 SubmitUrlPrepareStatus.Ok,
                 new SubmitUrlPrepareResponse
                 {
-                    Service = StreamingServiceKeys.Itvx,
+                    Service = StreamingServiceWire.ToKey(StreamingService.Itvx),
                     PodcastName = showName,
                     Title = title,
                     Description = _fixture.Create<string>(),
@@ -64,7 +64,7 @@ public class PostSubmitUrlPrepareHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonBodyAsync(result);
-        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.Itvx);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
         body.GetProperty("title").GetString().Should().Be(title);
         body.GetProperty("podcastName").GetString().Should().Be(showName);
     }
@@ -84,7 +84,7 @@ public class PostSubmitUrlPrepareHandlerTests
                 SubmitUrlPrepareStatus.Ok,
                 new SubmitUrlPrepareResponse
                 {
-                    Service = StreamingServiceKeys.Itvx,
+                    Service = StreamingServiceWire.ToKey(StreamingService.Itvx),
                     Title = title,
                     Description = _fixture.Create<string>()
                 }));
@@ -100,7 +100,7 @@ public class PostSubmitUrlPrepareHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonBodyAsync(result);
-        body.GetProperty("service").GetString().Should().Be(StreamingServiceKeys.Itvx);
+        body.GetProperty("service").GetString().Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
         body.GetProperty("title").GetString().Should().Be(title);
     }
 }

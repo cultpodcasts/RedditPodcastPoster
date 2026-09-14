@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Netflix.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
@@ -5,14 +6,10 @@ namespace RedditPodcastPoster.Netflix;
 
 public static class NetflixStreamingService
 {
-    public const string Key = StreamingServiceKeys.Netflix;
+    public static readonly StreamingService Service = StreamingService.Netflix;
 
     public static readonly IStreamingServiceRegistration Registration = new StreamingServiceRegistration(
-        Key,
-        "Netflix",
-        "netflix",
-        true,
-        ["netflix.com"],
+        Service,
         tryCompact: NetflixUrlMatcher.TryCompactPayload,
         tryExpand: NetflixUrlMatcher.TryExpandPayload);
 }

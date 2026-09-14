@@ -26,7 +26,7 @@ public class PodcastEpisodeStreamingSearchMappingTests
             $"https://ovp.itv.com/v2/images/special/{slug}/itv_hub/01_Hero_DesktopCTV/16x9?distributionPartner=itv_hub&fallback=standard&w=2236&q=80&blur=0&bg=false");
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Itvx, itvxUrl, itvxImage);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.Itvx), itvxUrl, itvxImage);
         });
         var podcast = _fixture.CreatePodcast();
 
@@ -35,10 +35,10 @@ public class PodcastEpisodeStreamingSearchMappingTests
 
         // Assert
         record.Svc.Should().Be(SearchEpisodeServices.Compact(episode.Services));
-        record.Svc.Should().StartWith($"{StreamingServiceKeys.Itvx}:u");
+        record.Svc.Should().StartWith($"{StreamingServiceWire.ToKey(StreamingService.Itvx)}:u");
         record.Svc.Should().Contain(itvxUrl.ToString());
         SearchEpisodeServices.Expand(record.Svc).Should().ContainSingle()
-            .Which.Should().Be((StreamingServiceKeys.Itvx, itvxUrl));
+            .Which.Should().Be((StreamingServiceWire.ToKey(StreamingService.Itvx), itvxUrl));
         record.Image.Should().Be(itvxImage.ToString());
         record.SpotifyId.Should().BeNull();
         record.YoutubeId.Should().BeNull();
@@ -56,14 +56,14 @@ public class PodcastEpisodeStreamingSearchMappingTests
         var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateGuid():N}/a/b");
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.Itvx] = new() { Url = itvxUrl }
+            [StreamingServiceWire.ToKey(StreamingService.Itvx)] = new() { Url = itvxUrl }
         };
 
         // Act
         var compact = SearchEpisodeServices.Compact(services);
 
         // Assert
-        compact.Should().Contain($"{StreamingServiceKeys.Itvx}:u");
+        compact.Should().Contain($"{StreamingServiceWire.ToKey(StreamingService.Itvx)}:u");
         SearchEpisodeServices.Expand(compact).Should().ContainSingle()
             .Which.Url.Should().Be(itvxUrl);
     }

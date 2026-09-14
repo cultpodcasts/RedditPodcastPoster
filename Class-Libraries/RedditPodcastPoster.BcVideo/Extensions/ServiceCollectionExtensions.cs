@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             {
                 var extractor = provider.GetRequiredService<IBcVideoMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.BcVideo,
-                    StreamingServiceKeys.BcVideo,
+                    StreamingService.BcVideo,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     BcVideoUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IFranceTvPageMetaDataExtractor, FranceTvPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.FranceTv,
-                    StreamingServiceKeys.FranceTv,
+                    StreamingService.FranceTv,
                     FranceTvUrlMatcher.IsSubmitUrl,
                     FranceTvUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IFranceTvPageMetaDataExtractor>().GetMetaData));

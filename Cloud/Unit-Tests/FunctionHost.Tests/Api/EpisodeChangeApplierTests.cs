@@ -621,14 +621,14 @@ public class EpisodeChangeApplierTests
         {
             Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [StreamingServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoImage }
+                [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
         });
 
         // Assert
-        episode.Services.Should().ContainKey(StreamingServiceKeys.Vimeo);
-        episode.Services![StreamingServiceKeys.Vimeo].Url.Should().Be(vimeoUrl);
-        episode.Services[StreamingServiceKeys.Vimeo].Image.Should().Be(vimeoImage);
+        episode.Services.Should().ContainKey(StreamingServiceWire.ToKey(StreamingService.Vimeo));
+        episode.Services![StreamingServiceWire.ToKey(StreamingService.Vimeo)].Url.Should().Be(vimeoUrl);
+        episode.Services[StreamingServiceWire.ToKey(StreamingService.Vimeo)].Image.Should().Be(vimeoImage);
         episode.Images?.Other.Should().BeNull();
         EpisodeServicePresence.ToEpisodeImages(episode).Should().BeNull();
     }

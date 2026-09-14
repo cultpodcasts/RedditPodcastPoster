@@ -59,7 +59,7 @@ public class ServiceCatalogTests
 
         // Assert
         key.Should().BeNull();
-        key.Should().NotBe(StreamingServiceKeys.PlayRts);
+        key.Should().NotBe(StreamingServiceWire.ToKey(StreamingService.PlayRts));
     }
 
     [Fact(DisplayName =

@@ -47,7 +47,7 @@ public class SubmitUrlPrepareService(
 
             return new SubmitUrlPrepareResult(
                 SubmitUrlPrepareStatus.Ok,
-                SubmitUrlPrepareResponse.From(url, meta, adapter.Service));
+                SubmitUrlPrepareResponse.From(url, meta, adapter.ResolveService(url)));
         }
         catch (NotSupportedException ex)
         {

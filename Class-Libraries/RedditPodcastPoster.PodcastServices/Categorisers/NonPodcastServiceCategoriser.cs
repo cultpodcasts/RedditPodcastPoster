@@ -67,7 +67,8 @@ public class NonPodcastServiceCategoriser(
                 // Known URL: skip scrape unless refresh-meta (or prefetched meta) needs fields to apply.
                 if (!forceMetaExtract && prefetchedMeta is null)
                 {
-                    return new ResolvedNonPodcastServiceItem(adapter.Service, podcast, episodes.Single(), Url: url);
+                    return new ResolvedNonPodcastServiceItem(
+                        adapter.ResolveService(url), podcast, episodes.Single(), Url: url);
                 }
 
                 return await streamingServiceMetaDataHandler.ResolveServiceItem(

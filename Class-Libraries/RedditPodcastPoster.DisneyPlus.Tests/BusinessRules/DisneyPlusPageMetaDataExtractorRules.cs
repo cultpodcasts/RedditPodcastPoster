@@ -174,7 +174,7 @@ public class DisneyPlusPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.DisneyPlus);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.DisneyPlus);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

@@ -6,12 +6,13 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 
 /// <summary>
-/// One streaming/non-podcast destination (BBC Sounds, Internet Archive, Vimeo, …).
+/// One streaming destination (BBC Sounds, Internet Archive, Vimeo, …).
 /// New services register another implementation; submit routing does not grow a switch.
 /// </summary>
 public interface INonPodcastServiceAdapter
 {
-    NonPodcastService Service { get; }
+    /// <summary>Wire destination for this URL (BBC Sounds vs iPlayer when one adapter spans both).</summary>
+    StreamingService ResolveService(Uri url);
 
     /// <summary>URL shapes the submit/categorise pipeline will ingest.</summary>
     bool IsSubmitUrl(Uri url);

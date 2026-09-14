@@ -42,8 +42,7 @@ public static class ServiceCollectionExtensions
             {
                 var extractor = provider.GetRequiredService<IItvxPageMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Itvx,
-                    StreamingServiceKeys.Itvx,
+                    StreamingService.Itvx,
                     ItvxUrlMatcher.IsSubmitUrl,
                     ItvxUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

@@ -119,7 +119,7 @@ public class EpisodeServiceCatalogPatchTests
         var iplayer = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcIplayer, iplayer, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.BbcIplayer), iplayer, null);
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             EpisodeServicePresence.SetYouTubeIdentity(e, null);
         });
@@ -130,9 +130,9 @@ public class EpisodeServiceCatalogPatchTests
 
         // Assert
         created.Should().BeTrue();
-        patch!.Services.Should().ContainKey(StreamingServiceKeys.BbcIplayer);
-        patch.Services.Should().NotContainKey(StreamingServiceKeys.BbcSounds);
-        patch.Services![StreamingServiceKeys.BbcIplayer].Url.Should().Be(iplayer);
+        patch!.Services.Should().ContainKey(StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
+        patch.Services.Should().NotContainKey(StreamingServiceWire.ToKey(StreamingService.BbcSounds));
+        patch.Services![StreamingServiceWire.ToKey(StreamingService.BbcIplayer)].Url.Should().Be(iplayer);
     }
 
     [Fact(DisplayName =
@@ -145,7 +145,7 @@ public class EpisodeServiceCatalogPatchTests
         var archive = new Uri($"https://archive.org/details/{_fixture.CreateSpotifyId()}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.InternetArchive, archive, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.InternetArchive), archive, null);
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             EpisodeServicePresence.SetYouTubeIdentity(e, null);
         });
@@ -156,8 +156,8 @@ public class EpisodeServiceCatalogPatchTests
 
         // Assert
         created.Should().BeTrue();
-        patch!.Services.Should().ContainKey(StreamingServiceKeys.InternetArchive);
-        patch.Services![StreamingServiceKeys.InternetArchive].Url.Should().Be(archive);
+        patch!.Services.Should().ContainKey(StreamingServiceWire.ToKey(StreamingService.InternetArchive));
+        patch.Services![StreamingServiceWire.ToKey(StreamingService.InternetArchive)].Url.Should().Be(archive);
     }
 
     [Fact(DisplayName =
@@ -437,9 +437,9 @@ public class EpisodeServiceCatalogPatchTests
         var spotifyUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify);
         var appleUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple);
         var youTubeUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube);
-        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer)
-                     ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds);
-        var archiveUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive);
+        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer))
+                     ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
+        var archiveUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive));
         if (spotifyUrl is not null)
         {
             urls["spotify"] = spotifyUrl.ToString();

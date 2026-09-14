@@ -19,8 +19,8 @@ public class StreamingServiceCatalogRules
         var order = StreamingServiceCatalog.ImageCoalesceOrder;
 
         // Act
-        var iplayer = Array.IndexOf(order, StreamingServiceKeys.BbcIplayer);
-        var sounds = Array.IndexOf(order, StreamingServiceKeys.BbcSounds);
+        var iplayer = Array.IndexOf(order, StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
+        var sounds = Array.IndexOf(order, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
 
         // Assert
         iplayer.Should().BeGreaterThanOrEqualTo(0);
@@ -35,8 +35,8 @@ public class StreamingServiceCatalogRules
         var keys = StreamingServiceCatalog.SearchEncodedKeys;
 
         // Act
-        var sounds = Array.IndexOf(keys, StreamingServiceKeys.BbcSounds);
-        var iplayer = Array.IndexOf(keys, StreamingServiceKeys.BbcIplayer);
+        var sounds = Array.IndexOf(keys, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
+        var iplayer = Array.IndexOf(keys, StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
 
         // Assert
         sounds.Should().BeGreaterThanOrEqualTo(0);
@@ -67,8 +67,8 @@ public class StreamingServiceCatalogRules
         var encoded = StreamingServiceCatalog.SearchEncodedKeys;
 
         // Act
-        var iplayer = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceKeys.BbcIplayer);
-        var sounds = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceKeys.BbcSounds);
+        var iplayer = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
+        var sounds = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
 
         // Assert
         coalesceStreaming.Should().BeEquivalentTo(encoded);
@@ -103,12 +103,12 @@ public class StreamingServiceCatalogRules
 
         // Act
         var keys = StreamingServiceCatalog.SearchEncodedKeys;
-        var compact = StreamingServiceCatalog.TryCompactUrl(StreamingServiceKeys.Tubi, url);
-        var expanded = StreamingServiceCatalog.TryExpandCompactUrl(StreamingServiceKeys.Tubi, compact!);
+        var compact = StreamingServiceCatalog.TryCompactUrl(StreamingServiceWire.ToKey(StreamingService.Tubi), url);
+        var expanded = StreamingServiceCatalog.TryExpandCompactUrl(StreamingServiceWire.ToKey(StreamingService.Tubi), compact!);
 
         // Assert
         keys.Should().NotBeEmpty();
-        keys.Should().Contain(StreamingServiceKeys.Tubi);
+        keys.Should().Contain(StreamingServiceWire.ToKey(StreamingService.Tubi));
         compact.Should().Be($"movies/{id}");
         expanded.Should().Be(new Uri($"https://tubitv.com/movies/{id}"));
     }
@@ -124,6 +124,6 @@ public class StreamingServiceCatalogRules
         var key = StreamingServiceCatalog.TryResolveKey(url);
 
         // Assert
-        key.Should().Be(StreamingServiceKeys.BbcIplayer);
+        key.Should().Be(StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
     }
 }

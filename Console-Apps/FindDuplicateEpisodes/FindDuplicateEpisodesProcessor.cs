@@ -532,9 +532,9 @@ public class FindDuplicateEpisodesProcessor(
                      ServiceKeys.Spotify,
                      ServiceKeys.Apple,
                      ServiceKeys.YouTube,
-                     StreamingServiceKeys.BbcIplayer,
-                     StreamingServiceKeys.BbcSounds,
-                     StreamingServiceKeys.InternetArchive
+                     StreamingServiceWire.ToKey(StreamingService.BbcIplayer),
+                     StreamingServiceWire.ToKey(StreamingService.BbcSounds),
+                     StreamingServiceWire.ToKey(StreamingService.InternetArchive)
                  })
         {
             if (EpisodeServicePresence.TryFillMissing(

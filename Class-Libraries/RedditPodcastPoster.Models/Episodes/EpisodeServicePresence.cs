@@ -69,6 +69,9 @@ public static class EpisodeServicePresence
         return null;
     }
 
+    public static Uri? TryGetUrl(Episode episode, StreamingService service) =>
+        TryGetUrl(episode, StreamingServiceWire.ToKey(service));
+
     public static Uri? TryGetImage(Episode episode, string key)
     {
         ArgumentNullException.ThrowIfNull(episode);
@@ -83,7 +86,13 @@ public static class EpisodeServicePresence
         return null;
     }
 
+    public static Uri? TryGetImage(Episode episode, StreamingService service) =>
+        TryGetImage(episode, StreamingServiceWire.ToKey(service));
+
     public static bool HasUrl(Episode episode, string key) => TryGetUrl(episode, key) is not null;
+
+    public static bool HasUrl(Episode episode, StreamingService service) =>
+        HasUrl(episode, StreamingServiceWire.ToKey(service));
 
     public static string? SpotifyEpisodeId(Episode episode)
     {
@@ -413,4 +422,13 @@ public static class EpisodeServicePresence
         Upsert(episode, key, existingUrl ?? url, existingImage ?? image);
         return true;
     }
+
+    public static void Upsert(Episode episode, StreamingService service, Uri? url, Uri? image) =>
+        Upsert(episode, StreamingServiceWire.ToKey(service), url, image);
+
+    public static void SetCatalogImage(Episode episode, StreamingService service, Uri? image) =>
+        SetCatalogImage(episode, StreamingServiceWire.ToKey(service), image);
+
+    public static bool TryFillMissing(Episode episode, StreamingService service, Uri? url, Uri? image) =>
+        TryFillMissing(episode, StreamingServiceWire.ToKey(service), url, image);
 }

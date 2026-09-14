@@ -26,8 +26,7 @@ public static class ServiceCollectionExtensions
             {
                 var extractor = provider.GetRequiredService<ITubiPageMetaDataExtractor>();
                 return new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Tubi,
-                    StreamingServiceKeys.Tubi,
+                    StreamingService.Tubi,
                     TubiUrlMatcher.IsSubmitUrl,
                     TubiUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,

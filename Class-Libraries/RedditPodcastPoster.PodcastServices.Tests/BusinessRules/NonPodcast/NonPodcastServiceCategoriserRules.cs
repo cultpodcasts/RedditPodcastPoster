@@ -53,7 +53,7 @@ public class NonPodcastServiceCategoriserRules
     {
         // Arrange
         var url = BbcSoundsUrl();
-        _handlerResult = CreateResolved(NonPodcastService.BBC, url);
+        _handlerResult = CreateResolved(StreamingService.BbcSounds, url);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
 
         // Act
@@ -83,7 +83,7 @@ public class NonPodcastServiceCategoriserRules
 
         // Assert
         resolved.Should().NotBeNull();
-        resolved!.NonPodcastService.Should().Be(NonPodcastService.BBC);
+        resolved!.StreamingService.Should().Be(StreamingService.BbcSounds);
         resolved.Podcast!.Id.Should().Be(podcast.Id);
         resolved.Episode!.Id.Should().Be(episode.Id);
         resolved.Url.Should().Be(url);
@@ -108,7 +108,7 @@ public class NonPodcastServiceCategoriserRules
         var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcSoundsLookup(e, url));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
-        _handlerResult = CreateResolved(NonPodcastService.BBC, url, podcast, episode);
+        _handlerResult = CreateResolved(StreamingService.BbcSounds, url, podcast, episode);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
 
         // Act
@@ -141,7 +141,7 @@ public class NonPodcastServiceCategoriserRules
         var url = InternetArchiveUrl();
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.InternetArchive, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.InternetArchive), url, null));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
@@ -150,7 +150,7 @@ public class NonPodcastServiceCategoriserRules
         var resolved = await sut.Resolve(null, url, new IndexingContext());
 
         // Assert
-        resolved!.NonPodcastService.Should().Be(NonPodcastService.InternetArchive);
+        resolved!.StreamingService.Should().Be(StreamingService.InternetArchive);
         resolved.Episode!.Id.Should().Be(episode.Id);
     }
 
@@ -164,7 +164,7 @@ public class NonPodcastServiceCategoriserRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast);
         _episodes.Seed(episode);
-        _handlerResult = CreateResolved(NonPodcastService.BBC, url, podcast, episode);
+        _handlerResult = CreateResolved(StreamingService.BbcSounds, url, podcast, episode);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
 
         // Act
@@ -200,7 +200,7 @@ public class NonPodcastServiceCategoriserRules
     {
         // Arrange
         var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
-        _handlerResult = CreateResolved(NonPodcastService.Vimeo, url);
+        _handlerResult = CreateResolved(StreamingService.Vimeo, url);
         var sut = _mocker.CreateInstance<NonPodcastServiceCategoriser>();
 
         // Act
@@ -245,13 +245,13 @@ public class NonPodcastServiceCategoriserRules
     {
         episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
         {
-            [StreamingServiceKeys.BbcIplayer] = new(),
-            [StreamingServiceKeys.BbcSounds] = new() { Url = soundsUrl }
+            [StreamingServiceWire.ToKey(StreamingService.BbcIplayer)] = new(),
+            [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new() { Url = soundsUrl }
         };
     }
 
     private ResolvedNonPodcastServiceItem CreateResolved(
-        NonPodcastService service,
+        StreamingService service,
         Uri url,
         Podcast? podcast = null,
         Episode? episode = null) =>

@@ -64,7 +64,7 @@ public class StreamingServiceMetaDataHandlerRules
         var resolved = await sut.ResolveServiceItem(null, [], url);
 
         // Assert
-        resolved.NonPodcastService.Should().Be(NonPodcastService.BBC);
+        resolved.StreamingService.Should().Be(StreamingService.BbcSounds);
         resolved.Url.Should().Be(url);
         resolved.Title.Should().Be(_bbcMeta.Title);
         resolved.Description.Should().Be(_bbcMeta.Description);
@@ -92,7 +92,7 @@ public class StreamingServiceMetaDataHandlerRules
         var resolved = await sut.ResolveServiceItem(null, [], url);
 
         // Assert
-        resolved.NonPodcastService.Should().Be(NonPodcastService.InternetArchive);
+        resolved.StreamingService.Should().Be(StreamingService.InternetArchive);
         resolved.Url.Should().Be(url);
         resolved.Title.Should().Be(_archiveMeta.Title);
         resolved.InternetArchiveUrl.Should().Be(url);
@@ -111,9 +111,9 @@ public class StreamingServiceMetaDataHandlerRules
         _bbcMeta = CreateMetaData();
         var podcast = _fixture.CreatePodcast();
         var matching = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.BbcSounds), url, null));
         var other = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, BbcSoundsUrl(), null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.BbcSounds), BbcSoundsUrl(), null));
         var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
 
         // Act
@@ -135,7 +135,7 @@ public class StreamingServiceMetaDataHandlerRules
         _archiveMeta = CreateMetaData();
         var podcast = _fixture.CreatePodcast();
         var matching = _fixture.CreateStoredEpisode(podcast, e =>
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.InternetArchive, url, null));
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.InternetArchive), url, null));
         var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
 
         // Act
@@ -158,7 +158,7 @@ public class StreamingServiceMetaDataHandlerRules
         var resolved = await sut.ResolveServiceItem(null, [], url);
 
         // Assert
-        resolved.NonPodcastService.Should().Be(NonPodcastService.Vimeo);
+        resolved.StreamingService.Should().Be(StreamingService.Vimeo);
         resolved.Url.Should().Be(url);
         resolved.Title.Should().Be(_vimeoMeta.Title);
         resolved.Image.Should().Be(_vimeoMeta.Image);
@@ -181,7 +181,7 @@ public class StreamingServiceMetaDataHandlerRules
         var resolved = await sut.ResolveServiceItem(null, [], url);
 
         // Assert
-        resolved.NonPodcastService.Should().Be(NonPodcastService.Netflix);
+        resolved.StreamingService.Should().Be(StreamingService.Netflix);
         resolved.Url.Should().Be(url);
         resolved.Title.Should().Be(_netflixMeta.Title);
         _mocker.GetMock<IVimeoMetaDataExtractor>()
@@ -219,7 +219,7 @@ public class StreamingServiceMetaDataHandlerRules
         var resolved = await sut.ResolveServiceItem(null, [], url, prefetched);
 
         // Assert
-        resolved.NonPodcastService.Should().Be(NonPodcastService.BBC);
+        resolved.StreamingService.Should().Be(StreamingService.BbcSounds);
         resolved.Url.Should().Be(url);
         resolved.Title.Should().Be(prefetched.Title);
         resolved.Description.Should().Be(prefetched.Description);

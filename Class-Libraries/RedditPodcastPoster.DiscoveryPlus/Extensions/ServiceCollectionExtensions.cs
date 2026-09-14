@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDiscoveryPlusPageMetaDataExtractor, DiscoveryPlusPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.DiscoveryPlus,
-                    StreamingServiceKeys.DiscoveryPlus,
+                    StreamingService.DiscoveryPlus,
                     DiscoveryPlusUrlMatcher.IsSubmitUrl,
                     DiscoveryPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IDiscoveryPlusPageMetaDataExtractor>().GetMetaData));

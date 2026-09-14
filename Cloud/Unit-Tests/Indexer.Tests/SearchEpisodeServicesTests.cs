@@ -18,7 +18,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.BbcSounds] = new()
+            [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new()
             {
                 Url = new Uri("https://www.bbc.co.uk/sounds/play/p0example")
             }
@@ -41,7 +41,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.Vimeo] = new() { Url = new Uri("https://vimeo.com/123456789") }
+            [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = new Uri("https://vimeo.com/123456789") }
         };
 
         // Act
@@ -63,7 +63,7 @@ public class SearchEpisodeServicesTests
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
+            [StreamingServiceWire.ToKey(StreamingService.BcVideo)] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
         };
 
         // Act
@@ -85,7 +85,7 @@ public class SearchEpisodeServicesTests
         var id = _fixture.CreateBcVideoId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.BcVideo] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
+            [StreamingServiceWire.ToKey(StreamingService.BcVideo)] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
         };
 
         // Act
@@ -107,7 +107,7 @@ public class SearchEpisodeServicesTests
         var id = _fixture.CreateAppleId();
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.Tubi] = new() { Url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}") }
+            [StreamingServiceWire.ToKey(StreamingService.Tubi)] = new() { Url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}") }
         };
 
         // Act
@@ -130,7 +130,7 @@ public class SearchEpisodeServicesTests
         {
             [ServiceKeys.Spotify] = new() { Url = new Uri("https://open.spotify.com/episode/opaqueid00000000000000") },
             [ServiceKeys.YouTube] = new() { Url = new Uri("https://www.youtube.com/watch?v=griffinsong42") },
-            [StreamingServiceKeys.InternetArchive] = new() { Url = new Uri("https://archive.org/details/harbour-vale-ep") }
+            [StreamingServiceWire.ToKey(StreamingService.InternetArchive)] = new() { Url = new Uri("https://archive.org/details/harbour-vale-ep") }
         };
 
         // Act
@@ -148,7 +148,7 @@ public class SearchEpisodeServicesTests
         var url = new Uri("https://www.netflix.com/watch/81040344?trackId=14262865");
         var services = new Dictionary<string, EpisodeServiceLink>
         {
-            [StreamingServiceKeys.Netflix] = new() { Url = url }
+            [StreamingServiceWire.ToKey(StreamingService.Netflix)] = new() { Url = url }
         };
 
         // Act

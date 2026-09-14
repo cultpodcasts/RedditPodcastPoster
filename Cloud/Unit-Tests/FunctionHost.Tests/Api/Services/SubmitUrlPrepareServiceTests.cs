@@ -29,7 +29,7 @@ public class SubmitUrlPrepareServiceTests
             .Setup(r => r.ForExtract(It.IsAny<Uri>()))
             .Returns(() => _resolvedAdapter);
 
-        _adapter.Setup(a => a.Service).Returns(NonPodcastService.Itvx);
+        _adapter.Setup(a => a.ResolveService(It.IsAny<Uri>())).Returns(StreamingService.Itvx);
         _adapter.Setup(a => a.ExtractMetaData(It.IsAny<Uri>()))
             .Returns((Uri _) =>
             {
@@ -119,8 +119,8 @@ public class SubmitUrlPrepareServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
         result.Response.Should().BeEquivalentTo(
-            SubmitUrlPrepareResponse.From(url, _liveMeta, NonPodcastService.Itvx));
-        result.Response!.Service.Should().Be(StreamingServiceKeys.Itvx);
+            SubmitUrlPrepareResponse.From(url, _liveMeta, StreamingService.Itvx));
+        result.Response!.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
         result.Response.Title.Should().Be(title);
         result.Response.ShowName.Should().Be(showName);
         result.Response.PodcastName.Should().Be(showName);
@@ -150,8 +150,8 @@ public class SubmitUrlPrepareServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
         result.Response.Should().BeEquivalentTo(
-            SubmitUrlPrepareResponse.From(url, _liveMeta, NonPodcastService.Itvx));
-        result.Response!.Service.Should().Be(StreamingServiceKeys.Itvx);
+            SubmitUrlPrepareResponse.From(url, _liveMeta, StreamingService.Itvx));
+        result.Response!.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
         result.Response.Title.Should().Be(title);
         _adapter.Verify(a => a.ExtractMetaData(url, html), Times.Once);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>()), Times.Never);

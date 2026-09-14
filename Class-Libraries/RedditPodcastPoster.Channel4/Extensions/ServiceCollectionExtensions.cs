@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IChannel4PageMetaDataExtractor, Channel4PageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Channel4,
-                    StreamingServiceKeys.Channel4,
+                    StreamingService.Channel4,
                     Channel4UrlMatcher.IsSubmitUrl,
                     Channel4UrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IChannel4PageMetaDataExtractor>().GetMetaData));

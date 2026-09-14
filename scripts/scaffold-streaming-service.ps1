@@ -142,20 +142,17 @@ $testCsproj = @'
 '@
 
 $registration = @'
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.__PASCAL__;
 
 public static class __PASCAL__StreamingService
 {
-    public const string Key = StreamingServiceKeys.__PASCAL__;
+    public static readonly StreamingService Service = StreamingService.__PASCAL__;
 
     public static readonly IStreamingServiceRegistration Registration = new StreamingServiceRegistration(
-        Key,
-        "__DISPLAY__",
-        "__ICON__",
-        true,
-        [__HOSTS_ARRAY__]);
+        Service);
 }
 '@
 
@@ -348,8 +345,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<I__PASCAL__PageMetaDataExtractor, __PASCAL__PageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.__PASCAL__,
-                    StreamingServiceKeys.__PASCAL__,
+                    StreamingService.__PASCAL__,
                     __PASCAL__UrlMatcher.IsSubmitUrl,
                     __PASCAL__UrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<I__PASCAL__PageMetaDataExtractor>().GetMetaData));
@@ -483,7 +479,7 @@ public class __PASCAL__PageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.__PASCAL__);
+        adapter.ResolveService(url).Should().Be(StreamingService.__PASCAL__);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>
@@ -521,18 +517,17 @@ Write-Host ""
 Write-Host "Scaffolded $libName and $testName."
 Write-Host ""
 Write-Host "Remaining checklist (add-streaming-service skill):"
-Write-Host "  1. StreamingServiceKeys.$pascal = `"$Key`""
-Write-Host "  2. NonPodcastService.$pascal enum value"
-Write-Host "  3. KnownStreamingServices.All += ${pascal}StreamingService.Registration"
-Write-Host "  4. StreamingCatalog.csproj ProjectReference to $libName"
-Write-Host "  5. AddNonPodcastScrapers().Add${pascal}Services()"
-Write-Host "  6. RedditPodcastPoster.slnx — add both projects"
-Write-Host "  7. Hand-tune Matching/${pascal}UrlMatcher.cs path grammar"
-Write-Host "  8. Hand-tune ShowName / film rules in Extractors"
-Write-Host "  9. StreamingScraperCanonicalCases + StreamingScraperProvider.$pascal"
-Write-Host " 10. Api streaming-submit-contract.ts/.json + version bump"
-Write-Host " 11. Website service-catalog + podcast-url-matcher + icon $Icon + contract copy"
-Write-Host " 12. pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged"
-Write-Host " 13. Sibling assert-streaming-submit-contract-copy.ps1 in Api consumers"
+Write-Host "  1. StreamingService enum member + [JsonPropertyName(`"$Key`")] + [StreamingServiceInfo(...)]"
+Write-Host "  2. KnownStreamingServices.All += ${pascal}StreamingService.Registration (enum declaration order)"
+Write-Host "  3. StreamingCatalog.csproj ProjectReference to $libName"
+Write-Host "  4. AddNonPodcastScrapers().Add${pascal}Services()"
+Write-Host "  5. RedditPodcastPoster.slnx — add both projects"
+Write-Host "  6. Hand-tune Matching/${pascal}UrlMatcher.cs path grammar"
+Write-Host "  7. Hand-tune ShowName / film rules in Extractors"
+Write-Host "  8. StreamingScraperCanonicalCases + StreamingScraperProvider.$pascal"
+Write-Host "  9. Api streaming-submit-contract.ts/.json + version bump"
+Write-Host " 10. Website service-catalog + podcast-url-matcher + icon $Icon + contract copy"
+Write-Host " 11. pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged"
+Write-Host " 12. Sibling assert-streaming-submit-contract-copy.ps1 in Api consumers"
 Write-Host ""
 Write-Host "Skill: .cursor/skills/add-streaming-service/SKILL.md"

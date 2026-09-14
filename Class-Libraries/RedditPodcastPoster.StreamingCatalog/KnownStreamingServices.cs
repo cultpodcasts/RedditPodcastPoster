@@ -9,6 +9,7 @@ using RedditPodcastPoster.FranceTv;
 using RedditPodcastPoster.HboMax;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Itvx;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Netflix;
 using RedditPodcastPoster.ParamountPlus;
 using RedditPodcastPoster.PlayRts;
@@ -21,7 +22,8 @@ using RedditPodcastPoster.Vimeo;
 namespace RedditPodcastPoster.StreamingCatalog;
 
 /// <summary>
-/// Contract order for <c>streamingServiceKeys</c> / search <c>svc</c> encoding.
+/// Composed registrations in <see cref="StreamingService"/> declaration order.
+/// Metadata (display/icon/hosts) comes from enum attributes; plugins supply match/compact only.
 /// Image coalesce lists iPlayer before Sounds (cover-art preference), unlike search encode.
 /// </summary>
 public static class KnownStreamingServices
@@ -49,24 +51,5 @@ public static class KnownStreamingServices
         FranceTvStreamingService.Registration
     ];
 
-    public static readonly string[] ImageCoalesceStreamingKeys =
-        DeriveImageCoalesceStreamingKeys(All);
-
-    /// <summary>
-    /// Cover-art order is search-encode order with BBC iPlayer before Sounds.
-    /// A new provider is added only to <see cref="All"/>.
-    /// </summary>
-    private static string[] DeriveImageCoalesceStreamingKeys(
-        IReadOnlyList<IStreamingServiceRegistration> registrations)
-    {
-        var keys = registrations.Select(r => r.Descriptor.Key).ToArray();
-        var sounds = Array.IndexOf(keys, StreamingServiceKeys.BbcSounds);
-        var iplayer = Array.IndexOf(keys, StreamingServiceKeys.BbcIplayer);
-        if (sounds >= 0 && iplayer >= 0 && iplayer > sounds)
-        {
-            (keys[sounds], keys[iplayer]) = (keys[iplayer], keys[sounds]);
-        }
-
-        return keys;
-    }
+    public static readonly string[] ImageCoalesceStreamingKeys = StreamingServiceWire.ImageCoalesceKeys;
 }

@@ -112,9 +112,9 @@ public class PublicDatabasePublisher(
                     Apple = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
                     Spotify = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
                     YouTube = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
-                    BBC = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer)
-                          ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds),
-                    InternetArchive = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive)
+                    BBC = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer))
+                          ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)),
+                    InternetArchive = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))
                 },
                 Subjects = episode.Subjects.Any() ? episode.Subjects : null
             });

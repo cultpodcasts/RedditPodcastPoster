@@ -10,7 +10,6 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.Vimeo.Extractors;
 using RedditPodcastPoster.Vimeo.Matching;
-using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Support;
 
@@ -27,20 +26,17 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             new BbcNonPodcastServiceAdapter(bbc),
             new InternetArchiveNonPodcastServiceAdapter(archive),
             new CatalogKeyedNonPodcastServiceAdapter(
-                NonPodcastService.Vimeo,
-                StreamingServiceKeys.Vimeo,
+                StreamingService.Vimeo,
                 VimeoUrlMatcher.IsSubmitUrl,
                 VimeoUrlMatcher.IsSubmitUrl,
                 vimeo.GetMetaData),
             new CatalogKeyedNonPodcastServiceAdapter(
-                NonPodcastService.Netflix,
-                StreamingServiceKeys.Netflix,
+                StreamingService.Netflix,
                 NetflixUrlMatcher.IsSubmitUrl,
                 NetflixUrlMatcher.IsSubmitUrl,
                 netflix.GetMetaData),
             new CatalogKeyedNonPodcastServiceAdapter(
-                NonPodcastService.AmazonPrime,
-                StreamingServiceKeys.AmazonPrime,
+                StreamingService.AmazonPrime,
                 AmazonPrimeUrlMatcher.IsSubmitUrl,
                 AmazonPrimeUrlMatcher.IsSubmitUrl,
                 prime.GetMetaData)

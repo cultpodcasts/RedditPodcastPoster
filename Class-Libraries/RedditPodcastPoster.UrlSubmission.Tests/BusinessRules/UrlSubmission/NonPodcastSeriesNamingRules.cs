@@ -52,7 +52,7 @@ public class NonPodcastSeriesNamingRules
         var explicitName = _fixture.CreateTitle();
         var episodeTitle = _fixture.CreateTitle();
         var brand = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, _fixture.Create<string>(), brand);
+        var categorised = CreateItem(StreamingService.BbcSounds, episodeTitle, _fixture.Create<string>(), brand);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -73,7 +73,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
         var seriesName = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", seriesName);
+        var categorised = CreateItem(StreamingService.BbcSounds, episodeTitle, "BBC", seriesName);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -91,7 +91,7 @@ public class NonPodcastSeriesNamingRules
     {
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BBC, episodeTitle, "BBC", showName: null);
+        var categorised = CreateItem(StreamingService.BbcSounds, episodeTitle, "BBC", showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -108,7 +108,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var itemTitle = _fixture.CreateTitle();
         var uploader = _fixture.Create<string>();
-        var categorised = CreateItem(NonPodcastService.InternetArchive, itemTitle, uploader, showName: null);
+        var categorised = CreateItem(StreamingService.InternetArchive, itemTitle, uploader, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -128,7 +128,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var videoTitle = _fixture.CreateTitle();
         var author = _fixture.Create<string>();
-        var categorised = CreateItem(NonPodcastService.Vimeo, videoTitle, author, showName: null);
+        var categorised = CreateItem(StreamingService.Vimeo, videoTitle, author, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -148,7 +148,7 @@ public class NonPodcastSeriesNamingRules
         // Arrange
         var videoTitle = _fixture.CreateTitle();
         var author = _fixture.Create<string>();
-        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, author, showName: null);
+        var categorised = CreateItem(StreamingService.BcVideo, videoTitle, author, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -166,9 +166,9 @@ public class NonPodcastSeriesNamingRules
     public async Task bc_video_catalog_display_name_author_falls_back_to_title()
     {
         // Arrange
-        StreamingServiceCatalog.TryGet(StreamingServiceKeys.BcVideo, out var descriptor).Should().BeTrue();
+        StreamingServiceCatalog.TryGet(StreamingServiceWire.ToKey(StreamingService.BcVideo), out var descriptor).Should().BeTrue();
         var videoTitle = _fixture.CreateTitle();
-        var categorised = CreateItem(NonPodcastService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
+        var categorised = CreateItem(StreamingService.BcVideo, videoTitle, descriptor!.DisplayName, showName: null);
         var sut = _mocker.CreateInstance<PodcastAndEpisodeFactory>();
 
         // Act
@@ -181,17 +181,17 @@ public class NonPodcastSeriesNamingRules
     }
 
     private CategorisedItem CreateItem(
-        NonPodcastService service,
+        StreamingService service,
         string title,
         string publisher,
         string? showName)
     {
         var host = service switch
         {
-            NonPodcastService.BBC => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
-            NonPodcastService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
-            NonPodcastService.BcVideo => $"https://www.bitchute.com/video/{_fixture.CreateBcVideoId()}/",
-            NonPodcastService.Tubi => $"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}",
+            StreamingService.BbcSounds => $"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}",
+            StreamingService.InternetArchive => $"https://archive.org/details/{_fixture.CreateYouTubeId()}",
+            StreamingService.BcVideo => $"https://www.bitchute.com/video/{_fixture.CreateBcVideoId()}/",
+            StreamingService.Tubi => $"https://tubitv.com/movies/{_fixture.CreateAppleId()}/{_fixture.CreateYouTubeId()}",
             _ => $"https://vimeo.com/{_fixture.CreateAppleId()}"
         };
         return new CategorisedItem(

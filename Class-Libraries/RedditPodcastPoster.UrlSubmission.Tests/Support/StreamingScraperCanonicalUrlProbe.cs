@@ -26,7 +26,7 @@ public sealed class StreamingScraperCanonicalUrlProbe
                 var podcastName = NonPodcastShowNameResolver.TrySeriesName(
                     meta.ShowName,
                     meta.Publisher,
-                    adapter.Service);
+                    adapter.ResolveService(canonical.Url));
                 Console.WriteLine(
                     $"OK {canonical.Provider,-14} {canonical.CaseId,-28} expected={canonical.ExpectedPodcastName ?? "null",-35} actual={podcastName ?? "null",-35} title={meta.Title}");
             }

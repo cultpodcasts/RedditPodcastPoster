@@ -1,18 +1,15 @@
 using RedditPodcastPoster.InternetArchive.Matching;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace RedditPodcastPoster.InternetArchive;
 
 public static class InternetArchiveStreamingService
 {
-    public const string Key = StreamingServiceKeys.InternetArchive;
+    public static readonly StreamingService Service = StreamingService.InternetArchive;
 
     public static readonly IStreamingServiceRegistration Registration = new StreamingServiceRegistration(
-        Key,
-        "Internet Archive",
-        "internet-archive",
-        true,
-        ["archive.org"],
+        Service,
         tryCompact: InternetArchiveUrlMatcher.TryCompactPayload,
         tryExpand: InternetArchiveUrlMatcher.TryExpandPayload);
 }

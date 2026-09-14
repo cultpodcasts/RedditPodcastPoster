@@ -88,7 +88,7 @@ public class EpisodeServicePresenceTests
         {
             e.Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [StreamingServiceKeys.Vimeo] = new() { Url = vimeoUrl, Image = vimeoArt }
+                [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = vimeoUrl, Image = vimeoArt }
             };
         });
 
@@ -97,9 +97,9 @@ public class EpisodeServicePresenceTests
 
         // Assert
         projected.Should().BeNull();
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(vimeoArt);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo)).Should().Be(vimeoArt);
         EpisodeServicePresence.CoalescedImage(episode).Should().Be(vimeoArt);
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeNull();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -115,7 +115,7 @@ public class EpisodeServicePresenceTests
         {
             e.Services = new Dictionary<string, EpisodeServiceLink>
             {
-                [StreamingServiceKeys.Vimeo] = new() { Image = vimeoArt },
+                [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Image = vimeoArt },
                 [ServiceKeys.Apple] = new() { Image = appleArt },
                 [ServiceKeys.Spotify] = new() { Image = spotifyArt },
                 [ServiceKeys.YouTube] = new() { Image = youTubeArt }

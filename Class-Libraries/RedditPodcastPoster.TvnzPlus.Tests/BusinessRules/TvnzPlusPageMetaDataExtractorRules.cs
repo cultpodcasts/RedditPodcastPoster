@@ -153,7 +153,7 @@ public class TvnzPlusPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.TvnzPlus);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.TvnzPlus);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

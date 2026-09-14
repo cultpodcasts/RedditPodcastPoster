@@ -12,8 +12,9 @@ description: >-
 Ship a Channel4-shaped non-podcast scraper so `GET /submit/lookup` returns
 `kind: streaming` + `service`, and prepare/submit can extract meta.
 
-**Primary repo:** RedditPodcastPoster. Api owns the wire-key contract; website
-mirrors catalog + matcher. Do **not** invent a parallel streamer enum.
+**Primary repo:** RedditPodcastPoster. Api owns the copied wire-key contract; website
+mirrors catalog + matcher. RPP authority is the `StreamingService` enum
+(`[JsonPropertyName]` wire key + `[StreamingServiceInfo]` display/icon/hosts).
 
 ## When to use
 
@@ -25,7 +26,7 @@ mirrors catalog + matcher. Do **not** invent a parallel streamer enum.
 
 | Field | Example |
 |-------|---------|
-| `key` | `franceTv` (camelCase; matches `StreamingServiceKeys`) |
+| `key` | `franceTv` (camelCase; `[JsonPropertyName]` on `StreamingService`) |
 | `displayName` | `France TV` |
 | `hosts` | `france.tv` |
 | `icon` | `france-tv` (website icon slug) |
@@ -62,13 +63,13 @@ and ShowName / film rules against live HTML.
 
 ### 2. Wire catalog + DI (RPP)
 
-- `StreamingServiceKeys.cs` — const string
-- `NonPodcastService.cs` — enum value
-- `KnownStreamingServices.cs` — `*StreamingService.Registration` in contract order
+- `Models/Podcasts/StreamingService.cs` — enum member with `[JsonPropertyName("key")]` + `[StreamingServiceInfo(display, icon, wideImage, hosts…)]` in search-encode order
+- `KnownStreamingServices.cs` — `*StreamingService.Registration` matching enum order
 - `PodcastServices/.../ServiceCollectionExtensions.cs` — `.Add*Services()` in `AddNonPodcastScrapers`
 - `RedditPodcastPoster.slnx` — library + test projects (scaffold prints paths)
 - `StreamingCatalog` project reference if scaffold did not add it
 
+Do **not** add a parallel string-const class or a second adapter enum.
 `SearchIndexCosmosSql` is parameterized from catalog keys — no manual SQL edit when
 `KnownStreamingServices` is updated.
 
@@ -93,11 +94,11 @@ dotnet test Class-Libraries/RedditPodcastPoster.<Pascal>.Tests -c Release
 dotnet test Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests -c Release --filter DisplayName~Streaming
 ```
 
-### 5. Api contract (source of truth)
+### 5. Api contract (source of truth for TS/JSON copies)
 
 Edit `Api/tests/fixtures/streaming-submit-contract.ts` **and** `.json`:
 
-- `streamingServiceKeys`
+- `streamingServiceKeys` (must equal `StreamingServiceWire.AllKeys`)
 - `streamingSpecimenUrls`
 - membership + orchestration case ids (fixture generators usually expand)
 
@@ -146,6 +147,7 @@ If prepare extract fails on direct HTTP (SPA shell / soft wall):
 
 | Role | Path |
 |------|------|
+| Enum | `Class-Libraries/RedditPodcastPoster.Models/Podcasts/StreamingService.cs` |
 | Registration | `Class-Libraries/RedditPodcastPoster.Channel4/Channel4StreamingService.cs` |
 | Matcher | `.../Matching/Channel4UrlMatcher.cs` |
 | Extractor | `.../Extractors/Channel4PageMetaDataExtractor.cs` |

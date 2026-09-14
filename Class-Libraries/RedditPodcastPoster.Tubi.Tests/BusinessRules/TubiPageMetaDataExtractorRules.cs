@@ -344,7 +344,7 @@ public class TubiPageMetaDataExtractorRules
         var meta = await adapter.ExtractMetaData(url, html);
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Tubi);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Tubi);
         adapter.CanExtract(url).Should().BeTrue();
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("Tubi");

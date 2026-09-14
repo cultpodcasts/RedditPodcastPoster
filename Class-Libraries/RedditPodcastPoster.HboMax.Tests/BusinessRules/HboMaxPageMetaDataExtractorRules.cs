@@ -153,7 +153,7 @@ public class HboMaxPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.HboMax);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.HboMax);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

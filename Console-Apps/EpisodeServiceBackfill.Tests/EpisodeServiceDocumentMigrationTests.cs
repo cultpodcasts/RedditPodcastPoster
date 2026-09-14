@@ -173,10 +173,10 @@ public class EpisodeServiceDocumentMigrationTests
 
         // Assert
         episode.Services.Should().ContainKey(ServiceKeys.Spotify);
-        episode.Services.Should().ContainKey(StreamingServiceKeys.BbcIplayer);
+        episode.Services.Should().ContainKey(StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
         episode.Ids!.Spotify.Should().Be(spotifyId);
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().Be(spotifyUrl);
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().NotBeNull();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().NotBeNull();
         second.Should().BeFalse();
     }
 }

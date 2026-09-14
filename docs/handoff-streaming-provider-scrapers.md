@@ -95,7 +95,7 @@ Per provider library under `Class-Libraries/RedditPodcastPoster.<Provider>/`:
 
 1. **`Matching/*UrlMatcher.cs`** — `IsSubmitUrl(Uri)` (host + path; e.g. Netflix `/title/` or `/watch/`)
 2. **`Extractors/*PageMetaDataExtractor.cs`** — HTTP GET + **`OpenGraphPageMetaDataExtractor`** merge; set `Publisher` to platform brand; set `ShowName` only for true series; **null ShowName for films**
-3. **`Extensions/ServiceCollectionExtensions.cs`** — `AddHttpClient` + `AddOpenGraphExtractor()` + register `CatalogKeyedNonPodcastServiceAdapter(NonPodcastService.X, ServiceKeys.X, matcher, matcher, extract)`
+3. **`Extensions/ServiceCollectionExtensions.cs`** — `AddHttpClient` + `AddOpenGraphExtractor()` + register `CatalogKeyedNonPodcastServiceAdapter(StreamingService.X, matcher, matcher, extract)`
 4. Wire hosts: `Cloud/Api/Ioc.cs`, `Cloud/Indexer/Ioc.cs` (and SubmitUrl console if applicable)
 
 Vimeo is the **oEmbed** variant (`VimeoMetaDataExtractor` → author as publisher). BBC/IA are older path-specific extractors — prefer Netflix/Prime for new SVOD/AVOD sites.
@@ -105,7 +105,7 @@ Vimeo is the **oEmbed** variant (`VimeoMetaDataExtractor` → author as publishe
 | Path | Role |
 |------|------|
 | `Models/Podcasts/ServiceCatalog.cs` + `ServiceKeys.cs` | Hosts, compact URLs, ordered catalog |
-| `Models/Podcasts/NonPodcastService.cs` | Enum — add new value per extractor service |
+| `Models/Podcasts/StreamingService.cs` | Enum — add member with `[JsonPropertyName]` + `[StreamingServiceInfo]` |
 | `PodcastServices.Abstractions/.../INonPodcastServiceAdapter*.cs` | Plugin contract |
 | `PodcastServices.Abstractions/.../CatalogKeyedNonPodcastServiceAdapter.cs` | Default adapter |
 | `PodcastServices/.../NonPodcastServiceAdapterResolver.cs` | Resolve by URL |
@@ -172,7 +172,7 @@ For each new provider you claim done:
 1. Re-read PR 966 summary + `NonPodcastShowNameResolver` + one full plugin (`RedditPodcastPoster.Netflix` or `.AmazonPrime`) end-to-end.
 2. Spike **HTML/OG** for **ITVX** and **Channel 4 / All4** (UK priority from prior chat), then **fawesome.tv**, then Disney+/Discovery+ — note geo/login walls and whether series brand is scrapeable.
 3. Prefer finishing **catalog-already-present** extractors (Paramount+, HBO Max, Play Suisse, TVNZ+) in parallel only if OG is easy; otherwise prioritize user-named UK + fawesome.
-4. For each chosen provider: add `ServiceKeys` / `ServiceCatalog` / `NonPodcastService` → library → DI → canonical cases → run unit tests; run live suite locally with skip env unset.
+4. For each chosen provider: add `StreamingService` enum member + attributes → library → DI → canonical cases → run unit tests; run live suite locally with skip env unset.
 5. If new catalog keys: mirror `website/.../service-catalog.ts` in the same change set or a sibling website PR; bump website `package.json` if that PR ships client code.
 6. Ask the user before production Functions deploy (`deploy-api.ps1`) or any Cosmos write.
 

@@ -18,8 +18,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IVimeoMetaDataExtractor, VimeoMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Vimeo,
-                    StreamingServiceKeys.Vimeo,
+                    StreamingService.Vimeo,
                     VimeoUrlMatcher.IsSubmitUrl,
                     VimeoUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IVimeoMetaDataExtractor>().GetMetaData));

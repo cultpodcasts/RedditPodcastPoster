@@ -15,7 +15,7 @@ public class StreamingSubmitContractRules
     private static readonly JsonDocument Contract = LoadContract();
 
     [Fact(DisplayName =
-        "Streaming-submit contract JSON lists exactly StreamingServiceCatalog.SearchEncodedKeys, because wire service enums must match StreamingServiceKeys.")]
+        "Streaming-submit contract JSON lists exactly StreamingServiceWire.AllKeys / SearchEncodedKeys, because the StreamingService enum is the single wire-key authority.")]
     public void streaming_contract_service_keys_match_search_encoded_keys()
     {
         // Arrange
@@ -27,9 +27,11 @@ public class StreamingSubmitContractRules
 
         // Act
         var fromCatalog = StreamingServiceCatalog.SearchEncodedKeys;
+        var fromEnum = StreamingServiceWire.AllKeys;
 
         // Assert
         fromContract.Should().Equal(fromCatalog);
+        fromCatalog.Should().Equal(fromEnum);
     }
 
     [Fact(DisplayName =
@@ -47,8 +49,8 @@ public class StreamingSubmitContractRules
         var containsSpotify = fromContract.Contains(ServiceKeys.Spotify);
         var containsApple = fromContract.Contains(ServiceKeys.Apple);
         var containsYouTube = fromContract.Contains(ServiceKeys.YouTube);
-        var containsItvx = fromContract.Contains(StreamingServiceKeys.Itvx);
-        var containsDiscoveryPlus = fromContract.Contains(StreamingServiceKeys.DiscoveryPlus);
+        var containsItvx = fromContract.Contains(StreamingServiceWire.ToKey(StreamingService.Itvx));
+        var containsDiscoveryPlus = fromContract.Contains(StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus));
 
         // Assert
         containsSpotify.Should().BeFalse();
@@ -70,7 +72,7 @@ public class StreamingSubmitContractRules
             .ToArray();
 
         // Act
-        var expected = new[] { StreamingServiceKeys.Itvx };
+        var expected = new[] { StreamingServiceWire.ToKey(StreamingService.Itvx) };
 
         // Assert
         allow.Should().Equal(expected);

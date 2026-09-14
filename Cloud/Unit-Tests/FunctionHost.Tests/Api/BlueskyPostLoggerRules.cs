@@ -25,7 +25,7 @@ public class BlueskyPostLoggerRules
         {
             EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
             EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, youTubeUrl, null);
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.Netflix), netflixUrl, null);
         });
         var caller = _fixture.Create<string>();
 
@@ -42,7 +42,7 @@ public class BlueskyPostLoggerRules
         message.Should().Contain($"posted-url='{youTubeUrl}'");
         message.Should().Contain($"posted-service='{ServiceKeys.YouTube}'");
         message.Should().Contain($"{ServiceKeys.YouTube}={youTubeUrl}");
-        message.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
+        message.Should().Contain($"{StreamingServiceWire.ToKey(StreamingService.Netflix)}={netflixUrl}");
     }
 
     [Fact(DisplayName =
@@ -54,7 +54,7 @@ public class BlueskyPostLoggerRules
         var netflixUrl = new Uri($"https://www.netflix.com/title/{Math.Abs(_fixture.Create<int>())}");
         var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.Netflix), netflixUrl, null);
         });
         var caller = _fixture.Create<string>();
 
@@ -63,7 +63,7 @@ public class BlueskyPostLoggerRules
 
         // Assert
         message.Should().Contain($"posted-url='{netflixUrl}'");
-        message.Should().Contain($"posted-service='{StreamingServiceKeys.Netflix}'");
-        message.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
+        message.Should().Contain($"posted-service='{StreamingServiceWire.ToKey(StreamingService.Netflix)}'");
+        message.Should().Contain($"{StreamingServiceWire.ToKey(StreamingService.Netflix)}={netflixUrl}");
     }
 }

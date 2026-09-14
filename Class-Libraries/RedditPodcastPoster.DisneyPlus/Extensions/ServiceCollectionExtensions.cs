@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDisneyPlusPageMetaDataExtractor, DisneyPlusPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.DisneyPlus,
-                    StreamingServiceKeys.DisneyPlus,
+                    StreamingService.DisneyPlus,
                     DisneyPlusUrlMatcher.IsSubmitUrl,
                     DisneyPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IDisneyPlusPageMetaDataExtractor>().GetMetaData));

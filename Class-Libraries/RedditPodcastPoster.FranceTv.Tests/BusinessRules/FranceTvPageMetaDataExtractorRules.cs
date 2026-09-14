@@ -145,7 +145,7 @@ public class FranceTvPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.FranceTv);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.FranceTv);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>
