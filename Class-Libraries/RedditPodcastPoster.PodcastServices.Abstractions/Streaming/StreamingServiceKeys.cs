@@ -24,4 +24,5 @@ public static class StreamingServiceKeys
     public const string DiscoveryPlus = "discoveryPlus";
     public const string BcVideo = "bitchute";
     public const string Tubi = "tubi";
+    public const string FranceTv = "franceTv";
 }

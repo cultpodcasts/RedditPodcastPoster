@@ -2,6 +2,8 @@
 
 You are continuing **streaming / non-podcast URL submit scrapers** for Cult Podcasts. Primary repo is **RedditPodcastPoster (RPP)**. Do **not** implement the catalogue-content-types epic. Do **not** merge PRs or deploy unless the user explicitly asks in this conversation.
 
+**Procedure (preferred):** Cursor skill [`.cursor/skills/add-streaming-service/SKILL.md`](../.cursor/skills/add-streaming-service/SKILL.md) + scaffold `pwsh ./scripts/scaffold-streaming-service.ps1`. Use this handoff for show-name rules, live-test gates, and historical context — not as the step checklist.
+
 Prior session transcript (context only): [`f40da660-f9c4-4c8c-87f6-2e040beead0b`](f40da660-f9c4-4c8c-87f6-2e040beead0b)
 
 ---

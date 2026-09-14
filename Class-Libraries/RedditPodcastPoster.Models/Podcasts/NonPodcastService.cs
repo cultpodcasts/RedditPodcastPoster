@@ -19,5 +19,6 @@ public enum NonPodcastService
     HboMax,
     PlaySuisse,
     PlayRts,
-    TvnzPlus
+    TvnzPlus,
+    FranceTv
 }

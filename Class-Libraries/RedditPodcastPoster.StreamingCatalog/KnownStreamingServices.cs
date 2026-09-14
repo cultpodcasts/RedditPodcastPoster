@@ -5,6 +5,7 @@ using RedditPodcastPoster.Channel4;
 using RedditPodcastPoster.DiscoveryPlus;
 using RedditPodcastPoster.DisneyPlus;
 using RedditPodcastPoster.Fawesome;
+using RedditPodcastPoster.FranceTv;
 using RedditPodcastPoster.HboMax;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Itvx;
@@ -44,7 +45,8 @@ public static class KnownStreamingServices
         DisneyPlusStreamingService.Registration,
         BcVideoStreamingService.Registration,
         TubiStreamingService.Registration,
-        DiscoveryPlusStreamingService.Registration
+        DiscoveryPlusStreamingService.Registration,
+        FranceTvStreamingService.Registration
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys =
