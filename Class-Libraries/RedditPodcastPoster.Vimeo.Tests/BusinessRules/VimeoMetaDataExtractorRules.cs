@@ -100,7 +100,7 @@ public class VimeoMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Vimeo);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Vimeo);
         adapter.CanExtract(url).Should().BeTrue();
     }
 

@@ -5,6 +5,7 @@ using RedditPodcastPoster.Channel4.Extensions;
 using RedditPodcastPoster.DiscoveryPlus.Extensions;
 using RedditPodcastPoster.DisneyPlus.Extensions;
 using RedditPodcastPoster.Fawesome.Extensions;
+using RedditPodcastPoster.FranceTv.Extensions;
 using RedditPodcastPoster.HboMax.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Itvx.Extensions;
@@ -78,7 +79,8 @@ public static class ServiceCollectionExtensions
                 .AddHboMaxServices()
                 .AddPlaySuisseServices()
                 .AddPlayRtsServices()
-                .AddTvnzPlusServices();
+                .AddTvnzPlusServices()
+                .AddFranceTvServices();
         }
 
         public IServiceCollection AddRemoteClient()

@@ -479,7 +479,7 @@ public class ItvxPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Itvx);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Itvx);
     }
 
     [Fact(DisplayName =

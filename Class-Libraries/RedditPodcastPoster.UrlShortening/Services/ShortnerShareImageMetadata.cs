@@ -55,9 +55,9 @@ public static class ShortnerShareImageMetadata
             return ShareImageAspect.Wide;
         }
 
-        if (IsBbcIplayer(EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
-                         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds)) ||
-            EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.InternetArchive))
+        if (IsBbcIplayer(EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
+                         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds))) ||
+            EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)))
         {
             return ShareImageAspect.Wide;
         }

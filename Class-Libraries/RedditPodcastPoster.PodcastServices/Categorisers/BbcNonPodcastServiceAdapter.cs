@@ -13,7 +13,10 @@ public class BbcNonPodcastServiceAdapter(
     IBBCPageMetaDataExtractor bbcPageMetaDataExtractor
 ) : INonPodcastServiceAdapter
 {
-    public NonPodcastService Service => NonPodcastService.BBC;
+    public StreamingService ResolveService(Uri url) =>
+        BBCUrlMatcher.IsIplayerCatalogUrl(url)
+            ? StreamingService.BbcIplayer
+            : StreamingService.BbcSounds;
 
     public bool IsSubmitUrl(Uri url) => BBCUrlMatcher.IsSubmitUrl(url);
 
@@ -21,21 +24,27 @@ public class BbcNonPodcastServiceAdapter(
 
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
-        var iplayer = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.BbcIplayer, url);
-        var sounds = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.BbcSounds, url);
+        var iplayer = StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.BbcIplayer), url);
+        var sounds = StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.BbcSounds), url);
+        var iplayerKey = StreamingServiceWire.ToKey(StreamingService.BbcIplayer);
+        var soundsKey = StreamingServiceWire.ToKey(StreamingService.BbcSounds);
         return episode =>
             episode.Services != null &&
-            (episode.Services[StreamingServiceKeys.BbcIplayer].Url == iplayer ||
-             episode.Services[StreamingServiceKeys.BbcSounds].Url == sounds);
+            (episode.Services[iplayerKey].Url == iplayer ||
+             episode.Services[soundsKey].Url == sounds);
     }
 
     public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
     {
-        var iplayer = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.BbcIplayer, url);
-        var sounds = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.BbcSounds, url);
+        var iplayer = StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.BbcIplayer), url);
+        var sounds = StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.BbcSounds), url);
         return episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) == iplayer ||
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds) == sounds);
+            EpisodeServicePresence.TryGetUrl(episode, StreamingService.BbcIplayer) == iplayer ||
+            EpisodeServicePresence.TryGetUrl(episode, StreamingService.BbcSounds) == sounds);
     }
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>

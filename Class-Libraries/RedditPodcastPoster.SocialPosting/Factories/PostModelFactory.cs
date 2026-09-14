@@ -69,8 +69,8 @@ public class PostModelFactory(
             id,
             episode.Release,
             episode.Subjects.ToArray(),
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds),
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive));
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)),
+            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)));
     }
 }

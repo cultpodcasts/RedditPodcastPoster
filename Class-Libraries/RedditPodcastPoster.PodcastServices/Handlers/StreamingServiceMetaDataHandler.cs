@@ -30,7 +30,7 @@ public class StreamingServiceMetaDataHandler(
         }
 
         return new ResolvedNonPodcastServiceItem(
-            adapter.Service,
+            adapter.ResolveService(url),
             podcast,
             matchingEpisode,
             url,

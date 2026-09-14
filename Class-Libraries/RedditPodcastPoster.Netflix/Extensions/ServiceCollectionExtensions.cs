@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<INetflixPageMetaDataExtractor, NetflixPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Netflix,
-                    StreamingServiceKeys.Netflix,
+                    StreamingService.Netflix,
                     NetflixUrlMatcher.IsSubmitUrl,
                     NetflixUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<INetflixPageMetaDataExtractor>().GetMetaData));

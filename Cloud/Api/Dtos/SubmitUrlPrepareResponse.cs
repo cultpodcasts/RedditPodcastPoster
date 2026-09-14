@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
-using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Dtos;
 
@@ -49,11 +48,9 @@ public class SubmitUrlPrepareResponse
     public static SubmitUrlPrepareResponse From(
         Uri url,
         NonPodcastServiceItemMetaData meta,
-        NonPodcastService service)
+        StreamingService service)
     {
-        var serviceKey = StreamingServiceCatalog.TryResolveKey(url)
-                         ?? throw new InvalidOperationException(
-                             $"StreamingServiceCatalog.TryResolveKey returned null for extractable url '{url}'.");
+        var serviceKey = StreamingServiceWire.ToKey(service);
 
         return new SubmitUrlPrepareResponse
         {

@@ -153,7 +153,7 @@ public class PlaySuissePageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.PlaySuisse);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.PlaySuisse);
     }
 
 

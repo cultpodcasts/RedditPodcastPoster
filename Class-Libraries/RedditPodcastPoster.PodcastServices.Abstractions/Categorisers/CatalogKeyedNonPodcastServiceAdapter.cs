@@ -11,8 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 /// so PodcastServices does not grow a switch (or HTML-scraping references) per host.
 /// </summary>
 public class CatalogKeyedNonPodcastServiceAdapter(
-    NonPodcastService service,
-    string catalogKey,
+    StreamingService service,
     Func<Uri, bool> isSubmitUrl,
     Func<Uri, bool> canExtract,
     Func<Uri, Task<NonPodcastServiceItemMetaData>> extract,
@@ -20,7 +19,9 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     Func<Uri, Uri>? canonicalizeUrl = null
 ) : INonPodcastServiceAdapter
 {
-    public NonPodcastService Service { get; } = service;
+    private readonly string _catalogKey = StreamingServiceWire.ToKey(service);
+
+    public StreamingService ResolveService(Uri url) => service;
 
     public bool IsSubmitUrl(Uri url) => isSubmitUrl(url);
 
@@ -29,6 +30,7 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
         var stored = CanonicalStoredUrl(url);
+        var catalogKey = _catalogKey;
         return episode => episode.Services != null && episode.Services[catalogKey].Url == stored;
     }
 
@@ -36,11 +38,11 @@ public class CatalogKeyedNonPodcastServiceAdapter(
     {
         var stored = CanonicalStoredUrl(url);
         return episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, catalogKey) == stored);
+            EpisodeServicePresence.TryGetUrl(episode, service) == stored);
     }
 
     private Uri CanonicalStoredUrl(Uri url) =>
-        canonicalizeUrl?.Invoke(url) ?? StreamingServiceCatalog.CanonicalUrlOrSelf(catalogKey, url);
+        canonicalizeUrl?.Invoke(url) ?? StreamingServiceCatalog.CanonicalUrlOrSelf(_catalogKey, url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
 
@@ -48,5 +50,5 @@ public class CatalogKeyedNonPodcastServiceAdapter(
         extractFromHtml != null
             ? extractFromHtml(url, html)
             : throw new NotSupportedException(
-                $"HTML extract is not registered for service '{Service}'.");
+                $"HTML extract is not registered for service '{service}'.");
 }

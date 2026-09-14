@@ -69,6 +69,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> DiscoveryPlusCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.DiscoveryPlus));
 
+    public static TheoryData<StreamingScraperCanonicalCase> FranceTvCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.FranceTv));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -286,6 +289,16 @@ public static class StreamingScraperCanonicalCases
         Case(StreamingScraperProvider.DiscoveryPlus, "gold-rush-show",
             "https://www.discoveryplus.com/show/gold-rush", "Gold Rush",
             "Show path; live scrape may 404 outside a licensed region"),
+
+        // France TV — Slash series hub + episode html
+        Case(StreamingScraperProvider.FranceTv, "feminin-sacre-series-hub",
+            "https://www.france.tv/slash/feminin-sacre-enquete-sur-des-derives-sectaires/",
+            "Féminin sacré : enquête sur des dérives sectaires",
+            "Series hub; og:title is the series brand"),
+        Case(StreamingScraperProvider.FranceTv, "feminin-sacre-documentaire",
+            "https://www.france.tv/slash/feminin-sacre-enquete-sur-des-derives-sectaires/8847336-feminin-sacre-enquete-sur-des-derives-sectaires-le-documentaire.html",
+            "Féminin sacré : enquête sur des dérives sectaires",
+            "Episode html; BreadcrumbList position 3 is the series brand"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -315,7 +328,8 @@ public enum StreamingScraperProvider
     DisneyPlus,
     BcVideo,
     Tubi,
-    DiscoveryPlus
+    DiscoveryPlus,
+    FranceTv
 }
 
 public sealed record StreamingScraperCanonicalCase(

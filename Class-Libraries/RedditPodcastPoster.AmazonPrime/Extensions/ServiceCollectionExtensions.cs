@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IAmazonPrimePageMetaDataExtractor, AmazonPrimePageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.AmazonPrime,
-                    StreamingServiceKeys.AmazonPrime,
+                    StreamingService.AmazonPrime,
                     AmazonPrimeUrlMatcher.IsSubmitUrl,
                     AmazonPrimeUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IAmazonPrimePageMetaDataExtractor>().GetMetaData));

@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IHboMaxPageMetaDataExtractor, HboMaxPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.HboMax,
-                    StreamingServiceKeys.HboMax,
+                    StreamingService.HboMax,
                     HboMaxUrlMatcher.IsSubmitUrl,
                     HboMaxUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IHboMaxPageMetaDataExtractor>().GetMetaData));

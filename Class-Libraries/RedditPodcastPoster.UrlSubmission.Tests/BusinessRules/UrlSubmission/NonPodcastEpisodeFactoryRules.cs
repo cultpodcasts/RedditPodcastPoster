@@ -31,7 +31,7 @@ public class NonPodcastEpisodeFactoryRules
         var duration = _fixture.CreateDuration();
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             url,
             title,
             description,
@@ -48,10 +48,10 @@ public class NonPodcastEpisodeFactoryRules
         episode.Description.Should().Be(description);
         episode.Release.Should().Be(release);
         episode.Length.Should().Be(duration);
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.BbcSounds).Should().Be(image);
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeFalse();
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.InternetArchive).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().Be(image);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().BeFalse();
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -62,7 +62,7 @@ public class NonPodcastEpisodeFactoryRules
         // Arrange
         var url = BbcIplayerUrl();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             url,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -75,8 +75,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().Be(url);
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().Be(url);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -87,7 +87,7 @@ public class NonPodcastEpisodeFactoryRules
         var url = InternetArchiveUrl();
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.InternetArchive,
+            StreamingService.InternetArchive,
             url,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -100,10 +100,10 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.InternetArchive).Should().Be(image);
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcIplayer).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)).Should().Be(image);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().BeFalse();
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -115,7 +115,7 @@ public class NonPodcastEpisodeFactoryRules
         var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.Vimeo,
+            StreamingService.Vimeo,
             url,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -128,8 +128,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Vimeo).Should().Be(url);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo)).Should().Be(url);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo)).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -144,7 +144,7 @@ public class NonPodcastEpisodeFactoryRules
         var canonicalUrl = new Uri($"https://www.{host}/video/{id}");
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.BcVideo,
+            StreamingService.BcVideo,
             embedUrl,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -157,8 +157,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BcVideo).Should().Be(canonicalUrl);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.BcVideo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BcVideo)).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.BcVideo)).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -172,7 +172,7 @@ public class NonPodcastEpisodeFactoryRules
         var canonicalUrl = new Uri($"https://tubitv.com/movies/{id}");
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.Tubi,
+            StreamingService.Tubi,
             pasted,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -185,8 +185,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Tubi).Should().Be(canonicalUrl);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Tubi).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.Tubi)).Should().Be(canonicalUrl);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Tubi)).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -200,7 +200,7 @@ public class NonPodcastEpisodeFactoryRules
         var canonical = new Uri($"https://vimeo.com/{id}");
         var image = _fixture.Create<Uri>();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.Vimeo,
+            StreamingService.Vimeo,
             pasted,
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -213,8 +213,8 @@ public class NonPodcastEpisodeFactoryRules
         var episode = sut.CreateEpisode(categorised);
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.Vimeo).Should().Be(canonical);
-        EpisodeServicePresence.TryGetImage(episode, StreamingServiceKeys.Vimeo).Should().Be(image);
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo)).Should().Be(canonical);
+        EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo)).Should().Be(image);
     }
 
     [Fact(DisplayName =
@@ -225,7 +225,7 @@ public class NonPodcastEpisodeFactoryRules
         var duration = _fixture.CreateDuration();
         var minimum = duration + TimeSpan.FromSeconds(1);
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             BbcSoundsUrl(),
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -252,7 +252,7 @@ public class NonPodcastEpisodeFactoryRules
         var host = "bitchute.com";
         var minimum = _fixture.CreateDuration();
         var categorised = CreateNonPodcastItem(
-            NonPodcastService.BcVideo,
+            StreamingService.BcVideo,
             new Uri($"https://www.{host}/video/{id}/"),
             _fixture.CreateTitle(),
             _fixture.Create<string>(),
@@ -278,7 +278,7 @@ public class NonPodcastEpisodeFactoryRules
         var url = BbcSoundsUrl();
 
         // Act
-        var item = new ResolvedNonPodcastServiceItem(NonPodcastService.BBC, Url: url);
+        var item = new ResolvedNonPodcastServiceItem(StreamingService.BbcSounds, Url: url);
 
         // Assert
         item.BBCUrl.Should().Be(url);
@@ -293,7 +293,7 @@ public class NonPodcastEpisodeFactoryRules
         var url = InternetArchiveUrl();
 
         // Act
-        var item = new ResolvedNonPodcastServiceItem(NonPodcastService.InternetArchive, Url: url);
+        var item = new ResolvedNonPodcastServiceItem(StreamingService.InternetArchive, Url: url);
 
         // Assert
         item.InternetArchiveUrl.Should().Be(url);
@@ -318,7 +318,7 @@ public class NonPodcastEpisodeFactoryRules
     }
 
     private CategorisedItem CreateNonPodcastItem(
-        NonPodcastService service,
+        StreamingService service,
         Uri url,
         string title,
         string description,

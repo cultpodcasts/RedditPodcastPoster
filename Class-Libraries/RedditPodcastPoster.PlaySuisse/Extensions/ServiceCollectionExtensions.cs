@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPlaySuissePageMetaDataExtractor, PlaySuissePageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.PlaySuisse,
-                    StreamingServiceKeys.PlaySuisse,
+                    StreamingService.PlaySuisse,
                     PlaySuisseUrlMatcher.IsSubmitUrl,
                     PlaySuisseUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IPlaySuissePageMetaDataExtractor>().GetMetaData));

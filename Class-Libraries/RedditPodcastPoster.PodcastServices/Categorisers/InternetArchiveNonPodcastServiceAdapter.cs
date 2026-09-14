@@ -13,7 +13,7 @@ public class InternetArchiveNonPodcastServiceAdapter(
     IInternetArchivePageMetaDataExtractor internetArchivePageMetaDataExtractor
 ) : INonPodcastServiceAdapter
 {
-    public NonPodcastService Service => NonPodcastService.InternetArchive;
+    public StreamingService ResolveService(Uri url) => StreamingService.InternetArchive;
 
     public bool IsSubmitUrl(Uri url) => InternetArchiveUrlMatcher.IsSubmitUrl(url);
 
@@ -21,17 +21,19 @@ public class InternetArchiveNonPodcastServiceAdapter(
 
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
-        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.InternetArchive, url);
+        var key = StreamingServiceWire.ToKey(StreamingService.InternetArchive);
+        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(key, url);
         return episode =>
             episode.Services != null &&
-            episode.Services[StreamingServiceKeys.InternetArchive].Url == stored;
+            episode.Services[key].Url == stored;
     }
 
     public Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url)
     {
-        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(StreamingServiceKeys.InternetArchive, url);
+        var stored = StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.InternetArchive), url);
         return episodes.FirstOrDefault(episode =>
-            EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.InternetArchive) == stored);
+            EpisodeServicePresence.TryGetUrl(episode, StreamingService.InternetArchive) == stored);
     }
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) =>

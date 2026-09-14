@@ -29,33 +29,11 @@ public class SearchIndexCosmosSqlTests
 
         sql.Should().StartWith("RTRIM(CONCAT(");
 
-        // Streaming matrix: every non-index-id ServiceKeys constant must be in SearchEncodedKeys
-        // and therefore in svc SQL — not ITVX-only (discoveryPlus / disneyPlus / channel4 / …).
-        var streamingKeys = new[]
-        {
-            StreamingServiceKeys.BbcSounds,
-            StreamingServiceKeys.BbcIplayer,
-            StreamingServiceKeys.InternetArchive,
-            StreamingServiceKeys.Vimeo,
-            StreamingServiceKeys.Netflix,
-            StreamingServiceKeys.AmazonPrime,
-            StreamingServiceKeys.ParamountPlus,
-            StreamingServiceKeys.HboMax,
-            StreamingServiceKeys.PlaySuisse,
-            StreamingServiceKeys.PlayRts,
-            StreamingServiceKeys.TvnzPlus,
-            StreamingServiceKeys.Itvx,
-            StreamingServiceKeys.Channel4,
-            StreamingServiceKeys.Fawesome,
-            StreamingServiceKeys.DisneyPlus,
-            StreamingServiceKeys.BcVideo,
-            StreamingServiceKeys.Tubi,
-            StreamingServiceKeys.DiscoveryPlus
-        };
-        streamingKeys.Should().BeEquivalentTo(
+        // Streaming matrix: enum wire keys (== SearchEncodedKeys) must all appear in svc SQL.
+        StreamingServiceWire.AllKeys.Should().Equal(
             StreamingServiceCatalog.SearchEncodedKeys,
-            because: "SearchEncodedKeys must list every streaming/catalog URL key that can appear under Episode.services");
-        foreach (var key in streamingKeys)
+            because: "SearchEncodedKeys must list every StreamingService wire key in declaration order");
+        foreach (var key in StreamingServiceWire.AllKeys)
         {
             sql.Should().Contain(
                 $@"e.services.{key}.url",

@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IFawesomePageMetaDataExtractor, FawesomePageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.Fawesome,
-                    StreamingServiceKeys.Fawesome,
+                    StreamingService.Fawesome,
                     FawesomeUrlMatcher.IsSubmitUrl,
                     FawesomeUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IFawesomePageMetaDataExtractor>().GetMetaData));

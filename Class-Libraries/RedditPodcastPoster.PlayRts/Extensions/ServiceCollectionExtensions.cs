@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPlayRtsPageMetaDataExtractor, PlayRtsPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider => // pragma: allowlist secret
                 new CatalogKeyedNonPodcastServiceAdapter( // pragma: allowlist secret
-                    NonPodcastService.PlayRts, // pragma: allowlist secret
-                    StreamingServiceKeys.PlayRts,
+                    StreamingService.PlayRts, // pragma: allowlist secret
                     PlayRtsUrlMatcher.IsSubmitUrl,
                     PlayRtsUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IPlayRtsPageMetaDataExtractor>().GetMetaData));

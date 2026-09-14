@@ -45,7 +45,7 @@ public class EpisodeCatalogNormalizeRules
         var netflixUrl = new Uri($"https://www.netflix.com/title/{Math.Abs(_fixture.Create<int>())}");
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.Netflix, netflixUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.Netflix), netflixUrl, null);
         });
 
         // Act
@@ -56,9 +56,9 @@ public class EpisodeCatalogNormalizeRules
         // Assert
         found.Should().BeTrue();
         url.Should().Be(netflixUrl);
-        key.Should().Be(StreamingServiceKeys.Netflix);
+        key.Should().Be(StreamingServiceWire.ToKey(StreamingService.Netflix));
         service.Should().Be(Service.Other);
-        catalogLog.Should().Contain($"{StreamingServiceKeys.Netflix}={netflixUrl}");
+        catalogLog.Should().Contain($"{StreamingServiceWire.ToKey(StreamingService.Netflix)}={netflixUrl}");
     }
 
     [Fact(DisplayName =
@@ -70,8 +70,8 @@ public class EpisodeCatalogNormalizeRules
         var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcSounds, soundsUrl, null);
-            EpisodeServicePresence.Upsert(e, StreamingServiceKeys.BbcIplayer, iplayerUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.BbcSounds), soundsUrl, null);
+            EpisodeServicePresence.Upsert(e, StreamingServiceWire.ToKey(StreamingService.BbcIplayer), iplayerUrl, null);
         });
 
         // Act
@@ -85,12 +85,12 @@ public class EpisodeCatalogNormalizeRules
         // Assert
         found.Should().BeTrue();
         url.Should().Be(iplayerUrl);
-        key.Should().Be(StreamingServiceKeys.BbcIplayer);
+        key.Should().Be(StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
         service.Should().Be(Service.Other);
     }
 
     [Fact(DisplayName =
-        "When fixture Urls.BBC is an iPlayer episode URI, ApplyBbc stores StreamingServiceKeys.BbcIplayer, not Sounds, because the composed catalog resolves /iplayer/ before the Sounds fallback.")]
+        "When fixture Urls.BBC is an iPlayer episode URI, ApplyBbc stores StreamingServiceWire.ToKey(StreamingService.BbcIplayer), not Sounds, because the composed catalog resolves /iplayer/ before the Sounds fallback.")]
     public void fixture_bbc_iplayer_url_stores_bbc_iplayer_key()
     {
         // Arrange
@@ -101,7 +101,7 @@ public class EpisodeCatalogNormalizeRules
         episode.Urls.BBC = iplayerUrl;
 
         // Assert
-        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer).Should().Be(iplayerUrl);
-        EpisodeServicePresence.HasUrl(episode, StreamingServiceKeys.BbcSounds).Should().BeFalse();
+        EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)).Should().Be(iplayerUrl);
+        EpisodeServicePresence.HasUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().BeFalse();
     }
 }

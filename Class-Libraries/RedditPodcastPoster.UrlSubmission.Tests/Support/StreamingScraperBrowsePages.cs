@@ -6,6 +6,7 @@ using RedditPodcastPoster.Channel4.Matching;
 using RedditPodcastPoster.DiscoveryPlus.Matching;
 using RedditPodcastPoster.DisneyPlus.Matching;
 using RedditPodcastPoster.Fawesome.Matching;
+using RedditPodcastPoster.FranceTv.Matching;
 using RedditPodcastPoster.HboMax.Matching;
 using RedditPodcastPoster.Itvx.Matching;
 using RedditPodcastPoster.Netflix.Matching;
@@ -143,6 +144,7 @@ internal static partial class StreamingScraperBrowseLinkHarvester
             StreamingScraperProvider.TvnzPlus => TvnzPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.DisneyPlus => DisneyPlusUrlMatcher.IsSubmitUrl(url),
             StreamingScraperProvider.DiscoveryPlus => DiscoveryPlusUrlMatcher.IsSubmitUrl(url),
+            StreamingScraperProvider.FranceTv => FranceTvUrlMatcher.IsSubmitUrl(url),
             _ => false
         };
 

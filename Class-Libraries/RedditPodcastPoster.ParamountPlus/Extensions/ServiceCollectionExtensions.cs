@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IParamountPlusPageMetaDataExtractor, ParamountPlusPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.ParamountPlus,
-                    StreamingServiceKeys.ParamountPlus,
+                    StreamingService.ParamountPlus,
                     ParamountPlusUrlMatcher.IsSubmitUrl,
                     ParamountPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<IParamountPlusPageMetaDataExtractor>().GetMetaData));

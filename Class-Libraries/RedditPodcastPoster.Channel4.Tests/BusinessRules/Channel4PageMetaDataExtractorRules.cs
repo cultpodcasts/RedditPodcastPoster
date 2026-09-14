@@ -133,7 +133,7 @@ public class Channel4PageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.Channel4);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Channel4);
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

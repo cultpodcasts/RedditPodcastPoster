@@ -378,7 +378,7 @@ public class BcVideoMetaDataExtractorRules
         var meta = await adapter.ExtractMetaData(url, html);
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.BcVideo);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.BcVideo);
         adapter.CanExtract(url).Should().BeTrue();
         meta.Title.Should().Be(title);
     }

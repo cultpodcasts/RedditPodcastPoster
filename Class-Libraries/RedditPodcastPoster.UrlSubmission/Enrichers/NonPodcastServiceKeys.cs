@@ -14,12 +14,13 @@ internal static class NonPodcastServiceKeys
     {
         if (item.BBCUrl is { } bbc)
         {
-            return StreamingServiceCatalog.TryResolveKey(bbc) ?? StreamingServiceKeys.BbcSounds;
+            return StreamingServiceCatalog.TryResolveKey(bbc)
+                   ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
         }
 
         if (item.InternetArchiveUrl != null)
         {
-            return StreamingServiceKeys.InternetArchive;
+            return StreamingServiceWire.ToKey(StreamingService.InternetArchive);
         }
 
         if (item.Url is { } url)

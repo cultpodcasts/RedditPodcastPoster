@@ -2,13 +2,15 @@
 
 You are continuing **streaming / non-podcast URL submit scrapers** for Cult Podcasts. Primary repo is **RedditPodcastPoster (RPP)**. Do **not** implement the catalogue-content-types epic. Do **not** merge PRs or deploy unless the user explicitly asks in this conversation.
 
+**Procedure (preferred):** Cursor skill [`.cursor/skills/add-streaming-service/SKILL.md`](../.cursor/skills/add-streaming-service/SKILL.md) + scaffold `pwsh ./scripts/scaffold-streaming-service.ps1`. Use this handoff for show-name rules, live-test gates, and historical context — not as the step checklist.
+
 Prior session transcript (context only): [`f40da660-f9c4-4c8c-87f6-2e040beead0b`](f40da660-f9c4-4c8c-87f6-2e040beead0b)
 
 ---
 
 ## 1. Goal
 
-Add **new streaming-provider plugins** (matcher + page/oEmbed extractor + DI + `NonPodcastService` + catalog key + live/canonical tests) so users can:
+Add **new streaming-provider plugins** (matcher + page/oEmbed extractor + DI + `StreamingService` member with `[JsonPropertyName]` / `[StreamingServiceInfo]` + catalog key + live/canonical tests) so users can:
 
 1. `GET /submit/lookup` an unknown URL → `kind: streaming` + best-effort **`podcastName`** (series brand), or `null` for films/one-offs.
 2. `POST /submit` with `{ url, podcastName? }` → attach via name lookup or create Podcast + Episode under today’s Podcast/Episode model.
@@ -63,7 +65,7 @@ Submit UX docs: `website/cultpodcasts/docs/submit-url-flows.md`
 
 ## 3. Target providers
 
-**Priority = user-named next wave.** Catalog-only rows already have keys/hosts but **no** extractors / `NonPodcastService` enum values.
+**Priority = user-named next wave.** Catalog-only rows already have keys/hosts but **no** extractors / `StreamingService` members. (Historical note: PR 966 used a separate `NonPodcastService` enum; that type was removed — add members on `StreamingService` only.)
 
 | Provider | Hosts / notes | Catalog today? | Work needed |
 |----------|---------------|----------------|-------------|
@@ -72,7 +74,7 @@ Submit UX docs: `website/cultpodcasts/docs/submit-url-flows.md`
 | **4oD / Channel 4** | channel4.com / All4 — user called “Channel 4 OD”; **not** in catalog yet | **No** | Same; watch redirects (channel4.com ↔ all4.com) |
 | **Disney+** | disneyplus.com — user-requested; **not** in catalog | **No** | New key + scraper; expect geo/auth walls — document failure modes |
 | **Discovery+** | discoveryplus.com — user-requested; **not** in catalog | **No** | Same |
-| **Paramount+** | paramountplus.com | **Yes** (`paramountPlus`) | Extractor + `NonPodcastService` + DI + live cases (catalog key exists) |
+| **Paramount+** | paramountplus.com | **Yes** (`paramountPlus`) | Extractor + `StreamingService` + `[JsonPropertyName]` / `[StreamingServiceInfo]` + DI + live cases (catalog key exists) |
 | **HBO Max** | max.com, hbomax.com | **Yes** (`hboMax`) | Same |
 | **Play Suisse** | playsuisse.ch | **Yes** (`playSuisse`) | Same |
 | **TVNZ+** | tvnz.co.nz | **Yes** (`tvnzPlus`) | Same |
@@ -93,7 +95,7 @@ Per provider library under `Class-Libraries/RedditPodcastPoster.<Provider>/`:
 
 1. **`Matching/*UrlMatcher.cs`** — `IsSubmitUrl(Uri)` (host + path; e.g. Netflix `/title/` or `/watch/`)
 2. **`Extractors/*PageMetaDataExtractor.cs`** — HTTP GET + **`OpenGraphPageMetaDataExtractor`** merge; set `Publisher` to platform brand; set `ShowName` only for true series; **null ShowName for films**
-3. **`Extensions/ServiceCollectionExtensions.cs`** — `AddHttpClient` + `AddOpenGraphExtractor()` + register `CatalogKeyedNonPodcastServiceAdapter(NonPodcastService.X, ServiceKeys.X, matcher, matcher, extract)`
+3. **`Extensions/ServiceCollectionExtensions.cs`** — `AddHttpClient` + `AddOpenGraphExtractor()` + register `CatalogKeyedNonPodcastServiceAdapter(StreamingService.X, matcher, matcher, extract)`
 4. Wire hosts: `Cloud/Api/Ioc.cs`, `Cloud/Indexer/Ioc.cs` (and SubmitUrl console if applicable)
 
 Vimeo is the **oEmbed** variant (`VimeoMetaDataExtractor` → author as publisher). BBC/IA are older path-specific extractors — prefer Netflix/Prime for new SVOD/AVOD sites.
@@ -103,7 +105,7 @@ Vimeo is the **oEmbed** variant (`VimeoMetaDataExtractor` → author as publishe
 | Path | Role |
 |------|------|
 | `Models/Podcasts/ServiceCatalog.cs` + `ServiceKeys.cs` | Hosts, compact URLs, ordered catalog |
-| `Models/Podcasts/NonPodcastService.cs` | Enum — add new value per extractor service |
+| `Models/Podcasts/StreamingService.cs` | Enum — add member with `[JsonPropertyName]` + `[StreamingServiceInfo]` |
 | `PodcastServices.Abstractions/.../INonPodcastServiceAdapter*.cs` | Plugin contract |
 | `PodcastServices.Abstractions/.../CatalogKeyedNonPodcastServiceAdapter.cs` | Default adapter |
 | `PodcastServices/.../NonPodcastServiceAdapterResolver.cs` | Resolve by URL |
@@ -170,7 +172,7 @@ For each new provider you claim done:
 1. Re-read PR 966 summary + `NonPodcastShowNameResolver` + one full plugin (`RedditPodcastPoster.Netflix` or `.AmazonPrime`) end-to-end.
 2. Spike **HTML/OG** for **ITVX** and **Channel 4 / All4** (UK priority from prior chat), then **fawesome.tv**, then Disney+/Discovery+ — note geo/login walls and whether series brand is scrapeable.
 3. Prefer finishing **catalog-already-present** extractors (Paramount+, HBO Max, Play Suisse, TVNZ+) in parallel only if OG is easy; otherwise prioritize user-named UK + fawesome.
-4. For each chosen provider: add `ServiceKeys` / `ServiceCatalog` / `NonPodcastService` → library → DI → canonical cases → run unit tests; run live suite locally with skip env unset.
+4. For each chosen provider: add `StreamingService` enum member + attributes → library → DI → canonical cases → run unit tests; run live suite locally with skip env unset.
 5. If new catalog keys: mirror `website/.../service-catalog.ts` in the same change set or a sibling website PR; bump website `package.json` if that PR ships client code.
 6. Ask the user before production Functions deploy (`deploy-api.ps1`) or any Cosmos write.
 

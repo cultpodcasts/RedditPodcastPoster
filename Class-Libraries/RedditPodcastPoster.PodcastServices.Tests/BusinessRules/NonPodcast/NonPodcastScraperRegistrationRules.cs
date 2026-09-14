@@ -21,15 +21,13 @@ public class NonPodcastScraperRegistrationRules
         services.AddHttpClient();
         services.AddNonPodcastScrapers();
         using var provider = services.BuildServiceProvider();
-        var expected = Enum.GetValues<NonPodcastService>()
-            .Where(service => service is not NonPodcastService.Unknown
-                and not NonPodcastService.BBC
-                and not NonPodcastService.InternetArchive)
+        var expected = Enum.GetValues<StreamingService>()
+            .Where(service => service is not StreamingService.BbcSounds and not StreamingService.BbcIplayer and not StreamingService.InternetArchive)
             .ToArray();
 
         // Act
         var registered = provider.GetServices<INonPodcastServiceAdapter>()
-            .Select(adapter => adapter.Service)
+            .Select(adapter => adapter.ResolveService(new Uri("https://example.com/")))
             .ToArray();
 
         // Assert
@@ -55,6 +53,6 @@ public class NonPodcastScraperRegistrationRules
 
         // Assert
         adapter.Should().NotBeNull();
-        adapter!.Service.Should().Be(NonPodcastService.Channel4);
+        adapter!.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Channel4);
     }
 }

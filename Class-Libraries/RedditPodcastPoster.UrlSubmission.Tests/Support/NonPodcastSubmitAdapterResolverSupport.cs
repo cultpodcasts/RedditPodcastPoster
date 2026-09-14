@@ -1,6 +1,7 @@
 using Moq;
 using RedditPodcastPoster.AmazonPrime.Matching;
 using RedditPodcastPoster.BBC.Extractors;
+using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
@@ -8,10 +9,9 @@ using RedditPodcastPoster.Netflix.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Categorisers;
-using RedditPodcastPoster.BcVideo.Matching;
 using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Vimeo.Matching;
-using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+
 namespace RedditPodcastPoster.UrlSubmission.Tests.Support;
 
 internal static class NonPodcastSubmitAdapterResolverSupport
@@ -27,24 +27,22 @@ internal static class NonPodcastSubmitAdapterResolverSupport
             new BbcNonPodcastServiceAdapter(bbcExtractor ?? Mock.Of<IBBCPageMetaDataExtractor>()),
             new InternetArchiveNonPodcastServiceAdapter(
                 archiveExtractor ?? Mock.Of<IInternetArchivePageMetaDataExtractor>()),
-            CatalogAdapter(NonPodcastService.Vimeo, StreamingServiceKeys.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
-            CatalogAdapter(NonPodcastService.BcVideo, StreamingServiceKeys.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
+            CatalogAdapter(StreamingService.Vimeo, VimeoUrlMatcher.IsSubmitUrl, vimeoExtract),
+            CatalogAdapter(StreamingService.BcVideo, BcVideoUrlMatcher.IsSubmitUrl,
                 canonicalizeUrl: BcVideoUrlMatcher.CanonicalUrl),
-            CatalogAdapter(NonPodcastService.Tubi, StreamingServiceKeys.Tubi, TubiUrlMatcher.IsSubmitUrl,
+            CatalogAdapter(StreamingService.Tubi, TubiUrlMatcher.IsSubmitUrl,
                 canonicalizeUrl: TubiUrlMatcher.CanonicalUrl),
-            CatalogAdapter(NonPodcastService.Netflix, StreamingServiceKeys.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
-            CatalogAdapter(NonPodcastService.AmazonPrime, StreamingServiceKeys.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
+            CatalogAdapter(StreamingService.Netflix, NetflixUrlMatcher.IsSubmitUrl, netflixExtract),
+            CatalogAdapter(StreamingService.AmazonPrime, AmazonPrimeUrlMatcher.IsSubmitUrl, primeExtract)
         ]);
 
     private static INonPodcastServiceAdapter CatalogAdapter(
-        NonPodcastService service,
-        string catalogKey,
+        StreamingService service,
         Func<Uri, bool> isSubmitUrl,
         Func<Uri, Task<NonPodcastServiceItemMetaData>>? extract = null,
         Func<Uri, Uri>? canonicalizeUrl = null) =>
         new CatalogKeyedNonPodcastServiceAdapter(
             service,
-            catalogKey,
             isSubmitUrl,
             isSubmitUrl,
             extract ?? (_ => throw new InvalidOperationException("Extract is not used in submit routing tests.")),

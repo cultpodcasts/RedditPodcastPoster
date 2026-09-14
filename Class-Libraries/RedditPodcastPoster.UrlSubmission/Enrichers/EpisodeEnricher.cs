@@ -129,12 +129,12 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedNonPodcastServiceItem != null && matchingEpisode != null)
         {
-            if (!EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceKeys.BbcIplayer) &&
-                !EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceKeys.BbcSounds) &&
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) &&
+                !EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)) &&
                 categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl != null)
             {
                 var bbcUrl = categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl;
-                var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
+                var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
                 EpisodeServicePresence.Upsert(
                     matchingEpisode,
                     bbcKey,
@@ -147,15 +147,15 @@ public class EpisodeEnricher(
                     matchingEpisode.Id, categorisedItem.ResolvedNonPodcastServiceItem.BBCUrl);
             }
 
-            if (!EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceKeys.InternetArchive) &&
+            if (!EpisodeServicePresence.HasUrl(matchingEpisode, StreamingServiceWire.ToKey(StreamingService.InternetArchive)) &&
                 categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl != null)
             {
                 EpisodeServicePresence.Upsert(
                     matchingEpisode,
-                    StreamingServiceKeys.InternetArchive,
+                    StreamingServiceWire.ToKey(StreamingService.InternetArchive),
                     categorisedItem.ResolvedNonPodcastServiceItem.InternetArchiveUrl,
                     null);
-                addedExtraKeys.Add(StreamingServiceKeys.InternetArchive);
+                addedExtraKeys.Add(StreamingServiceWire.ToKey(StreamingService.InternetArchive));
                 episodeResult = SubmitResultState.Enriched;
                 logger.LogInformation(
                     "Enriched episode '{matchingEpisodeId}' with internet-archive details with internet-archive-url {resolvedNonPodcastServiceItemInternetArchiveUrl}.",

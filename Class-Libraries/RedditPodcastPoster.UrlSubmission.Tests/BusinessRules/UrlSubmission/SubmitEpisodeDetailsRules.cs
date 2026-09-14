@@ -37,13 +37,13 @@ public class SubmitEpisodeDetailsRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast);
         var vimeoUrl = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
-        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.Vimeo, vimeoUrl, null);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo), vimeoUrl, null);
 
         // Act
         var details = SubmitEpisodeDetails.FromEpisode(episode);
 
         // Assert
-        details.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.Vimeo);
+        details.ExtraServiceKeys.Should().Contain(StreamingServiceWire.ToKey(StreamingService.Vimeo));
         details.ExtraServiceKeys.Should().NotContain(ServiceKeys.Spotify);
     }
 
@@ -55,13 +55,13 @@ public class SubmitEpisodeDetailsRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast);
         var iplayerUrl = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
-        EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.BbcIplayer, iplayerUrl, null);
+        EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer), iplayerUrl, null);
 
         // Act
         var details = SubmitEpisodeDetails.FromEpisode(episode);
 
         // Assert
-        details.ExtraServiceKeys.Should().Equal(StreamingServiceKeys.BbcIplayer);
+        details.ExtraServiceKeys.Should().Equal(StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
     }
 
     [Fact(DisplayName =
@@ -73,17 +73,17 @@ public class SubmitEpisodeDetailsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
         EpisodeServicePresence.Upsert(
             episode,
-            StreamingServiceKeys.InternetArchive,
+            StreamingServiceWire.ToKey(StreamingService.InternetArchive),
             new Uri($"https://archive.org/details/{_fixture.CreateYouTubeId()}"),
             null);
         EpisodeServicePresence.Upsert(
             episode,
-            StreamingServiceKeys.Netflix,
+            StreamingServiceWire.ToKey(StreamingService.Netflix),
             new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}"),
             null);
         EpisodeServicePresence.Upsert(
             episode,
-            StreamingServiceKeys.AmazonPrime,
+            StreamingServiceWire.ToKey(StreamingService.AmazonPrime),
             new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}"),
             null);
 
@@ -91,8 +91,8 @@ public class SubmitEpisodeDetailsRules
         var details = SubmitEpisodeDetails.FromEpisode(episode);
 
         // Assert
-        details.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.InternetArchive);
-        details.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.Netflix);
-        details.ExtraServiceKeys.Should().Contain(StreamingServiceKeys.AmazonPrime);
+        details.ExtraServiceKeys.Should().Contain(StreamingServiceWire.ToKey(StreamingService.InternetArchive));
+        details.ExtraServiceKeys.Should().Contain(StreamingServiceWire.ToKey(StreamingService.Netflix));
+        details.ExtraServiceKeys.Should().Contain(StreamingServiceWire.ToKey(StreamingService.AmazonPrime));
     }
 }

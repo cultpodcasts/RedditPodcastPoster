@@ -2,7 +2,7 @@ namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Canonical JSON keys for Spotify, Apple, and YouTube on <c>episode.services</c> / <c>ids</c>.
-/// Streaming keys live on <c>StreamingServiceKeys</c> next to provider registrations.
+/// Streaming destinations use <see cref="StreamingService"/> / <see cref="StreamingServiceWire"/>.
 /// </summary>
 public static class ServiceKeys
 {

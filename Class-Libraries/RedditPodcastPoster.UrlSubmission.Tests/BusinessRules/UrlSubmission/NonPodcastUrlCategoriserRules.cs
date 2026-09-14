@@ -44,7 +44,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = BbcSoundsUrl();
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             Url: url,
             Title: _fixture.CreateTitle(),
             Description: _fixture.Create<string>());
@@ -76,7 +76,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = BbcIplayerUrl();
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             Url: url,
             Title: _fixture.CreateTitle());
         var sut = _mocker.CreateInstance<UrlCategoriser>();
@@ -96,7 +96,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = InternetArchiveUrl();
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.InternetArchive,
+            StreamingService.InternetArchive,
             Url: url,
             Title: _fixture.CreateTitle());
         var sut = _mocker.CreateInstance<UrlCategoriser>();
@@ -129,7 +129,7 @@ public class NonPodcastUrlCategoriserRules
                 (p, _, _, _, _) => capturedPodcast = p)
             .ReturnsAsync(() => _resolvedNonPodcast);
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.BBC,
+            StreamingService.BbcSounds,
             podcast,
             Url: url,
             Title: _fixture.CreateTitle());
@@ -151,7 +151,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = new Uri($"https://vimeo.com/{_fixture.CreateAppleId()}");
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.Vimeo,
+            StreamingService.Vimeo,
             Url: url,
             Title: _fixture.CreateTitle());
         var sut = _mocker.CreateInstance<UrlCategoriser>();
@@ -172,7 +172,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.Netflix,
+            StreamingService.Netflix,
             Url: url,
             Title: _fixture.CreateTitle());
         var sut = _mocker.CreateInstance<UrlCategoriser>();
@@ -218,7 +218,7 @@ public class NonPodcastUrlCategoriserRules
         // Arrange
         var url = new Uri($"https://www.primevideo.com/detail/{_fixture.CreateYouTubeId()}");
         _resolvedNonPodcast = new ResolvedNonPodcastServiceItem(
-            NonPodcastService.AmazonPrime,
+            StreamingService.AmazonPrime,
             Url: url,
             Title: _fixture.CreateTitle());
         var sut = _mocker.CreateInstance<UrlCategoriser>();

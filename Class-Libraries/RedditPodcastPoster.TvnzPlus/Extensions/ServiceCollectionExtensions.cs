@@ -24,8 +24,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ITvnzPlusPageMetaDataExtractor, TvnzPlusPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
                 new CatalogKeyedNonPodcastServiceAdapter(
-                    NonPodcastService.TvnzPlus,
-                    StreamingServiceKeys.TvnzPlus,
+                    StreamingService.TvnzPlus,
                     TvnzPlusUrlMatcher.IsSubmitUrl,
                     TvnzPlusUrlMatcher.IsSubmitUrl,
                     provider.GetRequiredService<ITvnzPlusPageMetaDataExtractor>().GetMetaData));

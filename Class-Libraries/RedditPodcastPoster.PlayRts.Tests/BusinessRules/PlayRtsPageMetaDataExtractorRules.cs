@@ -214,7 +214,7 @@ public class PlayRtsPageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.PlayRts); // pragma: allowlist secret
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.PlayRts); // pragma: allowlist secret
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

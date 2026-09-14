@@ -187,7 +187,7 @@ public class SearchEpisodeImageTests
         EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, appleImage);
         if (otherImage is not null)
         {
-            EpisodeServicePresence.SetCatalogImage(episode, StreamingServiceKeys.Vimeo, otherImage);
+            EpisodeServicePresence.SetCatalogImage(episode, StreamingServiceWire.ToKey(StreamingService.Vimeo), otherImage);
         }
 
         return episode;

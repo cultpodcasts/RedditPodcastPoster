@@ -112,14 +112,14 @@ public class ImageUpdater(
             }
         }
 
-        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcIplayer) ??
-                     EpisodeServicePresence.TryGetUrl(episode, StreamingServiceKeys.BbcSounds);
+        var bbcUrl = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
+                     EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
         if (updateRequest.UpdateBBCImage == true && bbcUrl != null)
         {
             try
             {
                 var metaData = await bbcPageMetaDataExtractor.GetMetaData(bbcUrl);
-                var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceKeys.BbcSounds;
+                var bbcKey = StreamingServiceCatalog.TryResolveKey(bbcUrl) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
                 EpisodeServicePresence.Upsert(episode, bbcKey, bbcUrl, metaData.Image);
                 updated = true;
             }

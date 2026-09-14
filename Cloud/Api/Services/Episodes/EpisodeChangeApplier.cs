@@ -190,14 +190,14 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.BBC.ToString() == string.Empty)
             {
-                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.BbcIplayer, null, null);
-                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.BbcSounds, null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer), null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds), null, null);
             }
             else
             {
                 if (BBCUrlMatcher.IsSubmitUrl(episodeChangeRequest.Urls.BBC))
                 {
-                    var bbcKey = StreamingServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? StreamingServiceKeys.BbcSounds;
+                    var bbcKey = StreamingServiceCatalog.TryResolveKey(episodeChangeRequest.Urls.BBC) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
                     EpisodeServicePresence.Upsert(episode, bbcKey, episodeChangeRequest.Urls.BBC, null);
                     changeState.UpdateBBCImage = true;
                 }
@@ -208,7 +208,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (episodeChangeRequest.Urls.InternetArchive.ToString() == string.Empty)
             {
-                EpisodeServicePresence.Upsert(episode, StreamingServiceKeys.InternetArchive, null, null);
+                EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive), null, null);
             }
             else
             {
@@ -216,7 +216,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 {
                     EpisodeServicePresence.Upsert(
                         episode,
-                        StreamingServiceKeys.InternetArchive,
+                        StreamingServiceWire.ToKey(StreamingService.InternetArchive),
                         episodeChangeRequest.Urls.InternetArchive,
                         null);
                 }

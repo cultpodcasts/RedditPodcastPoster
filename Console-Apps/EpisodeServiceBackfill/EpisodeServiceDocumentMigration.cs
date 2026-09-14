@@ -118,11 +118,11 @@ public static class EpisodeServiceDocumentMigration
             MergeRawUrl(episode, urls, "spotify", ServiceKeys.Spotify);
             MergeRawUrl(episode, urls, "apple", ServiceKeys.Apple);
             MergeRawUrl(episode, urls, "youtube", ServiceKeys.YouTube);
-            MergeRawUrl(episode, urls, "internetArchive", StreamingServiceKeys.InternetArchive);
+            MergeRawUrl(episode, urls, "internetArchive", StreamingServiceWire.ToKey(StreamingService.InternetArchive));
             if (TryGetUrl(urls, "bbc", out var bbc) &&
                 Uri.TryCreate(bbc, UriKind.Absolute, out var bbcUri))
             {
-                var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceKeys.BbcSounds;
+                var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
                 EpisodeServicePresence.TryFillMissing(episode, key, bbcUri, null);
             }
         }
@@ -233,7 +233,7 @@ public static class EpisodeServiceDocumentMigration
             return true;
         }
 
-        if (UrlUncovered(urls, "internetArchive", services, StreamingServiceKeys.InternetArchive))
+        if (UrlUncovered(urls, "internetArchive", services, StreamingServiceWire.ToKey(StreamingService.InternetArchive)))
         {
             return true;
         }
@@ -241,7 +241,7 @@ public static class EpisodeServiceDocumentMigration
         if (TryGetUrl(urls, "bbc", out var bbc) &&
             Uri.TryCreate(bbc, UriKind.Absolute, out var bbcUri))
         {
-            var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceKeys.BbcSounds;
+            var key = StreamingServiceCatalog.TryResolveKey(bbcUri) ?? StreamingServiceWire.ToKey(StreamingService.BbcSounds);
             if (!HasServiceUrl(services, key))
             {
                 return true;

@@ -202,7 +202,7 @@ public class AmazonPrimePageMetaDataExtractorRules
             .Single(candidate => candidate.IsSubmitUrl(url));
 
         // Assert
-        adapter.Service.Should().Be(NonPodcastService.AmazonPrime);
+        adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.AmazonPrime);
     }
 
     private sealed class StubHttpMessageHandler : HttpMessageHandler
