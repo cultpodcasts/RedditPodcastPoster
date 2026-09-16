@@ -55,4 +55,23 @@ public class PodcastGetRequestTests
         request.PodcastName.Should().Be(podcastName);
         request.EpisodeId.Should().BeNull();
     }
+
+    [Theory(DisplayName =
+        "Route podcast name that contains '+': request keeps the plus character, because form-urlencoded decoding would look up a different show.")]
+    [InlineData("News+Weather", "News+Weather")]
+    [InlineData("News%2BWeather", "News+Weather")]
+    [InlineData("News%252BWeather", "News+Weather")]
+    public void plus_in_podcast_name_is_preserved(string routeName, string expectedName)
+    {
+        // Arrange
+        var episodeId = Guid.NewGuid();
+
+        // Act
+        var request = PodcastGetRequest.FromRouteIdentifier(routeName, episodeId);
+
+        // Assert
+        request.PodcastId.Should().BeNull();
+        request.PodcastName.Should().Be(expectedName);
+        request.EpisodeId.Should().Be(episodeId);
+    }
 }
