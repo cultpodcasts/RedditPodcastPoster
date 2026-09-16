@@ -34,7 +34,9 @@ public class PodcastController(
     ) => HandleRequest(
             req,
             ["admin"],
-            new PodcastRenameCommand(podcastName, newPodcastName.NewPodcastName),
+            new PodcastRenameCommand(
+                PodcastRouteNameNormalizer.Normalize(podcastName),
+                newPodcastName.NewPodcastName),
             renamePodcastHandler.Handle,
             Unauthorised,
             ct

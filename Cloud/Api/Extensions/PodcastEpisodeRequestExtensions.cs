@@ -1,4 +1,3 @@
-using System.Web;
 using Api.Dtos;
 using Api.Models;
 
@@ -10,8 +9,12 @@ public static class PodcastEpisodeRequestExtensions
     {
         public PodcastEpisodeResolverRequest ToPodcastEpisodeResolverRequest()
         {
+            // Idempotent if EpisodeController already ran Normalize on the route name.
+            var podcastName = podcastEpisodeResolverRequest.PodcastName == null
+                ? null
+                : PodcastRouteNameNormalizer.Normalize(podcastEpisodeResolverRequest.PodcastName);
             return new PodcastEpisodeResolverRequest(podcastEpisodeResolverRequest.EpisodeId,
-                podcastEpisodeResolverRequest.PodcastId, HttpUtility.UrlDecode(podcastEpisodeResolverRequest.PodcastName));
+                podcastEpisodeResolverRequest.PodcastId, podcastName);
         }
     }
 

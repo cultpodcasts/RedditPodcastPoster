@@ -11,7 +11,8 @@ public class PodcastEpisodePathParserTests
         "Was I In A Cult?",
         "True Crime Show w/ Guest Host",
         "Cult? Show w/ Nested Slash",
-        "A/B Testing Podcast?"
+        "A/B Testing Podcast?",
+        "News+Weather"
     };
 
     [Theory(DisplayName =

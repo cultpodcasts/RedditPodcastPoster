@@ -21,7 +21,8 @@ public class PodcastGetRouteResolverTests
         "Was I In A Cult?",
         "True Crime Show w/ Guest Host",
         "Cult? Show w/ Nested Slash",
-        "A/B Testing Podcast?"
+        "A/B Testing Podcast?",
+        "News+Weather"
     };
 
     [Fact(DisplayName =
