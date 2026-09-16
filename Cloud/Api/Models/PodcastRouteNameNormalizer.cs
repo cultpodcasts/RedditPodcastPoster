@@ -16,7 +16,7 @@ internal static class PodcastRouteNameNormalizer
     /// <summary>
     /// Percent-decode a route segment without treating '+' as space.
     /// <see cref="System.Net.WebUtility.UrlDecode"/> is form-urlencoded and would turn
-    /// names like "WDRB+WAVE" into "WDRB WAVE".
+    /// names like "News+Weather" into "News Weather".
     /// </summary>
     private static string DecodePercentEncodingPreservingPlus(string value) =>
         Uri.UnescapeDataString(value.Replace("+", "%2B", StringComparison.Ordinal));

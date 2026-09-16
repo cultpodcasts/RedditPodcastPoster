@@ -1,4 +1,5 @@
 using Api.Models;
+using AutoFixture;
 using FluentAssertions;
 using Xunit;
 
@@ -6,6 +7,8 @@ namespace FunctionHost.Tests.Api.Models;
 
 public class PodcastGetRequestTests
 {
+    private readonly Fixture _fixture = new();
+
     [Fact(DisplayName =
         "Route identifier that is a podcast guid: request resolves by PodcastId, because curator UIs pass ids from episode review.")]
     public void guid_identifier_resolves_by_podcast_id()
@@ -57,14 +60,17 @@ public class PodcastGetRequestTests
     }
 
     [Theory(DisplayName =
-        "Route podcast name that contains '+': request keeps the plus character, because form-urlencoded decoding would look up a different show.")]
+        "Route podcast name is percent-decoded without treating plus as space, because form-urlencoded decoding would look up a different show.")]
     [InlineData("News+Weather", "News+Weather")]
     [InlineData("News%2BWeather", "News+Weather")]
     [InlineData("News%252BWeather", "News+Weather")]
+    [InlineData("News%20Weather", "News Weather")]
+    [InlineData("50% Off", "50% Off")]
+    [InlineData("50%25%20Off", "50% Off")]
     public void plus_in_podcast_name_is_preserved(string routeName, string expectedName)
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
+        var episodeId = _fixture.Create<Guid>();
 
         // Act
         var request = PodcastGetRequest.FromRouteIdentifier(routeName, episodeId);
