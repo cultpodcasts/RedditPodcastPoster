@@ -86,11 +86,16 @@ internal static partial class ArteCatalogMeta
             showName = null;
         }
 
+        var (duration, release) = CatalogPageTimingMeta.Coalesce(
+            openGraph?.Duration,
+            openGraph?.Release,
+            html);
+
         return new NonPodcastServiceItemMetaData(
             title,
             openGraph?.Description ?? string.Empty,
-            openGraph?.Duration,
-            openGraph?.Release,
+            duration,
+            release,
             openGraph?.Image,
             openGraph?.Explicit,
             ArtePageMetaDataExtractor.Publisher,

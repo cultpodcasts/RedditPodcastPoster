@@ -8,25 +8,31 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.AmazonPrime\RedditPodcastPoster.AmazonPrime.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.AppleTvPlus\RedditPodcastPoster.AppleTvPlus.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Ard\RedditPodcastPoster.Ard.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Arte\RedditPodcastPoster.Arte.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BcVideo\RedditPodcastPoster.BcVideo.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.CanalPlus\RedditPodcastPoster.CanalPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Channel4\RedditPodcastPoster.Channel4.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DisneyPlus\RedditPodcastPoster.DisneyPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Fawesome\RedditPodcastPoster.Fawesome.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.FranceTv\RedditPodcastPoster.FranceTv.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.HboMax\RedditPodcastPoster.HboMax.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Hulu\RedditPodcastPoster.Hulu.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.InternetArchive\RedditPodcastPoster.InternetArchive.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Itvx\RedditPodcastPoster.Itvx.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.ParamountPlus\RedditPodcastPoster.ParamountPlus.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Peacock\RedditPodcastPoster.Peacock.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlayRts\RedditPodcastPoster.PlayRts.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PlaySuisse\RedditPodcastPoster.PlaySuisse.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Abstractions\RedditPodcastPoster.PodcastServices.Abstractions.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Tubi\RedditPodcastPoster.Tubi.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.TvnzPlus\RedditPodcastPoster.TvnzPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Vimeo\RedditPodcastPoster.Vimeo.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Zdf\RedditPodcastPoster.Zdf.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,9 @@
 using RedditPodcastPoster.AmazonPrime;
+using RedditPodcastPoster.AppleTvPlus;
+using RedditPodcastPoster.Ard;
 using RedditPodcastPoster.Arte;
 using RedditPodcastPoster.BBC;
+using RedditPodcastPoster.CanalPlus;
 using RedditPodcastPoster.BcVideo;
 using RedditPodcastPoster.Channel4;
 using RedditPodcastPoster.DiscoveryPlus;
@@ -8,17 +11,20 @@ using RedditPodcastPoster.DisneyPlus;
 using RedditPodcastPoster.Fawesome;
 using RedditPodcastPoster.FranceTv;
 using RedditPodcastPoster.HboMax;
+using RedditPodcastPoster.Hulu;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Itvx;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Netflix;
 using RedditPodcastPoster.ParamountPlus;
+using RedditPodcastPoster.Peacock;
 using RedditPodcastPoster.PlayRts;
 using RedditPodcastPoster.PlaySuisse;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Tubi;
 using RedditPodcastPoster.TvnzPlus;
 using RedditPodcastPoster.Vimeo;
+using RedditPodcastPoster.Zdf;
 
 namespace RedditPodcastPoster.StreamingCatalog;
 
@@ -50,7 +56,13 @@ public static class KnownStreamingServices
         TubiStreamingService.Registration,
         DiscoveryPlusStreamingService.Registration,
         FranceTvStreamingService.Registration,
-        ArteStreamingService.Registration
+        ArteStreamingService.Registration,
+        HuluStreamingService.Registration,
+        PeacockStreamingService.Registration,
+        AppleTvPlusStreamingService.Registration,
+        ZdfStreamingService.Registration,
+        ArdStreamingService.Registration,
+        CanalPlusStreamingService.Registration
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys = StreamingServiceWire.ImageCoalesceKeys;

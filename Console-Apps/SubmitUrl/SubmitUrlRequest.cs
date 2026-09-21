@@ -11,8 +11,13 @@ public class SubmitUrlRequest
     [Option('f', "submit-urls-in-file", Required = false, Default = false, HelpText = "Use urls in provided file")]
     public bool SubmitUrlsInFile { get; set; }
 
-    [Value(0, MetaName = "url or file", HelpText = "The Url or file containing Urls to submit", Required = true)]
-    public string UrlOrFile { get; set; } = "";
+    [Value(0, MetaName = "url or file", HelpText = "The Url or file containing Urls to submit (omit when using --episode-id)",
+        Required = false)]
+    public string? UrlOrFile { get; set; }
+
+    [Option('e', "episode-id", Required = false,
+        HelpText = "Existing episode id(s) to refresh from stored streaming services.*.url (requires -r; repeatable)")]
+    public IEnumerable<Guid>? EpisodeIds { get; set; }
 
     [Option('p', "podcastid", Required = false, HelpText = "The Id of the podcast to add this episode to")]
     public Guid? PodcastId { get; set; }

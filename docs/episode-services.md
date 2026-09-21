@@ -63,14 +63,25 @@ The coalesced cover `image` token is unchanged (YouTube → Spotify → Apple �
 
 Pull-path Cosmos SQL for `svc` / `image` is generated from `ServiceCatalog.SearchEncodedKeys` / `ImageCoalesceOrder` (`SearchIndexCosmosSql` in Models) — **all** streaming catalog keys (ITVX, discovery+, Disney+, Channel 4, Netflix, …), not a hardcoded subset. Keys stay aligned with push-path C# (`SearchEpisodeServices` / `SearchEpisodeImage`), but the **payload dialect does not**: Cosmos SQL keeps the legacy form `key:` + raw `e.services.*.url` (no `u` prefix, no `|`/`%` escape). Push `Encode()` uses the compact grammar above. Clients (`expandSvc` / `TryExpandCompactUrl`) accept both. Aligning SQL with `Encode()` is optional follow-up, not required for catalog-key parity.
 
-### Ops: after datasource SQL update
+### Ops: after adding a streaming ServiceKey (required delivery step)
 
-Updating live `cultpodcasts-ds` (`CreateSearchIndex --update-existing --datasource cultpodcasts-ds --index cultpodcasts`) only changes the **pull projection**. Existing search documents keep stale empty `svc`/`image` until they are rewritten:
+Adding a plugin updates **repo-generated** pull SQL (`SearchIndexCosmosSql` ← `SearchEncodedKeys`). It does **not** by itself change Azure’s stored datasource query or rewrite search documents.
 
-1. **Targeted:** `Index --reindex-search -n "<podcast name>"` (or `--podcast-id`) — push path from Cosmos; preferred for spot fixes.
+**Do not recreate / teardown the live index** when Arte (or any new streamer) URLs were submitted before the datasource SQL included that key. Empty `svc` on those docs is fixed by refreshing the projection + reindexing — same `svc` field, new `key:…` segments inside it.
+
+```powershell
+CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds
+Index --reindex-search -n "<podcast name>"   # or --podcast-id <guid>
+```
+
+Updating live `cultpodcasts-ds` only changes the **pull projection**. Existing search documents keep stale empty `svc`/`image` until they are rewritten:
+
+1. **Targeted:** `Index --reindex-search -n "<podcast name>"` (or `--podcast-id`) — push path from Cosmos; preferred for spot fixes (and for “submitted before SQL bump” episodes).
 2. **Bulk:** run the Azure Search pull indexer in batches. Free-tier (~10k docs/day) means a full corpus after HWM reset needs **multiple days** of continued indexer runs — do not assume one run refreshes every streaming episode.
 3. Spot-check search REST: `filter=id eq '<episodeId>'`, assert non-empty `svc` and `image` for streaming-only episodes.
 
-Do **not** treat “SQL includes discoveryPlus” as “every episode already has svc/image in search.”
+Do **not** treat “SQL includes discoveryPlus / arte” as “every episode already has svc/image in search.”
 
-Index schema: **add** `svc` (retrievable). Do not treat this document as approval to recreate or deploy the live index.
+Index schema: **add** `svc` (retrievable) only if missing. Do not treat this document as approval to recreate or deploy the live index.
+
+Procedure checklist: [`.cursor/skills/add-streaming-service/SKILL.md`](../.cursor/skills/add-streaming-service/SKILL.md) §8.

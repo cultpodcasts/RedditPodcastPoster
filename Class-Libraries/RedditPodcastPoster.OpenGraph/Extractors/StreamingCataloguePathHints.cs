@@ -7,10 +7,10 @@ namespace RedditPodcastPoster.OpenGraph.Extractors;
 public static class StreamingCataloguePathHints
 {
     public static bool IsSeriesPath(Uri url) =>
-        PathHasSegment(url, "shows", "series", "show", "tv-shows", "tv");
+        PathHasSegment(url, "shows", "series", "show", "tv-shows", "tv", "serien", "serie", "sendung");
 
     public static bool IsMoviePath(Uri url) =>
-        PathHasSegment(url, "movies", "movie");
+        PathHasSegment(url, "movies", "movie", "films", "film", "filme", "cinema");
 
     private static bool PathHasSegment(Uri url, params string[] segments)
     {

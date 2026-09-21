@@ -70,8 +70,9 @@ and ShowName / film rules against live HTML.
 - `StreamingCatalog` project reference if scaffold did not add it
 
 Do **not** add a parallel string-const class or a second adapter enum.
-`SearchIndexCosmosSql` is parameterized from catalog keys — no manual SQL edit when
-`KnownStreamingServices` is updated.
+`SearchIndexCosmosSql` is parameterized from catalog keys — no manual SQL edit in repo when
+`KnownStreamingServices` is updated. **Do** refresh the live Azure Search datasource after
+ship (step 8) — generated SQL in git ≠ query stored on `cultpodcasts-ds`.
 
 ### 3. Hand-tune matcher + extractor
 
@@ -135,13 +136,57 @@ If prepare extract fails on direct HTTP (SPA shell / soft wall):
 - Document in PR `## Config / secrets`
 - Keep contract `defaultBrowserRenderingServices` as ops hint only
 
-### 8. Done when
+### 8. Search index (HARD — do after RPP with the new key is on the machine you run CLIs from)
+
+New streaming keys do **not** add Azure Search fields. They only appear inside the existing
+`svc` string (and `image` coalesce). **Never recreate / teardown the live index** for a new
+plugin.
+
+Catalog C# already generates pull-path Cosmos SQL from `StreamingServiceCatalog.SearchEncodedKeys`
+(`SearchIndexCosmosSql`). Azure’s **stored** datasource query does **not** auto-update when you
+merge code — episodes submitted before that SQL bump can land in search with empty `svc` /
+`image` even when Cosmos `services.{key}` is populated.
+
+**Mandatory ops after the RPP change that adds the enum/catalog key is available to CLIs**
+(merged to `main` + published tools, or `dotnet run` from that commit):
+
+```powershell
+# 1) Upsert cultpodcasts-ds Cosmos projection (includes new key in svc + image coalesce).
+#    Does NOT recreate the index. Does NOT rewrite existing documents by itself.
+CreateSearchIndex `
+  --update-existing `
+  --index cultpodcasts `
+  --datasource cultpodcasts-ds
+
+# 2) Rewrite search docs for podcasts already submitted on this service (push path from Cosmos).
+#    Prefer targeted reindex over --reset-indexer (free-tier pull catch-up is multi-day).
+Index --reindex-search -n "<PodcastName>"
+# or: Index --reindex-search --podcast-id <guid>
+
+# 2b) If Cosmos has services.{key}.url but release/duration were empty at first submit
+#     (extractor improved later), re-scrape and overwrite via episode id — no URL needed:
+SubmitUrl -r -e <episode-guid>
+```
+
+Spot-check search REST: `filter=id eq '<episodeId>'` → non-empty `svc` starting with
+`{key}:` (or containing `|{key}:`) and sensible `release` / `duration` / `image` when Cosmos has them.
+
+Optional bulk (avoid unless corpus-wide): add `--indexer cultpodcasts-indexer --reset-indexer`
+to step 1, then run the indexer over multiple days.
+
+Document in the RPP PR that search datasource refresh is required post-merge (or do it in the
+same delivery session). Details: [`docs/episode-services.md`](../../docs/episode-services.md)
+§ Ops: after datasource SQL update.
+
+### 9. Done when
 
 1. Matcher accepts real series + episode URLs; rejects lookalike hosts
 2. Extractor returns title + publisher; ShowName rules correct
 3. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
 4. DI registered; catalog + website + Api contract aligned
 5. Unit tests green; live Theories added; assert-contract scripts clean
+6. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
+   streaming episodes show non-empty `svc` after push reindex (not “index recreate”)
 
 ## Template paths (Channel4)
 
