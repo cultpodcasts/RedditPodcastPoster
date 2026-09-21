@@ -97,7 +97,8 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 
 | Option / value | Description |
 |----------------|-------------|
-| `<url or file>` | Required positional |
+| `<url or file>` | Optional positional when using `--episode-id`; otherwise required URL or file of URLs |
+| `-e, --episode-id` | Existing episode GUID(s) to refresh from stored `services.{streamingKey}.url` (repeatable or comma-separated; **requires** `-r`) |
 | `-f, --submit-urls-in-file` | Treat positional as a file of URLs |
 | `-p, --podcastid` | Podcast to add episode to |
 | `-y, --skip-youtube-url-enrichment` | Skip YouTube URL resolving |
@@ -108,6 +109,17 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `-l, --is-internet-archive-playlist` | URL is an Internet Archive playlist |
 | `-c, --create-podcast` | Create new podcast |
 | `-r, --refresh-meta` | Overwrite title/description/release/length/image on an existing matched episode |
+
+Refresh timing/meta for episodes that already have a streaming URL in Cosmos (e.g. submitted before extract recovered duration/release):
+
+```powershell
+SubmitUrl -r -e 07738dfc-2692-4449-b4ba-51f90acdf095
+SubmitUrl -r `
+  -e 8f3dd364-c400-4994-ac9f-14c081afa388 `
+  -e a2a81a86-5ae7-47fc-8263-c649c99900a7
+```
+
+`--episode-id` cannot be combined with a positional url/file, `-f`, `-l`, or `-c`. Spotify/Apple/YouTube-only episodes are rejected (no streaming scrape URL).
 
 ---
 
@@ -342,6 +354,8 @@ RemoveEpisodes restore removed-episodes-log.txt
 |--------|-------------|
 | `-i, --index` | Index name |
 | `-t, --teardown-index` | Tear down index |
+| `--update-existing` | Keep index; ensure `svc` field; upsert Cosmos datasource SQL from current `SearchEncodedKeys` (use after adding a streaming ServiceKey — **not** a recreate) |
+| `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
 | `-d, --datasource` | Data-source name |
 | `-x, --indexer` | Indexer name |
 | `-r, --run-indexer` | Run the indexer |
@@ -349,6 +363,13 @@ RemoveEpisodes restore removed-episodes-log.txt
 | `-p, --run-indexer-poll-seconds` | Poll interval seconds (default `10`) |
 | `-b, --not-break-on-duplicates` | Do not break on duplicates (default `true`) |
 | `-w, --run-indexer-max-wait-seconds` | Max wait per run before retryable stall (default `30`) |
+
+After adding a streaming plugin (see add-streaming-service skill §8):
+
+```powershell
+CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds
+Index --reindex-search -n "<PodcastName>"
+```
 
 ### DeleteSearchDocument
 

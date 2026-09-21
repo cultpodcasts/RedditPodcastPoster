@@ -3,8 +3,10 @@ using HtmlAgilityPack;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.InternetArchive.Providers;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 
@@ -12,6 +14,7 @@ namespace SubmitUrl;
 
 public class SubmitUrlProcessor(
     IUrlSubmitter urlSubmitter,
+    IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexer,
     HttpClient httpClient,
     IInternetArchivePlayListProvider internetArchivePlayListProvider,
@@ -19,6 +22,17 @@ public class SubmitUrlProcessor(
 {
     public async Task Process(SubmitUrlRequest request)
     {
+        var episodeIds = (request.EpisodeIds ?? []).Where(id => id != Guid.Empty).Distinct().ToArray();
+        if (episodeIds.Length > 0)
+        {
+            ValidateEpisodeIdMode(request);
+        }
+        else if (string.IsNullOrWhiteSpace(request.UrlOrFile))
+        {
+            throw new InvalidOperationException(
+                "Provide a url/file positional argument, or one or more --episode-id values with -r.");
+        }
+
         var indexOptions = new IndexingContext { SkipPodcastDiscovery = false };
         if (request.AllowExpensiveQueries)
         {
@@ -30,9 +44,13 @@ public class SubmitUrlProcessor(
         }
 
         string[] urls;
-        if (request.IsInternetArchivePlaylist &&
-            Uri.TryCreate(request.UrlOrFile, UriKind.Absolute, out var playlistUrl) &&
-            InternetArchiveUrlMatcher.IsInternetArchiveUrl(playlistUrl))
+        if (episodeIds.Length > 0)
+        {
+            urls = await ResolveUrlsFromEpisodeIds(episodeIds);
+        }
+        else if (request.IsInternetArchivePlaylist &&
+                 Uri.TryCreate(request.UrlOrFile, UriKind.Absolute, out var playlistUrl) &&
+                 InternetArchiveUrlMatcher.IsInternetArchiveUrl(playlistUrl))
         {
             var pageResponse = await httpClient.GetAsync(playlistUrl);
             var document = new HtmlDocument();
@@ -42,11 +60,11 @@ public class SubmitUrlProcessor(
         }
         else if (!request.SubmitUrlsInFile)
         {
-            urls = [request.UrlOrFile];
+            urls = [request.UrlOrFile!];
         }
         else
         {
-            urls = await File.ReadAllLinesAsync(request.UrlOrFile);
+            urls = await File.ReadAllLinesAsync(request.UrlOrFile!);
         }
 
         var updatedEpisodeIds = new List<Guid>();
@@ -85,5 +103,52 @@ public class SubmitUrlProcessor(
                 logger.LogError(e, "Failure indexing changes.");
             }
         }
+    }
+
+    private static void ValidateEpisodeIdMode(SubmitUrlRequest request)
+    {
+        if (!request.RefreshMeta)
+        {
+            throw new InvalidOperationException(
+                "--episode-id requires -r / --refresh-meta so overwrite of release/duration/title is explicit.");
+        }
+
+        if (request.SubmitUrlsInFile ||
+            request.IsInternetArchivePlaylist ||
+            request.CreatePodcast ||
+            !string.IsNullOrWhiteSpace(request.UrlOrFile))
+        {
+            throw new InvalidOperationException(
+                "--episode-id cannot be combined with a url/file, -f, -l, or -c.");
+        }
+    }
+
+    private async Task<string[]> ResolveUrlsFromEpisodeIds(Guid[] episodeIds)
+    {
+        var urls = new List<string>(episodeIds.Length);
+        foreach (var episodeId in episodeIds)
+        {
+            var episode = await episodeRepository.GetBy(e => e.Id == episodeId);
+            if (episode is null)
+            {
+                throw new InvalidOperationException($"Episode '{episodeId}' was not found.");
+            }
+
+            if (!SubmitUrlStreamingUrlResolver.TryGetUrl(episode, out var url))
+            {
+                throw new InvalidOperationException(
+                    $"Episode '{episodeId}' has no streaming services.*.url to refresh from " +
+                    "(Spotify/Apple/YouTube alone are not used).");
+            }
+
+            logger.LogInformation(
+                "Resolved episode '{EpisodeId}' ({PodcastName}) to streaming URL '{Url}'.",
+                episodeId,
+                episode.PodcastName,
+                url);
+            urls.Add(url.ToString());
+        }
+
+        return urls.ToArray();
     }
 }
