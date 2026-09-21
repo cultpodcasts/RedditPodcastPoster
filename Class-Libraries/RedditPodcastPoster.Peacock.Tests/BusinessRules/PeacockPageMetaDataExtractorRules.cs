@@ -128,7 +128,7 @@ public class PeacockPageMetaDataExtractorRules
         var services = new ServiceCollection();
         services.AddPeacockServices();
         using var provider = services.BuildServiceProvider();
-        var url = new Uri($"https://www.peacocktv.com/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.peacocktv.com/watch/asset/tv/{_fixture.CreateYouTubeId()}/{_fixture.CreateAppleId()}{_fixture.CreateAppleId()}");
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()

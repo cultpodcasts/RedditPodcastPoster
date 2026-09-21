@@ -128,7 +128,7 @@ public class ArdPageMetaDataExtractorRules
         var services = new ServiceCollection();
         services.AddArdServices();
         using var provider = services.BuildServiceProvider();
-        var url = new Uri($"https://www.ardmediathek.de/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.ardmediathek.de/sendung/{_fixture.CreateYouTubeId()}/Y3JpZDovL{_fixture.CreateGuid():N}");
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()

@@ -15,7 +15,7 @@ public class SubmitUrlRequest
         Required = false)]
     public string? UrlOrFile { get; set; }
 
-    [Option('e', "episode-id", Required = false, Separator = ',',
+    [Option('e', "episode-id", Required = false,
         HelpText = "Existing episode id(s) to refresh from stored streaming services.*.url (requires -r; repeatable)")]
     public IEnumerable<Guid>? EpisodeIds { get; set; }
 

@@ -339,35 +339,53 @@ public static class StreamingScraperCanonicalCases
             null,
             "English standalone film; empty associatedCollections so ShowName stays null"),
 
-        // Hulu — /series|movie/{slug} hubs; /watch/{id} for playback
-        Case(StreamingScraperProvider.Hulu, "hulu-series-stub",
-            "https://www.hulu.com/series/example-slug", "Example Slug",
-            "Series hub"),
+        // Hulu — often geo/auth walled outside US (Disney+ marketing shell)
+        Case(StreamingScraperProvider.Hulu, "handmaids-tale-series",
+            "https://www.hulu.com/series/the-handmaids-tale-565d8976-9d26-4e63-866c-40f8a137ce5f",
+            "The Handmaid's Tale",
+            "Series hub; live scrape may return a Disney+/marketing shell outside a licensed region"),
+        Case(StreamingScraperProvider.Hulu, "the-menu-film",
+            "https://www.hulu.com/movie/the-menu", null,
+            "Movie path; ShowName must stay null; live scrape may be geo-walled"),
 
-        // Peacock — /watch/asset/{kind}/{slug}/{numericId}
-        Case(StreamingScraperProvider.Peacock, "peacock-asset-stub",
-            "https://www.peacocktv.com/watch/asset/tv/example-slug/1234567890", "Example Slug",
-            "TV asset watch page"),
+        // Peacock — /watch/asset/{kind}/{slug}/{numericId}; often geo-walled
+        Case(StreamingScraperProvider.Peacock, "the-office-tv-asset",
+            "https://www.peacocktv.com/watch/asset/tv/the-office/4902514835143843112", "The Office",
+            "TV asset watch page; live scrape may be Unavailable In Your Region"),
+        Case(StreamingScraperProvider.Peacock, "super-mario-movies-asset",
+            "https://www.peacocktv.com/watch/asset/movies/super-mario-bros-movie/6123456789012345678", null,
+            "Movies asset path; ShowName must stay null; live scrape may be geo-walled"),
 
         // Apple TV+ — /{storefront}/show|movie|episode/{slug}/{umc.cmc.*}
-        Case(StreamingScraperProvider.AppleTvPlus, "apple-tv-plus-show-stub",
-            "https://tv.apple.com/us/show/example-slug/umc.cmc.exampleid000000000000", "Example Slug",
-            "Show page"),
+        Case(StreamingScraperProvider.AppleTvPlus, "severance-show",
+            "https://tv.apple.com/us/show/severance/umc.cmc.1srk2goyh2q2zdxcx605w8vtx", "Severance",
+            "Show path; CleanTitle strips Watch/Show/Apple TV wrappers so ShowName is the brand"),
+        Case(StreamingScraperProvider.AppleTvPlus, "argylle-film",
+            "https://tv.apple.com/us/movie/argylle/umc.cmc.3qy6j44hfqtekx6fx3yzh9w8i", null,
+            "Movie path; ShowName must stay null"),
 
-        // ZDF — /{category}/{programme}; /video|play/{category}/{programme}/{episode}
-        Case(StreamingScraperProvider.Zdf, "zdf-serien-stub",
-            "https://www.zdf.de/serien/example-slug", "Example Slug",
-            "Serien hub"),
+        // ZDF — /{category}/{programme}; serien hubs + filme paths
+        Case(StreamingScraperProvider.Zdf, "die-bergretter-serien",
+            "https://www.zdf.de/serien/die-bergretter", "Die Bergretter",
+            "Serien programme hub; og:title is the series brand"),
+        Case(StreamingScraperProvider.Zdf, "man-from-toronto-filme",
+            "https://www.zdf.de/filme/the-man-from-toronto-movie-100", null,
+            "Filme path; ShowName must stay null"),
 
-        // ARD — /video/{id} or /video/{show}/{episode}/{publisher}/{id}
-        Case(StreamingScraperProvider.Ard, "ard-video-stub",
-            "https://www.ardmediathek.de/video/Y3JpZDovL2V4YW1wbGUvaWQ", "Example Slug",
-            "Mediathek video page"),
+        // ARD — sendung/serie hubs (video pages are often one-offs)
+        Case(StreamingScraperProvider.Ard, "irland-krimi-sendung",
+            "https://www.ardmediathek.de/sendung/der-irland-krimi/Y3JpZDovL2Rhc2Vyc3RlLmRlL2RlcmlybGFuZGtyaW1p",
+            null,
+            "Sendung hub; live og:title includes Mediathek marketing suffixes — path-based ShowName covered by unit BusinessRules"),
 
-        // Canal+ — /{optional-locale}/{kind}/{slug}/h/{id}
-        Case(StreamingScraperProvider.CanalPlus, "canal-plus-series-stub",
-            "https://www.canalplus.com/series/example-slug/h/12345_67890", "Example Slug",
-            "Series hub"),
+        // Canal+ — /{optional-locale}/{kind}/{slug}/h/{id}; often 403 outside FR
+        Case(StreamingScraperProvider.CanalPlus, "bureau-des-legendes-series",
+            "https://www.canalplus.com/series/le-bureau-des-legendes/h/1330921_50001",
+            "Le Bureau des Légendes",
+            "Series hub; live scrape may 403 outside a licensed region"),
+        Case(StreamingScraperProvider.CanalPlus, "anatomie-cinema",
+            "https://www.canalplus.com/cinema/anatomie-dune-chute/h/17800000_50001", null,
+            "Cinema path; ShowName must stay null; live scrape may 403 outside a licensed region"),
     ];
 
     private static StreamingScraperCanonicalCase Case(

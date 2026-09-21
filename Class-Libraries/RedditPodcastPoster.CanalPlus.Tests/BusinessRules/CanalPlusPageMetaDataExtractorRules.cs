@@ -128,7 +128,7 @@ public class CanalPlusPageMetaDataExtractorRules
         var services = new ServiceCollection();
         services.AddCanalPlusServices();
         using var provider = services.BuildServiceProvider();
-        var url = new Uri($"https://www.canalplus.com/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.canalplus.com/series/{_fixture.CreateYouTubeId()}/h/{_fixture.CreateAppleId()}_{_fixture.CreateAppleId()}");
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()

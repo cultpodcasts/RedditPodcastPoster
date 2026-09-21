@@ -63,9 +63,17 @@ internal static partial class AppleTvPlusCatalogMeta
         }
 
         var showName = openGraph?.ShowName;
-        if (IsMovie(html))
+        if (IsMovie(url, html))
         {
             showName = null;
+        }
+        else
+        {
+            showName ??= FirstGroup(html, TvSeriesNameRegex());
+            if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
+            {
+                showName = title;
+            }
         }
 
         if (string.Equals(showName, AppleTvPlusPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
@@ -89,11 +97,26 @@ internal static partial class AppleTvPlusCatalogMeta
             showName);
     }
 
-    public static bool IsMovie(string html)
+    /// <summary>
+    /// True when og:type is a movie, the URL is a film catalogue path, or the
+    /// <em>primary</em> catalogue <c>@type</c> is Movie. Series paths win over later
+    /// document-wide Movie blobs so recommended/carousel film JSON-LD cannot null ShowName.
+    /// </summary>
+    public static bool IsMovie(Uri url, string html)
     {
         var ogType = FirstGroup(html, OgTypeRegex());
         if (string.Equals(ogType, "video.movie", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(ogType, "movie", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (StreamingCataloguePathHints.IsSeriesPath(url))
+        {
+            return false;
+        }
+
+        if (StreamingCataloguePathHints.IsMoviePath(url))
         {
             return true;
         }
@@ -111,11 +134,30 @@ internal static partial class AppleTvPlusCatalogMeta
         }
 
         var title = WebUtility.HtmlDecode(raw).Trim();
-        foreach (var suffix in new[] { " | Apple TV+", " - Apple TV+" })
+        foreach (var suffix in new[]
+                 {
+                     " | Apple TV+",
+                     " - Apple TV+",
+                     " | Apple TV",
+                     " - Apple TV"
+                 })
         {
             if (title.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
                 title = title[..^suffix.Length].Trim();
+            }
+        }
+
+        if (title.StartsWith("Watch ", StringComparison.OrdinalIgnoreCase))
+        {
+            title = title["Watch ".Length..].Trim();
+        }
+
+        foreach (var kindSuffix in new[] { " - Show", " - Movie", " - Episode" })
+        {
+            if (title.EndsWith(kindSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                title = title[..^kindSuffix.Length].Trim();
             }
         }
 
@@ -136,4 +178,9 @@ internal static partial class AppleTvPlusCatalogMeta
 
     [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
     private static partial Regex CataloguePrimaryTypeRegex();
+
+    [GeneratedRegex(
+        "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex TvSeriesNameRegex();
 }

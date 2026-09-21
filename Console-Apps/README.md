@@ -98,7 +98,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | Option / value | Description |
 |----------------|-------------|
 | `<url or file>` | Optional positional when using `--episode-id`; otherwise required URL or file of URLs |
-| `-e, --episode-id` | Existing episode GUID(s) to refresh from stored `services.{streamingKey}.url` (repeatable or comma-separated; **requires** `-r`) |
+| `-e, --episode-id` | Existing episode GUID(s) to refresh from stored `services.{streamingKey}.url` (repeatable; **requires** `-r`) |
 | `-f, --submit-urls-in-file` | Treat positional as a file of URLs |
 | `-p, --podcastid` | Podcast to add episode to |
 | `-y, --skip-youtube-url-enrichment` | Skip YouTube URL resolving |

@@ -105,23 +105,13 @@ public class SubmitUrlProcessor(
         }
     }
 
-    private static void ValidateEpisodeIdMode(SubmitUrlRequest request)
-    {
-        if (!request.RefreshMeta)
-        {
-            throw new InvalidOperationException(
-                "--episode-id requires -r / --refresh-meta so overwrite of release/duration/title is explicit.");
-        }
-
-        if (request.SubmitUrlsInFile ||
-            request.IsInternetArchivePlaylist ||
-            request.CreatePodcast ||
-            !string.IsNullOrWhiteSpace(request.UrlOrFile))
-        {
-            throw new InvalidOperationException(
-                "--episode-id cannot be combined with a url/file, -f, -l, or -c.");
-        }
-    }
+    private static void ValidateEpisodeIdMode(SubmitUrlRequest request) =>
+        SubmitUrlEpisodeIdModeValidator.EnsureValid(
+            request.RefreshMeta,
+            request.SubmitUrlsInFile,
+            request.IsInternetArchivePlaylist,
+            request.CreatePodcast,
+            request.UrlOrFile);
 
     private async Task<string[]> ResolveUrlsFromEpisodeIds(Guid[] episodeIds)
     {

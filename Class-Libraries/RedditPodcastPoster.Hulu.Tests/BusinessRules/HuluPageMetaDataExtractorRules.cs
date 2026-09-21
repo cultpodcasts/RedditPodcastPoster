@@ -104,7 +104,69 @@ public class HuluPageMetaDataExtractorRules
         meta.Publisher.Should().Be("Hulu");
     }
 
-[Fact(DisplayName =
+    [Fact(DisplayName =
+        "Hulu catalogue hub extract sets ShowName from og:title when JSON-LD is absent on a series path, " +
+        "so GET submit lookup still returns podcastName for series hubs.")]
+    public async Task series_path_sets_hub_title_as_show_name()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.hulu.com/series/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head></html>");
+        var sut = _mocker.CreateInstance<HuluPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(seriesName);
+        meta.ShowName.Should().Be(seriesName);
+        meta.Publisher.Should().Be("Hulu");
+    }
+
+    [Fact(DisplayName =
+        "Hulu series path keeps ShowName from the hub title even when a later Movie JSON-LD blob appears, " +
+        "because carousel film markup must not clear podcastName on series catalogue pages.")]
+    public async Task series_path_ignores_later_movie_blob()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var otherFilm = _fixture.CreateTitle();
+        var url = new Uri($"https://www.hulu.com/series/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{seriesName}\" /></head>" +
+            $"<body><div>{{\"@type\":\"Movie\",\"name\":\"{otherFilm}\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<HuluPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
+        "Hulu film pages leave ShowName null even when og:title is present, " +
+        "because a film has no parent series for podcastName attach.")]
+    public async Task movie_path_leaves_show_name_null()
+    {
+        // Arrange
+        var filmTitle = _fixture.CreateTitle();
+        var url = new Uri($"https://www.hulu.com/movie/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{filmTitle}\" /></head></html>");
+        var sut = _mocker.CreateInstance<HuluPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(filmTitle);
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Hulu page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {
@@ -128,7 +190,7 @@ public class HuluPageMetaDataExtractorRules
         var services = new ServiceCollection();
         services.AddHuluServices();
         using var provider = services.BuildServiceProvider();
-        var url = new Uri($"https://www.hulu.com/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.hulu.com/series/{_fixture.CreateYouTubeId()}");
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()

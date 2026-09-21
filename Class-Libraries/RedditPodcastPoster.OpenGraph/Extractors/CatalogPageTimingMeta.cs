@@ -122,8 +122,12 @@ public static partial class CatalogPageTimingMeta
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ReleaseDatePublishedOrUploadRegex();
 
+    /// <summary>
+    /// Arte player <c>rights.begin</c> only — a bare JSON <c>"begin"</c> elsewhere must not
+    /// coerce <see cref="TryReleaseFromHtml"/> when OG omits release.
+    /// </summary>
     [GeneratedRegex(
-        @"\\*""begin\\*""\s*:\s*\\*""([^\\""]+)",
+        @"\\*""rights\\*""\s*:\s*\{[\s\S]{0,400}?\\*""begin\\*""\s*:\s*\\*""([^\\""]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RightsBeginRegex();
 }

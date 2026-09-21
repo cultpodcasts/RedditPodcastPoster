@@ -128,7 +128,7 @@ public class ZdfPageMetaDataExtractorRules
         var services = new ServiceCollection();
         services.AddZdfServices();
         using var provider = services.BuildServiceProvider();
-        var url = new Uri($"https://www.zdf.de/{_fixture.CreateYouTubeId()}");
+        var url = new Uri($"https://www.zdf.de/serien/{_fixture.CreateYouTubeId()}");
 
         // Act
         var adapter = provider.GetServices<INonPodcastServiceAdapter>()
