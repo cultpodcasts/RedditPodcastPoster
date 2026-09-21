@@ -88,5 +88,29 @@ public enum StreamingService
 
     [JsonPropertyName("arte")]
     [StreamingServiceInfo("ARTE", "arte", true, "arte.tv")]
-    Arte
+    Arte,
+
+    [JsonPropertyName("hulu")]
+    [StreamingServiceInfo("Hulu", "hulu", true, "hulu.com")]
+    Hulu,
+
+    [JsonPropertyName("peacock")]
+    [StreamingServiceInfo("Peacock", "peacock", true, "peacocktv.com")]
+    Peacock,
+
+    [JsonPropertyName("appleTvPlus")]
+    [StreamingServiceInfo("Apple TV+", "apple-tv-plus", true, "tv.apple.com")]
+    AppleTvPlus,
+
+    [JsonPropertyName("zdf")]
+    [StreamingServiceInfo("ZDF", "zdf", true, "zdf.de")]
+    Zdf,
+
+    [JsonPropertyName("ard")]
+    [StreamingServiceInfo("ARD", "ard", true, "ardmediathek.de")]
+    Ard,
+
+    [JsonPropertyName("canalPlus")]
+    [StreamingServiceInfo("Canal+", "canal-plus", true, "canalplus.com")]
+    CanalPlus
 }

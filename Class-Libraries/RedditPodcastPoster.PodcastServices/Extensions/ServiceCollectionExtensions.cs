@@ -1,17 +1,22 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.AppleTvPlus.Extensions;
+using RedditPodcastPoster.Ard.Extensions;
 using RedditPodcastPoster.Arte.Extensions;
 using RedditPodcastPoster.BBC.Extensions;
+using RedditPodcastPoster.CanalPlus.Extensions;
 using RedditPodcastPoster.Channel4.Extensions;
 using RedditPodcastPoster.DiscoveryPlus.Extensions;
 using RedditPodcastPoster.DisneyPlus.Extensions;
 using RedditPodcastPoster.Fawesome.Extensions;
 using RedditPodcastPoster.FranceTv.Extensions;
 using RedditPodcastPoster.HboMax.Extensions;
+using RedditPodcastPoster.Hulu.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Itvx.Extensions;
 using RedditPodcastPoster.Netflix.Extensions;
 using RedditPodcastPoster.ParamountPlus.Extensions;
+using RedditPodcastPoster.Peacock.Extensions;
 using RedditPodcastPoster.PlayRts.Extensions;
 using RedditPodcastPoster.PlaySuisse.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
@@ -35,6 +40,7 @@ using RedditPodcastPoster.TvnzPlus.Extensions;
 using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Tubi.Extensions;
 using RedditPodcastPoster.Vimeo.Extensions;
+using RedditPodcastPoster.Zdf.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
 
@@ -82,7 +88,13 @@ public static class ServiceCollectionExtensions
                 .AddPlayRtsServices()
                 .AddTvnzPlusServices()
                 .AddFranceTvServices()
-                .AddArteServices();
+                .AddArteServices()
+                .AddHuluServices()
+                .AddPeacockServices()
+                .AddAppleTvPlusServices()
+                .AddZdfServices()
+                .AddArdServices()
+                .AddCanalPlusServices();
         }
 
         public IServiceCollection AddRemoteClient()

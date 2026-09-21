@@ -22,7 +22,13 @@
     "tubi",
     "discoveryPlus",
     "franceTv",
-    "arte"
+    "arte",
+    "hulu",
+    "peacock",
+    "appleTvPlus",
+    "zdf",
+    "ard",
+    "canalPlus"
   ],
   "membershipKinds": [
     "podcast-service",
@@ -56,7 +62,13 @@
     "tubi": "https://tubitv.com/movies/1/example-slug",
     "discoveryPlus": "https://www.discoveryplus.com/show/example-slug",
     "franceTv": "https://www.france.tv/slash/example-show/8847336-example-episode.html",
-    "arte": "https://www.arte.tv/en/videos/000000-001-A/example-slug/"
+    "arte": "https://www.arte.tv/en/videos/000000-001-A/example-slug/",
+    "hulu": "https://www.hulu.com/series/example-slug",
+    "peacock": "https://www.peacocktv.com/watch/asset/tv/example-slug/1234567890",
+    "appleTvPlus": "https://tv.apple.com/us/show/example-slug/umc.cmc.exampleid000000000000",
+    "zdf": "https://www.zdf.de/serien/example-slug",
+    "ard": "https://www.ardmediathek.de/video/Y3JpZDovL2V4YW1wbGUvaWQ",
+    "canalPlus": "https://www.canalplus.com/series/example-slug/h/12345_67890"
   },
   "streamingMembershipShapeCaseIds": [
     "membership-bbcSounds-known",
@@ -118,7 +130,25 @@
     "membership-franceTv-ambiguous",
     "membership-arte-known",
     "membership-arte-unknown",
-    "membership-arte-ambiguous"
+    "membership-arte-ambiguous",
+    "membership-hulu-known",
+    "membership-hulu-unknown",
+    "membership-hulu-ambiguous",
+    "membership-peacock-known",
+    "membership-peacock-unknown",
+    "membership-peacock-ambiguous",
+    "membership-appleTvPlus-known",
+    "membership-appleTvPlus-unknown",
+    "membership-appleTvPlus-ambiguous",
+    "membership-zdf-known",
+    "membership-zdf-unknown",
+    "membership-zdf-ambiguous",
+    "membership-ard-known",
+    "membership-ard-unknown",
+    "membership-ard-ambiguous",
+    "membership-canalPlus-known",
+    "membership-canalPlus-unknown",
+    "membership-canalPlus-ambiguous"
   ],
   "streamingOrchestrationCaseIds": [
     "stream-bbcSounds-unknown-prepare-submit",
@@ -140,7 +170,13 @@
     "stream-tubi-unknown-prepare-submit",
     "stream-discoveryPlus-unknown-prepare-submit",
     "stream-franceTv-unknown-prepare-submit",
-    "stream-arte-unknown-prepare-submit"
+    "stream-arte-unknown-prepare-submit",
+    "stream-hulu-unknown-prepare-submit",
+    "stream-peacock-unknown-prepare-submit",
+    "stream-appleTvPlus-unknown-prepare-submit",
+    "stream-zdf-unknown-prepare-submit",
+    "stream-ard-unknown-prepare-submit",
+    "stream-canalPlus-unknown-prepare-submit"
   ],
   "rules": {
     "podcastServicesOutOfScope": true,

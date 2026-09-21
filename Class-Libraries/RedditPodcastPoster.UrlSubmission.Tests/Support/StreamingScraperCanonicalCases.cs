@@ -75,6 +75,24 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> ArteCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Arte));
 
+    public static TheoryData<StreamingScraperCanonicalCase> HuluCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Hulu));
+
+    public static TheoryData<StreamingScraperCanonicalCase> PeacockCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Peacock));
+
+    public static TheoryData<StreamingScraperCanonicalCase> AppleTvPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.AppleTvPlus));
+
+    public static TheoryData<StreamingScraperCanonicalCase> ZdfCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Zdf));
+
+    public static TheoryData<StreamingScraperCanonicalCase> ArdCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Ard));
+
+    public static TheoryData<StreamingScraperCanonicalCase> CanalPlusCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.CanalPlus));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -320,6 +338,36 @@ public static class StreamingScraperCanonicalCases
             "https://www.arte.tv/en/videos/045550-000-A/the-king-of-escape/",
             null,
             "English standalone film; empty associatedCollections so ShowName stays null"),
+
+        // Hulu — /series|movie/{slug} hubs; /watch/{id} for playback
+        Case(StreamingScraperProvider.Hulu, "hulu-series-stub",
+            "https://www.hulu.com/series/example-slug", "Example Slug",
+            "Series hub"),
+
+        // Peacock — /watch/asset/{kind}/{slug}/{numericId}
+        Case(StreamingScraperProvider.Peacock, "peacock-asset-stub",
+            "https://www.peacocktv.com/watch/asset/tv/example-slug/1234567890", "Example Slug",
+            "TV asset watch page"),
+
+        // Apple TV+ — /{storefront}/show|movie|episode/{slug}/{umc.cmc.*}
+        Case(StreamingScraperProvider.AppleTvPlus, "apple-tv-plus-show-stub",
+            "https://tv.apple.com/us/show/example-slug/umc.cmc.exampleid000000000000", "Example Slug",
+            "Show page"),
+
+        // ZDF — /{category}/{programme}; /video|play/{category}/{programme}/{episode}
+        Case(StreamingScraperProvider.Zdf, "zdf-serien-stub",
+            "https://www.zdf.de/serien/example-slug", "Example Slug",
+            "Serien hub"),
+
+        // ARD — /video/{id} or /video/{show}/{episode}/{publisher}/{id}
+        Case(StreamingScraperProvider.Ard, "ard-video-stub",
+            "https://www.ardmediathek.de/video/Y3JpZDovL2V4YW1wbGUvaWQ", "Example Slug",
+            "Mediathek video page"),
+
+        // Canal+ — /{optional-locale}/{kind}/{slug}/h/{id}
+        Case(StreamingScraperProvider.CanalPlus, "canal-plus-series-stub",
+            "https://www.canalplus.com/series/example-slug/h/12345_67890", "Example Slug",
+            "Series hub"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -351,7 +399,13 @@ public enum StreamingScraperProvider
     Tubi,
     DiscoveryPlus,
     FranceTv,
-    Arte
+    Arte,
+    Hulu,
+    Peacock,
+    AppleTvPlus,
+    Zdf,
+    Ard,
+    CanalPlus
 }
 
 public sealed record StreamingScraperCanonicalCase(

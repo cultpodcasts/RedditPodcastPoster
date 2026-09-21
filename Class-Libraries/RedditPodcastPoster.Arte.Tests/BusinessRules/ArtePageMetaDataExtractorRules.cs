@@ -125,6 +125,116 @@ public class ArtePageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "An ARTE programme recovers Duration and Release from embedded player duration.seconds and rights.begin " +
+        "when Open Graph omits them, because Arte pages put that metadata in the Next.js freight instead of og tags.")]
+    public async Task programme_recovers_duration_and_release_from_embedded_player()
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var episode = _fixture.CreateTitle();
+        var collectionId = _fixture.CreateAppleId();
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-4, _fixture.CreateNonMidnightTimeOfDay());
+        var seconds = (int)duration.TotalSeconds;
+        var begin = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var url = ProgrammeUrl();
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{series} - {episode} | ARTE\" /></head>" +
+            $"<body>associatedCollections\\\":[\\\"RC-{collectionId}\\\"]" +
+            $"serverSideTracking\\\":{{\\\"duration\\\":{{\\\"seconds\\\":{seconds}}}," +
+            $"\\\"rights\\\":{{\\\"begin\\\":\\\"{begin}\\\"}}}}</body></html>");
+        var sut = _mocker.CreateInstance<ArtePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+    }
+
+    [Fact(DisplayName =
+        "An ARTE programme recovers Duration from a raw embedded duration seconds int and Release from datePublished " +
+        "when the player object form is absent.")]
+    public async Task programme_recovers_raw_duration_seconds_and_date_published()
+    {
+        // Arrange
+        var film = _fixture.CreateTitle();
+        var duration = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var seconds = (int)duration.TotalSeconds;
+        var published = release.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var url = ProgrammeUrl();
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{film} | ARTE\" /></head>" +
+            $"<body>\"duration\":{seconds},\"datePublished\":\"{published}\"</body></html>");
+        var sut = _mocker.CreateInstance<ArtePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Duration.Should().Be(duration);
+        meta.Release.Should().Be(release);
+    }
+
+    [Fact(DisplayName =
+        "An ARTE programme prefers Open Graph JSON-LD Duration and Release over embedded player seconds and begin, " +
+        "so a structured ld+json payload wins when both are present.")]
+    public async Task programme_prefers_open_graph_duration_and_release_over_html_embed()
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var episode = _fixture.CreateTitle();
+        var collectionId = _fixture.CreateAppleId();
+        var ogDuration = _fixture.CreateDuration();
+        var htmlDuration = ogDuration + TimeSpan.FromMinutes(7);
+        var ogRelease = DomainTestFixture.UtcAtTime(-6, _fixture.CreateNonMidnightTimeOfDay());
+        var htmlRelease = DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay());
+        var iso = $"PT{ogDuration.Hours}H{ogDuration.Minutes}M{ogDuration.Seconds}S";
+        var published = ogRelease.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var begin = htmlRelease.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        var url = ProgrammeUrl();
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{series} - {episode} | ARTE\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"VideoObject\",\"duration\":\"{iso}\",\"datePublished\":\"{published}\"}}" +
+            "</script></head>" +
+            $"<body>associatedCollections\\\":[\\\"RC-{collectionId}\\\"]" +
+            $"\"duration\":{((int)htmlDuration.TotalSeconds)},\"begin\":\"{begin}\"</body></html>");
+        var sut = _mocker.CreateInstance<ArtePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Duration.Should().Be(ogDuration);
+        meta.Release.Should().Be(ogRelease);
+    }
+
+    [Fact(DisplayName =
+        "An ARTE collection hub without programme duration or release embeds leaves Duration and Release null, " +
+        "because a multi-programme RC- page has no single episode length.")]
+    public async Task collection_hub_without_programme_meta_leaves_duration_and_release_null()
+    {
+        // Arrange
+        var brand = _fixture.CreateTitle();
+        var theme = _fixture.CreateTitle();
+        var url = CollectionUrl();
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{brand} - {theme} | ARTE\" /></head></html>");
+        var sut = _mocker.CreateInstance<ArtePageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Duration.Should().BeNull();
+        meta.Release.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "ARTE page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {
