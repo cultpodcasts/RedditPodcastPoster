@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.AmazonPrime.Extensions;
+using RedditPodcastPoster.Arte.Extensions;
 using RedditPodcastPoster.BBC.Extensions;
 using RedditPodcastPoster.Channel4.Extensions;
 using RedditPodcastPoster.DiscoveryPlus.Extensions;
@@ -80,7 +81,8 @@ public static class ServiceCollectionExtensions
                 .AddPlaySuisseServices()
                 .AddPlayRtsServices()
                 .AddTvnzPlusServices()
-                .AddFranceTvServices();
+                .AddFranceTvServices()
+                .AddArteServices();
         }
 
         public IServiceCollection AddRemoteClient()

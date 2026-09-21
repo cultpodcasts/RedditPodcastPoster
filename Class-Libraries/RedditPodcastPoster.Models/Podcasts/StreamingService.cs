@@ -84,5 +84,9 @@ public enum StreamingService
 
     [JsonPropertyName("franceTv")]
     [StreamingServiceInfo("France TV", "france-tv", true, "france.tv")]
-    FranceTv
+    FranceTv,
+
+    [JsonPropertyName("arte")]
+    [StreamingServiceInfo("ARTE", "arte", true, "arte.tv")]
+    Arte
 }

@@ -72,6 +72,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> FranceTvCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.FranceTv));
 
+    public static TheoryData<StreamingScraperCanonicalCase> ArteCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.Arte));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -299,6 +302,24 @@ public static class StreamingScraperCanonicalCases
             "https://www.france.tv/slash/feminin-sacre-enquete-sur-des-derives-sectaires/8847336-feminin-sacre-enquete-sur-des-derives-sectaires-le-documentaire.html",
             "Féminin sacré : enquête sur des dérives sectaires",
             "Episode html; BreadcrumbList position 3 is the series brand"),
+
+        // ARTE — language is a path segment; collections are RC- hubs, programmes are digit ids
+        Case(StreamingScraperProvider.Arte, "colonia-dignidad-collection-fr",
+            "https://www.arte.tv/fr/videos/RC-018565/colonia-dignidad/",
+            "Colonia Dignidad",
+            "French collection hub; og:title is brand plus theme, ShowName is the brand"),
+        Case(StreamingScraperProvider.Arte, "colonia-dignidad-programme-fr",
+            "https://www.arte.tv/fr/videos/103439-001-A/colonia-dignidad/",
+            "Colonia Dignidad",
+            "French programme in collection RC-018565; watch CTA stripped from og:title"),
+        Case(StreamingScraperProvider.Arte, "great-myths-programme-en",
+            "https://www.arte.tv/en/videos/080116-011-A/great-myths-the-odyssey-1-10/",
+            "Great Myths",
+            "English programme in a collection; same id shape as French, language segment differs"),
+        Case(StreamingScraperProvider.Arte, "king-of-escape-film-en",
+            "https://www.arte.tv/en/videos/045550-000-A/the-king-of-escape/",
+            null,
+            "English standalone film; empty associatedCollections so ShowName stays null"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -329,7 +350,8 @@ public enum StreamingScraperProvider
     BcVideo,
     Tubi,
     DiscoveryPlus,
-    FranceTv
+    FranceTv,
+    Arte
 }
 
 public sealed record StreamingScraperCanonicalCase(

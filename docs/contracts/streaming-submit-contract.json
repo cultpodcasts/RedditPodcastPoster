@@ -21,7 +21,8 @@
     "bitchute",
     "tubi",
     "discoveryPlus",
-    "franceTv"
+    "franceTv",
+    "arte"
   ],
   "membershipKinds": [
     "podcast-service",
@@ -54,7 +55,8 @@
     "bitchute": "https://www.bitchute.com/video/exampleVideoId",
     "tubi": "https://tubitv.com/movies/1/example-slug",
     "discoveryPlus": "https://www.discoveryplus.com/show/example-slug",
-    "franceTv": "https://www.france.tv/slash/example-show/8847336-example-episode.html"
+    "franceTv": "https://www.france.tv/slash/example-show/8847336-example-episode.html",
+    "arte": "https://www.arte.tv/en/videos/000000-001-A/example-slug/"
   },
   "streamingMembershipShapeCaseIds": [
     "membership-bbcSounds-known",
@@ -113,7 +115,10 @@
     "membership-discoveryPlus-ambiguous",
     "membership-franceTv-known",
     "membership-franceTv-unknown",
-    "membership-franceTv-ambiguous"
+    "membership-franceTv-ambiguous",
+    "membership-arte-known",
+    "membership-arte-unknown",
+    "membership-arte-ambiguous"
   ],
   "streamingOrchestrationCaseIds": [
     "stream-bbcSounds-unknown-prepare-submit",
@@ -134,7 +139,8 @@
     "stream-bitchute-unknown-prepare-submit",
     "stream-tubi-unknown-prepare-submit",
     "stream-discoveryPlus-unknown-prepare-submit",
-    "stream-franceTv-unknown-prepare-submit"
+    "stream-franceTv-unknown-prepare-submit",
+    "stream-arte-unknown-prepare-submit"
   ],
   "rules": {
     "podcastServicesOutOfScope": true,

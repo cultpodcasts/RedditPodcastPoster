@@ -195,7 +195,8 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.TvnzPlus
                          or StreamingScraperProvider.DisneyPlus
                          or StreamingScraperProvider.DiscoveryPlus
-                         or StreamingScraperProvider.FranceTv))
+                         or StreamingScraperProvider.FranceTv
+                         or StreamingScraperProvider.Arte))
         {
             data.Add(canonical);
         }
