@@ -1,4 +1,5 @@
 using RedditPodcastPoster.AmazonPrime;
+using RedditPodcastPoster.Arte;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.BcVideo;
 using RedditPodcastPoster.Channel4;
@@ -48,7 +49,8 @@ public static class KnownStreamingServices
         BcVideoStreamingService.Registration,
         TubiStreamingService.Registration,
         DiscoveryPlusStreamingService.Registration,
-        FranceTvStreamingService.Registration
+        FranceTvStreamingService.Registration,
+        ArteStreamingService.Registration
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys = StreamingServiceWire.ImageCoalesceKeys;
