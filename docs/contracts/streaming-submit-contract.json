@@ -50,11 +50,11 @@
   ],
   "scrapeProfiles": {
     "hulu": {
-      "mode": "browserRendering",
+      "mode": "directHttp",
       "region": "us"
     },
     "peacock": {
-      "mode": "browserRendering",
+      "mode": "directHttp",
       "region": "us"
     }
   },
