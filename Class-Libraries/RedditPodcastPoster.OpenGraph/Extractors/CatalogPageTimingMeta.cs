@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
 
@@ -61,7 +62,7 @@ public static partial class CatalogPageTimingMeta
             return TimeSpan.FromSeconds(seconds);
         }
 
-        // Peacock / SEO catalogues: "Runtime 1h 28m" or compact "1h 28m".
+        // Generic SEO catalogues: "Runtime 1h 28m" or compact "1h 28m" (after JSON-LD).
         var labeledRuntime = LabeledRuntimeHoursMinutesRegex().Match(html);
         if (labeledRuntime.Success &&
             int.TryParse(labeledRuntime.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var hours) &&
@@ -99,14 +100,17 @@ public static partial class CatalogPageTimingMeta
             return null;
         }
 
-        // Peacock JSON-LD: datePublished / uploadDate (often on episode or nested trailer).
+        // Catalogue JSON-LD: datePublished / uploadDate on TVEpisode / Movie / TVSeries only
+        // (nested trailer VideoObject dates must not coerce episode Release).
         var fromJsonLd = TryReleaseFromJsonLd(html);
         if (fromJsonLd is not null)
         {
             return fromJsonLd;
         }
 
-        var published = ReleaseDatePublishedOrUploadRegex().Match(html);
+        // Non-script freights (SPA embeds). Strip ld+json so trailer uploadDate cannot win here.
+        var withoutJsonLd = JsonLdScriptRegex().Replace(html, string.Empty);
+        var published = ReleaseDatePublishedOrUploadRegex().Match(withoutJsonLd);
         if (published.Success && TryParseIsoUtc(published.Groups[1].Value, out var fromPublished))
         {
             return fromPublished;
@@ -118,7 +122,7 @@ public static partial class CatalogPageTimingMeta
             return fromBegin;
         }
 
-        // Peacock SEO: "Release Date 2022" (year only → UTC midnight Jan 1).
+        // Generic SEO: "Release Date 2022" (year only → UTC midnight Jan 1).
         var yearLabel = ReleaseDateYearLabelRegex().Match(html);
         if (yearLabel.Success &&
             int.TryParse(yearLabel.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var year) &&
@@ -178,28 +182,130 @@ public static partial class CatalogPageTimingMeta
     }
 
     /// <summary>
-    /// <c>datePublished</c> preferred, then <c>uploadDate</c>, inside JSON-LD only
-    /// (Peacock episodes often put <c>uploadDate</c> on the nested trailer VideoObject).
+    /// Catalogue-node release only: <c>TVEpisode</c> / <c>Movie</c> / <c>TVSeries</c>
+    /// <c>datePublished</c>, then that node's <c>uploadDate</c>. Nested trailer
+    /// <c>VideoObject.uploadDate</c> is ignored (not an air date).
     /// </summary>
     private static DateTime? TryReleaseFromJsonLd(string html)
     {
         foreach (Match script in JsonLdScriptRegex().Matches(html))
         {
-            var json = script.Groups[1].Value;
-            var published = JsonLdDatePublishedRegex().Match(json);
-            if (published.Success && TryParseIsoUtc(published.Groups[1].Value, out var fromPublished))
+            var release = TryReleaseFromJsonLdPayload(script.Groups[1].Value);
+            if (release is not null)
             {
-                return fromPublished;
-            }
-
-            var uploaded = JsonLdUploadDateRegex().Match(json);
-            if (uploaded.Success && TryParseIsoUtc(uploaded.Groups[1].Value, out var fromUpload))
-            {
-                return fromUpload;
+                return release;
             }
         }
 
         return null;
+    }
+
+    private static DateTime? TryReleaseFromJsonLdPayload(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return TryReleaseFromCatalogueJsonElement(doc.RootElement);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static DateTime? TryReleaseFromCatalogueJsonElement(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    var fromItem = TryReleaseFromCatalogueJsonElement(item);
+                    if (fromItem is not null)
+                    {
+                        return fromItem;
+                    }
+                }
+
+                return null;
+
+            case JsonValueKind.Object:
+                if (element.TryGetProperty("@graph", out var graph))
+                {
+                    var fromGraph = TryReleaseFromCatalogueJsonElement(graph);
+                    if (fromGraph is not null)
+                    {
+                        return fromGraph;
+                    }
+                }
+
+                if (IsCatalogueSchemaType(element))
+                {
+                    if (TryGetJsonLdDate(element, "datePublished", out var published))
+                    {
+                        return published;
+                    }
+
+                    if (TryGetJsonLdDate(element, "uploadDate", out var uploaded))
+                    {
+                        return uploaded;
+                    }
+
+                    // Catalogue node present but undated — do not dig into trailer VideoObjects.
+                    return null;
+                }
+
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.NameEquals("@graph"))
+                    {
+                        continue;
+                    }
+
+                    var nested = TryReleaseFromCatalogueJsonElement(property.Value);
+                    if (nested is not null)
+                    {
+                        return nested;
+                    }
+                }
+
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    private static bool IsCatalogueSchemaType(JsonElement element)
+    {
+        if (!element.TryGetProperty("@type", out var typeElement))
+        {
+            return false;
+        }
+
+        return typeElement.ValueKind switch
+        {
+            JsonValueKind.String => IsCatalogueSchemaTypeName(typeElement.GetString()),
+            JsonValueKind.Array => typeElement.EnumerateArray()
+                .Any(t => t.ValueKind == JsonValueKind.String &&
+                          IsCatalogueSchemaTypeName(t.GetString())),
+            _ => false
+        };
+    }
+
+    private static bool IsCatalogueSchemaTypeName(string? typeName) =>
+        typeName is "TVEpisode" or "Movie" or "TVSeries";
+
+    private static bool TryGetJsonLdDate(JsonElement element, string propertyName, out DateTime release)
+    {
+        release = default;
+        if (!element.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        return TryParseIsoUtc(value.GetString() ?? string.Empty, out release);
     }
 
     [GeneratedRegex(
@@ -216,16 +322,6 @@ public static partial class CatalogPageTimingMeta
         @"duration\\*""\s*:\s*\\*""(P[^""\\]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IsoDurationInJsonRegex();
-
-    [GeneratedRegex(
-        @"\\*""datePublished\\*""\s*:\s*\\*""([^\\""]+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex JsonLdDatePublishedRegex();
-
-    [GeneratedRegex(
-        @"\\*""uploadDate\\*""\s*:\s*\\*""([^\\""]+)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex JsonLdUploadDateRegex();
 
     [GeneratedRegex(
         @"\\*""duration\\*""\s*:\s*(\d+)",
@@ -246,7 +342,7 @@ public static partial class CatalogPageTimingMeta
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RightsBeginRegex();
 
-    /// <summary>SEO catalogues (Peacock): <c>Runtime 1h 28m</c> or label + value in adjacent markup.</summary>
+    /// <summary>Generic SEO catalogues: <c>Runtime 1h 28m</c> or label + value in adjacent markup.</summary>
     [GeneratedRegex(
         @"(?:Runtime|Running\s+time)\s*(?:[:\-]|\s|<[^>]+>)*(\d+)\s*h\s*(\d+)\s*m",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -264,7 +360,7 @@ public static partial class CatalogPageTimingMeta
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RuntimeProseRegex();
 
-    /// <summary>SEO catalogues (Peacock): <c>Release Date 2022</c> or label + year in adjacent markup.</summary>
+    /// <summary>Generic SEO catalogues: <c>Release Date 2022</c> or label + year in adjacent markup.</summary>
     [GeneratedRegex(
         @"Release\s*Date\s*(?:[:\-]|\s|<[^>]+>)*(\d{4})",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

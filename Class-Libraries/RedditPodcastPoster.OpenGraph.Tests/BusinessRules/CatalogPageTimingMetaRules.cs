@@ -43,13 +43,13 @@ public class CatalogPageTimingMetaRules
     }
 
     [Fact(DisplayName =
-        "CatalogPageTimingMeta recovers Duration and Release from Peacock SEO Runtime / Release Date labels, " +
-        "so US watch-online HTML that omits Open Graph timing still fills prepare meta.")]
-    public void peacock_seo_runtime_and_release_date_year()
+        "CatalogPageTimingMeta recovers Duration and Release from generic SEO Runtime / Release Date labels " +
+        "when JSON-LD omits timing, so SSR catalogues without Open Graph still fill prepare meta.")]
+    public void seo_runtime_and_release_date_year_labels()
     {
-        // Arrange — mirrors watch-online movie details SSR (not OG).
+        // Arrange — mirrors movie-details SSR labels (not OG / not JSON-LD).
         const string html =
-            "<html><body>Documentary 2022 1h 28m NBC Peacock" +
+            "<html><body>Documentary 2022 1h 28m" +
             "<dt>Release Date</dt><dd>2022</dd>" +
             "<dt>Runtime</dt><dd>1h 28m</dd>" +
             "</body></html>";
@@ -64,12 +64,12 @@ public class CatalogPageTimingMetaRules
 
     [Fact(DisplayName =
         "CatalogPageTimingMeta recovers Duration from FAQ prose running time, " +
-        "so Peacock SEO pages that only spell out hours and mins still get length.")]
-    public void peacock_seo_prose_runtime()
+        "so SEO pages that only spell out hours and mins still get length.")]
+    public void seo_prose_runtime()
     {
         // Arrange
         const string html =
-            "Sex, Lies and the College Cult has a running time of 1 hour and 28 mins. Stream it on Peacock.";
+            "Sex, Lies and the College Cult has a running time of 1 hour and 28 mins.";
 
         // Act
         var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
@@ -79,11 +79,11 @@ public class CatalogPageTimingMetaRules
     }
 
     [Fact(DisplayName =
-        "CatalogPageTimingMeta recovers Duration and Release from Peacock JSON-LD " +
-        "(TVEpisode PT56M + trailer uploadDate) when the episode UI hides both.")]
-    public void peacock_json_ld_duration_and_upload_date()
+        "CatalogPageTimingMeta recovers Duration from Peacock JSON-LD TVEpisode PT56M " +
+        "but does not coerce Release from nested trailer VideoObject uploadDate.")]
+    public void peacock_json_ld_duration_ignores_trailer_upload_date()
     {
-        // Arrange — mirrors watch-online episode json-ld-wrapper.
+        // Arrange — mirrors watch-online episode json-ld-wrapper (trailer-only date).
         const string html =
             """
             <div class="json-ld-wrapper" data-testid="jsonLd">
@@ -101,6 +101,31 @@ public class CatalogPageTimingMetaRules
 
         // Assert
         duration.Should().Be(TimeSpan.FromMinutes(56));
-        release.Should().Be(new DateTime(2024, 10, 10, 16, 40, 38, 166, DateTimeKind.Utc));
+        release.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Release from Peacock JSON-LD TVEpisode datePublished " +
+        "when present, preferring the catalogue node over nested trailer uploadDate.")]
+    public void peacock_json_ld_episode_date_published_wins_over_trailer()
+    {
+        // Arrange
+        const string html =
+            """
+            <script type="application/ld+json">
+            {"@context":"http://schema.org","@graph":[{
+              "@type":"TVEpisode","name":"Episode 1","duration":"PT56M",
+              "datePublished":"2020-07-14T00:00:00.000Z",
+              "video":[{"@type":"VideoObject","name":"Trailer","duration":"PT116S","uploadDate":"2024-10-10T16:40:38.166Z"}]
+            }]}
+            </script>
+            """;
+
+        // Act
+        var (duration, release) = CatalogPageTimingMeta.Coalesce(null, null, html);
+
+        // Assert
+        duration.Should().Be(TimeSpan.FromMinutes(56));
+        release.Should().Be(new DateTime(2020, 7, 14, 0, 0, 0, DateTimeKind.Utc));
     }
 }

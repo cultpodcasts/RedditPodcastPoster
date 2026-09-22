@@ -5,7 +5,8 @@ namespace RedditPodcastPoster.UrlSubmission;
 
 /// <summary>
 /// Picks a catalogue URL from <see cref="Episode.Services"/> for SubmitUrl refresh-by-episode-id.
-/// Prefers streaming wire keys in search-encode order; ignores Spotify / Apple / YouTube.
+/// Prefers submit-eligible streaming wire keys in search-encode order; ignores Spotify / Apple / YouTube
+/// and submit-retired keys (e.g. Hulu).
 /// </summary>
 public static class SubmitUrlStreamingUrlResolver
 {
@@ -19,7 +20,7 @@ public static class SubmitUrlStreamingUrlResolver
             return false;
         }
 
-        foreach (var key in StreamingServiceWire.AllKeys)
+        foreach (var key in StreamingServiceWire.SubmitEligibleKeys)
         {
             if (episode.Services.TryGetValue(key, out var link) && link.Url is not null)
             {

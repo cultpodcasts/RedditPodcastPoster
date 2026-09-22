@@ -26,6 +26,23 @@ public class PeacockUrlMatcherRules
     }
 
     [Fact(DisplayName =
+        "CanonicalUrl rewrites /watch/asset/movie paths to /watch-online/movies, " +
+        "matching contract prepareUrlRewrites.peacock.segmentRemaps movie→movies.")]
+    public void canonical_url_rewrites_asset_movie_to_watch_online_movies()
+    {
+        // Arrange
+        var slug = _fixture.CreateYouTubeId();
+        var id = "f45c2853-4230-3910-aa53-51ac37f5a788";
+        var asset = new Uri($"https://www.peacocktv.com/watch/asset/movie/{slug}/{id}");
+        var expected = new Uri($"https://www.peacocktv.com/watch-online/movies/{slug}/{id}");
+
+        // Act / Assert
+        PeacockUrlMatcher.TryToWatchOnlineUrl(asset).Should().Be(expected);
+        PeacockUrlMatcher.CanonicalUrl(asset).Should().Be(expected);
+        PeacockUrlMatcher.CanonicalUrl(expected).Should().Be(expected);
+    }
+
+    [Fact(DisplayName =
         "A Peacock /watch/asset/tv/{slug}/{id}/seasons/.../episodes/.../{id} URL is a submit URL, " +
         "because signed-in episode deep links identify the same catalogue item as watch-online.")]
     public void asset_episode_deep_link_is_submit_url()

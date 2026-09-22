@@ -29,8 +29,8 @@ public static class ServiceCollectionExtensions
                     StreamingService.Peacock,
                     PeacockUrlMatcher.IsSubmitUrl,
                     PeacockUrlMatcher.IsSubmitUrl,
-                    extractor.GetMetaData,
-                    extractor.ExtractFromHtml,
+                    url => extractor.GetMetaData(PeacockUrlMatcher.CanonicalUrl(url)),
+                    (url, html) => extractor.ExtractFromHtml(PeacockUrlMatcher.CanonicalUrl(url), html),
                     canonicalizeUrl: PeacockUrlMatcher.CanonicalUrl);
             });
     }
