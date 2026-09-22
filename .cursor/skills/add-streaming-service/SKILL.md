@@ -149,6 +149,7 @@ From Api: `npm run survey:compare-contract` should be clean for the new key.
 Bump Api `package.json` + `package-lock.json` patch.
 
 Copy JSON to `RedditPodcastPoster/docs/contracts/streaming-submit-contract.json`.
+Prefer consumers take the package `@cultpodcasts/streaming-submit-contract` (`@latest` / `@staging`; see Api `docs/contract-publish.md`) when adopted; until then, copy JSON and run `assert-streaming-submit-contract-copy.ps1`.
 
 ```powershell
 # RPP
@@ -221,12 +222,14 @@ same delivery session). Details: [`docs/episode-services.md`](../../docs/episode
 
 ### 9. Done when
 
-1. Matcher accepts real series + episode URLs; rejects lookalike hosts
-2. Extractor returns title + publisher; ShowName rules correct
-3. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
-4. DI registered; catalog + website + Api contract aligned
-5. Unit tests green; live Theories added; assert-contract scripts clean
-6. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
+1. Survey **`recommend`** known and applied to Api `scrapeProfiles` / BR allowlist (never ship geo as `browserRendering`)
+2. `npm run survey:compare-contract` clean for the new key (Api)
+3. Matcher accepts real series + episode URLs; rejects lookalike hosts
+4. Extractor returns title + publisher; ShowName rules correct
+5. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
+6. DI registered; catalog + website + Api contract aligned
+7. Unit tests green; live Theories added; assert-contract scripts clean
+8. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
    streaming episodes show non-empty `svc` after push reindex (not “index recreate”)
 
 ## Template paths (Channel4)

@@ -79,6 +79,33 @@ public class StreamingSubmitContractRules
     }
 
     [Fact(DisplayName =
+        "Streaming-submit contract scrapeProfiles lock Hulu and Peacock to directHttp in us, because US geo soft-walls use regional fetch not Browser Rendering.")]
+    public void streaming_contract_scrape_profiles_hulu_peacock_are_us_direct_http()
+    {
+        // Arrange
+        var regions = Contract.RootElement
+            .GetProperty("scrapeRegions")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToArray();
+        var profiles = Contract.RootElement.GetProperty("scrapeProfiles");
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
+        var peacockKey = StreamingServiceWire.ToKey(StreamingService.Peacock);
+
+        // Act
+        var hulu = profiles.GetProperty(huluKey);
+        var peacock = profiles.GetProperty(peacockKey);
+
+        // Assert
+        regions.Should().Contain("default");
+        regions.Should().Contain("us");
+        hulu.GetProperty("mode").GetString().Should().Be("directHttp");
+        hulu.GetProperty("region").GetString().Should().Be("us");
+        peacock.GetProperty("mode").GetString().Should().Be("directHttp");
+        peacock.GetProperty("region").GetString().Should().Be("us");
+    }
+
+    [Fact(DisplayName =
         "Streaming-submit contract flags membershipReturnsService and membershipDoesNotScrape as true now, because membership classifies only and prepare owns HTML fetch.")]
     public void streaming_contract_documents_membership_vs_prepare_split()
     {
