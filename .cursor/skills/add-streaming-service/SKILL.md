@@ -139,7 +139,7 @@ dotnet test Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests -c Release -
 Apply survey **`recommend`** first (HARD section). Then edit
 `Api/tests/fixtures/streaming-submit-contract.ts` **and** `.json`:
 
-- `streamingServiceKeys` (must equal `StreamingServiceWire.AllKeys`)
+- `streamingServiceKeys` (must equal `StreamingServiceWire.SubmitEligibleKeys` / registered `SearchEncodedKeys`; submit-retired enum members e.g. Hulu are excluded)
 - `streamingSpecimenUrls`
 - `scrapeProfiles` / `defaultBrowserRenderingServices` per survey recommend
 - membership + orchestration case ids (fixture generators usually expand)
@@ -179,7 +179,7 @@ npm run test:all   # before push when shipping client code
 - Keep contract `defaultBrowserRenderingServices` aligned with survey; secret may overlay ops temporarily
 - For **`scrapeUsFetch` and `browserRendering`**, RPP must also register HTML extract (Worker hands prefetched HTML to Azure `ExtractMetaData(url, html)`):
   - Extractor exposes `ExtractFromHtml` (or equivalent); `GetMetaData` fetches then delegates to it
-  - DI passes that delegate as the 5th ctor arg of `CatalogKeyedNonPodcastServiceAdapter` (mirror `AddHuluServices` / `AddTubiServices` / `AddItvxServices` / `AddPeacockServices`)
+  - DI passes that delegate as the 5th ctor arg of `CatalogKeyedNonPodcastServiceAdapter` (mirror `AddPeacockServices` / `AddTubiServices` / `AddItvxServices`)
   - Business-rules Fact: `adapter.ExtractMetaData(url, html)` succeeds without an HTTP GET
   - Channel4 scaffold template may still omit HTML extract — hand-edit DI + extractor until the template is updated
 

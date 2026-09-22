@@ -15,7 +15,7 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 
 ## RPP obligations
 
-1. **`ServiceCatalog.SearchEncodedKeys`** must equal contract `streamingServiceKeys` (enforced by `StreamingSubmitContractRules`).
+1. **`StreamingServiceCatalog.SearchEncodedKeys`** must equal contract `streamingServiceKeys` and `StreamingServiceWire.SubmitEligibleKeys` (AllKeys minus submit-retired; Hulu is retired — enforced by `StreamingSubmitContractRules`). Image coalesce may still include retired enum keys for historical URLs.
 2. **Membership** (`GET api/SubmitUrl`):
    - Returns `service` (ServiceKeys) for streaming URLs.
    - Does **not** scrape HTML. Unknown streaming returns `{ known: false, kind: streaming, service }` with `podcastName` null.
@@ -25,7 +25,7 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 
 Worker prepare chooses **how** (`htmlFetchMode` / `scrapeProfiles.mode`) and **where** (`scrapeProfiles.region`: `default` on Api, or Phase 1 `us` via `streaming-scrape-us`). See Api `docs/streaming-submit-orchestration.md` § Browser Rendering allowlist + scrape profiles.
 
-Any service listed in contract `scrapeProfiles` or `defaultBrowserRenderingServices` **must** register `extractFromHtml` on `CatalogKeyedNonPodcastServiceAdapter` (see Hulu / Tubi / Itvx / Peacock). Without that delegate, Azure extract throws `NotSupportedException` (`HTML extract is not registered for service '…'`).
+Any service listed in contract `scrapeProfiles` or `defaultBrowserRenderingServices` **must** register `extractFromHtml` on `CatalogKeyedNonPodcastServiceAdapter` (see Peacock / Tubi / Itvx). Without that delegate, Azure extract throws `NotSupportedException` (`HTML extract is not registered for service '…'`).
 5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
 6. Podcast-service platforms remain API-based — not in this contract.
 

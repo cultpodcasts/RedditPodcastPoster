@@ -4,7 +4,9 @@ namespace RedditPodcastPoster.Models.Podcasts;
 
 /// <summary>
 /// Canonical streaming catalogue destinations (not Spotify/Apple/YouTube).
-/// Declaration order is search-encode / contract <c>streamingServiceKeys</c> order.
+/// Declaration order is search-encode / image-coalesce order.
+/// Submit contract <c>streamingServiceKeys</c> = <see cref="StreamingServiceWire.SubmitEligibleKeys"/>
+/// (AllKeys minus <see cref="StreamingServiceSubmitRetiredAttribute"/>).
 /// Wire keys are <see cref="JsonPropertyNameAttribute"/> values (Cosmos / search / submit).
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -92,6 +94,8 @@ public enum StreamingService
 
     [JsonPropertyName("hulu")]
     [StreamingServiceInfo("Hulu", "hulu", true, "hulu.com")]
+    [StreamingServiceSubmitRetired(
+        "No usable episode catalogue pages; /watch/{id} redirects to series hub; public SEO episode pages do not exist.")]
     Hulu,
 
     [JsonPropertyName("peacock")]

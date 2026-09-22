@@ -76,7 +76,8 @@ public static class StreamingScraperCanonicalCases
         new(All.Where(c => c.Provider == StreamingScraperProvider.Arte));
 
     public static TheoryData<StreamingScraperCanonicalCase> HuluCases() =>
-        new(All.Where(c => c.Provider == StreamingScraperProvider.Hulu));
+        // Submit-retired: Hulu URLs are unrecognised by membership; no live scrape cases.
+        new();
 
     public static TheoryData<StreamingScraperCanonicalCase> PeacockCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Peacock));
@@ -339,14 +340,7 @@ public static class StreamingScraperCanonicalCases
             null,
             "English standalone film; empty associatedCollections so ShowName stays null"),
 
-        // Hulu — often geo/auth walled outside US (Disney+ marketing shell)
-        Case(StreamingScraperProvider.Hulu, "handmaids-tale-series",
-            "https://www.hulu.com/series/the-handmaids-tale-565d8976-9d26-4e63-866c-40f8a137ce5f",
-            "The Handmaid's Tale",
-            "Series hub; live scrape may return a Disney+/marketing shell outside a licensed region"),
-        Case(StreamingScraperProvider.Hulu, "the-menu-film",
-            "https://www.hulu.com/movie/the-menu", null,
-            "Movie path; ShowName must stay null; live scrape may be geo-walled"),
+        // Hulu — submit-retired (no usable episode catalogue pages); not in membership cases
 
         // Peacock — /watch/asset/{kind}/{slug}/{numericId}; often geo-walled
         Case(StreamingScraperProvider.Peacock, "the-office-tv-asset",

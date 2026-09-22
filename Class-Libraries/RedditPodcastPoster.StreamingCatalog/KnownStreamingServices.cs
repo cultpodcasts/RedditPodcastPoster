@@ -11,7 +11,6 @@ using RedditPodcastPoster.DisneyPlus;
 using RedditPodcastPoster.Fawesome;
 using RedditPodcastPoster.FranceTv;
 using RedditPodcastPoster.HboMax;
-using RedditPodcastPoster.Hulu;
 using RedditPodcastPoster.InternetArchive;
 using RedditPodcastPoster.Itvx;
 using RedditPodcastPoster.Models.Podcasts;
@@ -57,7 +56,7 @@ public static class KnownStreamingServices
         DiscoveryPlusStreamingService.Registration,
         FranceTvStreamingService.Registration,
         ArteStreamingService.Registration,
-        HuluStreamingService.Registration,
+        // Hulu submit-retired: enum retained for Cosmos/history; no KnownStreamingServices registration.
         PeacockStreamingService.Registration,
         AppleTvPlusStreamingService.Registration,
         ZdfStreamingService.Registration,

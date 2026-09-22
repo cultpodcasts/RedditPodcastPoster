@@ -16,14 +16,28 @@ public static class StreamingServiceWire
     private static readonly Lazy<IReadOnlyDictionary<StreamingService, StreamingServiceInfoAttribute>> InfoLazy =
         new(LoadInfo);
 
-    /// <summary>Enum members in declaration (search-encode) order.</summary>
+    /// <summary>Enum members in declaration (search-encode) order — includes submit-retired.</summary>
     public static IReadOnlyList<StreamingService> All => AllLazy.Value;
 
-    /// <summary>Wire keys in declaration (search-encode) order.</summary>
+    /// <summary>Wire keys in declaration order — includes submit-retired (Cosmos / image coalesce).</summary>
     public static string[] AllKeys => All.Select(ToKey).ToArray();
 
     /// <summary>
-    /// Cover-art preference: search-encode order with BBC iPlayer before Sounds.
+    /// Enum members eligible for streaming submit/prepare/scrape (excludes
+    /// <see cref="StreamingServiceSubmitRetiredAttribute"/>).
+    /// </summary>
+    public static IReadOnlyList<StreamingService> SubmitEligible =>
+        All.Where(s => !IsSubmitRetired(s)).ToArray();
+
+    /// <summary>
+    /// Submit-contract wire keys — must equal Api <c>streamingServiceKeys</c> and
+    /// registered <see cref="StreamingServiceCatalog.SearchEncodedKeys"/>.
+    /// </summary>
+    public static string[] SubmitEligibleKeys => SubmitEligible.Select(ToKey).ToArray();
+
+    /// <summary>
+    /// Cover-art preference: full enum order (incl. retired) with BBC iPlayer before Sounds.
+    /// Historical episode URLs (e.g. Hulu) still need coalesce slots even when submit-retired.
     /// </summary>
     public static string[] ImageCoalesceKeys
     {
@@ -39,6 +53,13 @@ public static class StreamingServiceWire
 
             return keys;
         }
+    }
+
+    public static bool IsSubmitRetired(StreamingService service)
+    {
+        var member = typeof(StreamingService).GetField(service.ToString())
+                     ?? throw new InvalidOperationException($"Missing field for {service}.");
+        return member.GetCustomAttribute<StreamingServiceSubmitRetiredAttribute>() is not null;
     }
 
     public static string ToKey(StreamingService service) =>

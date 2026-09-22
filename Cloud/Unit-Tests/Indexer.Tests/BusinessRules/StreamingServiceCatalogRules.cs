@@ -57,21 +57,26 @@ public class StreamingServiceCatalogRules
     }
 
     [Fact(DisplayName =
-        "ImageCoalesceOrder after IndexIdImageOrder is a permutation of SearchEncodedKeys, and iPlayer still precedes Sounds, because cover-art preference reorders BBC without dropping a streaming key.")]
-    public void image_coalesce_streaming_keys_are_search_encoded_keys_permutation()
+        "ImageCoalesceOrder after IndexIdImageOrder matches ImageCoalesceKeys (full enum incl. submit-retired), " +
+        "while SearchEncodedKeys is SubmitEligibleKeys only; iPlayer still precedes Sounds for cover-art preference.")]
+    public void image_coalesce_includes_retired_keys_search_encoded_is_submit_eligible()
     {
         // Arrange
         var coalesceStreaming = StreamingServiceCatalog.ImageCoalesceOrder
             .Skip(ServiceCatalog.IndexIdImageOrder.Length)
             .ToArray();
         var encoded = StreamingServiceCatalog.SearchEncodedKeys;
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
 
         // Act
         var iplayer = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceWire.ToKey(StreamingService.BbcIplayer));
         var sounds = Array.IndexOf(StreamingServiceCatalog.ImageCoalesceOrder, StreamingServiceWire.ToKey(StreamingService.BbcSounds));
 
         // Assert
-        coalesceStreaming.Should().BeEquivalentTo(encoded);
+        coalesceStreaming.Should().Equal(StreamingServiceWire.ImageCoalesceKeys);
+        coalesceStreaming.Should().Contain(huluKey);
+        encoded.Should().Equal(StreamingServiceWire.SubmitEligibleKeys);
+        encoded.Should().NotContain(huluKey);
         iplayer.Should().BeGreaterThanOrEqualTo(0);
         sounds.Should().BeGreaterThan(iplayer);
     }

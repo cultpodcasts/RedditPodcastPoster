@@ -23,7 +23,6 @@
 		"discoveryPlus",
 		"franceTv",
 		"arte",
-		"hulu",
 		"peacock",
 		"appleTvPlus",
 		"zdf",
@@ -49,10 +48,6 @@
 		"de"
 	],
 	"scrapeProfiles": {
-		"hulu": {
-			"mode": "directHttp",
-			"region": "us"
-		},
 		"peacock": {
 			"mode": "directHttp",
 			"region": "us"
@@ -89,7 +84,6 @@
 		"discoveryPlus": "https://www.discoveryplus.com/show/example-slug",
 		"franceTv": "https://www.france.tv/slash/example-show/8847336-example-episode.html",
 		"arte": "https://www.arte.tv/en/videos/000000-001-A/example-slug/",
-		"hulu": "https://www.hulu.com/series/example-slug",
 		"peacock": "https://www.peacocktv.com/watch-online/movies/example-slug/f45c2853-4230-3910-aa53-51ac37f5a788",
 		"appleTvPlus": "https://tv.apple.com/us/show/example-slug/umc.cmc.exampleid000000000000",
 		"zdf": "https://www.zdf.de/serien/example-slug",
@@ -157,9 +151,6 @@
 		"membership-arte-known",
 		"membership-arte-unknown",
 		"membership-arte-ambiguous",
-		"membership-hulu-known",
-		"membership-hulu-unknown",
-		"membership-hulu-ambiguous",
 		"membership-peacock-known",
 		"membership-peacock-unknown",
 		"membership-peacock-ambiguous",
@@ -197,7 +188,6 @@
 		"stream-discoveryPlus-unknown-prepare-submit",
 		"stream-franceTv-unknown-prepare-submit",
 		"stream-arte-unknown-prepare-submit",
-		"stream-hulu-unknown-prepare-submit",
 		"stream-peacock-unknown-prepare-submit",
 		"stream-appleTvPlus-unknown-prepare-submit",
 		"stream-zdf-unknown-prepare-submit",

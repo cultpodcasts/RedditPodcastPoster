@@ -18,8 +18,10 @@ public class StreamingSubmitContractRules
     private static readonly JsonDocument Contract = LoadContract();
 
     [Fact(DisplayName =
-        "Streaming-submit contract JSON lists exactly StreamingServiceWire.AllKeys / SearchEncodedKeys, because the StreamingService enum is the single wire-key authority.")]
-    public void streaming_contract_service_keys_match_search_encoded_keys()
+        "Streaming-submit contract streamingServiceKeys == SubmitEligibleKeys == SearchEncodedKeys " +
+        "(AllKeys minus submit-retired). ImageCoalesceKeys / AllKeys may still include retired services " +
+        "(e.g. Hulu) for historical Cosmos URLs; Hulu is submit-retired — no episode catalogue pages.")]
+    public void streaming_contract_service_keys_match_submit_eligible_and_search_encoded_keys()
     {
         // Arrange
         var fromContract = Contract.RootElement
@@ -30,11 +32,17 @@ public class StreamingSubmitContractRules
 
         // Act
         var fromCatalog = StreamingServiceCatalog.SearchEncodedKeys;
-        var fromEnum = StreamingServiceWire.AllKeys;
+        var submitEligible = StreamingServiceWire.SubmitEligibleKeys;
+        var allKeys = StreamingServiceWire.AllKeys;
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
 
         // Assert
-        fromContract.Should().Equal(fromCatalog);
-        fromCatalog.Should().Equal(fromEnum);
+        fromContract.Should().Equal(submitEligible);
+        fromCatalog.Should().Equal(submitEligible);
+        fromContract.Should().NotContain(huluKey);
+        allKeys.Should().Contain(huluKey);
+        StreamingServiceWire.IsSubmitRetired(StreamingService.Hulu).Should().BeTrue();
+        StreamingServiceWire.ImageCoalesceKeys.Should().Contain(huluKey);
     }
 
     [Fact(DisplayName =
@@ -82,8 +90,8 @@ public class StreamingSubmitContractRules
     }
 
     [Fact(DisplayName =
-        "Streaming-submit contract scrapeProfiles lock Hulu and Peacock to directHttp in us, because US geo soft-walls use regional fetch not Browser Rendering.")]
-    public void streaming_contract_scrape_profiles_hulu_peacock_are_us_direct_http()
+        "Streaming-submit contract scrapeProfiles lock Peacock only to directHttp in us, because US geo soft-walls use regional fetch not Browser Rendering; Hulu is submit-retired.")]
+    public void streaming_contract_scrape_profiles_peacock_is_us_direct_http()
     {
         // Arrange
         var regions = Contract.RootElement
@@ -96,16 +104,16 @@ public class StreamingSubmitContractRules
         var peacockKey = StreamingServiceWire.ToKey(StreamingService.Peacock);
 
         // Act
-        var hulu = profiles.GetProperty(huluKey);
         var peacock = profiles.GetProperty(peacockKey);
+        var profileNames = profiles.EnumerateObject().Select(p => p.Name).ToArray();
 
         // Assert
         regions.Should().Contain("default");
         regions.Should().Contain("us");
-        hulu.GetProperty("mode").GetString().Should().Be("directHttp");
-        hulu.GetProperty("region").GetString().Should().Be("us");
+        profileNames.Should().Equal(peacockKey);
         peacock.GetProperty("mode").GetString().Should().Be("directHttp");
         peacock.GetProperty("region").GetString().Should().Be("us");
+        profileNames.Should().NotContain(huluKey);
     }
 
     [Fact(DisplayName =
