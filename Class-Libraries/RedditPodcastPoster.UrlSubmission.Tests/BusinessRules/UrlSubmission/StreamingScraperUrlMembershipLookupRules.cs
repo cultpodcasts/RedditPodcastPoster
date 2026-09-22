@@ -197,7 +197,6 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.DiscoveryPlus
                          or StreamingScraperProvider.FranceTv
                          or StreamingScraperProvider.Arte
-                         // Hulu submit-retired — not a membership streaming provider
                          or StreamingScraperProvider.Peacock
                          or StreamingScraperProvider.AppleTvPlus
                          or StreamingScraperProvider.Zdf
