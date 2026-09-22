@@ -10,6 +10,7 @@ namespace RedditPodcastPoster.Peacock.Extractors;
 public interface IPeacockPageMetaDataExtractor
 {
     Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url);
+    Task<NonPodcastServiceItemMetaData> ExtractFromHtml(Uri url, string html);
 }
 
 public class PeacockPageMetaDataExtractor(
@@ -29,6 +30,11 @@ public class PeacockPageMetaDataExtractor(
         }
 
         var html = await pageResponse.Content.ReadAsStringAsync();
+        return await ExtractFromHtml(url, html);
+    }
+
+    public async Task<NonPodcastServiceItemMetaData> ExtractFromHtml(Uri url, string html)
+    {
         NonPodcastServiceItemMetaData? openGraph = null;
         try
         {

@@ -24,6 +24,8 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 4. **Extract** (`POST api/SubmitUrl/extract`) accepts trusted HTML or JSON (`ExtractMetaData(url, html)`) — Worker Browser Rendering / regional scrape Worker path, and BitChute video-API JSON prefetched by the Worker.
 
 Worker prepare chooses **how** (`htmlFetchMode` / `scrapeProfiles.mode`) and **where** (`scrapeProfiles.region`: `default` on Api, or Phase 1 `us` via `streaming-scrape-us`). See Api `docs/streaming-submit-orchestration.md` § Browser Rendering allowlist + scrape profiles.
+
+Any service listed in contract `scrapeProfiles` or `defaultBrowserRenderingServices` **must** register `extractFromHtml` on `CatalogKeyedNonPodcastServiceAdapter` (see Hulu / Tubi / Itvx / Peacock). Without that delegate, Azure extract throws `NotSupportedException` (`HTML extract is not registered for service '…'`).
 5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
 6. Podcast-service platforms remain API-based — not in this contract.
 

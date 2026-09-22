@@ -202,7 +202,7 @@ public class HuluPageMetaDataExtractorRules
 
     [Fact(DisplayName =
         "Hulu ExtractFromHtml parses Open Graph from prefetched HTML without an HTTP GET, " +
-        "so Api SCRAPE_US / Browser Rendering prepare can extract after Cloudflare fetches the page.")]
+        "so Api SCRAPE_US / Cloudflare-prefetched HTML extract can run after Cloudflare fetches the page.")]
     public async Task extract_from_html_parses_prefetched_catalogue_html()
     {
         // Arrange

@@ -177,6 +177,11 @@ npm run test:all   # before push when shipping client code
 - Survey `browserRendering` → Worker secret `browserRenderingServices` CSV (preview **and** top-level `api`) + PR `## Config / secrets`
 - Survey `scrapeUsFetch` → contract `scrapeProfiles` US `directHttp` only — **never** BR for geo
 - Keep contract `defaultBrowserRenderingServices` aligned with survey; secret may overlay ops temporarily
+- For **`scrapeUsFetch` and `browserRendering`**, RPP must also register HTML extract (Worker hands prefetched HTML to Azure `ExtractMetaData(url, html)`):
+  - Extractor exposes `ExtractFromHtml` (or equivalent); `GetMetaData` fetches then delegates to it
+  - DI passes that delegate as the 5th ctor arg of `CatalogKeyedNonPodcastServiceAdapter` (mirror `AddHuluServices` / `AddTubiServices` / `AddItvxServices` / `AddPeacockServices`)
+  - Business-rules Fact: `adapter.ExtractMetaData(url, html)` succeeds without an HTTP GET
+  - Channel4 scaffold template may still omit HTML extract — hand-edit DI + extractor until the template is updated
 
 ### 8. Search index (HARD — do after RPP with the new key is on the machine you run CLIs from)
 
@@ -224,12 +229,13 @@ same delivery session). Details: [`docs/episode-services.md`](../../docs/episode
 
 1. Survey **`recommend`** known and applied to Api `scrapeProfiles` / BR allowlist (never ship geo as `browserRendering`)
 2. `npm run survey:compare-contract` clean for the new key (Api)
-3. Matcher accepts real series + episode URLs; rejects lookalike hosts
-4. Extractor returns title + publisher; ShowName rules correct
-5. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
-6. DI registered; catalog + website + Api contract aligned
-7. Unit tests green; live Theories added; assert-contract scripts clean
-8. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
+3. If survey was `scrapeUsFetch` or `browserRendering`: `ExtractFromHtml` wired on extractor + DI 5th ctor arg; BR Fact proves `adapter.ExtractMetaData(url, html)` without HTTP GET
+4. Matcher accepts real series + episode URLs; rejects lookalike hosts
+5. Extractor returns title + publisher; ShowName rules correct
+6. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
+7. DI registered; catalog + website + Api contract aligned
+8. Unit tests green; live Theories added; assert-contract scripts clean
+9. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
    streaming episodes show non-empty `svc` after push reindex (not “index recreate”)
 
 ## Template paths (Channel4)

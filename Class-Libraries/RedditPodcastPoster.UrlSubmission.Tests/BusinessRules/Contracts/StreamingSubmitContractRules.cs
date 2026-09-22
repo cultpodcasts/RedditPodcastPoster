@@ -1,7 +1,10 @@
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.PodcastServices.Extensions;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.Contracts;
 
@@ -103,6 +106,48 @@ public class StreamingSubmitContractRules
         hulu.GetProperty("region").GetString().Should().Be("us");
         peacock.GetProperty("mode").GetString().Should().Be("directHttp");
         peacock.GetProperty("region").GetString().Should().Be("us");
+    }
+
+    [Fact(DisplayName =
+        "Streaming-submit contract scrapeProfiles and defaultBrowserRenderingServices adapters register ExtractMetaData(html), " +
+        "so Worker SCRAPE_US / Browser Rendering prepare does not hit HTML extract is not registered.")]
+    public async Task streaming_contract_scrape_and_br_services_register_html_extract()
+    {
+        // Arrange
+        var profileKeys = Contract.RootElement
+            .GetProperty("scrapeProfiles")
+            .EnumerateObject()
+            .Select(p => p.Name)
+            .ToArray();
+        var brKeys = Contract.RootElement
+            .GetProperty("defaultBrowserRenderingServices")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToArray();
+        var keys = profileKeys.Concat(brKeys).Distinct(StringComparer.Ordinal).ToArray();
+        var specimens = Contract.RootElement.GetProperty("streamingSpecimenUrls");
+        var html = "<html><head><meta property=\"og:title\" content=\"Contract Prefetch Title\" /></head></html>";
+        var services = new ServiceCollection();
+        services.AddHttpClient();
+        services.AddNonPodcastScrapers();
+        using var provider = services.BuildServiceProvider();
+        var adapters = provider.GetServices<INonPodcastServiceAdapter>().ToArray();
+
+        foreach (var key in keys)
+        {
+            var url = new Uri(specimens.GetProperty(key).GetString()!);
+            var adapter = adapters.Single(candidate => candidate.IsSubmitUrl(url));
+
+            // Act
+            var act = async () => await adapter.ExtractMetaData(url, html);
+
+            // Assert
+            await act.Should().NotThrowAsync<NotSupportedException>(
+                because: $"service '{key}' is in scrapeProfiles or defaultBrowserRenderingServices " +
+                         "and must register extractFromHtml on CatalogKeyedNonPodcastServiceAdapter");
+            var meta = await adapter.ExtractMetaData(url, html);
+            meta.Title.Should().NotBeNullOrWhiteSpace();
+        }
     }
 
     [Fact(DisplayName =
