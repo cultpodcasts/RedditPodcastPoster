@@ -30,7 +30,8 @@ public static class ServiceCollectionExtensions
                     PeacockUrlMatcher.IsSubmitUrl,
                     PeacockUrlMatcher.IsSubmitUrl,
                     extractor.GetMetaData,
-                    extractor.ExtractFromHtml);
+                    extractor.ExtractFromHtml,
+                    canonicalizeUrl: PeacockUrlMatcher.CanonicalUrl);
             });
     }
 }
