@@ -10,6 +10,7 @@ namespace RedditPodcastPoster.Hulu.Extractors;
 public interface IHuluPageMetaDataExtractor
 {
     Task<NonPodcastServiceItemMetaData> GetMetaData(Uri url);
+    Task<NonPodcastServiceItemMetaData> ExtractFromHtml(Uri url, string html);
 }
 
 public class HuluPageMetaDataExtractor(
@@ -29,6 +30,11 @@ public class HuluPageMetaDataExtractor(
         }
 
         var html = await pageResponse.Content.ReadAsStringAsync();
+        return await ExtractFromHtml(url, html);
+    }
+
+    public async Task<NonPodcastServiceItemMetaData> ExtractFromHtml(Uri url, string html)
+    {
         NonPodcastServiceItemMetaData? openGraph = null;
         try
         {

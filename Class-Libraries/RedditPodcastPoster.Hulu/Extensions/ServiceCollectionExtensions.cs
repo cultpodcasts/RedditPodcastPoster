@@ -23,10 +23,14 @@ public static class ServiceCollectionExtensions
             .AddOpenGraphExtractor()
             .AddScoped<IHuluPageMetaDataExtractor, HuluPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
-                new CatalogKeyedNonPodcastServiceAdapter(
+            {
+                var extractor = provider.GetRequiredService<IHuluPageMetaDataExtractor>();
+                return new CatalogKeyedNonPodcastServiceAdapter(
                     StreamingService.Hulu,
                     HuluUrlMatcher.IsSubmitUrl,
                     HuluUrlMatcher.IsSubmitUrl,
-                    provider.GetRequiredService<IHuluPageMetaDataExtractor>().GetMetaData));
+                    extractor.GetMetaData,
+                    extractor.ExtractFromHtml);
+            });
     }
 }

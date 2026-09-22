@@ -200,6 +200,52 @@ public class HuluPageMetaDataExtractorRules
         adapter.ResolveService(url).Should().Be(StreamingService.Hulu);
     }
 
+    [Fact(DisplayName =
+        "Hulu ExtractFromHtml parses Open Graph from prefetched HTML without an HTTP GET, " +
+        "so Api SCRAPE_US / Browser Rendering prepare can extract after Cloudflare fetches the page.")]
+    public async Task extract_from_html_parses_prefetched_catalogue_html()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.hulu.com/series/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
+        var sut = _mocker.CreateInstance<HuluPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("Hulu");
+        meta.ShowName.Should().Be(title);
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "AddHuluServices registers ExtractMetaData(html) on the Hulu adapter, " +
+        "so Cloudflare-prefetched catalogue HTML does not throw HTML extract is not registered.")]
+    public async Task add_services_registers_html_extract_on_adapter()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.hulu.com/series/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
+        var services = new ServiceCollection();
+        services.AddHuluServices();
+        using var provider = services.BuildServiceProvider();
+        var adapter = provider.GetServices<INonPodcastServiceAdapter>()
+            .Single(candidate => candidate.IsSubmitUrl(url));
+
+        // Act
+        var meta = await adapter.ExtractMetaData(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("Hulu");
+    }
+
     private static HttpResponseMessage OkHtml(string html) =>
         new(HttpStatusCode.OK)
         {
