@@ -21,7 +21,9 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
    - Does **not** scrape HTML. Unknown streaming returns `{ known: false, kind: streaming, service }` with `podcastName` null.
    - Prepare owns HTML fetch / show-name extract. Contract flag `membershipDoesNotScrape: true` is live.
 3. **Prepare** (`POST api/SubmitUrl/prepare`) fetches HTML via adapter `ExtractMetaData(url)` and returns meta + `service`.
-4. **Extract** (`POST api/SubmitUrl/extract`) accepts trusted HTML or JSON (`ExtractMetaData(url, html)`) — Worker Browser Rendering path, and BitChute video-API JSON prefetched by the Worker.
+4. **Extract** (`POST api/SubmitUrl/extract`) accepts trusted HTML or JSON (`ExtractMetaData(url, html)`) — Worker Browser Rendering / regional scrape Worker path, and BitChute video-API JSON prefetched by the Worker.
+
+Worker prepare chooses **how** (`htmlFetchMode` / `scrapeProfiles.mode`) and **where** (`scrapeProfiles.region`: `default` on Api, or Phase 1 `us` via `streaming-scrape-us`). See Api `docs/streaming-submit-orchestration.md` § Browser Rendering allowlist + scrape profiles.
 5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
 6. Podcast-service platforms remain API-based — not in this contract.
 

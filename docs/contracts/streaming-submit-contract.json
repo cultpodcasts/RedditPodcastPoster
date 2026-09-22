@@ -42,6 +42,22 @@
   "defaultBrowserRenderingServices": [
     "itvx"
   ],
+  "scrapeRegions": [
+    "default",
+    "us",
+    "uk",
+    "de"
+  ],
+  "scrapeProfiles": {
+    "hulu": {
+      "mode": "browserRendering",
+      "region": "us"
+    },
+    "peacock": {
+      "mode": "browserRendering",
+      "region": "us"
+    }
+  },
   "streamingSpecimenUrls": {
     "bbcSounds": "https://www.bbc.co.uk/sounds/play/p0examplesound",
     "bbcIplayer": "https://www.bbc.co.uk/iplayer/episode/m001example/example-slug",
