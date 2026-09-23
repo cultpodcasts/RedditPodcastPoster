@@ -3,11 +3,12 @@ using System.Text.Json;
 using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
-using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 
@@ -55,6 +56,47 @@ public class CatalogueContentTypeModelRulesTests
         new TvShowEpisode().ModelType.Should().Be(ModelType.TvShowEpisode);
         new NewsOrganisation().ModelType.Should().Be(ModelType.NewsOrganisation);
         new NewsReport().ModelType.Should().Be(ModelType.NewsReport);
+    }
+
+    [Fact(DisplayName =
+        "Podcast, TvShow, NewsOrganisation, and Film subclass Publisher so they share social handles, " +
+        "publisher label, subject defaults, known/search terms, and indexing bookmarks.")]
+    public void Catalogue_publishers_subclass_publisher_with_shared_members()
+    {
+        // Arrange
+        var sharedMembers = new[]
+        {
+            nameof(Publisher.Name),
+            nameof(Publisher.Description),
+            nameof(Publisher.LatestReleased),
+            nameof(Publisher.LastIndexed),
+            nameof(Publisher.Language),
+            nameof(Publisher.Removed),
+            nameof(Publisher.PublisherName),
+            nameof(Publisher.TwitterHandle),
+            nameof(Publisher.BlueskyHandle),
+            nameof(Publisher.HashTag),
+            nameof(Publisher.EnrichmentHashTags),
+            nameof(Publisher.IgnoredAssociatedSubjects),
+            nameof(Publisher.IgnoredSubjects),
+            nameof(Publisher.DefaultSubject),
+            nameof(Publisher.SearchTerms),
+            nameof(Publisher.KnownTerms)
+        };
+
+        // Act / Assert
+        typeof(Podcast).Should().BeAssignableTo<Publisher>();
+        typeof(TvShow).Should().BeAssignableTo<Publisher>();
+        typeof(NewsOrganisation).Should().BeAssignableTo<Publisher>();
+        typeof(Film).Should().BeAssignableTo<Publisher>();
+
+        foreach (var member in sharedMembers)
+        {
+            typeof(Publisher).GetProperty(member).Should().NotBeNull(because: member);
+        }
+
+        new Podcast().ModelType.Should().Be(ModelType.Podcast);
+        new Film(_fixture.Create<string>()).Name.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact(DisplayName =

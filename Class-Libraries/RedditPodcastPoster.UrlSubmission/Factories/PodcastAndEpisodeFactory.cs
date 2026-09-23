@@ -56,7 +56,7 @@ public class PodcastAndEpisodeFactory(
         }
 
         var newPodcast = await podcastFactory.Create(showName);
-        newPodcast.Publisher = publisher;
+        newPodcast.PublisherName = publisher;
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;
         newPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem?.ShowId ?? string.Empty;

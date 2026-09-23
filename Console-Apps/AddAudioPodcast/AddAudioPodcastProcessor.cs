@@ -148,7 +148,7 @@ public class AddAudioPodcastProcessor(
             podcast.Bundles = false;
             // Spotify removed 'publisher' from show objects (Feb 2026 Web API changes).
 #pragma warning disable CS0618
-            podcast.Publisher = spotifyPodcast.Publisher?.Trim() ?? string.Empty;
+            podcast.PublisherName = spotifyPodcast.Publisher?.Trim() ?? string.Empty;
 #pragma warning restore CS0618
             podcast.SpotifyMarket = request.SpotifyMarket;
 
@@ -176,7 +176,7 @@ public class AddAudioPodcastProcessor(
             podcast = await podcastFactory.Create(applePodcast.Name);
             podcast.AppleId = applePodcast.Id;
             podcast.Bundles = false;
-            podcast.Publisher = applePodcast.ArtistName.Trim();
+            podcast.PublisherName = applePodcast.ArtistName.Trim();
             podcast.ReleaseAuthority = Service.Apple;
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
             await spotifyPodcastEnricher.AddIdAndUrls(podcast, episodes, indexingContext);

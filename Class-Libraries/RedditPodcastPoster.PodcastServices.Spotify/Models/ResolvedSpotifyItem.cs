@@ -10,7 +10,7 @@ public class ResolvedSpotifyItem
         ShowId = podcastEpisode.Podcast.SpotifyId;
         EpisodeId = EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode) ?? string.Empty;
         ShowName = podcastEpisode.Podcast.Name;
-        Publisher = podcastEpisode.Podcast.Publisher;
+        Publisher = podcastEpisode.Podcast.PublisherName;
         EpisodeTitle = podcastEpisode.Episode.Title;
         EpisodeDescription = podcastEpisode.Episode.Description;
         Release = podcastEpisode.Episode.Release;

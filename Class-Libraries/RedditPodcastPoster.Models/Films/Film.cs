@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Films;
@@ -10,9 +10,12 @@ namespace RedditPodcastPoster.Models.Films;
 /// Platform presence is <see cref="Services"/> only — no provider-id fields
 /// (unlike podcast <c>Episode</c>, which tracks Spotify/Apple/YouTube collection identity).
 /// Release is year or calendar date — not a podcast-episode datetime.
+/// Inherits social / subject / indexing fields from <see cref="Publisher"/>.
+/// Playable display title is <see cref="Title"/> (JSON <c>title</c>); <see cref="Publisher.Name"/>
+/// may mirror it for publisher-shaped consumers.
 /// </summary>
 [CosmosSelector(ModelType.Film)]
-public sealed class Film : CosmosSelector
+public sealed class Film : Publisher
 {
     public Film()
     {
@@ -23,16 +26,13 @@ public sealed class Film : CosmosSelector
     public Film(string title) : this()
     {
         Title = title;
+        Name = title;
         FileKey = FileKeyFactory.GetFilmFileKey(title);
     }
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(10)]
     public string Title { get; set; } = string.Empty;
-
-    [JsonPropertyName("description")]
-    [JsonPropertyOrder(20)]
-    public string Description { get; set; } = string.Empty;
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
@@ -46,17 +46,9 @@ public sealed class Film : CosmosSelector
     [JsonPropertyOrder(32)]
     public bool Explicit { get; set; }
 
-    [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
-    public string? Language { get; set; }
-
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(43)]
     public bool Ignored { get; set; }
-
-    [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
-    public bool Removed { get; set; }
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -65,10 +57,6 @@ public sealed class Film : CosmosSelector
     [JsonPropertyName("removedSubjects")]
     [JsonPropertyOrder(71)]
     public List<string> RemovedSubjects { get; set; } = [];
-
-    [JsonPropertyName("searchTerms")]
-    [JsonPropertyOrder(80)]
-    public string? SearchTerms { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]

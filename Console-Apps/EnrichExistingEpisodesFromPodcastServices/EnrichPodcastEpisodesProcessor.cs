@@ -100,7 +100,7 @@ public class EnrichPodcastEpisodesProcessor(
         await foreach (var detachedEpisode in episodesQuery)
         {
             var episodeUpdated = false;
-            var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.Publisher,
+            var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.PublisherName,
                 detachedEpisode.Title, detachedEpisode.Description, detachedEpisode.Release, detachedEpisode.Length);
 
             if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
@@ -160,7 +160,7 @@ public class EnrichPodcastEpisodesProcessor(
                         if (spotifyEpisode.FullEpisode != null)
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
-                                podcast.Publisher, spotifyEpisode.FullEpisode.Name,
+                                podcast.PublisherName, spotifyEpisode.FullEpisode.Name,
                                 htmlSanitiser.Sanitise(spotifyEpisode.FullEpisode.HtmlDescription),
                                 spotifyEpisode.FullEpisode.GetReleaseDate(),
                                 spotifyEpisode.FullEpisode.GetDuration());
@@ -249,7 +249,7 @@ public class EnrichPodcastEpisodesProcessor(
                         if (appleEpisode != null)
                         {
                             var refinedCriteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty,
-                                podcast.Publisher, appleEpisode.Title, appleEpisode.Description,
+                                podcast.PublisherName, appleEpisode.Title, appleEpisode.Description,
                                 appleEpisode.Release,
                                 appleEpisode.Duration);
                             match = await spotifyUrlCategoriser.Resolve(refinedCriteria, podcast, indexingContext);
