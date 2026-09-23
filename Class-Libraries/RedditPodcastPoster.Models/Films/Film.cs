@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Releases;
 using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Films;
@@ -8,6 +9,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
 /// Platform presence is <see cref="Services"/> only — no provider-id fields
 /// (unlike podcast <c>Episode</c>, which tracks Spotify/Apple/YouTube collection identity).
+/// Release is year or calendar date — not a podcast-episode datetime.
 /// </summary>
 [CosmosSelector(ModelType.Film)]
 public sealed class Film : CosmosSelector
@@ -34,7 +36,7 @@ public sealed class Film : CosmosSelector
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
-    public DateTime Release { get; set; }
+    public CatalogueRelease? Release { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(31)]

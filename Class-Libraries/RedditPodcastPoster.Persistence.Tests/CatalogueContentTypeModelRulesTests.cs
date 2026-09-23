@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Releases;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 
@@ -82,6 +83,34 @@ public class CatalogueContentTypeModelRulesTests
             type.GetProperty("Services")!.PropertyType
                 .Should().Be(typeof(Dictionary<string, ServiceLink>), because: type.Name);
         }
+    }
+
+    [Fact(DisplayName =
+        "Film release may be year-only or a calendar date; TvShowEpisode and NewsReport release are calendar date — " +
+        "none use a podcast-episode DateTime release.")]
+    public void Non_podcast_playables_use_catalogue_release_not_datetime()
+    {
+        // Arrange
+        var yearRelease = CatalogueRelease.FromYear(2020);
+        var dateRelease = CatalogueRelease.FromDate(new DateOnly(2020, 6, 15));
+
+        // Act
+        var filmReleaseType = typeof(Film).GetProperty(nameof(Film.Release))!.PropertyType;
+        var tvReleaseType = typeof(TvShowEpisode).GetProperty(nameof(TvShowEpisode.Release))!.PropertyType;
+        var newsReleaseType = typeof(NewsReport).GetProperty(nameof(NewsReport.Release))!.PropertyType;
+
+        // Assert
+        filmReleaseType.Should().Be(typeof(CatalogueRelease));
+        tvReleaseType.Should().Be(typeof(CatalogueRelease));
+        newsReleaseType.Should().Be(typeof(CatalogueRelease));
+
+        yearRelease.Precision.Should().Be(CatalogueReleasePrecision.Year);
+        yearRelease.Year.Should().Be(2020);
+        yearRelease.Date.Should().BeNull();
+
+        dateRelease.Precision.Should().Be(CatalogueReleasePrecision.Date);
+        dateRelease.Date.Should().Be(new DateOnly(2020, 6, 15));
+        dateRelease.Year.Should().Be(2020);
     }
 
     [Fact(DisplayName =

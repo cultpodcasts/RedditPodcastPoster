@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Releases;
 using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.TvShows;
@@ -7,6 +8,7 @@ namespace RedditPodcastPoster.Models.TvShows;
 /// <summary>
 /// Playable TV episode. Platform presence is <see cref="Services"/> only —
 /// no Spotify/Apple/YouTube provider-id fields (those exist on podcast episodes for collection matching).
+/// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.TvShowEpisode)]
 public sealed class TvShowEpisode : CosmosSelector
@@ -35,9 +37,10 @@ public sealed class TvShowEpisode : CosmosSelector
     [JsonPropertyOrder(20)]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>Calendar date only — not a podcast-episode UTC datetime. Use <see cref="CatalogueRelease.FromDate"/>.</summary>
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
-    public DateTime Release { get; set; }
+    public CatalogueRelease? Release { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(31)]

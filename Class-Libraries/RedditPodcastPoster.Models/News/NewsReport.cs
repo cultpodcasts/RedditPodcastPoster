@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Releases;
 using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.News;
@@ -7,6 +8,7 @@ namespace RedditPodcastPoster.Models.News;
 /// <summary>
 /// Playable news report under a <see cref="NewsOrganisation"/>.
 /// Platform presence is <see cref="Services"/> only — no provider-id fields.
+/// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.NewsReport)]
 public sealed class NewsReport : CosmosSelector
@@ -35,9 +37,10 @@ public sealed class NewsReport : CosmosSelector
     [JsonPropertyOrder(20)]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>Calendar date only — not a podcast-episode UTC datetime. Use <see cref="CatalogueRelease.FromDate"/>.</summary>
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
-    public DateTime Release { get; set; }
+    public CatalogueRelease? Release { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(31)]
