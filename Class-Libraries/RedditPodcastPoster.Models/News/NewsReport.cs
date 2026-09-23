@@ -1,16 +1,30 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.News;
 
-public class NewsReport
+/// <summary>
+/// Playable news report under a <see cref="NewsOrganisation"/>.
+/// Platform presence is <see cref="Services"/> only — no provider-id fields.
+/// </summary>
+[CosmosSelector(ModelType.NewsReport)]
+public sealed class NewsReport : CosmosSelector
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public NewsReport()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.NewsReport;
+    }
+
+    public NewsReport(string title) : this()
+    {
+        Title = title;
+        FileKey = FileKeyFactory.GetFileKey(title);
+    }
 
     [JsonPropertyName("newsOrganisationId")]
-    [JsonPropertyOrder(2)]
+    [JsonPropertyOrder(3)]
     public Guid NewsOrganisationId { get; set; }
 
     [JsonPropertyName("title")]
@@ -45,10 +59,6 @@ public class NewsReport
     [JsonPropertyOrder(44)]
     public bool Removed { get; set; }
 
-    [JsonPropertyName("ids")]
-    [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; }
-
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
     public List<string> Subjects { get; set; } = [];
@@ -67,10 +77,7 @@ public class NewsReport
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
-
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 
     public bool SetNewsOrganisationProperties(NewsOrganisation organisation)
     {

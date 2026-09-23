@@ -1,12 +1,22 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.News;
 
-public class NewsOrganisation
+[CosmosSelector(ModelType.NewsOrganisation)]
+public sealed class NewsOrganisation : CosmosSelector
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public NewsOrganisation()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.NewsOrganisation;
+    }
+
+    public NewsOrganisation(string name) : this()
+    {
+        Name = name;
+        FileKey = FileKeyFactory.GetFileKey(name);
+    }
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(20)]
@@ -27,7 +37,4 @@ public class NewsOrganisation
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
-
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
 }

@@ -1,18 +1,28 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Films;
 
 /// <summary>
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
-/// Film identity is not the podcast <c>ids</c> bag: no Spotify/Apple; YouTube is first-class when present.
-/// Streaming destinations (Netflix, etc.) use <see cref="Services"/>.
+/// Platform presence is <see cref="Services"/> only — no provider-id fields
+/// (unlike podcast <c>Episode</c>, which tracks Spotify/Apple/YouTube collection identity).
 /// </summary>
-public class Film
+[CosmosSelector(ModelType.Film)]
+public sealed class Film : CosmosSelector
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public Film()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.Film;
+    }
+
+    public Film(string title) : this()
+    {
+        Title = title;
+        FileKey = FileKeyFactory.GetFileKey(title);
+    }
 
     [JsonPropertyName("title")]
     [JsonPropertyOrder(10)]
@@ -46,13 +56,6 @@ public class Film
     [JsonPropertyOrder(44)]
     public bool Removed { get; set; }
 
-    /// <summary>
-    /// YouTube video id when the film is (also) on YouTube. Never Spotify/Apple — those are podcast-episode identities.
-    /// </summary>
-    [JsonPropertyName("youtubeId")]
-    [JsonPropertyOrder(53)]
-    public string? YouTubeId { get; set; }
-
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
     public List<string> Subjects { get; set; } = [];
@@ -65,13 +68,7 @@ public class Film
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
 
-    /// <summary>
-    /// Non-YouTube streaming links (url/image per catalog key). Value type reused from Episode for JSON shape only.
-    /// </summary>
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
-
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 }

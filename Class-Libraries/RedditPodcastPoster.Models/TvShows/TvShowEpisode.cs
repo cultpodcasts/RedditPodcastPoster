@@ -1,16 +1,30 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.TvShows;
 
-public class TvShowEpisode
+/// <summary>
+/// Playable TV episode. Platform presence is <see cref="Services"/> only —
+/// no Spotify/Apple/YouTube provider-id fields (those exist on podcast episodes for collection matching).
+/// </summary>
+[CosmosSelector(ModelType.TvShowEpisode)]
+public sealed class TvShowEpisode : CosmosSelector
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public TvShowEpisode()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.TvShowEpisode;
+    }
+
+    public TvShowEpisode(string title) : this()
+    {
+        Title = title;
+        FileKey = FileKeyFactory.GetFileKey(title);
+    }
 
     [JsonPropertyName("tvShowId")]
-    [JsonPropertyOrder(2)]
+    [JsonPropertyOrder(3)]
     public Guid TvShowId { get; set; }
 
     [JsonPropertyName("title")]
@@ -45,10 +59,6 @@ public class TvShowEpisode
     [JsonPropertyOrder(44)]
     public bool Removed { get; set; }
 
-    [JsonPropertyName("ids")]
-    [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; }
-
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
     public List<string> Subjects { get; set; } = [];
@@ -71,10 +81,7 @@ public class TvShowEpisode
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
-
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 
     public bool SetTvShowProperties(TvShow tvShow)
     {

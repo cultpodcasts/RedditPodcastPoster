@@ -1,12 +1,18 @@
 using FluentAssertions;
 using RedditPodcastPoster.Models.ContentKinds;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
 public class CatalogueContentTypeModelRulesTests
 {
+    private static readonly string[] ForbiddenProviderIdProperties =
+        ["Ids", "YouTubeId", "SpotifyId", "AppleId", "YoutubeId"];
+
     [Fact(DisplayName =
         "ContentKind enumerates the four playable kinds: Episode, TvShowEpisode, Film, NewsReport.")]
     public void ContentKind_has_expected_playable_values()
@@ -27,6 +33,24 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
+        "Film, TvShow, TvShowEpisode, NewsOrganisation, and NewsReport are CosmosSelector types with matching ModelType.")]
+    public void Catalogue_entities_are_cosmos_selectors_with_model_type()
+    {
+        // Arrange / Act / Assert
+        typeof(Film).Should().BeAssignableTo<CosmosSelector>();
+        typeof(TvShow).Should().BeAssignableTo<CosmosSelector>();
+        typeof(TvShowEpisode).Should().BeAssignableTo<CosmosSelector>();
+        typeof(NewsOrganisation).Should().BeAssignableTo<CosmosSelector>();
+        typeof(NewsReport).Should().BeAssignableTo<CosmosSelector>();
+
+        new Film().ModelType.Should().Be(ModelType.Film);
+        new TvShow().ModelType.Should().Be(ModelType.TvShow);
+        new TvShowEpisode().ModelType.Should().Be(ModelType.TvShowEpisode);
+        new NewsOrganisation().ModelType.Should().Be(ModelType.NewsOrganisation);
+        new NewsReport().ModelType.Should().Be(ModelType.NewsReport);
+    }
+
+    [Fact(DisplayName =
         "Film has no parent id property because a film is a standalone playable with no series parent.")]
     public void Film_has_no_parent_id_property()
     {
@@ -42,23 +66,22 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "Film identity is YouTube-only (YouTubeId): no EpisodeIds bag and no Spotify/Apple identity properties, " +
-        "because films are not podcast episodes.")]
-    public void Film_uses_youtube_id_not_episode_ids_bag()
+        "Film, TvShowEpisode, and NewsReport have no provider-id properties (YouTube/Spotify/Apple/Ids): " +
+        "platform presence is services only, unlike podcast Episode collection identity.")]
+    public void Non_podcast_playables_have_no_provider_id_fields()
     {
         // Arrange
-        var filmType = typeof(Film);
-        var propertyNames = filmType.GetProperties().Select(p => p.Name).ToArray();
+        var playableTypes = new[] { typeof(Film), typeof(TvShowEpisode), typeof(NewsReport) };
 
-        // Act
-        var youtubeId = filmType.GetProperty(nameof(Film.YouTubeId));
-        var ids = filmType.GetProperty("Ids");
-
-        // Assert
-        youtubeId.Should().NotBeNull();
-        youtubeId!.PropertyType.Should().Be(typeof(string));
-        ids.Should().BeNull();
-        propertyNames.Should().NotContain(["SpotifyId", "AppleId", "Ids"]);
+        // Act / Assert
+        foreach (var type in playableTypes)
+        {
+            var propertyNames = type.GetProperties().Select(p => p.Name).ToArray();
+            propertyNames.Should().NotContain(ForbiddenProviderIdProperties, because: type.Name);
+            propertyNames.Should().Contain("Services", because: type.Name);
+            type.GetProperty("Services")!.PropertyType
+                .Should().Be(typeof(Dictionary<string, ServiceLink>), because: type.Name);
+        }
     }
 
     [Fact(DisplayName =
