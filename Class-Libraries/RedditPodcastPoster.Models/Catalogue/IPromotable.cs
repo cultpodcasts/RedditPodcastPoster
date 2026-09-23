@@ -20,5 +20,8 @@ public interface IPromotable
     /// <summary>Whether considered Bluesky-posted (legacy flag or stored AT URI).</summary>
     bool BlueskyPosted { get; }
 
+    /// <summary>Optional hashtag appended to Tweet/Bluesky posts (e.g. <c>#MyTag</c>).</summary>
+    string? HashTag { get; set; }
+
     void ClearBlueskyPostState();
 }

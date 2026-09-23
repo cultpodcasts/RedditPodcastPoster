@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Subjects;
 
-namespace RedditPodcastPoster.Models.Episodes;
+namespace RedditPodcastPoster.Models.Catalogue;
 
-public class EpisodeSubjectMatch
+public class PlayableSubjectMatch
 {
     [JsonPropertyName("subject")]
     public string Subject { get; set; } = string.Empty;

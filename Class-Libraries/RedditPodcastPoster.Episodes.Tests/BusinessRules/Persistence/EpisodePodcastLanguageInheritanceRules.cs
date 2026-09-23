@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Persistence;
 
-public class EpisodePodcastLanguageInheritanceRules
+public class EpisodePublisherLanguageInheritanceRules
 {
     private readonly DomainTestFixture _fixture = new();
 
@@ -19,7 +19,7 @@ public class EpisodePodcastLanguageInheritanceRules
             .Customize(e =>
             {
                 e.Language = null;
-                e.PodcastLanguage = null;
+                e.PublisherLanguage = null;
             })
             .Create();
 
@@ -29,7 +29,7 @@ public class EpisodePodcastLanguageInheritanceRules
         // Assert
         updated.Should().BeTrue();
         episode.Language.Should().Be("fil");
-        episode.PodcastLanguage.Should().Be("fil");
+        episode.PublisherLanguage.Should().Be("fil");
     }
 
     [Fact(DisplayName =
@@ -43,7 +43,7 @@ public class EpisodePodcastLanguageInheritanceRules
             .Customize(e =>
             {
                 e.Language = "es";
-                e.PodcastLanguage = null;
+                e.PublisherLanguage = null;
             })
             .Create();
 
@@ -53,7 +53,7 @@ public class EpisodePodcastLanguageInheritanceRules
         // Assert
         updated.Should().BeTrue();
         episode.Language.Should().Be("es");
-        episode.PodcastLanguage.Should().Be("fil");
+        episode.PublisherLanguage.Should().Be("fil");
     }
 
     [Fact(DisplayName =
@@ -67,7 +67,7 @@ public class EpisodePodcastLanguageInheritanceRules
             .Customize(e =>
             {
                 e.Language = null;
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
 
@@ -77,6 +77,6 @@ public class EpisodePodcastLanguageInheritanceRules
         // Assert
         updated.Should().BeTrue();
         episode.Language.Should().BeNull();
-        episode.PodcastLanguage.Should().BeNull();
+        episode.PublisherLanguage.Should().BeNull();
     }
 }

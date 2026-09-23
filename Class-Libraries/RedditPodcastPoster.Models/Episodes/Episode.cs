@@ -32,28 +32,17 @@ public class Episode : Playable
     [JsonPropertyOrder(53)]
     public EpisodeIds? Ids { get; set; }
 
-    [JsonPropertyName("matches")]
-    [JsonPropertyOrder(72)]
-    public List<EpisodeSubjectMatch> Matches { get; set; } = [];
-
-    /// <summary>
-    /// Optional episode-level hashtag appended to Tweet/Bluesky posts (e.g. <c>#MyTag</c>).
-    /// </summary>
-    [JsonPropertyName("hashTag")]
-    [JsonPropertyOrder(81)]
-    public string? HashTag { get; set; }
-
     [JsonPropertyName("podcastName")]
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
     [JsonPropertyName("podcastSearchTerms")]
     [JsonPropertyOrder(91)]
-    public string? PodcastSearchTerms { get; set; }
+    public override string? PublisherSearchTerms { get; set; }
 
     [JsonPropertyName("podcastLanguage")]
     [JsonPropertyOrder(92)]
-    public string? PodcastLanguage { get; set; }
+    public override string? PublisherLanguage { get; set; }
 
     [JsonPropertyName("podcastMetadataVersion")]
     [JsonPropertyOrder(93)]
@@ -161,16 +150,16 @@ public class Episode : Playable
         }
 
         var podcastSearchTerms = podcast.SearchTerms?.Trim();
-        if (PodcastSearchTerms != podcastSearchTerms)
+        if (PublisherSearchTerms != podcastSearchTerms)
         {
-            PodcastSearchTerms = podcastSearchTerms;
+            PublisherSearchTerms = podcastSearchTerms;
             updated = true;
         }
 
         var podcastLanguage = podcast.Language?.Trim();
-        if (PodcastLanguage != podcastLanguage)
+        if (PublisherLanguage != podcastLanguage)
         {
-            PodcastLanguage = podcastLanguage;
+            PublisherLanguage = podcastLanguage;
             updated = true;
         }
 

@@ -10,7 +10,8 @@ namespace RedditPodcastPoster.Models.Films;
 /// Platform presence is <see cref="Services"/> only — no provider-id fields.
 /// Release is year or calendar date — not a podcast-episode datetime.
 /// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no <see cref="IMediaProduction.Title"/>.
-/// Description / Language / SearchTerms come from <see cref="Publisher"/> (satisfy <see cref="IPlayable"/>).
+/// Description / Language / SearchTerms / HashTag come from <see cref="Publisher"/>
+/// (satisfy <see cref="IPlayable"/> / <see cref="IPromotable"/>).
 /// </summary>
 [CosmosSelector(ModelType.Film)]
 public sealed class Film : Publisher, IPlayable, IPromotable
@@ -70,6 +71,10 @@ public sealed class Film : Publisher, IPlayable, IPromotable
     [JsonPropertyName("removedSubjects")]
     [JsonPropertyOrder(71)]
     public List<string> RemovedSubjects { get; set; } = [];
+
+    [JsonPropertyName("matches")]
+    [JsonPropertyOrder(72)]
+    public List<PlayableSubjectMatch> Matches { get; set; } = [];
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]

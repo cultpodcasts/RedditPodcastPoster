@@ -1,7 +1,8 @@
 using System.Linq.Expressions;
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Podcasts;
 using Azure.Search.Documents;
@@ -20,71 +21,83 @@ namespace FunctionHost.Tests.Api.Services.Podcasts;
 public class PodcastUpdateServiceLanguageInheritanceTests
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private Podcast _podcast = null!;
+    private Episode[] _episodes = [];
+
+    public PodcastUpdateServiceLanguageInheritanceTests()
+    {
+        _mocker.Use(CreateUninitializedSearchClient());
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(r => r.GetBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
+            .ReturnsAsync(() => _podcast);
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(r => r.Save(It.IsAny<Podcast>()))
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetByPodcastId(It.IsAny<Guid>()))
+            .Returns(() => ToAsyncEnumerable(_episodes));
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<Episode>()))
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<IEpisodeSearchIndexerService>()
+            .Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
+        _mocker.GetMock<IShortnerService>();
+        _mocker.GetMock<ILogger<PodcastChangeApplier>>();
+        _mocker.GetMock<ILogger<PodcastUpdateService>>();
+    }
 
     [Fact(DisplayName =
         "INTEGRITY: Podcast language API fil→es moves episodes still on fil to es, leaves English (null) overrides alone, " +
-        "and updates denormalised podcastLanguage — null must not be treated as unset.")]
+        "and updates denormalised PublisherLanguage — null must not be treated as unset.")]
     public async Task update_moves_previous_default_followers_not_english_overrides()
     {
         // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.Language = "fil");
+        _podcast = _fixture.CreatePodcast(p => p.Language = "fil");
         var onDefault = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = "fil";
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
         var englishOverride = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = null;
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
         var otherOverride = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = "pt";
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
-
-        var podcastRepo = new Mock<IPodcastRepository>();
-        podcastRepo.Setup(r => r.GetBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
-            .ReturnsAsync(podcast);
-        podcastRepo.Setup(r => r.Save(It.IsAny<Podcast>())).Returns(Task.CompletedTask);
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.GetByPodcastId(podcast.Id))
-            .Returns(ToAsyncEnumerable(onDefault, englishOverride, otherOverride));
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(podcastRepo.Object, episodeRepo.Object, indexer.Object);
+        _episodes = [onDefault, englishOverride, otherOverride];
+        var service = _mocker.CreateInstance<PodcastUpdateService>();
 
         // Act
         var result = await service.UpdateAsync(
-            new PodcastChangeRequestWrapper(podcast.Id, new PodcastChangeRequest { Language = "es" }),
+            new PodcastChangeRequestWrapper(_podcast.Id, new PodcastChangeRequest { Language = "es" }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(PodcastUpdateStatus.Accepted);
         onDefault.Language.Should().Be("es");
-        onDefault.PodcastLanguage.Should().Be("es");
+        onDefault.PublisherLanguage.Should().Be("es");
         englishOverride.Language.Should().BeNull();
-        englishOverride.PodcastLanguage.Should().Be("es");
+        englishOverride.PublisherLanguage.Should().Be("es");
         otherOverride.Language.Should().Be("pt");
-        otherOverride.PodcastLanguage.Should().Be("es");
-        episodeRepo.Verify(r => r.Save(onDefault), Times.Once);
-        episodeRepo.Verify(r => r.Save(englishOverride), Times.Once);
-        episodeRepo.Verify(r => r.Save(otherOverride), Times.Once);
+        otherOverride.PublisherLanguage.Should().Be("es");
+        _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(onDefault), Times.Once);
+        _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(englishOverride), Times.Once);
+        _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(otherOverride), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -92,51 +105,37 @@ public class PodcastUpdateServiceLanguageInheritanceTests
     public async Task update_from_english_default_moves_null_episodes_onto_new_default()
     {
         // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.Language = null);
+        _podcast = _fixture.CreatePodcast(p => p.Language = null);
         var unsetEpisode = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = null;
-                e.PodcastLanguage = null;
+                e.PublisherLanguage = null;
             })
             .Create();
         var explicitEpisode = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = "es";
-                e.PodcastLanguage = null;
+                e.PublisherLanguage = null;
             })
             .Create();
-
-        var podcastRepo = new Mock<IPodcastRepository>();
-        podcastRepo.Setup(r => r.GetBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
-            .ReturnsAsync(podcast);
-        podcastRepo.Setup(r => r.Save(It.IsAny<Podcast>())).Returns(Task.CompletedTask);
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.GetByPodcastId(podcast.Id))
-            .Returns(ToAsyncEnumerable(unsetEpisode, explicitEpisode));
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(podcastRepo.Object, episodeRepo.Object, indexer.Object);
+        _episodes = [unsetEpisode, explicitEpisode];
+        var service = _mocker.CreateInstance<PodcastUpdateService>();
 
         // Act
         var result = await service.UpdateAsync(
-            new PodcastChangeRequestWrapper(podcast.Id, new PodcastChangeRequest { Language = "fil" }),
+            new PodcastChangeRequestWrapper(_podcast.Id, new PodcastChangeRequest { Language = "fil" }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(PodcastUpdateStatus.Accepted);
         unsetEpisode.Language.Should().Be("fil");
-        unsetEpisode.PodcastLanguage.Should().Be("fil");
+        unsetEpisode.PublisherLanguage.Should().Be("fil");
         explicitEpisode.Language.Should().Be("es");
-        explicitEpisode.PodcastLanguage.Should().Be("fil");
+        explicitEpisode.PublisherLanguage.Should().Be("fil");
     }
 
     [Fact(DisplayName =
@@ -144,67 +143,39 @@ public class PodcastUpdateServiceLanguageInheritanceTests
     public async Task update_clearing_podcast_language_nulls_previous_default_followers()
     {
         // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.Language = "fil");
+        _podcast = _fixture.CreatePodcast(p => p.Language = "fil");
         var onDefault = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = "fil";
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
         var englishOverride = _fixture.BuildEpisode()
-            .WithPodcast(podcast)
+            .WithPodcast(_podcast)
             .Customize(e =>
             {
                 e.Language = null;
-                e.PodcastLanguage = "fil";
+                e.PublisherLanguage = "fil";
             })
             .Create();
-
-        var podcastRepo = new Mock<IPodcastRepository>();
-        podcastRepo.Setup(r => r.GetBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
-            .ReturnsAsync(podcast);
-        podcastRepo.Setup(r => r.Save(It.IsAny<Podcast>())).Returns(Task.CompletedTask);
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.GetByPodcastId(podcast.Id))
-            .Returns(ToAsyncEnumerable(onDefault, englishOverride));
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(podcastRepo.Object, episodeRepo.Object, indexer.Object);
+        _episodes = [onDefault, englishOverride];
+        var service = _mocker.CreateInstance<PodcastUpdateService>();
 
         // Act
         var result = await service.UpdateAsync(
-            new PodcastChangeRequestWrapper(podcast.Id, new PodcastChangeRequest { Language = "" }),
+            new PodcastChangeRequestWrapper(_podcast.Id, new PodcastChangeRequest { Language = "" }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(PodcastUpdateStatus.Accepted);
-        podcast.Language.Should().BeNull();
+        _podcast.Language.Should().BeNull();
         onDefault.Language.Should().BeNull();
-        onDefault.PodcastLanguage.Should().BeNull();
+        onDefault.PublisherLanguage.Should().BeNull();
         englishOverride.Language.Should().BeNull();
-        englishOverride.PodcastLanguage.Should().BeNull();
+        englishOverride.PublisherLanguage.Should().BeNull();
     }
-
-    private static PodcastUpdateService CreateService(
-        IPodcastRepository podcastRepository,
-        IEpisodeRepository episodeRepository,
-        IEpisodeSearchIndexerService indexer) =>
-        new(
-            podcastRepository,
-            episodeRepository,
-            indexer,
-            CreateUninitializedSearchClient(),
-            Mock.Of<IShortnerService>(),
-            new PodcastChangeApplier(NullLogger<PodcastChangeApplier>.Instance),
-            new PodcastEpisodeProjectionHelper(episodeRepository),
-            NullLogger<PodcastUpdateService>.Instance);
 
     private static async IAsyncEnumerable<Episode> ToAsyncEnumerable(params Episode[] episodes)
     {

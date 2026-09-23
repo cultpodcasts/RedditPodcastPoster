@@ -38,11 +38,11 @@ public sealed class TvShowEpisode : Playable
 
     [JsonPropertyName("tvShowSearchTerms")]
     [JsonPropertyOrder(91)]
-    public string? TvShowSearchTerms { get; set; }
+    public override string? PublisherSearchTerms { get; set; }
 
     [JsonPropertyName("tvShowLanguage")]
     [JsonPropertyOrder(92)]
-    public string? TvShowLanguage { get; set; }
+    public override string? PublisherLanguage { get; set; }
 
     [JsonPropertyName("tvShowMetadataVersion")]
     [JsonPropertyOrder(93)]
@@ -80,16 +80,16 @@ public sealed class TvShowEpisode : Playable
         }
 
         var searchTerms = tvShow.SearchTerms?.Trim();
-        if (TvShowSearchTerms != searchTerms)
+        if (PublisherSearchTerms != searchTerms)
         {
-            TvShowSearchTerms = searchTerms;
+            PublisherSearchTerms = searchTerms;
             updated = true;
         }
 
         var language = tvShow.Language?.Trim();
-        if (TvShowLanguage != language)
+        if (PublisherLanguage != language)
         {
-            TvShowLanguage = language;
+            PublisherLanguage = language;
             updated = true;
         }
 

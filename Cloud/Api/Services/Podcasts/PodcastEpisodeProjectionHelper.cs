@@ -11,7 +11,7 @@ public class PodcastEpisodeProjectionHelper(IEpisodeRepository episodeRepository
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(c))
         {
             episode.PodcastName = podcast.Name;
-            episode.PodcastSearchTerms = podcast.SearchTerms;
+            episode.PublisherSearchTerms = podcast.SearchTerms;
             episode.PodcastRemoved = podcast.Removed;
             await episodeRepository.Save(episode);
         }

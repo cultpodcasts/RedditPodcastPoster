@@ -38,11 +38,11 @@ public sealed class NewsReport : Playable
 
     [JsonPropertyName("newsOrganisationSearchTerms")]
     [JsonPropertyOrder(91)]
-    public string? NewsOrganisationSearchTerms { get; set; }
+    public override string? PublisherSearchTerms { get; set; }
 
     [JsonPropertyName("newsOrganisationLanguage")]
     [JsonPropertyOrder(92)]
-    public string? NewsOrganisationLanguage { get; set; }
+    public override string? PublisherLanguage { get; set; }
 
     [JsonPropertyName("newsOrganisationMetadataVersion")]
     [JsonPropertyOrder(93)]
@@ -80,16 +80,16 @@ public sealed class NewsReport : Playable
         }
 
         var searchTerms = organisation.SearchTerms?.Trim();
-        if (NewsOrganisationSearchTerms != searchTerms)
+        if (PublisherSearchTerms != searchTerms)
         {
-            NewsOrganisationSearchTerms = searchTerms;
+            PublisherSearchTerms = searchTerms;
             updated = true;
         }
 
         var language = organisation.Language?.Trim();
-        if (NewsOrganisationLanguage != language)
+        if (PublisherLanguage != language)
         {
-            NewsOrganisationLanguage = language;
+            PublisherLanguage = language;
             updated = true;
         }
 

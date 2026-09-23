@@ -390,6 +390,6 @@ public class EpisodeMergingRules
         result.AddedEpisodes.Should().ContainSingle();
         var added = result.AddedEpisodes.Single();
         added.Language.Should().Be("pl");
-        added.PodcastLanguage.Should().Be("pl");
+        added.PublisherLanguage.Should().Be("pl");
     }
 }

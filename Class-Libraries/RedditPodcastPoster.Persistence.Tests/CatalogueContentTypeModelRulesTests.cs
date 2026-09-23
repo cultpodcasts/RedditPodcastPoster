@@ -105,8 +105,8 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "Episode, TvShowEpisode, and NewsReport subclass Playable and implement IMediaProduction, IPlayable, " +
-        "IPromotable, and IRemovable; Film implements IPlayable, IPromotable, and IRemovable via Publisher " +
-        "but not IMediaProduction or Playable.")]
+        "and IPromotable; Film implements IPlayable and IPromotable via Publisher dual-role " +
+        "but not IMediaProduction or Playable. IsRemoved is on IPlayable and Publisher.")]
     public void Catalogue_playables_use_playable_base_and_capability_interfaces()
     {
         // Arrange / Act / Assert
@@ -124,20 +124,24 @@ public class CatalogueContentTypeModelRulesTests
         {
             type.Should().BeAssignableTo<IPlayable>(because: type.Name);
             type.Should().BeAssignableTo<IPromotable>(because: type.Name);
-            type.Should().BeAssignableTo<IRemovable>(because: type.Name);
         }
 
-        typeof(Podcast).Should().BeAssignableTo<IRemovable>();
         typeof(Podcast).Should().NotBeAssignableTo<IPlayable>();
+        typeof(Podcast).GetMethod(nameof(Publisher.IsRemoved)).Should().NotBeNull();
 
+        typeof(IPlayable).GetMethod(nameof(IPlayable.IsRemoved)).Should().NotBeNull();
         typeof(IPlayable).GetProperty(nameof(IPlayable.Description)).Should().NotBeNull();
         typeof(IPlayable).GetProperty(nameof(IPlayable.Services)).Should().NotBeNull();
+        typeof(IPlayable).GetProperty(nameof(IPlayable.Matches)).Should().NotBeNull();
         typeof(IPromotable).GetMethod(nameof(IPromotable.ClearBlueskyPostState)).Should().NotBeNull();
         typeof(IPromotable).GetProperty(nameof(IPromotable.BlueskyPosted)).Should().NotBeNull();
+        typeof(IPromotable).GetProperty(nameof(IPromotable.HashTag)).Should().NotBeNull();
 
         new Episode().ModelType.Should().Be(ModelType.Episode);
         new Episode().IsRemoved().Should().BeFalse();
         new Film().IsRemoved().Should().BeFalse();
+        new Film().HashTag.Should().BeNull();
+        new Episode().HashTag.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -399,8 +403,8 @@ public class CatalogueContentTypeModelRulesTests
         updatedMetadata.Should().BeTrue();
         episode.TvShowId.Should().Be(tvShowId);
         episode.TvShowName.Should().Be(tvShowName);
-        episode.TvShowSearchTerms.Should().Be(searchTerms);
-        episode.TvShowLanguage.Should().Be(language);
+        episode.PublisherSearchTerms.Should().Be(searchTerms);
+        episode.PublisherLanguage.Should().Be(language);
         episode.TvShowRemoved.Should().BeTrue();
         episode.TvShowMetadataVersion.Should().Be(metadataVersion);
     }
@@ -436,8 +440,8 @@ public class CatalogueContentTypeModelRulesTests
         updatedMetadata.Should().BeFalse();
         episode.TvShowId.Should().Be(tvShowId);
         episode.TvShowName.Should().Be(tvShowName);
-        episode.TvShowSearchTerms.Should().Be(searchTerms);
-        episode.TvShowLanguage.Should().Be(language);
+        episode.PublisherSearchTerms.Should().Be(searchTerms);
+        episode.PublisherLanguage.Should().Be(language);
         episode.TvShowRemoved.Should().BeFalse();
         episode.TvShowMetadataVersion.Should().Be(metadataVersion);
     }
@@ -472,8 +476,8 @@ public class CatalogueContentTypeModelRulesTests
         updatedMetadata.Should().BeTrue();
         report.NewsOrganisationId.Should().Be(organisationId);
         report.NewsOrganisationName.Should().Be(organisationName);
-        report.NewsOrganisationSearchTerms.Should().Be(searchTerms);
-        report.NewsOrganisationLanguage.Should().Be(language);
+        report.PublisherSearchTerms.Should().Be(searchTerms);
+        report.PublisherLanguage.Should().Be(language);
         report.NewsOrganisationRemoved.Should().BeTrue();
         report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
     }
@@ -509,9 +513,64 @@ public class CatalogueContentTypeModelRulesTests
         updatedMetadata.Should().BeFalse();
         report.NewsOrganisationId.Should().Be(organisationId);
         report.NewsOrganisationName.Should().Be(organisationName);
-        report.NewsOrganisationSearchTerms.Should().Be(searchTerms);
-        report.NewsOrganisationLanguage.Should().Be(language);
+        report.PublisherSearchTerms.Should().Be(searchTerms);
+        report.PublisherLanguage.Should().Be(language);
         report.NewsOrganisationRemoved.Should().BeFalse();
         report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY PublisherSearchTerms JSON: Episode, TvShowEpisode, and NewsReport serialize denormalised " +
+        "parent search terms and language under their established Cosmos names (podcast*/tvShow*/newsOrganisation*), " +
+        "because Playable virtual members must not emit PascalCase or a shared publisher* key.")]
+    public void Publisher_denormalised_fields_keep_per_type_cosmos_json_names()
+    {
+        // Arrange
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var hashTag = "#" + _fixture.Create<string>();
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var episode = new Episode
+        {
+            PublisherSearchTerms = searchTerms,
+            PublisherLanguage = language,
+            HashTag = hashTag,
+            Matches = [new PlayableSubjectMatch { Subject = _fixture.Create<string>(), Term = _fixture.Create<string>() }]
+        };
+        var tvShowEpisode = new TvShowEpisode
+        {
+            PublisherSearchTerms = searchTerms,
+            PublisherLanguage = language
+        };
+        var newsReport = new NewsReport
+        {
+            PublisherSearchTerms = searchTerms,
+            PublisherLanguage = language
+        };
+
+        // Act
+        var episodeJson = JsonSerializer.Serialize(episode, options);
+        var tvJson = JsonSerializer.Serialize(tvShowEpisode, options);
+        var newsJson = JsonSerializer.Serialize(newsReport, options);
+        var episodeRoundTrip = JsonSerializer.Deserialize<Episode>(episodeJson, options);
+        var tvRoundTrip = JsonSerializer.Deserialize<TvShowEpisode>(tvJson, options);
+        var newsRoundTrip = JsonSerializer.Deserialize<NewsReport>(newsJson, options);
+
+        // Assert
+        episodeJson.Should().Contain("\"podcastSearchTerms\"");
+        episodeJson.Should().Contain("\"podcastLanguage\"");
+        episodeJson.Should().Contain("\"hashTag\"");
+        episodeJson.Should().Contain("\"matches\"");
+        episodeJson.Should().NotContain("PublisherSearchTerms");
+        episodeJson.Should().NotContain("publisherSearchTerms");
+        tvJson.Should().Contain("\"tvShowSearchTerms\"");
+        tvJson.Should().Contain("\"tvShowLanguage\"");
+        newsJson.Should().Contain("\"newsOrganisationSearchTerms\"");
+        newsJson.Should().Contain("\"newsOrganisationLanguage\"");
+        episodeRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
+        episodeRoundTrip.PublisherLanguage.Should().Be(language);
+        episodeRoundTrip.HashTag.Should().Be(hashTag);
+        tvRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
+        newsRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
     }
 }

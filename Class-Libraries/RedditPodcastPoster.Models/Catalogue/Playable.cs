@@ -6,9 +6,9 @@ namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
 /// Parent playable (Episode / TvShowEpisode / NewsReport): titled production with
-/// shared playable, promotion, and removable contracts.
+/// shared playable and promotion contracts.
 /// </summary>
-public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IPromotable, IRemovable
+public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IPromotable
 {
     [JsonPropertyName("title")]
     [JsonPropertyOrder(10)]
@@ -74,9 +74,36 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     [JsonPropertyOrder(71)]
     public List<string> RemovedSubjects { get; set; } = [];
 
+    [JsonPropertyName("matches")]
+    [JsonPropertyOrder(72)]
+    public List<PlayableSubjectMatch> Matches { get; set; } = [];
+
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
+
+    /// <summary>
+    /// Optional playable-level hashtag appended to Tweet/Bluesky posts (e.g. <c>#MyTag</c>).
+    /// </summary>
+    [JsonPropertyName("hashTag")]
+    [JsonPropertyOrder(81)]
+    public string? HashTag { get; set; }
+
+    /// <summary>
+    /// Denormalised parent publisher search terms. Subclasses set Cosmos JSON names
+    /// (<c>podcastSearchTerms</c> / <c>tvShowSearchTerms</c> / <c>newsOrganisationSearchTerms</c>).
+    /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.SearchTerms"/>).
+    /// </summary>
+    [JsonIgnore]
+    public virtual string? PublisherSearchTerms { get; set; }
+
+    /// <summary>
+    /// Denormalised parent publisher language. Subclasses set Cosmos JSON names
+    /// (<c>podcastLanguage</c> / <c>tvShowLanguage</c> / <c>newsOrganisationLanguage</c>).
+    /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.Language"/>).
+    /// </summary>
+    [JsonIgnore]
+    public virtual string? PublisherLanguage { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
