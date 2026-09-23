@@ -81,11 +81,32 @@ public sealed class TvShowEpisode : CosmosSelector
     [JsonPropertyOrder(91)]
     public string? TvShowSearchTerms { get; set; }
 
+    [JsonPropertyName("tvShowLanguage")]
+    [JsonPropertyOrder(92)]
+    public string? TvShowLanguage { get; set; }
+
+    [JsonPropertyName("tvShowMetadataVersion")]
+    [JsonPropertyOrder(93)]
+    public long? TvShowMetadataVersion { get; set; }
+
+    [JsonPropertyName("tvShowRemoved")]
+    [JsonPropertyOrder(94)]
+    public bool? TvShowRemoved { get; set; }
+
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
-    public bool SetTvShowProperties(TvShow tvShow)
+    [JsonPropertyName("guests")]
+    [JsonPropertyOrder(160)]
+    public string[]? Guests { get; set; }
+
+    /// <summary>
+    /// Denormalise parent TvShow fields onto this playable (mirrors
+    /// <c>Episode.SetPodcastProperties</c>). First flag = projection fields;
+    /// second = parent <c>_ts</c> / metadata version only.
+    /// </summary>
+    public (bool Updated, bool UpdatedMetadata) SetTvShowProperties(TvShow tvShow)
     {
         var updated = false;
         if (TvShowId != tvShow.Id)
@@ -101,6 +122,12 @@ public sealed class TvShowEpisode : CosmosSelector
             updated = true;
         }
 
+        if (TvShowRemoved != tvShow.Removed)
+        {
+            TvShowRemoved = tvShow.Removed;
+            updated = true;
+        }
+
         var searchTerms = tvShow.SearchTerms?.Trim();
         if (TvShowSearchTerms != searchTerms)
         {
@@ -108,6 +135,20 @@ public sealed class TvShowEpisode : CosmosSelector
             updated = true;
         }
 
-        return updated;
+        var language = tvShow.Language?.Trim();
+        if (TvShowLanguage != language)
+        {
+            TvShowLanguage = language;
+            updated = true;
+        }
+
+        var updatedMetadata = false;
+        if (TvShowMetadataVersion != tvShow.Timestamp)
+        {
+            TvShowMetadataVersion = tvShow.Timestamp;
+            updatedMetadata = true;
+        }
+
+        return (updated, updatedMetadata);
     }
 }

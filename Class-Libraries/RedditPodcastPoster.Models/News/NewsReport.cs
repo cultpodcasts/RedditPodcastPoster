@@ -77,11 +77,36 @@ public sealed class NewsReport : CosmosSelector
     [JsonPropertyOrder(90)]
     public string? NewsOrganisationName { get; set; }
 
+    [JsonPropertyName("newsOrganisationSearchTerms")]
+    [JsonPropertyOrder(91)]
+    public string? NewsOrganisationSearchTerms { get; set; }
+
+    [JsonPropertyName("newsOrganisationLanguage")]
+    [JsonPropertyOrder(92)]
+    public string? NewsOrganisationLanguage { get; set; }
+
+    [JsonPropertyName("newsOrganisationMetadataVersion")]
+    [JsonPropertyOrder(93)]
+    public long? NewsOrganisationMetadataVersion { get; set; }
+
+    [JsonPropertyName("newsOrganisationRemoved")]
+    [JsonPropertyOrder(94)]
+    public bool? NewsOrganisationRemoved { get; set; }
+
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
-    public bool SetNewsOrganisationProperties(NewsOrganisation organisation)
+    [JsonPropertyName("guests")]
+    [JsonPropertyOrder(160)]
+    public string[]? Guests { get; set; }
+
+    /// <summary>
+    /// Denormalise parent NewsOrganisation fields onto this playable (mirrors
+    /// <c>Episode.SetPodcastProperties</c> / <c>TvShowEpisode.SetTvShowProperties</c>).
+    /// First flag = projection fields; second = parent <c>_ts</c> / metadata version only.
+    /// </summary>
+    public (bool Updated, bool UpdatedMetadata) SetNewsOrganisationProperties(NewsOrganisation organisation)
     {
         var updated = false;
         if (NewsOrganisationId != organisation.Id)
@@ -97,6 +122,33 @@ public sealed class NewsReport : CosmosSelector
             updated = true;
         }
 
-        return updated;
+        if (NewsOrganisationRemoved != organisation.Removed)
+        {
+            NewsOrganisationRemoved = organisation.Removed;
+            updated = true;
+        }
+
+        var searchTerms = organisation.SearchTerms?.Trim();
+        if (NewsOrganisationSearchTerms != searchTerms)
+        {
+            NewsOrganisationSearchTerms = searchTerms;
+            updated = true;
+        }
+
+        var language = organisation.Language?.Trim();
+        if (NewsOrganisationLanguage != language)
+        {
+            NewsOrganisationLanguage = language;
+            updated = true;
+        }
+
+        var updatedMetadata = false;
+        if (NewsOrganisationMetadataVersion != organisation.Timestamp)
+        {
+            NewsOrganisationMetadataVersion = organisation.Timestamp;
+            updatedMetadata = true;
+        }
+
+        return (updated, updatedMetadata);
     }
 }

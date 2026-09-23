@@ -73,4 +73,8 @@ public sealed class Film : CosmosSelector
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLink>? Services { get; set; }
+
+    [JsonPropertyName("guests")]
+    [JsonPropertyOrder(160)]
+    public string[]? Guests { get; set; }
 }
