@@ -356,9 +356,9 @@ Lookup: membership across playable containers; name attach per parent kind with 
 
 ### Phase 1 — Schema & persistence (no user-facing switch)
 
-- Cosmos: TvShows, TvShowEpisodes, Films, NewsOrganisations, NewsReports + repositories  
-- Models mirror Episode `services` where applicable  
-- Unit tests; **no** production writes  
+- [x] Cosmos: TvShows, TvShowEpisodes, Films, NewsOrganisations, NewsReports + repositories  
+- [x] Models mirror Episode `services` where applicable  
+- [x] Unit tests; **no** production writes  
 
 ### Phase 2 — Search index
 

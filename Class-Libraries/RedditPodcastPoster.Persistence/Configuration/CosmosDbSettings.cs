@@ -7,6 +7,11 @@ public class CosmosDbSettings
     public required string DatabaseId { get; set; }
     public required string PodcastsContainer { get; set; }
     public required string EpisodesContainer { get; set; }
+    public required string TvShowsContainer { get; set; }
+    public required string TvShowEpisodesContainer { get; set; }
+    public required string FilmsContainer { get; set; }
+    public required string NewsOrganisationsContainer { get; set; }
+    public required string NewsReportsContainer { get; set; }
     public required string SubjectsContainer { get; set; }
     public required string PeopleContainer { get; set; }
     public required string ActivitiesContainer { get; set; }

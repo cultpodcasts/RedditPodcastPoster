@@ -29,6 +29,11 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:DatabaseId"] = "test-db",
             ["cosmosdb:PodcastsContainer"] = "Podcasts",
             ["cosmosdb:EpisodesContainer"] = "Episodes",
+            ["cosmosdb:TvShowsContainer"] = "TvShows",
+            ["cosmosdb:TvShowEpisodesContainer"] = "TvShowEpisodes",
+            ["cosmosdb:FilmsContainer"] = "Films",
+            ["cosmosdb:NewsOrganisationsContainer"] = "NewsOrganisations",
+            ["cosmosdb:NewsReportsContainer"] = "NewsReports",
             ["cosmosdb:SubjectsContainer"] = "Subjects",
             ["cosmosdb:PeopleContainer"] = "People",
             ["cosmosdb:ActivitiesContainer"] = "Activity",
@@ -157,6 +162,11 @@ internal static class FunctionHostTestSupport
         var mockContainerFactory = new Mock<ICosmosDbContainerFactory>();
         mockContainerFactory.Setup(x => x.CreatePodcastsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateEpisodesContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateTvShowsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateTvShowEpisodesContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateFilmsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateNewsOrganisationsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateNewsReportsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateSubjectsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreatePeopleContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateActivitiesContainer()).Returns(mockContainer.Object);

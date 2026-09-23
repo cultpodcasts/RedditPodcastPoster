@@ -223,6 +223,11 @@ var cosmosdb= {
     cosmosdb__Endpoint: cosmosdbEndpoint
     cosmosdb__PodcastsContainer: 'Podcasts'
     cosmosdb__EpisodesContainer: 'Episodes'
+    cosmosdb__TvShowsContainer: 'TvShows'
+    cosmosdb__TvShowEpisodesContainer: 'TvShowEpisodes'
+    cosmosdb__FilmsContainer: 'Films'
+    cosmosdb__NewsOrganisationsContainer: 'NewsOrganisations'
+    cosmosdb__NewsReportsContainer: 'NewsReports'
     cosmosdb__SubjectsContainer: 'Subjects'
     cosmosdb__PeopleContainer: 'People'
     cosmosdb__ActivitiesContainer: 'Activity'

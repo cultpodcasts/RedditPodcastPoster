@@ -69,6 +69,36 @@ public static class ServiceCollectionExtensions
                         podcastRepository,
                         logger);
                 })
+                .AddSingleton<ITvShowRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TvShowRepository>>();
+                    return new TvShowRepository(containerFactory.CreateTvShowsContainer(), logger);
+                })
+                .AddSingleton<ITvShowEpisodeRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TvShowEpisodeRepository>>();
+                    return new TvShowEpisodeRepository(containerFactory.CreateTvShowEpisodesContainer(), logger);
+                })
+                .AddSingleton<IFilmRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmRepository>>();
+                    return new FilmRepository(containerFactory.CreateFilmsContainer(), logger);
+                })
+                .AddSingleton<INewsOrganisationRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsOrganisationRepository>>();
+                    return new NewsOrganisationRepository(containerFactory.CreateNewsOrganisationsContainer(), logger);
+                })
+                .AddSingleton<INewsReportRepository>(s =>
+                {
+                    var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
+                    var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsReportRepository>>();
+                    return new NewsReportRepository(containerFactory.CreateNewsReportsContainer(), logger);
+                })
                 .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

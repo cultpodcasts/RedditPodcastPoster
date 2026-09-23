@@ -98,6 +98,81 @@ resource episodesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
   }
 }
 
+resource tvShowsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'TvShows'
+  properties: {
+    resource: {
+      id: 'TvShows'
+      partitionKey: {
+        paths: ['/id']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
+resource tvShowEpisodesContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'TvShowEpisodes'
+  properties: {
+    resource: {
+      id: 'TvShowEpisodes'
+      partitionKey: {
+        paths: ['/tvShowId']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
+resource filmsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'Films'
+  properties: {
+    resource: {
+      id: 'Films'
+      partitionKey: {
+        paths: ['/id']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
+resource newsOrganisationsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'NewsOrganisations'
+  properties: {
+    resource: {
+      id: 'NewsOrganisations'
+      partitionKey: {
+        paths: ['/id']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
+resource newsReportsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'NewsReports'
+  properties: {
+    resource: {
+      id: 'NewsReports'
+      partitionKey: {
+        paths: ['/newsOrganisationId']
+        kind: 'Hash'
+      }
+    }
+    options: {}
+  }
+}
+
 resource lookupContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: database
   name: 'LookUps'

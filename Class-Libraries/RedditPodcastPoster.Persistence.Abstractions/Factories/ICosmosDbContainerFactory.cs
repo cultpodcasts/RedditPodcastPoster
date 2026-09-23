@@ -6,6 +6,11 @@ public interface ICosmosDbContainerFactory
 {
     Container CreatePodcastsContainer();
     Container CreateEpisodesContainer();
+    Container CreateTvShowsContainer();
+    Container CreateTvShowEpisodesContainer();
+    Container CreateFilmsContainer();
+    Container CreateNewsOrganisationsContainer();
+    Container CreateNewsReportsContainer();
     Container CreateSubjectsContainer();
     Container CreatePeopleContainer();
     Container CreateActivitiesContainer();
