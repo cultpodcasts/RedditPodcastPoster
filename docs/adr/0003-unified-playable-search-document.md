@@ -1,7 +1,9 @@
 ---
 title: "ADR-0003: Unified playable search document with contentKind facet"
-status: "Proposed"
+status: "Accepted"
 date: "2026-09-03"
+accepted: "2026-09-23"
+amended: "2026-09-23"
 authors: "Catalogue platform (planning)"
 tags: ["architecture", "search", "azure-search", "content-types"]
 supersedes: ""
@@ -12,106 +14,98 @@ superseded_by: ""
 
 ## Status
 
-**Proposed** — Phase 0 planning. No production index recreation from this ADR alone ([episode-services.md](../episode-services.md) guardrail).
+**Accepted** — 2026-09-23; **amended** same day for unified projection fields (`title` / `seriesName` / `description` / `seriesDescription`). No production index recreation from this ADR alone.
 
 ## Context
 
-**CTX-001**: Azure AI Search index `cultpodcasts` holds **~82k** episode-shaped documents. Jul 2026: **~49 MB / 50 MB** Free-tier cap ([search-index-slimming-plan.md](../search-index-slimming-plan.md) §3A). Slimming (URL→ID, `svc`, drop `explicit`) targets **~40 MB**.
+**CTX-001**: Index `cultpodcasts` holds episode-shaped documents on Azure AI Search Free tier. **Re-measure before Phase 2** (epic OPEN-007).
 
-**CTX-002**: Epic [ADR-0002](./0002-separate-catalogue-content-containers.md) adds **TvShowEpisodes**, **Movies**, and **NewsReports** as playable sources. Search must return mixed playables with correct parent identity and a **`contentKind`** facet: `Podcast | TvShow | Movie | NewsReport`.
+**CTX-002**: ADR-0002 adds playables **Episodes**, **TvShowEpisodes**, **Films**, **NewsReports**. Search must return mixed playables with facet **`contentKind`**: `Episode | TvShowEpisode | Film | NewsReport`.
 
-**CTX-003**: Existing clients (`SearchResult`, OData filters on `podcastName`, `subjects`, `lang`) must keep working for podcast rows during phased rollout.
+**CTX-003**: Legacy clients use `podcastName`, `episodeTitle`, `episodeDescription`. Those names are podcast-centric and wrong for Film/TV/News.
 
-**CTX-004**: Dual live indexes on Free tier **sum** storage — ~40 MB × 2 **exceeds** cap ([storage impact analysis](../catalogue-content-types-search-storage-impact.md)).
+**CTX-004**: Dual live indexes on Free tier typically exceed 50 MB. Prefer **in-place** field add, then retire legacy fields.
+
+**CTX-005**: **Film has no series** — `seriesName` / `seriesDescription` omitted on Film docs.
 
 ## Decision
 
-**DEC-001**: **One search index** (`cultpodcasts` or successor name) fed from four playable Cosmos sources:
+**DEC-001**: **One search index** fed from four playable Cosmos sources. Parents are not separate index rows.
 
-| Source container | `contentKind` | Parent join at index time |
-|------------------|---------------|---------------------------|
-| Episodes | `Podcast` | Podcast.name → `podcastName` |
-| TvShowEpisodes | `TvShow` | TvShow.name → `tvShowName` |
-| Movies | `Movie` | Movie.title → `movieName` |
-| NewsReports | `NewsReport` | NewsOrganisation.name → `newsOrganisationName` |
+**DEC-002**: Add **`contentKind`** — filterable + facetable. Backfill existing episode rows to **`Episode`**.
 
-**NewsOrganisations**, **TvShows**, and **Podcasts** are **not** separate index rows — only playables.
+**DEC-003** (**amended**): **Target public search-item shape** (epic OPEN-004):
 
-**DEC-002**: Add **`contentKind`** — **filterable + facetable** on every document. Existing podcast docs backfilled to `Podcast`.
+| Field | Role |
+|-------|------|
+| `title` | Playable title (episode / film / headline) |
+| `description` | Playable blurb |
+| `seriesName` | Parent name when present (podcast / tv show / news org); **omit for Film** |
+| `seriesDescription` | Parent description join when present; **omit for Film** |
 
-**DEC-003**: **Backward compatibility** on podcast documents:
+| `contentKind` | `title` | `seriesName` | `seriesDescription` |
+|---------------|---------|--------------|---------------------|
+| `Episode` | episode title | podcast name | podcast description |
+| `TvShowEpisode` | episode title | tv show name | tv show description |
+| `Film` | film title | omit | omit |
+| `NewsReport` | headline | news organisation name | org description |
 
-- Keep **`id`**, **`podcastName`**, **`episodeTitle`**, **`episodeDescription`**, and existing service fields unchanged for `contentKind=Podcast`.
-- Do **not** populate `tvShowName` / `movieName` / `newsOrganisationName` on podcast rows.
-- Do **not** duplicate `podcastName` into a generic `parentName` on podcast rows (storage — see impact doc).
+**DEC-004**: Do **not** use kind-specific parent fields (`tvShowName`, `newsOrganisationName`, `filmName`) on the long-term public model — **`seriesName`** is the shared parent label.
 
-**DEC-004**: Non-podcast playables use **kind-specific nullable parent name fields** (not `podcastName`):
+**DEC-005**: Reuse cross-kind fields: `id`, `release`, `duration`, `subjects`, `lang`, `image`, `svc`, platform IDs, hidden search-term fields, plus `contentKind`.
 
-| `contentKind` | Playable key | Title field (shared) | Parent name field |
-|---------------|--------------|----------------------|-------------------|
-| `Podcast` | `id` (episode GUID) | `episodeTitle` | `podcastName` |
-| `TvShow` | `id` (tvShowEpisode GUID) | `episodeTitle` | `tvShowName` |
-| `Movie` | `id` (movie GUID) | `episodeTitle` | `movieName` |
-| `NewsReport` | `id` (newsReport GUID) | `episodeTitle` (headline) | `newsOrganisationName` |
+**DEC-006**: Schema rollout — build a **fresh index** combining remaining slimming with the new playable projection (epic OPEN-011). Plan **SKU bump** or **delete-rebuild downtime**; Free tier cannot hold two full copies. Measure live size in Phase 2 (OPEN-007).
 
-Optional **`parentId`** (filterable) may be added per kind in implementation — not required for Phase 0 sign-off.
+**DEC-007**: When `contentKind` is **omitted**, return **all kinds**. Cards must branch by kind.
 
-**DEC-005**: Reuse existing cross-kind fields where semantics align: `release`, `duration`, `subjects`, `lang`, `image`, `svc`, platform IDs, hidden search term fields (with kind-appropriate source mapping in indexer).
-
-**DEC-006**: **Schema rollout on Free tier** — prefer **in-place field additions** + merge/upload backfill of `contentKind=Podcast`. Avoid two full indexes on Free tier; if a new index is required (immutable field change), follow slimming §8 (SKU bump or delete-rebuild), ideally **combining** any remaining slimming deltas with `contentKind` in **one** cutover.
-
-**DEC-007**: **Default query behaviour during rollout** (website + API): when `contentKind` facet/filter is **omitted**, return **all kinds** once UI supports cards; until Phase 4, Worker may default filter `contentKind eq 'Podcast'` — **confirm at Phase 2** (open question in epic).
+**DEC-008**: Migration **preserves GUID**; search **swap** updates `contentKind` + projected fields. Id fallback across kinds (epic S-006). Kind-prefixed `shortId` on Film/TV/News (epic OPEN-003).
 
 ## Consequences
 
 ### Positive
 
-- **POS-001**: Single quota pool and one OData facet pipeline for `contentKind`.
-- **POS-002**: Podcast clients unchanged if they ignore unknown fields and omit `contentKind` filter (or filter `Podcast` during transition).
-- **POS-003**: News outlet name available for display/filter without indexing organisation rows separately.
-- **POS-004**: In-place schema extension avoids dual-index **80 MB** failure mode on Free tier.
+- One card/DTO model for all kinds.
+- Film has no fake series fields.
+- Clearer API than `episodeTitle` for non-episodes.
 
 ### Negative
 
-- **NEG-001**: Polymorphic `SearchResult` — website routes by `contentKind`; `podcastName` empty on non-podcast hits.
-- **NEG-002**: Indexer projects four Cosmos sources — more failure modes; id GUID space is shared (keys must remain globally unique across containers).
-- **NEG-003**: Large NewsReport catalogues add **row count** faster than field overhead — capacity risk ([storage impact](../catalogue-content-types-search-storage-impact.md)).
-- **NEG-004**: Rename of `episodeTitle` → `title` deferred — would break OData and clients for negligible quota benefit.
+- Client + OData breaking change when legacy fields drop (mitigate with overlap window).
+- **`seriesDescription` is new indexed text** — quota cost; truncate; re-measure.
+- Shared GUID keyspace across containers.
 
-## Alternatives Considered
+## Alternatives considered
 
-### Generic `parentName` + `parentId` only (drop `podcastName`)
+### Keep `episodeTitle` / `podcastName` forever
 
-- **ALT-001**: **Description**: One parent label field for all kinds.
-- **ALT-002**: **Rejection Reason**: Breaks existing `podcastName` filters/facets and Worker `getPageDetails` without a coordinated breaking change; rejected for phased compat.
+Rejected 2026-09-23 — project into `title` / `seriesName` / `description` / `seriesDescription`.
 
-### Duplicate `parentName` = `podcastName` on all podcast rows
+### Kind-specific parent name fields only (`tvShowName`, …)
 
-- **ALT-003**: **Description**: Easier generic card template.
-- **ALT-004**: **Rejection Reason**: ~1.5 MB redundant stored labels on 82k docs; rejected.
+Rejected for the public model — prefer one `seriesName` (Film omits).
 
-### Separate indexes per content kind
+### Default filter `contentKind eq 'Podcast'` / podcast-only during rollout
 
-- **ALT-005**: **Description**: Federated search in Worker.
-- **ALT-006**: **Rejection Reason**: Multiplies Free-tier storage; rejected (ADR-0002).
+Rejected — all kinds when omitted. Podcast playables use **`Episode`**, not `Podcast`, as `contentKind` (OPEN-012).
 
-### Type discriminator inside Episode container only
+### Separate indexes per kind
 
-- **ALT-007**: **Rejection Reason**: Conflicts with ADR-0002 container split.
+Rejected — Free-tier storage.
 
-## Implementation Notes
+### Product facet value `Movie`
 
-- **IMP-001**: Rename `EpisodeSearchRecord` → `PlayableSearchRecord` (or parallel type) in Phase 2 — **code change only after ADR accepted**.
-- **IMP-002**: Extend `EntitySearchIndexer` + `CreateSearchIndex` datasource SQL — **do not** tear down production index from docs alone.
-- **IMP-003**: Worker `POST /search` passthrough adds optional `contentKind` facet param; `getPageDetails` must resolve detail route by kind.
-- **IMP-004**: Angular: `SearchResult.contentKind?`; cards branch on kind; podcast templates unchanged when kind absent or `Podcast`.
-- **IMP-005**: Migration tools: **swap** search docs when moving Episode → TvShowEpisode / Movie / NewsReport (prefer **same `id`**, update `contentKind` + parent name fields) — keep Free-tier doc count flat. Never leave duplicate keys.
-- **IMP-006**: Re-measure `storageSize` after adding `contentKind` and after first **1k** non-podcast sample docs.
+Rejected — use **`Film`**.
+
+## Implementation notes
+
+- `EpisodeSearchRecord` → `PlayableSearchRecord` with new field names.
+- Parent description must be available on Podcast / TvShow / NewsOrganisation models (or join source) for `seriesDescription`.
+- Angular `SearchResult` uses the new shape; Film cards omit series line.
+- Re-measure `storageSize` after adding `seriesDescription` and `contentKind`.
 
 ## References
 
-- **REF-001**: [catalogue-content-types-epic.md](../catalogue-content-types-epic.md)
-- **REF-002**: [ADR-0002](./0002-separate-catalogue-content-containers.md)
-- **REF-003**: [catalogue-content-types-search-storage-impact.md](../catalogue-content-types-search-storage-impact.md)
-- **REF-004**: [search-index-slimming-plan.md](../search-index-slimming-plan.md)
-- **REF-005**: `Class-Libraries/RedditPodcastPoster.Search/Models/EpisodeSearchRecord.cs`
+- [catalogue-content-types-epic.md](../catalogue-content-types-epic.md)
+- [ADR-0002](./0002-separate-catalogue-content-containers.md)
+- [catalogue-content-types-search-storage-impact.md](../catalogue-content-types-search-storage-impact.md)
+- [search-index-slimming-plan.md](../search-index-slimming-plan.md)

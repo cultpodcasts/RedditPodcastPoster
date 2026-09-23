@@ -1,6 +1,7 @@
 # Catalogue content types — Azure Search storage impact (Phase 0)
 
 **Status:** planning / read-only analysis. No index or Cosmos writes.  
+**Updated:** 2026-09-23 — Movie → **Film**; no parent name on Film; search default all-kinds (ADR-0003).  
 **Related:** [catalogue-content-types-epic.md](./catalogue-content-types-epic.md), [search-index-slimming-plan.md](./search-index-slimming-plan.md) §3, ADR [0003](./adr/0003-unified-playable-search-document.md).
 
 ---
@@ -9,141 +10,94 @@
 
 | Question | Answer |
 |----------|--------|
-| Will unified `contentKind` search **by itself** push the Free-tier **50 MB** cap? | **Unlikely** for phased rollout (extra fields + modest new rows), **if** index slimming is live first and schema changes are **in-place** on the existing index. |
-| What is the **primary quota risk**? | **Dual live indexes** during blue/green (summed `storageSize`) — same class of blocker as slimming §8. |
-| What is the **secondary quota risk**? | **Large-scale NewsReport** indexing (many new rows with searchable descriptions) without a cap or SKU plan. |
-| Do NewsOrganisation joins double row count? | **No** — only **NewsReports** (playables) are indexed; organisation name is **denormalized** at index time (`newsOrganisationName` / `parentName`). |
+| Will unified `contentKind` search **by itself** push the Free-tier **50 MB** cap? | **Unlikely** for phased rollout **if** slimming is live (or headroom exists) and schema changes are **in-place**. |
+| Primary quota risk? | **Dual live indexes** during blue/green (summed `storageSize`). |
+| Secondary quota risk? | Large-scale **NewsReport** indexing without a cap or SKU plan. |
+| Do parent joins double row count? | **No** — only playables indexed; Film has **no** parent join. |
+| Migration of mis-filed Episode → Film/Tv/News? | **~flat doc count** if search **swap** (same GUID); **+N docs** if copy-without-delete. |
 
-**Recommended sequencing:** (1) ship index slimming cutover if not already live → ~40 MB baseline; (2) **add** `contentKind` (+ kind-specific parent fields) **in place** on `cultpodcasts`; (3) index new TvShow/Movie/News rows via merge/upload as flags enable submits; (4) **migration tools** **move** mis-filed Podcast/Episode rows (news-station YouTube, movies, TV) — search **swap** (delete Episode doc + upload new `contentKind` doc) keeps Free-tier **doc count ~flat**.
+**Recommended sequencing:** (1) measure live `storageSize` during Phase 2; (2) build **fresh index** with new projection + remaining slimming (OPEN-011) via SKU bump or delete-rebuild; (3) point Worker at new index; (4) migration tools **swap** docs by kind.
 
 ---
 
-## Baseline (authoritative measurements)
+## Baseline (re-measure — do not treat as current)
 
-From [search-index-slimming-plan.md](./search-index-slimming-plan.md) §3A — **2026-07-17**, production Free tier, index `cultpodcasts`:
+From [search-index-slimming-plan.md](./search-index-slimming-plan.md) §3A — **2026-07-17**, Free tier, index `cultpodcasts`:
 
-| Metric | Value |
-|--------|-------|
+| Metric | Value (Jul 2026) |
+|--------|------------------|
 | `documentCount` | **82,252** |
-| `storageSize` | **51,462,953 B ≈ 49.08 MB** (~98% of 50 MB cap) |
-| Tier | Free (~50 MB **shared across all indexes** on the service) |
+| `storageSize` | **≈49.08 MB** (~98% of 50 MB) |
 
-**Post-slimming estimate** (if URL→ID, YT image derivation, drop `explicit`, duration trim are live — code in `EpisodeSearchRecord` / `ToEpisodeSearchRecord` reflects slim shape): **≈40.4 MB** (~17–18% reduction ≈ **8.7 MB** headroom).
+Post-slimming estimate (if URL→ID / `svc` / drop `explicit` live): **≈40 MB** headroom. **Verify before Phase 2.**
 
-**Re-measure before Phase 2:** `GET …/indexes/cultpodcasts/stats` (or portal) after any slimming cutover. All estimates below use **~600 B/doc** all-in (retrievable values + inverted/filter/facet structures) as a working average from the Jul 2026 baseline.
+Working average used below: **~600 B/doc** all-in.
 
 ---
 
-## Three quota levers (your concern)
-
-Azure AI Search `storageSize` is **not** wire JSON size. Persistent storage scales with **document count**, **field values**, and **field attributes** (searchable / filterable / facetable). See slimming plan §3.1.
+## Quota levers
 
 ### 1. Extra fields on existing podcast rows (~82k)
 
-Proposed additions for a unified playable document:
+| Field | On Podcast docs? | Note |
+|-------|------------------|------|
+| `contentKind` | Yes — `Episode` | Facetable; ~0.5–1.5 MB service-wide |
+| `title` / `description` / `seriesName` | Yes (projected; may overlap legacy during cutover) | Prefer add-then-retire legacy keys |
+| `seriesDescription` | Yes — **new** parent text | Truncate; main new quota lever on 82k rows |
+| Film series fields | N/A — omit on Film | No fake parent |
 
-| Field | Attributes (proposed) | On Podcast docs? | Storage note |
-|-------|----------------------|------------------|--------------|
-| `contentKind` | filterable + facetable | Yes — value `Podcast` | New facet bucket on **all** docs; small values (~7 B). Estimate **+0.5–1.5 MB** service-wide. |
-| `parentName` | searchable + filterable + facetable | **No** — use existing `podcastName` | Avoid duplicating ~1.5 MB of parent labels on 82k rows. |
-| `parentId` | filterable (optional) | **Defer** for Podcast | Episode `id` + `podcastName` suffice today; saves ~3 MB if omitted. |
-| Kind-specific (`tvShowName`, …) | — | Empty on Podcast | No cost on podcast rows. |
+**Subtotal (existing rows): ≈0.5–2 MB.**
 
-**Subtotal (existing rows only): ≈0.5–2 MB** — low risk if we **do not** duplicate `podcastName` into `parentName`.
+### 2. New / migrated indexed rows
 
-Renaming `episodeTitle` → generic `title` would be a **consumer migration**, not a meaningful quota win (slimming plan §3.3: key names ≈ negligible on disk).
+Only **playables** (Episodes, TvShowEpisodes, Films, NewsReports).
 
-### 2. New indexed rows (playables)
+| Source | Storage note |
+|--------|----------------|
+| New flagged submits | Low until flags widen |
+| **Migrate** Episode → Film/Tv/NewsReport | **~0 MB net** if swap same GUID; disaster if duplicate |
+| News at scale without delete | Can breach Free tier |
 
-Only **playable** documents are indexed (Episodes, TvShowEpisodes, Movies, NewsReports). Parent containers (Podcasts, TvShows, NewsOrganisations) are join sources at index time — **not** separate search rows.
+**Film rows:** `title` / `description` only; no `seriesName` / `seriesDescription`.
 
-| Source | Phase 2 initial volume | Storage @ ~600 B/doc | Notes |
-|--------|------------------------|----------------------|-------|
-| New submits (flagged streaming) | ~0 → hundreds/year | +0.3–1.2 MB | Low until flags widen. |
-| **Migrate** mis-filed Episodes → TvShow/Movie/NewsReport | Same GUIDs / same ~N docs | **~0 MB net** if **swap**; **+N×~600 B** if copy-without-delete | **Required** work — news-station YT + movies + TV already in Podcasts. Prefer swap. |
-| NewsReports from **new** submit path | Growth after flag | Scales with ingest | BBC `/news/` not submit today; YT news arrives via **migration** first. |
-| News at scale if migrate **duplicates** without delete | e.g. +10k–50k extra | **≈6–30 MB** | **Would breach** Free tier — migration **must** delete Episode search docs. |
+### 3. Dual indexes
 
-**NewsOrganisation join:** adds one denormalized string per report (~20 B avg parent name) — **included in the row estimate**, not an extra row.
-
-**Subtotal (realistic phased rollout): +0.5–3 MB.**  
-**Subtotal (aggressive news indexing): +6–30 MB** — plan capacity before enabling news at volume.
-
-### 3. Dual indexes during migration
-
-From slimming plan §8.1 — **`storageSize` sums across all indexes** on the service.
-
-| Situation | Both indexes live | Fits Free 50 MB? |
-|-----------|-------------------|------------------|
-| Pre-slimming (~49 MB) × 2 | ~98 MB | **No** |
-| Post-slimming (~40 MB) × 2 | ~80 MB | **No** |
-| In-place schema **add fields** only | 1 index | **Yes** (single index grows by §1+§2) |
-| Blue/green `cultpodcasts` + `cultpodcasts-v2` | 2 full copies | **Requires SKU bump** (Basic S1 ≈ 2 GB) or delete-old-then-rebuild downtime |
-
-**Verdict:** Treat dual-index blue/green on Free tier as a **blocker** for both slimming and content-types work. Prefer:
-
-1. **In-place** add `contentKind` (+ nullable kind-specific parent fields) to the live index schema.
-2. **MergeOrUpload** existing episodes with `contentKind: Podcast`.
-3. If a **new** index is unavoidable (immutable field change), use **temporary SKU bump** or **delete-then-rebuild** — same playbook as slimming §8.
-
-Combining slimming v2 **and** content-types in **one** new index still implies **one** blue/green window — not two separate dual-index periods.
+| Situation | Fits Free 50 MB? |
+|-----------|------------------|
+| In-place field add | **Yes** (growth = §1+§2) |
+| Two full copies (~40+40 MB) | **No** — SKU bump or delete-rebuild |
 
 ---
 
-## Unified document shape — storage-conscious choices
-
-See ADR [0003](./adr/0003-unified-playable-search-document.md). Summary tuned for quota:
-
-| Decision | Storage impact |
-|----------|----------------|
-| One index, discriminated by `contentKind` | Single quota pool; one facet pipeline. |
-| Keep `podcastName` for `Podcast` only | Avoid ~1.5 MB duplicate parent labels. |
-| `parentName` (or `tvShowName` / `movieName` / `newsOrganisationName`) on non-Podcast rows only | Pay parent-label cost only on new rows. |
-| Reuse `episodeTitle` / `episodeDescription` for all kinds (display headline + blurb) | No second searchable title field; same inverted-index cost class as today. |
-| Reuse `svc` compact encoding for streaming URLs on TvShow/Movie/News | Same pattern as episodes; avoid per-platform URL columns. |
-| Do **not** index NewsOrganisations as their own documents | Saves N_org rows; join at indexer. |
-| Truncate descriptions to existing `DescriptionSize` (230) | Caps worst-case news/TV text growth. |
-
----
-
-## Scenario matrix (will we exceed 50 MB?)
-
-Assumes **post-slimming baseline ≈40 MB**, **single index**, in-place `contentKind` add.
+## Scenario matrix (post-slimming ~40 MB baseline assumed)
 
 | Scenario | Est. total | vs 50 MB |
 |----------|------------|----------|
-| A. Slimming live + `contentKind` on 82k + phased streaming submits | ~41–43 MB | **Safe** |
-| B. A + migrate ~N mis-filed (search **swap**, flat doc count) | ~41–43 MB | **Safe** (contentKind attribute cost only) |
-| C. B + 5k NewsReports (230-char descriptions) | ~45–47 MB | **Tight** — re-measure |
-| D. B + 20k NewsReports | ~52–58 MB | **Over** — SKU or cap news |
-| E. Dual full index (40 + 40 MB) on Free | ~80 MB | **Fails** — do not |
-| F. No slimming (49 MB) + content-types fields + 5k news | ~52+ MB | **Over** — slim first |
+| A. `contentKind` on 82k + phased submits | ~41–43 MB | Safe |
+| B. A + migrate via **swap** | ~41–43 MB | Safe |
+| C. B + 5k extra NewsReports (no swap) | ~45–47 MB | Tight |
+| D. Dual full index | ~80 MB | **Fail** |
+| E. No slimming (~49 MB) + fields + news | ~52+ MB | **Over** — slim/re-measure first |
 
 ---
 
-## Verification checklist (before Phase 2 implementation)
+## Verification checklist (before Phase 2)
 
-- [ ] Read live `documentCount` + `storageSize` on `cultpodcasts` (post-slimming).
-- [ ] Confirm slimming cutover complete or scheduled **before** large new row classes.
-- [ ] Cosmos **read-only** counts: episodes with `svc` / BBC iPlayer / Netflix keys (backfill sizing) — dry-run only.
-- [ ] Build **sample** index on non-prod with 1k mixed playables + `contentKind`; compare `storageSize` / doc (empirical).
-- [ ] Decide news indexing cap / description limit / SKU before Phase 4 news submit.
-- [ ] Document cutover: in-place vs new index; if new index, plan SKU bump or downtime rebuild.
-
----
+- [ ] Live `documentCount` + `storageSize` on `cultpodcasts`
+- [ ] Confirm slimming state
+- [ ] Cosmos read-only sizing for migration candidates (dry-run)
+- [ ] Sample mixed-kind index on non-prod if practical
+- [ ] Cutover plan: in-place vs new index + SKU
 
 ## Open decisions (storage-related)
 
-1. **Preserve playable GUID** on Cosmos/search move? (**Recommended yes** — same search `id`, change `contentKind` + parent fields.)
-2. **Dry-run sizing** — count Episode rows under news-station / movie / TV candidate Podcasts before first `--apply`.
-3. **Single new index name** — combine remaining slimming deltas + `contentKind` in one cutover to avoid two dual-index windows?
-4. **Re-measure cadence** — alert when `storageSize` > 45 MB (90% of Free cap)?
-
----
+1. Preserve GUID on migrate? **Yes** (signed).  
+2. Dry-run sizing before first `--apply`.  
+3. Combine remaining slimming + `contentKind` in one cutover if new index unavoidable.  
+4. Alert when `storageSize` > 45 MB?
 
 ## References
 
-- [search-index-slimming-plan.md](./search-index-slimming-plan.md) §3, §8
 - [catalogue-content-types-epic.md](./catalogue-content-types-epic.md)
 - ADR [0002](./adr/0002-separate-catalogue-content-containers.md), [0003](./adr/0003-unified-playable-search-document.md)
-- Microsoft: [Index size and schema](https://learn.microsoft.com/azure/search/search-what-is-an-index#physical-structure-and-size), [Capacity planning](https://learn.microsoft.com/azure/search/search-capacity-planning)
+- [search-index-slimming-plan.md](./search-index-slimming-plan.md)
