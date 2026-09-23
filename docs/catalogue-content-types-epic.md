@@ -361,6 +361,7 @@ Lookup: membership across playable containers; name attach per parent kind with 
 - [x] Unit tests; **no** production writes  
 - [ ] **Ops (before code deploy):** provision Cosmos containers + five `cosmosdb__*` app settings via bicep (`TvShows` / `TvShowEpisodes` / `Films` / `NewsOrganisations` / `NewsReports`) on indexer, discover, and api — see [deployment.md](./deployment.md) § Provision before code. `deploy-*.ps1` is settings-blind.  
 - [ ] Follow-up: DRY shared Cosmos repository helper (avoid multiplying Film/TV/News clones in Phase 3) — [#989](https://github.com/cultpodcasts/RedditPodcastPoster/issues/989).  
+- [ ] **Gate (kanban): every ticket deferred out of Phase 1 MUST be a visible card in the Todo column of [@cultpodcasts features](https://github.com/users/cultpodcasts/projects/1)** — an issue link on the sidebar is not enough. Add + verify with `pwsh ./scripts/add-issue-to-features-board.ps1 -IssueUrl <issue>` (REST path; exit 0 = card listed). Currently pending for #989: item `253190568` is persisted with Status=Todo but the board render is stalled by GitHub's 2026-09-23 stale-Projects-indexing incident; re-check once GitHub recovers.  
 
 
 ### Phase 2 — Search index
