@@ -241,6 +241,31 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
+        "ServiceLink carries an optional lang code (2-letter ISO 639-1, or 3-letter where none exists): " +
+        "serialized as a JSON scalar, omitted when null, and lang alone does not make the link non-empty.")]
+    public void Service_link_supports_optional_language_code()
+    {
+        // Arrange
+        var twoLetter = new ServiceLink { Url = new Uri("https://example.com/watch"), Language = "de" };
+        var threeLetter = new ServiceLink { Url = new Uri("https://example.com/watch"), Language = "haw" };
+        var unspecified = new ServiceLink { Url = new Uri("https://example.com/watch") };
+        var languageOnly = new ServiceLink { Language = "de" };
+
+        // Act
+        var twoLetterJson = JsonSerializer.Serialize(twoLetter);
+        var threeLetterJson = JsonSerializer.Serialize(threeLetter);
+        var unspecifiedJson = JsonSerializer.Serialize(unspecified);
+        var roundTrip = JsonSerializer.Deserialize<ServiceLink>(twoLetterJson);
+
+        // Assert
+        twoLetterJson.Should().Contain("\"lang\":\"de\"");
+        threeLetterJson.Should().Contain("\"lang\":\"haw\"");
+        unspecifiedJson.Should().NotContain("lang");
+        roundTrip!.Language.Should().Be("de");
+        languageOnly.IsEmpty.Should().BeTrue("a lang code without a url or image is not a usable link");
+    }
+
+    [Fact(DisplayName =
         "Film, TvShow, and NewsOrganisation file keys use kind prefixes (film-/tvshow-/news-) so public JSON DB " +
         "and backups do not collide with unprefixed podcast series keys.")]
     public void Series_like_entities_use_prefixed_file_keys()
