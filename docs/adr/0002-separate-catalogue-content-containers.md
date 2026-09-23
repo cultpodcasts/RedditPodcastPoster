@@ -1,7 +1,8 @@
 ---
 title: "ADR-0002: Separate Cosmos containers per catalogue content family"
-status: "Proposed"
+status: "Accepted"
 date: "2026-09-03"
+accepted: "2026-09-23"
 authors: "Catalogue platform (planning)"
 tags: ["architecture", "cosmos", "catalogue", "content-types"]
 supersedes: ""
@@ -12,89 +13,104 @@ superseded_by: ""
 
 ## Status
 
-**Proposed** — Phase 0 planning. No production Cosmos writes until explicitly approved.
+**Accepted** — 2026-09-23 sign-off quiz (epic S-001…S-010). No production Cosmos writes until Phase 1+ is explicitly scheduled and approved.
+
+**Terminology:** product type is **Film** — a standalone work **made as a film** (cinema or one-off TV; premiere venue irrelevant). Do **not** use Movie / Movies / `/movie/` in catalogue APIs or routes. Provider scrapers may still detect JSON-LD `Movie` as a classification **input** that often maps to Film.
 
 ## Context
 
-**CTX-001**: Today, ingestible URLs that are not Spotify / Apple / YouTube podcast-service episodes are stored as **Podcast + Episode** rows. Streaming TV, films, and news clips inherit podcast semantics (`NonPodcastShowNameResolver`, `PodcastNameAttachLookup`).
+**CTX-001**: Ingestible URLs that are not Spotify / Apple / YouTube podcast-service episodes are stored as **Podcast + Episode**. Streaming TV, one-off films/documentaries, and news inherit podcast semantics.
 
-**CTX-002**: Product needs distinct parent/playable relationships: podcast show → episode; TV series → episode; standalone movie; news outlet → report. YouTube **entertainment** channels remain **podcasts**; **news-station** YouTube channels already stored as Podcasts must migrate to **NewsOrganisation**.
+**CTX-002**: Product needs distinct parent/playable relationships:
 
-**CTX-003**: Azure AI Search uses a single episode-shaped index today (`EpisodeSearchRecord`). A future unified index must facet by **`contentKind`** without breaking podcast clients ([ADR-0003](./0003-unified-playable-search-document.md)).
+| Family | Parent | Playable |
+|--------|--------|----------|
+| Podcast | Podcast | Episode |
+| TV series | TvShow | TvShowEpisode |
+| One-off film (made as a film) | — | **Film** |
+| News | NewsOrganisation | NewsReport |
 
-**CTX-004**: Rollout is **phased** — new streaming/news submits behind flags **plus** incremental **migration tools** for the existing mis-filed corpus (news / movies / TV already in Podcasts+Episodes). Dry-run default; production Cosmos writes require explicit `--apply`. No big-bang unattended migration.
+YouTube **entertainment** channels remain **podcasts**. **News-station** YouTube channels already stored as Podcasts migrate to **NewsOrganisation**.
 
-**CTX-005**: Partition patterns exist: **Podcasts** `/id`, **Episodes** `/podcastId` ([`cosmos-db.bicep`](../../Infrastructure/cosmos-db.bicep)).
+**CTX-003**: Search will facet by `contentKind` ([ADR-0003](./0003-unified-playable-search-document.md)).
+
+**CTX-004**: Rollout is phased — flagged new submits **plus** migration tools for the mis-filed corpus. Dry-run default; `--apply` requires explicit approval. Order: **News → Film → TV**.
+
+**CTX-005**: Existing partition patterns: Podcasts `/id`, Episodes `/podcastId`.
 
 ## Decision
 
-**DEC-001**: Use **separate Cosmos containers per content family**, not a type discriminator on Podcast/Episode.
+**DEC-001**: **Separate Cosmos containers** per content family (not a discriminator on Podcast/Episode).
 
-| Container | Partition key (proposed) | Parent → child |
-|-----------|--------------------------|----------------|
-| **Podcasts** (existing) | `/id` | Podcast → **Episodes** `/podcastId` |
-| **TvShows** (new) | `/id` | TvShow → **TvShowEpisodes** `/tvShowId` |
-| **Movies** (new) | `/id` | — (playable = movie document) |
-| **NewsOrganisations** (new) | `/id` | NewsOrganisation → **NewsReports** `/newsOrganisationId` |
+| Container | Partition key | Parent → child |
+|-----------|---------------|----------------|
+| **Podcasts** (existing) | `/id` | → **Episodes** `/podcastId` |
+| **TvShows** (new) | `/id` | → **TvShowEpisodes** `/tvShowId` |
+| **Films** (new) | `/id` | — (document is the playable) |
+| **NewsOrganisations** (new) | `/id` | → **NewsReports** `/newsOrganisationId` |
 
 **DEC-002**: **TvShowEpisodes** and **NewsReports** are **own containers** — never stored in Episodes.
 
-**DEC-003**: **NewsReports** always belong to a **NewsOrganisation** parent. Flat news without an outlet is out of scope.
+**DEC-003**: **NewsReports** always belong to a **NewsOrganisation**. Flat news without an outlet is out of scope.
 
-**DEC-004**: Reuse the **Episode `services` map** pattern for TvShowEpisode, Movie, and NewsReport platform URLs ([episode-services.md](../episode-services.md)).
+**DEC-004**: **Films have no parent.** No parent container and no parent-name field in search/API.
 
-**DEC-005**: **YouTube entertainment / show channels stay Podcast** — not TvShow. **News-station YouTube channels** (already in Podcasts) are **NewsOrganisation** migration candidates.
+**DEC-005**: Reuse the Episode **`services` map** on TvShowEpisode, Film, and NewsReport ([episode-services.md](../episode-services.md)).
 
-**DEC-006**: BBC `/news/` remains **non-submit** until an explicit news matcher ships; distinct from iPlayer/Sounds submit URLs. Migration of existing YouTube news Podcasts does **not** wait on BBC `/news/` submit.
+**DEC-006**: YouTube entertainment stays Podcast. News-station YouTube Podcasts are NewsOrganisation migration candidates.
 
-**DEC-007**: **Migrate existing mis-filed rows** with console tools built as we go (identify dry-run → curated apply). Families: NewsOrganisation/NewsReports, Movies, TvShows/TvShowEpisodes. Prefer **preserving playable GUIDs** on move for search/URL continuity (confirm in epic open questions).
+**DEC-007**: BBC `/news/` remains non-submit until an explicit news matcher ships. Migration of existing YouTube news Podcasts does **not** wait on that matcher.
+
+**DEC-008**: Migrate existing mis-filed rows with console tools (identify dry-run → curated apply). **Preserve playable GUIDs** on move. Prefer search doc **swap**.
+
+**DEC-009** (routes — signed with epic): public paths use SEO **slug** + playable **`shortId`** (base64url of GUID). Parents: `/tv/{slug}`, `/news/{slug}`. Playables: `/film/{slug}/{shortId}`, `/tv/{slug}/{shortId}`, `/news/{slug}/{shortId}`. Podcast paths unchanged.
 
 ## Consequences
 
 ### Positive
 
-- **POS-001**: Clear domain boundaries — independent repositories, indexers, and migrations per family.
-- **POS-002**: TvShow/Movie/News lifecycle rules do not complicate Episode CRUD or podcast URLs.
-- **POS-003**: Phased rollout: new containers + flags for new submits; migration tools reclaim the existing corpus without a big-bang rewrite.
-- **POS-004**: News organisation attach mirrors proven Podcast name-attach semantics.
-- **POS-005**: Dry-run identify tools let curators review news-station / movie / TV candidates before any `--apply`.
+- Clear domain boundaries; independent repos, indexers, migrations.
+- Film lifecycle is a single document — no empty parent shells.
+- Phased rollout + migration tools reclaim the corpus without big-bang rewrite.
+- News organisation attach can mirror Podcast name-attach.
 
 ### Negative
 
-- **NEG-001**: More containers, repositories, and API surface area (CRUD + submit per family).
-- **NEG-002**: Lookup must query multiple playable containers for URL membership.
-- **NEG-003**: Migration tooling is **required** work (Phase 5, interleaved) — identify heuristics for news YouTube vs true podcasts are imperfect; curator review needed.
-- **NEG-004**: Curator UI and public routes multiply (`/tv/`, `/movie/`, `/news/` — see open questions).
-- **NEG-005**: During migration, dual presence (old Podcast row + new target) must be avoided or carefully windowed to prevent URL/search duplicates.
+- More containers and API surface.
+- Lookup queries multiple playable containers.
+- Migration heuristics imperfect — **allowlist** for news `--apply`; curator review required.
+- Shortener / page-details must become **kind-aware** (epic OPEN-003).
+- Classifier must distinguish made-as-film one-offs from series episodes (OPEN-001 resolved; CLS-* remain for edges).
 
-## Alternatives Considered
+## Alternatives considered
 
 ### Type discriminator on Podcast/Episode only
 
-- **ALT-001**: **Description**: `podcastType` / `contentKind` on existing containers.
-- **ALT-002**: **Rejection Reason**: TvShowEpisode and NewsReport must not live in Episodes; movies do not fit episode lifecycle; couples unrelated indexing and social-posting rules.
+Rejected — TvShowEpisode / NewsReport / Film lifecycles do not fit Episode; couples unrelated rules.
 
-### Hybrid — new containers for new submits only; never migrate legacy
+### New containers for new submits only; never migrate
 
-- **ALT-003**: **Description**: Divert new submits only; leave all existing streaming/news rows in Podcast forever.
-- **ALT-004**: **Rejection Reason**: Corpus already contains news stations, movies, and TV as Podcasts — product semantics stay wrong; migration tools are required (incremental, not big-bang).
+Rejected — corpus already contains news stations, one-offs, and series as Podcasts.
 
-### Separate search indexes per content kind
+### Separate search indexes per kind
 
-- **ALT-005**: **Description**: Four Azure Search indexes, federated query in Worker.
-- **ALT-006**: **Rejection Reason**: Multiplies **50 MB Free-tier quota** consumption ([search storage impact](../catalogue-content-types-search-storage-impact.md)); duplicates facet plumbing; rejected in favour of unified index (ADR-0003).
+Rejected — Free-tier storage ([storage impact](../catalogue-content-types-search-storage-impact.md)); see ADR-0003.
 
-## Implementation Notes
+### Product name Movie
+
+Rejected 2026-09-23 — use **Film**.
+
+## Implementation notes
 
 - **IMP-001**: Phase 1 adds bicep containers + models + repositories — **no production writes**.
-- **IMP-002**: Submit v2 classifies URL → kind before persist; feature flag routes streaming to new handlers ([catalogue-content-types-epic.md](../catalogue-content-types-epic.md) Phase 3).
-- **IMP-003**: Auth: same **`submit`** / **`curate`** permissions initially ([auth0-roles-and-permissions.md](../../../website/cultpodcasts/docs/auth0-roles-and-permissions.md)); split roles deferred.
-- **IMP-004**: Sign off partition keys and container names in Phase 0 before bicep change (unique keys for outlet/show names TBD in scraper ADR outline).
-- **IMP-005**: Migration tools (Phase 5): dry-run identify → curated `--apply`; build per family as containers land; search index **swap** on move ([storage impact](../catalogue-content-types-search-storage-impact.md)).
+- **IMP-002**: Submit v2 classifies URL → kind behind a feature flag ([epic](../catalogue-content-types-epic.md) Phase 3); provider `IsMovie` / one-off signals → Film when made-as-film (OPEN-001); series → TvShow.
+- **IMP-003**: Auth: same **`submit`** / **`curate`** for all kinds (OPEN-010).
+- **IMP-004**: Migration tools: dry-run → allowlisted `--apply` for news; search swap; redirects from old episode URLs.
+- **IMP-005**: `shortId` = base64url of GUID bytes for Podcast; for Film/TV/News prepend ASCII `f`/`t`/`n` before base64url. Same encoding on routes and shortener (epic OPEN-003). Match website `GuidService` byte order.
 
 ## References
 
-- **REF-001**: [catalogue-content-types-epic.md](../catalogue-content-types-epic.md)
-- **REF-002**: [ADR-0003](./0003-unified-playable-search-document.md)
-- **REF-003**: [website submit-url-flows.md](../../../website/cultpodcasts/docs/submit-url-flows.md)
-- **REF-004**: [catalogue-content-types-search-storage-impact.md](../catalogue-content-types-search-storage-impact.md)
+- [catalogue-content-types-epic.md](../catalogue-content-types-epic.md)
+- [ADR-0003](./0003-unified-playable-search-document.md)
+- [catalogue-content-types-search-storage-impact.md](../catalogue-content-types-search-storage-impact.md)
+- [website submit-url-flows.md](../../../website/cultpodcasts/docs/submit-url-flows.md)
