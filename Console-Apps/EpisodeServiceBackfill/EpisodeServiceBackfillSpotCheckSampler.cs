@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill;
 
@@ -72,7 +73,7 @@ public sealed class EpisodeServiceBackfillSpotCheckSampler
 public sealed record EpisodeServiceBackfillSpotCheckSample(
     Guid EpisodeId,
     Guid PodcastId,
-    Dictionary<string, EpisodeServiceLink>? Services,
+    Dictionary<string, ServiceLink>? Services,
     EpisodeIds? Ids)
 {
     public static EpisodeServiceBackfillSpotCheckSample FromPatch(EpisodeServiceCatalogPatch patch)
@@ -85,8 +86,8 @@ public sealed record EpisodeServiceBackfillSpotCheckSample(
             CloneIds(patch.Ids));
     }
 
-    private static Dictionary<string, EpisodeServiceLink>? CloneServices(
-        Dictionary<string, EpisodeServiceLink>? services)
+    private static Dictionary<string, ServiceLink>? CloneServices(
+        Dictionary<string, ServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {
@@ -95,7 +96,7 @@ public sealed record EpisodeServiceBackfillSpotCheckSample(
 
         return services.ToDictionary(
             x => x.Key,
-            x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+            x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image },
             StringComparer.Ordinal);
     }
 

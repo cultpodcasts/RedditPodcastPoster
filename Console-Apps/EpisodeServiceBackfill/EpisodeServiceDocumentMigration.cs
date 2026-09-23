@@ -2,6 +2,7 @@ using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill;
 
@@ -350,7 +351,7 @@ public static class EpisodeServiceDocumentMigration
                 ? null
                 : $"{episode.Ids.Spotify}|{episode.Ids.Apple}|{episode.Ids.YouTube}");
 
-    private static string? SerializeServices(Dictionary<string, EpisodeServiceLink>? services)
+    private static string? SerializeServices(Dictionary<string, ServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {

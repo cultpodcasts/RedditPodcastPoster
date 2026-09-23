@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.HomePage;
 
@@ -40,7 +41,7 @@ public class RecentEpisode
     public EpisodeIds? Ids { get; set; }
 
     [JsonPropertyName("services")]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }

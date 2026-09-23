@@ -3,8 +3,9 @@ using System.Text.Json.Serialization;
 namespace RedditPodcastPoster.Models.Services;
 
 /// <summary>
-/// Streaming destination link (url + optional image) for catalogue playables.
-/// Kind-neutral replacement for podcast <c>EpisodeServiceLink</c> on Film / TV / News.
+/// Streaming destination link (url + optional image + optional lang) for all playables:
+/// podcast Episode, Film, TvShowEpisode, and NewsReport (replaced the former
+/// podcast-only <c>EpisodeServiceLink</c>).
 /// </summary>
 public class ServiceLink
 {

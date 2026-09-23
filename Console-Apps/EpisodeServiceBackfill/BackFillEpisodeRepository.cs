@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Repositories;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill;
 
@@ -29,7 +30,7 @@ public sealed class BackFillEpisodeRepository : EpisodeRepository, IBackfillEpis
     public async Task<bool> PatchServicesAndIds(
         Guid podcastId,
         Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
+        Dictionary<string, ServiceLink>? services,
         EpisodeIds? ids)
     {
         if (podcastId == Guid.Empty)

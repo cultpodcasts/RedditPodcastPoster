@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace Indexer.Tests;
 
@@ -54,7 +55,7 @@ public class PodcastEpisodeStreamingSearchMappingTests
     {
         // Arrange
         var itvxUrl = new Uri($"https://www.itv.com/watch/{_fixture.CreateGuid():N}/a/b");
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.Itvx)] = new() { Url = itvxUrl }
         };

@@ -19,6 +19,7 @@ using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
@@ -334,7 +335,7 @@ public class HomepagePublisher(
         public string EpisodeTitle { get; init; } = string.Empty;
         public string EpisodeDescription { get; init; } = string.Empty;
         public DateTime Release { get; init; }
-        public Dictionary<string, EpisodeServiceLink>? Services { get; init; }
+        public Dictionary<string, ServiceLink>? Services { get; init; }
         public EpisodeIds? Ids { get; init; }
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];

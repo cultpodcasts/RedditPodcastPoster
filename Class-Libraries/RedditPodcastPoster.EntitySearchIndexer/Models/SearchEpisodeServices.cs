@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 
@@ -16,7 +17,7 @@ public static class SearchEpisodeServices
 {
     public const char EntrySeparator = '|';
 
-    public static string Compact(IReadOnlyDictionary<string, EpisodeServiceLink>? services)
+    public static string Compact(IReadOnlyDictionary<string, ServiceLink>? services)
     {
         if (services is null || services.Count == 0)
         {

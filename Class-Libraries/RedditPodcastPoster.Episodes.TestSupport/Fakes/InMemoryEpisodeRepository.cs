@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Episodes.TestSupport.Fakes;
 
@@ -209,7 +210,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             Services = episode.Services is { Count: > 0 }
                 ? episode.Services.ToDictionary(
                     x => x.Key,
-                    x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+                    x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image },
                     StringComparer.Ordinal)
                 : null,
             Ids = episode.Ids is null

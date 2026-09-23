@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Categorisers;
 using RedditPodcastPoster.PodcastServices.Handlers;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.NonPodcast;
 
@@ -243,7 +244,7 @@ public class NonPodcastServiceCategoriserRules
 
     private static void SeedBbcSoundsLookup(Episode episode, Uri soundsUrl)
     {
-        episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
+        episode.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
         {
             [StreamingServiceWire.ToKey(StreamingService.BbcIplayer)] = new(),
             [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new() { Url = soundsUrl }

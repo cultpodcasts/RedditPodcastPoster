@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
@@ -119,7 +120,7 @@ public class EpisodeDto
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]

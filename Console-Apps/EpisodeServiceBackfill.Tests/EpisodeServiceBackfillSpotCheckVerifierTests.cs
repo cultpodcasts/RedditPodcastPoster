@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill.Tests;
 
@@ -144,7 +145,7 @@ public class EpisodeServiceBackfillSpotCheckVerifierTests
         new(
             episode.Id,
             podcast.Id,
-            new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
+            new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
             {
                 [ServiceKeys.Spotify] = new() { Url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) }
             },

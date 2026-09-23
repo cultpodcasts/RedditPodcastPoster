@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace FunctionHost.Tests.Api;
 
@@ -619,7 +620,7 @@ public class EpisodeChangeApplierTests
         // Act
         sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
@@ -665,7 +666,7 @@ public class EpisodeChangeApplierTests
         // Act
         var state = sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 ["spotify"] = new() { Url = spotifyUrl }
             }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill;
 
@@ -12,7 +13,7 @@ namespace EpisodeServiceBackfill;
 public sealed record EpisodeServiceCatalogPatch(
     Guid PodcastId,
     Guid EpisodeId,
-    Dictionary<string, EpisodeServiceLink>? Services,
+    Dictionary<string, ServiceLink>? Services,
     EpisodeIds? Ids);
 
 public static class EpisodeServiceCatalogPatchFactory
@@ -225,8 +226,8 @@ public static class EpisodeServiceCatalogPatchFactory
                !string.IsNullOrWhiteSpace(value.GetString());
     }
 
-    private static Dictionary<string, EpisodeServiceLink>? CloneServices(
-        Dictionary<string, EpisodeServiceLink>? services)
+    private static Dictionary<string, ServiceLink>? CloneServices(
+        Dictionary<string, ServiceLink>? services)
     {
         if (services is not { Count: > 0 })
         {
@@ -235,7 +236,7 @@ public static class EpisodeServiceCatalogPatchFactory
 
         return services.ToDictionary(
             x => x.Key,
-            x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+            x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image },
             StringComparer.Ordinal);
     }
 

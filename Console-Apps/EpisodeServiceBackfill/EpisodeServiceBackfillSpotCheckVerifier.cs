@@ -1,6 +1,7 @@
 using System.Text.Json;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 namespace EpisodeServiceBackfill;
 
 public sealed record EpisodeServiceBackfillSpotCheckFailure(Guid EpisodeId, Guid PodcastId, string Reason);
@@ -100,12 +101,12 @@ public static class EpisodeServiceBackfillSpotCheckVerifier
         return null;
     }
 
-    private static bool ServicesMatch(JsonElement root, Dictionary<string, EpisodeServiceLink>? expected)
+    private static bool ServicesMatch(JsonElement root, Dictionary<string, ServiceLink>? expected)
     {
-        Dictionary<string, EpisodeServiceLink>? stored = null;
+        Dictionary<string, ServiceLink>? stored = null;
         if (root.TryGetProperty("services", out var servicesEl) && servicesEl.ValueKind == JsonValueKind.Object)
         {
-            stored = JsonSerializer.Deserialize<Dictionary<string, EpisodeServiceLink>>(
+            stored = JsonSerializer.Deserialize<Dictionary<string, ServiceLink>>(
                 servicesEl.GetRawText(), EpisodeDocumentJsonOptions.Instance);
         }
 

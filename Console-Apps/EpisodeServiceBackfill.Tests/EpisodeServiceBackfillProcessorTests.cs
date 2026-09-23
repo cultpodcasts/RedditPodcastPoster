@@ -7,6 +7,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill.Tests;
 
@@ -45,7 +46,7 @@ public class EpisodeServiceBackfillProcessorTests
             x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()),
             Times.Never);
     }
@@ -62,7 +63,7 @@ public class EpisodeServiceBackfillProcessorTests
             .Setup(x => x.PatchServicesAndIds(
                 podcast.Id,
                 episode.Id,
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()))
             .ReturnsAsync(true);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();
@@ -79,7 +80,7 @@ public class EpisodeServiceBackfillProcessorTests
             x => x.PatchServicesAndIds(
                 podcast.Id,
                 episode.Id,
-                It.Is<Dictionary<string, EpisodeServiceLink>?>(s =>
+                It.Is<Dictionary<string, ServiceLink>?>(s =>
                     s != null && s.ContainsKey(ServiceKeys.Spotify)),
                 It.Is<EpisodeIds?>(ids => ids != null && ids.Spotify == nestedSpotifyId)),
             Times.Once);
@@ -97,7 +98,7 @@ public class EpisodeServiceBackfillProcessorTests
             .Setup(x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()))
             .ReturnsAsync(false);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();
@@ -133,7 +134,7 @@ public class EpisodeServiceBackfillProcessorTests
             x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()),
             Times.Never);
     }
@@ -156,9 +157,9 @@ public class EpisodeServiceBackfillProcessorTests
             .Setup(x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()))
-            .Callback<Guid, Guid, Dictionary<string, EpisodeServiceLink>?, EpisodeIds?>(
+            .Callback<Guid, Guid, Dictionary<string, ServiceLink>?, EpisodeIds?>(
                 (podcastId, episodeId, _, _) => patched.Add((podcastId, episodeId)))
             .ReturnsAsync(true);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();

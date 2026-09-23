@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace Indexer.Tests.BusinessRules;
 
@@ -21,7 +22,7 @@ public class EpisodeCatalogNormalizeRules
         var episode = _fixture.CreateEpisode(e =>
         {
             e.Ids = new EpisodeIds();
-            e.Services = new Dictionary<string, EpisodeServiceLink>
+            e.Services = new Dictionary<string, ServiceLink>
             {
                 ["other"] = new() { Image = leftoverArt }
             };
