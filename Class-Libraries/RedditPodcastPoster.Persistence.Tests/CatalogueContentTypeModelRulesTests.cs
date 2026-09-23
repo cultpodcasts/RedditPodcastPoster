@@ -95,6 +95,9 @@ public class CatalogueContentTypeModelRulesTests
             typeof(Publisher).GetProperty(member).Should().NotBeNull(because: member);
         }
 
+        typeof(Film).GetProperty("Title").Should().BeNull(
+            "Film uses Publisher.Name as its display title; no separate Title member");
+
         new Podcast().ModelType.Should().Be(ModelType.Podcast);
         new Film(_fixture.Create<string>()).Name.Should().NotBeNullOrWhiteSpace();
     }

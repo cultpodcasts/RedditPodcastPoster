@@ -5,9 +5,10 @@ namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
 /// Shared catalogue publisher (series / organisation / standalone work) fields:
-/// identity, social handles, subject defaults, and indexing bookmarks.
+/// name, description, social handles, subject defaults, and indexing bookmarks.
 /// <see cref="Podcasts.Podcast"/>, <see cref="TvShows.TvShow"/>,
 /// <see cref="News.NewsOrganisation"/>, and <see cref="Films.Film"/> subclass this.
+/// Film uses <see cref="Name"/> as its display title (no separate <c>title</c> member).
 /// </summary>
 public abstract class Publisher : CosmosSelector
 {

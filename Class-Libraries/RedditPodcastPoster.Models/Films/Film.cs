@@ -10,9 +10,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// Platform presence is <see cref="Services"/> only — no provider-id fields
 /// (unlike podcast <c>Episode</c>, which tracks Spotify/Apple/YouTube collection identity).
 /// Release is year or calendar date — not a podcast-episode datetime.
-/// Inherits social / subject / indexing fields from <see cref="Publisher"/>.
-/// Playable display title is <see cref="Title"/> (JSON <c>title</c>); <see cref="Publisher.Name"/>
-/// may mirror it for publisher-shaped consumers.
+/// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no separate title member.
 /// </summary>
 [CosmosSelector(ModelType.Film)]
 public sealed class Film : Publisher
@@ -23,16 +21,11 @@ public sealed class Film : Publisher
         ModelType = ModelType.Film;
     }
 
-    public Film(string title) : this()
+    public Film(string name) : this()
     {
-        Title = title;
-        Name = title;
-        FileKey = FileKeyFactory.GetFilmFileKey(title);
+        Name = name;
+        FileKey = FileKeyFactory.GetFilmFileKey(name);
     }
-
-    [JsonPropertyName("title")]
-    [JsonPropertyOrder(10)]
-    public string Title { get; set; } = string.Empty;
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
