@@ -12,8 +12,8 @@ public class NonPodcastScraperRegistrationRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "AddNonPodcastScrapers registers a catalog-keyed adapter for every non-podcast service except BBC and Internet Archive, " +
-        "so Api, Indexer, and SubmitUrl cannot forget a scraper when a new provider is added.")]
+        "AddNonPodcastScrapers registers a catalog-keyed adapter for every non-podcast service except BBC, Internet Archive, " +
+        "and submit-retired services (e.g. Hulu), so Api, Indexer, and SubmitUrl cannot forget a scraper when a new provider is added.")]
     public void add_non_podcast_scrapers_registers_every_catalog_keyed_adapter()
     {
         // Arrange
@@ -23,6 +23,7 @@ public class NonPodcastScraperRegistrationRules
         using var provider = services.BuildServiceProvider();
         var expected = Enum.GetValues<StreamingService>()
             .Where(service => service is not StreamingService.BbcSounds and not StreamingService.BbcIplayer and not StreamingService.InternetArchive)
+            .Where(service => !StreamingServiceWire.IsSubmitRetired(service))
             .ToArray();
 
         // Act
