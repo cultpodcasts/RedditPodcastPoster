@@ -25,12 +25,12 @@ public sealed class EpisodePlatformApplier : IEpisodePlatformApplier
 
     public bool ApplyFillMissingRelease(Episode target, DateTime release)
     {
-        if (target.Release == release)
+        if (target.ReleaseUtc == release)
         {
             return false;
         }
 
-        target.Release = release;
+        target.ReleaseUtc = release;
         return true;
     }
 

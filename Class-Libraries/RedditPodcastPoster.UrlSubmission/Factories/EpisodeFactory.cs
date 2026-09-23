@@ -73,7 +73,7 @@ public class EpisodeFactory(
         {
             Id = Guid.NewGuid(),
             Title = title,
-            Release = release,
+            ReleaseUtc = release,
             Length = length,
             Explicit = @explicit,
             Description = description

@@ -205,12 +205,12 @@ public static class EpisodeReleaseTolerance
         var delay = podcast.YouTubePublishingDelay();
         if (delay == TimeSpan.Zero)
         {
-            return episode.Release;
+            return episode.ReleaseUtc;
         }
 
         if (podcast.ReleaseAuthority == Service.YouTube)
         {
-            return episode.Release - delay;
+            return episode.ReleaseUtc - delay;
         }
 
         // Release is still YouTube-shaped only while the release-authority audio id is missing.
@@ -218,10 +218,10 @@ public static class EpisodeReleaseTolerance
             IsReleaseAuthorityAudioIdentityMissing(podcast, episode) &&
             HasAudioPlatformConfigured(podcast))
         {
-            return episode.Release - delay;
+            return episode.ReleaseUtc - delay;
         }
 
-        return episode.Release;
+        return episode.ReleaseUtc;
     }
 
     public static DateTime GetAudioReleaseForPlatformLookup(
@@ -267,7 +267,7 @@ public static class EpisodeReleaseTolerance
         var expectedAudioRelease = GetAudioReleaseForPlatformLookup(podcast, episode);
         // Start from the YouTube release (not only near expected audio): audio frequently arrives
         // early within the configured |delay| window on YouTube-authority negative-offset podcasts.
-        var windowStart = episode.Release.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
+        var windowStart = episode.ReleaseUtc.AddDays(-YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance);
         var windowEnd = expectedAudioRelease.Add(YouTubeReleaseAuthorityEnrichmentLookahead);
         var now = DateTime.UtcNow;
         return now >= windowStart && now <= windowEnd;

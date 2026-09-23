@@ -348,7 +348,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             {
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
             })
             .Create();
         var playlistItems = new List<PlaylistItem>
@@ -424,7 +424,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             {
                 e.Title = "Quantum computing fundamentals overview";
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
                 e.Description = "Alpha-only notes about quantum fundamentals.";
             })
             .Create();
@@ -702,7 +702,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             {
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
                 EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
@@ -738,7 +738,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
                 episodeTitle,
                 catalogueTitle,
                 durationOffsetFromEpisode: TimeSpan.FromMinutes(8));
-        var misalignedPublish = episode.Release
+        var misalignedPublish = episode.ReleaseUtc
             .Add(TimeSpan.FromHours(-6))
             .AddDays(2);
         playlistItems[0].Snippet.PublishedAtDateTimeOffset = misalignedPublish;
@@ -1037,7 +1037,7 @@ public class PlaylistItemFinderCatalogueWrapperRules
             {
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
                 e.AppleId = appleId;
                 e.SpotifyId = spotifyId;
                 e.Urls = new ServiceUrls { Apple = appleUrl, Spotify = spotifyUrl };

@@ -71,7 +71,7 @@ public class RecentEpisodeCandidatesProvider(
 
             var requestedEpisodes = releasedSince <= _cacheReleasedSince
                 ? _cachedEpisodes
-                : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
+                : _cachedEpisodes.Where(x => x.Episode.ReleaseUtc >= releasedSince).ToArray();
 
             logger.LogWarning(
                 "{method}: Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
@@ -112,7 +112,7 @@ public class RecentEpisodeCandidatesProvider(
 
         episodes = releasedSince == _cacheReleasedSince
             ? _cachedEpisodes
-            : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
+            : _cachedEpisodes.Where(x => x.Episode.ReleaseUtc >= releasedSince).ToArray();
 
         return true;
     }
@@ -139,7 +139,7 @@ public class RecentEpisodeCandidatesProvider(
         foreach (var podcast in recentPodcasts)
         {
             var episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.Release >= releasedSince)
+                .GetByPodcastId(podcast.Id, x => x.ReleaseSort >= releasedSince)
                 .ToArrayAsync();
 
             foreach (var episode in episodes)
@@ -149,7 +149,7 @@ public class RecentEpisodeCandidatesProvider(
         }
 
         return podcastEpisodes
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
     }
 }

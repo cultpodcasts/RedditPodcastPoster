@@ -63,7 +63,7 @@ public class ReleaseDateMergingRules
             .WithSpotifyUrl(stored.Urls.Spotify!)
             .WithRelease(dateOnlyRelease));
         // Episode model may retain API time before normalization; merge must still treat Spotify as date-only.
-        discovered.Release = dateOnlyRelease.AddHours(8);
+        discovered.ReleaseUtc = dateOnlyRelease.AddHours(8);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [discovered]);
@@ -85,7 +85,7 @@ public class ReleaseDateMergingRules
             podcast,
             spotifyId,
             storedTemplate.YouTubeId,
-            storedTemplate.Release,
+            storedTemplate.ReleaseUtc,
             storedTemplate.Length,
             storedTemplate.Title);
         var expected = EpisodeExpectation.From(stored);
@@ -213,7 +213,7 @@ public class ReleaseDateMergingRules
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (stored, discovered, appleId) =
             _fixture.CreateCrossPlatformYouTubeReleaseAuthorityApplePair(podcast);
-        var youTubeRelease = stored.Release;
+        var youTubeRelease = stored.ReleaseUtc;
         var expected = EpisodeExpectation.From(stored)
             .WithApple(appleId, discovered.Urls.Apple!);
 
@@ -222,7 +222,7 @@ public class ReleaseDateMergingRules
 
         // Assert
         result.MergedEpisodes.Should().ContainSingle();
-        stored.Release.Should().Be(youTubeRelease);
+        stored.ReleaseUtc.Should().Be(youTubeRelease);
         stored.ShouldMatchExpectation(expected);
     }
 }

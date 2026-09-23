@@ -103,7 +103,7 @@ public class PublicDatabasePublisher(
                 Description = string.IsNullOrWhiteSpace(episode.Description) ? null : episode.Description,
                 Explicit = episode.Explicit,
                 Length = episode.Length,
-                Release = episode.Release,
+                Release = episode.ReleaseUtc,
                 SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode),
                 Title = episode.Title,
                 YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode),

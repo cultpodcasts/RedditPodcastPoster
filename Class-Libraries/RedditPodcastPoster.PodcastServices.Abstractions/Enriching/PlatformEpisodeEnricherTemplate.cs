@@ -31,7 +31,7 @@ public abstract class PlatformEpisodeEnricherTemplate(IPlatformEnrichmentApplica
             "from {platformName} as it is within the {delayProperty} which is '{timeSpan}'.",
             nameof(IsBypassedByDelayedYouTubePublishing),
             request.Episode.Title,
-            request.Episode.Release,
+            request.Episode.ReleaseUtc,
             platformName,
             nameof(Podcast.YouTubePublicationOffset),
             timeSpan);

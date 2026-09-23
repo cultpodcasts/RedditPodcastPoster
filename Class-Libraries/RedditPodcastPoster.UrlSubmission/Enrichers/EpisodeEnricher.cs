@@ -183,11 +183,11 @@ public class EpisodeEnricher(
                 }
             }
 
-            if (matchingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
+            if (matchingEpisode.ReleaseUtc.TimeOfDay == TimeSpan.Zero &&
                 categorisedItem.ResolvedNonPodcastServiceItem.Release.HasValue &&
                 categorisedItem.ResolvedNonPodcastServiceItem.Release.Value.TimeOfDay != TimeSpan.Zero)
             {
-                matchingEpisode.Release = categorisedItem.ResolvedNonPodcastServiceItem.Release.Value;
+                matchingEpisode.ReleaseUtc = categorisedItem.ResolvedNonPodcastServiceItem.Release.Value;
                 episodeResult = SubmitResultState.Enriched;
             }
 

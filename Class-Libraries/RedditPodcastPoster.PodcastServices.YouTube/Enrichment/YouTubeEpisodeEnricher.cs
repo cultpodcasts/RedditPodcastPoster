@@ -129,7 +129,7 @@ public class YouTubeEpisodeEnricher(
             title,
             string.Empty,
             request.Episode.Length,
-            release?.UtcDateTime ?? request.Episode.Release,
+            release?.UtcDateTime ?? request.Episode.ReleaseUtc,
             url,
             null);
         ApplyResolvedCandidate(request, youTubeAdapter.Adapt(catalogueInput), enrichmentContext);
@@ -146,7 +146,7 @@ public class YouTubeEpisodeEnricher(
         }
 
         if ((request.Podcast.AppleId == null || EpisodeServicePresence.AppleEpisodeId(request.Episode) == null) &&
-            request.Episode.Release.TimeOfDay == TimeSpan.Zero &&
+            request.Episode.ReleaseUtc.TimeOfDay == TimeSpan.Zero &&
             release.HasValue &&
             episodePlatformApplier.ApplyFillMissingRelease(
                 request.Episode,

@@ -162,7 +162,7 @@ public class EpisodeGuestEnricherTests
             Id = Guid.NewGuid(),
             Title = title,
             Description = "Description mentioning someone else",
-            Release = DateTime.UtcNow,
+            ReleaseUtc = DateTime.UtcNow,
             Length = TimeSpan.FromMinutes(30),
             Explicit = false
         };

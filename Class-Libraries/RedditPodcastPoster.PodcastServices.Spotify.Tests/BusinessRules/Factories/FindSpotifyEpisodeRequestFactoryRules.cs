@@ -91,7 +91,7 @@ public class FindSpotifyEpisodeRequestFactoryRules
         var episode = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
-            e.Release = youTubePublish;
+            e.ReleaseUtc = youTubePublish;
             e.Length = length;
             e.YouTubeId = youTubeId;
             e.Urls.YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}");

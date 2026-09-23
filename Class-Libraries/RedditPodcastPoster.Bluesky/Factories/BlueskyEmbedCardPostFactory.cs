@@ -88,7 +88,7 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         postBuilder.AppendLine(
-            $"{podcastEpisode.Episode.Release.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
+            $"{podcastEpisode.Episode.ReleaseUtc.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
 
         var endHashTags = string.Join(" ",
             episodeHashtags

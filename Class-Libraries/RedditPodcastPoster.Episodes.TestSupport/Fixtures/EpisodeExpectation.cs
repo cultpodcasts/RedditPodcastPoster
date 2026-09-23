@@ -51,7 +51,7 @@ public sealed record EpisodeExpectation(
             PlatformExpectation.FromCatalog(episode, Service.Spotify),
             PlatformExpectation.FromCatalog(episode, Service.Apple),
             PlatformExpectation.FromCatalog(episode, Service.YouTube),
-            episode.Release,
+            episode.ReleaseUtc,
             episode.Description,
             episode.Ignored,
             episode.IsRemoved());

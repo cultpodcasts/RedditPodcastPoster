@@ -229,7 +229,7 @@ public partial class YouTubeSearchResultFinder(
         IList<SearchResult> searchResults,
         TimeSpan youTubePublishDelay)
     {
-        var expectedPublish = episode.Release.Add(youTubePublishDelay);
+        var expectedPublish = episode.ReleaseUtc.Add(youTubePublishDelay);
         var closestEpisode = searchResults
             .Where(x => x.Snippet.PublishedAtDateTimeOffset.HasValue)
             .MinBy(x => Math.Abs(x.Snippet.PublishedAtDateTimeOffset!.Value.Subtract(expectedPublish).Ticks));
@@ -342,7 +342,7 @@ public partial class YouTubeSearchResultFinder(
         var catalogueEpisode = new EpisodeModel
         {
             Title = match.Snippet.Title,
-            Release = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
+            ReleaseUtc = match.Snippet.PublishedAtDateTimeOffset?.UtcDateTime ?? DateTime.MinValue,
             Length = videoDetail?.GetLength() ?? episode.Length
         };
         EpisodeServicePresence.SetYouTubeIdentity(catalogueEpisode, match.Id.VideoId);

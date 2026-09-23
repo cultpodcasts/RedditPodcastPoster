@@ -74,12 +74,12 @@ public static class CrossPlatformMatchScorer
         }
 
         var delayProximityPoints = ScoreDelayProximity(
-            audioSide.Release,
-            youTubeSide.Release,
+            audioSide.ReleaseUtc,
+            youTubeSide.ReleaseUtc,
             podcast.YouTubePublishingDelay());
         var calendarDayPoints = EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
-                audioSide.Release,
-                youTubeSide.Release)
+                audioSide.ReleaseUtc,
+                youTubeSide.ReleaseUtc)
             ? SameCalendarDayReleasePoints
             : 0;
 

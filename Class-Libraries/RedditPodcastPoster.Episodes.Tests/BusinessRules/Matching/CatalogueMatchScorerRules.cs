@@ -28,7 +28,7 @@ public class CatalogueMatchScorerRules
             e.Title = probeTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -37,7 +37,7 @@ public class CatalogueMatchScorerRules
             e.Title = catalogueTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });
@@ -66,7 +66,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
         });
@@ -74,7 +74,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [sharedSubject];
         });
@@ -103,14 +103,14 @@ public class CatalogueMatchScorerRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.Subjects = [subjectA, subjectB];
         });
         var oneShared = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [subjectA];
         });
@@ -118,7 +118,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [subjectA, subjectB];
         });
@@ -146,14 +146,14 @@ public class CatalogueMatchScorerRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.Subjects = [defaultSubject];
         });
         var catalogue = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [defaultSubject];
         });
@@ -182,7 +182,7 @@ public class CatalogueMatchScorerRules
             e.Title = youTubeTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
         });
@@ -193,7 +193,7 @@ public class CatalogueMatchScorerRules
                 "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });
@@ -202,7 +202,7 @@ public class CatalogueMatchScorerRules
             e.Title = $"{youTubeTitle}: editorial rename";
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [sharedSubject];
         });
@@ -231,7 +231,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = youTubeRelease;
+            e.ReleaseUtc = youTubeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -240,7 +240,7 @@ public class CatalogueMatchScorerRules
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = appleRelease;
+            e.ReleaseUtc = appleRelease;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -270,7 +270,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(17));
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(17));
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -279,7 +279,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = length;
-            e.Release = DomainTestFixture.UtcAtTime(-4, TimeSpan.FromHours(17));
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(-4, TimeSpan.FromHours(17));
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -308,7 +308,7 @@ public class CatalogueMatchScorerRules
             e.Title = probeTitle;
             e.Description = string.Empty;
             e.Length = _fixture.CreateDuration();
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -317,7 +317,7 @@ public class CatalogueMatchScorerRules
             e.Title = catalogueTitle;
             e.Description = string.Empty;
             e.Length = TimeSpan.Zero;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -343,7 +343,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = baseTitle;
             e.Length = _fixture.CreateDuration();
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
         });
@@ -351,7 +351,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Length = TimeSpan.Zero;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [sharedSubject];
         });
@@ -383,7 +383,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = youTubeLength;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -392,7 +392,7 @@ public class CatalogueMatchScorerRules
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Description = string.Empty;
             e.Length = appleLength;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -428,7 +428,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = shorter;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -437,7 +437,7 @@ public class CatalogueMatchScorerRules
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Description = string.Empty;
             e.Length = longer;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -470,7 +470,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = shorter;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -479,7 +479,7 @@ public class CatalogueMatchScorerRules
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Description = string.Empty;
             e.Length = longer;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -511,7 +511,7 @@ public class CatalogueMatchScorerRules
             e.Title = baseTitle;
             e.Description = string.Empty;
             e.Length = shorter;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -520,7 +520,7 @@ public class CatalogueMatchScorerRules
             e.Title = DomainTestFixture.CreateTypoTitleVariant(baseTitle);
             e.Description = string.Empty;
             e.Length = longer;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -560,7 +560,7 @@ public class CatalogueMatchScorerRules
             e.Title = "Female rage on television after a major scandal";
             e.Description = sharedBlurb + " Subscribe on the open streaming platforms for more episodes.";
             e.Length = TimeSpan.FromMinutes(15).Add(TimeSpan.FromSeconds(10));
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -572,7 +572,7 @@ public class CatalogueMatchScorerRules
                             " Plus, when a trove of art popped up at a thrift shop, people discovered it had " +
                             "been donated by a local gallery.";
             e.Length = TimeSpan.FromMinutes(24);
-            e.Release = appleRelease;
+            e.ReleaseUtc = appleRelease;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });

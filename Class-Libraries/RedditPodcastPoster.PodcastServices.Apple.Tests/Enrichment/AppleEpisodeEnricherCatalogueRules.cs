@@ -68,7 +68,7 @@ public class AppleEpisodeEnricherCatalogueRules
         // Assert
         episode.AppleId.Should().Be(appleEpisodeId);
         episode.Urls.Apple.Should().NotBeNull();
-        episode.Release.Should().Be(youTubeRelease);
+        episode.ReleaseUtc.Should().Be(youTubeRelease);
         enrichmentContext.AppleUrlUpdated.Should().BeTrue();
     }
 
@@ -110,7 +110,7 @@ public class AppleEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        episode.Release.Should().Be(appleRelease);
+        episode.ReleaseUtc.Should().Be(appleRelease);
         enrichmentContext.ReleaseUpdated.Should().BeTrue();
     }
 
@@ -152,7 +152,7 @@ public class AppleEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        episode.Release.Should().Be(dateOnlyRelease);
+        episode.ReleaseUtc.Should().Be(dateOnlyRelease);
         enrichmentContext.ReleaseUpdated.Should().BeFalse();
     }
 

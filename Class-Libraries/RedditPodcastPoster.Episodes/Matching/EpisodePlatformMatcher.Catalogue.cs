@@ -94,12 +94,12 @@ public sealed partial class EpisodePlatformMatcher
             return match;
         }
 
-        if (probe.Release != DateTime.MinValue)
+        if (probe.ReleaseUtc != DateTime.MinValue)
         {
             // Same-release fallback must still respect duration when both sides have one: on daily
             // shows a different same-day episode otherwise wins on a weak fuzzy-title score alone.
             sameLength = sampleList.Where(x =>
-                Math.Abs((x.Release - probe.Release).Ticks) < CatalogueSameReleaseThreshold.Ticks &&
+                Math.Abs((x.ReleaseUtc - probe.ReleaseUtc).Ticks) < CatalogueSameReleaseThreshold.Ticks &&
                 (x.Length <= TimeSpan.Zero ||
                  Math.Abs((x.Length - probe.Length).Ticks) < CatalogueBroaderTimeDifferenceThreshold)).ToList();
         }
@@ -141,7 +141,7 @@ public sealed partial class EpisodePlatformMatcher
             return match;
         }
 
-        if (probe.Release == DateTime.MinValue)
+        if (probe.ReleaseUtc == DateTime.MinValue)
         {
             return null;
         }
@@ -153,14 +153,14 @@ public sealed partial class EpisodePlatformMatcher
                 return false;
             }
 
-            var episodeReleaseDateTime = x.Release;
+            var episodeReleaseDateTime = x.ReleaseUtc;
             if (episodeReleaseDateTime == DateTime.MinValue)
             {
                 return true;
             }
 
             var episodeReleaseDate = DateOnly.FromDateTime(episodeReleaseDateTime);
-            var expectedDateOnly = DateOnly.FromDateTime(probe.Release);
+            var expectedDateOnly = DateOnly.FromDateTime(probe.ReleaseUtc);
             var dateDiff = Math.Abs(expectedDateOnly.DayNumber - episodeReleaseDate.DayNumber);
 
             return episodeReleaseDate == expectedDateOnly || dateDiff <= 1;
@@ -181,7 +181,7 @@ public sealed partial class EpisodePlatformMatcher
     /// </summary>
     public bool CatalogueReleaseMatches(Episode probe, Episode catalogueItem, Podcast podcast)
     {
-        if (probe.Release == DateTime.MinValue)
+        if (probe.ReleaseUtc == DateTime.MinValue)
         {
             return false;
         }
@@ -189,8 +189,8 @@ public sealed partial class EpisodePlatformMatcher
         var referenceLength = probe.Length > TimeSpan.Zero ? probe.Length : catalogueItem.Length;
         var toleranceTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, referenceLength);
         return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
-            catalogueItem.Release,
-            probe.Release,
+            catalogueItem.ReleaseUtc,
+            probe.ReleaseUtc,
             toleranceTicks,
             podcast);
     }

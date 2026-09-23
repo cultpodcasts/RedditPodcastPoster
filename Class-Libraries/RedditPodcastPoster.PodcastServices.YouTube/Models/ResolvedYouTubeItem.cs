@@ -43,7 +43,7 @@ public class ResolvedYouTubeItem
         Publisher = podcastEpisode.Podcast.PublisherName;
         EpisodeTitle = podcastEpisode.Episode.Title;
         EpisodeDescription = podcastEpisode.Episode.Description;
-        Release = podcastEpisode.Episode.Release;
+        Release = podcastEpisode.Episode.ReleaseUtc;
         Duration = podcastEpisode.Episode.Length;
         Explicit = podcastEpisode.Episode.Explicit;
         Url = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, ServiceKeys.YouTube);

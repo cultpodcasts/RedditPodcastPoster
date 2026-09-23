@@ -13,6 +13,12 @@ public interface IPlayable
 {
     bool IsRemoved();
 
+    /// <summary>Semantic release (year / date / UTC datetime). Prefer <see cref="SetRelease"/>.</summary>
+    CatalogueRelease? Release { get; set; }
+
+    /// <summary>UTC sort key for Cosmos range filters and ordering; maintained from <see cref="Release"/>.</summary>
+    DateTime ReleaseSort { get; set; }
+
     string Description { get; set; }
 
     TimeSpan Length { get; set; }
@@ -32,4 +38,7 @@ public interface IPlayable
     string[]? Guests { get; set; }
 
     Dictionary<string, ServiceLink>? Services { get; set; }
+
+    /// <summary>Sets <see cref="Release"/> and syncs <see cref="ReleaseSort"/>.</summary>
+    void SetRelease(CatalogueRelease? release);
 }

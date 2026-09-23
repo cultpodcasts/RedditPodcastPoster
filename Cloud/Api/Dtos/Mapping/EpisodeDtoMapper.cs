@@ -64,7 +64,7 @@ public class EpisodeDtoMapper(
             Tweeted = episode.Tweeted,
             BlueskyPosted = episode.BlueskyPosted,
             Ignored = episode.Ignored,
-            Release = episode.Release,
+            Release = episode.ReleaseUtc ,
             Removed = episode.IsRemoved(),
             Length = episode.Length,
             Explicit = episode.Explicit,

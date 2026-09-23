@@ -83,7 +83,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
     {
         var mostRecent = _episodes.Values
             .Where(x => x.PodcastId == podcastId)
-            .MaxBy(x => x.Release);
+            .MaxBy(x => x.ReleaseUtc);
         return Task.FromResult(mostRecent is null ? null : Clone(mostRecent));
     }
 
@@ -188,7 +188,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             PodcastId = episode.PodcastId,
             Title = episode.Title,
             Description = episode.Description,
-            Release = episode.Release,
+            ReleaseUtc = episode.ReleaseUtc,
             Length = episode.Length,
             Explicit = episode.Explicit,
             Posted = episode.Posted,

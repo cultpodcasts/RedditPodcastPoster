@@ -29,9 +29,9 @@ public sealed class AppleCatalogueReleaseMatchStrategy : IReleaseMatchStrategy
         if (existingIsYouTube && context.IncomingEpisode.HasAppleIdentity() &&
             context.Podcast.ReleaseAuthority == Service.YouTube)
         {
-            var expectedAudioRelease = context.ExistingEpisode.Release - delay;
+            var expectedAudioRelease = context.ExistingEpisode.ReleaseUtc - delay;
             return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
-                context.IncomingEpisode.Release,
+                context.IncomingEpisode.ReleaseUtc,
                 expectedAudioRelease,
                 toleranceTicks,
                 context.Podcast);

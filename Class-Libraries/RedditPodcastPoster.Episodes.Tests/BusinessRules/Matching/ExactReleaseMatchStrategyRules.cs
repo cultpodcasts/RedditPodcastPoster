@@ -25,13 +25,13 @@ public class ExactReleaseMatchStrategyRules
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -59,7 +59,7 @@ public class ExactReleaseMatchStrategyRules
         var youTubeRelease = audioRelease.Add(publishingDelay);
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -89,7 +89,7 @@ public class ExactReleaseMatchStrategyRules
         var youTubeRelease = audioRelease.AddHours(1);
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
             e.Length = sharedLength;
             e.AppleId = _fixture.CreateAppleId();
         });
@@ -116,12 +116,12 @@ public class ExactReleaseMatchStrategyRules
         var podcast = _fixture.CreatePodcast();
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDateDaysAgo(60);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(60);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var context = new ReleaseMatchContext(podcast, stored, incoming);
@@ -147,13 +147,13 @@ public class ExactReleaseMatchStrategyRules
         var audioRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = audioRelease.AddHours(1);
+            e.ReleaseUtc = audioRelease.AddHours(1);
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -180,13 +180,13 @@ public class ExactReleaseMatchStrategyRules
         var storedRelease = DomainTestFixture.UtcDateDaysAgo(60);
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = storedRelease;
+            e.ReleaseUtc = storedRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -232,13 +232,13 @@ public class ExactReleaseMatchStrategyRules
         var sharedRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.Length = storedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = sharedRelease.AddMinutes(30);
+            e.ReleaseUtc = sharedRelease.AddMinutes(30);
             e.Length = incomingLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -316,13 +316,13 @@ public class ExactReleaseMatchStrategyRules
 
         var stored = _fixture.CreateEpisode(e =>
         {
-            e.Release = storedRelease;
+            e.ReleaseUtc = storedRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
-            e.Release = incomingRelease;
+            e.ReleaseUtc = incomingRelease;
             e.Length = sharedLength;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });

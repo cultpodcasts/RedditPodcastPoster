@@ -92,7 +92,7 @@ public class EnrichPodcastEpisodesProcessor(
         {
             episodesQuery = episodeRepository.GetByPodcastId(
                 podcastId,
-                x => x.Release >= indexingContext.ReleasedSince);
+                x => x.ReleaseSort >= indexingContext.ReleasedSince);
         }
 
         var currentEpisodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();
@@ -101,7 +101,7 @@ public class EnrichPodcastEpisodesProcessor(
         {
             var episodeUpdated = false;
             var criteria = new PodcastServiceSearchCriteria(podcast.Name, string.Empty, podcast.PublisherName,
-                detachedEpisode.Title, detachedEpisode.Description, detachedEpisode.Release, detachedEpisode.Length);
+                detachedEpisode.Title, detachedEpisode.Description, detachedEpisode.ReleaseUtc , detachedEpisode.Length);
 
             if (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
                 !string.IsNullOrWhiteSpace(podcast.SpotifyId) &&

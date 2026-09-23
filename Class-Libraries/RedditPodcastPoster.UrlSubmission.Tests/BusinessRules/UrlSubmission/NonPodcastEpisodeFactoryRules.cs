@@ -46,7 +46,7 @@ public class NonPodcastEpisodeFactoryRules
         // Assert
         episode.Title.Should().Be(title);
         episode.Description.Should().Be(description);
-        episode.Release.Should().Be(release);
+        episode.ReleaseUtc.Should().Be(release);
         episode.Length.Should().Be(duration);
         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().Be(url);
         EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)).Should().Be(image);

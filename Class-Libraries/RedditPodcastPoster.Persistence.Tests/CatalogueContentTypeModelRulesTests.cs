@@ -133,6 +133,8 @@ public class CatalogueContentTypeModelRulesTests
         typeof(IPlayable).GetProperty(nameof(IPlayable.Description)).Should().NotBeNull();
         typeof(IPlayable).GetProperty(nameof(IPlayable.Services)).Should().NotBeNull();
         typeof(IPlayable).GetProperty(nameof(IPlayable.Matches)).Should().NotBeNull();
+        typeof(IPlayable).GetProperty(nameof(IPlayable.Release)).Should().NotBeNull();
+        typeof(IPlayable).GetProperty(nameof(IPlayable.ReleaseSort)).Should().NotBeNull();
         typeof(IPromotable).GetMethod(nameof(IPromotable.ClearBlueskyPostState)).Should().NotBeNull();
         typeof(IPromotable).GetProperty(nameof(IPromotable.BlueskyPosted)).Should().NotBeNull();
         typeof(IPromotable).GetProperty(nameof(IPromotable.HashTag)).Should().NotBeNull();
@@ -142,6 +144,45 @@ public class CatalogueContentTypeModelRulesTests
         new Film().IsRemoved().Should().BeFalse();
         new Film().HashTag.Should().BeNull();
         new Episode().HashTag.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "All IPlayable types expose DateTime ReleaseSort for Cosmos >= / <= filters; SetRelease syncs it from " +
+        "CatalogueRelease (year→1 Jan UTC, date→midnight UTC, datetime→instant), because Release itself is not LINQ-comparable.")]
+    public void Playable_ReleaseSort_is_synced_from_CatalogueRelease_for_cosmos_range_filters()
+    {
+        // Arrange
+        var year = DateTime.UtcNow.Year - 2;
+        var dateOnly = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(5));
+        var dateTimeUtc = DomainTestFixture.UtcAtTime(-3, new TimeSpan(14, 15, 16));
+        var episode = new Episode();
+        var tvShowEpisode = new TvShowEpisode();
+        var newsReport = new NewsReport();
+        var film = new Film();
+
+        // Act
+        episode.SetRelease(CatalogueRelease.FromDateTimeUtc(dateTimeUtc));
+        tvShowEpisode.SetRelease(CatalogueRelease.FromDate(dateOnly));
+        newsReport.SetRelease(CatalogueRelease.FromDate(dateOnly));
+        film.SetRelease(CatalogueRelease.FromYear(year));
+
+        // Assert
+        foreach (var type in new[] { typeof(Episode), typeof(TvShowEpisode), typeof(NewsReport), typeof(Film) })
+        {
+            type.GetProperty(nameof(IPlayable.ReleaseSort))!.PropertyType.Should().Be(typeof(DateTime), because: type.Name);
+        }
+
+        episode.ReleaseSort.Should().Be(dateTimeUtc);
+        tvShowEpisode.ReleaseSort.Should().Be(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        newsReport.ReleaseSort.Should().Be(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+        film.ReleaseSort.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var from = DomainTestFixture.UtcDaysAgo(10);
+        var to = DateTime.UtcNow;
+        (episode.ReleaseSort >= from && episode.ReleaseSort <= to).Should().BeTrue();
+        (tvShowEpisode.ReleaseSort >= from && tvShowEpisode.ReleaseSort <= to).Should().BeTrue();
+        (film.ReleaseSort >= new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
+         film.ReleaseSort <= to).Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -203,11 +244,11 @@ public class CatalogueContentTypeModelRulesTests
         var dateTimeRoundTrip = JsonSerializer.Deserialize<CatalogueRelease>(dateTimeJson);
 
         // Assert
+        typeof(Playable).GetProperty(nameof(Playable.Release))!.PropertyType.Should().Be(typeof(CatalogueRelease));
         typeof(Film).GetProperty(nameof(Film.Release))!.PropertyType.Should().Be(typeof(CatalogueRelease));
-        typeof(TvShowEpisode).GetProperty(nameof(TvShowEpisode.Release))!.PropertyType.Should()
-            .Be(typeof(CatalogueRelease));
-        typeof(NewsReport).GetProperty(nameof(NewsReport.Release))!.PropertyType.Should()
-            .Be(typeof(CatalogueRelease));
+        typeof(Episode).Should().BeAssignableTo<Playable>();
+        typeof(TvShowEpisode).Should().BeAssignableTo<Playable>();
+        typeof(NewsReport).Should().BeAssignableTo<Playable>();
 
         yearJson.Should().Be(year.ToString());
         dateJson.Should().Be($"\"{dateOnlyRelease:yyyy-MM-dd}\"");

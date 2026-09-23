@@ -141,7 +141,7 @@ public class HomepagePublisher(
 
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
-                           x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
+                           x => x.ReleaseSort >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
             EpisodeServicePresence.NormalizeCatalog(episode);
@@ -153,7 +153,7 @@ public class HomepagePublisher(
                 EpisodeId = episode.Id,
                 EpisodeTitle = episode.Title,
                 EpisodeDescription = episode.Description,
-                Release = episode.Release,
+                Release = episode.ReleaseUtc,
                 Services = episode.Services,
                 Ids = episode.Ids,
                 Length = episode.Length,

@@ -188,7 +188,7 @@ public class YouTubePublishDelayMatchStrategyRules
         {
             e.Title = _fixture.CreateShortTitle();
             e.Length = sharedLength;
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
             e.SpotifyId = spotifyId;
             e.Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) };
         });

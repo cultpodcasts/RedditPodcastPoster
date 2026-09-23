@@ -44,7 +44,7 @@ public class SpotifyEpisodeEnricher(
         {
             Title = request.Episode.Title,
             Length = request.Episode.Length,
-            Release = findSpotifyEpisodeRequest.Released ?? request.Episode.Release
+            ReleaseUtc = findSpotifyEpisodeRequest.Released ?? request.Episode.ReleaseUtc
         };
         var assignedSpotifyIds = request.Episodes
             .Select(EpisodeServicePresence.SpotifyEpisodeId)
@@ -93,7 +93,7 @@ public class SpotifyEpisodeEnricher(
                 request.Podcast.Id,
                 request.Podcast.Name,
                 request.Podcast.SpotifyId,
-                findSpotifyEpisodeRequest.Released ?? request.Episode.Release,
+                findSpotifyEpisodeRequest.Released ?? request.Episode.ReleaseUtc,
                 request.Episode.Length,
                 findSpotifyEpisodeRequest.EnrichingYouTubeDiscoveredEpisode,
                 request.Podcast.ReleaseAuthority,
@@ -110,7 +110,7 @@ public class SpotifyEpisodeEnricher(
         {
             Title = spotify.Name,
             Length = spotify.GetDuration(),
-            Release = spotify.GetReleaseDate()
+            ReleaseUtc = spotify.GetReleaseDate()
         };
         EpisodeServicePresence.SetSpotifyIdentity(candidate, spotify.Id);
         return candidate;

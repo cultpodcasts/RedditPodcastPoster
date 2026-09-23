@@ -108,7 +108,7 @@ public class ShortnerService(
             podcastEpisode.Episode.Id,
             podcastEpisode.Episode.Id.ToBase64(),
             podcastEpisode.Episode.Title,
-            DateOnly.FromDateTime(podcastEpisode.Episode.Release),
+            DateOnly.FromDateTime(podcastEpisode.Episode.ReleaseUtc),
             podcastEpisode.Episode.Length);
         var metadata = new MetaData
         {

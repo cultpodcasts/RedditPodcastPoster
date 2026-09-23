@@ -18,6 +18,32 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     [JsonPropertyOrder(20)]
     public string Description { get; set; } = string.Empty;
 
+    private CatalogueRelease? _release;
+
+    /// <summary>
+    /// Semantic release (year / date / UTC datetime). Setting this updates <see cref="ReleaseSort"/>.
+    /// Prefer <see cref="SetRelease"/> at call sites.
+    /// </summary>
+    [JsonPropertyName("release")]
+    [JsonPropertyOrder(30)]
+    public CatalogueRelease? Release
+    {
+        get => _release;
+        set
+        {
+            _release = value;
+            ReleaseSort = value?.ToSortUtc() ?? default;
+        }
+    }
+
+    /// <summary>
+    /// UTC instant for Cosmos range filters and ordering. Synced from <see cref="Release"/>;
+    /// also persisted so queries do not depend on <see cref="CatalogueRelease"/> LINQ.
+    /// </summary>
+    [JsonPropertyName("releaseSort")]
+    [JsonPropertyOrder(30)]
+    public DateTime ReleaseSort { get; set; }
+
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(31)]
     public TimeSpan Length { get; set; }
@@ -114,6 +140,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string[]? Guests { get; set; }
 
     public bool IsRemoved() => Removed == true;
+
+    public void SetRelease(CatalogueRelease? release) => Release = release;
 
     public void ClearBlueskyPostState()
     {

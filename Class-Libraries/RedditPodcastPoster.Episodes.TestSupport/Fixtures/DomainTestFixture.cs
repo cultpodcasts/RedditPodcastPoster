@@ -516,7 +516,7 @@ public sealed class DomainTestFixture
       PodcastId = Guid.NewGuid(),
       Title = CreateTitle(),
       Description = _fixture.Create<string>(),
-      Release = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
+      ReleaseUtc = UtcDaysAgo(_fixture.Create<int>() % 365 + 1),
       Length = TimeSpan.FromMinutes(_fixture.Create<int>() % 120 + 1),
       Images = new EpisodeImages(),
       Subjects = []
@@ -544,7 +544,7 @@ public sealed class DomainTestFixture
     {
       if (title is not null)
         e.Title = title;
-      e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
+      e.ReleaseUtc = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
       EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
       EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, DefaultYouTubeUrl(youTubeId), null);
@@ -563,7 +563,7 @@ public sealed class DomainTestFixture
     {
       if (title is not null)
         e.Title = title;
-      e.Release = release ?? UtcAtTime(-2, CreateNonMidnightTimeOfDay());
+      e.ReleaseUtc = release ?? UtcAtTime(-2, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
       EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
       EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(spotifyId), null);
@@ -585,7 +585,7 @@ public sealed class DomainTestFixture
     {
       if (title is not null)
         e.Title = title;
-      e.Release = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
+      e.ReleaseUtc = release ?? UtcAtTime(-30, CreateNonMidnightTimeOfDay());
       e.Length = length ?? CreateDuration();
       EpisodeServicePresence.SetYouTubeIdentity(e, yid);
       EpisodeServicePresence.SetSpotifyIdentity(e, sid);
@@ -840,7 +840,7 @@ public sealed class DomainTestFixture
     var youTubeOnly = CreateStoredEpisode(podcast, e =>
     {
       e.Title = title;
-      e.Release = release;
+      e.ReleaseUtc = release;
       e.Length = length;
       EpisodeServicePresence.SetYouTubeIdentity(e, youTubeId);
       EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, DefaultYouTubeUrl(youTubeId), null);
@@ -848,7 +848,7 @@ public sealed class DomainTestFixture
     var appleOnly = CreateStoredEpisode(podcast, e =>
     {
       e.Title = title;
-      e.Release = release;
+      e.ReleaseUtc = release;
       e.Length = length;
       EpisodeServicePresence.SetAppleIdentity(e, appleId);
       EpisodeServicePresence.Upsert(e, ServiceKeys.Apple, DefaultAppleUrl(appleId), null);
@@ -877,7 +877,7 @@ public sealed class DomainTestFixture
     TimeSpan? length = null) =>
     CreateStoredEpisode(podcast, e =>
     {
-      e.Release = audioRelease ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
+      e.ReleaseUtc = audioRelease ?? UtcDaysAgo(_fixture.Create<int>() % 365 + 1);
       e.Length = length ?? CreateDuration();
       var spotifyId = CreateSpotifyId();
       EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
@@ -899,7 +899,7 @@ public sealed class DomainTestFixture
     TimeSpan? length = null) =>
     CreateStoredEpisode(podcast, e =>
     {
-      e.Release = dateOnlyRelease;
+      e.ReleaseUtc = dateOnlyRelease;
       var spotifyId = CreateSpotifyId();
       EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
       EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, DefaultSpotifyUrl(spotifyId), null);
@@ -915,7 +915,7 @@ public sealed class DomainTestFixture
     Action<YouTubeCatalogueInputBuilder>? configure = null)
   {
     var release = SameCalendarDateWithTime(
-      stored.Release,
+      stored.ReleaseUtc,
       timeOfDay ?? CreateNonMidnightTimeOfDaySpecimen(_fixture));
     return CreateYouTubeCatalogueInput(b =>
     {
@@ -947,7 +947,7 @@ public sealed class DomainTestFixture
     Action<AppleCatalogueInputBuilder>? configure = null)
   {
     var release = SameCalendarDateWithTime(
-      stored.Release,
+      stored.ReleaseUtc,
       timeOfDay ?? CreateNonMidnightTimeOfDaySpecimen(_fixture));
     return CreateAppleCatalogueInput(b =>
     {
@@ -987,7 +987,7 @@ public sealed class DomainTestFixture
         e.Id = episodeId.Value;
       e.PodcastId = podcastId ?? Guid.NewGuid();
       e.Title = title;
-      e.Release = release ?? DateTime.UtcNow.Date;
+      e.ReleaseUtc = release ?? DateTime.UtcNow.Date;
       EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, spotifyUrl, null);
     });
 
@@ -1693,7 +1693,7 @@ public sealed class EpisodeBuilder
 
   public EpisodeBuilder WithRelease(DateTime release)
   {
-    _episode.Release = release;
+    _episode.ReleaseUtc = release;
     return this;
   }
 

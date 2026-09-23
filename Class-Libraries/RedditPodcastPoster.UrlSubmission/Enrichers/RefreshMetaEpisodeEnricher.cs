@@ -111,10 +111,10 @@ public sealed class RefreshMetaEpisodeEnricher(
                                 !string.Equals(matchingEpisode.Description, description, StringComparison.Ordinal);
         Note("description", Truncate(matchingEpisode.Description), Truncate(description), descriptionUpdate);
 
-        var releaseUpdate = item.Release is { } release && matchingEpisode.Release != release;
+        var releaseUpdate = item.Release is { } release && matchingEpisode.ReleaseUtc != release;
         Note(
             "release",
-            matchingEpisode.Release.ToString("o"),
+            matchingEpisode.ReleaseUtc.ToString("o"),
             item.Release?.ToString("o"),
             releaseUpdate);
 
@@ -165,7 +165,7 @@ public sealed class RefreshMetaEpisodeEnricher(
 
         if (releaseUpdate)
         {
-            matchingEpisode.Release = item.Release!.Value;
+            matchingEpisode.ReleaseUtc = item.Release!.Value;
             changed = true;
         }
 

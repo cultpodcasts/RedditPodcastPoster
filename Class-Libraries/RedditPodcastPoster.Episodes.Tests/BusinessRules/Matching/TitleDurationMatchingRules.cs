@@ -105,7 +105,7 @@ public class TitleDurationMatchingRules
         var stored = _fixture.CreateStoredEpisode(podcast, e =>
         {
             e.Title = storedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.Length = _fixture.CreateDuration();
         });
         var expected = EpisodeExpectation.From(stored);
@@ -182,6 +182,6 @@ public class TitleDurationMatchingRules
         {
             e.Title = title;
             e.Length = length;
-            e.Release = release ?? DateTime.UtcNow;
+            e.ReleaseUtc = release ?? DateTime.UtcNow;
         });
 }

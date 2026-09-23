@@ -28,9 +28,23 @@ public sealed class Film : Publisher, IPlayable, IPromotable
         FileKey = FileKeyFactory.GetFilmFileKey(name);
     }
 
+    private CatalogueRelease? _release;
+
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
-    public CatalogueRelease? Release { get; set; }
+    public CatalogueRelease? Release
+    {
+        get => _release;
+        set
+        {
+            _release = value;
+            ReleaseSort = value?.ToSortUtc() ?? default;
+        }
+    }
+
+    [JsonPropertyName("releaseSort")]
+    [JsonPropertyOrder(30)]
+    public DateTime ReleaseSort { get; set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(31)]
@@ -83,6 +97,8 @@ public sealed class Film : Publisher, IPlayable, IPromotable
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
+
+    public void SetRelease(CatalogueRelease? release) => Release = release;
 
     public void ClearBlueskyPostState()
     {

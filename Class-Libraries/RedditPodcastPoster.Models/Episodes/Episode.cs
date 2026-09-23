@@ -19,9 +19,17 @@ public class Episode : Playable
     [JsonPropertyOrder(2)]
     public Guid PodcastId { get; set; }
 
-    [JsonPropertyName("release")]
-    [JsonPropertyOrder(30)]
-    public DateTime Release { get; set; }
+    /// <summary>
+    /// DateTime view of <see cref="Playable.Release"/> for podcast matching and enrichment.
+    /// Gets/sets via <see cref="Playable.ReleaseSort"/> and <see cref="CatalogueRelease.FromDateTimeUtc"/>.
+    /// Cosmos range filters must use <see cref="Playable.ReleaseSort"/>, not this property.
+    /// </summary>
+    [JsonIgnore]
+    public DateTime ReleaseUtc
+    {
+        get => ReleaseSort;
+        set => SetRelease(CatalogueRelease.FromDateTimeUtc(value));
+    }
 
     /// <summary>
     /// Grouped platform ids. Source of truth for matching and reconstructable services.
@@ -66,9 +74,9 @@ public class Episode : Playable
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, maxImage);
         return episode;
@@ -89,9 +97,9 @@ public class Episode : Playable
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, image);
         return episode;
@@ -112,9 +120,9 @@ public class Episode : Playable
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetAppleIdentity(episode, appleId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, url, image);
         return episode;

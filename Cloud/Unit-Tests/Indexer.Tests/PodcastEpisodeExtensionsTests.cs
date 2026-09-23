@@ -170,7 +170,7 @@ public class PodcastEpisodeExtensionsTests
         Id = Guid.NewGuid(),
         Title = " Episode ",
         Description = "Description",
-        Release = DateTime.UtcNow.Date.AddDays(-9).AddHours(12),
+        ReleaseUtc = DateTime.UtcNow.Date.AddDays(-9).AddHours(12),
         Length = TimeSpan.FromSeconds(123),
         SpotifyId = "spotify-episode-id",
         YouTubeId = "youtube-id",

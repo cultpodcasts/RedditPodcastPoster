@@ -97,7 +97,7 @@ public class PodcastExtensionsTests
         };
         var episode = new Episode
         {
-            Release = DateTime.UtcNow.AddHours(-2),
+            ReleaseUtc = DateTime.UtcNow.AddHours(-2),
             Length = TimeSpan.FromHours(1),
             Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
         };
@@ -116,7 +116,7 @@ public class PodcastExtensionsTests
         };
         var episode = new Episode
         {
-            Release = DateTime.UtcNow.AddDays(-2),
+            ReleaseUtc = DateTime.UtcNow.AddDays(-2),
             Length = TimeSpan.FromHours(1),
             Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
         };
@@ -152,7 +152,7 @@ public class PodcastExtensionsTests
         };
         var episode = new Episode
         {
-            Release = DateTime.UtcNow.AddHours(-2),
+            ReleaseUtc = DateTime.UtcNow.AddHours(-2),
             Length = TimeSpan.FromHours(1) + TimeSpan.FromMinutes(51),
             Urls = new ServiceUrls()
         };
@@ -171,7 +171,7 @@ public class PodcastExtensionsTests
         };
         var episode = new Episode
         {
-            Release = DateTime.UtcNow.AddMinutes(-30),
+            ReleaseUtc = DateTime.UtcNow.AddMinutes(-30),
             Length = TimeSpan.FromHours(2),
             Urls = new ServiceUrls()
         };

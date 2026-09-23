@@ -59,7 +59,7 @@ public class SearchResultFinderTests
         var episode = _fixture
             .Build<EpisodeModel>()
             .With(x => x.Title, expectedTitle)
-            .With(x => x.Release, today)
+            .With(x => x.ReleaseUtc, today)
             .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         episode.AppleId = null;
@@ -104,7 +104,7 @@ public class SearchResultFinderTests
             .Build<EpisodeModel>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
-            .With(x => x.Release, release)
+            .With(x => x.ReleaseUtc, release)
             .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture
@@ -148,7 +148,7 @@ public class SearchResultFinderTests
             .Build<EpisodeModel>()
             .With(x => x.Title, "Episode-title")
             .With(x => x.Title, expectedTitle)
-            .With(x => x.Release, release)
+            .With(x => x.ReleaseUtc, release)
             .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture
@@ -189,7 +189,7 @@ public class SearchResultFinderTests
         var episode = _fixture
             .Build<EpisodeModel>()
             .With(x => x.Title, $"Prefix-A {episodeNumber} Suffix-A")
-            .With(x => x.Release, release)
+            .With(x => x.ReleaseUtc, release)
             .With(x => x.Length, DefaultEpisodeLength)
             .Create();
         var expected = _fixture

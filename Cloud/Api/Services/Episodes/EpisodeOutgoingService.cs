@@ -61,7 +61,7 @@ public class EpisodeOutgoingService(
 
             return new EpisodeOutgoingResult(
                 EpisodeOutgoingStatus.Ok,
-                episodes.OrderByDescending(x => x.Episode.Release).ToList());
+                episodes.OrderByDescending(x => x.Episode.ReleaseUtc ).ToList());
         }
         catch (Exception ex)
         {

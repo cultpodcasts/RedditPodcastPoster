@@ -309,14 +309,14 @@ public class FindDuplicateEpisodesProcessor(
             keeper.Id, toDelete.Id, differences.Count, string.Join("; ", differences));
 
         // Release date: use the earliest of the two (most likely correct)
-        var earliestRelease = firstEpisode.Release <= secondEpisode.Release
-            ? firstEpisode.Release
-            : secondEpisode.Release;
-        if (keeper.Release != earliestRelease)
+        var earliestRelease = firstEpisode.ReleaseUtc <= secondEpisode.ReleaseUtc
+            ? firstEpisode.ReleaseUtc
+            : secondEpisode.ReleaseUtc;
+        if (keeper.ReleaseUtc != earliestRelease)
         {
             logger.LogWarning("Pair {KeeperId}: correcting release {Old} -> {New} (earliest of pair).",
-                keeper.Id, keeper.Release, earliestRelease);
-            keeper.Release = earliestRelease;
+                keeper.Id, keeper.ReleaseUtc, earliestRelease);
+            keeper.ReleaseUtc = earliestRelease;
             updated = true;
         }
 

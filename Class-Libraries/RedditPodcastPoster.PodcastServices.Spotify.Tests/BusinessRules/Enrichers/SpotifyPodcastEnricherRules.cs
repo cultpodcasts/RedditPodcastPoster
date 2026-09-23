@@ -89,7 +89,7 @@ public class SpotifyPodcastEnricherRules
         {
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Title = _fixture.CreateTitle();
-            e.Release = DomainTestFixture.UtcDateDaysAgo(1);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(1);
             e.Length = _fixture.CreateDuration();
         });
         var resolvedEpisodeId = _fixture.CreateSpotifyId();

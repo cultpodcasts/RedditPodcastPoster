@@ -242,7 +242,7 @@ public class UrlSubmissionGuestEnrichmentRules
                 "Publisher",
                 created.Title,
                 created.Description,
-                created.Release,
+                created.ReleaseUtc,
                 created.Length,
                 spotifyInput.Url!,
                 false,
@@ -323,7 +323,7 @@ public class UrlSubmissionGuestEnrichmentRules
         var spotifyInput = _fixture.CreateResolvedSpotifyItemInput();
         var title = matchingEpisode?.Title ?? _fixture.CreateTitle();
         var description = matchingEpisode?.Description ?? _fixture.Create<string>();
-        var release = matchingEpisode?.Release ?? DomainTestFixture.UtcDateDaysAgo(1);
+        var release = matchingEpisode?.ReleaseUtc ?? DomainTestFixture.UtcDateDaysAgo(1);
         var length = matchingEpisode?.Length ?? _fixture.CreateDuration();
 
         return new CategorisedItem(

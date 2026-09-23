@@ -18,8 +18,8 @@ public sealed class YouTubeTimeBackfillMergePolicy : IReleaseMergePolicy
     }
 
     internal static bool CanBackfillMidnightRelease(ReleaseMergeContext context) =>
-        context.ExistingEpisode.Release.TimeOfDay == TimeSpan.Zero &&
-        context.IncomingEpisode.Release.TimeOfDay > TimeSpan.Zero &&
-        DateOnly.FromDateTime(context.ExistingEpisode.Release) ==
-        DateOnly.FromDateTime(context.IncomingEpisode.Release);
+        context.ExistingEpisode.ReleaseUtc.TimeOfDay == TimeSpan.Zero &&
+        context.IncomingEpisode.ReleaseUtc.TimeOfDay > TimeSpan.Zero &&
+        DateOnly.FromDateTime(context.ExistingEpisode.ReleaseUtc) ==
+        DateOnly.FromDateTime(context.IncomingEpisode.ReleaseUtc);
 }

@@ -55,7 +55,7 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.TweetDays) &&
+            .Where(x => x.ReleaseSort >= GetReleasedSince(_postingCriteria.TweetDays) &&
                         x is { Tweeted: false, Ignored: false, Removed: false })
             .ToArrayAsync();
 
@@ -64,7 +64,7 @@ public class PodcastEpisodeProvider(
             episodes,
             _postingCriteria.TweetDays);
 
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+        return podcastEpisodes.OrderByDescending(x => x.Episode.ReleaseUtc);
     }
 
     public Task<IEnumerable<PodcastEpisode>> GetBlueskyReadyPodcastEpisodes(
@@ -101,7 +101,7 @@ public class PodcastEpisodeProvider(
         }
 
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= GetReleasedSince(_postingCriteria.BlueSkyDays) &&
+            .Where(x => x.ReleaseSort >= GetReleasedSince(_postingCriteria.BlueSkyDays) &&
                         x is { Ignored: false, Removed: false })
             .ToArrayAsync();
 
@@ -110,7 +110,7 @@ public class PodcastEpisodeProvider(
             episodes,
             _postingCriteria.BlueSkyDays);
 
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+        return podcastEpisodes.OrderByDescending(x => x.Episode.ReleaseUtc);
     }
 
     private async Task<IEnumerable<PodcastEpisode>> GetReadyPodcastEpisodes(
@@ -128,11 +128,11 @@ public class PodcastEpisodeProvider(
 
         var candidateEpisodes = preloadedRecentCandidates != null
             ? preloadedRecentCandidates
-                .Where(x => x.Episode.Release >= releasedSince)
+                .Where(x => x.Episode.ReleaseUtc >= releasedSince)
                 .Where(candidateFilter)
                 .ToArray()
             : (await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(sharedRecentCandidateThreshold))
-                .Where(x => x.Episode.Release >= releasedSince)
+                .Where(x => x.Episode.ReleaseUtc >= releasedSince)
                 .Where(candidateFilter)
                 .ToArray();
 
@@ -178,7 +178,7 @@ public class PodcastEpisodeProvider(
             filteredOutEpisodeCount,
             podcastEpisodes.Count);
 
-        return podcastEpisodes.OrderByDescending(x => x.Episode.Release);
+        return podcastEpisodes.OrderByDescending(x => x.Episode.ReleaseUtc);
     }
 
     private DateTime GetReleasedSince(int days)

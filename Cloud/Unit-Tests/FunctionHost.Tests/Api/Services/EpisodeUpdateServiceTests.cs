@@ -53,7 +53,7 @@ public class EpisodeUpdateServiceTests
         // Arrange
         var episodeId = Guid.NewGuid();
         var podcastId = Guid.NewGuid();
-        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Release = DateTime.UtcNow.AddDays(-30) };
+        var episode = new Episode { Id = episodeId, PodcastId = podcastId, ReleaseUtc = DateTime.UtcNow.AddDays(-30) };
 
         var resolver = new Mock<IPodcastEpisodeResolver>();
         resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
@@ -84,7 +84,7 @@ public class EpisodeUpdateServiceTests
             Id = episodeId,
             PodcastId = podcastId,
             Title = "Original",
-            Release = DateTime.UtcNow.AddDays(-30)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
@@ -126,7 +126,7 @@ public class EpisodeUpdateServiceTests
             Tweeted = true,
             BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2",
             Ignored = false,
-            Release = DateTime.UtcNow.AddDays(-30)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
@@ -176,7 +176,7 @@ public class EpisodeUpdateServiceTests
             PodcastId = podcastId,
             Title = "Original",
             BlueskyPost = atUri,
-            Release = DateTime.UtcNow.AddDays(-30)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
@@ -231,7 +231,7 @@ public class EpisodeUpdateServiceTests
             PodcastId = podcastId,
             Title = "Original",
             BlueskyPost = atUri,
-            Release = DateTime.UtcNow.AddDays(-30)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 

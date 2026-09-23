@@ -26,7 +26,7 @@ public class TweetManager(
                 x => x.Text.Contains(podcastEpisode.Podcast.Name) &&
                      x.Text.Contains(podcastEpisode.Episode.Length.ToString(TweetBuilder.LengthFormat,
                          CultureInfo.InvariantCulture)) &&
-                     x.Text.Contains(podcastEpisode.Episode.Release.ToString(TweetBuilder.ReleaseFormat))
+                     x.Text.Contains(podcastEpisode.Episode.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat))
             );
             if (!matchingTweets.Any())
             {

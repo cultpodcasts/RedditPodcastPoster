@@ -38,7 +38,7 @@ public sealed class EpisodePlatformMerger(
                 case ReleaseMergeOpinion.Backfill:
                     return applier.ApplyFillMissingRelease(
                         existingEpisode,
-                        incomingEpisode.Release);
+                        incomingEpisode.ReleaseUtc);
                 case ReleaseMergeOpinion.NoOpinion:
                     continue;
             }

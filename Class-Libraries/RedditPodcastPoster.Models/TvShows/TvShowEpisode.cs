@@ -27,11 +27,6 @@ public sealed class TvShowEpisode : Playable
     [JsonPropertyOrder(3)]
     public Guid TvShowId { get; set; }
 
-    /// <summary>Calendar date only — not a podcast-episode UTC datetime. Use <see cref="CatalogueRelease.FromDate"/>.</summary>
-    [JsonPropertyName("release")]
-    [JsonPropertyOrder(30)]
-    public CatalogueRelease? Release { get; set; }
-
     [JsonPropertyName("tvShowName")]
     [JsonPropertyOrder(90)]
     public string? TvShowName { get; set; }

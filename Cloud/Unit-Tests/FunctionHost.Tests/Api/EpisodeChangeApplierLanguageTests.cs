@@ -22,7 +22,7 @@ public class EpisodeChangeApplierLanguageTests
             PodcastId = Guid.NewGuid(),
             Title = "Original title",
             Description = "Original description",
-            Release = DateTime.UtcNow.AddDays(-30),
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30),
             Length = TimeSpan.FromMinutes(30),
             Urls = new ServiceUrls(),
             Language = "fil"

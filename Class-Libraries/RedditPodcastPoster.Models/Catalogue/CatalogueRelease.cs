@@ -67,4 +67,19 @@ public sealed class CatalogueRelease
             : dateTimeUtc.ToUniversalTime();
         return new CatalogueRelease(CatalogueReleasePrecision.DateTimeUtc, year: 0, date: null, utc);
     }
+
+    /// <summary>
+    /// UTC instant for ordering and Cosmos range filters (<c>ReleaseSort</c>).
+    /// Year → 1 Jan 00:00 UTC; Date → midnight UTC; DateTimeUtc → stored instant.
+    /// </summary>
+    public DateTime ToSortUtc() => Precision switch
+    {
+        CatalogueReleasePrecision.Year =>
+            new DateTime(Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        CatalogueReleasePrecision.Date =>
+            Date!.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+        CatalogueReleasePrecision.DateTimeUtc =>
+            DateTimeUtc!.Value,
+        _ => throw new InvalidOperationException($"Unknown CatalogueReleasePrecision '{Precision}'.")
+    };
 }

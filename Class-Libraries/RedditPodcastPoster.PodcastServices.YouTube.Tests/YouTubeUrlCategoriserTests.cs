@@ -51,7 +51,7 @@ public class YouTubeUrlCategoriserTests
                             {
                                 Title =
                                     "Do Mormon Women have More Power & Authority than Other Women? \u202a@breakingdownpatriarchy\u202c | Ep. 1880",
-                                PublishedAtDateTimeOffset = episodes.First().Release
+                                PublishedAtDateTimeOffset = episodes.First().ReleaseUtc
                             },
                             Id = "new-episode-id"
                         }

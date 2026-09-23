@@ -70,7 +70,7 @@ public static class HeroAutoPromoteSelector
         }
 
         var cutoff = utcNow - WeekWindow;
-        if (episode.Release < cutoff)
+        if (episode.ReleaseUtc < cutoff)
         {
             return HeroAutoPromoteSkipReason.OutsideWeekWindow;
         }

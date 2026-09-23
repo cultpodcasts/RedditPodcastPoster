@@ -45,7 +45,7 @@ public class GetEpisodeHandlerTests
             Title = "Episode title",
             Length = TimeSpan.FromMinutes(45),
             BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2",
-            Release = DateTime.UtcNow.AddDays(-1)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-1)
         };
         var podcast = new Podcast { Id = podcastId, Name = "Podcast name" };
 

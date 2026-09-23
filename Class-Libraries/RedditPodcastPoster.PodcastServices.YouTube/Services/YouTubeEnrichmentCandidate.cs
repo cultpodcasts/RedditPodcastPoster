@@ -24,7 +24,7 @@ public static class YouTubeEnrichmentCandidate
         {
             Title = title,
             Description = description ?? string.Empty,
-            Release = release,
+            ReleaseUtc = release,
             Length = length
         };
         EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);

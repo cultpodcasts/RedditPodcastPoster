@@ -129,7 +129,7 @@ public class AppleEpisodeResolverTests
         {
             Title = episode.Title,
             Length = storedLength,
-            Release = lookupRelease
+            ReleaseUtc = lookupRelease
         };
 
         var sut = new AppleEpisodeResolver(
@@ -150,7 +150,7 @@ public class AppleEpisodeResolverTests
                      {
                          Title = y.Title,
                          Length = y.Duration,
-                         Release = y.Release,
+                         ReleaseUtc = y.Release,
                          AppleId = y.Id
                      },
                      podcast));

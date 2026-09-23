@@ -77,7 +77,7 @@ public class YouTubeEpisodeRetrievalHandler(
             IEnumerable<string> knownIds;
             if (indexingContext.ReleasedSince.HasValue)
             {
-                knownIds = episodes.Where(x => x.Release >= indexingContext.ReleasedSince)
+                knownIds = episodes.Where(x => x.ReleaseUtc >= indexingContext.ReleasedSince)
                     .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty);
             }
             else
