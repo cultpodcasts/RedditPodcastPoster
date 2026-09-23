@@ -114,6 +114,27 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
+        "Film, TvShow, and NewsOrganisation file keys use kind prefixes (film-/tvshow-/news-) so public JSON DB " +
+        "and backups do not collide with unprefixed podcast series keys.")]
+    public void Series_like_entities_use_prefixed_file_keys()
+    {
+        // Arrange
+        var name = "Example Show";
+
+        // Act
+        var film = new Film(name);
+        var tvShow = new TvShow(name);
+        var newsOrg = new NewsOrganisation(name);
+        var slug = FileKeyFactory.GetFileKey(name);
+
+        // Assert
+        film.FileKey.Should().Be($"{FileKeyFactory.FilmPrefix}{slug}");
+        tvShow.FileKey.Should().Be($"{FileKeyFactory.TvShowPrefix}{slug}");
+        newsOrg.FileKey.Should().Be($"{FileKeyFactory.NewsOrganisationPrefix}{slug}");
+        slug.Should().NotStartWith("film-");
+    }
+
+    [Fact(DisplayName =
         "TvShowEpisode.SetTvShowProperties updates TvShowId and TvShowName from the parent show.")]
     public void TvShowEpisode_SetTvShowProperties_updates_id_and_name()
     {

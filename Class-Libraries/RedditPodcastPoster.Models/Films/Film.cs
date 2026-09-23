@@ -23,7 +23,7 @@ public sealed class Film : CosmosSelector
     public Film(string title) : this()
     {
         Title = title;
-        FileKey = FileKeyFactory.GetFileKey(title);
+        FileKey = FileKeyFactory.GetFilmFileKey(title);
     }
 
     [JsonPropertyName("title")]

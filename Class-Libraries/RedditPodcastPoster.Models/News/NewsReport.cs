@@ -22,7 +22,6 @@ public sealed class NewsReport : CosmosSelector
     public NewsReport(string title) : this()
     {
         Title = title;
-        FileKey = FileKeyFactory.GetFileKey(title);
     }
 
     [JsonPropertyName("newsOrganisationId")]

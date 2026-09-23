@@ -15,7 +15,7 @@ public sealed class TvShow : CosmosSelector
     public TvShow(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetFileKey(name);
+        FileKey = FileKeyFactory.GetTvShowFileKey(name);
     }
 
     [JsonPropertyName("name")]

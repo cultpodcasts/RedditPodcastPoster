@@ -15,7 +15,7 @@ public sealed class NewsOrganisation : CosmosSelector
     public NewsOrganisation(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetFileKey(name);
+        FileKey = FileKeyFactory.GetNewsOrganisationFileKey(name);
     }
 
     [JsonPropertyName("name")]
