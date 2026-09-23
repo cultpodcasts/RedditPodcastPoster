@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Models.ContentKinds;
@@ -119,12 +120,110 @@ public class CatalogueContentTypeModelRulesTests
         yearRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Year);
         yearRoundTrip.Year.Should().Be(2020);
         yearRoundTrip.Date.Should().BeNull();
+        yearRoundTrip.DateTimeUtc.Should().BeNull();
 
         dateRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Date);
+        dateRoundTrip.Year.Should().Be(2020);
         dateRoundTrip.Date.Should().Be(new DateOnly(2020, 6, 15));
+        dateRoundTrip.DateTimeUtc.Should().BeNull();
 
         dateTimeRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.DateTimeUtc);
+        dateTimeRoundTrip.Year.Should().Be(2020);
+        dateTimeRoundTrip.Date.Should().Be(new DateOnly(2020, 6, 15));
         dateTimeRoundTrip.DateTimeUtc.Should().Be(new DateTime(2020, 6, 15, 12, 34, 56, DateTimeKind.Utc));
+    }
+
+    [Fact(DisplayName =
+        "CatalogueRelease has no public constructor: System.Text.Json still deserializes year, date, and Zulu " +
+        "scalars via CatalogueReleaseJsonConverter factories, so Cosmos document round-trips remain valid.")]
+    public void CatalogueRelease_private_constructor_still_json_round_trips_via_converter()
+    {
+        // Arrange
+        var publicConstructors = typeof(CatalogueRelease)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public);
+        var yearJson = "1999";
+        var dateJson = "\"1999-03-01\"";
+        var dateTimeJson = "\"1999-03-01T08:15:30Z\"";
+
+        // Act
+        var fromYear = JsonSerializer.Deserialize<CatalogueRelease>(yearJson);
+        var fromDate = JsonSerializer.Deserialize<CatalogueRelease>(dateJson);
+        var fromDateTime = JsonSerializer.Deserialize<CatalogueRelease>(dateTimeJson);
+        var yearWired = JsonSerializer.Serialize(fromYear);
+        var dateWired = JsonSerializer.Serialize(fromDate);
+        var dateTimeWired = JsonSerializer.Serialize(fromDateTime);
+
+        // Assert
+        publicConstructors.Should().BeEmpty(
+            "object-initializer construction must not be able to set Year/Date/DateTimeUtc independently");
+
+        fromYear.Should().NotBeNull();
+        fromYear!.Precision.Should().Be(CatalogueReleasePrecision.Year);
+        fromYear.Year.Should().Be(1999);
+        fromYear.Date.Should().BeNull();
+        fromYear.DateTimeUtc.Should().BeNull();
+        yearWired.Should().Be(yearJson);
+
+        fromDate.Should().NotBeNull();
+        fromDate!.Precision.Should().Be(CatalogueReleasePrecision.Date);
+        fromDate.Date.Should().Be(new DateOnly(1999, 3, 1));
+        fromDate.DateTimeUtc.Should().BeNull();
+        dateWired.Should().Be(dateJson);
+
+        fromDateTime.Should().NotBeNull();
+        fromDateTime!.Precision.Should().Be(CatalogueReleasePrecision.DateTimeUtc);
+        fromDateTime.DateTimeUtc.Should().Be(new DateTime(1999, 3, 1, 8, 15, 30, DateTimeKind.Utc));
+        dateTimeWired.Should().Be(dateTimeJson);
+    }
+
+    [Fact(DisplayName =
+        "Film.Release nested property serializes and deserializes CatalogueRelease scalars even though " +
+        "CatalogueRelease has only a private constructor.")]
+    public void Film_nested_release_json_round_trips_with_private_catalogue_release_ctor()
+    {
+        // Arrange
+        var film = new Film("Nested Release Specimen")
+        {
+            Release = CatalogueRelease.FromYear(2012)
+        };
+
+        // Act
+        var json = JsonSerializer.Serialize(film);
+        var roundTrip = JsonSerializer.Deserialize<Film>(json);
+
+        // Assert
+        json.Should().Contain("\"release\":2012");
+        roundTrip.Should().NotBeNull();
+        roundTrip!.Release.Should().NotBeNull();
+        roundTrip.Release!.Precision.Should().Be(CatalogueReleasePrecision.Year);
+        roundTrip.Release.Year.Should().Be(2012);
+        roundTrip.Release.Date.Should().BeNull();
+        roundTrip.Release.DateTimeUtc.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "NewsReport.Release nested date scalar deserializes through CatalogueReleaseJsonConverter " +
+        "without requiring a public CatalogueRelease constructor.")]
+    public void NewsReport_nested_release_date_deserializes_via_converter()
+    {
+        // Arrange
+        var report = new NewsReport
+        {
+            Title = "Nested Date Specimen",
+            Release = CatalogueRelease.FromDate(new DateOnly(2018, 11, 20))
+        };
+
+        // Act
+        var json = JsonSerializer.Serialize(report);
+        var roundTrip = JsonSerializer.Deserialize<NewsReport>(json);
+
+        // Assert
+        json.Should().Contain("\"release\":\"2018-11-20\"");
+        roundTrip.Should().NotBeNull();
+        roundTrip!.Release.Should().NotBeNull();
+        roundTrip.Release!.Precision.Should().Be(CatalogueReleasePrecision.Date);
+        roundTrip.Release.Date.Should().Be(new DateOnly(2018, 11, 20));
+        roundTrip.Release.DateTimeUtc.Should().BeNull();
     }
 
     [Fact(DisplayName =
