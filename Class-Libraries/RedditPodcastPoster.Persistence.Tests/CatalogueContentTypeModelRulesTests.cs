@@ -42,6 +42,26 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
+        "Film identity is YouTube-only (YouTubeId): no EpisodeIds bag and no Spotify/Apple identity properties, " +
+        "because films are not podcast episodes.")]
+    public void Film_uses_youtube_id_not_episode_ids_bag()
+    {
+        // Arrange
+        var filmType = typeof(Film);
+        var propertyNames = filmType.GetProperties().Select(p => p.Name).ToArray();
+
+        // Act
+        var youtubeId = filmType.GetProperty(nameof(Film.YouTubeId));
+        var ids = filmType.GetProperty("Ids");
+
+        // Assert
+        youtubeId.Should().NotBeNull();
+        youtubeId!.PropertyType.Should().Be(typeof(string));
+        ids.Should().BeNull();
+        propertyNames.Should().NotContain(["SpotifyId", "AppleId", "Ids"]);
+    }
+
+    [Fact(DisplayName =
         "TvShowEpisode.SetTvShowProperties updates TvShowId and TvShowName from the parent show.")]
     public void TvShowEpisode_SetTvShowProperties_updates_id_and_name()
     {

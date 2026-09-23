@@ -5,6 +5,8 @@ namespace RedditPodcastPoster.Models.Films;
 
 /// <summary>
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
+/// Film identity is not the podcast <c>ids</c> bag: no Spotify/Apple; YouTube is first-class when present.
+/// Streaming destinations (Netflix, etc.) use <see cref="Services"/>.
 /// </summary>
 public class Film
 {
@@ -44,9 +46,12 @@ public class Film
     [JsonPropertyOrder(44)]
     public bool Removed { get; set; }
 
-    [JsonPropertyName("ids")]
+    /// <summary>
+    /// YouTube video id when the film is (also) on YouTube. Never Spotify/Apple — those are podcast-episode identities.
+    /// </summary>
+    [JsonPropertyName("youtubeId")]
     [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; }
+    public string? YouTubeId { get; set; }
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -60,6 +65,9 @@ public class Film
     [JsonPropertyOrder(80)]
     public string? SearchTerms { get; set; }
 
+    /// <summary>
+    /// Non-YouTube streaming links (url/image per catalog key). Value type reused from Episode for JSON shape only.
+    /// </summary>
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
