@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
@@ -87,30 +88,43 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "Film release may be year-only or a calendar date; TvShowEpisode and NewsReport release are calendar date — " +
-        "none use a podcast-episode DateTime release.")]
-    public void Non_podcast_playables_use_catalogue_release_not_datetime()
+        "JSON stores a bare year number, yyyy-MM-dd string, or ISO-8601 Zulu datetime (not a precision object).")]
+    public void Non_podcast_playables_use_catalogue_release_json_scalars()
     {
         // Arrange
         var yearRelease = CatalogueRelease.FromYear(2020);
         var dateRelease = CatalogueRelease.FromDate(new DateOnly(2020, 6, 15));
+        var dateTimeRelease = CatalogueRelease.FromDateTimeUtc(
+            new DateTime(2020, 6, 15, 12, 34, 56, DateTimeKind.Utc));
 
         // Act
-        var filmReleaseType = typeof(Film).GetProperty(nameof(Film.Release))!.PropertyType;
-        var tvReleaseType = typeof(TvShowEpisode).GetProperty(nameof(TvShowEpisode.Release))!.PropertyType;
-        var newsReleaseType = typeof(NewsReport).GetProperty(nameof(NewsReport.Release))!.PropertyType;
+        var yearJson = JsonSerializer.Serialize(yearRelease);
+        var dateJson = JsonSerializer.Serialize(dateRelease);
+        var dateTimeJson = JsonSerializer.Serialize(dateTimeRelease);
+        var yearRoundTrip = JsonSerializer.Deserialize<CatalogueRelease>(yearJson);
+        var dateRoundTrip = JsonSerializer.Deserialize<CatalogueRelease>(dateJson);
+        var dateTimeRoundTrip = JsonSerializer.Deserialize<CatalogueRelease>(dateTimeJson);
 
         // Assert
-        filmReleaseType.Should().Be(typeof(CatalogueRelease));
-        tvReleaseType.Should().Be(typeof(CatalogueRelease));
-        newsReleaseType.Should().Be(typeof(CatalogueRelease));
+        typeof(Film).GetProperty(nameof(Film.Release))!.PropertyType.Should().Be(typeof(CatalogueRelease));
+        typeof(TvShowEpisode).GetProperty(nameof(TvShowEpisode.Release))!.PropertyType.Should()
+            .Be(typeof(CatalogueRelease));
+        typeof(NewsReport).GetProperty(nameof(NewsReport.Release))!.PropertyType.Should()
+            .Be(typeof(CatalogueRelease));
 
-        yearRelease.Precision.Should().Be(CatalogueReleasePrecision.Year);
-        yearRelease.Year.Should().Be(2020);
-        yearRelease.Date.Should().BeNull();
+        yearJson.Should().Be("2020");
+        dateJson.Should().Be("\"2020-06-15\"");
+        dateTimeJson.Should().Be("\"2020-06-15T12:34:56Z\"");
 
-        dateRelease.Precision.Should().Be(CatalogueReleasePrecision.Date);
-        dateRelease.Date.Should().Be(new DateOnly(2020, 6, 15));
-        dateRelease.Year.Should().Be(2020);
+        yearRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Year);
+        yearRoundTrip.Year.Should().Be(2020);
+        yearRoundTrip.Date.Should().BeNull();
+
+        dateRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Date);
+        dateRoundTrip.Date.Should().Be(new DateOnly(2020, 6, 15));
+
+        dateTimeRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.DateTimeUtc);
+        dateTimeRoundTrip.DateTimeUtc.Should().Be(new DateTime(2020, 6, 15, 12, 34, 56, DateTimeKind.Utc));
     }
 
     [Fact(DisplayName =

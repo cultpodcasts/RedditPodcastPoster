@@ -1,17 +1,16 @@
-using System.Text.Json.Serialization;
-
 namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
-/// Release precision for non-podcast catalogue playables.
-/// Podcast <c>Episode.Release</c> remains a full UTC <see cref="DateTime"/>.
+/// How a <see cref="CatalogueRelease"/> is stored in JSON (the wire value encodes precision).
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CatalogueReleasePrecision
 {
-    /// <summary>Known year only (typical for some films).</summary>
+    /// <summary>JSON number, e.g. <c>2020</c>.</summary>
     Year,
 
-    /// <summary>Calendar date, no time-of-day (TV episodes, news reports, many films).</summary>
-    Date
+    /// <summary>JSON string calendar date, e.g. <c>"2020-06-15"</c>.</summary>
+    Date,
+
+    /// <summary>JSON string ISO-8601 UTC with Z, e.g. <c>"2020-06-15T12:34:56Z"</c>.</summary>
+    DateTimeUtc
 }
