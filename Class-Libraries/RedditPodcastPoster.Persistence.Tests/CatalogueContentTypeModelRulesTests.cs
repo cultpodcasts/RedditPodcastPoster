@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
-using RedditPodcastPoster.Models.Releases;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 

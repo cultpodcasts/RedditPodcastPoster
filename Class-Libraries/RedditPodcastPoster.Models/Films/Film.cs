@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
-using RedditPodcastPoster.Models.Releases;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Films;
