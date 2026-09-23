@@ -63,13 +63,6 @@ public class Episode : Playable
     [JsonPropertyOrder(94)]
     public bool? PodcastRemoved { get; set; }
 
-    /// <summary>
-    /// Whether this episode is considered Bluesky-posted (legacy flag or stored AT URI).
-    /// Prefer <see cref="PromotableExtensions.IsBlueskyPosted"/> for <see cref="IPromotable"/>.
-    /// </summary>
-    [JsonIgnore]
-    public bool BlueskyPosted => this.IsBlueskyPosted();
-
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,
@@ -267,6 +260,4 @@ public class Episode : Playable
 
     public bool IsSubjectRemovedByUser(string subjectName) =>
         RemovedSubjects.Contains(subjectName, StringComparer.OrdinalIgnoreCase);
-
-    public void ClearBlueskyPostState() => PromotableExtensions.ClearBlueskyPostState(this);
 }

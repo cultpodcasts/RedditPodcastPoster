@@ -105,8 +105,8 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "Episode, TvShowEpisode, and NewsReport subclass Playable and implement IMediaProduction, IPlayable, " +
-        "IPromotable, ICatalogueCopy, and IRemovable; Film implements IPlayable, IPromotable, ICatalogueCopy, and " +
-        "IRemovable via Publisher but not IMediaProduction or Playable.")]
+        "IPromotable, and IRemovable; Film implements IPlayable, IPromotable, and IRemovable via Publisher " +
+        "but not IMediaProduction or Playable.")]
     public void Catalogue_playables_use_playable_base_and_capability_interfaces()
     {
         // Arrange / Act / Assert
@@ -124,13 +124,16 @@ public class CatalogueContentTypeModelRulesTests
         {
             type.Should().BeAssignableTo<IPlayable>(because: type.Name);
             type.Should().BeAssignableTo<IPromotable>(because: type.Name);
-            type.Should().BeAssignableTo<ICatalogueCopy>(because: type.Name);
             type.Should().BeAssignableTo<IRemovable>(because: type.Name);
         }
 
         typeof(Podcast).Should().BeAssignableTo<IRemovable>();
-        typeof(Podcast).Should().BeAssignableTo<ICatalogueCopy>();
         typeof(Podcast).Should().NotBeAssignableTo<IPlayable>();
+
+        typeof(IPlayable).GetProperty(nameof(IPlayable.Description)).Should().NotBeNull();
+        typeof(IPlayable).GetProperty(nameof(IPlayable.Services)).Should().NotBeNull();
+        typeof(IPromotable).GetMethod(nameof(IPromotable.ClearBlueskyPostState)).Should().NotBeNull();
+        typeof(IPromotable).GetProperty(nameof(IPromotable.BlueskyPosted)).Should().NotBeNull();
 
         new Episode().ModelType.Should().Be(ModelType.Episode);
         new Episode().IsRemoved().Should().BeFalse();

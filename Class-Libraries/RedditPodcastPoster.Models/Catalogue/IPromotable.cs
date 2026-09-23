@@ -1,8 +1,7 @@
 namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
-/// Promotion / social gating state. Mutating helpers live as extensions on concrete usage
-/// (<see cref="PromotableExtensions"/>) — not on this contract.
+/// Promotion / social gating state for catalogue playables.
 /// </summary>
 public interface IPromotable
 {
@@ -17,4 +16,9 @@ public interface IPromotable
 
     /// <summary>AT URI of the Bluesky post, when posted.</summary>
     string? BlueskyPost { get; set; }
+
+    /// <summary>Whether considered Bluesky-posted (legacy flag or stored AT URI).</summary>
+    bool BlueskyPosted { get; }
+
+    void ClearBlueskyPostState();
 }

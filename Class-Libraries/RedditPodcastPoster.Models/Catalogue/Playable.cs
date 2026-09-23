@@ -6,10 +6,9 @@ namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
 /// Parent playable (Episode / TvShowEpisode / NewsReport): titled production with
-/// shared playable, promotion, copy, and removable contracts.
+/// shared playable, promotion, and removable contracts.
 /// </summary>
-public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IPromotable, ICatalogueCopy,
-    IRemovable
+public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IPromotable, IRemovable
 {
     [JsonPropertyName("title")]
     [JsonPropertyOrder(10)]
@@ -51,6 +50,10 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     [JsonPropertyOrder(42)]
     public string? BlueskyPost { get; set; }
 
+    [JsonIgnore]
+    public bool BlueskyPosted =>
+        OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
+
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(43)]
     public bool Ignored { get; set; }
@@ -84,6 +87,12 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string[]? Guests { get; set; }
 
     public bool IsRemoved() => Removed == true;
+
+    public void ClearBlueskyPostState()
+    {
+        BlueskyPost = null;
+        OldBlueskyPosted = null;
+    }
 
     /// <summary>
     /// Cosmos SQL: playable is Bluesky-posted. Do not use null-only checks — combine

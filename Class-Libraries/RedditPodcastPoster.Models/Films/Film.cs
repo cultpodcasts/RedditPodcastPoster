@@ -10,6 +10,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// Platform presence is <see cref="Services"/> only — no provider-id fields.
 /// Release is year or calendar date — not a podcast-episode datetime.
 /// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no <see cref="IMediaProduction.Title"/>.
+/// Description / Language / SearchTerms come from <see cref="Publisher"/> (satisfy <see cref="IPlayable"/>).
 /// </summary>
 [CosmosSelector(ModelType.Film)]
 public sealed class Film : Publisher, IPlayable, IPromotable
@@ -54,6 +55,10 @@ public sealed class Film : Publisher, IPlayable, IPromotable
     [JsonPropertyOrder(42)]
     public string? BlueskyPost { get; set; }
 
+    [JsonIgnore]
+    public bool BlueskyPosted =>
+        OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
+
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(43)]
     public bool Ignored { get; set; }
@@ -73,4 +78,10 @@ public sealed class Film : Publisher, IPlayable, IPromotable
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
+
+    public void ClearBlueskyPostState()
+    {
+        BlueskyPost = null;
+        OldBlueskyPosted = null;
+    }
 }
