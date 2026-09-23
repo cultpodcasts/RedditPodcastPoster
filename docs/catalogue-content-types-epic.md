@@ -357,8 +357,11 @@ Lookup: membership across playable containers; name attach per parent kind with 
 ### Phase 1 — Schema & persistence (no user-facing switch)
 
 - [x] Cosmos: TvShows, TvShowEpisodes, Films, NewsOrganisations, NewsReports + repositories  
-- [x] Models mirror Episode `services` where applicable  
+- [x] Models mirror Episode `services` where applicable (incl. `guests` on playables; parent denorm mirrors `SetPodcastProperties`)  
 - [x] Unit tests; **no** production writes  
+- [ ] **Ops (before code deploy):** provision Cosmos containers + five `cosmosdb__*` app settings via bicep (`TvShows` / `TvShowEpisodes` / `Films` / `NewsOrganisations` / `NewsReports`) on indexer, discover, and api — see [deployment.md](./deployment.md) § Provision before code. `deploy-*.ps1` is settings-blind.  
+- [ ] Follow-up: DRY shared Cosmos repository helper (avoid multiplying Film/TV/News clones in Phase 3) — [#989](https://github.com/cultpodcasts/RedditPodcastPoster/issues/989).  
+
 
 ### Phase 2 — Search index
 

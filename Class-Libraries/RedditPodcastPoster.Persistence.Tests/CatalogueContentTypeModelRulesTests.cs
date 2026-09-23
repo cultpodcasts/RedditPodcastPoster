@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.Json;
+using AutoFixture;
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
@@ -13,6 +15,8 @@ namespace RedditPodcastPoster.Persistence.Tests;
 
 public class CatalogueContentTypeModelRulesTests
 {
+    private readonly Fixture _fixture = new();
+
     private static readonly string[] ForbiddenProviderIdProperties =
         ["Ids", "YouTubeId", "SpotifyId", "AppleId", "YoutubeId"];
 
@@ -82,8 +86,11 @@ public class CatalogueContentTypeModelRulesTests
             var propertyNames = type.GetProperties().Select(p => p.Name).ToArray();
             propertyNames.Should().NotContain(ForbiddenProviderIdProperties, because: type.Name);
             propertyNames.Should().Contain("Services", because: type.Name);
+            propertyNames.Should().Contain("Guests", because: type.Name);
             type.GetProperty("Services")!.PropertyType
                 .Should().Be(typeof(Dictionary<string, ServiceLink>), because: type.Name);
+            type.GetProperty("Guests")!.PropertyType
+                .Should().Be(typeof(string[]), because: type.Name);
         }
     }
 
@@ -92,11 +99,13 @@ public class CatalogueContentTypeModelRulesTests
         "JSON stores a bare year number, yyyy-MM-dd string, or ISO-8601 Zulu datetime (not a precision object).")]
     public void Non_podcast_playables_use_catalogue_release_json_scalars()
     {
-        // Arrange
-        var yearRelease = CatalogueRelease.FromYear(2020);
-        var dateRelease = CatalogueRelease.FromDate(new DateOnly(2020, 6, 15));
-        var dateTimeRelease = CatalogueRelease.FromDateTimeUtc(
-            new DateTime(2020, 6, 15, 12, 34, 56, DateTimeKind.Utc));
+        // Arrange — year/date literals assert JSON scalar contracts; datetime from relative helper
+        var year = DateTime.UtcNow.Year - 1;
+        var dateOnlyRelease = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(10));
+        var dateTimeUtc = DomainTestFixture.UtcAtTime(-10, new TimeSpan(12, 34, 56));
+        var yearRelease = CatalogueRelease.FromYear(year);
+        var dateRelease = CatalogueRelease.FromDate(dateOnlyRelease);
+        var dateTimeRelease = CatalogueRelease.FromDateTimeUtc(dateTimeUtc);
 
         // Act
         var yearJson = JsonSerializer.Serialize(yearRelease);
@@ -113,24 +122,24 @@ public class CatalogueContentTypeModelRulesTests
         typeof(NewsReport).GetProperty(nameof(NewsReport.Release))!.PropertyType.Should()
             .Be(typeof(CatalogueRelease));
 
-        yearJson.Should().Be("2020");
-        dateJson.Should().Be("\"2020-06-15\"");
-        dateTimeJson.Should().Be("\"2020-06-15T12:34:56Z\"");
+        yearJson.Should().Be(year.ToString());
+        dateJson.Should().Be($"\"{dateOnlyRelease:yyyy-MM-dd}\"");
+        dateTimeJson.Should().Be($"\"{dateTimeUtc:yyyy-MM-ddTHH:mm:ss}Z\"");
 
         yearRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Year);
-        yearRoundTrip.Year.Should().Be(2020);
+        yearRoundTrip.Year.Should().Be(year);
         yearRoundTrip.Date.Should().BeNull();
         yearRoundTrip.DateTimeUtc.Should().BeNull();
 
         dateRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.Date);
-        dateRoundTrip.Year.Should().Be(2020);
-        dateRoundTrip.Date.Should().Be(new DateOnly(2020, 6, 15));
+        dateRoundTrip.Year.Should().Be(dateOnlyRelease.Year);
+        dateRoundTrip.Date.Should().Be(dateOnlyRelease);
         dateRoundTrip.DateTimeUtc.Should().BeNull();
 
         dateTimeRoundTrip!.Precision.Should().Be(CatalogueReleasePrecision.DateTimeUtc);
-        dateTimeRoundTrip.Year.Should().Be(2020);
-        dateTimeRoundTrip.Date.Should().Be(new DateOnly(2020, 6, 15));
-        dateTimeRoundTrip.DateTimeUtc.Should().Be(new DateTime(2020, 6, 15, 12, 34, 56, DateTimeKind.Utc));
+        dateTimeRoundTrip.Year.Should().Be(dateTimeUtc.Year);
+        dateTimeRoundTrip.Date.Should().Be(DateOnly.FromDateTime(dateTimeUtc));
+        dateTimeRoundTrip.DateTimeUtc.Should().Be(dateTimeUtc);
     }
 
     [Fact(DisplayName =
@@ -138,12 +147,15 @@ public class CatalogueContentTypeModelRulesTests
         "scalars via CatalogueReleaseJsonConverter factories, so Cosmos document round-trips remain valid.")]
     public void CatalogueRelease_private_constructor_still_json_round_trips_via_converter()
     {
-        // Arrange
+        // Arrange — JSON literals assert converter contracts; datetime specimen from relative helper
         var publicConstructors = typeof(CatalogueRelease)
             .GetConstructors(BindingFlags.Instance | BindingFlags.Public);
-        var yearJson = "1999";
-        var dateJson = "\"1999-03-01\"";
-        var dateTimeJson = "\"1999-03-01T08:15:30Z\"";
+        var year = DateTime.UtcNow.Year - 2;
+        var dateOnly = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(40));
+        var dateTimeUtc = DomainTestFixture.UtcAtTime(-40, new TimeSpan(8, 15, 30));
+        var yearJson = year.ToString();
+        var dateJson = $"\"{dateOnly:yyyy-MM-dd}\"";
+        var dateTimeJson = $"\"{dateTimeUtc:yyyy-MM-ddTHH:mm:ss}Z\"";
 
         // Act
         var fromYear = JsonSerializer.Deserialize<CatalogueRelease>(yearJson);
@@ -159,20 +171,20 @@ public class CatalogueContentTypeModelRulesTests
 
         fromYear.Should().NotBeNull();
         fromYear!.Precision.Should().Be(CatalogueReleasePrecision.Year);
-        fromYear.Year.Should().Be(1999);
+        fromYear.Year.Should().Be(year);
         fromYear.Date.Should().BeNull();
         fromYear.DateTimeUtc.Should().BeNull();
         yearWired.Should().Be(yearJson);
 
         fromDate.Should().NotBeNull();
         fromDate!.Precision.Should().Be(CatalogueReleasePrecision.Date);
-        fromDate.Date.Should().Be(new DateOnly(1999, 3, 1));
+        fromDate.Date.Should().Be(dateOnly);
         fromDate.DateTimeUtc.Should().BeNull();
         dateWired.Should().Be(dateJson);
 
         fromDateTime.Should().NotBeNull();
         fromDateTime!.Precision.Should().Be(CatalogueReleasePrecision.DateTimeUtc);
-        fromDateTime.DateTimeUtc.Should().Be(new DateTime(1999, 3, 1, 8, 15, 30, DateTimeKind.Utc));
+        fromDateTime.DateTimeUtc.Should().Be(dateTimeUtc);
         dateTimeWired.Should().Be(dateTimeJson);
     }
 
@@ -182,9 +194,10 @@ public class CatalogueContentTypeModelRulesTests
     public void Film_nested_release_json_round_trips_with_private_catalogue_release_ctor()
     {
         // Arrange
-        var film = new Film("Nested Release Specimen")
+        var year = DateTime.UtcNow.Year - 3;
+        var film = new Film(_fixture.Create<string>())
         {
-            Release = CatalogueRelease.FromYear(2012)
+            Release = CatalogueRelease.FromYear(year)
         };
 
         // Act
@@ -192,11 +205,11 @@ public class CatalogueContentTypeModelRulesTests
         var roundTrip = JsonSerializer.Deserialize<Film>(json);
 
         // Assert
-        json.Should().Contain("\"release\":2012");
+        json.Should().Contain($"\"release\":{year}");
         roundTrip.Should().NotBeNull();
         roundTrip!.Release.Should().NotBeNull();
         roundTrip.Release!.Precision.Should().Be(CatalogueReleasePrecision.Year);
-        roundTrip.Release.Year.Should().Be(2012);
+        roundTrip.Release.Year.Should().Be(year);
         roundTrip.Release.Date.Should().BeNull();
         roundTrip.Release.DateTimeUtc.Should().BeNull();
     }
@@ -207,10 +220,11 @@ public class CatalogueContentTypeModelRulesTests
     public void NewsReport_nested_release_date_deserializes_via_converter()
     {
         // Arrange
+        var dateOnly = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(20));
         var report = new NewsReport
         {
-            Title = "Nested Date Specimen",
-            Release = CatalogueRelease.FromDate(new DateOnly(2018, 11, 20))
+            Title = _fixture.Create<string>(),
+            Release = CatalogueRelease.FromDate(dateOnly)
         };
 
         // Act
@@ -218,11 +232,11 @@ public class CatalogueContentTypeModelRulesTests
         var roundTrip = JsonSerializer.Deserialize<NewsReport>(json);
 
         // Assert
-        json.Should().Contain("\"release\":\"2018-11-20\"");
+        json.Should().Contain($"\"release\":\"{dateOnly:yyyy-MM-dd}\"");
         roundTrip.Should().NotBeNull();
         roundTrip!.Release.Should().NotBeNull();
         roundTrip.Release!.Precision.Should().Be(CatalogueReleasePrecision.Date);
-        roundTrip.Release.Date.Should().Be(new DateOnly(2018, 11, 20));
+        roundTrip.Release.Date.Should().Be(dateOnly);
         roundTrip.Release.DateTimeUtc.Should().BeNull();
     }
 
@@ -232,7 +246,7 @@ public class CatalogueContentTypeModelRulesTests
     public void Series_like_entities_use_prefixed_file_keys()
     {
         // Arrange
-        var name = "Example Show";
+        var name = _fixture.Create<string>();
 
         // Act
         var film = new Film(name);
@@ -248,21 +262,148 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "TvShowEpisode.SetTvShowProperties updates TvShowId and TvShowName from the parent show.")]
-    public void TvShowEpisode_SetTvShowProperties_updates_id_and_name()
+        "TvShowEpisode.SetTvShowProperties: when parent id, name, search terms, language, removed, and metadata " +
+        "version differ, then all are denormalised (name/searchTerms/language trimmed), because playables mirror Episode.SetPodcastProperties.")]
+    public void TvShowEpisode_SetTvShowProperties_denormalises_full_parent_projection()
     {
         // Arrange
-        var tvShowId = Guid.NewGuid();
-        var tvShowName = Guid.NewGuid().ToString("N");
-        var tvShow = new TvShow { Id = tvShowId, Name = $" {tvShowName} " };
+        var tvShowId = _fixture.Create<Guid>();
+        var tvShowName = _fixture.Create<string>();
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var metadataVersion = _fixture.Create<long>();
+        var tvShow = new TvShow
+        {
+            Id = tvShowId,
+            Name = $" {tvShowName} ",
+            SearchTerms = $" {searchTerms} ",
+            Language = $" {language} ",
+            Removed = true,
+            Timestamp = metadataVersion
+        };
         var episode = new TvShowEpisode();
 
         // Act
-        var updated = episode.SetTvShowProperties(tvShow);
+        var (updated, updatedMetadata) = episode.SetTvShowProperties(tvShow);
 
         // Assert
         updated.Should().BeTrue();
+        updatedMetadata.Should().BeTrue();
         episode.TvShowId.Should().Be(tvShowId);
         episode.TvShowName.Should().Be(tvShowName);
+        episode.TvShowSearchTerms.Should().Be(searchTerms);
+        episode.TvShowLanguage.Should().Be(language);
+        episode.TvShowRemoved.Should().BeTrue();
+        episode.TvShowMetadataVersion.Should().Be(metadataVersion);
+    }
+
+    [Fact(DisplayName =
+        "TvShowEpisode.SetTvShowProperties: when parent projection already matches (including trimmed values), " +
+        "then updated and updatedMetadata are both false.")]
+    public void TvShowEpisode_SetTvShowProperties_returns_false_when_unchanged()
+    {
+        // Arrange
+        var tvShowId = _fixture.Create<Guid>();
+        var tvShowName = _fixture.Create<string>();
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var metadataVersion = _fixture.Create<long>();
+        var tvShow = new TvShow
+        {
+            Id = tvShowId,
+            Name = tvShowName,
+            SearchTerms = searchTerms,
+            Language = language,
+            Removed = false,
+            Timestamp = metadataVersion
+        };
+        var episode = new TvShowEpisode();
+        episode.SetTvShowProperties(tvShow);
+
+        // Act
+        var (updated, updatedMetadata) = episode.SetTvShowProperties(tvShow);
+
+        // Assert
+        updated.Should().BeFalse();
+        updatedMetadata.Should().BeFalse();
+        episode.TvShowId.Should().Be(tvShowId);
+        episode.TvShowName.Should().Be(tvShowName);
+        episode.TvShowSearchTerms.Should().Be(searchTerms);
+        episode.TvShowLanguage.Should().Be(language);
+        episode.TvShowRemoved.Should().BeFalse();
+        episode.TvShowMetadataVersion.Should().Be(metadataVersion);
+    }
+
+    [Fact(DisplayName =
+        "NewsReport.SetNewsOrganisationProperties: when parent id, name, search terms, language, removed, and " +
+        "metadata version differ, then all are denormalised (name/searchTerms/language trimmed), because News mirrors TvShow/Episode parent sync.")]
+    public void NewsReport_SetNewsOrganisationProperties_denormalises_full_parent_projection()
+    {
+        // Arrange
+        var organisationId = _fixture.Create<Guid>();
+        var organisationName = _fixture.Create<string>();
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var metadataVersion = _fixture.Create<long>();
+        var organisation = new NewsOrganisation
+        {
+            Id = organisationId,
+            Name = $" {organisationName} ",
+            SearchTerms = $" {searchTerms} ",
+            Language = $" {language} ",
+            Removed = true,
+            Timestamp = metadataVersion
+        };
+        var report = new NewsReport();
+
+        // Act
+        var (updated, updatedMetadata) = report.SetNewsOrganisationProperties(organisation);
+
+        // Assert
+        updated.Should().BeTrue();
+        updatedMetadata.Should().BeTrue();
+        report.NewsOrganisationId.Should().Be(organisationId);
+        report.NewsOrganisationName.Should().Be(organisationName);
+        report.NewsOrganisationSearchTerms.Should().Be(searchTerms);
+        report.NewsOrganisationLanguage.Should().Be(language);
+        report.NewsOrganisationRemoved.Should().BeTrue();
+        report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
+    }
+
+    [Fact(DisplayName =
+        "NewsReport.SetNewsOrganisationProperties: when parent projection already matches (including trimmed values), " +
+        "then updated and updatedMetadata are both false.")]
+    public void NewsReport_SetNewsOrganisationProperties_returns_false_when_unchanged()
+    {
+        // Arrange
+        var organisationId = _fixture.Create<Guid>();
+        var organisationName = _fixture.Create<string>();
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var metadataVersion = _fixture.Create<long>();
+        var organisation = new NewsOrganisation
+        {
+            Id = organisationId,
+            Name = organisationName,
+            SearchTerms = searchTerms,
+            Language = language,
+            Removed = false,
+            Timestamp = metadataVersion
+        };
+        var report = new NewsReport();
+        report.SetNewsOrganisationProperties(organisation);
+
+        // Act
+        var (updated, updatedMetadata) = report.SetNewsOrganisationProperties(organisation);
+
+        // Assert
+        updated.Should().BeFalse();
+        updatedMetadata.Should().BeFalse();
+        report.NewsOrganisationId.Should().Be(organisationId);
+        report.NewsOrganisationName.Should().Be(organisationName);
+        report.NewsOrganisationSearchTerms.Should().Be(searchTerms);
+        report.NewsOrganisationLanguage.Should().Be(language);
+        report.NewsOrganisationRemoved.Should().BeFalse();
+        report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
     }
 }

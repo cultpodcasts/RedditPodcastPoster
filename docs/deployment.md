@@ -90,6 +90,26 @@ This is what `deploy-function-local.ps1` does in `FlexBlob` mode (default). Prov
 
 Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep)). Never add `az functionapp config appsettings set` to deploy scripts unless the user explicitly requests it.
 
+### Provision before code (required Cosmos settings)
+
+`CosmosDbSettingsValidator` fails host start (`OptionsValidationException` / exit 134) when any required `cosmosdb__*` container key is missing. Local `deploy-*.ps1` uploads code and restarts — it **never** applies app settings. When `CosmosDbSettings` / `functions.bicep` gain new required keys, provision **before** code deploy:
+
+1. Apply Cosmos containers (`Infrastructure/cosmos-db.bicep`) when new containers are approved.
+2. Apply / re-provision `Infrastructure/functions.bicep` (or manually set the keys on `indexer-infra`, `discover-infra`, and `api-infra`) so app settings match the validator.
+3. Only then run `deploy-indexer.ps1` / `deploy-discover.ps1` / `deploy-api.ps1`.
+
+**Catalogue content types (Phase 1) — five new required keys** (also in `functions.bicep` `cosmosdb` object):
+
+| App setting | Container |
+|-------------|-----------|
+| `cosmosdb__TvShowsContainer` | `TvShows` |
+| `cosmosdb__TvShowEpisodesContainer` | `TvShowEpisodes` |
+| `cosmosdb__FilmsContainer` | `Films` |
+| `cosmosdb__NewsOrganisationsContainer` | `NewsOrganisations` |
+| `cosmosdb__NewsReportsContainer` | `NewsReports` |
+
+Shipping Phase 1 code without those keys on every Function app is the same class of miss as the TitleCasingRules incident.
+
 ## Thin wrapper architecture
 
 User-facing scripts specialize `-FunctionName`, resolve Azure target details via JSON/interactive prompts (`Resolve-DeploySettings.ps1`), then call `deploy-function-local.ps1` with the resolved `-ResourceGroup`, `-AppName`, `-StorageAccount`, and `-DeploymentContainer`.
