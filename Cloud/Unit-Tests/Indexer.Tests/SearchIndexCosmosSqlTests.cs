@@ -29,16 +29,20 @@ public class SearchIndexCosmosSqlTests
 
         sql.Should().StartWith("RTRIM(CONCAT(");
 
-        // Streaming matrix: enum wire keys (== SearchEncodedKeys) must all appear in svc SQL.
-        StreamingServiceWire.AllKeys.Should().Equal(
+        // Streaming matrix: search-encode / svc SQL = submit-eligible keys only (excludes submit-retired e.g. Hulu).
+        StreamingServiceWire.SubmitEligibleKeys.Should().Equal(
             StreamingServiceCatalog.SearchEncodedKeys,
-            because: "SearchEncodedKeys must list every StreamingService wire key in declaration order");
-        foreach (var key in StreamingServiceWire.AllKeys)
+            because: "SearchEncodedKeys must equal SubmitEligibleKeys (AllKeys minus submit-retired)");
+        foreach (var key in StreamingServiceWire.SubmitEligibleKeys)
         {
             sql.Should().Contain(
                 $@"e.services.{key}.url",
                 because: $"streaming key '{key}' must be in Cosmos datasource svc SQL so search is not empty after SubmitUrl");
         }
+
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
+        StreamingServiceWire.AllKeys.Should().Contain(huluKey);
+        StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(huluKey);
 
         StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Spotify);
         StreamingServiceCatalog.SearchEncodedKeys.Should().NotContain(ServiceKeys.Apple);
@@ -60,6 +64,12 @@ public class SearchIndexCosmosSqlTests
             StreamingServiceCatalog.ImageCoalesceOrder.Select(key => $"e.services.{key}.image"));
         sql.Should().Be(expected);
         sql.Should().StartWith($"e.services.{ServiceKeys.YouTube}.image");
+        foreach (var key in StreamingServiceCatalog.ImageCoalesceOrder)
+        {
+            sql.Should().Contain(
+                $"e.services.{key}.image",
+                because: $"image-coalesce key '{key}' must participate so historical retired URLs (e.g. Hulu) still resolve art");
+        }
         foreach (var key in StreamingServiceCatalog.SearchEncodedKeys)
         {
             sql.Should().Contain(

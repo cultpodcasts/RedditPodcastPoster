@@ -1,7 +1,10 @@
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.PodcastServices.Extensions;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.Contracts;
 
@@ -15,8 +18,10 @@ public class StreamingSubmitContractRules
     private static readonly JsonDocument Contract = LoadContract();
 
     [Fact(DisplayName =
-        "Streaming-submit contract JSON lists exactly StreamingServiceWire.AllKeys / SearchEncodedKeys, because the StreamingService enum is the single wire-key authority.")]
-    public void streaming_contract_service_keys_match_search_encoded_keys()
+        "Streaming-submit contract streamingServiceKeys == SubmitEligibleKeys == SearchEncodedKeys " +
+        "(AllKeys minus submit-retired). ImageCoalesceKeys / AllKeys may still include retired services " +
+        "(e.g. Hulu) for historical Cosmos URLs; Hulu is submit-retired — no episode catalogue pages.")]
+    public void streaming_contract_service_keys_match_submit_eligible_and_search_encoded_keys()
     {
         // Arrange
         var fromContract = Contract.RootElement
@@ -27,11 +32,17 @@ public class StreamingSubmitContractRules
 
         // Act
         var fromCatalog = StreamingServiceCatalog.SearchEncodedKeys;
-        var fromEnum = StreamingServiceWire.AllKeys;
+        var submitEligible = StreamingServiceWire.SubmitEligibleKeys;
+        var allKeys = StreamingServiceWire.AllKeys;
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
 
         // Assert
-        fromContract.Should().Equal(fromCatalog);
-        fromCatalog.Should().Equal(fromEnum);
+        fromContract.Should().Equal(submitEligible);
+        fromCatalog.Should().Equal(submitEligible);
+        fromContract.Should().NotContain(huluKey);
+        allKeys.Should().Contain(huluKey);
+        StreamingServiceWire.IsSubmitRetired(StreamingService.Hulu).Should().BeTrue();
+        StreamingServiceWire.ImageCoalesceKeys.Should().Contain(huluKey);
     }
 
     [Fact(DisplayName =
@@ -76,6 +87,75 @@ public class StreamingSubmitContractRules
 
         // Assert
         allow.Should().Equal(expected);
+    }
+
+    [Fact(DisplayName =
+        "Streaming-submit contract scrapeProfiles lock Peacock only to directHttp in us, because US geo soft-walls use regional fetch not Browser Rendering; Hulu is submit-retired.")]
+    public void streaming_contract_scrape_profiles_peacock_is_us_direct_http()
+    {
+        // Arrange
+        var regions = Contract.RootElement
+            .GetProperty("scrapeRegions")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToArray();
+        var profiles = Contract.RootElement.GetProperty("scrapeProfiles");
+        var huluKey = StreamingServiceWire.ToKey(StreamingService.Hulu);
+        var peacockKey = StreamingServiceWire.ToKey(StreamingService.Peacock);
+
+        // Act
+        var peacock = profiles.GetProperty(peacockKey);
+        var profileNames = profiles.EnumerateObject().Select(p => p.Name).ToArray();
+
+        // Assert
+        regions.Should().Contain("default");
+        regions.Should().Contain("us");
+        profileNames.Should().Equal(peacockKey);
+        peacock.GetProperty("mode").GetString().Should().Be("directHttp");
+        peacock.GetProperty("region").GetString().Should().Be("us");
+        profileNames.Should().NotContain(huluKey);
+    }
+
+    [Fact(DisplayName =
+        "Streaming-submit contract scrapeProfiles and defaultBrowserRenderingServices adapters register ExtractMetaData(html), " +
+        "so Worker SCRAPE_US / Browser Rendering prepare does not hit HTML extract is not registered.")]
+    public async Task streaming_contract_scrape_and_br_services_register_html_extract()
+    {
+        // Arrange
+        var profileKeys = Contract.RootElement
+            .GetProperty("scrapeProfiles")
+            .EnumerateObject()
+            .Select(p => p.Name)
+            .ToArray();
+        var brKeys = Contract.RootElement
+            .GetProperty("defaultBrowserRenderingServices")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToArray();
+        var keys = profileKeys.Concat(brKeys).Distinct(StringComparer.Ordinal).ToArray();
+        var specimens = Contract.RootElement.GetProperty("streamingSpecimenUrls");
+        var html = "<html><head><meta property=\"og:title\" content=\"Contract Prefetch Title\" /></head></html>";
+        var services = new ServiceCollection();
+        services.AddHttpClient();
+        services.AddNonPodcastScrapers();
+        using var provider = services.BuildServiceProvider();
+        var adapters = provider.GetServices<INonPodcastServiceAdapter>().ToArray();
+
+        foreach (var key in keys)
+        {
+            var url = new Uri(specimens.GetProperty(key).GetString()!);
+            var adapter = adapters.Single(candidate => candidate.IsSubmitUrl(url));
+
+            // Act
+            var act = async () => await adapter.ExtractMetaData(url, html);
+
+            // Assert
+            await act.Should().NotThrowAsync<NotSupportedException>(
+                because: $"service '{key}' is in scrapeProfiles or defaultBrowserRenderingServices " +
+                         "and must register extractFromHtml on CatalogKeyedNonPodcastServiceAdapter");
+            var meta = await adapter.ExtractMetaData(url, html);
+            meta.Title.Should().NotBeNullOrWhiteSpace();
+        }
     }
 
     [Fact(DisplayName =

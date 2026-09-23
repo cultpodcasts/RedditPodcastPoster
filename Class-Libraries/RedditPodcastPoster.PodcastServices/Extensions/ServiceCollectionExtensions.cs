@@ -11,7 +11,6 @@ using RedditPodcastPoster.DisneyPlus.Extensions;
 using RedditPodcastPoster.Fawesome.Extensions;
 using RedditPodcastPoster.FranceTv.Extensions;
 using RedditPodcastPoster.HboMax.Extensions;
-using RedditPodcastPoster.Hulu.Extensions;
 using RedditPodcastPoster.InternetArchive.Extensions;
 using RedditPodcastPoster.Itvx.Extensions;
 using RedditPodcastPoster.Netflix.Extensions;
@@ -89,7 +88,6 @@ public static class ServiceCollectionExtensions
                 .AddTvnzPlusServices()
                 .AddFranceTvServices()
                 .AddArteServices()
-                .AddHuluServices()
                 .AddPeacockServices()
                 .AddAppleTvPlusServices()
                 .AddZdfServices()

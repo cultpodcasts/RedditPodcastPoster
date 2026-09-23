@@ -75,9 +75,6 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> ArteCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Arte));
 
-    public static TheoryData<StreamingScraperCanonicalCase> HuluCases() =>
-        new(All.Where(c => c.Provider == StreamingScraperProvider.Hulu));
-
     public static TheoryData<StreamingScraperCanonicalCase> PeacockCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.Peacock));
 
@@ -339,15 +336,6 @@ public static class StreamingScraperCanonicalCases
             null,
             "English standalone film; empty associatedCollections so ShowName stays null"),
 
-        // Hulu — often geo/auth walled outside US (Disney+ marketing shell)
-        Case(StreamingScraperProvider.Hulu, "handmaids-tale-series",
-            "https://www.hulu.com/series/the-handmaids-tale-565d8976-9d26-4e63-866c-40f8a137ce5f",
-            "The Handmaid's Tale",
-            "Series hub; live scrape may return a Disney+/marketing shell outside a licensed region"),
-        Case(StreamingScraperProvider.Hulu, "the-menu-film",
-            "https://www.hulu.com/movie/the-menu", null,
-            "Movie path; ShowName must stay null; live scrape may be geo-walled"),
-
         // Peacock — /watch/asset/{kind}/{slug}/{numericId}; often geo-walled
         Case(StreamingScraperProvider.Peacock, "the-office-tv-asset",
             "https://www.peacocktv.com/watch/asset/tv/the-office/4902514835143843112", "The Office",
@@ -418,7 +406,6 @@ public enum StreamingScraperProvider
     DiscoveryPlus,
     FranceTv,
     Arte,
-    Hulu,
     Peacock,
     AppleTvPlus,
     Zdf,

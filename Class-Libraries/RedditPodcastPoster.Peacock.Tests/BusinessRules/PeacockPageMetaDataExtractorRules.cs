@@ -6,6 +6,7 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Peacock.Extensions;
 using RedditPodcastPoster.Peacock.Extractors;
+using RedditPodcastPoster.Peacock.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.OpenGraph.Extractors;
@@ -51,7 +52,7 @@ public class PeacockPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
-        "Peacock page extract fills Duration and Release from JSON-LD VideoObject ISO duration and datePublished, " +
+        "Peacock page extract fills Duration and Release from JSON-LD TVEpisode ISO duration and datePublished, " +
         "so submit can store episode length and air date from the catalogue page.")]
     public async Task extracts_duration_and_release_from_json_ld()
     {
@@ -66,7 +67,7 @@ public class PeacockPageMetaDataExtractorRules
             "<html><head>" +
             $"<meta property=\"og:title\" content=\"{title}\" />" +
             "<script type=\"application/ld+json\">" +
-            $"{{\"@type\":\"VideoObject\",\"duration\":\"{iso}\",\"datePublished\":\"{published}\"}}" +
+            $"{{\"@type\":\"TVEpisode\",\"duration\":\"{iso}\",\"datePublished\":\"{published}\"}}" +
             "</script></head></html>");
         var sut = _mocker.CreateInstance<PeacockPageMetaDataExtractor>();
 
@@ -136,6 +137,87 @@ public class PeacockPageMetaDataExtractorRules
 
         // Assert
         adapter.ResolveService(url).Should().Be(StreamingService.Peacock);
+    }
+
+    [Fact(DisplayName =
+        "Peacock ExtractFromHtml parses Open Graph from prefetched HTML without an HTTP GET, " +
+        "so Api SCRAPE_US / Cloudflare-prefetched HTML extract can run after Cloudflare fetches the page.")]
+    public async Task extract_from_html_parses_prefetched_catalogue_html()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri(
+            $"https://www.peacocktv.com/watch/asset/tv/{_fixture.CreateYouTubeId()}/{_fixture.CreateAppleId()}{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
+        var sut = _mocker.CreateInstance<PeacockPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("Peacock");
+        meta.ShowName.Should().Be(title);
+        _handler.LastRequestUri.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "AddPeacockServices registers ExtractMetaData(html) on the Peacock adapter, " +
+        "so Cloudflare-prefetched catalogue HTML does not throw HTML extract is not registered.")]
+    public async Task add_services_registers_html_extract_on_adapter()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri(
+            $"https://www.peacocktv.com/watch/asset/tv/{_fixture.CreateYouTubeId()}/{_fixture.CreateAppleId()}{_fixture.CreateAppleId()}");
+        var html =
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>";
+        var services = new ServiceCollection();
+        services.AddPeacockServices();
+        using var provider = services.BuildServiceProvider();
+        var adapter = provider.GetServices<INonPodcastServiceAdapter>()
+            .Single(candidate => candidate.IsSubmitUrl(url));
+
+        // Act
+        var meta = await adapter.ExtractMetaData(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.Publisher.Should().Be("Peacock");
+    }
+
+    [Fact(DisplayName =
+        "AddPeacockServices adapter ExtractMetaData GETs the CanonicalUrl watch-online twin for an asset deep link, " +
+        "so prepare that skips Api prepareUrlRewrites still avoids the soft-walled asset page.")]
+    public async Task adapter_extract_rewrites_asset_url_to_watch_online_before_get()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var slug = _fixture.CreateYouTubeId();
+        var showId = $"{_fixture.CreateAppleId()}{_fixture.CreateAppleId()}";
+        var episodeId = "9694b7a9-ffae-3b84-9606-5f852ccffee0";
+        var asset = new Uri(
+            $"https://www.peacocktv.com/watch/asset/tv/{slug}/{showId}/seasons/1/episodes/ep/{episodeId}");
+        var expected = PeacockUrlMatcher.CanonicalUrl(asset);
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head></html>");
+
+        var services = new ServiceCollection();
+        services.AddPeacockServices();
+        services.AddHttpClient(nameof(PeacockPageMetaDataExtractor))
+            .ConfigurePrimaryHttpMessageHandler(() => _handler);
+        using var provider = services.BuildServiceProvider();
+        var adapter = provider.GetServices<INonPodcastServiceAdapter>()
+            .Single(candidate => candidate.IsSubmitUrl(asset));
+
+        // Act
+        var meta = await adapter.ExtractMetaData(asset);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        _handler.LastRequestUri.Should().Be(expected);
+        expected.AbsolutePath.Should().StartWith("/watch-online/");
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

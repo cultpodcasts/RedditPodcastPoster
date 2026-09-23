@@ -3,8 +3,9 @@ name: add-streaming-service
 description: >-
   Add a new streaming-provider plugin (matcher + page extractor + catalog key)
   across RedditPodcastPoster, Api Worker contract, and website catalog/matcher.
-  Use when the user asks to add a streaming service, new scraper plugin, support
-  a new *.tv / SVOD URL, or make streaming plugins faster via scaffold.
+  Use when the user asks to add a streaming service, create-scraping-service,
+  new scraper plugin, support a new *.tv / SVOD URL, or scaffold a streaming plugin.
+  Prepare strategy MUST come from the Api streaming scrape survey — never guess BR/geo.
 ---
 
 # Add streaming service
@@ -18,9 +19,41 @@ mirrors catalog + matcher. RPP authority is the `StreamingService` enum
 
 ## When to use
 
-- User names a new host (e.g. france.tv) or “add streaming service X”
+- User names a new host (e.g. france.tv) or “add streaming service X” / create-scraping-service
 - User asks for an `add-streaming-service` skill / scaffold
 - Extending submit beyond Spotify / Apple / YouTube
+
+## HARD: survey decides prepare strategy (before scaffold)
+
+Do **not** set `htmlFetchMode` / BR / US geo from intuition.
+
+1. In **Api** repo, follow `.cursor/skills/streaming-scrape-survey/SKILL.md`.
+2. Add a deep-link specimen for the new key to
+   `Api/scripts/streaming-scrape-survey/survey-urls.json`.
+3. Run (from Api):
+
+```powershell
+npm run survey:streaming-scrape -- `
+  -ApiBaseUrl https://api-preview.jonbreen.workers.dev `
+  -SecretsFile ./scripts/local-secrets.preview.env `
+  -Service <key> `
+  -ExpectedEdgeLocs GB -ExpectedEdgeColos LHR `
+  -IncludeUsFetch -ExpectedUsColos IAD
+```
+
+4. Map **`recommend`** → Api contract (and only then scaffold with that strategy):
+
+| `recommend` | Contract |
+|-------------|----------|
+| `azurePrepare` | Default Azure prepare; no US profile; not BR |
+| `cfDirectHttp` | Edge `directHttp` (default region) |
+| `browserRendering` | `defaultBrowserRenderingServices` + Worker secret plan — hydration only |
+| `scrapeUsFetch` | `scrapeProfiles[key] = { mode: "directHttp", region: "us" }` — never BR for geo |
+| `blocked` | Stop — do not scaffold a fake prepare path |
+
+5. `npm run survey:compare-contract` in Api must be clean for the new key after contract edits.
+
+`streaming-scrape-us-preview` is survey-only (deployed then deleted by the survey script).
 
 ## Inputs (ask once)
 
@@ -33,17 +66,22 @@ mirrors catalog + matcher. RPP authority is the `StreamingService` enum
 | Sample series URL | brand / hub page |
 | Sample episode URL | watch / `.html` episode |
 | Film URL (optional) | expect `ShowName` null |
-| `htmlFetchMode` | default `directHttp`; only `browserRendering` if bare HTTP extract fails |
+| Prepare strategy | From survey **`recommend`** (not guessed) |
 
 ## Safety
 
-- No Api / website `wrangler deploy` / `npm run deploy`
+- No Api / website `wrangler deploy` / `npm run deploy` (Api survey may deploy/delete scrape-us-**preview** only)
 - No PR merge unless user explicitly asks
 - No Cosmos episode writes without explicit `--apply`
 - PR `## Config / secrets` only if Worker `browserRenderingServices` (or other secrets) change — document **names** for preview **and** top-level `api`
 - Azure Functions deploy only when user asks (`deploy functions & clis` or named app)
+- Never encode geo soft-walls as Browser Rendering
 
 ## Steps
+
+### 0. Survey → strategy
+
+Complete the HARD section above. Do not start scaffold until `recommend` is known.
 
 ### 1. Scaffold (RPP)
 
@@ -60,6 +98,7 @@ pwsh ./scripts/scaffold-streaming-service.ps1 `
 Creates `Class-Libraries/RedditPodcastPoster.<Pascal>/` + `.Tests` from Channel4 shape
 (host-only matcher stub, OG extractor, DI, registration). Then hand-edit path grammar
 and ShowName / film rules against live HTML.
+
 
 ### 2. Wire catalog + DI (RPP)
 
@@ -97,15 +136,20 @@ dotnet test Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests -c Release -
 
 ### 5. Api contract (source of truth for TS/JSON copies)
 
-Edit `Api/tests/fixtures/streaming-submit-contract.ts` **and** `.json`:
+Apply survey **`recommend`** first (HARD section). Then edit
+`Api/tests/fixtures/streaming-submit-contract.ts` **and** `.json`:
 
-- `streamingServiceKeys` (must equal `StreamingServiceWire.AllKeys`)
+- `streamingServiceKeys` (must equal `StreamingServiceWire.SubmitEligibleKeys` / registered `SearchEncodedKeys`; submit-retired enum members e.g. Hulu are excluded)
 - `streamingSpecimenUrls`
+- `scrapeProfiles` / `defaultBrowserRenderingServices` per survey recommend
 - membership + orchestration case ids (fixture generators usually expand)
+
+From Api: `npm run survey:compare-contract` should be clean for the new key.
 
 Bump Api `package.json` + `package-lock.json` patch.
 
 Copy JSON to `RedditPodcastPoster/docs/contracts/streaming-submit-contract.json`.
+Prefer consumers take the package `@cultpodcasts/streaming-submit-contract` (`@latest` / `@staging`; see Api `docs/contract-publish.md`) when adopted; until then, copy JSON and run `assert-streaming-submit-contract-copy.ps1`.
 
 ```powershell
 # RPP
@@ -128,13 +172,16 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 npm run test:all   # before push when shipping client code
 ```
 
-### 7. Browser Rendering (only if needed)
+### 7. Browser Rendering / US geo (only if survey said so)
 
-If prepare extract fails on direct HTTP (SPA shell / soft wall):
-
-- Add key to Worker secret `browserRenderingServices` CSV (preview **and** top-level `api`)
-- Document in PR `## Config / secrets`
-- Keep contract `defaultBrowserRenderingServices` as ops hint only
+- Survey `browserRendering` → Worker secret `browserRenderingServices` CSV (preview **and** top-level `api`) + PR `## Config / secrets`
+- Survey `scrapeUsFetch` → contract `scrapeProfiles` US `directHttp` only — **never** BR for geo
+- Keep contract `defaultBrowserRenderingServices` aligned with survey; secret may overlay ops temporarily
+- For **`scrapeUsFetch` and `browserRendering`**, RPP must also register HTML extract (Worker hands prefetched HTML to Azure `ExtractMetaData(url, html)`):
+  - Extractor exposes `ExtractFromHtml` (or equivalent); `GetMetaData` fetches then delegates to it
+  - DI passes that delegate as the 5th ctor arg of `CatalogKeyedNonPodcastServiceAdapter` (mirror `AddPeacockServices` / `AddTubiServices` / `AddItvxServices`)
+  - Business-rules Fact: `adapter.ExtractMetaData(url, html)` succeeds without an HTTP GET
+  - Channel4 scaffold template may still omit HTML extract — hand-edit DI + extractor until the template is updated
 
 ### 8. Search index (HARD — do after RPP with the new key is on the machine you run CLIs from)
 
@@ -180,12 +227,15 @@ same delivery session). Details: [`docs/episode-services.md`](../../docs/episode
 
 ### 9. Done when
 
-1. Matcher accepts real series + episode URLs; rejects lookalike hosts
-2. Extractor returns title + publisher; ShowName rules correct
-3. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
-4. DI registered; catalog + website + Api contract aligned
-5. Unit tests green; live Theories added; assert-contract scripts clean
-6. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
+1. Survey **`recommend`** known and applied to Api `scrapeProfiles` / BR allowlist (never ship geo as `browserRendering`)
+2. `npm run survey:compare-contract` clean for the new key (Api)
+3. If survey was `scrapeUsFetch` or `browserRendering`: `ExtractFromHtml` wired on extractor + DI 5th ctor arg; BR Fact proves `adapter.ExtractMetaData(url, html)` without HTTP GET
+4. Matcher accepts real series + episode URLs; rejects lookalike hosts
+5. Extractor returns title + publisher; ShowName rules correct
+6. Lookup → `kind: streaming`, `service: <key>`; podcastName never = platform name
+7. DI registered; catalog + website + Api contract aligned
+8. Unit tests green; live Theories added; assert-contract scripts clean
+9. Live `cultpodcasts-ds` projection updated (`CreateSearchIndex --update-existing`); sample
    streaming episodes show non-empty `svc` after push reindex (not “index recreate”)
 
 ## Template paths (Channel4)

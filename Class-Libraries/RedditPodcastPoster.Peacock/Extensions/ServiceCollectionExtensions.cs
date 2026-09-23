@@ -23,10 +23,15 @@ public static class ServiceCollectionExtensions
             .AddOpenGraphExtractor()
             .AddScoped<IPeacockPageMetaDataExtractor, PeacockPageMetaDataExtractor>()
             .AddScoped<INonPodcastServiceAdapter>(provider =>
-                new CatalogKeyedNonPodcastServiceAdapter(
+            {
+                var extractor = provider.GetRequiredService<IPeacockPageMetaDataExtractor>();
+                return new CatalogKeyedNonPodcastServiceAdapter(
                     StreamingService.Peacock,
                     PeacockUrlMatcher.IsSubmitUrl,
                     PeacockUrlMatcher.IsSubmitUrl,
-                    provider.GetRequiredService<IPeacockPageMetaDataExtractor>().GetMetaData));
+                    url => extractor.GetMetaData(PeacockUrlMatcher.CanonicalUrl(url)),
+                    (url, html) => extractor.ExtractFromHtml(PeacockUrlMatcher.CanonicalUrl(url), html),
+                    canonicalizeUrl: PeacockUrlMatcher.CanonicalUrl);
+            });
     }
 }
