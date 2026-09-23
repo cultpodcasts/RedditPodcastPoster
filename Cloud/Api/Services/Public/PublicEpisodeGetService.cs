@@ -23,7 +23,7 @@ public class PublicEpisodeGetService(
                     request.ToPodcastEpisodeResolverRequest(),
                     nameof(GetAsync));
 
-            if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Episode.Removed)
+            if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Episode.IsRemoved())
             {
                 logger.LogWarning("{GetName}: Episode with id '{EpisodeId}' not found.", nameof(GetAsync),
                     request.EpisodeId);

@@ -1,17 +1,16 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.News;
 
 /// <summary>
 /// Playable news report under a <see cref="NewsOrganisation"/>.
-/// Platform presence is <see cref="Services"/> only — no provider-id fields.
+/// Platform presence is <see cref="Playable.Services"/> only — no provider-id fields.
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.NewsReport)]
-public sealed class NewsReport : CosmosSelector
+public sealed class NewsReport : Playable
 {
     public NewsReport()
     {
@@ -28,50 +27,10 @@ public sealed class NewsReport : CosmosSelector
     [JsonPropertyOrder(3)]
     public Guid NewsOrganisationId { get; set; }
 
-    [JsonPropertyName("title")]
-    [JsonPropertyOrder(10)]
-    public string Title { get; set; } = string.Empty;
-
-    [JsonPropertyName("description")]
-    [JsonPropertyOrder(20)]
-    public string Description { get; set; } = string.Empty;
-
     /// <summary>Calendar date only — not a podcast-episode UTC datetime. Use <see cref="CatalogueRelease.FromDate"/>.</summary>
     [JsonPropertyName("release")]
     [JsonPropertyOrder(30)]
     public CatalogueRelease? Release { get; set; }
-
-    [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
-    public TimeSpan Length { get; set; }
-
-    [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
-    public bool Explicit { get; set; }
-
-    [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
-    public string? Language { get; set; }
-
-    [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
-    public bool Ignored { get; set; }
-
-    [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
-    public bool Removed { get; set; }
-
-    [JsonPropertyName("subjects")]
-    [JsonPropertyOrder(70)]
-    public List<string> Subjects { get; set; } = [];
-
-    [JsonPropertyName("removedSubjects")]
-    [JsonPropertyOrder(71)]
-    public List<string> RemovedSubjects { get; set; } = [];
-
-    [JsonPropertyName("searchTerms")]
-    [JsonPropertyOrder(80)]
-    public string? SearchTerms { get; set; }
 
     [JsonPropertyName("newsOrganisationName")]
     [JsonPropertyOrder(90)]
@@ -92,14 +51,6 @@ public sealed class NewsReport : CosmosSelector
     [JsonPropertyName("newsOrganisationRemoved")]
     [JsonPropertyOrder(94)]
     public bool? NewsOrganisationRemoved { get; set; }
-
-    [JsonPropertyName("services")]
-    [JsonPropertyOrder(151)]
-    public Dictionary<string, ServiceLink>? Services { get; set; }
-
-    [JsonPropertyName("guests")]
-    [JsonPropertyOrder(160)]
-    public string[]? Guests { get; set; }
 
     /// <summary>
     /// Denormalise parent NewsOrganisation fields onto this playable (mirrors

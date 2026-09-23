@@ -36,7 +36,7 @@ public class EpisodeOutgoingService(
                 var episode = podcastEpisode.Episode;
                 var podcast = podcastEpisode.Podcast;
 
-                if (episode.Removed)
+                if (episode.IsRemoved())
                 {
                     continue;
                 }

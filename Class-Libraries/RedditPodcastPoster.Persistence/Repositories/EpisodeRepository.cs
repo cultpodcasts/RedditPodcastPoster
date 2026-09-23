@@ -321,7 +321,7 @@ public class EpisodeRepository(
 
     private static bool IsCountedForHomepage(Episode episode)
     {
-        return !episode.Removed && episode.PodcastRemoved != true;
+        return !episode.IsRemoved() && episode.PodcastRemoved != true;
     }
 
     private async Task UpdateHomePageActiveEpisodeCount(bool previousCountedState, bool nextCountedState)

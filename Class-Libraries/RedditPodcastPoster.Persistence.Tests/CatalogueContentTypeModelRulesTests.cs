@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
@@ -100,6 +101,40 @@ public class CatalogueContentTypeModelRulesTests
 
         new Podcast().ModelType.Should().Be(ModelType.Podcast);
         new Film(_fixture.Create<string>()).Name.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact(DisplayName =
+        "Episode, TvShowEpisode, and NewsReport subclass Playable and implement IMediaProduction, IPlayable, " +
+        "IPromotable, ICatalogueCopy, and IRemovable; Film implements IPlayable, IPromotable, ICatalogueCopy, and " +
+        "IRemovable via Publisher but not IMediaProduction or Playable.")]
+    public void Catalogue_playables_use_playable_base_and_capability_interfaces()
+    {
+        // Arrange / Act / Assert
+        typeof(Episode).Should().BeAssignableTo<Playable>();
+        typeof(TvShowEpisode).Should().BeAssignableTo<Playable>();
+        typeof(NewsReport).Should().BeAssignableTo<Playable>();
+        typeof(Film).Should().NotBeAssignableTo<Playable>();
+
+        typeof(Episode).Should().BeAssignableTo<IMediaProduction>();
+        typeof(TvShowEpisode).Should().BeAssignableTo<IMediaProduction>();
+        typeof(NewsReport).Should().BeAssignableTo<IMediaProduction>();
+        typeof(Film).Should().NotBeAssignableTo<IMediaProduction>();
+
+        foreach (var type in new[] { typeof(Episode), typeof(TvShowEpisode), typeof(NewsReport), typeof(Film) })
+        {
+            type.Should().BeAssignableTo<IPlayable>(because: type.Name);
+            type.Should().BeAssignableTo<IPromotable>(because: type.Name);
+            type.Should().BeAssignableTo<ICatalogueCopy>(because: type.Name);
+            type.Should().BeAssignableTo<IRemovable>(because: type.Name);
+        }
+
+        typeof(Podcast).Should().BeAssignableTo<IRemovable>();
+        typeof(Podcast).Should().BeAssignableTo<ICatalogueCopy>();
+        typeof(Podcast).Should().NotBeAssignableTo<IPlayable>();
+
+        new Episode().ModelType.Should().Be(ModelType.Episode);
+        new Episode().IsRemoved().Should().BeFalse();
+        new Film().IsRemoved().Should().BeFalse();
     }
 
     [Fact(DisplayName =

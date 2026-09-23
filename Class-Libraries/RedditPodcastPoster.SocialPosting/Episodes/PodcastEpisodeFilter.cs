@@ -211,7 +211,7 @@ public class PodcastEpisodeFilter(
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
     {
-        if (episode.Posted || episode.Ignored || episode.Removed)
+        if (episode.Posted || episode.Ignored || episode.IsRemoved())
         {
             return false;
         }

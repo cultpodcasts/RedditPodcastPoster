@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// <see cref="News.NewsOrganisation"/>, and <see cref="Films.Film"/> subclass this.
 /// Film uses <see cref="Name"/> as its display title (no separate <c>title</c> member).
 /// </summary>
-public abstract class Publisher : CosmosSelector
+public abstract class Publisher : CosmosSelector, ICatalogueCopy, IRemovable
 {
     [JsonPropertyName("name")]
     [JsonPropertyOrder(20)]
@@ -77,8 +77,5 @@ public abstract class Publisher : CosmosSelector
     [JsonPropertyOrder(271)]
     public string[]? KnownTerms { get; set; }
 
-    public bool IsRemoved()
-    {
-        return Removed.HasValue && Removed.Value;
-    }
+    public bool IsRemoved() => Removed == true;
 }

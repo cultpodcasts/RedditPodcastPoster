@@ -134,7 +134,7 @@ public class Indexer(
                 logger.LogInformation(resultsMessage);
             }
 
-            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.Removed))
+            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     indexedEpisode.Episode,

@@ -7,13 +7,12 @@ namespace RedditPodcastPoster.Models.Films;
 
 /// <summary>
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
-/// Platform presence is <see cref="Services"/> only — no provider-id fields
-/// (unlike podcast <c>Episode</c>, which tracks Spotify/Apple/YouTube collection identity).
+/// Platform presence is <see cref="Services"/> only — no provider-id fields.
 /// Release is year or calendar date — not a podcast-episode datetime.
-/// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no separate title member.
+/// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no <see cref="IMediaProduction.Title"/>.
 /// </summary>
 [CosmosSelector(ModelType.Film)]
-public sealed class Film : Publisher
+public sealed class Film : Publisher, IPlayable, IPromotable
 {
     public Film()
     {
@@ -38,6 +37,22 @@ public sealed class Film : Publisher
     [JsonPropertyName("explicit")]
     [JsonPropertyOrder(32)]
     public bool Explicit { get; set; }
+
+    [JsonPropertyName("posted")]
+    [JsonPropertyOrder(40)]
+    public bool Posted { get; set; }
+
+    [JsonPropertyName("tweeted")]
+    [JsonPropertyOrder(41)]
+    public bool Tweeted { get; set; }
+
+    [JsonPropertyName("bluesky")]
+    [JsonPropertyOrder(42)]
+    public bool? OldBlueskyPosted { get; set; }
+
+    [JsonPropertyName("blueskyPost")]
+    [JsonPropertyOrder(42)]
+    public string? BlueskyPost { get; set; }
 
     [JsonPropertyName("ignored")]
     [JsonPropertyOrder(43)]

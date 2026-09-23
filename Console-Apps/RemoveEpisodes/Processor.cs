@@ -79,7 +79,7 @@ public class Processor(
 
                     if (repoEpisode != null)
                     {
-                        if (!repoEpisode.Removed)
+                        if (!repoEpisode.IsRemoved())
                         {
                             repoEpisode.Removed = true;
                             logger.LogInformation("Removing: '{podcastName}' - '{episodeTitle}'.",

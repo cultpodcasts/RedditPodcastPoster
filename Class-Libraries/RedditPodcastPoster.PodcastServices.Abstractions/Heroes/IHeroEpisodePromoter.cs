@@ -64,7 +64,7 @@ public static class HeroAutoPromoteSelector
             return HeroAutoPromoteSkipReason.Ignored;
         }
 
-        if (episode.Removed)
+        if (episode.IsRemoved())
         {
             return HeroAutoPromoteSkipReason.Removed;
         }

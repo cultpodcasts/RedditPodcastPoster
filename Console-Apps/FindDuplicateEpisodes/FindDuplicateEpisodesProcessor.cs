@@ -272,7 +272,7 @@ public class FindDuplicateEpisodesProcessor(
             updated = true;
         }
 
-        if (keeper.Removed && !toDelete.Removed)
+        if (keeper.IsRemoved() && !toDelete.IsRemoved())
         {
             logger.LogWarning(
                 "Pair {KeeperId}/{ToDeleteId}: resetting keeper.Removed from true to false based on duplicate.",
@@ -426,7 +426,7 @@ public class FindDuplicateEpisodesProcessor(
             }
 
             var anyDeletedNotIgnored = group.Any(x => !x.Ignored);
-            var anyDeletedNotRemoved = group.Any(x => !x.Removed);
+            var anyDeletedNotRemoved = group.Any(x => !x.IsRemoved());
 
             foreach (var canonical in canonicals)
             {

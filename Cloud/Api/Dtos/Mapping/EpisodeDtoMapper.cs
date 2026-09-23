@@ -65,7 +65,7 @@ public class EpisodeDtoMapper(
             BlueskyPosted = episode.BlueskyPosted,
             Ignored = episode.Ignored,
             Release = episode.Release,
-            Removed = episode.Removed,
+            Removed = episode.IsRemoved(),
             Length = episode.Length,
             Explicit = episode.Explicit,
             SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,

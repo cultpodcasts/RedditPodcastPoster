@@ -54,7 +54,7 @@ public sealed record EpisodeExpectation(
             episode.Release,
             episode.Description,
             episode.Ignored,
-            episode.Removed);
+            episode.IsRemoved());
 
     public static EpisodeExpectation From(EpisodeCandidate candidate)
     {

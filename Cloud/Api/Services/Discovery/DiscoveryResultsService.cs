@@ -40,7 +40,7 @@ public class DiscoveryResultsService(
         if (podcastIds.Length > 0)
         {
             await foreach (var episode in episodeRepository
-                               .GetAllBy(x => Enumerable.Contains(podcastIds, x.PodcastId) && !x.Removed)
+                               .GetAllBy(x => Enumerable.Contains(podcastIds, x.PodcastId) && x.Removed != true)
                                .WithCancellation(c))
             {
                 if (!visibleEpisodeCounts.TryAdd(episode.PodcastId, 1))

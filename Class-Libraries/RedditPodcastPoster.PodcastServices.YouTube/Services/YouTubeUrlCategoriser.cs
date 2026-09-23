@@ -304,7 +304,7 @@ public class YouTubeUrlCategoriser(
         var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
         var youTubeUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube);
         var idMissing = string.IsNullOrWhiteSpace(youTubeId);
-        return (!episode.Removed && idMissing && youTubeUrl is not null) ||
+        return (!episode.IsRemoved() && idMissing && youTubeUrl is not null) ||
                (youTubeUrl is null && !idMissing) ||
                (!idMissing && youTubeUrl is not null &&
                 YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
