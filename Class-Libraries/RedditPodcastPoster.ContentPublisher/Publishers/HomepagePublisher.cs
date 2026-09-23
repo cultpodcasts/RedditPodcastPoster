@@ -141,7 +141,7 @@ public class HomepagePublisher(
 
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
-                           x => x.Release >= recentCutoff && !x.Ignored && x.Removed != true))
+                           x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
         {
             ct.ThrowIfCancellationRequested();
             EpisodeServicePresence.NormalizeCatalog(episode);
@@ -180,8 +180,8 @@ public class HomepagePublisher(
         {
             durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => x.Removed != true && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                                      x.PodcastRemoved == null),
+                    x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
+                                                       x.PodcastRemoved == null),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
@@ -191,8 +191,8 @@ public class HomepagePublisher(
         {
             countEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => x.Removed != true && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                        x.PodcastRemoved == null),
+                    x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
+                                         x.PodcastRemoved == null),
                     x => x.Id)
                 .ToListAsync(ct)
                 .AsTask();

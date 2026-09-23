@@ -29,7 +29,7 @@ public partial class RestoreProcessor(
                         x.PodcastName != null &&
                         x.PodcastName.StartsWith(podcastName) &&
                         x.Title.StartsWith(episodeTitle) &&
-                        x.Removed == true)
+                        x.Removed)
                     .ToListAsync();
 
                 if (episodeMatches.Count != 1)

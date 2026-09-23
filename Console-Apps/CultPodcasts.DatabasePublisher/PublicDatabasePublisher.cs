@@ -90,7 +90,7 @@ public class PublicDatabasePublisher(
                 : podcast.YouTubePlaylistId
         };
 
-        var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => e.Removed != true);
+        var episodes = episodeRepository.GetByPodcastId(podcast.Id, e => !e.Removed);
         var publicEpisodes = new List<PublicEpisode>();
 
         // Episode FeedIterator for this podcast stays sequential (per-iterator MoveNext).

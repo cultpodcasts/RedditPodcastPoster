@@ -60,7 +60,7 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
 
     [JsonPropertyName("removed")]
     [JsonPropertyOrder(44)]
-    public bool? Removed { get; set; }
+    public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(45)]
