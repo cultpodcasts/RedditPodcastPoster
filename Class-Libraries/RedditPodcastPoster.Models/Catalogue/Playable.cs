@@ -21,7 +21,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     private CatalogueRelease? _release;
 
     /// <summary>
-    /// Semantic release (year / date / UTC datetime). Setting this updates <see cref="ReleaseSort"/>.
+    /// Semantic release (year / date / UTC datetime). Setting this updates
+    /// <see cref="ReleaseSort"/> and <see cref="ReleaseCosmosFallback"/> to the same UTC instant.
     /// Prefer <see cref="SetRelease"/> at call sites.
     /// </summary>
     [JsonPropertyName("release")]
@@ -32,7 +33,9 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         set
         {
             _release = value;
-            ReleaseSort = value?.ToSortUtc() ?? default;
+            var sortUtc = value?.ToSortUtc() ?? default;
+            ReleaseSort = sortUtc;
+            ReleaseCosmosFallback = sortUtc;
         }
     }
 

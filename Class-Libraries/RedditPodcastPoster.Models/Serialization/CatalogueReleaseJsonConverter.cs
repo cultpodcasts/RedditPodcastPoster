@@ -75,9 +75,13 @@ public sealed class CatalogueReleaseJsonConverter : JsonConverter<CatalogueRelea
                     throw new JsonException("CatalogueRelease DateTimeUtc precision requires DateTimeUtc.");
                 }
 
-                var utc = value.DateTimeUtc.Value.Kind == DateTimeKind.Utc
-                    ? value.DateTimeUtc.Value
-                    : value.DateTimeUtc.Value.ToUniversalTime();
+                // Mirror FromDateTimeUtc: Unspecified is already-UTC (do not ToUniversalTime).
+                var utc = value.DateTimeUtc.Value.Kind switch
+                {
+                    DateTimeKind.Utc => value.DateTimeUtc.Value,
+                    DateTimeKind.Unspecified => DateTime.SpecifyKind(value.DateTimeUtc.Value, DateTimeKind.Utc),
+                    _ => value.DateTimeUtc.Value.ToUniversalTime()
+                };
                 // Preserve sub-second precision when present; omit fractional part for whole seconds
                 // so existing whole-second Cosmos values do not grow a dangling ".Z".
                 var format = utc.Ticks % TimeSpan.TicksPerSecond == 0

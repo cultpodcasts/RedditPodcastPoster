@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using AutoFixture;
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.ContentKinds;
@@ -20,6 +21,7 @@ namespace RedditPodcastPoster.Persistence.Tests;
 public class CatalogueContentTypeModelRulesTests
 {
     private readonly Fixture _fixture = new();
+    private readonly DomainTestFixture _domain = new();
 
     private static readonly string[] ForbiddenProviderIdProperties =
         ["Ids", "YouTubeId", "SpotifyId", "AppleId", "YoutubeId"];
@@ -179,12 +181,61 @@ public class CatalogueContentTypeModelRulesTests
         newsReport.ReleaseSort.Should().Be(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
         film.ReleaseSort.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
+        episode.ReleaseCosmosFallback.Should().Be(episode.ReleaseSort);
+        tvShowEpisode.ReleaseCosmosFallback.Should().Be(tvShowEpisode.ReleaseSort);
+        newsReport.ReleaseCosmosFallback.Should().Be(newsReport.ReleaseSort);
+
         var from = DomainTestFixture.UtcDaysAgo(10);
         var to = DateTime.UtcNow;
         (episode.ReleaseSort >= from && episode.ReleaseSort <= to).Should().BeTrue();
         (tvShowEpisode.ReleaseSort >= from && tvShowEpisode.ReleaseSort <= to).Should().BeTrue();
         (film.ReleaseSort >= new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
          film.ReleaseSort <= to).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY InMemoryEpisodeRepository must rewrite Cosmos IsDefined before Compile so " +
+        "EpisodeCosmosFilters.ReleasedOnOrAfter (and ParentNotRemoved via And) include/exclude by " +
+        "ReleaseSort and ParentRemoved — without the rewrite, invoking the raw predicate throws.")]
+    public async Task InMemory_episode_filters_rewrite_IsDefined_before_compile()
+    {
+        // Arrange
+        var podcast = _domain.CreatePodcast();
+        var since = DomainTestFixture.UtcDaysAgo(7);
+        var included = _domain.CreateStoredEpisode(podcast, e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(-3, new TimeSpan(10, 0, 0));
+            e.ParentRemoved = false;
+        });
+        var tooOld = _domain.CreateStoredEpisode(podcast, e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(-14, new TimeSpan(10, 0, 0));
+            e.ParentRemoved = false;
+        });
+        var parentRemoved = _domain.CreateStoredEpisode(podcast, e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(-2, new TimeSpan(10, 0, 0));
+            e.ParentRemoved = true;
+        });
+        var repo = new InMemoryEpisodeRepository();
+        repo.Seed(included, tooOld, parentRemoved);
+        var filter = EpisodeCosmosFilters.And(
+            EpisodeCosmosFilters.ReleasedOnOrAfter(since),
+            EpisodeCosmosFilters.ParentNotRemoved);
+        var rawReleasedOnOrAfter = EpisodeCosmosFilters.ReleasedOnOrAfter(since).Compile();
+
+        // Act
+        var matches = new List<Episode>();
+        await foreach (var episode in repo.GetByPodcastId(podcast.Id, filter))
+        {
+            matches.Add(episode);
+        }
+
+        // Assert
+        var invokeRaw = () => rawReleasedOnOrAfter(included);
+        invokeRaw.Should().Throw<NotImplementedException>(
+            "Cosmos IsDefined must not run on CLR without the in-memory rewrite");
+        matches.Select(e => e.Id).Should().BeEquivalentTo([included.Id]);
     }
 
     [Fact(DisplayName =
@@ -271,20 +322,54 @@ public class CatalogueContentTypeModelRulesTests
         "must not shift by the local offset (e.g. UK BST).")]
     public void CatalogueRelease_FromDateTimeUtc_unspecified_is_utc_not_local_conversion()
     {
-        // Arrange
-        var calendarDay = DomainTestFixture.UtcDateDaysAgo(3);
-        var unspecifiedMidnight = DateTime.ParseExact(
-            calendarDay.ToString("yyyy-MM-dd"),
-            "yyyy-MM-dd",
-            CultureInfo.InvariantCulture);
+        // Arrange — pick a relative calendar day whose Europe/London local midnight differs from
+        // SpecifyKind-as-UTC so the NotBe is fail-closed on UTC agents (not only BST machines).
+        var london = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "GMT Standard Time" : "Europe/London");
+        DateTime unspecifiedMidnight = default;
+        DateTime londonLocalThenUtc = default;
+        var foundBstShift = false;
+        for (var daysAgo = 1; daysAgo <= 250; daysAgo++)
+        {
+            var calendarDay = DomainTestFixture.UtcDateDaysAgo(daysAgo);
+            var candidate = DateTime.ParseExact(
+                calendarDay.ToString("yyyy-MM-dd"),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture);
+            DateTime shifted;
+            try
+            {
+                shifted = TimeZoneInfo.ConvertTimeToUtc(candidate, london);
+            }
+            catch (ArgumentException)
+            {
+                // Skip DST spring-forward gaps / ambiguous fall-back instants.
+                continue;
+            }
+
+            var asUtc = DateTime.SpecifyKind(candidate, DateTimeKind.Utc);
+            if (shifted != asUtc)
+            {
+                unspecifiedMidnight = candidate;
+                londonLocalThenUtc = shifted;
+                foundBstShift = true;
+                break;
+            }
+        }
+
+        foundBstShift.Should().BeTrue(
+            "need a relative day where Europe/London local midnight differs from SpecifyKind-as-UTC");
 
         // Act
         var release = CatalogueRelease.FromDateTimeUtc(unspecifiedMidnight);
 
         // Assert
         unspecifiedMidnight.Kind.Should().Be(DateTimeKind.Unspecified);
-        release.DateTimeUtc.Should().Be(DateTime.SpecifyKind(unspecifiedMidnight, DateTimeKind.Utc));
-        release.ToSortUtc().Should().Be(DateTime.SpecifyKind(unspecifiedMidnight, DateTimeKind.Utc));
+        var expectedUtc = DateTime.SpecifyKind(unspecifiedMidnight, DateTimeKind.Utc);
+        release.DateTimeUtc.Should().Be(expectedUtc);
+        release.ToSortUtc().Should().Be(expectedUtc);
+        release.DateTimeUtc.Should().NotBe(londonLocalThenUtc,
+            "Unspecified must not be treated as Europe/London local (BST/GMT shift)");
     }
 
     [Fact(DisplayName =
