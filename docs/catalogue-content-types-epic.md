@@ -1,6 +1,6 @@
 # Catalogue content types epic (planning)
 
-**Status:** Phase 0 — **sign-off complete 2026-09-23** (quiz OPEN-001…012 + CLS). Not scheduled for implementation.  
+**Status:** Phase 1 code on PR [#988](https://github.com/cultpodcasts/RedditPodcastPoster/pull/988). **Follow the run:** [catalogue-run/README.md](./catalogue-run/README.md) — one file per Build/GATE; open only the current file.  
 **Purpose:** rock-solid product + architecture contract for splitting podcast, TV, film (one-off documentary), and news — without breaking today’s catalogue, search, or submit flows.
 
 **Supersedes (terminology):** earlier drafts used **Movie** / `/movie/` / `movieName`. **Do not use those names.** Product type is **Film**.
@@ -467,6 +467,7 @@ Link: [deployment.md](./deployment.md) § Episode JSON cutover.
 
 | Doc | Relevance |
 |-----|-----------|
+| [catalogue-run/README.md](./catalogue-run/README.md) | **Runbook** — one file per Build/GATE; open only current |
 | [episode-services.md](./episode-services.md) | Multi-URL `services` map |
 | [website submit-url-flows.md](../../website/cultpodcasts/docs/submit-url-flows.md) | Client submit/lookup (update when epic ships) |
 | [website auth0-roles-and-permissions.md](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md) | Gates |
