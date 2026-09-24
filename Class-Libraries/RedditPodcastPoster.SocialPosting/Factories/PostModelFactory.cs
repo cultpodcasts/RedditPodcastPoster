@@ -63,11 +63,11 @@ public class PostModelFactory(
             EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
             EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
             EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
-            episode.Release.ToString("d MMM yyyy"),
+            episode.ReleaseUtc.ToString("d MMM yyyy"),
             episode.Length.ToString(@"\[h\:mm\:ss\]", CultureInfo.InvariantCulture),
             episode.Description,
             id,
-            episode.Release,
+            episode.ReleaseUtc,
             episode.Subjects.ToArray(),
             EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
             EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)),

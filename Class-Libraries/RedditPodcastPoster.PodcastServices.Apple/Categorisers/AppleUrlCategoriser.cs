@@ -24,8 +24,8 @@ public class AppleUrlCategoriser(
         Podcast? matchingPodcast,
         IndexingContext indexingContext)
     {
-        var publisher = matchingPodcast != null && !string.IsNullOrWhiteSpace(matchingPodcast.Publisher)
-            ? matchingPodcast.Publisher
+        var publisher = matchingPodcast != null && !string.IsNullOrWhiteSpace(matchingPodcast.PublisherName)
+            ? matchingPodcast.PublisherName
             : criteria.Publisher ?? string.Empty;
         var findApplePodcastRequest = new FindApplePodcastRequest(
             matchingPodcast?.AppleId,

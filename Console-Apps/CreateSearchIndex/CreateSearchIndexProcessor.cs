@@ -10,6 +10,7 @@ using Azure.Core.Serialization;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Configuration;
@@ -32,7 +33,7 @@ public partial class CreateSearchIndexProcessor(
 )
 {
     private const string ActiveEpisodesFilter =
-        "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+        $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
@@ -541,7 +542,7 @@ public partial class CreateSearchIndexProcessor(
                             e.services.internetArchive.url as internetArchive,
                             {svcProjection} as svc,
                             e.subjects as subjects,
-                            e.podcastSearchTerms as podcastSearchTerms,
+                            (e.publisherSearchTerms ?? e.podcastSearchTerms) as publisherSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             IIF({isYouTubeToken}, {youTubeToken},
                                 IIF({isSpotifyToken}, {spotifyToken},

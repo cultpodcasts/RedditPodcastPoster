@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Episodes;
 
@@ -31,7 +32,7 @@ public static class EpisodeServicePresence
         ArgumentNullException.ThrowIfNull(episode);
         if (episode.Services is { Count: > 0 })
         {
-            var map = new Dictionary<string, EpisodeServiceLink>(episode.Services, StringComparer.Ordinal);
+            var map = new Dictionary<string, ServiceLink>(episode.Services, StringComparer.Ordinal);
             map.Remove("other");
             episode.Services = map.Count == 0 ? null : map;
         }
@@ -313,11 +314,11 @@ public static class EpisodeServicePresence
     }
 
     public static Uri? CoalescedImage(
-        IReadOnlyDictionary<string, EpisodeServiceLink>? services) =>
+        IReadOnlyDictionary<string, ServiceLink>? services) =>
         CoalescedImage(services, ServiceCatalog.IndexIdImageOrder);
 
     public static Uri? CoalescedImage(
-        IReadOnlyDictionary<string, EpisodeServiceLink>? services,
+        IReadOnlyDictionary<string, ServiceLink>? services,
         IReadOnlyList<string> keyOrder)
     {
         ArgumentNullException.ThrowIfNull(keyOrder);
@@ -350,7 +351,7 @@ public static class EpisodeServicePresence
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         NormalizeCatalog(episode);
-        episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal);
+        episode.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
         if (url is null && image is null)
         {
             episode.Services.Remove(key);
@@ -364,7 +365,7 @@ public static class EpisodeServicePresence
 
         if (!episode.Services.TryGetValue(key, out var link))
         {
-            link = new EpisodeServiceLink();
+            link = new ServiceLink();
             episode.Services[key] = link;
         }
 
@@ -391,10 +392,10 @@ public static class EpisodeServicePresence
             return;
         }
 
-        episode.Services ??= new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal);
+        episode.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
         if (!episode.Services.TryGetValue(key, out var link))
         {
-            link = new EpisodeServiceLink();
+            link = new ServiceLink();
             episode.Services[key] = link;
         }
 

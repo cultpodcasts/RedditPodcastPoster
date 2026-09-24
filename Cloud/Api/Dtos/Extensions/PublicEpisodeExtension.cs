@@ -16,7 +16,7 @@ public static class PublicEpisodeExtension
             Id = episode.Id,
             Title = episode.Title,
             Description = episode.Description,
-            Release = episode.Release,
+            Release = episode.ReleaseUtc ,
             Length = episode.Length,
             Explicit = episode.Explicit,
             Ids = episode.Ids,

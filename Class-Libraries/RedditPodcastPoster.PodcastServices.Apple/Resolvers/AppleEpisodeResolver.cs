@@ -150,7 +150,7 @@ public class AppleEpisodeResolver(
             Title = WebUtility.HtmlDecode(request.EpisodeTitle.Trim()),
             Description = request.EpisodeDescription?.Trim() ?? string.Empty,
             Length = request.EpisodeLength ?? TimeSpan.Zero,
-            Release = request.Released ?? DateTime.MinValue
+            ReleaseUtc = request.Released ?? DateTime.MinValue
         };
 
     private static Episode ToCatalogueEpisode(AppleEpisode episode)
@@ -160,7 +160,7 @@ public class AppleEpisodeResolver(
             Title = WebUtility.HtmlDecode(episode.Title.Trim()),
             Description = episode.Description ?? string.Empty,
             Length = episode.Duration,
-            Release = episode.Release
+            ReleaseUtc = episode.Release
         };
         EpisodeServicePresence.SetAppleIdentity(mapped, episode.Id);
         return mapped;

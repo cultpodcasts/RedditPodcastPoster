@@ -11,6 +11,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using EpisodeServiceBackfill.Tests.Fakes;
 using Xunit;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill.Tests;
 
@@ -311,7 +312,7 @@ public class EpisodeServiceCatalogPatchTests
             x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()),
             Times.Never);
     }
@@ -329,7 +330,7 @@ public class EpisodeServiceCatalogPatchTests
             .Setup(x => x.PatchServicesAndIds(
                 podcast.Id,
                 episode.Id,
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()))
             .ReturnsAsync(true);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();
@@ -346,7 +347,7 @@ public class EpisodeServiceCatalogPatchTests
             x => x.PatchServicesAndIds(
                 podcast.Id,
                 episode.Id,
-                It.Is<Dictionary<string, EpisodeServiceLink>?>(s =>
+                It.Is<Dictionary<string, ServiceLink>?>(s =>
                     s != null && s.ContainsKey(ServiceKeys.Spotify)),
                 It.Is<EpisodeIds?>(ids => ids != null && ids.Spotify == nestedSpotifyId)),
             Times.Once);
@@ -400,7 +401,7 @@ public class EpisodeServiceCatalogPatchTests
             .Setup(x => x.PatchServicesAndIds(
                 It.IsAny<Guid>(),
                 It.IsAny<Guid>(),
-                It.IsAny<Dictionary<string, EpisodeServiceLink>?>(),
+                It.IsAny<Dictionary<string, ServiceLink>?>(),
                 It.IsAny<EpisodeIds?>()))
             .ReturnsAsync(false);
         var sut = _mocker.CreateInstance<EpisodeServiceBackfillProcessor>();

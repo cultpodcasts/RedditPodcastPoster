@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
@@ -20,7 +21,7 @@ public class FindDuplicateEpisodesProcessor(
     ILogger<FindDuplicateEpisodesProcessor> logger)
 {
     private const string ActiveEpisodesFilter =
-        "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+        $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
         new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "blueskyPost", "description" };
@@ -272,7 +273,7 @@ public class FindDuplicateEpisodesProcessor(
             updated = true;
         }
 
-        if (keeper.Removed && !toDelete.Removed)
+        if (keeper.IsRemoved() && !toDelete.IsRemoved())
         {
             logger.LogWarning(
                 "Pair {KeeperId}/{ToDeleteId}: resetting keeper.Removed from true to false based on duplicate.",
@@ -309,14 +310,14 @@ public class FindDuplicateEpisodesProcessor(
             keeper.Id, toDelete.Id, differences.Count, string.Join("; ", differences));
 
         // Release date: use the earliest of the two (most likely correct)
-        var earliestRelease = firstEpisode.Release <= secondEpisode.Release
-            ? firstEpisode.Release
-            : secondEpisode.Release;
-        if (keeper.Release != earliestRelease)
+        var earliestRelease = firstEpisode.ReleaseUtc <= secondEpisode.ReleaseUtc
+            ? firstEpisode.ReleaseUtc
+            : secondEpisode.ReleaseUtc;
+        if (keeper.ReleaseUtc != earliestRelease)
         {
             logger.LogWarning("Pair {KeeperId}: correcting release {Old} -> {New} (earliest of pair).",
-                keeper.Id, keeper.Release, earliestRelease);
-            keeper.Release = earliestRelease;
+                keeper.Id, keeper.ReleaseUtc, earliestRelease);
+            keeper.ReleaseUtc = earliestRelease;
             updated = true;
         }
 
@@ -426,7 +427,7 @@ public class FindDuplicateEpisodesProcessor(
             }
 
             var anyDeletedNotIgnored = group.Any(x => !x.Ignored);
-            var anyDeletedNotRemoved = group.Any(x => !x.Removed);
+            var anyDeletedNotRemoved = group.Any(x => !x.IsRemoved());
 
             foreach (var canonical in canonicals)
             {

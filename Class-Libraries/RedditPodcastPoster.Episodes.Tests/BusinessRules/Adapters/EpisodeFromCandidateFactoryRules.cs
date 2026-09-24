@@ -185,7 +185,7 @@ public class EpisodeFromCandidateFactoryRules
         episode.Title.Should().Be(title);
         episode.Description.Should().Be(description);
         episode.Length.Should().Be(duration);
-        episode.Release.Should().Be(release);
+        episode.ReleaseUtc.Should().Be(release);
         episode.SpotifyId.Should().BeNullOrEmpty();
         episode.AppleId.Should().BeNull();
         episode.YouTubeId.Should().BeNullOrEmpty();

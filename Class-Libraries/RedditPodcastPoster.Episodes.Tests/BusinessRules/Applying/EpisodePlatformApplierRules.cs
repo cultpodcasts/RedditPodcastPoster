@@ -126,7 +126,7 @@ public class EpisodePlatformApplierRules
 
         // Assert
         updated.Should().BeTrue();
-        target.Release.Should().Be(newRelease);
+        target.ReleaseUtc.Should().Be(newRelease);
     }
 
     [Fact(DisplayName =
@@ -136,14 +136,14 @@ public class EpisodePlatformApplierRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var target = _fixture.CreateStoredEpisode(podcast);
-        var existing = target.Release;
+        var existing = target.ReleaseUtc;
 
         // Act
         var updated = _applier.ApplyFillMissingRelease(target, existing);
 
         // Assert
         updated.Should().BeFalse();
-        target.Release.Should().Be(existing);
+        target.ReleaseUtc.Should().Be(existing);
     }
 
     private (Episode Target, EpisodePlatformPatch Patch, EpisodeExpectation Expected)

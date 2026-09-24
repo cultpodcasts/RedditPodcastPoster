@@ -13,7 +13,7 @@ public static class PodcastExtensions
             podcast.Name,
             episodes.Select(episode =>
                 new FindSpotifyPodcastRequestEpisodes(
-                    episode.Release,
+                    episode.ReleaseUtc,
                     EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
                     episode.Title)).ToList());
     }

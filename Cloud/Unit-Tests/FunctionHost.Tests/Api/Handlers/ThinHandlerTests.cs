@@ -51,7 +51,7 @@ public class ThinHandlerTests
             Id = episodeId,
             Title = "Ep",
             Length = TimeSpan.FromMinutes(30),
-            Release = DateTime.UtcNow.AddDays(-1)
+            ReleaseUtc = DateTime.UtcNow.AddDays(-1)
         };
         var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Show" };
         var service = new Mock<IPublicEpisodeGetService>();

@@ -74,11 +74,11 @@ public static class StreamingScraperBrowsePages
             SampleLookups: 1,
             StabilityNote: "Vimeo homepage may expose a small number of numeric video ids"),
 
-        new(StreamingScraperProvider.Channel4, "channel4-home",
-            new Uri("https://www.channel4.com/"),
+        new(StreamingScraperProvider.Channel4, "channel4-programmes",
+            new Uri("https://www.channel4.com/programmes"),
             MinSubmitLinks: 1,
             SampleLookups: 1,
-            StabilityNote: "Channel 4 homepage SSR embeds /programmes/ catalogue cards"),
+            StabilityNote: "Channel 4 catalogue root SSRs /programmes/{slug} cards; the homepage went client-rendered (0 SSR programme links, Sep 2026)"),
 
         // Fawesome / Disney+ / discovery+ / Max / Play Suisse / ITVX / TVNZ+ / Paramount+
         // marketing or geo-walled shells do not reliably SSR submit deep links; keep coverage

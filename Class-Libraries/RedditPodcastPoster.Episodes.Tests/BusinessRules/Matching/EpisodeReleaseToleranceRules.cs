@@ -437,7 +437,7 @@ public class EpisodeReleaseToleranceRules
         var youTubeRelease = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc);
         var episode = new Episode
         {
-            Release = youTubeRelease,
+            ReleaseUtc = youTubeRelease,
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4",
             Urls = new ServiceUrls
@@ -467,7 +467,7 @@ public class EpisodeReleaseToleranceRules
         };
         var episode = new Episode
         {
-            Release = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc),
+            ReleaseUtc = new DateTime(2026, 6, 4, 13, 8, 6, DateTimeKind.Utc),
             YouTubeId = "UsqC0L9He2g",
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
         };
@@ -491,7 +491,7 @@ public class EpisodeReleaseToleranceRules
         };
         var episode = new Episode
         {
-            Release = new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
+            ReleaseUtc = new DateTime(2026, 6, 28, 0, 0, 0, DateTimeKind.Utc),
             SpotifyId = "6O1Z1s7ca0PI8Gq1rdt3j4"
         };
 
@@ -519,7 +519,7 @@ public class EpisodeReleaseToleranceRules
         };
         var episode = new Episode
         {
-            Release = youTubeRelease,
+            ReleaseUtc = youTubeRelease,
             YouTubeId = "UsqC0L9He2g",
             Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
         };
@@ -556,7 +556,7 @@ public class EpisodeReleaseToleranceRules
         };
         var episode = new Episode
         {
-            Release = DateTime.UtcNow.AddDays(4).Add(delay),
+            ReleaseUtc = DateTime.UtcNow.AddDays(4).Add(delay),
             YouTubeId = "UsqC0L9He2g",
             Urls = new ServiceUrls { YouTube = new Uri("https://www.youtube.com/watch?v=UsqC0L9He2g") }
         };
@@ -573,7 +573,7 @@ public class EpisodeReleaseToleranceRules
                 episode.SpotifyId = "existing-spotify-id";
                 break;
             case "outside_release_window":
-                episode.Release = DateTime.UtcNow.AddDays(-60).Add(delay);
+                episode.ReleaseUtc = DateTime.UtcNow.AddDays(-60).Add(delay);
                 break;
         }
 
@@ -657,7 +657,7 @@ public class EpisodeReleaseToleranceRules
         };
         var episode = new Episode
         {
-            Release = youTubeRelease,
+            ReleaseUtc = youTubeRelease,
             YouTubeId = _fixture.CreateYouTubeId(),
             Urls = new ServiceUrls
             {

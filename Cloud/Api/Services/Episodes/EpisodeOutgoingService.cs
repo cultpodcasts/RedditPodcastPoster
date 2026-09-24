@@ -36,7 +36,7 @@ public class EpisodeOutgoingService(
                 var episode = podcastEpisode.Episode;
                 var podcast = podcastEpisode.Podcast;
 
-                if (episode.Removed)
+                if (episode.IsRemoved())
                 {
                     continue;
                 }
@@ -61,7 +61,7 @@ public class EpisodeOutgoingService(
 
             return new EpisodeOutgoingResult(
                 EpisodeOutgoingStatus.Ok,
-                episodes.OrderByDescending(x => x.Episode.Release).ToList());
+                episodes.OrderByDescending(x => x.Episode.ReleaseUtc ).ToList());
         }
         catch (Exception ex)
         {

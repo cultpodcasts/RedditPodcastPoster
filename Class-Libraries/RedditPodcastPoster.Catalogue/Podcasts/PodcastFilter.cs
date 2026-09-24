@@ -13,10 +13,10 @@ public class PodcastFilter(ILogger<PodcastFilter> logger) : IPodcastFilter
         logger.LogInformation(
             "{method}: Filtering episodes for podcast '{podcastName}'. Count: {Count}. Elimination-terms count: {EliminationTermsCount}. Episode-ids: {EpisodeIds}",
             nameof(Filter), podcast.Name, episodes.Count(), eliminationTerms.Count,
-            episodes.Where(x => !x.Removed).Select(x => x.Id));
+            episodes.Where(x => !x.IsRemoved()).Select(x => x.Id));
         var filteredEpisodes = new List<FilteredEpisode>();
         var episodesToRemove = new List<Episode>();
-        foreach (var podcastEpisode in episodes.Where(x => !x.Removed))
+        foreach (var podcastEpisode in episodes.Where(x => !x.IsRemoved()))
         {
             var remove = false;
             var titleLower = podcastEpisode.Title.ToLower();

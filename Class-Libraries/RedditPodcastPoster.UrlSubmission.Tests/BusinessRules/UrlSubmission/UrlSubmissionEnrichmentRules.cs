@@ -67,7 +67,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 resolvedSpotifyDescription,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 spotifyInput.Url!,
                 false,
@@ -80,7 +80,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 resolvedAppleDescription,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 appleInput.Url!,
                 false,
@@ -93,7 +93,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 resolvedYouTubeDescription,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 youTubeInput.YouTubeUrl,
                 false,
@@ -238,7 +238,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 episode.Description,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!,
                 false,
@@ -251,7 +251,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 episode.Description,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple)!,
                 false,
@@ -264,7 +264,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 episode.Description,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!,
                 false,
@@ -321,7 +321,7 @@ public class UrlSubmissionEnrichmentRules
                 publisher,
                 episode.Title,
                 resolvedSpotifyDescription,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 spotifyInput.Url!,
                 false,
@@ -359,7 +359,7 @@ public class UrlSubmissionEnrichmentRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.Release = midnightRelease;
+                e.ReleaseUtc = midnightRelease;
                 e.AppleId = appleInput.EpisodeId;
                 e.Urls = new ServiceUrls { Apple = appleInput.Url };
             })
@@ -373,7 +373,7 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        episode.Release.Should().Be(appleRelease);
+        episode.ReleaseUtc.Should().Be(appleRelease);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
 
@@ -394,7 +394,7 @@ public class UrlSubmissionEnrichmentRules
             .WithPodcast(podcast)
             .Customize(e =>
             {
-                e.Release = midnightRelease;
+                e.ReleaseUtc = midnightRelease;
                 e.YouTubeId = youTubeInput.EpisodeId;
                 e.Urls = new ServiceUrls { YouTube = youTubeInput.Url };
             })
@@ -408,7 +408,7 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        episode.Release.Should().Be(youTubeRelease);
+        episode.ReleaseUtc.Should().Be(youTubeRelease);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
 
@@ -726,7 +726,7 @@ public class UrlSubmissionEnrichmentRules
             _fixture.CreateNonMidnightTimeOfDay());
         var episode = _fixture.CreateStoredEpisode(
             podcast,
-            e => e.Release = midnightRelease);
+            e => e.ReleaseUtc = midnightRelease);
         var nonPodcastItem = new ResolvedNonPodcastServiceItem(
             StreamingService.BbcSounds,
             Url: _fixture.Create<Uri>(),
@@ -742,7 +742,7 @@ public class UrlSubmissionEnrichmentRules
             episode);
 
         // Assert
-        episode.Release.Should().Be(timedRelease);
+        episode.ReleaseUtc.Should().Be(timedRelease);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.Enriched);
     }
 
@@ -1110,7 +1110,7 @@ public class UrlSubmissionEnrichmentRules
         {
             e.Title = staleTitle;
             e.Description = _fixture.Create<string>();
-            e.Release = staleRelease;
+            e.ReleaseUtc = staleRelease;
             e.Length = TimeSpan.Zero;
         });
         EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.Itvx), itvxUrl, staleImage);
@@ -1133,7 +1133,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Title.Should().Be(freshTitle);
         episode.Description.Should().Be(freshDescription);
-        episode.Release.Should().Be(freshRelease);
+        episode.ReleaseUtc.Should().Be(freshRelease);
         episode.Length.Should().Be(freshLength);
         EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.Itvx)).Should().Be(itvxUrl);
         EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Itvx)).Should().Be(freshImage);
@@ -1160,7 +1160,7 @@ public class UrlSubmissionEnrichmentRules
         {
             e.Title = title;
             e.Description = description;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.Length = length;
         });
         EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.Itvx), itvxUrl, image);
@@ -1183,7 +1183,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Title.Should().Be(title);
         episode.Description.Should().Be(description);
-        episode.Release.Should().Be(release);
+        episode.ReleaseUtc.Should().Be(release);
         episode.Length.Should().Be(length);
         EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Itvx)).Should().Be(image);
         response.AppliedEpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
@@ -1225,7 +1225,7 @@ public class UrlSubmissionEnrichmentRules
             Title: episode.Title,
             Description: null,
             Image: null,
-            Release: episode.Release,
+            Release: episode.ReleaseUtc,
             Duration: episode.Length);
         var categorisedItem = new CategorisedItem(
             podcast,
@@ -1239,7 +1239,7 @@ public class UrlSubmissionEnrichmentRules
                 string.Empty,
                 episode.Title,
                 spotifyFillIn,
-                episode.Release,
+                episode.ReleaseUtc,
                 episode.Length,
                 spotifyInput.Url!,
                 false,
@@ -1288,7 +1288,7 @@ public class UrlSubmissionEnrichmentRules
             Title: freshTitle,
             Description: episode.Description,
             Image: freshImage,
-            Release: episode.Release,
+            Release: episode.ReleaseUtc,
             Duration: freshLength);
         var categorisedItem = CreateNonPodcastOnlyCategorisedItem(podcast, episode, nonPodcastItem);
 
@@ -1329,7 +1329,7 @@ public class UrlSubmissionEnrichmentRules
         {
             e.Title = title;
             e.Description = description;
-            e.Release = staleRelease;
+            e.ReleaseUtc = staleRelease;
             e.Length = TimeSpan.Zero;
         });
         EpisodeServicePresence.Upsert(episode, StreamingServiceWire.ToKey(StreamingService.Itvx), itvxUrl, staleImage);
@@ -1352,7 +1352,7 @@ public class UrlSubmissionEnrichmentRules
         // Assert
         episode.Title.Should().Be(title);
         episode.Description.Should().Be(description);
-        episode.Release.Should().Be(staleRelease);
+        episode.ReleaseUtc.Should().Be(staleRelease);
         episode.Length.Should().Be(TimeSpan.Zero);
         EpisodeServicePresence.TryGetImage(episode, StreamingServiceWire.ToKey(StreamingService.Itvx)).Should().Be(staleImage);
     }

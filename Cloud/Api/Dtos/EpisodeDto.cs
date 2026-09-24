@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
@@ -103,7 +105,7 @@ public class EpisodeDto
 
     [JsonPropertyName("matches")]
     [JsonPropertyOrder(72)]
-    public List<EpisodeSubjectMatch> Matches { get; set; } = [];
+    public List<PlayableSubjectMatch> Matches { get; set; } = [];
 
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
@@ -119,7 +121,7 @@ public class EpisodeDto
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]

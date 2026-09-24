@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill;
 
@@ -11,6 +12,6 @@ public interface IBackfillEpisodeRepository
     Task<bool> PatchServicesAndIds(
         Guid podcastId,
         Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
+        Dictionary<string, ServiceLink>? services,
         EpisodeIds? ids);
 }

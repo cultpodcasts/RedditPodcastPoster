@@ -125,7 +125,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = youTubeInput.Release;
+                e.ReleaseUtc = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
@@ -209,7 +209,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = youTubeInput.Release;
+                e.ReleaseUtc = youTubeInput.Release;
                 e.Description = string.Empty;
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
@@ -269,7 +269,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = youTubeInput.Release;
+                e.ReleaseUtc = youTubeInput.Release;
                 e.Description = string.Empty;
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
@@ -340,7 +340,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = midnightRelease;
+                e.ReleaseUtc = midnightRelease;
                 EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Description = _fixture.Create<string>();
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
@@ -365,7 +365,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        episode.Release.Should().Be(youTubeRelease);
+        episode.ReleaseUtc.Should().Be(youTubeRelease);
         enrichmentContext.ReleaseUpdated.Should().BeTrue();
     }
 
@@ -384,7 +384,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = youTubeInput.Release;
+                e.ReleaseUtc = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();
@@ -482,7 +482,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             {
                 e.Title = youTubeInput.Title;
                 e.Length = youTubeInput.Duration;
-                e.Release = youTubeInput.Release;
+                e.ReleaseUtc = youTubeInput.Release;
                 e.Description = _fixture.Create<string>();
                 EpisodeServicePresence.SetYouTubeIdentity(e, null);
                 e.Urls = new ServiceUrls();

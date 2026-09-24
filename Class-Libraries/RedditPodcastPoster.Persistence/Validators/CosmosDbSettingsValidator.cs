@@ -37,6 +37,36 @@ public class CosmosDbSettingsValidator : IValidateOptions<CosmosDbSettings>
                 $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.EpisodesContainer)} must not be null or empty (config key: cosmosdb__EpisodesContainer).");
         }
 
+        if (string.IsNullOrWhiteSpace(options.TvShowsContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.TvShowsContainer)} must not be null or empty (config key: cosmosdb__TvShowsContainer).");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.TvShowEpisodesContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.TvShowEpisodesContainer)} must not be null or empty (config key: cosmosdb__TvShowEpisodesContainer).");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.FilmsContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.FilmsContainer)} must not be null or empty (config key: cosmosdb__FilmsContainer).");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.NewsOrganisationsContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.NewsOrganisationsContainer)} must not be null or empty (config key: cosmosdb__NewsOrganisationsContainer).");
+        }
+
+        if (string.IsNullOrWhiteSpace(options.NewsReportsContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.NewsReportsContainer)} must not be null or empty (config key: cosmosdb__NewsReportsContainer).");
+        }
+
         if (string.IsNullOrWhiteSpace(options.SubjectsContainer))
         {
             return ValidateOptionsResult.Fail(

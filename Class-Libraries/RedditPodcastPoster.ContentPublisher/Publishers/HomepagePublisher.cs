@@ -13,12 +13,14 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
@@ -140,7 +142,9 @@ public class HomepagePublisher(
 
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
-                           x => x.Release >= recentCutoff && !x.Ignored && !x.Removed))
+                           EpisodeCosmosFilters.And(
+                               EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                               x => !x.Ignored && !x.Removed)))
         {
             ct.ThrowIfCancellationRequested();
             EpisodeServicePresence.NormalizeCatalog(episode);
@@ -152,7 +156,7 @@ public class HomepagePublisher(
                 EpisodeId = episode.Id,
                 EpisodeTitle = episode.Title,
                 EpisodeDescription = episode.Description,
-                Release = episode.Release,
+                Release = episode.ReleaseUtc,
                 Services = episode.Services,
                 Ids = episode.Ids,
                 Length = episode.Length,
@@ -179,8 +183,9 @@ public class HomepagePublisher(
         {
             durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                                      x.PodcastRemoved == null),
+                    EpisodeCosmosFilters.And(
+                        EpisodeCosmosFilters.ParentNotRemoved,
+                        x => !x.Removed && !x.Ignored),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
@@ -190,8 +195,9 @@ public class HomepagePublisher(
         {
             countEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                        x.PodcastRemoved == null),
+                    EpisodeCosmosFilters.And(
+                        EpisodeCosmosFilters.ParentNotRemoved,
+                        x => !x.Removed),
                     x => x.Id)
                 .ToListAsync(ct)
                 .AsTask();
@@ -334,7 +340,7 @@ public class HomepagePublisher(
         public string EpisodeTitle { get; init; } = string.Empty;
         public string EpisodeDescription { get; init; } = string.Empty;
         public DateTime Release { get; init; }
-        public Dictionary<string, EpisodeServiceLink>? Services { get; init; }
+        public Dictionary<string, ServiceLink>? Services { get; init; }
         public EpisodeIds? Ids { get; init; }
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];

@@ -234,7 +234,7 @@ public class BlueskyPostManager(
                 BlueskyEmbedCardPostFactory.LengthFormat,
                 CultureInfo.InvariantCulture)) &&
             x.Value.ExtensionData["text"].GetString()!.Contains(
-                podcastEpisode.Episode.Release.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
+                podcastEpisode.Episode.ReleaseUtc.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
         ).ToArray();
 
         if (!matchingPosts.Any())

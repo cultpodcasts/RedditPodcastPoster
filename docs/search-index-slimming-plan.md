@@ -54,7 +54,7 @@ Schema source: `EpisodeSearchRecord` (FieldBuilder + camelCase). Datasource SQL 
 | `bbc` | string | | | | | ✓ | Full URL or `""` — **not ID-derivable** |
 | `internetArchive` | string | | | | | ✓ | Full URL or `""` — **not ID-derivable** |
 | `subjects` | string[] | ✓ | ✓ | | ✓ | ✓ | Facet + filter |
-| `podcastSearchTerms` | string | ✓ | | | | **hidden** | Inverted index only |
+| `publisherSearchTerms` | string | ✓ | | | | **hidden** | Inverted index only |
 | `episodeSearchTerms` | string | ✓ | | | | **hidden** | Inverted index only |
 | `image` | string | | | | | ✓ | Prefer YT → Spotify → Apple → other |
 | `lang` | string? | | ✓ | | ✓ | ✓ | Subject page defaults to `lang eq null` (= English/unset; see §3D) |
@@ -92,7 +92,7 @@ Findings:
    - **Searchable** → inverted index / tokenized structures (extra space).
    - **Filterable / sortable / facetable** → additional storage for non-tokenized values (can multiply cost; MS: filtering/sorting/faceting can roughly quadruple storage vs minimal attribution).
    - **Retrievable / stored return values** → needed to return display fields; MS notes toggling retrievable alone is nuanced (`retrievable=true` “doesn’t cause increase” in create-index docs, while serverless guidance says `retrievable=false` on filter/sort-only fields can reduce on-disk storage). For URL-only display fields, **removing or shrinking the string value** is what frees quota.
-   - **Hidden searchable fields** (`podcastSearchTerms`, `episodeSearchTerms`) still consume inverted-index space even though clients never see them.
+   - **Hidden searchable fields** (`publisherSearchTerms`, `episodeSearchTerms`) still consume inverted-index space even though clients never see them.
    - **Vectors** — none in this index.
    - **Dual indexes** on one service **both** count toward the same service storage quota.
 
@@ -237,7 +237,7 @@ Retrievable values ≈ 37.5 MB of the 49.1 MB `storageSize`; the rest is inverte
 | `spotify`/`apple`/`youtube` | retrievable-only | Card link icons (via reconstruction post-change) | **Replace with ids** (§3A) | **≈5.29 MB net** |
 | `bbc`, `internetArchive` | retrievable-only | `episode-links` / `episode-image` on search cards | **Keep** (not derivable; 0.027 MB combined) | — |
 | `subjects` | searchable+filterable+facetable | Facets, `subjects/any(…)` filters, `app-subjects` display | **Keep** (all attributes used) | — |
-| `podcastSearchTerms` | searchable, **hidden** | Search ranking only (by design) | **Keep** — already retrievable=false, cost is inverted-index only (not measurable via docs API) | — |
+| `publisherSearchTerms` | searchable, **hidden** | Search ranking only (by design) | **Keep** — already retrievable=false, cost is inverted-index only (not measurable via docs API) | — |
 | `episodeSearchTerms` | searchable, **hidden** | Same | **Keep** | — |
 | `image` | retrievable-only | `episode-image.component` | **Derive YouTube thumbnails** (below) | **≈3.18 MB net** |
 | `lang` | filterable+facetable | Current filter: `subject-api` `lang eq null`; **faceting is confirmed planned/intended for subject searches**. Never displayed as a document property | **Keep filterable=true + facetable=true; set retrievable=false.** Facet values/counts come from `@search.facets`, so document retrieval is not required | Small stored-value saving only |
@@ -303,7 +303,7 @@ Observed query surface (exhaustive):
 | `spotify`/`apple`/`youtube` | — | — | — | — | ✓ (via reconstruction) | **Replace with ids** (§3A) |
 | `bbc`, `internetArchive` | — | — | — | — | ✓ used | Keep |
 | `subjects` | ✓ used | ✓ **used** (`subjects/any`) | — | ✓ **used** (facet) | ✓ used (chips) | Keep as is — fully utilised |
-| `podcastSearchTerms` | ✓ used (ranking) | — | — | — | already `false` | Keep as is |
+| `publisherSearchTerms` | ✓ used (ranking) | — | — | — | already `false` | Keep as is |
 | `episodeSearchTerms` | ✓ used (ranking) | — | — | — | already `false` | Keep as is |
 | `image` | — | — | — | — | ✓ used | Derive YT thumbs (§3B) |
 | `lang` | — | ✓ **used** (`lang eq null`) | — | ✓ **required** (planned subject-search facet) | ✗ **never displayed from a document** | **Keep filterable=true + facetable=true; set retrievable=false** |
@@ -348,7 +348,7 @@ Live index distribution (`@search.facets` on `lang` + count filters):
 
 Top non-null values: `es` 3948, `pt` 581, `fr` 478, `cs` 324, `de` 140, `it` 58, … (no English variants).
 
-**Semantics:** In this product, English/default is represented by **`lang` absent (`null`)**, not by `en`. Curator UI: episode English = `unset` → stored null (`NormaliseEpisodeLanguage`). **HARD:** do **not** project `e.lang ?? e.podcastLanguage` or map `episode.Language ?? podcast.Language` — null means English, including for English episodes of non-English podcasts. Live push mapper and Cosmos SQL use **episode `lang` only**. See [episode-language.md](episode-language.md).
+**Semantics:** In this product, English/default is represented by **`lang` absent (`null`)**, not by `en`. Curator UI: episode English = `unset` → stored null (`NormaliseEpisodeLanguage`). **HARD:** do **not** project `e.lang ?? e.publisherLanguage` or map `episode.Language ?? podcast.Language` — null means English, including for English episodes of non-English podcasts. Live push mapper and Cosmos SQL use **episode `lang` only**. See [episode-language.md](episode-language.md).
 
 Therefore today's `lang eq null` clause is **already the English-only default**, by convention: it keeps unset/default-English docs and excludes explicit non-English codes. It does **not** mean “unknown language” as a separate concept in live data.
 
@@ -445,7 +445,7 @@ Reset page to 1 and re-run search (same pattern as `podcastsChange`).
 | `internetArchive` | retrievable string | Keep full URL; not derivable |
 | `image` | retrievable string? | Store only non-YouTube image URLs; omit for derivable YT thumbnails |
 | `youtubeImageVariant` (optional) | retrievable string/enum | Preserve YT thumbnail variant only if fallback behavior is insufficient |
-| `podcastSearchTerms` | searchable, retrievable=false | Unchanged |
+| `publisherSearchTerms` | searchable, retrievable=false | Unchanged |
 | `episodeSearchTerms` | searchable, retrievable=false | Unchanged |
 
 Prefer omitting null/empty IDs and `image` rather than writing `""`.

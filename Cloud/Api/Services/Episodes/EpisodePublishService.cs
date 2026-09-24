@@ -124,7 +124,7 @@ public class EpisodePublishService(
                     podcastEpisodeResolverResponse.Episode.Ignored = false;
                 }
 
-                if (podcastEpisodeResolverResponse.Episode.Removed)
+                if (podcastEpisodeResolverResponse.Episode.IsRemoved())
                 {
                     podcastEpisodeResolverResponse.Episode.Removed = false;
                 }

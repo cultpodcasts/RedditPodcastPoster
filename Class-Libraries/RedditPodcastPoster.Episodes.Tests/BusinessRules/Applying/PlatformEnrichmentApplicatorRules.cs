@@ -122,7 +122,7 @@ public class PlatformEnrichmentApplicatorRules
             {
                 e.Title = storedTitle;
                 e.Length = storedLength;
-                e.Release = midnightRelease;
+                e.ReleaseUtc = midnightRelease;
                 e.SpotifyId = spotifyId;
                 e.Urls = new ServiceUrls { Spotify = _fixture.DefaultSpotifyUrl(spotifyId) };
             })
@@ -138,7 +138,7 @@ public class PlatformEnrichmentApplicatorRules
 
         // Assert
         result.ReleaseUpdated.Should().BeTrue();
-        target.Release.Should().Be(appleRelease);
+        target.ReleaseUtc.Should().Be(appleRelease);
     }
 
     [Fact(DisplayName =
@@ -172,7 +172,7 @@ public class PlatformEnrichmentApplicatorRules
 
         // Assert
         result.ReleaseUpdated.Should().BeFalse();
-        target.Release.Should().Be(youTubeRelease);
+        target.ReleaseUtc.Should().Be(youTubeRelease);
     }
 
     [Fact(DisplayName =
@@ -396,7 +396,7 @@ public class PlatformEnrichmentApplicatorRules
             {
                 e.Title = storedTitle;
                 e.Length = storedLength;
-                e.Release = midnightRelease;
+                e.ReleaseUtc = midnightRelease;
                 EpisodeServicePresence.SetAppleIdentity(e, null);
                 e.Urls = new ServiceUrls();
             })
@@ -407,7 +407,7 @@ public class PlatformEnrichmentApplicatorRules
 
         // Assert
         result.ReleaseUpdated.Should().BeFalse();
-        target.Release.Should().Be(midnightRelease);
+        target.ReleaseUtc.Should().Be(midnightRelease);
         target.AppleId.Should().BeNull();
         target.Urls.Apple.Should().Be(appleInput.AppleUrl);
     }

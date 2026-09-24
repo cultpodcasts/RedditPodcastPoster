@@ -24,7 +24,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 
     public EpisodeChangeState Apply(Episode episode, EpisodeChangeRequest episodeChangeRequest)
     {
-        var inPastWeek = episode.Release > _pastWeek;
+        var inPastWeek = episode.ReleaseUtc > _pastWeek;
         var changeState = new EpisodeChangeState();
         if (!string.IsNullOrWhiteSpace(episodeChangeRequest.Title))
         {
@@ -55,8 +55,8 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 
         if (episodeChangeRequest.Release != null)
         {
-            episode.Release = episodeChangeRequest.Release.Value;
-            inPastWeek |= episode.Release > _pastWeek;
+            episode.ReleaseUtc = episodeChangeRequest.Release.Value;
+            inPastWeek |= episode.ReleaseUtc > _pastWeek;
         }
 
         if (episodeChangeRequest.Explicit != null)

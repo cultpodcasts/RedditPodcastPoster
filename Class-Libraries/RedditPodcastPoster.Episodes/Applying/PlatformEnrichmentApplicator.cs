@@ -41,7 +41,7 @@ public sealed class PlatformEnrichmentApplicator(
             link.Service,
             link.Url,
             releaseUpdated,
-            releaseUpdated ? target.Release : null);
+            releaseUpdated ? target.ReleaseUtc : null);
     }
 
     public bool ApplyDescription(Episode target, string description) =>
@@ -80,7 +80,7 @@ public sealed class PlatformEnrichmentApplicator(
                 case ReleaseMergeOpinion.DoNotBackfill:
                     return false;
                 case ReleaseMergeOpinion.Backfill:
-                    return applier.ApplyFillMissingRelease(target, incoming.Release);
+                    return applier.ApplyFillMissingRelease(target, incoming.ReleaseUtc);
                 case ReleaseMergeOpinion.NoOpinion:
                     continue;
             }

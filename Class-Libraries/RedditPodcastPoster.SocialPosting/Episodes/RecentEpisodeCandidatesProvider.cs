@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.SocialPosting.Episodes;
@@ -71,7 +72,7 @@ public class RecentEpisodeCandidatesProvider(
 
             var requestedEpisodes = releasedSince <= _cacheReleasedSince
                 ? _cachedEpisodes
-                : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
+                : _cachedEpisodes.Where(x => x.Episode.ReleaseUtc >= releasedSince).ToArray();
 
             logger.LogWarning(
                 "{method}: Loaded recent episodes via latestReleased-scoped partition reads. Requested released-since: '{ReleasedSince:O}', Cache released-since: '{CachedReleasedSince:O}', Count: {Count}.",
@@ -95,7 +96,7 @@ public class RecentEpisodeCandidatesProvider(
     {
         var episodes = await GetEpisodes(releasedSince);
         return episodes
-            .Where(x => x.Episode is { Ignored: false, Removed: false })
+            .Where(x => !x.Episode.Ignored && !x.Episode.IsRemoved())
             .ToList();
     }
 
@@ -112,7 +113,7 @@ public class RecentEpisodeCandidatesProvider(
 
         episodes = releasedSince == _cacheReleasedSince
             ? _cachedEpisodes
-            : _cachedEpisodes.Where(x => x.Episode.Release >= releasedSince).ToArray();
+            : _cachedEpisodes.Where(x => x.Episode.ReleaseUtc >= releasedSince).ToArray();
 
         return true;
     }
@@ -139,7 +140,7 @@ public class RecentEpisodeCandidatesProvider(
         foreach (var podcast in recentPodcasts)
         {
             var episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.Release >= releasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(releasedSince))
                 .ToArrayAsync();
 
             foreach (var episode in episodes)
@@ -149,7 +150,7 @@ public class RecentEpisodeCandidatesProvider(
         }
 
         return podcastEpisodes
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
     }
 }

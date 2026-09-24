@@ -1,6 +1,6 @@
 # Catalogue content types epic (planning)
 
-**Status:** Phase 0 — **sign-off complete 2026-09-23** (quiz OPEN-001…012 + CLS). Not scheduled for implementation.  
+**Status:** Phase 1 code on PR [#988](https://github.com/cultpodcasts/RedditPodcastPoster/pull/988). **Follow the run:** [catalogue-run/README.md](./catalogue-run/README.md) — one file per Build/GATE; open only the current file.  
 **Purpose:** rock-solid product + architecture contract for splitting podcast, TV, film (one-off documentary), and news — without breaking today’s catalogue, search, or submit flows.
 
 **Supersedes (terminology):** earlier drafts used **Movie** / `/movie/` / `movieName`. **Do not use those names.** Product type is **Film**.
@@ -356,9 +356,50 @@ Lookup: membership across playable containers; name attach per parent kind with 
 
 ### Phase 1 — Schema & persistence (no user-facing switch)
 
-- Cosmos: TvShows, TvShowEpisodes, Films, NewsOrganisations, NewsReports + repositories  
-- Models mirror Episode `services` where applicable  
-- Unit tests; **no** production writes  
+- [x] Cosmos: TvShows, TvShowEpisodes, Films, NewsOrganisations, NewsReports + repositories  
+- [x] Models mirror Episode `services` where applicable (incl. `guests` on playables; parent denorm mirrors `SetPodcastProperties`)  
+- [x] Unit tests; **no** production writes  
+- [ ] **Ops (before code deploy):** provision Cosmos containers + five `cosmosdb__*` app settings via bicep (`TvShows` / `TvShowEpisodes` / `Films` / `NewsOrganisations` / `NewsReports`) on indexer, discover, and api — see [deployment.md](./deployment.md) § Provision before code. `deploy-*.ps1` is settings-blind.  
+- [ ] **Ops (Episode JSON cutover):** dual-key Cosmos predicates for renamed Episode wire keys + additive `releaseSort` **before** Function deploy that filters on the new names — see [Episode JSON cutover](#episode-json-cutover-phase-1). Deserialize bridges are **not** query-safe.  
+- [ ] Follow-up: DRY shared Cosmos repository helper (avoid multiplying Film/TV/News clones in Phase 3) — [#989](https://github.com/cultpodcasts/RedditPodcastPoster/issues/989).  
+- [ ] **Gate (kanban): every ticket deferred out of Phase 1 MUST be a visible card in the Todo column of [@cultpodcasts features](https://github.com/users/cultpodcasts/projects/1)** — an issue link on the sidebar is not enough. Add + verify with `pwsh ./scripts/add-issue-to-features-board.ps1 -IssueUrl <issue>` (REST path; exit 0 = card listed). Currently pending for #989: item `253190568` is persisted with Status=Todo but the board render is stalled by GitHub's 2026-09-23 stale-Projects-indexing incident; re-check once GitHub recovers.  
+
+#### Episode JSON cutover (Phase 1)
+
+Phase 1 renames Episode parent-denorm JSON and adds a sort key. Production documents today use the legacy names only.
+
+| Legacy wire | New wire | Notes |
+|-------------|----------|--------|
+| `podcastSearchTerms` | `publisherSearchTerms` | Deserialize bridge hydrates in-memory; dual-read in search SQL |
+| `podcastLanguage` | `publisherLanguage` | Deserialize bridge only |
+| `podcastMetadataVersion` | `parentMetadataVersion` | Deserialize bridge only |
+| `podcastRemoved` | `parentRemoved` | Deserialize bridge only — **not query-safe alone** |
+| *(absent)* | `releaseSort` | Additive UTC instant for Cosmos range filters; legacy docs have `release` only |
+
+```mermaid
+flowchart TD
+  subgraph deploy [Deploy order]
+    A[Provision containers + cosmosdb__* settings] --> B[Ship Function code with dual-key queries]
+    B --> C[Optional releaseSort / wire-name backfill dry-run]
+    C --> D["Backfill --apply only with explicit approval"]
+  end
+  subgraph query [Until rewrite]
+    E[Cosmos SQL/LINQ] --> F["Dual-key: parentRemoved OR podcastRemoved"]
+    E --> G["Dual-key: releaseSort ?? release"]
+    H[STJ deserialize bridges] -.->|client only| I[In-memory Parent* / Publisher*]
+  end
+```
+
+**Rules**
+
+1. **Query dual-key required** until a verified corpus rewrite: use `Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, and `EpisodeCosmosFilters` (LINQ). Do not filter solely on `parentRemoved` / `releaseSort`.
+2. **First `Save()` after code deploy** omits legacy keys and emits the new names (bridges get null). That is intentional withering — not a full corpus migrate.
+3. **Backfill tool** (if/when built): dry-run default; production writes require explicit `--apply` approval in-conversation. Prefer dual-key over mandatory pre-deploy rewrite when dual-key is already shipped.
+4. **Console SQL** (CreateSearchIndex, FindDuplicateEpisodes, etc.) must use the same dual-key fragments — do not keep `podcastRemoved`-only eligibility after search-terms dual-read lands.
+5. **Drop bridges / dual-key** only after a verified rewrite (ticket onto the features board when deferred).
+
+Link: [deployment.md](./deployment.md) § Episode JSON cutover.
+
 
 ### Phase 2 — Search index
 
@@ -426,6 +467,7 @@ Lookup: membership across playable containers; name attach per parent kind with 
 
 | Doc | Relevance |
 |-----|-----------|
+| [catalogue-run/README.md](./catalogue-run/README.md) | **Runbook** — one file per Build/GATE; open only current |
 | [episode-services.md](./episode-services.md) | Multi-URL `services` map |
 | [website submit-url-flows.md](../../website/cultpodcasts/docs/submit-url-flows.md) | Client submit/lookup (update when epic ships) |
 | [website auth0-roles-and-permissions.md](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md) | Gates |

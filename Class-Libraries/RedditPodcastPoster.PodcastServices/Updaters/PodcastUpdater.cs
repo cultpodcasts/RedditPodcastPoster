@@ -9,6 +9,7 @@ using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -70,7 +71,7 @@ public class PodcastUpdater(
         if (!enrichOnly)
         {
             var releaseScopedEpisodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.Release >= repositoryReleasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync();
 
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
@@ -113,7 +114,7 @@ public class PodcastUpdater(
         else
         {
             episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.Release >= repositoryReleasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync();
 
             episodes = episodes
@@ -203,7 +204,7 @@ public class PodcastUpdater(
                             added.Id,
                             podcast.Id,
                             podcast.AlwaysPromoteAsHero,
-                            release: added.Release,
+                            release: added.ReleaseUtc,
                             cutoff: skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
                                 ? cutoff
                                 : null,
@@ -297,7 +298,7 @@ public class PodcastUpdater(
             // Update LatestReleased if new episodes were added or merged
             if (mergeResult.AddedEpisodes.Any())
             {
-                var mostRecentAdded = mergeResult.AddedEpisodes.Max(x => x.Release);
+                var mostRecentAdded = mergeResult.AddedEpisodes.Max(x => x.ReleaseUtc);
                 if (podcast.LatestReleased == null || mostRecentAdded > podcast.LatestReleased)
                 {
                     podcast.LatestReleased = mostRecentAdded;
@@ -306,7 +307,7 @@ public class PodcastUpdater(
 
             if (mergeResult.MergedEpisodes.Any())
             {
-                var mostRecentMerged = mergeResult.MergedEpisodes.Max(x => x.Existing.Release);
+                var mostRecentMerged = mergeResult.MergedEpisodes.Max(x => x.Existing.ReleaseUtc);
                 if (podcast.LatestReleased == null || mostRecentMerged > podcast.LatestReleased)
                 {
                     podcast.LatestReleased = mostRecentMerged;
@@ -426,11 +427,11 @@ public class PodcastUpdater(
         TimeSpan youTubePublishingDelay,
         DateTime releasedSince)
     {
-        var cutoff = episode.Release + youTubePublishingDelay;
+        var cutoff = episode.ReleaseUtc + youTubePublishingDelay;
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
             var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
-            return episode.Release >= releasedSince && hasReleasedOnYouTube;
+            return episode.ReleaseUtc >= releasedSince && hasReleasedOnYouTube;
         }
 
         var inTimeframe = cutoff > releasedSince;

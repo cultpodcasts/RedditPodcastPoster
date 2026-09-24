@@ -12,7 +12,7 @@ public static class EpisodeExtensions
             return
                 EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple) &&
                 EpisodeServicePresence.AppleEpisodeId(episode) != null &&
-                episode.Release.TimeOfDay != TimeSpan.Zero;
+                episode.ReleaseUtc.TimeOfDay != TimeSpan.Zero;
         }
     }
 }

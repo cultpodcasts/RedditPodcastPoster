@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace FunctionHost.Tests.Api;
 
@@ -33,7 +34,7 @@ public class EpisodeChangeApplierTests
             PodcastId = _fixture.CreateGuid(),
             Title = "Original title",
             Description = "Original description",
-            Release = DateTime.UtcNow.AddDays(-30),
+            ReleaseUtc = DateTime.UtcNow.AddDays(-30),
             Length = TimeSpan.FromMinutes(30),
             Urls = new ServiceUrls()
         };
@@ -195,14 +196,14 @@ public class EpisodeChangeApplierTests
         sut.Apply(episode, new EpisodeChangeRequest { Release = newRelease });
 
         // Assert
-        episode.Release.Should().Be(newRelease);
+        episode.ReleaseUtc.Should().Be(newRelease);
     }
 
     [Fact(DisplayName = "Apply sets PublishHomepage when episode is within the past week and has a change")]
     public void Apply_sets_publish_homepage_for_recent_episode_with_change()
     {
         // Arrange
-        var episode = CreateEpisode(e => e.Release = DateTime.UtcNow.AddDays(-1));
+        var episode = CreateEpisode(e => e.ReleaseUtc = DateTime.UtcNow.AddDays(-1));
         var sut = CreateSut();
 
         // Act
@@ -216,7 +217,7 @@ public class EpisodeChangeApplierTests
     public void Apply_does_not_set_publish_homepage_for_old_episode()
     {
         // Arrange
-        var episode = CreateEpisode(e => e.Release = DateTime.UtcNow.AddDays(-30));
+        var episode = CreateEpisode(e => e.ReleaseUtc = DateTime.UtcNow.AddDays(-30));
         var sut = CreateSut();
 
         // Act
@@ -230,7 +231,7 @@ public class EpisodeChangeApplierTests
     public void Apply_does_not_set_publish_homepage_when_no_change()
     {
         // Arrange
-        var episode = CreateEpisode(e => e.Release = DateTime.UtcNow.AddDays(-1));
+        var episode = CreateEpisode(e => e.ReleaseUtc = DateTime.UtcNow.AddDays(-1));
         var sut = CreateSut();
 
         // Act
@@ -619,7 +620,7 @@ public class EpisodeChangeApplierTests
         // Act
         sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = vimeoUrl, Image = vimeoImage }
             }
@@ -665,7 +666,7 @@ public class EpisodeChangeApplierTests
         // Act
         var state = sut.Apply(episode, new EpisodeChangeRequest
         {
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 ["spotify"] = new() { Url = spotifyUrl }
             }

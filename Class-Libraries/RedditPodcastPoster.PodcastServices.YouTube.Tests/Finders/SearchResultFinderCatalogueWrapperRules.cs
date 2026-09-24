@@ -276,7 +276,7 @@ public class SearchResultFinderCatalogueWrapperRules
             {
                 e.Title = "Alpha market briefing on early catalogue drift signals";
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
                 e.Description = "Alpha-only show notes about market briefing mechanics.";
             })
             .Create();
@@ -328,7 +328,7 @@ public class SearchResultFinderCatalogueWrapperRules
             {
                 e.Title = episodeTitle;
                 e.Length = episodeLength;
-                e.Release = release;
+                e.ReleaseUtc = release;
                 e.AppleId = appleId;
                 e.SpotifyId = spotifyId;
                 e.Urls = new ServiceUrls { Apple = appleUrl, Spotify = spotifyUrl };

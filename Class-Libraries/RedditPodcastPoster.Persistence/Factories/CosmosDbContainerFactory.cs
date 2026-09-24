@@ -36,6 +36,31 @@ public class CosmosDbContainerFactory(
         return GetContainer(cosmosDbSettings.EpisodesContainer, "cosmosdb:EpisodesContainer");
     }
 
+    public Container CreateTvShowsContainer()
+    {
+        return GetContainer(cosmosDbSettings.TvShowsContainer, "cosmosdb:TvShowsContainer");
+    }
+
+    public Container CreateTvShowEpisodesContainer()
+    {
+        return GetContainer(cosmosDbSettings.TvShowEpisodesContainer, "cosmosdb:TvShowEpisodesContainer");
+    }
+
+    public Container CreateFilmsContainer()
+    {
+        return GetContainer(cosmosDbSettings.FilmsContainer, "cosmosdb:FilmsContainer");
+    }
+
+    public Container CreateNewsOrganisationsContainer()
+    {
+        return GetContainer(cosmosDbSettings.NewsOrganisationsContainer, "cosmosdb:NewsOrganisationsContainer");
+    }
+
+    public Container CreateNewsReportsContainer()
+    {
+        return GetContainer(cosmosDbSettings.NewsReportsContainer, "cosmosdb:NewsReportsContainer");
+    }
+
     public Container CreateSubjectsContainer()
     {
         return GetContainer(cosmosDbSettings.SubjectsContainer, "cosmosdb:SubjectsContainer");

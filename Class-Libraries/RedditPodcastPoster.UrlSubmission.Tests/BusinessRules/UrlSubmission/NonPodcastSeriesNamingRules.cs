@@ -116,7 +116,7 @@ public class NonPodcastSeriesNamingRules
 
         // Assert
         response.NewPodcast.Name.Should().Be(itemTitle);
-        response.NewPodcast.Publisher.Should().Be(uploader);
+        response.NewPodcast.PublisherName.Should().Be(uploader);
         _createdShowName.Should().NotBe(uploader);
     }
 
@@ -136,7 +136,7 @@ public class NonPodcastSeriesNamingRules
 
         // Assert
         response.NewPodcast.Name.Should().Be(author);
-        response.NewPodcast.Publisher.Should().Be(author);
+        response.NewPodcast.PublisherName.Should().Be(author);
         _createdShowName.Should().NotBe(videoTitle);
     }
 
@@ -156,7 +156,7 @@ public class NonPodcastSeriesNamingRules
 
         // Assert
         response.NewPodcast.Name.Should().Be(author);
-        response.NewPodcast.Publisher.Should().Be(author);
+        response.NewPodcast.PublisherName.Should().Be(author);
         _createdShowName.Should().NotBe(videoTitle);
     }
 

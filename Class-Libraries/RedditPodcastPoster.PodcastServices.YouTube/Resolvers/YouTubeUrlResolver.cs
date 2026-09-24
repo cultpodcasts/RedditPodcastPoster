@@ -29,7 +29,7 @@ public class YouTubeItemResolver(
         {
             indexingContext = new IndexingContext(
                 request.Episode.HasAccurateReleaseTime()
-                    ? request.Episode.Release.Add(youTubePublishingDelay)
+                    ? request.Episode.ReleaseUtc.Add(youTubePublishingDelay)
                     : DateTime.UtcNow.Add(youTubePublishingDelay),
                 indexingContext.IndexSpotify,
                 indexingContext.SkipYouTubeUrlResolving,

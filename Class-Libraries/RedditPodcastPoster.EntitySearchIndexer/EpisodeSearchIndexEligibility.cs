@@ -9,5 +9,5 @@ namespace RedditPodcastPoster.EntitySearchIndexer;
 public static class EpisodeSearchIndexEligibility
 {
     public static bool ShouldExcludeFromSearch(Podcast podcast, Episode episode) =>
-        episode.Removed || podcast.IsRemoved();
+        episode.IsRemoved() || podcast.IsRemoved();
 }

@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace Indexer.Tests;
 
@@ -64,7 +65,7 @@ public class EpisodeServicePresenceTests
         var catalogUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink>
+            e.Services = new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = catalogUrl }
             };
@@ -86,7 +87,7 @@ public class EpisodeServicePresenceTests
         var vimeoArt = new Uri("https://i.vimeocdn.com/video/123456789-d_640");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink>
+            e.Services = new Dictionary<string, ServiceLink>
             {
                 [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = vimeoUrl, Image = vimeoArt }
             };
@@ -113,7 +114,7 @@ public class EpisodeServicePresenceTests
         var vimeoArt = new Uri("https://i.vimeocdn.com/video/987654321-d_640");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink>
+            e.Services = new Dictionary<string, ServiceLink>
             {
                 [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Image = vimeoArt },
                 [ServiceKeys.Apple] = new() { Image = appleArt },
@@ -163,7 +164,7 @@ public class EpisodeServicePresenceTests
         var leftoverArt = new Uri("https://cdn.example.test/cover.jpg");
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Services = new Dictionary<string, EpisodeServiceLink>
+            e.Services = new Dictionary<string, ServiceLink>
             {
                 ["other"] = new() { Image = leftoverArt }
             };

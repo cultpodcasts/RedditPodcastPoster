@@ -49,11 +49,11 @@ public class PodcastEpisodeFilter(
         var podcastEpisodes = episodes
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
-                x.Episode.Release >= since &&
+                x.Episode.ReleaseUtc >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
         if (!podcastEpisodes.Any())
         {
@@ -77,8 +77,8 @@ public class PodcastEpisodeFilter(
             }
 
             var isRecentlyExpiredDelayedPublishing =
-                episode.Release.Add(youTubePublishingDelay) <= DateTime.UtcNow &&
-                episode.Release.Add(youTubePublishingDelay.Add(evaluationThreshold)) >= DateTime.UtcNow;
+                episode.ReleaseUtc.Add(youTubePublishingDelay) <= DateTime.UtcNow &&
+                episode.ReleaseUtc.Add(youTubePublishingDelay.Add(evaluationThreshold)) >= DateTime.UtcNow;
             return isRecentlyExpiredDelayedPublishing;
         }
 
@@ -104,12 +104,12 @@ public class PodcastEpisodeFilter(
         var podcastEpisodes = episodes
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
-                x.Episode.Release >= since &&
+                x.Episode.ReleaseUtc >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
         if (!podcastEpisodes.Any())
         {
@@ -141,13 +141,13 @@ public class PodcastEpisodeFilter(
         var podcastEpisodes = episodeArray
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
-                x.Episode.Release >= since &&
+                x.Episode.ReleaseUtc >= since &&
                 !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
         if (!podcastEpisodes.Any())
         {
@@ -177,12 +177,12 @@ public class PodcastEpisodeFilter(
         var podcastEpisodes = episodeArray
             .Select(e => new PodcastEpisode(podcast, e))
             .Where(x =>
-                x.Episode.Release >= since &&
+                x.Episode.ReleaseUtc >= since &&
                 !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-            .OrderByDescending(x => x.Episode.Release)
+            .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
         if (!podcastEpisodes.Any())
         {
@@ -211,7 +211,7 @@ public class PodcastEpisodeFilter(
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
     {
-        if (episode.Posted || episode.Ignored || episode.Removed)
+        if (episode.Posted || episode.Ignored || episode.IsRemoved())
         {
             return false;
         }
@@ -222,7 +222,7 @@ public class PodcastEpisodeFilter(
             since += youTubePublishingDelay;
         }
 
-        if (episode.Release >= since)
+        if (episode.ReleaseUtc >= since)
         {
             if ((!string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                  EpisodeServicePresence.HasUrl(episode, ServiceKeys.Spotify)) ||
@@ -238,7 +238,7 @@ public class PodcastEpisodeFilter(
             }
         }
 
-        var releasedSince = episode.Release >= since && episode.Release - DateTime.UtcNow < youTubePublishingDelay;
+        var releasedSince = episode.ReleaseUtc >= since && episode.ReleaseUtc - DateTime.UtcNow < youTubePublishingDelay;
 
         return releasedSince || IsRecentlyExpiredDelayedPublishing(podcast, episode);
     }
@@ -252,9 +252,9 @@ public class PodcastEpisodeFilter(
             !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
             string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)))
         {
-            if (podcastEpisode.Episode.Release.TimeOfDay > TimeSpan.Zero &&
+            if (podcastEpisode.Episode.ReleaseUtc.TimeOfDay > TimeSpan.Zero &&
                 podcastEpisode.Podcast.YouTubePublishingDelay() >= TimeSpan.Zero &&
-                DateTime.UtcNow < podcastEpisode.Episode.Release + podcastEpisode.Podcast.YouTubePublishingDelay())
+                DateTime.UtcNow < podcastEpisode.Episode.ReleaseUtc + podcastEpisode.Podcast.YouTubePublishingDelay())
             {
                 logger.LogInformation(
                     "{EliminateItemsDueToIndexingErrorsName} Eliminating episode with episode-id '{EpisodeId}' and episode-title '{EpisodeTitle}' from podcast with podcast-id '{PodcastId}' and podcast-name '{PodcastName}' due to '{YouTubeRefreshedName}'='{YouTubeRefreshed}'.",

@@ -77,7 +77,7 @@ public class TweetBuilderEpisodeHashTagRules
                             "01:00:00",
                             pe.Item2.First().Description,
                             pe.Item2.First().Id.ToString(),
-                            pe.Item2.First().Release,
+                            pe.Item2.First().ReleaseUtc,
                             pe.Item2.First().Subjects.ToArray(),
                             pe.Item2.First().Urls.BBC,
                             pe.Item2.First().Urls.InternetArchive)

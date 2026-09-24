@@ -34,7 +34,7 @@ public class EpisodeMappingExtensionsRules
         candidate.SourceLink.Id.Should().Be(stored.SpotifyId);
         candidate.SourceLink.Url.Should().Be(stored.Urls.Spotify);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        candidate.Release.Value.Should().Be(stored.Release);
+        candidate.Release.Value.Should().Be(stored.ReleaseUtc);
     }
 
     [Fact(DisplayName =
@@ -55,8 +55,8 @@ public class EpisodeMappingExtensionsRules
         candidate.SourceLink.Id.Should().Be(stored.YouTubeId);
         candidate.SourceLink.Url.Should().Be(stored.Urls.YouTube);
         candidate.Release.Precision.Should().Be(ReleasePrecision.DateTimeUtc);
-        stored.Release.TimeOfDay.Should().NotBe(TimeSpan.Zero);
-        candidate.Release.Value.Should().Be(stored.Release);
+        stored.ReleaseUtc.TimeOfDay.Should().NotBe(TimeSpan.Zero);
+        candidate.Release.Value.Should().Be(stored.ReleaseUtc);
     }
 
     [Fact(DisplayName =
@@ -77,7 +77,7 @@ public class EpisodeMappingExtensionsRules
         patch.Link.Id.Should().Be(stored.SpotifyId);
         patch.Description.Should().Be(stored.Description);
         patch.Release.Should().NotBeNull();
-        patch.Release!.Value.Should().Be(stored.Release);
+        patch.Release!.Value.Should().Be(stored.ReleaseUtc);
     }
 
     [Fact(DisplayName =
@@ -167,7 +167,7 @@ public class EpisodeMappingExtensionsRules
         // Assert
         patch.Link.Should().BeNull();
         patch.Description.Should().Be(stored.Description);
-        patch.Release!.Value.Should().Be(stored.Release);
+        patch.Release!.Value.Should().Be(stored.ReleaseUtc);
     }
 
     public static TheoryData<Service> AllPlatformServices() =>
@@ -231,7 +231,7 @@ public class EpisodeMappingExtensionsRules
         patch.Link.Should().NotBeNull();
         patch.Link!.Service.Should().Be(service);
         patch.Description.Should().Be(stored.Description);
-        patch.Release!.Value.Should().Be(stored.Release);
+        patch.Release!.Value.Should().Be(stored.ReleaseUtc);
     }
 
     [Fact(DisplayName =

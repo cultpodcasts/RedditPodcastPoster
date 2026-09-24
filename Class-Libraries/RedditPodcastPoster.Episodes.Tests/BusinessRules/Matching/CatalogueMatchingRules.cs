@@ -30,20 +30,20 @@ public class CatalogueMatchingRules
         {
             e.Title = probeTitle;
             e.Length = probeLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var matchingCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = probeLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var otherCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = otherLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -71,20 +71,20 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedCore;
             e.Length = _fixture.CreateDuration();
-            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
         });
         var shorter = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedCore.Split(' ')[0];
             e.Length = probe.Length;
-            e.Release = probe.Release;
+            e.ReleaseUtc = probe.ReleaseUtc;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var longer = _fixture.CreateEpisode(e =>
         {
             e.Title = $"{sharedCore} extended suffix words";
             e.Length = probe.Length;
-            e.Release = probe.Release;
+            e.ReleaseUtc = probe.ReleaseUtc;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -112,12 +112,12 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = release;
+            e.ReleaseUtc = release;
         });
         var matching = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -158,13 +158,13 @@ public class CatalogueMatchingRules
         {
             e.Title = stored.Title;
             e.Length = storedLength;
-            e.Release = lookupRelease;
+            e.ReleaseUtc = lookupRelease;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = storedLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
 
@@ -186,13 +186,13 @@ public class CatalogueMatchingRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = _fixture.CreateDuration();
-            e.Release = DateTime.MinValue;
+            e.ReleaseUtc = DateTime.MinValue;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = probe.Length;
-            e.Release = DomainTestFixture.UtcDateDaysAgo(5);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(5);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
 
@@ -216,14 +216,14 @@ public class CatalogueMatchingRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = _fixture.CreateDuration();
-            e.Release = lookupRelease;
+            e.ReleaseUtc = lookupRelease;
         });
         var farOffRelease = youTubeRelease.AddDays(-5);
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = probe.Length;
-            e.Release = farOffRelease;
+            e.ReleaseUtc = farOffRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
 
@@ -249,20 +249,20 @@ public class CatalogueMatchingRules
         {
             e.Title = probeTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var closerCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(probeTitle);
             e.Length = probeLength + TimeSpan.FromSeconds(10);
-            e.Release = closerRelease;
+            e.ReleaseUtc = closerRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var fartherCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(probeTitle);
             e.Length = probeLength - TimeSpan.FromSeconds(15);
-            e.Release = fartherRelease;
+            e.ReleaseUtc = fartherRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -294,13 +294,13 @@ public class CatalogueMatchingRules
         {
             e.Title = storedTitle;
             e.Length = probeLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var matchingCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = incomingTitle;
             e.Length = catalogueLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -330,12 +330,12 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = storedTitle;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var matching = _fixture.CreateEpisode(e =>
         {
             e.Title = incomingTitle;
-            e.Release = catalogueRelease;
+            e.ReleaseUtc = catalogueRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -364,7 +364,7 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = sharedLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var assignedId = _fixture.CreateSpotifyId();
         var availableId = _fixture.CreateSpotifyId();
@@ -372,14 +372,14 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = sharedLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = assignedId;
         });
         var available = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
             e.Length = sharedLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = availableId;
         });
         var assignedIds = new HashSet<string> { assignedId };
@@ -415,7 +415,7 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = sharedLength;
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
         });
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithTitle(sharedTitle)
@@ -425,7 +425,7 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeInput.Title;
             e.Length = youTubeInput.Duration;
-            e.Release = youTubeInput.Release;
+            e.ReleaseUtc = youTubeInput.Release;
             e.YouTubeId = youTubeInput.YouTubeId;
         });
 
@@ -506,7 +506,7 @@ public class CatalogueMatchingRules
         {
             e.Title = probeTitle;
             e.Length = sharedLength;
-            e.Release = audioRelease;
+            e.ReleaseUtc = audioRelease;
         });
         var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b
             .WithTitle(catalogueTitle)
@@ -516,7 +516,7 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeInput.Title;
             e.Length = youTubeInput.Duration;
-            e.Release = youTubeInput.Release;
+            e.ReleaseUtc = youTubeInput.Release;
             e.YouTubeId = youTubeInput.YouTubeId;
         });
 
@@ -544,13 +544,13 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
             e.Length = catalogueLength;
-            e.Release = catalogueRelease;
+            e.ReleaseUtc = catalogueRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -577,13 +577,13 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var releaseAlignedCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = mismatchedLength;
-            e.Release = probeRelease.AddHours(6);
+            e.ReleaseUtc = probeRelease.AddHours(6);
             e.AppleId = _fixture.CreateAppleId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -615,14 +615,14 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
         });
         var appleCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = $"{youTubeTitle}: editorial Apple rename";
             e.Length = TimeSpan.Zero;
-            e.Release = probeRelease.AddHours(-1);
+            e.ReleaseUtc = probeRelease.AddHours(-1);
             e.AppleId = appleId;
         });
         var podcast = _fixture.CreatePodcast();
@@ -657,14 +657,14 @@ public class CatalogueMatchingRules
         {
             e.Title = storedTitle;
             e.Length = sharedLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = catalogueTitle;
             e.Length = sharedLength + TimeSpan.FromMinutes(3);
-            e.Release = catalogueRelease;
+            e.ReleaseUtc = catalogueRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
@@ -698,7 +698,7 @@ public class CatalogueMatchingRules
         {
             e.Title = storedTitle;
             e.Length = sharedLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -706,7 +706,7 @@ public class CatalogueMatchingRules
         {
             e.Title = spotifyTitle;
             e.Length = sharedLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });
@@ -743,7 +743,7 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = sharedLength;
-            e.Release = youTubePublish;
+            e.ReleaseUtc = youTubePublish;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -751,7 +751,7 @@ public class CatalogueMatchingRules
         {
             e.Title = spotifyTitle;
             e.Length = sharedLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });
@@ -789,7 +789,7 @@ public class CatalogueMatchingRules
         {
             e.Title = olderYouTubeTitle;
             e.Length = olderYouTubeLength;
-            e.Release = delayAdjustedProbeRelease;
+            e.ReleaseUtc = delayAdjustedProbeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -797,7 +797,7 @@ public class CatalogueMatchingRules
         {
             e.Title = newerSpotifyTitle;
             e.Length = newerSpotifyLength;
-            e.Release = newerSpotifyRelease;
+            e.ReleaseUtc = newerSpotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });
@@ -834,7 +834,7 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = sharedLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
         });
@@ -842,7 +842,7 @@ public class CatalogueMatchingRules
         {
             e.Title = spotifyTitle;
             e.Length = sharedLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [sharedSubject];
         });
@@ -875,14 +875,14 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = sharedLength;
-            e.Release = youTubePublish;
+            e.ReleaseUtc = youTubePublish;
             e.YouTubeId = _fixture.CreateYouTubeId();
         });
         var spotifyCatalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = $"{youTubeTitle}: a decade inside and the exit that followed";
             e.Length = sharedLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -917,14 +917,14 @@ public class CatalogueMatchingRules
         {
             e.Title = lastWeekYouTubeTitle;
             e.Length = lastWeekYouTubeLength;
-            e.Release = youTubeRelease;
+            e.ReleaseUtc = youTubeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = thisWeekSpotifyTitle;
             e.Length = thisWeekSpotifyLength;
-            e.Release = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, 2);
+            e.ReleaseUtc = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, 2);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
@@ -956,20 +956,20 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = probeLength;
-            e.Release = DomainTestFixture.UtcDateDaysAgo(3);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(3);
         });
         var matchingCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
             e.Length = probeLength + TimeSpan.FromSeconds(10);
-            e.Release = probe.Release;
+            e.ReleaseUtc = probe.ReleaseUtc;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var nonMatchingCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = probeLength + TimeSpan.FromSeconds(20);
-            e.Release = probe.Release;
+            e.ReleaseUtc = probe.ReleaseUtc;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -996,13 +996,13 @@ public class CatalogueMatchingRules
         {
             e.Title = _fixture.CreateTitle();
             e.Length = TimeSpan.Zero;
-            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
         });
         var candidate = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
             e.Length = _fixture.CreateDuration();
-            e.Release = DomainTestFixture.UtcDateDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1034,13 +1034,13 @@ public class CatalogueMatchingRules
         {
             e.Title = encodedTitle;
             e.Length = sharedLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var matching = _fixture.CreateEpisode(e =>
         {
             e.Title = decodedTitle;
             e.Length = sharedLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1068,20 +1068,20 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var assignedId = _fixture.CreateSpotifyId();
         var availableId = _fixture.CreateSpotifyId();
         var excluded = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = assignedId;
         });
         var available = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = availableId;
         });
         var assignedIds = new HashSet<string> { assignedId };
@@ -1116,14 +1116,14 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = storedLength;
-            e.Release = storedRelease;
+            e.ReleaseUtc = storedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var incoming = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
             e.Length = incomingLength;
-            e.Release = incomingRelease;
+            e.ReleaseUtc = incomingRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
         var expected = EpisodeExpectation.From(stored);
@@ -1152,13 +1152,13 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
             e.Length = catalogueLength;
-            e.Release = catalogueRelease;
+            e.ReleaseUtc = catalogueRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1191,13 +1191,13 @@ public class CatalogueMatchingRules
         {
             e.Title = probeTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = catalogueTitle;
             e.Length = probeLength + TimeSpan.FromMinutes(30);
-            e.Release = catalogueRelease;
+            e.ReleaseUtc = catalogueRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1228,20 +1228,20 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = videoLength;
-            e.Release = shiftedAnchor;
+            e.ReleaseUtc = shiftedAnchor;
         });
         var trueCounterpart = _fixture.CreateEpisode(e =>
         {
             e.Title = trueCounterpartTitle;
             e.Length = TimeSpan.FromSeconds(5012);
-            e.Release = DomainTestFixture.SameCalendarDateWithTime(shiftedAnchor, new TimeSpan(13, 0, 0));
+            e.ReleaseUtc = DomainTestFixture.SameCalendarDateWithTime(shiftedAnchor, new TimeSpan(13, 0, 0));
             e.AppleId = _fixture.CreateAppleId();
         });
         var sameDayAsYouTubeDecoy = _fixture.CreateEpisode(e =>
         {
             e.Title = decoyTitle;
             e.Length = TimeSpan.FromSeconds(4975);
-            e.Release = DomainTestFixture.SameCalendarDateWithTime(youTubePublish, new TimeSpan(13, 0, 0));
+            e.ReleaseUtc = DomainTestFixture.SameCalendarDateWithTime(youTubePublish, new TimeSpan(13, 0, 0));
             e.AppleId = _fixture.CreateAppleId();
         });
         var podcast = _fixture.CreatePodcast(p =>
@@ -1278,13 +1278,13 @@ public class CatalogueMatchingRules
         {
             e.Title = youTubeTitle;
             e.Length = TimeSpan.FromSeconds(5017);
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var sameDayDecoy = _fixture.CreateEpisode(e =>
         {
             e.Title = decoyTitle;
             e.Length = TimeSpan.FromSeconds(5017 - 200);
-            e.Release = probeRelease.AddMinutes(-48);
+            e.ReleaseUtc = probeRelease.AddMinutes(-48);
             e.AppleId = _fixture.CreateAppleId();
         });
         var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
@@ -1310,12 +1310,12 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
-            e.Release = DateTime.MinValue;
+            e.ReleaseUtc = DateTime.MinValue;
         });
         var candidate = _fixture.CreateEpisode(e =>
         {
             e.Title = _fixture.CreateTitle();
-            e.Release = DomainTestFixture.UtcDateDaysAgo(3);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(3);
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1346,13 +1346,13 @@ public class CatalogueMatchingRules
         {
             e.Title = storedTitle;
             e.Length = probeLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var matchingCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = incomingTitle;
             e.Length = catalogueLength;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1385,14 +1385,14 @@ public class CatalogueMatchingRules
         {
             e.Title = sharedTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.Subjects = [];
         });
         var closerCandidate = _fixture.CreateEpisode(e =>
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = TimeSpan.FromMinutes(30);
-            e.Release = closerRelease;
+            e.ReleaseUtc = closerRelease;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -1400,7 +1400,7 @@ public class CatalogueMatchingRules
         {
             e.Title = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
             e.Length = TimeSpan.FromMinutes(35);
-            e.Release = fartherRelease;
+            e.ReleaseUtc = fartherRelease;
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
@@ -1431,18 +1431,18 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
         });
         var matching = _fixture.CreateEpisode(e =>
         {
             e.Title = typoTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var nonMatching = _fixture.CreateEpisode(e =>
         {
             e.Title = unrelatedTitle;
-            e.Release = sharedRelease;
+            e.ReleaseUtc = sharedRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1469,12 +1469,12 @@ public class CatalogueMatchingRules
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
         });
         var candidateWithoutRelease = _fixture.CreateEpisode(e =>
         {
             e.Title = sharedTitle;
-            e.Release = DateTime.MinValue;
+            e.ReleaseUtc = DateTime.MinValue;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
         var podcast = _fixture.CreatePodcast();
@@ -1510,7 +1510,7 @@ public class CatalogueMatchingRules
         {
             e.Title = probeTitle;
             e.Length = probeLength;
-            e.Release = probeRelease;
+            e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
         });
@@ -1518,7 +1518,7 @@ public class CatalogueMatchingRules
         {
             e.Title = spotifyTitle;
             e.Length = spotifyLength;
-            e.Release = spotifyRelease;
+            e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
         });

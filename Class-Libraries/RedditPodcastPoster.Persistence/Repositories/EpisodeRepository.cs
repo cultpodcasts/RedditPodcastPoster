@@ -157,7 +157,8 @@ public class EpisodeRepository(
                 PartitionKey = ToPartitionKey(podcastId)
             })
             .Where(x => x.PodcastId == podcastId)
-            .OrderByDescending(x => x.Release)
+            .OrderByDescending(x =>
+                x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback)
             .Take(1);
 
         var items = query.ToFeedIterator();
@@ -321,7 +322,7 @@ public class EpisodeRepository(
 
     private static bool IsCountedForHomepage(Episode episode)
     {
-        return !episode.Removed && episode.PodcastRemoved != true;
+        return !episode.IsRemoved() && episode.ParentRemoved != true;
     }
 
     private async Task UpdateHomePageActiveEpisodeCount(bool previousCountedState, bool nextCountedState)
@@ -342,17 +343,17 @@ public class EpisodeRepository(
             return;
         }
 
-        if (podcast.LatestReleased == null || episode.Release > podcast.LatestReleased.Value)
+        if (podcast.LatestReleased == null || episode.ReleaseUtc > podcast.LatestReleased.Value)
         {
-            podcast.LatestReleased = episode.Release;
+            podcast.LatestReleased = episode.ReleaseUtc;
             await podcastRepository.Save(podcast);
             return;
         }
 
         if (existingEpisode != null &&
             podcast.LatestReleased != null &&
-            existingEpisode.Release >= podcast.LatestReleased.Value &&
-            episode.Release < existingEpisode.Release)
+            existingEpisode.ReleaseUtc >= podcast.LatestReleased.Value &&
+            episode.ReleaseUtc < existingEpisode.ReleaseUtc)
         {
             await RecomputePodcastLatestReleased(podcast, episode.PodcastId);
         }
@@ -366,7 +367,7 @@ public class EpisodeRepository(
         }
 
         var podcast = await podcastRepository.GetPodcast(podcastId);
-        if (podcast?.LatestReleased == null || deletedEpisode.Release < podcast.LatestReleased.Value)
+        if (podcast?.LatestReleased == null || deletedEpisode.ReleaseUtc < podcast.LatestReleased.Value)
         {
             return;
         }
@@ -377,7 +378,7 @@ public class EpisodeRepository(
     private async Task RecomputePodcastLatestReleased(Podcast podcast, Guid podcastId)
     {
         var mostRecentEpisode = await GetMostRecentByPodcastId(podcastId);
-        var recomputedLatestReleased = mostRecentEpisode?.Release;
+        var recomputedLatestReleased = mostRecentEpisode?.ReleaseUtc;
         if (podcast.LatestReleased == recomputedLatestReleased)
         {
             return;

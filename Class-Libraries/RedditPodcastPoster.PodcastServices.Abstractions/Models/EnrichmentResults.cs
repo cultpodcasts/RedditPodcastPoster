@@ -30,7 +30,7 @@ public class EnrichmentResults(IList<EnrichmentResult> updatedEpisodes)
 
             if (enrichmentResult.EnrichmentContext.ReleaseUpdated)
             {
-                episodeReport += $" ReleaseDate: {enrichmentResult.Episode.Release:R}";
+                episodeReport += $" ReleaseDate: {enrichmentResult.Episode.ReleaseUtc:R}";
             }
 
             if (enrichmentResult.EnrichmentContext.YouTubeIdUpdated)

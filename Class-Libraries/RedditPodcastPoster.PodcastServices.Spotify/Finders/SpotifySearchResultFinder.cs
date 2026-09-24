@@ -149,7 +149,7 @@ public class SpotifySearchResultFinder(
             Title = WebUtility.HtmlDecode(title.Trim()),
             Description = description?.Trim() ?? string.Empty,
             Length = length,
-            Release = released ?? DateTime.MinValue
+            ReleaseUtc = released ?? DateTime.MinValue
         };
 
     private static Episode ToCatalogueEpisode(SimpleEpisode episode, IHtmlSanitiser htmlSanitiser)
@@ -159,7 +159,7 @@ public class SpotifySearchResultFinder(
             Title = WebUtility.HtmlDecode(episode.Name.Trim()),
             Description = htmlSanitiser.Sanitise(episode.HtmlDescription ?? string.Empty),
             Length = episode.GetDuration(),
-            Release = episode.GetReleaseDate()
+            ReleaseUtc = episode.GetReleaseDate()
         };
         EpisodeServicePresence.SetSpotifyIdentity(mapped, episode.Id);
         return mapped;

@@ -56,7 +56,7 @@ public class EpisodeSearchRecord
 
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false, IsHidden = true)]
-    public required string PodcastSearchTerms { get; set; }
+    public required string PublisherSearchTerms { get; set; }
 
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false, IsHidden = true)]

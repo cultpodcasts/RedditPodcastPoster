@@ -134,7 +134,7 @@ public class Indexer(
                 logger.LogInformation(resultsMessage);
             }
 
-            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.Removed))
+            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
             {
                 var subjectsResult = await subjectEnricher.EnrichSubjects(
                     indexedEpisode.Episode,
@@ -184,7 +184,7 @@ public class Indexer(
     {
         // Use IEpisodeRepository instead of legacy repository method
         var episodes = await episodeRepository.GetByPodcastId(podcastId)
-            .Where(x => x.Release >= indexingContext.ReleasedSince)
+            .Where(x => x.ReleaseSort >= indexingContext.ReleasedSince)
             .ToListAsync();
 
         return episodes.Any();

@@ -24,7 +24,7 @@ public class HeroAutoPromoteSelectorRules
         var episode = _fixture.CreateEpisode(e =>
         {
             e.Id = episodeId;
-            e.Release = DomainTestFixture.UtcDaysAgo(2);
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(2);
             e.Ignored = false;
             e.Removed = false;
         });
@@ -50,7 +50,7 @@ public class HeroAutoPromoteSelectorRules
         podcast.AlwaysPromoteAsHero = false;
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDaysAgo(1);
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
             e.Ignored = false;
             e.Removed = false;
         });
@@ -76,7 +76,7 @@ public class HeroAutoPromoteSelectorRules
         podcast.AlwaysPromoteAsHero = true;
         var episode = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDaysAgo(8);
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(8);
             e.Ignored = false;
             e.Removed = false;
         });
@@ -102,7 +102,7 @@ public class HeroAutoPromoteSelectorRules
         podcast.AlwaysPromoteAsHero = true;
         var ignored = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDaysAgo(1);
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
             e.Ignored = true;
             e.Removed = false;
         });
@@ -125,7 +125,7 @@ public class HeroAutoPromoteSelectorRules
         podcast.AlwaysPromoteAsHero = true;
         var removed = _fixture.CreateEpisode(e =>
         {
-            e.Release = DomainTestFixture.UtcDaysAgo(1);
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
             e.Ignored = false;
             e.Removed = true;
         });

@@ -101,16 +101,16 @@ public static class CatalogueMatchScorer
             }
         }
 
-        if (probe.Release == DateTime.MinValue)
+        if (probe.ReleaseUtc == DateTime.MinValue)
         {
             return 0;
         }
 
         var descriptionPoints = ScoreDescription(probe.Description, catalogueItem.Description);
-        var releasePoints = ScoreRelease(probe.Release, catalogueItem);
+        var releasePoints = ScoreRelease(probe.ReleaseUtc, catalogueItem);
         if (releasePoints == 0 &&
             descriptionPoints > 0 &&
-            IsWithinDescriptionAlignedReleaseConsideration(probe.Release, catalogueItem))
+            IsWithinDescriptionAlignedReleaseConsideration(probe.ReleaseUtc, catalogueItem))
         {
             releasePoints = WeakInWindowReleasePoints;
         }
@@ -179,9 +179,9 @@ public static class CatalogueMatchScorer
             }
 
             var sharedSubjects = CountSharedSubjects(probe.Subjects, candidate.Subjects, subjectFilters);
-            var releaseDelta = probe.Release == DateTime.MinValue
+            var releaseDelta = probe.ReleaseUtc == DateTime.MinValue
                 ? long.MaxValue
-                : Math.Abs((candidate.Release - probe.Release).Ticks);
+                : Math.Abs((candidate.ReleaseUtc - probe.ReleaseUtc).Ticks);
 
             if (best == null ||
                 score > bestScore ||
@@ -214,13 +214,13 @@ public static class CatalogueMatchScorer
         if (IsAudioCatalogueItem(catalogueItem))
         {
             if (EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
-                    catalogueItem.Release,
+                    catalogueItem.ReleaseUtc,
                     probeRelease,
                     toleranceTicks: 0,
                     podcast: null))
             {
                 var probeDate = DateOnly.FromDateTime(probeRelease);
-                var catalogueDate = DateOnly.FromDateTime(catalogueItem.Release);
+                var catalogueDate = DateOnly.FromDateTime(catalogueItem.ReleaseUtc);
                 return probeDate == catalogueDate
                     ? SameCalendarDayReleasePoints
                     : WeakInWindowReleasePoints;
@@ -229,11 +229,11 @@ public static class CatalogueMatchScorer
             return 0;
         }
 
-        var delta = Math.Abs((catalogueItem.Release - probeRelease).Ticks);
+        var delta = Math.Abs((catalogueItem.ReleaseUtc - probeRelease).Ticks);
         if (delta < TimeSpan.FromHours(12).Ticks)
         {
             return EpisodeReleaseTolerance.AreCrossPlatformReleasesOnSameCalendarDay(
-                       catalogueItem.Release,
+                       catalogueItem.ReleaseUtc,
                        probeRelease)
                 ? SameCalendarDayReleasePoints
                 : WeakInWindowReleasePoints;
@@ -256,7 +256,7 @@ public static class CatalogueMatchScorer
         }
 
         return EpisodeReleaseTolerance.AudioCatalogueReleaseMatches(
-            catalogueItem.Release,
+            catalogueItem.ReleaseUtc,
             probeRelease,
             EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks,
             podcast: null);

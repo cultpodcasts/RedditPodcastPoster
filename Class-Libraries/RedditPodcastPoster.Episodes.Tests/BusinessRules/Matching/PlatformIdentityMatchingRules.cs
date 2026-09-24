@@ -108,7 +108,7 @@ public class PlatformIdentityMatchingRules
         var storedTitle = _fixture.CreateTitle();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(discovered.Release)
+            .WithRelease(discovered.ReleaseUtc)
             .WithTitle(storedTitle)
             .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
             .Create();
@@ -155,7 +155,7 @@ public class PlatformIdentityMatchingRules
         var storedTitle = _fixture.CreateTitle();
         var stored = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .WithRelease(discovered.Release)
+            .WithRelease(discovered.ReleaseUtc)
             .WithTitle(storedTitle)
             .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
             .Create();

@@ -88,7 +88,7 @@ internal class IndexProcessor(
             await foreach (var episode in episodeRepository.GetByPodcastId(podcastId))
             {
                 episodeIds.Add(episode.Id);
-                if (episode.Removed)
+                if (episode.IsRemoved())
                 {
                     removedCount++;
                 }

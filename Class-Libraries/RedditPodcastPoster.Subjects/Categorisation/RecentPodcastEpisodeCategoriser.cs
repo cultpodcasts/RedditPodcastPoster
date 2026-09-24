@@ -25,7 +25,7 @@ public class RecentPodcastEpisodeCategoriser(
         IList<Guid> updatedEpisodes = new List<Guid>();
 
         var recentPodcastEpisodes = preloadedRecentCandidates != null
-            ? preloadedRecentCandidates.Where(x => x.Episode.Release >= since).ToList()
+            ? preloadedRecentCandidates.Where(x => x.Episode.ReleaseUtc >= since).ToList()
             : await recentEpisodeCandidatesProvider.GetRecentActiveEpisodes(since);
 
         logger.LogWarning("{method}: Retrieved recent active episodes. Count: {Count}. {json}", nameof(Categorise),

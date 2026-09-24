@@ -32,12 +32,12 @@ public static class EpisodeMappingExtensions
             episode.Title,
             episode.Description,
             episode.Length,
-            new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc),
+            new ReleaseInfo(episode.ReleaseUtc, ReleasePrecision.DateTimeUtc),
             sourceLink);
     }
 
     public static EpisodePlatformPatch ToPlatformPatch(this Episode episode) =>
-        new(null, episode.Description, new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
+        new(null, episode.Description, new ReleaseInfo(episode.ReleaseUtc, ReleasePrecision.DateTimeUtc));
 
     public static EpisodePlatformPatch ToSpotifyPatch(this Episode episode) =>
         new(
@@ -47,7 +47,7 @@ public static class EpisodeMappingExtensions
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify),
                 EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify)),
             episode.Description,
-            new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
+            new ReleaseInfo(episode.ReleaseUtc, ReleasePrecision.DateTimeUtc));
 
     public static EpisodePlatformPatch ToApplePatch(this Episode episode) =>
         new(
@@ -57,7 +57,7 @@ public static class EpisodeMappingExtensions
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple),
                 EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple)),
             episode.Description,
-            new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
+            new ReleaseInfo(episode.ReleaseUtc, ReleasePrecision.DateTimeUtc));
 
     public static EpisodePlatformPatch ToYouTubePatch(this Episode episode) =>
         new(
@@ -67,7 +67,7 @@ public static class EpisodeMappingExtensions
                 EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
                 EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube)),
             episode.Description,
-            new ReleaseInfo(episode.Release, ReleasePrecision.DateTimeUtc));
+            new ReleaseInfo(episode.ReleaseUtc, ReleasePrecision.DateTimeUtc));
 
     private static PlatformLink? CreatePlatformLink(Service service, string? id, Uri? url, Uri? image)
     {

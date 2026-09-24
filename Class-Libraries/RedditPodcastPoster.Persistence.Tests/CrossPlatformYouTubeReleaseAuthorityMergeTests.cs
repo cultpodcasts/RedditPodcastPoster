@@ -22,7 +22,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
             .WithSpotifyId(incomingTemplate.SpotifyId)
             .WithTitle(incomingTemplate.Title)
             .WithSpotifyUrl(incomingTemplate.Urls.Spotify!)
-            .WithRelease(incomingTemplate.Release.AddDays(spotifyReleaseOffsetDaysFromCatalogue))
+            .WithRelease(incomingTemplate.ReleaseUtc.AddDays(spotifyReleaseOffsetDaysFromCatalogue))
             .WithDuration(existing.Length));
 
         // Act
@@ -31,7 +31,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
 
         // Assert
         isMatch.Should().BeTrue(
-            $"Spotify release {incoming.Release:O} should align after delay adjustment");
+            $"Spotify release {incoming.ReleaseUtc:O} should align after delay adjustment");
     }
 
     [Fact(DisplayName =
@@ -42,7 +42,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (existing, incoming, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
-        var expectedRelease = existing.Release;
+        var expectedRelease = existing.ReleaseUtc;
 
         // Act
         var result = EpisodeDomainTestServices.CreateMerger()
@@ -53,7 +53,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(existing.Id);
         existing.SpotifyId.Should().Be(spotifyId);
-        existing.Release.Should().Be(expectedRelease);
+        existing.ReleaseUtc.Should().Be(expectedRelease);
     }
 
     [Fact(DisplayName =
@@ -68,7 +68,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
             podcast,
             spotifyId,
             storedTemplate.YouTubeId,
-            storedTemplate.Release,
+            storedTemplate.ReleaseUtc,
             storedTemplate.Length,
             storedTemplate.Title);
 
@@ -79,7 +79,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
         // Assert
         result.AddedEpisodes.Should().BeEmpty();
         result.MergedEpisodes.Should().BeEmpty("no fields changed when Spotify catalogue date is newer than YouTube publish");
-        existing.Release.Should().Be(storedTemplate.Release);
+        existing.ReleaseUtc.Should().Be(storedTemplate.ReleaseUtc);
     }
 
     [Fact(DisplayName =
@@ -90,7 +90,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         var (_, incomingTemplate, spotifyId) = _fixture.CreateCrossPlatformYouTubeReleaseAuthorityPair(podcast);
-        var spotifyDateOnlyRelease = incomingTemplate.Release;
+        var spotifyDateOnlyRelease = incomingTemplate.ReleaseUtc;
         var existing = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
             podcast,
             spotifyId,
@@ -102,7 +102,7 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
             .WithSpotifyUrl(incomingTemplate.Urls.Spotify!)
             .WithRelease(spotifyDateOnlyRelease)
             .WithDuration(incomingTemplate.Length));
-        incoming.Release = spotifyDateOnlyRelease.AddHours(8);
+        incoming.ReleaseUtc = spotifyDateOnlyRelease.AddHours(8);
 
         // Act
         var result = EpisodeDomainTestServices.CreateMerger()
@@ -110,6 +110,6 @@ public class CrossPlatformYouTubeReleaseAuthorityMergeTests
 
         // Assert
         result.MergedEpisodes.Should().BeEmpty("Spotify-only merge must not backfill time on same date");
-        existing.Release.Should().Be(spotifyDateOnlyRelease);
+        existing.ReleaseUtc.Should().Be(spotifyDateOnlyRelease);
     }
 }

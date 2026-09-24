@@ -124,7 +124,7 @@ public class CategorisedItemProcessor(
                 submitResult.Episode?.Id ?? Guid.Empty,
                 podcast.Id,
                 podcast.AlwaysPromoteAsHero,
-                release: submitResult.Episode?.Release,
+                release: submitResult.Episode?.ReleaseUtc,
                 episodeResult: submitResult.EpisodeResult.ToString());
         }
 
@@ -150,7 +150,7 @@ public class CategorisedItemProcessor(
                 episode.Id,
                 podcast.Id,
                 podcast.AlwaysPromoteAsHero,
-                release: episode.Release,
+                release: episode.ReleaseUtc,
                 cutoff: cutoff,
                 episodeResult: SubmitResultState.Created.ToString());
             return;

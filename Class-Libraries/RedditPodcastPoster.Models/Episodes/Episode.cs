@@ -1,102 +1,37 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Episodes;
 
-public class Episode
+[CosmosSelector(ModelType.Episode)]
+public class Episode : Playable
 {
-    [JsonPropertyName("id")]
-    [JsonPropertyOrder(1)]
-    public Guid Id { get; set; }
+    public Episode()
+    {
+        Id = Guid.NewGuid();
+        ModelType = ModelType.Episode;
+    }
 
     [JsonPropertyName("podcastId")]
     [JsonPropertyOrder(2)]
     public Guid PodcastId { get; set; }
 
-    [JsonPropertyName("title")]
-    [JsonPropertyOrder(10)]
-    public string Title { get; set; } = string.Empty;
-
-    [JsonPropertyName("description")]
-    [JsonPropertyOrder(20)]
-    public string Description { get; set; } = string.Empty;
-
-    [JsonPropertyName("release")]
-    [JsonPropertyOrder(30)]
-    public DateTime Release { get; set; }
-
-    [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
-    public TimeSpan Length { get; set; }
-
-    [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
-    public bool Explicit { get; set; }
-
-    [JsonPropertyName("posted")]
-    [JsonPropertyOrder(40)]
-    public bool Posted { get; set; }
-
-    [JsonPropertyName("tweeted")]
-    [JsonPropertyOrder(41)]
-    public bool Tweeted { get; set; }
-
     /// <summary>
-    /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
-    /// documents. Do not set to <c>true</c> in application code — store
-    /// <see cref="BlueskyPost"/> after a network post. Clear via
-    /// <see cref="ClearBlueskyPostState"/>.
-    /// </summary>
-    [JsonPropertyName("bluesky")]
-    [JsonPropertyOrder(42)]
-    public bool? OldBlueskyPosted { get; set; }
-
-    /// <summary>
-    /// AT URI of the Bluesky post (<c>at://{did}/app.bsky.feed.post/{rkey}</c>).
-    /// Stored as string because <see cref="Uri"/> rejects AT Protocol DIDs (colons).
-    /// </summary>
-    [JsonPropertyName("blueskyPost")]
-    [JsonPropertyOrder(42)]
-    public string? BlueskyPost { get; set; }
-
-    /// <summary>
-    /// Whether this episode is considered Bluesky-posted (legacy flag or stored AT URI).
-    /// Not serialized — Cosmos must query <c>bluesky</c> / <c>blueskyPost</c> with
-    /// <c>IS_DEFINED</c> (see <see cref="CosmosIsBlueskyPostedSql"/>).
+    /// DateTime view of <see cref="Playable.Release"/> for podcast matching and enrichment.
+    /// Gets/sets via <see cref="Playable.ReleaseSort"/> and <see cref="CatalogueRelease.FromDateTimeUtc"/>.
+    /// Cosmos range filters must dual-key <see cref="Playable.ReleaseSort"/> with
+    /// <see cref="Playable.ReleaseCosmosFallback"/> (legacy <c>release</c>) until backfill —
+    /// not this property (JsonIgnore).
     /// </summary>
     [JsonIgnore]
-    public bool BlueskyPosted =>
-        (OldBlueskyPosted.HasValue && OldBlueskyPosted.Value) || !string.IsNullOrWhiteSpace(BlueskyPost);
-
-    /// <summary>
-    /// Cosmos SQL: episode is Bluesky-posted. Do not use null-only checks — combine
-    /// <c>IS_DEFINED</c> with value comparison.
-    /// </summary>
-    public const string CosmosIsBlueskyPostedSql =
-        "((IS_DEFINED(e.bluesky) AND e.bluesky = true) OR (IS_DEFINED(e.blueskyPost) AND NOT IS_NULL(e.blueskyPost)))";
-
-    /// <summary>
-    /// Cosmos SQL: episode is not Bluesky-posted.
-    /// </summary>
-    public const string CosmosIsNotBlueskyPostedSql =
-        "((NOT IS_DEFINED(e.bluesky) OR e.bluesky != true) AND (NOT IS_DEFINED(e.blueskyPost) OR IS_NULL(e.blueskyPost)))";
-
-    /// <summary>
-    /// Clears both the legacy flag and stored AT URI (e.g. after un-post).
-    /// </summary>
-    public void ClearBlueskyPostState()
+    public DateTime ReleaseUtc
     {
-        BlueskyPost = null;
-        OldBlueskyPosted = null;
+        get => ReleaseSort;
+        set => SetRelease(CatalogueRelease.FromDateTimeUtc(value));
     }
-
-    [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
-    public bool Ignored { get; set; }
-
-    [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
-    public bool Removed { get; set; }
 
     /// <summary>
     /// Grouped platform ids. Source of truth for matching and reconstructable services.
@@ -107,71 +42,95 @@ public class Episode
     [JsonPropertyOrder(53)]
     public EpisodeIds? Ids { get; set; }
 
-    [JsonPropertyName("subjects")]
-    [JsonPropertyOrder(70)]
-    public List<string> Subjects { get; set; } = [];
-
-    /// <summary>
-    /// Subjects removed by a curator; indexer enrichment must not re-add these.
-    /// </summary>
-    [JsonPropertyName("removedSubjects")]
-    [JsonPropertyOrder(71)]
-    public List<string> RemovedSubjects { get; set; } = [];
-
-    [JsonPropertyName("matches")]
-    [JsonPropertyOrder(72)]
-    public List<EpisodeSubjectMatch> Matches { get; set; } = [];
-
-    [JsonPropertyName("searchTerms")]
-    [JsonPropertyOrder(80)]
-    public string? SearchTerms { get; set; }
-
-    /// <summary>
-    /// Optional episode-level hashtag appended to Tweet/Bluesky posts (e.g. <c>#MyTag</c>).
-    /// </summary>
-    [JsonPropertyName("hashTag")]
-    [JsonPropertyOrder(81)]
-    public string? HashTag { get; set; }
-
     [JsonPropertyName("podcastName")]
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
+    /// <summary>
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.PublisherSearchTerms"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull).
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos SQL/LINQ that targets
+    /// <c>publisherSearchTerms</c> ignores this key; dual-read
+    /// <c>(publisherSearchTerms ?? podcastSearchTerms)</c> until corpus rewrite.
+    /// Remove once episodes are rewritten without <c>podcastSearchTerms</c>.
+    /// </summary>
     [JsonPropertyName("podcastSearchTerms")]
     [JsonPropertyOrder(91)]
-    public string? PodcastSearchTerms { get; set; }
-
-    [JsonPropertyName("podcastLanguage")]
-    [JsonPropertyOrder(92)]
-    public string? PodcastLanguage { get; set; }
-
-    [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
-    public string? Language { get; set; }
-
-    [JsonPropertyName("podcastMetadataVersion")]
-    [JsonPropertyOrder(93)]
-    public long? PodcastMetadataVersion { get; set; }
-
-    [JsonPropertyName("podcastRemoved")]
-    [JsonPropertyOrder(94)]
-    public bool? PodcastRemoved { get; set; }
+    public string? LegacyPodcastSearchTerms
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(PublisherSearchTerms))
+            {
+                PublisherSearchTerms = value;
+            }
+        }
+    }
 
     /// <summary>
-    /// Per-service watch/listen URL and artwork, keyed by <see cref="ServiceKeys"/> (or a host slug).
-    /// Canonical adjacent storage. Leftover named <c>urls</c> / <c>images</c> JSON is ignored on
-    /// deserialize and omitted on serialize (wither).
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.PublisherLanguage"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull).
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos filters on <c>publisherLanguage</c>
+    /// ignore this key until corpus rewrite. Remove once episodes are rewritten without
+    /// <c>podcastLanguage</c>.
     /// </summary>
-    [JsonPropertyName("services")]
-    [JsonPropertyOrder(151)]
-    public Dictionary<string, EpisodeServiceLink>? Services { get; set; }
+    [JsonPropertyName("podcastLanguage")]
+    [JsonPropertyOrder(92)]
+    public string? LegacyPodcastLanguage
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(PublisherLanguage))
+            {
+                PublisherLanguage = value;
+            }
+        }
+    }
 
-    [JsonPropertyName("guests")]
-    [JsonPropertyOrder(160)]
-    public string[]? Guests { get; set; }
+    /// <summary>
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.ParentMetadataVersion"/>;
+    /// omitted on serialize.
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos filters on <c>parentMetadataVersion</c>
+    /// ignore this key until corpus rewrite. Remove once episodes are rewritten without
+    /// <c>podcastMetadataVersion</c>.
+    /// </summary>
+    [JsonPropertyName("podcastMetadataVersion")]
+    [JsonPropertyOrder(93)]
+    public long? LegacyPodcastMetadataVersion
+    {
+        get => null;
+        set
+        {
+            if (value.HasValue && !ParentMetadataVersion.HasValue)
+            {
+                ParentMetadataVersion = value;
+            }
+        }
+    }
 
-    [JsonPropertyName("_ts")]
-    public long Timestamp { get; set; }
+    /// <summary>
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.ParentRemoved"/>;
+    /// omitted on serialize.
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos SQL/LINQ that targets only
+    /// <c>parentRemoved</c> treats <c>podcastRemoved</c>-only documents as not-removed
+    /// (including <c>podcastRemoved: true</c>). Use <see cref="Playable.CosmosParentNotRemovedSql"/>
+    /// / dual-key LINQ until a verified corpus rewrite. Do not remove this bridge until then.
+    /// </summary>
+    [JsonPropertyName("podcastRemoved")]
+    [JsonPropertyOrder(94)]
+    public bool? LegacyPodcastRemoved
+    {
+        get => null;
+        set
+        {
+            if (value.HasValue && !ParentRemoved.HasValue)
+            {
+                ParentRemoved = value;
+            }
+        }
+    }
 
     public static Episode FromSpotify(string spotifyId,
         string title,
@@ -187,9 +146,9 @@ public class Episode
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, maxImage);
         return episode;
@@ -210,9 +169,9 @@ public class Episode
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, image);
         return episode;
@@ -233,9 +192,9 @@ public class Episode
             Title = title,
             Description = description,
             Length = length,
-            Explicit = @explicit,
-            Release = release
+            Explicit = @explicit
         };
+        episode.ReleaseUtc = release;
         EpisodeServicePresence.SetAppleIdentity(episode, appleId);
         EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, url, image);
         return episode;
@@ -243,7 +202,7 @@ public class Episode
 
     /// <param name="inheritLanguageIfUnset">
     /// When true, copy <see cref="Podcast.Language"/> onto this episode if
-    /// <see cref="Language"/> is unset. Used for <b>new episode create/merge</b> so a show default
+    /// <see cref="Playable.Language"/> is unset. Used for <b>new episode create/merge</b> so a show default
     /// stamps onto a freshly created episode. Do <b>not</b> use this for podcast API language
     /// changes — use <see cref="ApplyPodcastDefaultLanguageChange"/> (null means English, not unset).
     /// See docs/episode-language.md.
@@ -264,30 +223,30 @@ public class Episode
             updated = true;
         }
 
-        if (PodcastRemoved != podcast.Removed)
+        if (ParentRemoved != podcast.Removed)
         {
-            PodcastRemoved = podcast.Removed;
+            ParentRemoved = podcast.Removed;
             updated = true;
         }
 
         var podcastSearchTerms = podcast.SearchTerms?.Trim();
-        if (PodcastSearchTerms != podcastSearchTerms)
+        if (PublisherSearchTerms != podcastSearchTerms)
         {
-            PodcastSearchTerms = podcastSearchTerms;
+            PublisherSearchTerms = podcastSearchTerms;
             updated = true;
         }
 
         var podcastLanguage = podcast.Language?.Trim();
-        if (PodcastLanguage != podcastLanguage)
+        if (PublisherLanguage != podcastLanguage)
         {
-            PodcastLanguage = podcastLanguage;
+            PublisherLanguage = podcastLanguage;
             updated = true;
         }
 
         var updatedMetadata = false;
-        if (PodcastMetadataVersion != podcast.Timestamp)
+        if (ParentMetadataVersion != podcast.Timestamp)
         {
-            PodcastMetadataVersion = podcast.Timestamp;
+            ParentMetadataVersion = podcast.Timestamp;
             updatedMetadata = true;
         }
 
@@ -321,7 +280,7 @@ public class Episode
     /// <paramref name="previousPodcastLanguage"/>. Null episode language is English (override when
     /// the previous default was non-English), not “unset”. See docs/episode-language.md.
     /// </summary>
-    /// <returns>True when <see cref="Language"/> changed.</returns>
+    /// <returns>True when <see cref="Playable.Language"/> changed.</returns>
     public bool ApplyPodcastDefaultLanguageChange(
         string? previousPodcastLanguage,
         string? newPodcastLanguage)
@@ -342,7 +301,7 @@ public class Episode
     }
 
     /// <summary>
-    /// Applies a curator subject update and maintains <see cref="RemovedSubjects"/>.
+    /// Applies a curator subject update and maintains <see cref="Playable.RemovedSubjects"/>.
     /// </summary>
     public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
     {

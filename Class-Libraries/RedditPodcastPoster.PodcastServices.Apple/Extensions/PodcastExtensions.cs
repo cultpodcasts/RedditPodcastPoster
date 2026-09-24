@@ -7,6 +7,6 @@ public static class PodcastExtensions
 {
     public static FindApplePodcastRequest ToFindApplePodcastRequest(this Podcast podcast)
     {
-        return new FindApplePodcastRequest(podcast.AppleId, podcast.Name, podcast.Publisher);
+        return new FindApplePodcastRequest(podcast.AppleId, podcast.Name, podcast.PublisherName);
     }
 }

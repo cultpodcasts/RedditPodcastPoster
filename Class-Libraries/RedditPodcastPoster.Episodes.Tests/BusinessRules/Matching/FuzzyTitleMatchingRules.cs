@@ -414,6 +414,6 @@ public class FuzzyTitleMatchingRules
         {
             e.Title = title;
             e.Length = length;
-            e.Release = release ?? DateTime.UtcNow;
+            e.ReleaseUtc = release ?? DateTime.UtcNow;
         });
 }

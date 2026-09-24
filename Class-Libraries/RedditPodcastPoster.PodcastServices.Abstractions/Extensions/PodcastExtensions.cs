@@ -57,7 +57,7 @@ public static class PodcastExtensions
             return false;
         }
 
-        return GetYouTubePublishingDelayExpiry(podcast, episode.Release, episode.Length) > DateTime.UtcNow;
+        return GetYouTubePublishingDelayExpiry(podcast, episode.ReleaseUtc, episode.Length) > DateTime.UtcNow;
     }
 
     public static bool IsAwaitingDelayedAudioRelease(this Podcast podcast, DateTime release, TimeSpan length)

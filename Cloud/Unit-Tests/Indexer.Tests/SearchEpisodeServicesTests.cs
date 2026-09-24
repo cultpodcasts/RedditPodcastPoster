@@ -4,6 +4,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using Xunit;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace Indexer.Tests;
 
@@ -16,7 +17,7 @@ public class SearchEpisodeServicesTests
     public void Compacts_bbc_sounds_play_url_to_id()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new()
             {
@@ -39,7 +40,7 @@ public class SearchEpisodeServicesTests
     public void Compacts_vimeo_watch_url_to_id()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.Vimeo)] = new() { Url = new Uri("https://vimeo.com/123456789") }
         };
@@ -61,7 +62,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var host = "bitchute";
         var id = _fixture.CreateBcVideoId();
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.BcVideo)] = new() { Url = new Uri($"https://www.{host}.com/video/{id}") }
         };
@@ -83,7 +84,7 @@ public class SearchEpisodeServicesTests
         // Arrange
         var host = "bitchute";
         var id = _fixture.CreateBcVideoId();
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.BcVideo)] = new() { Url = new Uri($"https://www.{host}.com/embed/{id}") }
         };
@@ -105,7 +106,7 @@ public class SearchEpisodeServicesTests
     {
         // Arrange
         var id = _fixture.CreateAppleId();
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.Tubi)] = new() { Url = new Uri($"https://tubitv.com/en-au/movies/{id}/{_fixture.CreateYouTubeId()}") }
         };
@@ -126,7 +127,7 @@ public class SearchEpisodeServicesTests
     public void Omits_reconstructable_platform_ids()
     {
         // Arrange
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [ServiceKeys.Spotify] = new() { Url = new Uri("https://open.spotify.com/episode/opaqueid00000000000000") },
             [ServiceKeys.YouTube] = new() { Url = new Uri("https://www.youtube.com/watch?v=griffinsong42") },
@@ -146,7 +147,7 @@ public class SearchEpisodeServicesTests
     {
         // Arrange
         var url = new Uri("https://www.netflix.com/watch/81040344?trackId=14262865");
-        var services = new Dictionary<string, EpisodeServiceLink>
+        var services = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(StreamingService.Netflix)] = new() { Url = url }
         };

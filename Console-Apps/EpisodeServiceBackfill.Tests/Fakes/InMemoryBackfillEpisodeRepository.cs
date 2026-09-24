@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace EpisodeServiceBackfill.Tests.Fakes;
 
@@ -9,7 +10,7 @@ public sealed class InMemoryBackfillEpisodeRepository(InMemoryEpisodeRepository 
     public Task<bool> PatchServicesAndIds(
         Guid podcastId,
         Guid episodeId,
-        Dictionary<string, EpisodeServiceLink>? services,
+        Dictionary<string, ServiceLink>? services,
         EpisodeIds? ids)
     {
         var written = inner.TryMutate(podcastId, episodeId, episode =>
@@ -18,7 +19,7 @@ public sealed class InMemoryBackfillEpisodeRepository(InMemoryEpisodeRepository 
             {
                 episode.Services = services.ToDictionary(
                     x => x.Key,
-                    x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+                    x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image },
                     StringComparer.Ordinal);
             }
 

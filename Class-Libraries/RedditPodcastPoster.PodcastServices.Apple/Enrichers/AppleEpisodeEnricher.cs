@@ -49,7 +49,7 @@ public class AppleEpisodeEnricher(
         {
             Title = request.Episode.Title,
             Length = request.Episode.Length,
-            Release = findAppleEpisodeRequest.Released ?? request.Episode.Release
+            ReleaseUtc = findAppleEpisodeRequest.Released ?? request.Episode.ReleaseUtc
         };
         var assignedAppleIds = request.Episodes
             .Select(x => EpisodeServicePresence.AppleEpisodeId(x))
@@ -73,8 +73,8 @@ public class AppleEpisodeEnricher(
         }
 
         logger.LogInformation(
-            "Episode.Release.TimeOfDay: '{ReleaseTimeOfDay:G}' podcast-id '{PodcastId}' with episode with apple-id '{AppleItemId}'."
-            , request.Episode.Release.TimeOfDay, request.Podcast.Id, appleItem.Id);
+            "Episode.ReleaseUtc.TimeOfDay: '{ReleaseTimeOfDay:G}' podcast-id '{PodcastId}' with episode with apple-id '{AppleItemId}'."
+            , request.Episode.ReleaseUtc.TimeOfDay, request.Podcast.Id, appleItem.Id);
 
         var catalogueInput = new AppleCatalogueInput(
             appleItem.Id,
@@ -93,7 +93,7 @@ public class AppleEpisodeEnricher(
         {
             Title = apple.Title,
             Length = apple.Duration,
-            Release = apple.Release
+            ReleaseUtc = apple.Release
         };
         EpisodeServicePresence.SetAppleIdentity(candidate, apple.Id);
         return candidate;

@@ -23,8 +23,8 @@ public sealed class YouTubePublishDelayMatchStrategy : IReleaseMatchStrategy
         if (!existingIsYouTube && incomingIsYouTube)
         {
             return EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
-                context.ExistingEpisode.Release,
-                context.IncomingEpisode.Release,
+                context.ExistingEpisode.ReleaseUtc,
+                context.IncomingEpisode.ReleaseUtc,
                 delay)
                 ? true
                 : null;

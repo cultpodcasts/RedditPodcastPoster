@@ -64,13 +64,13 @@ public static class HeroAutoPromoteSelector
             return HeroAutoPromoteSkipReason.Ignored;
         }
 
-        if (episode.Removed)
+        if (episode.IsRemoved())
         {
             return HeroAutoPromoteSkipReason.Removed;
         }
 
         var cutoff = utcNow - WeekWindow;
-        if (episode.Release < cutoff)
+        if (episode.ReleaseUtc < cutoff)
         {
             return HeroAutoPromoteSkipReason.OutsideWeekWindow;
         }

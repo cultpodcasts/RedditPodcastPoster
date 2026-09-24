@@ -484,7 +484,7 @@ public class CrossPlatformMatchingRules
         var stored = _fixture.CreateStoredEpisode(podcast, e =>
         {
             e.Title = storedTitle;
-            e.Release = release;
+            e.ReleaseUtc = release;
             e.Length = length;
             EpisodeServicePresence.SetSpotifyIdentity(e, null);
             e.Urls = new ServiceUrls();

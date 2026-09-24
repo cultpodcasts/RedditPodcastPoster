@@ -56,5 +56,20 @@ public enum ModelType
     SupportedLanguagesConfig = 17,
 
     [JsonPropertyName(nameof(LanguageTitleCasingRules))]
-    LanguageTitleCasingRules = 18
+    LanguageTitleCasingRules = 18,
+
+    [JsonPropertyName(nameof(Film))]
+    Film = 19,
+
+    [JsonPropertyName(nameof(TvShow))]
+    TvShow = 20,
+
+    [JsonPropertyName(nameof(TvShowEpisode))]
+    TvShowEpisode = 21,
+
+    [JsonPropertyName(nameof(NewsOrganisation))]
+    NewsOrganisation = 22,
+
+    [JsonPropertyName(nameof(NewsReport))]
+    NewsReport = 23
 }

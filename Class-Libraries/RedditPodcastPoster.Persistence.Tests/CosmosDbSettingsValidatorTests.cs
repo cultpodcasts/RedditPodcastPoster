@@ -96,6 +96,81 @@ public class CosmosDbSettingsValidatorTests
         result.FailureMessage.Should().Contain("EpisodesContainer");
     }
 
+    [Fact(DisplayName = "Fails when TvShowsContainer is blank")]
+    public void Fails_when_TvShowsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.TvShowsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("TvShowsContainer");
+    }
+
+    [Fact(DisplayName = "Fails when TvShowEpisodesContainer is blank")]
+    public void Fails_when_TvShowEpisodesContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.TvShowEpisodesContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("TvShowEpisodesContainer");
+    }
+
+    [Fact(DisplayName = "Fails when FilmsContainer is blank")]
+    public void Fails_when_FilmsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.FilmsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("FilmsContainer");
+    }
+
+    [Fact(DisplayName = "Fails when NewsOrganisationsContainer is blank")]
+    public void Fails_when_NewsOrganisationsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.NewsOrganisationsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("NewsOrganisationsContainer");
+    }
+
+    [Fact(DisplayName = "Fails when NewsReportsContainer is blank")]
+    public void Fails_when_NewsReportsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.NewsReportsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("NewsReportsContainer");
+    }
+
     [Fact(DisplayName = "Fails when SubjectsContainer is blank")]
     public void Fails_when_SubjectsContainer_is_blank()
     {
@@ -208,6 +283,11 @@ public class CosmosDbSettingsValidatorTests
         DatabaseId = "db",
         PodcastsContainer = "podcasts",
         EpisodesContainer = "episodes",
+        TvShowsContainer = "tvshows",
+        TvShowEpisodesContainer = "tvshowepisodes",
+        FilmsContainer = "films",
+        NewsOrganisationsContainer = "newsorganisations",
+        NewsReportsContainer = "newsreports",
         SubjectsContainer = "subjects",
         PeopleContainer = "people",
         ActivitiesContainer = "activities",

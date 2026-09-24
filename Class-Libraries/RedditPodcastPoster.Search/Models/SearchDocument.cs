@@ -48,7 +48,7 @@ public class SearchDocument
             Description = EpisodeDescription,
             Subjects = Subjects.ToList(),
             Length = length,
-            Release = Release ?? DateTime.MinValue
+            ReleaseUtc = Release ?? DateTime.MinValue
         };
         EpisodeServicePresence.SetSpotifyIdentity(episode, SpotifyId);
         EpisodeServicePresence.SetYouTubeIdentity(episode, YoutubeId);

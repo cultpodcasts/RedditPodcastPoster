@@ -18,8 +18,8 @@ public sealed class ExactReleaseMatchStrategy : IReleaseMatchStrategy
             !context.ExistingEpisode.HasYouTubeIdentity() &&
             context.IncomingEpisode.HasYouTubeIdentity())
         {
-            var audioRelease = context.ExistingEpisode.Release;
-            var youTubeRelease = context.IncomingEpisode.Release;
+            var audioRelease = context.ExistingEpisode.ReleaseUtc;
+            var youTubeRelease = context.IncomingEpisode.ReleaseUtc;
 
             if (EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(audioRelease, youTubeRelease, delay))
             {
@@ -33,7 +33,7 @@ public sealed class ExactReleaseMatchStrategy : IReleaseMatchStrategy
         }
 
         if (delay.Ticks >= 0 &&
-            Math.Abs((context.ExistingEpisode.Release - context.IncomingEpisode.Release).Ticks) < toleranceTicks)
+            Math.Abs((context.ExistingEpisode.ReleaseUtc - context.IncomingEpisode.ReleaseUtc).Ticks) < toleranceTicks)
         {
             return true;
         }

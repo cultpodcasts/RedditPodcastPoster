@@ -2,6 +2,7 @@ using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Episodes.Tests;
 
@@ -34,7 +35,7 @@ public class EpisodeCreationLoggerRules
                 YouTube = youTubeId,
                 Apple = appleId
             },
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = spotifyUrl },
                 [ServiceKeys.YouTube] = new() { Url = youTubeUrl },
@@ -119,7 +120,7 @@ public class EpisodeCreationLoggerRules
             Id = _fixture.Create<Guid>(),
             Title = _fixture.Create<string>(),
             Ids = new EpisodeIds { Spotify = spotifyId },
-            Services = new Dictionary<string, EpisodeServiceLink>
+            Services = new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = spotifyUrl }
             }

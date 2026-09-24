@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.Matching;
@@ -130,7 +131,7 @@ public class SubjectEnricher(
 
             foreach (var result in evidence)
             {
-                episode.Matches.Add(new EpisodeSubjectMatch
+                episode.Matches.Add(new PlayableSubjectMatch
                 {
                     Subject = match.Subject.Name,
                     Term = result.Term,
@@ -172,7 +173,7 @@ public class SubjectEnricher(
             return;
         }
 
-        episode.Matches.Add(new EpisodeSubjectMatch
+        episode.Matches.Add(new PlayableSubjectMatch
         {
             Subject = defaultSubject,
             Term = string.Empty,

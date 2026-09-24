@@ -13,6 +13,7 @@ using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -554,7 +555,7 @@ public class UrlMembershipLookupRules
 
     private static void SeedBbcSoundsLookup(Episode episode, Uri soundsUrl)
     {
-        episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
+        episode.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
         {
             [StreamingServiceWire.ToKey(StreamingService.BbcIplayer)] = new(),
             [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new() { Url = soundsUrl }
@@ -563,7 +564,7 @@ public class UrlMembershipLookupRules
 
     private static void SeedBbcIplayerLookup(Episode episode, Uri iplayerUrl)
     {
-        episode.Services = new Dictionary<string, EpisodeServiceLink>(StringComparer.Ordinal)
+        episode.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
         {
             [StreamingServiceWire.ToKey(StreamingService.BbcIplayer)] = new() { Url = iplayerUrl },
             [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new()

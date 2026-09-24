@@ -7,6 +7,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests;
 
@@ -27,7 +28,7 @@ public class EpisodeHelperTests
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
             .With(x => x.Ids, new EpisodeIds { Spotify = "spotifyid" })
-            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
+            .With(x => x.Services, new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = new Uri("http://existing-url") }
             })
@@ -85,7 +86,7 @@ public class EpisodeHelperTests
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
             .With(x => x.Ids, new EpisodeIds { Spotify = "spotifyid" })
-            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
+            .With(x => x.Services, new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.Spotify] = new() { Url = new Uri("http://existing-url") }
             })
@@ -142,7 +143,7 @@ public class EpisodeHelperTests
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, "prefix " + substring + " suffix")
             .With(x => x.Ids, new EpisodeIds { YouTube = "youtubeid" })
-            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
+            .With(x => x.Services, new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.YouTube] = new() { Url = new Uri("http://existing-url") }
             })
@@ -200,7 +201,7 @@ public class EpisodeHelperTests
         var episode = _fixture.Build<Episode>()
             .With(x => x.Title, substring)
             .With(x => x.Ids, new EpisodeIds { YouTube = "youtubeid" })
-            .With(x => x.Services, new Dictionary<string, EpisodeServiceLink>
+            .With(x => x.Services, new Dictionary<string, ServiceLink>
             {
                 [ServiceKeys.YouTube] = new() { Url = new Uri("http://existing-url") }
             })

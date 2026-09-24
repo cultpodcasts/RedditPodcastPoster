@@ -14,7 +14,7 @@ public sealed class EpisodeFromCandidateFactory : IEpisodeFromCandidateFactory
             Description = candidate.Description,
             Length = candidate.Duration,
             Explicit = explicitContent,
-            Release = candidate.Release.Value
+            ReleaseUtc = candidate.Release.Value
         };
 
         if (candidate.SourceLink is not { } link)

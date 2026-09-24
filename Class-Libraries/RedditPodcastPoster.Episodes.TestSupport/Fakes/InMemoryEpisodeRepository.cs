@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Episodes.TestSupport.Fakes;
 
@@ -66,7 +67,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         Guid podcastId,
         Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var episode in _episodes.Values
                      .Where(x => x.PodcastId == podcastId)
                      .Where(predicate)
@@ -82,7 +83,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
     {
         var mostRecent = _episodes.Values
             .Where(x => x.PodcastId == podcastId)
-            .MaxBy(x => x.Release);
+            .MaxBy(x => x.ReleaseUtc);
         return Task.FromResult(mostRecent is null ? null : Clone(mostRecent));
     }
 
@@ -119,14 +120,14 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         var match = _episodes.Values.FirstOrDefault(predicate);
         return Task.FromResult(match is null ? null : Clone(match));
     }
 
     public async IAsyncEnumerable<Episode> GetAllBy(Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var episode in _episodes.Values.Where(predicate).Select(Clone))
         {
             yield return episode;
@@ -139,8 +140,8 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         Expression<Func<Episode, bool>> selector,
         Expression<Func<Episode, TProjection>> projection)
     {
-        var predicate = selector.Compile();
-        var project = projection.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
+        var project = CosmosLinqInMemoryRewriter.ForInMemory(projection).Compile();
         foreach (var episode in _episodes.Values.Where(predicate))
         {
             yield return project(episode);
@@ -187,7 +188,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             PodcastId = episode.PodcastId,
             Title = episode.Title,
             Description = episode.Description,
-            Release = episode.Release,
+            ReleaseUtc = episode.ReleaseUtc,
             Length = episode.Length,
             Explicit = episode.Explicit,
             Posted = episode.Posted,
@@ -199,17 +200,17 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             Subjects = [.. episode.Subjects],
             SearchTerms = episode.SearchTerms,
             PodcastName = episode.PodcastName,
-            PodcastSearchTerms = episode.PodcastSearchTerms,
-            PodcastLanguage = episode.PodcastLanguage,
+            PublisherSearchTerms = episode.PublisherSearchTerms,
+            PublisherLanguage = episode.PublisherLanguage,
             Language = episode.Language,
-            PodcastMetadataVersion = episode.PodcastMetadataVersion,
-            PodcastRemoved = episode.PodcastRemoved,
+            ParentMetadataVersion = episode.ParentMetadataVersion,
+            ParentRemoved = episode.ParentRemoved,
             Guests = episode.Guests?.ToArray(),
             Timestamp = episode.Timestamp,
             Services = episode.Services is { Count: > 0 }
                 ? episode.Services.ToDictionary(
                     x => x.Key,
-                    x => new EpisodeServiceLink { Url = x.Value.Url, Image = x.Value.Image },
+                    x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image },
                     StringComparer.Ordinal)
                 : null,
             Ids = episode.Ids is null
