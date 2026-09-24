@@ -44,23 +44,79 @@ public class Episode : Playable
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
-    // TODO: migrate Cosmos + Azure Search to Playable wire names publisherSearchTerms / publisherLanguage, then drop these overrides.
+    /// <summary>
+    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.PublisherSearchTerms"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull). Remove once episodes
+    /// are rewritten without <c>podcastSearchTerms</c>.
+    /// </summary>
     [JsonPropertyName("podcastSearchTerms")]
     [JsonPropertyOrder(91)]
-    public override string? PublisherSearchTerms { get; set; }
+    public string? LegacyPodcastSearchTerms
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(PublisherSearchTerms))
+            {
+                PublisherSearchTerms = value;
+            }
+        }
+    }
 
-    // TODO: migrate Cosmos + Azure Search to Playable wire names publisherSearchTerms / publisherLanguage, then drop these overrides.
+    /// <summary>
+    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.PublisherLanguage"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull). Remove once episodes
+    /// are rewritten without <c>podcastLanguage</c>.
+    /// </summary>
     [JsonPropertyName("podcastLanguage")]
     [JsonPropertyOrder(92)]
-    public override string? PublisherLanguage { get; set; }
+    public string? LegacyPodcastLanguage
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(PublisherLanguage))
+            {
+                PublisherLanguage = value;
+            }
+        }
+    }
 
+    /// <summary>
+    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.ParentMetadataVersion"/>;
+    /// omitted on serialize. Remove once episodes are rewritten without <c>podcastMetadataVersion</c>.
+    /// </summary>
     [JsonPropertyName("podcastMetadataVersion")]
     [JsonPropertyOrder(93)]
-    public long? PodcastMetadataVersion { get; set; }
+    public long? LegacyPodcastMetadataVersion
+    {
+        get => null;
+        set
+        {
+            if (value.HasValue && !ParentMetadataVersion.HasValue)
+            {
+                ParentMetadataVersion = value;
+            }
+        }
+    }
 
+    /// <summary>
+    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.ParentRemoved"/>;
+    /// omitted on serialize. Remove once episodes are rewritten without <c>podcastRemoved</c>.
+    /// </summary>
     [JsonPropertyName("podcastRemoved")]
     [JsonPropertyOrder(94)]
-    public bool? PodcastRemoved { get; set; }
+    public bool? LegacyPodcastRemoved
+    {
+        get => null;
+        set
+        {
+            if (value.HasValue && !ParentRemoved.HasValue)
+            {
+                ParentRemoved = value;
+            }
+        }
+    }
 
     public static Episode FromSpotify(string spotifyId,
         string title,
@@ -153,9 +209,9 @@ public class Episode : Playable
             updated = true;
         }
 
-        if (PodcastRemoved != podcast.Removed)
+        if (ParentRemoved != podcast.Removed)
         {
-            PodcastRemoved = podcast.Removed;
+            ParentRemoved = podcast.Removed;
             updated = true;
         }
 
@@ -174,9 +230,9 @@ public class Episode : Playable
         }
 
         var updatedMetadata = false;
-        if (PodcastMetadataVersion != podcast.Timestamp)
+        if (ParentMetadataVersion != podcast.Timestamp)
         {
-            PodcastMetadataVersion = podcast.Timestamp;
+            ParentMetadataVersion = podcast.Timestamp;
             updatedMetadata = true;
         }
 

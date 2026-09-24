@@ -15,7 +15,7 @@ Business-rule tests under `BusinessRules/**` encode these conventions. Failing t
 | Non-English | Explicit ISO code (`fil`, `es`, …) | |
 | Podcast default | `Podcast.Language` | English default is also null. |
 
-Denormalised `podcastLanguage` on the episode may still be `"fil"` while `lang` is null (English override). Never use `podcastLanguage` as a substitute for `lang` at read time.
+Denormalised `publisherLanguage` on the episode may still be `"fil"` while `lang` is null (English override). Never use `publisherLanguage` as a substitute for `lang` at read time.
 
 ### UI / API path (English)
 
@@ -74,7 +74,7 @@ Capture `previousPodcastLanguage` **before** applying the podcast change request
 
 ## Search
 
-- Push mapper / Cosmos SQL: episode `lang` only (never `lang ?? podcastLanguage`).
+- Push mapper / Cosmos SQL: episode `lang` only (never `lang ?? publisherLanguage`).
 - Subject English filter: `(lang eq null or lang eq 'en')` — practically null.
 - English episodes of non-English podcasts are in the English subject bucket when `lang` is null.
 

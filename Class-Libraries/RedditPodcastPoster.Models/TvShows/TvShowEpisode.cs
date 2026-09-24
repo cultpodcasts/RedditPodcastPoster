@@ -31,22 +31,6 @@ public sealed class TvShowEpisode : Playable
     [JsonPropertyOrder(90)]
     public string? TvShowName { get; set; }
 
-    [JsonPropertyName("publisherSearchTerms")]
-    [JsonPropertyOrder(91)]
-    public override string? PublisherSearchTerms { get; set; }
-
-    [JsonPropertyName("publisherLanguage")]
-    [JsonPropertyOrder(92)]
-    public override string? PublisherLanguage { get; set; }
-
-    [JsonPropertyName("tvShowMetadataVersion")]
-    [JsonPropertyOrder(93)]
-    public long? TvShowMetadataVersion { get; set; }
-
-    [JsonPropertyName("tvShowRemoved")]
-    [JsonPropertyOrder(94)]
-    public bool? TvShowRemoved { get; set; }
-
     /// <summary>
     /// Denormalise parent TvShow fields onto this playable (mirrors
     /// <c>Episode.SetPodcastProperties</c>). First flag = projection fields;
@@ -68,9 +52,9 @@ public sealed class TvShowEpisode : Playable
             updated = true;
         }
 
-        if (TvShowRemoved != tvShow.Removed)
+        if (ParentRemoved != tvShow.Removed)
         {
-            TvShowRemoved = tvShow.Removed;
+            ParentRemoved = tvShow.Removed;
             updated = true;
         }
 
@@ -89,9 +73,9 @@ public sealed class TvShowEpisode : Playable
         }
 
         var updatedMetadata = false;
-        if (TvShowMetadataVersion != tvShow.Timestamp)
+        if (ParentMetadataVersion != tvShow.Timestamp)
         {
-            TvShowMetadataVersion = tvShow.Timestamp;
+            ParentMetadataVersion = tvShow.Timestamp;
             updatedMetadata = true;
         }
 

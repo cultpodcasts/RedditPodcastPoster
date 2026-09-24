@@ -180,8 +180,8 @@ public class HomepagePublisher(
         {
             durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                                       x.PodcastRemoved == null),
+                    x => !x.Removed && !x.Ignored && (!x.ParentRemoved.IsDefined() || x.ParentRemoved == false ||
+                                                       x.ParentRemoved == null),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
@@ -191,8 +191,8 @@ public class HomepagePublisher(
         {
             countEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && (!x.PodcastRemoved.IsDefined() || x.PodcastRemoved == false ||
-                                         x.PodcastRemoved == null),
+                    x => !x.Removed && (!x.ParentRemoved.IsDefined() || x.ParentRemoved == false ||
+                                         x.ParentRemoved == null),
                     x => x.Id)
                 .ToListAsync(ct)
                 .AsTask();

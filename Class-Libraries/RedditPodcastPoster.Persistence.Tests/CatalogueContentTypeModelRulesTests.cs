@@ -446,8 +446,8 @@ public class CatalogueContentTypeModelRulesTests
         episode.TvShowName.Should().Be(tvShowName);
         episode.PublisherSearchTerms.Should().Be(searchTerms);
         episode.PublisherLanguage.Should().Be(language);
-        episode.TvShowRemoved.Should().BeTrue();
-        episode.TvShowMetadataVersion.Should().Be(metadataVersion);
+        episode.ParentRemoved.Should().BeTrue();
+        episode.ParentMetadataVersion.Should().Be(metadataVersion);
     }
 
     [Fact(DisplayName =
@@ -483,8 +483,8 @@ public class CatalogueContentTypeModelRulesTests
         episode.TvShowName.Should().Be(tvShowName);
         episode.PublisherSearchTerms.Should().Be(searchTerms);
         episode.PublisherLanguage.Should().Be(language);
-        episode.TvShowRemoved.Should().BeFalse();
-        episode.TvShowMetadataVersion.Should().Be(metadataVersion);
+        episode.ParentRemoved.Should().BeFalse();
+        episode.ParentMetadataVersion.Should().Be(metadataVersion);
     }
 
     [Fact(DisplayName =
@@ -519,8 +519,8 @@ public class CatalogueContentTypeModelRulesTests
         report.NewsOrganisationName.Should().Be(organisationName);
         report.PublisherSearchTerms.Should().Be(searchTerms);
         report.PublisherLanguage.Should().Be(language);
-        report.NewsOrganisationRemoved.Should().BeTrue();
-        report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
+        report.ParentRemoved.Should().BeTrue();
+        report.ParentMetadataVersion.Should().Be(metadataVersion);
     }
 
     [Fact(DisplayName =
@@ -556,15 +556,14 @@ public class CatalogueContentTypeModelRulesTests
         report.NewsOrganisationName.Should().Be(organisationName);
         report.PublisherSearchTerms.Should().Be(searchTerms);
         report.PublisherLanguage.Should().Be(language);
-        report.NewsOrganisationRemoved.Should().BeFalse();
-        report.NewsOrganisationMetadataVersion.Should().Be(metadataVersion);
+        report.ParentRemoved.Should().BeFalse();
+        report.ParentMetadataVersion.Should().Be(metadataVersion);
     }
 
     [Fact(DisplayName =
-        "INTEGRITY PublisherSearchTerms JSON: Episode keeps legacy podcastSearchTerms/podcastLanguage; " +
-        "TvShowEpisode and NewsReport emit publisherSearchTerms/publisherLanguage; " +
-        "each kind serializes only its correct wire names, round-trips values, and never emits " +
-        "PascalCase, the other kind's keys, or both names together.")]
+        "INTEGRITY PublisherSearchTerms JSON: Episode, TvShowEpisode, and NewsReport all serialize " +
+        "Playable publisherSearchTerms/publisherLanguage only; never podcast*, tvShow*, newsOrganisation*, " +
+        "or PascalCase; values round-trip through the shared Playable members.")]
     public void Publisher_denormalised_fields_serialize_with_correct_wire_names_only()
     {
         // Arrange
@@ -599,70 +598,45 @@ public class CatalogueContentTypeModelRulesTests
         var tvRoundTrip = JsonSerializer.Deserialize<TvShowEpisode>(tvJson, options);
         var newsRoundTrip = JsonSerializer.Deserialize<NewsReport>(newsJson, options);
 
-        // Assert — Episode: legacy podcast* only
-        episodeJson.Should().Contain("\"podcastSearchTerms\"");
-        episodeJson.Should().Contain("\"podcastLanguage\"");
-        episodeJson.Should().NotContain("publisherSearchTerms");
-        episodeJson.Should().NotContain("publisherLanguage");
-        episodeJson.Should().NotContain("tvShowSearchTerms");
-        episodeJson.Should().NotContain("tvShowLanguage");
-        episodeJson.Should().NotContain("newsOrganisationSearchTerms");
-        episodeJson.Should().NotContain("newsOrganisationLanguage");
-        episodeJson.Should().NotContain("PublisherSearchTerms");
-        episodeJson.Should().NotContain("PublisherLanguage");
+        // Assert — all three kinds: publisher* only
+        foreach (var json in new[] { episodeJson, tvJson, newsJson })
+        {
+            json.Should().Contain("\"publisherSearchTerms\"");
+            json.Should().Contain("\"publisherLanguage\"");
+            json.Should().NotContain("podcastSearchTerms");
+            json.Should().NotContain("podcastLanguage");
+            json.Should().NotContain("tvShowSearchTerms");
+            json.Should().NotContain("tvShowLanguage");
+            json.Should().NotContain("newsOrganisationSearchTerms");
+            json.Should().NotContain("newsOrganisationLanguage");
+            json.Should().NotContain("PublisherSearchTerms");
+            json.Should().NotContain("PublisherLanguage");
+        }
+
         episodeRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         episodeRoundTrip.PublisherLanguage.Should().Be(language);
-
-        // Assert — TvShowEpisode: publisher* only
-        tvJson.Should().Contain("\"publisherSearchTerms\"");
-        tvJson.Should().Contain("\"publisherLanguage\"");
-        tvJson.Should().NotContain("podcastSearchTerms");
-        tvJson.Should().NotContain("podcastLanguage");
-        tvJson.Should().NotContain("tvShowSearchTerms");
-        tvJson.Should().NotContain("tvShowLanguage");
-        tvJson.Should().NotContain("newsOrganisationSearchTerms");
-        tvJson.Should().NotContain("newsOrganisationLanguage");
-        tvJson.Should().NotContain("PublisherSearchTerms");
-        tvJson.Should().NotContain("PublisherLanguage");
         tvRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         tvRoundTrip.PublisherLanguage.Should().Be(language);
-
-        // Assert — NewsReport: publisher* only
-        newsJson.Should().Contain("\"publisherSearchTerms\"");
-        newsJson.Should().Contain("\"publisherLanguage\"");
-        newsJson.Should().NotContain("podcastSearchTerms");
-        newsJson.Should().NotContain("podcastLanguage");
-        newsJson.Should().NotContain("tvShowSearchTerms");
-        newsJson.Should().NotContain("tvShowLanguage");
-        newsJson.Should().NotContain("newsOrganisationSearchTerms");
-        newsJson.Should().NotContain("newsOrganisationLanguage");
-        newsJson.Should().NotContain("PublisherSearchTerms");
-        newsJson.Should().NotContain("PublisherLanguage");
         newsRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         newsRoundTrip.PublisherLanguage.Should().Be(language);
     }
 
     [Fact(DisplayName =
-        "INTEGRITY PublisherSearchTerms JSON: deserializing legacy Episode podcast* JSON and " +
-        "TvShowEpisode/NewsReport publisher* JSON populates PublisherSearchTerms/PublisherLanguage, " +
-        "because Cosmos documents must round-trip through the Playable C# surface.")]
-    public void Publisher_denormalised_fields_deserialize_from_kind_wire_names()
+        "INTEGRITY PublisherSearchTerms JSON: deserializing publisher* JSON populates PublisherSearchTerms/" +
+        "PublisherLanguage on Episode, TvShowEpisode, and NewsReport.")]
+    public void Publisher_denormalised_fields_deserialize_from_publisher_wire_names()
     {
         // Arrange
         var searchTerms = _fixture.Create<string>();
         var language = _fixture.Create<string>();
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        var episodeJson =
-            $"{{\"podcastSearchTerms\":\"{searchTerms}\",\"podcastLanguage\":\"{language}\"}}";
-        var tvJson =
-            $"{{\"publisherSearchTerms\":\"{searchTerms}\",\"publisherLanguage\":\"{language}\"}}";
-        var newsJson =
+        var json =
             $"{{\"publisherSearchTerms\":\"{searchTerms}\",\"publisherLanguage\":\"{language}\"}}";
 
         // Act
-        var episode = JsonSerializer.Deserialize<Episode>(episodeJson, options);
-        var tvShowEpisode = JsonSerializer.Deserialize<TvShowEpisode>(tvJson, options);
-        var newsReport = JsonSerializer.Deserialize<NewsReport>(newsJson, options);
+        var episode = JsonSerializer.Deserialize<Episode>(json, options);
+        var tvShowEpisode = JsonSerializer.Deserialize<TvShowEpisode>(json, options);
+        var newsReport = JsonSerializer.Deserialize<NewsReport>(json, options);
 
         // Assert
         episode!.PublisherSearchTerms.Should().Be(searchTerms);
@@ -671,5 +645,82 @@ public class CatalogueContentTypeModelRulesTests
         tvShowEpisode.PublisherLanguage.Should().Be(language);
         newsReport!.PublisherSearchTerms.Should().Be(searchTerms);
         newsReport.PublisherLanguage.Should().Be(language);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY PublisherSearchTerms JSON: Episode still deserializes legacy Cosmos podcastSearchTerms/" +
+        "podcastLanguage into PublisherSearchTerms/PublisherLanguage, and a subsequent serialize emits " +
+        "only publisher* (legacy keys are write-omitted).")]
+    public void Episode_legacy_podcast_wire_names_deserialize_into_publisher_members()
+    {
+        // Arrange
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+        var legacyJson =
+            $"{{\"podcastSearchTerms\":\"{searchTerms}\",\"podcastLanguage\":\"{language}\"}}";
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+        var rewrittenJson = JsonSerializer.Serialize(episode, options);
+
+        // Assert
+        episode!.PublisherSearchTerms.Should().Be(searchTerms);
+        episode.PublisherLanguage.Should().Be(language);
+        rewrittenJson.Should().Contain("\"publisherSearchTerms\"");
+        rewrittenJson.Should().Contain("\"publisherLanguage\"");
+        rewrittenJson.Should().NotContain("podcastSearchTerms");
+        rewrittenJson.Should().NotContain("podcastLanguage");
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY Parent* JSON: Episode, TvShowEpisode, and NewsReport serialize parentMetadataVersion/" +
+        "parentRemoved only; Episode legacy podcastMetadataVersion/podcastRemoved deserialize into Parent* " +
+        "and rewrite without the legacy keys.")]
+    public void Parent_denormalised_fields_use_shared_wire_names()
+    {
+        // Arrange
+        var metadataVersion = _fixture.Create<long>();
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+        var episode = new Episode { ParentMetadataVersion = metadataVersion, ParentRemoved = true };
+        var tvShowEpisode = new TvShowEpisode { ParentMetadataVersion = metadataVersion, ParentRemoved = true };
+        var newsReport = new NewsReport { ParentMetadataVersion = metadataVersion, ParentRemoved = true };
+        var legacyJson =
+            $"{{\"podcastMetadataVersion\":{metadataVersion},\"podcastRemoved\":true}}";
+
+        // Act
+        var episodeJson = JsonSerializer.Serialize(episode, options);
+        var tvJson = JsonSerializer.Serialize(tvShowEpisode, options);
+        var newsJson = JsonSerializer.Serialize(newsReport, options);
+        var fromLegacy = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+        var rewritten = JsonSerializer.Serialize(fromLegacy, options);
+
+        // Assert
+        foreach (var json in new[] { episodeJson, tvJson, newsJson })
+        {
+            json.Should().Contain("\"parentMetadataVersion\"");
+            json.Should().Contain("\"parentRemoved\"");
+            json.Should().NotContain("podcastMetadataVersion");
+            json.Should().NotContain("podcastRemoved");
+            json.Should().NotContain("tvShowMetadataVersion");
+            json.Should().NotContain("tvShowRemoved");
+            json.Should().NotContain("newsOrganisationMetadataVersion");
+            json.Should().NotContain("newsOrganisationRemoved");
+        }
+
+        fromLegacy!.ParentMetadataVersion.Should().Be(metadataVersion);
+        fromLegacy.ParentRemoved.Should().BeTrue();
+        rewritten.Should().Contain("\"parentMetadataVersion\"");
+        rewritten.Should().Contain("\"parentRemoved\"");
+        rewritten.Should().NotContain("podcastMetadataVersion");
+        rewritten.Should().NotContain("podcastRemoved");
     }
 }

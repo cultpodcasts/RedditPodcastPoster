@@ -203,8 +203,8 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             PublisherSearchTerms = episode.PublisherSearchTerms,
             PublisherLanguage = episode.PublisherLanguage,
             Language = episode.Language,
-            PodcastMetadataVersion = episode.PodcastMetadataVersion,
-            PodcastRemoved = episode.PodcastRemoved,
+            ParentMetadataVersion = episode.ParentMetadataVersion,
+            ParentRemoved = episode.ParentRemoved,
             Guests = episode.Guests?.ToArray(),
             Timestamp = episode.Timestamp,
             Services = episode.Services is { Count: > 0 }

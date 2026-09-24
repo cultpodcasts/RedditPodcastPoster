@@ -12,7 +12,7 @@ public class PodcastEpisodeProjectionHelper(IEpisodeRepository episodeRepository
         {
             episode.PodcastName = podcast.Name;
             episode.PublisherSearchTerms = podcast.SearchTerms;
-            episode.PodcastRemoved = podcast.Removed;
+            episode.ParentRemoved = podcast.Removed;
             await episodeRepository.Save(episode);
         }
     }

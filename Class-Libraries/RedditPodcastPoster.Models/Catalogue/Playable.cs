@@ -116,24 +116,36 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string? HashTag { get; set; }
 
     /// <summary>
-    /// Denormalised parent publisher search terms. Wire name is set on the concrete type:
-    /// <see cref="Episodes.Episode"/> → legacy <c>podcastSearchTerms</c>;
-    /// <see cref="TvShows.TvShowEpisode"/> / <see cref="News.NewsReport"/> → <c>publisherSearchTerms</c>.
-    /// Base is <see cref="JsonIgnoreAttribute"/> so STJ does not double-emit with overrides.
+    /// Denormalised parent publisher search terms (JSON <c>publisherSearchTerms</c>).
     /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.SearchTerms"/>).
     /// </summary>
-    [JsonIgnore]
-    public virtual string? PublisherSearchTerms { get; set; }
+    [JsonPropertyName("publisherSearchTerms")]
+    [JsonPropertyOrder(91)]
+    public string? PublisherSearchTerms { get; set; }
 
     /// <summary>
-    /// Denormalised parent publisher language. Wire name is set on the concrete type:
-    /// <see cref="Episodes.Episode"/> → legacy <c>podcastLanguage</c>;
-    /// <see cref="TvShows.TvShowEpisode"/> / <see cref="News.NewsReport"/> → <c>publisherLanguage</c>.
-    /// Base is <see cref="JsonIgnoreAttribute"/> so STJ does not double-emit with overrides.
+    /// Denormalised parent publisher language (JSON <c>publisherLanguage</c>).
     /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.Language"/>).
     /// </summary>
-    [JsonIgnore]
-    public virtual string? PublisherLanguage { get; set; }
+    [JsonPropertyName("publisherLanguage")]
+    [JsonPropertyOrder(92)]
+    public string? PublisherLanguage { get; set; }
+
+    /// <summary>
+    /// Denormalised parent publisher Cosmos <c>_ts</c> (JSON <c>parentMetadataVersion</c>).
+    /// Used to detect stale parent projection. Not used on <see cref="Films.Film"/>.
+    /// </summary>
+    [JsonPropertyName("parentMetadataVersion")]
+    [JsonPropertyOrder(93)]
+    public long? ParentMetadataVersion { get; set; }
+
+    /// <summary>
+    /// Denormalised parent publisher <see cref="Publisher.Removed"/> (JSON <c>parentRemoved</c>).
+    /// Not used on <see cref="Films.Film"/>.
+    /// </summary>
+    [JsonPropertyName("parentRemoved")]
+    [JsonPropertyOrder(94)]
+    public bool? ParentRemoved { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]

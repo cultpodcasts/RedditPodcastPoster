@@ -31,22 +31,6 @@ public sealed class NewsReport : Playable
     [JsonPropertyOrder(90)]
     public string? NewsOrganisationName { get; set; }
 
-    [JsonPropertyName("publisherSearchTerms")]
-    [JsonPropertyOrder(91)]
-    public override string? PublisherSearchTerms { get; set; }
-
-    [JsonPropertyName("publisherLanguage")]
-    [JsonPropertyOrder(92)]
-    public override string? PublisherLanguage { get; set; }
-
-    [JsonPropertyName("newsOrganisationMetadataVersion")]
-    [JsonPropertyOrder(93)]
-    public long? NewsOrganisationMetadataVersion { get; set; }
-
-    [JsonPropertyName("newsOrganisationRemoved")]
-    [JsonPropertyOrder(94)]
-    public bool? NewsOrganisationRemoved { get; set; }
-
     /// <summary>
     /// Denormalise parent NewsOrganisation fields onto this playable (mirrors
     /// <c>Episode.SetPodcastProperties</c> / <c>TvShowEpisode.SetTvShowProperties</c>).
@@ -68,9 +52,9 @@ public sealed class NewsReport : Playable
             updated = true;
         }
 
-        if (NewsOrganisationRemoved != organisation.Removed)
+        if (ParentRemoved != organisation.Removed)
         {
-            NewsOrganisationRemoved = organisation.Removed;
+            ParentRemoved = organisation.Removed;
             updated = true;
         }
 
@@ -89,9 +73,9 @@ public sealed class NewsReport : Playable
         }
 
         var updatedMetadata = false;
-        if (NewsOrganisationMetadataVersion != organisation.Timestamp)
+        if (ParentMetadataVersion != organisation.Timestamp)
         {
-            NewsOrganisationMetadataVersion = organisation.Timestamp;
+            ParentMetadataVersion = organisation.Timestamp;
             updatedMetadata = true;
         }
 

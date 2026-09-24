@@ -34,7 +34,7 @@ public static class PodcastEpisodeExtensions
             Lang = NullIfWhiteSpace(EpisodeLanguageResolution.ForEpisode(podcastEpisode.Episode)),
             PodcastAppleId = podcastEpisode.Podcast.AppleId?.ToString(),
             PodcastName = podcastEpisode.Podcast.Name.Trim(),
-            PodcastSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
+            PublisherSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
             Release = podcastEpisode.Episode.ReleaseUtc,
             Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
             SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
