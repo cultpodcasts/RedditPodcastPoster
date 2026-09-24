@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using AutoFixture;
@@ -262,6 +263,28 @@ public class CatalogueContentTypeModelRulesTests
         fromJson!.DateTimeUtc.Should().Be(fractionalUtc);
         rewritten.Should().Contain(".");
         roundTrip!.DateTimeUtc.Should().Be(fractionalUtc);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY CatalogueRelease.FromDateTimeUtc treats Unspecified Kind as already-UTC " +
+        "(does not ToUniversalTime), because Spotify/date parses and Episode.ReleaseUtc round-trips " +
+        "must not shift by the local offset (e.g. UK BST).")]
+    public void CatalogueRelease_FromDateTimeUtc_unspecified_is_utc_not_local_conversion()
+    {
+        // Arrange
+        var calendarDay = DomainTestFixture.UtcDateDaysAgo(3);
+        var unspecifiedMidnight = DateTime.ParseExact(
+            calendarDay.ToString("yyyy-MM-dd"),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture);
+
+        // Act
+        var release = CatalogueRelease.FromDateTimeUtc(unspecifiedMidnight);
+
+        // Assert
+        unspecifiedMidnight.Kind.Should().Be(DateTimeKind.Unspecified);
+        release.DateTimeUtc.Should().Be(DateTime.SpecifyKind(unspecifiedMidnight, DateTimeKind.Utc));
+        release.ToSortUtc().Should().Be(DateTime.SpecifyKind(unspecifiedMidnight, DateTimeKind.Utc));
     }
 
     [Fact(DisplayName =

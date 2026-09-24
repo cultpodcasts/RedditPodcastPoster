@@ -62,9 +62,14 @@ public sealed class CatalogueRelease
 
     public static CatalogueRelease FromDateTimeUtc(DateTime dateTimeUtc)
     {
-        var utc = dateTimeUtc.Kind == DateTimeKind.Utc
-            ? dateTimeUtc
-            : dateTimeUtc.ToUniversalTime();
+        // Unspecified = already UTC (provider date parses, Cosmos round-trips). Do not
+        // ToUniversalTime() Unspecified — that treats it as local and shifts UK/BST clocks.
+        var utc = dateTimeUtc.Kind switch
+        {
+            DateTimeKind.Utc => dateTimeUtc,
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(dateTimeUtc, DateTimeKind.Utc),
+            _ => dateTimeUtc.ToUniversalTime()
+        };
         return new CatalogueRelease(CatalogueReleasePrecision.DateTimeUtc, year: 0, date: null, utc);
     }
 

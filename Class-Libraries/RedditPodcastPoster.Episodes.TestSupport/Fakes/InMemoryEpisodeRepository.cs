@@ -67,7 +67,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         Guid podcastId,
         Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var episode in _episodes.Values
                      .Where(x => x.PodcastId == podcastId)
                      .Where(predicate)
@@ -120,14 +120,14 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         var match = _episodes.Values.FirstOrDefault(predicate);
         return Task.FromResult(match is null ? null : Clone(match));
     }
 
     public async IAsyncEnumerable<Episode> GetAllBy(Expression<Func<Episode, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var episode in _episodes.Values.Where(predicate).Select(Clone))
         {
             yield return episode;
@@ -140,8 +140,8 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         Expression<Func<Episode, bool>> selector,
         Expression<Func<Episode, TProjection>> projection)
     {
-        var predicate = selector.Compile();
-        var project = projection.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
+        var project = CosmosLinqInMemoryRewriter.ForInMemory(projection).Compile();
         foreach (var episode in _episodes.Values.Where(predicate))
         {
             yield return project(episode);

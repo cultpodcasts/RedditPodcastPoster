@@ -44,14 +44,14 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
 
     public Task<Podcast?> GetBy(Expression<Func<Podcast, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         var match = _podcasts.Values.FirstOrDefault(predicate);
         return Task.FromResult(match is null ? null : Clone(match));
     }
 
     public async IAsyncEnumerable<Podcast> GetAllBy(Expression<Func<Podcast, bool>> selector)
     {
-        var predicate = selector.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var podcast in _podcasts.Values.Where(predicate).Select(Clone))
         {
             yield return podcast;
@@ -64,8 +64,8 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
         Expression<Func<Podcast, bool>> selector,
         Expression<Func<Podcast, TProjection>> projection)
     {
-        var predicate = selector.Compile();
-        var project = projection.Compile();
+        var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
+        var project = CosmosLinqInMemoryRewriter.ForInMemory(projection).Compile();
         foreach (var podcast in _podcasts.Values.Where(predicate))
         {
             yield return project(podcast);
