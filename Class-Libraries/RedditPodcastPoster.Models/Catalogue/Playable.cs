@@ -116,16 +116,20 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string? HashTag { get; set; }
 
     /// <summary>
-    /// Denormalised parent publisher search terms. Subclasses set Cosmos JSON names
-    /// (<c>podcastSearchTerms</c> / <c>tvShowSearchTerms</c> / <c>newsOrganisationSearchTerms</c>).
+    /// Denormalised parent publisher search terms. Wire name is set on the concrete type:
+    /// <see cref="Episodes.Episode"/> → legacy <c>podcastSearchTerms</c>;
+    /// <see cref="TvShows.TvShowEpisode"/> / <see cref="News.NewsReport"/> → <c>publisherSearchTerms</c>.
+    /// Base is <see cref="JsonIgnoreAttribute"/> so STJ does not double-emit with overrides.
     /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.SearchTerms"/>).
     /// </summary>
     [JsonIgnore]
     public virtual string? PublisherSearchTerms { get; set; }
 
     /// <summary>
-    /// Denormalised parent publisher language. Subclasses set Cosmos JSON names
-    /// (<c>podcastLanguage</c> / <c>tvShowLanguage</c> / <c>newsOrganisationLanguage</c>).
+    /// Denormalised parent publisher language. Wire name is set on the concrete type:
+    /// <see cref="Episodes.Episode"/> → legacy <c>podcastLanguage</c>;
+    /// <see cref="TvShows.TvShowEpisode"/> / <see cref="News.NewsReport"/> → <c>publisherLanguage</c>.
+    /// Base is <see cref="JsonIgnoreAttribute"/> so STJ does not double-emit with overrides.
     /// Not used on <see cref="Films.Film"/> (Film uses <see cref="Publisher.Language"/>).
     /// </summary>
     [JsonIgnore]

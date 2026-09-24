@@ -31,11 +31,11 @@ public sealed class NewsReport : Playable
     [JsonPropertyOrder(90)]
     public string? NewsOrganisationName { get; set; }
 
-    [JsonPropertyName("newsOrganisationSearchTerms")]
+    [JsonPropertyName("publisherSearchTerms")]
     [JsonPropertyOrder(91)]
     public override string? PublisherSearchTerms { get; set; }
 
-    [JsonPropertyName("newsOrganisationLanguage")]
+    [JsonPropertyName("publisherLanguage")]
     [JsonPropertyOrder(92)]
     public override string? PublisherLanguage { get; set; }
 

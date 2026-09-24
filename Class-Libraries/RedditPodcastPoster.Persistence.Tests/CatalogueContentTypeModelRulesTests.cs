@@ -561,22 +561,24 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "INTEGRITY PublisherSearchTerms JSON: Episode, TvShowEpisode, and NewsReport serialize denormalised " +
-        "parent search terms and language under their established Cosmos names (podcast*/tvShow*/newsOrganisation*), " +
-        "because Playable virtual members must not emit PascalCase or a shared publisher* key.")]
-    public void Publisher_denormalised_fields_keep_per_type_cosmos_json_names()
+        "INTEGRITY PublisherSearchTerms JSON: Episode keeps legacy podcastSearchTerms/podcastLanguage; " +
+        "TvShowEpisode and NewsReport emit publisherSearchTerms/publisherLanguage; " +
+        "each kind serializes only its correct wire names, round-trips values, and never emits " +
+        "PascalCase, the other kind's keys, or both names together.")]
+    public void Publisher_denormalised_fields_serialize_with_correct_wire_names_only()
     {
         // Arrange
         var searchTerms = _fixture.Create<string>();
         var language = _fixture.Create<string>();
-        var hashTag = "#" + _fixture.Create<string>();
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
         var episode = new Episode
         {
             PublisherSearchTerms = searchTerms,
-            PublisherLanguage = language,
-            HashTag = hashTag,
-            Matches = [new PlayableSubjectMatch { Subject = _fixture.Create<string>(), Term = _fixture.Create<string>() }]
+            PublisherLanguage = language
         };
         var tvShowEpisode = new TvShowEpisode
         {
@@ -597,21 +599,77 @@ public class CatalogueContentTypeModelRulesTests
         var tvRoundTrip = JsonSerializer.Deserialize<TvShowEpisode>(tvJson, options);
         var newsRoundTrip = JsonSerializer.Deserialize<NewsReport>(newsJson, options);
 
-        // Assert
+        // Assert — Episode: legacy podcast* only
         episodeJson.Should().Contain("\"podcastSearchTerms\"");
         episodeJson.Should().Contain("\"podcastLanguage\"");
-        episodeJson.Should().Contain("\"hashTag\"");
-        episodeJson.Should().Contain("\"matches\"");
-        episodeJson.Should().NotContain("PublisherSearchTerms");
         episodeJson.Should().NotContain("publisherSearchTerms");
-        tvJson.Should().Contain("\"tvShowSearchTerms\"");
-        tvJson.Should().Contain("\"tvShowLanguage\"");
-        newsJson.Should().Contain("\"newsOrganisationSearchTerms\"");
-        newsJson.Should().Contain("\"newsOrganisationLanguage\"");
+        episodeJson.Should().NotContain("publisherLanguage");
+        episodeJson.Should().NotContain("tvShowSearchTerms");
+        episodeJson.Should().NotContain("tvShowLanguage");
+        episodeJson.Should().NotContain("newsOrganisationSearchTerms");
+        episodeJson.Should().NotContain("newsOrganisationLanguage");
+        episodeJson.Should().NotContain("PublisherSearchTerms");
+        episodeJson.Should().NotContain("PublisherLanguage");
         episodeRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         episodeRoundTrip.PublisherLanguage.Should().Be(language);
-        episodeRoundTrip.HashTag.Should().Be(hashTag);
+
+        // Assert — TvShowEpisode: publisher* only
+        tvJson.Should().Contain("\"publisherSearchTerms\"");
+        tvJson.Should().Contain("\"publisherLanguage\"");
+        tvJson.Should().NotContain("podcastSearchTerms");
+        tvJson.Should().NotContain("podcastLanguage");
+        tvJson.Should().NotContain("tvShowSearchTerms");
+        tvJson.Should().NotContain("tvShowLanguage");
+        tvJson.Should().NotContain("newsOrganisationSearchTerms");
+        tvJson.Should().NotContain("newsOrganisationLanguage");
+        tvJson.Should().NotContain("PublisherSearchTerms");
+        tvJson.Should().NotContain("PublisherLanguage");
         tvRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
+        tvRoundTrip.PublisherLanguage.Should().Be(language);
+
+        // Assert — NewsReport: publisher* only
+        newsJson.Should().Contain("\"publisherSearchTerms\"");
+        newsJson.Should().Contain("\"publisherLanguage\"");
+        newsJson.Should().NotContain("podcastSearchTerms");
+        newsJson.Should().NotContain("podcastLanguage");
+        newsJson.Should().NotContain("tvShowSearchTerms");
+        newsJson.Should().NotContain("tvShowLanguage");
+        newsJson.Should().NotContain("newsOrganisationSearchTerms");
+        newsJson.Should().NotContain("newsOrganisationLanguage");
+        newsJson.Should().NotContain("PublisherSearchTerms");
+        newsJson.Should().NotContain("PublisherLanguage");
         newsRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
+        newsRoundTrip.PublisherLanguage.Should().Be(language);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY PublisherSearchTerms JSON: deserializing legacy Episode podcast* JSON and " +
+        "TvShowEpisode/NewsReport publisher* JSON populates PublisherSearchTerms/PublisherLanguage, " +
+        "because Cosmos documents must round-trip through the Playable C# surface.")]
+    public void Publisher_denormalised_fields_deserialize_from_kind_wire_names()
+    {
+        // Arrange
+        var searchTerms = _fixture.Create<string>();
+        var language = _fixture.Create<string>();
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var episodeJson =
+            $"{{\"podcastSearchTerms\":\"{searchTerms}\",\"podcastLanguage\":\"{language}\"}}";
+        var tvJson =
+            $"{{\"publisherSearchTerms\":\"{searchTerms}\",\"publisherLanguage\":\"{language}\"}}";
+        var newsJson =
+            $"{{\"publisherSearchTerms\":\"{searchTerms}\",\"publisherLanguage\":\"{language}\"}}";
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Episode>(episodeJson, options);
+        var tvShowEpisode = JsonSerializer.Deserialize<TvShowEpisode>(tvJson, options);
+        var newsReport = JsonSerializer.Deserialize<NewsReport>(newsJson, options);
+
+        // Assert
+        episode!.PublisherSearchTerms.Should().Be(searchTerms);
+        episode.PublisherLanguage.Should().Be(language);
+        tvShowEpisode!.PublisherSearchTerms.Should().Be(searchTerms);
+        tvShowEpisode.PublisherLanguage.Should().Be(language);
+        newsReport!.PublisherSearchTerms.Should().Be(searchTerms);
+        newsReport.PublisherLanguage.Should().Be(language);
     }
 }

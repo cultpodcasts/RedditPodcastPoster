@@ -44,10 +44,12 @@ public class Episode : Playable
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
+    // TODO: migrate Cosmos + Azure Search to Playable wire names publisherSearchTerms / publisherLanguage, then drop these overrides.
     [JsonPropertyName("podcastSearchTerms")]
     [JsonPropertyOrder(91)]
     public override string? PublisherSearchTerms { get; set; }
 
+    // TODO: migrate Cosmos + Azure Search to Playable wire names publisherSearchTerms / publisherLanguage, then drop these overrides.
     [JsonPropertyName("podcastLanguage")]
     [JsonPropertyOrder(92)]
     public override string? PublisherLanguage { get; set; }

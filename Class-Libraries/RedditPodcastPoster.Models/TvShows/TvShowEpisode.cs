@@ -31,11 +31,11 @@ public sealed class TvShowEpisode : Playable
     [JsonPropertyOrder(90)]
     public string? TvShowName { get; set; }
 
-    [JsonPropertyName("tvShowSearchTerms")]
+    [JsonPropertyName("publisherSearchTerms")]
     [JsonPropertyOrder(91)]
     public override string? PublisherSearchTerms { get; set; }
 
-    [JsonPropertyName("tvShowLanguage")]
+    [JsonPropertyName("publisherLanguage")]
     [JsonPropertyOrder(92)]
     public override string? PublisherLanguage { get; set; }
 
