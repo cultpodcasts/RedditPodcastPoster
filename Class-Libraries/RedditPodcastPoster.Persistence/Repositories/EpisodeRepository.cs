@@ -157,7 +157,8 @@ public class EpisodeRepository(
                 PartitionKey = ToPartitionKey(podcastId)
             })
             .Where(x => x.PodcastId == podcastId)
-            .OrderByDescending(x => x.ReleaseSort)
+            .OrderByDescending(x =>
+                x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback)
             .Take(1);
 
         var items = query.ToFeedIterator();

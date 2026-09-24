@@ -37,19 +37,34 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     }
 
     /// <summary>
-    /// UTC instant for Cosmos range filters and ordering. Synced from <see cref="Release"/>;
-    /// also persisted so queries do not depend on <see cref="CatalogueRelease"/> LINQ.
+    /// UTC instant for Cosmos range filters and ordering. Synced from <see cref="Release"/>
+    /// (and from STJ populate of <c>releaseSort</c>). Private set so callers cannot desync it
+    /// from <see cref="Release"/> — use <see cref="SetRelease"/>.
+    /// Until the corpus is backfilled, server-side range filters must dual-key with
+    /// <see cref="ReleaseCosmosFallback"/> (legacy docs may only have <c>release</c>).
     /// </summary>
     [JsonPropertyName("releaseSort")]
-    [JsonPropertyOrder(30)]
-    public DateTime ReleaseSort { get; set; }
+    [JsonPropertyOrder(31)]
+    public DateTime ReleaseSort { get; private set; }
+
+    /// <summary>
+    /// Cosmos LINQ-only dual-key companion mapping to JSON <c>release</c> as <see cref="DateTime"/>.
+    /// STJ ignores this member so it does not conflict with <see cref="Release"/>;
+    /// <c>CosmosLinqSerializer.SerializeMemberName</c> still emits <c>release</c> from
+    /// <see cref="JsonPropertyNameAttribute"/>. Use in server-side predicates:
+    /// <c>(ReleaseSort.IsDefined() ? ReleaseSort : ReleaseCosmosFallback) &gt;= since</c>
+    /// until every matching document has <c>releaseSort</c>. Not for application reads.
+    /// </summary>
+    [JsonPropertyName("release")]
+    [JsonIgnore]
+    public DateTime ReleaseCosmosFallback { get; private set; }
 
     [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(32)]
     public TimeSpan Length { get; set; }
 
     [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
+    [JsonPropertyOrder(33)]
     public bool Explicit { get; set; }
 
     [JsonPropertyName("posted")]
@@ -142,6 +157,9 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// <summary>
     /// Denormalised parent publisher <see cref="Publisher.Removed"/> (JSON <c>parentRemoved</c>).
     /// Not used on <see cref="Films.Film"/>.
+    /// Until the Episode corpus is rewritten, Cosmos SQL/LINQ must also treat legacy
+    /// <c>podcastRemoved</c> (see <see cref="CosmosParentNotRemovedSql"/>) — deserialize
+    /// bridges alone are not query-safe.
     /// </summary>
     [JsonPropertyName("parentRemoved")]
     [JsonPropertyOrder(94)]
@@ -177,4 +195,18 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// </summary>
     public const string CosmosIsNotBlueskyPostedSql =
         "((NOT IS_DEFINED(e.bluesky) OR e.bluesky != true) AND (NOT IS_DEFINED(e.blueskyPost) OR IS_NULL(e.blueskyPost)))";
+
+    /// <summary>
+    /// Cosmos SQL expression: effective release instant — <c>releaseSort</c> when present,
+    /// else legacy <c>release</c>. Alias <c>e</c>. Use for range filters until backfill.
+    /// </summary>
+    public const string CosmosReleaseSortOrReleaseSql =
+        "(IS_DEFINED(e.releaseSort) ? e.releaseSort : e.release)";
+
+    /// <summary>
+    /// Cosmos SQL: parent publisher is not removed — dual-key <c>parentRemoved</c> and legacy
+    /// <c>podcastRemoved</c>. Alias <c>e</c>. Deserialize bridges do not satisfy this predicate.
+    /// </summary>
+    public const string CosmosParentNotRemovedSql =
+        "((NOT IS_DEFINED(e.parentRemoved) OR e.parentRemoved=false) AND (NOT IS_DEFINED(e.podcastRemoved) OR e.podcastRemoved=false))";
 }

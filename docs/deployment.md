@@ -110,6 +110,16 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 
 Shipping Phase 1 code without those keys on every Function app is the same class of miss as the TitleCasingRules incident.
 
+### Episode JSON cutover (Phase 1 dual-key queries)
+
+Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Deserialize bridges are not query-safe** — Cosmos SQL/LINQ evaluates stored JSON, not client setters. See epic § [Episode JSON cutover](./catalogue-content-types-epic.md#episode-json-cutover-phase-1).
+
+**Before Function code that filters on the new names ships:**
+
+1. Prefer **dual-key** predicates (`Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, `EpisodeCosmosFilters`) so legacy docs keep matching.
+2. Optional corpus rewrite / `releaseSort` backfill is a separate tool (dry-run default; `--apply` only with explicit approval) — not required if dual-key is in place, but required before dropping dual-key or bridges.
+3. Order relative to container provision: containers + `cosmosdb__*` settings first (above), then dual-key-safe Function code, then optional backfill.
+
 ## Thin wrapper architecture
 
 User-facing scripts specialize `-FunctionName`, resolve Azure target details via JSON/interactive prompts (`Resolve-DeploySettings.ps1`), then call `deploy-function-local.ps1` with the resolved `-ResourceGroup`, `-AppName`, `-StorageAccount`, and `-DeploymentContainer`.

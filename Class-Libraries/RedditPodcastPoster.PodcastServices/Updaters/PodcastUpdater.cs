@@ -9,6 +9,7 @@ using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -70,7 +71,7 @@ public class PodcastUpdater(
         if (!enrichOnly)
         {
             var releaseScopedEpisodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.ReleaseSort >= repositoryReleasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync();
 
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
@@ -113,7 +114,7 @@ public class PodcastUpdater(
         else
         {
             episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.ReleaseSort >= repositoryReleasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync();
 
             episodes = episodes

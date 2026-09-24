@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.SocialPosting.Episodes;
@@ -139,7 +140,7 @@ public class RecentEpisodeCandidatesProvider(
         foreach (var podcast in recentPodcasts)
         {
             var episodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, x => x.ReleaseSort >= releasedSince)
+                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(releasedSince))
                 .ToArrayAsync();
 
             foreach (var episode in episodes)

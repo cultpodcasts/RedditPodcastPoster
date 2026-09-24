@@ -17,7 +17,7 @@ public interface IPlayable
     CatalogueRelease? Release { get; set; }
 
     /// <summary>UTC sort key for Cosmos range filters and ordering; maintained from <see cref="Release"/>.</summary>
-    DateTime ReleaseSort { get; set; }
+    DateTime ReleaseSort { get; }
 
     string Description { get; set; }
 

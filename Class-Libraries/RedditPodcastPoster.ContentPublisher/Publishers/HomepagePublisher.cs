@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
@@ -141,7 +142,9 @@ public class HomepagePublisher(
 
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
-                           x => x.ReleaseSort >= recentCutoff && !x.Ignored && !x.Removed))
+                           EpisodeCosmosFilters.And(
+                               EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                               x => !x.Ignored && !x.Removed)))
         {
             ct.ThrowIfCancellationRequested();
             EpisodeServicePresence.NormalizeCatalog(episode);
@@ -180,8 +183,9 @@ public class HomepagePublisher(
         {
             durationEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && !x.Ignored && (!x.ParentRemoved.IsDefined() || x.ParentRemoved == false ||
-                                                       x.ParentRemoved == null),
+                    EpisodeCosmosFilters.And(
+                        EpisodeCosmosFilters.ParentNotRemoved,
+                        x => !x.Removed && !x.Ignored),
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
@@ -191,8 +195,9 @@ public class HomepagePublisher(
         {
             countEpisodesTask = episodeRepository
                 .GetAllBy(
-                    x => !x.Removed && (!x.ParentRemoved.IsDefined() || x.ParentRemoved == false ||
-                                         x.ParentRemoved == null),
+                    EpisodeCosmosFilters.And(
+                        EpisodeCosmosFilters.ParentNotRemoved,
+                        x => !x.Removed),
                     x => x.Id)
                 .ToListAsync(ct)
                 .AsTask();

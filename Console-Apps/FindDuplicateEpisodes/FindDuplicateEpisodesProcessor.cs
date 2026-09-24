@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
@@ -20,7 +21,7 @@ public class FindDuplicateEpisodesProcessor(
     ILogger<FindDuplicateEpisodesProcessor> logger)
 {
     private const string ActiveEpisodesFilter =
-        "((NOT IS_DEFINED(e.podcastRemoved)) OR e.podcastRemoved=false) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+        $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
         new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "blueskyPost", "description" };

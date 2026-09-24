@@ -8,7 +8,8 @@ namespace RedditPodcastPoster.Models.Serialization;
 public sealed class CatalogueReleaseJsonConverter : JsonConverter<CatalogueRelease>
 {
     private const string DateFormat = "yyyy-MM-dd";
-    private const string DateTimeZuluFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+    /// <summary>Zulu datetime with optional fractional seconds (up to 7 digits) so write does not truncate.</summary>
+    private const string DateTimeZuluFormat = "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'";
 
     public override CatalogueRelease? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -77,7 +78,12 @@ public sealed class CatalogueReleaseJsonConverter : JsonConverter<CatalogueRelea
                 var utc = value.DateTimeUtc.Value.Kind == DateTimeKind.Utc
                     ? value.DateTimeUtc.Value
                     : value.DateTimeUtc.Value.ToUniversalTime();
-                writer.WriteStringValue(utc.ToString(DateTimeZuluFormat, CultureInfo.InvariantCulture));
+                // Preserve sub-second precision when present; omit fractional part for whole seconds
+                // so existing whole-second Cosmos values do not grow a dangling ".Z".
+                var format = utc.Ticks % TimeSpan.TicksPerSecond == 0
+                    ? "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                    : DateTimeZuluFormat;
+                writer.WriteStringValue(utc.ToString(format, CultureInfo.InvariantCulture));
                 break;
             default:
                 throw new JsonException($"Unknown CatalogueReleasePrecision '{value.Precision}'.");

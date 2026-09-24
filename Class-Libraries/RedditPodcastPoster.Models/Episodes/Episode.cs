@@ -22,7 +22,9 @@ public class Episode : Playable
     /// <summary>
     /// DateTime view of <see cref="Playable.Release"/> for podcast matching and enrichment.
     /// Gets/sets via <see cref="Playable.ReleaseSort"/> and <see cref="CatalogueRelease.FromDateTimeUtc"/>.
-    /// Cosmos range filters must use <see cref="Playable.ReleaseSort"/>, not this property.
+    /// Cosmos range filters must dual-key <see cref="Playable.ReleaseSort"/> with
+    /// <see cref="Playable.ReleaseCosmosFallback"/> (legacy <c>release</c>) until backfill —
+    /// not this property (JsonIgnore).
     /// </summary>
     [JsonIgnore]
     public DateTime ReleaseUtc
@@ -45,9 +47,12 @@ public class Episode : Playable
     public string? PodcastName { get; set; }
 
     /// <summary>
-    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.PublisherSearchTerms"/>;
-    /// omitted on serialize (<c>get</c> always null + WhenWritingNull). Remove once episodes
-    /// are rewritten without <c>podcastSearchTerms</c>.
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.PublisherSearchTerms"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull).
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos SQL/LINQ that targets
+    /// <c>publisherSearchTerms</c> ignores this key; dual-read
+    /// <c>(publisherSearchTerms ?? podcastSearchTerms)</c> until corpus rewrite.
+    /// Remove once episodes are rewritten without <c>podcastSearchTerms</c>.
     /// </summary>
     [JsonPropertyName("podcastSearchTerms")]
     [JsonPropertyOrder(91)]
@@ -64,9 +69,11 @@ public class Episode : Playable
     }
 
     /// <summary>
-    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.PublisherLanguage"/>;
-    /// omitted on serialize (<c>get</c> always null + WhenWritingNull). Remove once episodes
-    /// are rewritten without <c>podcastLanguage</c>.
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.PublisherLanguage"/>;
+    /// omitted on serialize (<c>get</c> always null + WhenWritingNull).
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos filters on <c>publisherLanguage</c>
+    /// ignore this key until corpus rewrite. Remove once episodes are rewritten without
+    /// <c>podcastLanguage</c>.
     /// </summary>
     [JsonPropertyName("podcastLanguage")]
     [JsonPropertyOrder(92)]
@@ -83,8 +90,11 @@ public class Episode : Playable
     }
 
     /// <summary>
-    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.ParentMetadataVersion"/>;
-    /// omitted on serialize. Remove once episodes are rewritten without <c>podcastMetadataVersion</c>.
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.ParentMetadataVersion"/>;
+    /// omitted on serialize.
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos filters on <c>parentMetadataVersion</c>
+    /// ignore this key until corpus rewrite. Remove once episodes are rewritten without
+    /// <c>podcastMetadataVersion</c>.
     /// </summary>
     [JsonPropertyName("podcastMetadataVersion")]
     [JsonPropertyOrder(93)]
@@ -101,8 +111,12 @@ public class Episode : Playable
     }
 
     /// <summary>
-    /// Legacy Cosmos key. Read-only bridge into <see cref="Playable.ParentRemoved"/>;
-    /// omitted on serialize. Remove once episodes are rewritten without <c>podcastRemoved</c>.
+    /// Legacy Cosmos key. Read-only deserialize bridge into <see cref="Playable.ParentRemoved"/>;
+    /// omitted on serialize.
+    /// <b>Deserialize-only — not query-safe:</b> Cosmos SQL/LINQ that targets only
+    /// <c>parentRemoved</c> treats <c>podcastRemoved</c>-only documents as not-removed
+    /// (including <c>podcastRemoved: true</c>). Use <see cref="Playable.CosmosParentNotRemovedSql"/>
+    /// / dual-key LINQ until a verified corpus rewrite. Do not remove this bridge until then.
     /// </summary>
     [JsonPropertyName("podcastRemoved")]
     [JsonPropertyOrder(94)]

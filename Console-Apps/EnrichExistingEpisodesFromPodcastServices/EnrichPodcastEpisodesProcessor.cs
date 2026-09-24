@@ -3,6 +3,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -92,7 +93,7 @@ public class EnrichPodcastEpisodesProcessor(
         {
             episodesQuery = episodeRepository.GetByPodcastId(
                 podcastId,
-                x => x.ReleaseSort >= indexingContext.ReleasedSince);
+                EpisodeCosmosFilters.ReleasedOnOrAfter(indexingContext.ReleasedSince!.Value));
         }
 
         var currentEpisodes = await episodeRepository.GetByPodcastId(podcastId).ToListAsync();

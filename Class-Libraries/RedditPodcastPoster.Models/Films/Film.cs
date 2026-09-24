@@ -42,16 +42,19 @@ public sealed class Film : Publisher, IPlayable, IPromotable
         }
     }
 
+    /// <summary>
+    /// UTC sort key; synced from <see cref="Release"/>. Private set — use <see cref="SetRelease"/>.
+    /// </summary>
     [JsonPropertyName("releaseSort")]
-    [JsonPropertyOrder(30)]
-    public DateTime ReleaseSort { get; set; }
+    [JsonPropertyOrder(31)]
+    public DateTime ReleaseSort { get; private set; }
 
     [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(32)]
     public TimeSpan Length { get; set; }
 
     [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
+    [JsonPropertyOrder(33)]
     public bool Explicit { get; set; }
 
     [JsonPropertyName("posted")]

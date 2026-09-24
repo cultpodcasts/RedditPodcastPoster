@@ -12,6 +12,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
@@ -183,6 +184,107 @@ public class CatalogueContentTypeModelRulesTests
         (tvShowEpisode.ReleaseSort >= from && tvShowEpisode.ReleaseSort <= to).Should().BeTrue();
         (film.ReleaseSort >= new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc) &&
          film.ReleaseSort <= to).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY legacy Episode JSON with only release (no releaseSort) deserializes so ReleaseSort equals " +
+        "that UTC instant, because the Release setter syncs ReleaseSort in-memory — but Cosmos server-side " +
+        "filters must still dual-key releaseSort/release until backfill.")]
+    public void Legacy_release_only_json_hydrates_ReleaseSort_in_memory()
+    {
+        // Arrange
+        var releaseUtc = DomainTestFixture.UtcAtTime(-4, new TimeSpan(9, 10, 11));
+        var releaseIso = releaseUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var legacyJson = $"{{\"release\":\"{releaseIso}\"}}";
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+
+        // Assert
+        episode!.ReleaseSort.Should().Be(releaseUtc);
+        episode.Release!.DateTimeUtc.Should().Be(releaseUtc);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY legacy Episode JSON with only podcastRemoved true deserializes ParentRemoved true, " +
+        "because the bridge is deserialize-only; Cosmos queries must dual-key parentRemoved/podcastRemoved.")]
+    public void Legacy_podcastRemoved_only_json_hydrates_ParentRemoved()
+    {
+        // Arrange
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var legacyJson = "{\"podcastRemoved\":true}";
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+
+        // Assert
+        episode!.ParentRemoved.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY Playable Cosmos SQL dual-key fragments require releaseSort-or-release and " +
+        "parentRemoved-and-podcastRemoved so Function/console queries stay correct against legacy Episode docs.")]
+    public void Playable_cosmos_dual_key_sql_fragments_cover_legacy_wire_names()
+    {
+        // Arrange / Act
+        var releaseFragment = Playable.CosmosReleaseSortOrReleaseSql;
+        var parentFragment = Playable.CosmosParentNotRemovedSql;
+
+        // Assert
+        releaseFragment.Should().Contain("releaseSort");
+        releaseFragment.Should().Contain("release");
+        releaseFragment.Should().Contain("IS_DEFINED");
+        parentFragment.Should().Contain("parentRemoved");
+        parentFragment.Should().Contain("podcastRemoved");
+        parentFragment.Should().Contain("IS_DEFINED");
+        EpisodeCosmosFilters.ParentNotRemoved.Should().NotBeNull();
+        EpisodeCosmosFilters.ReleasedOnOrAfter(DomainTestFixture.UtcDaysAgo(1)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY CatalogueRelease DateTimeUtc round-trip preserves fractional seconds: deserialize fractional " +
+        "Zulu → serialize → deserialize retains the same UTC instant.")]
+    public void CatalogueRelease_datetime_round_trip_preserves_fractional_seconds()
+    {
+        // Arrange
+        var baseUtc = DomainTestFixture.UtcAtTime(-2, new TimeSpan(13, 14, 15));
+        var fractionalUtc = new DateTime(baseUtc.Ticks + TimeSpan.TicksPerMillisecond * 123 + 4567, DateTimeKind.Utc);
+        var source = CatalogueRelease.FromDateTimeUtc(fractionalUtc);
+        var sourceJson = $"\"{fractionalUtc:yyyy-MM-dd'T'HH:mm:ss.FFFFFFF}Z\"";
+
+        // Act
+        var fromJson = JsonSerializer.Deserialize<CatalogueRelease>(sourceJson);
+        var rewritten = JsonSerializer.Serialize(fromJson);
+        var roundTrip = JsonSerializer.Deserialize<CatalogueRelease>(rewritten);
+
+        // Assert
+        fromJson!.DateTimeUtc.Should().Be(fractionalUtc);
+        rewritten.Should().Contain(".");
+        roundTrip!.DateTimeUtc.Should().Be(fractionalUtc);
+    }
+
+    [Fact(DisplayName =
+        "ReleaseSort is private-set and has a distinct JsonPropertyOrder from Release so callers cannot " +
+        "desync the Cosmos range key; ReleaseCosmosFallback is JsonIgnore LINQ-only dual-key for legacy release.")]
+    public void ReleaseSort_is_sync_only_with_distinct_property_order_and_cosmos_fallback()
+    {
+        // Arrange
+        var releaseSort = typeof(Playable).GetProperty(nameof(Playable.ReleaseSort))!;
+        var release = typeof(Playable).GetProperty(nameof(Playable.Release))!;
+        var fallback = typeof(Playable).GetProperty(nameof(Playable.ReleaseCosmosFallback))!;
+
+        // Act
+        var releaseOrder = release.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyOrderAttribute>()!.Order;
+        var sortOrder = releaseSort.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyOrderAttribute>()!.Order;
+
+        // Assert
+        releaseSort.SetMethod.Should().NotBeNull();
+        releaseSort.SetMethod!.IsPublic.Should().BeFalse();
+        sortOrder.Should().NotBe(releaseOrder);
+        fallback.GetCustomAttribute<System.Text.Json.Serialization.JsonIgnoreAttribute>().Should().NotBeNull();
+        fallback.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>()!.Name
+            .Should().Be("release");
     }
 
     [Fact(DisplayName =
