@@ -180,14 +180,14 @@ public class WireCutoverProgressAndJournalRules
     public void migrate_evidence_path_is_always_resolved_without_opt_in()
     {
         // Arrange
-        var utc = new DateTime(2026, 9, 24, 17, 30, 0, DateTimeKind.Utc);
+        var utc = DomainTestFixture.UtcAtTime(0, new TimeSpan(17, 30, 0));
 
         // Act
         var path = WireCutoverEvidencePaths.ResolveMigrateJournalPath(journalOverride: null, utc);
 
         // Assert
         path.Should().Contain(WireCutoverEvidencePaths.DefaultDirectoryName);
-        path.Should().EndWith("wire-cutover-20260924-173000Z.jsonl");
+        path.Should().EndWith($"wire-cutover-{utc:yyyyMMdd-HHmmss}Z.jsonl");
         Path.IsPathRooted(path).Should().BeTrue();
     }
 
@@ -210,14 +210,18 @@ public class WireCutoverProgressAndJournalRules
 
     [Fact(DisplayName =
         "LIMIT: with --limit N only the first N episodes that still need cutover are worked (stable id order), " +
-        "because small live batches must be repeatable.")]
+        "because small live batches must be repeatable even when apply uses --dop parallelism.")]
     public async Task limit_takes_first_n_needing_change_in_id_order()
     {
-        // Arrange
+        // Arrange — generate ids then sort so ORDER BY id ASC expectation is explicit
         var store = new InMemoryWireCutoverStore();
-        var idA = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        var idB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-        var idC = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        var orderedIds = Enumerable.Range(0, 3)
+            .Select(_ => _fixture.CreateGuid())
+            .OrderBy(id => id.ToString(), StringComparer.Ordinal)
+            .ToList();
+        var idA = orderedIds[0];
+        var idB = orderedIds[1];
+        var idC = orderedIds[2];
         var podcastId = _fixture.CreateGuid();
         store.Add(WireCutoverTestJson.LegacyDoc(idC, podcastId, searchTerms: _fixture.Create<string>()));
         store.Add(WireCutoverTestJson.LegacyDoc(idA, podcastId, searchTerms: _fixture.Create<string>()));
@@ -234,7 +238,8 @@ public class WireCutoverProgressAndJournalRules
             apply: true,
             journalPath,
             progressEvery: 1,
-            limit: 2);
+            limit: 2,
+            maxDegreeOfParallelism: 4);
 
         // Assert
         result.NeedChange.Should().Be(2);
@@ -242,6 +247,46 @@ public class WireCutoverProgressAndJournalRules
         result.Failed.Should().Be(0);
         result.AffectedEpisodeIds.Should().Equal(idA, idB);
         store.GetRaw(podcastId, idC).Should().Contain("podcastSearchTerms");
+    }
+
+    [Fact(DisplayName =
+        "MIGRATE APPLY: with --dop greater than 1, Cosmos patches overlap through a bounded channel while " +
+        "scan/plan stays sequential, because apply is one-by-one in parallel without buffering the corpus.")]
+    public async Task migrate_apply_uses_bounded_parallel_pipeline()
+    {
+        // Arrange
+        var store = new ConcurrentDelayWireCutoverStore(TimeSpan.FromMilliseconds(80));
+        var podcastId = _fixture.CreateGuid();
+        for (var i = 0; i < 6; i++)
+        {
+            var episodeId = _fixture.CreateGuid();
+            store.Add(WireCutoverTestJson.LegacyDoc(
+                episodeId,
+                podcastId,
+                searchTerms: _fixture.Create<string>()));
+        }
+
+        var processor = new WireCutoverProcessor(
+            store,
+            new CollectingReporter([]),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WireCutoverProcessor>.Instance);
+        var journalPath = Path.Combine(Path.GetTempPath(), $"wire-dop-{_fixture.CreateGuid():N}.jsonl");
+
+        // Act
+        var result = await processor.MigrateAsync(
+            store.QueryAllRawAsync(),
+            apply: true,
+            journalPath,
+            progressEvery: 1,
+            limit: 0,
+            maxDegreeOfParallelism: 4);
+
+        // Assert
+        result.NeedChange.Should().Be(6);
+        result.Written.Should().Be(6);
+        result.Failed.Should().Be(0);
+        store.MaxConcurrentApplies.Should().BeGreaterThan(1);
+        store.ApplyCount.Should().Be(6);
     }
 
     [Fact(DisplayName =
@@ -281,6 +326,51 @@ public class WireCutoverProgressAndJournalRules
     }
 
     [Fact(DisplayName =
+        "MIGRATE APPLY: a failed patch is counted and MigrateAsync returns, because one Cosmos error must not hang --apply or dispose the journal while workers still write.")]
+    public async Task failed_patch_is_counted_and_migrate_returns()
+    {
+        // Arrange
+        var store = new ThrowOnFirstApplyStore();
+        var podcastId = _fixture.CreateGuid();
+        var orderedIds = Enumerable.Range(0, 2)
+            .Select(_ => _fixture.CreateGuid())
+            .OrderBy(id => id.ToString(), StringComparer.Ordinal)
+            .ToList();
+        foreach (var episodeId in orderedIds)
+        {
+            store.Add(WireCutoverTestJson.LegacyDoc(
+                episodeId,
+                podcastId,
+                searchTerms: _fixture.Create<string>()));
+        }
+
+        var processor = new WireCutoverProcessor(
+            store,
+            new CollectingReporter([]),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WireCutoverProcessor>.Instance);
+        var journalPath = Path.Combine(Path.GetTempPath(), $"wire-fail-{_fixture.CreateGuid():N}.jsonl");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+
+        // Act
+        var result = await processor.MigrateAsync(
+            store.QueryAllRawAsync(),
+            apply: true,
+            journalPath,
+            progressEvery: 1,
+            limit: 0,
+            maxDegreeOfParallelism: 1,
+            timeout.Token);
+
+        // Assert
+        result.Failed.Should().Be(1);
+        result.Written.Should().Be(1);
+        result.NeedChange.Should().Be(2);
+        var journal = WireCutoverJournal.ReadAll(journalPath).ToList();
+        journal.Should().Contain(entry => entry.EpisodeId == orderedIds[0] && entry.Applied == false);
+        journal.Should().Contain(entry => entry.EpisodeId == orderedIds[1] && entry.Applied);
+    }
+
+    [Fact(DisplayName =
         "ORDER: container query text is ORDER BY c.id ASC, because limited runs must pick the same episodes every time.")]
     public void query_order_is_stable_by_id()
     {
@@ -298,25 +388,42 @@ public class WireCutoverProgressAndJournalRules
 internal sealed class InMemoryWireCutoverStore : IWireCutoverEpisodeStore
 {
     private readonly Dictionary<(Guid PodcastId, Guid EpisodeId), string> _docs = new();
-    public int ApplyCount { get; private set; }
+    private readonly object _gate = new();
+    private int _applyCount;
 
-    public void Add(string json)
+    public int ApplyCount => Volatile.Read(ref _applyCount);
+
+    internal void Add(string json)
     {
         using var doc = JsonDocument.Parse(json);
         WireCutoverPlanner.TryReadRef(doc.RootElement, out var r).Should().BeTrue();
-        _docs[(r.PodcastId, r.EpisodeId)] = json;
+        lock (_gate)
+        {
+            _docs[(r.PodcastId, r.EpisodeId)] = json;
+        }
     }
 
-    public string? GetRaw(Guid podcastId, Guid episodeId) =>
-        _docs.TryGetValue((podcastId, episodeId), out var json) ? json : null;
+    public string? GetRaw(Guid podcastId, Guid episodeId)
+    {
+        lock (_gate)
+        {
+            return _docs.TryGetValue((podcastId, episodeId), out var json) ? json : null;
+        }
+    }
 
     public async IAsyncEnumerable<string> QueryAllRawAsync(CancellationToken cancellationToken = default)
     {
-        foreach (var json in _docs.Values.OrderBy(j =>
-                 {
-                     using var d = JsonDocument.Parse(j);
-                     return d.RootElement.TryGetProperty("id", out var id) ? id.GetString() : "";
-                 }, StringComparer.Ordinal))
+        List<string> ordered;
+        lock (_gate)
+        {
+            ordered = _docs.Values.OrderBy(j =>
+            {
+                using var d = JsonDocument.Parse(j);
+                return d.RootElement.TryGetProperty("id", out var id) ? id.GetString() : "";
+            }, StringComparer.Ordinal).ToList();
+        }
+
+        foreach (var json in ordered)
         {
             yield return json;
         }
@@ -330,7 +437,12 @@ internal sealed class InMemoryWireCutoverStore : IWireCutoverEpisodeStore
     {
         foreach (var id in episodeIds.OrderBy(x => x))
         {
-            var match = _docs.FirstOrDefault(kv => kv.Key.EpisodeId == id).Value;
+            string? match;
+            lock (_gate)
+            {
+                match = _docs.FirstOrDefault(kv => kv.Key.EpisodeId == id).Value;
+            }
+
             if (match is not null)
             {
                 yield return match;
@@ -349,15 +461,119 @@ internal sealed class InMemoryWireCutoverStore : IWireCutoverEpisodeStore
         IReadOnlyList<WireFieldState> desired,
         CancellationToken cancellationToken = default)
     {
-        if (!_docs.TryGetValue((podcastId, episodeId), out var json))
+        lock (_gate)
         {
-            return Task.FromResult(false);
+            if (!_docs.TryGetValue((podcastId, episodeId), out var json))
+            {
+                return Task.FromResult(false);
+            }
+
+            Interlocked.Increment(ref _applyCount);
+            var mut = JsonObjectMutator.Parse(json);
+            WireCutoverPlanner.ApplyState(mut, desired);
+            _docs[(podcastId, episodeId)] = mut.GetRawText();
+            return Task.FromResult(true);
+        }
+    }
+}
+
+/// <summary>
+/// Delays each apply so overlapping Parallel.ForEachAsync work is observable.
+/// </summary>
+internal sealed class ConcurrentDelayWireCutoverStore(TimeSpan applyDelay) : IWireCutoverEpisodeStore
+{
+    private readonly InMemoryWireCutoverStore _inner = new();
+    private int _current;
+    private int _maxConcurrent;
+
+    public int ApplyCount => _inner.ApplyCount;
+    public int MaxConcurrentApplies => Volatile.Read(ref _maxConcurrent);
+
+    internal void Add(string json) => _inner.Add(json);
+
+    public async IAsyncEnumerable<string> QueryAllRawAsync(
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var json in _inner.QueryAllRawAsync(cancellationToken))
+        {
+            yield return json;
+        }
+    }
+
+    public async IAsyncEnumerable<string> QueryByEpisodeIdsAsync(
+        IReadOnlyList<Guid> episodeIds,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var json in _inner.QueryByEpisodeIdsAsync(episodeIds, cancellationToken))
+        {
+            yield return json;
+        }
+    }
+
+    public Task<string?> GetRawAsync(Guid podcastId, Guid episodeId, CancellationToken cancellationToken = default) =>
+        _inner.GetRawAsync(podcastId, episodeId, cancellationToken);
+
+    public async Task<bool> ApplyCutoverStateAsync(
+        Guid podcastId,
+        Guid episodeId,
+        IReadOnlyList<WireFieldState> desired,
+        CancellationToken cancellationToken = default)
+    {
+        var now = Interlocked.Increment(ref _current);
+        int snapshot;
+        do
+        {
+            snapshot = Volatile.Read(ref _maxConcurrent);
+            if (now <= snapshot)
+            {
+                break;
+            }
+        } while (Interlocked.CompareExchange(ref _maxConcurrent, now, snapshot) != snapshot);
+
+        try
+        {
+            await Task.Delay(applyDelay, cancellationToken);
+            return await _inner.ApplyCutoverStateAsync(podcastId, episodeId, desired, cancellationToken);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _current);
+        }
+    }
+}
+
+/// <summary>
+/// First Cosmos patch throws. Later patches use the in-memory store.
+/// </summary>
+internal sealed class ThrowOnFirstApplyStore : IWireCutoverEpisodeStore
+{
+    private readonly InMemoryWireCutoverStore _inner = new();
+    private int _applies;
+
+    internal void Add(string json) => _inner.Add(json);
+
+    public IAsyncEnumerable<string> QueryAllRawAsync(CancellationToken cancellationToken = default) =>
+        _inner.QueryAllRawAsync(cancellationToken);
+
+    public IAsyncEnumerable<string> QueryByEpisodeIdsAsync(
+        IReadOnlyList<Guid> episodeIds,
+        CancellationToken cancellationToken = default) =>
+        _inner.QueryByEpisodeIdsAsync(episodeIds, cancellationToken);
+
+    public Task<string?> GetRawAsync(Guid podcastId, Guid episodeId, CancellationToken cancellationToken = default) =>
+        _inner.GetRawAsync(podcastId, episodeId, cancellationToken);
+
+    public Task<bool> ApplyCutoverStateAsync(
+        Guid podcastId,
+        Guid episodeId,
+        IReadOnlyList<WireFieldState> desired,
+        CancellationToken cancellationToken = default)
+    {
+        if (Interlocked.Increment(ref _applies) == 1)
+        {
+            throw new InvalidOperationException("patch failed");
         }
 
-        ApplyCount++;
-        var mut = JsonObjectMutator.Parse(json);
-        WireCutoverPlanner.ApplyState(mut, desired);
-        _docs[(podcastId, episodeId)] = mut.GetRawText();
-        return Task.FromResult(true);
+        return _inner.ApplyCutoverStateAsync(podcastId, episodeId, desired, cancellationToken);
     }
 }

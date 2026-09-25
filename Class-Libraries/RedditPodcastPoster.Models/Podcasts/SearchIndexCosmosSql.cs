@@ -27,11 +27,12 @@ public static class SearchIndexCosmosSql
     /// <c>RTRIM(CONCAT(...), "|")</c> projecting every non-index-id catalog URL into <c>svc</c>
     /// as <c>key:</c> + raw URL (pull dialect; see type remarks).
     /// </summary>
-    public static string SvcProjection(IReadOnlyList<string> searchEncodedKeys)
+    public static string SvcProjection(IReadOnlyList<string> searchEncodedKeys, string documentAlias = "e")
     {
         EnsureCosmosKeys(searchEncodedKeys, nameof(searchEncodedKeys));
+        EnsureDocumentAlias(documentAlias);
         var parts = searchEncodedKeys.Select(key =>
-            $@"IIF(IS_DEFINED(e.services.{key}.url), CONCAT(""{key}:"", e.services.{key}.url, ""|""), """")");
+            $@"IIF(IS_DEFINED({documentAlias}.services.{key}.url), CONCAT(""{key}:"", {documentAlias}.services.{key}.url, ""|""), """")");
         return $@"RTRIM(CONCAT({string.Join(", ", parts)}), ""|"")";
     }
 
@@ -39,12 +40,40 @@ public static class SearchIndexCosmosSql
     /// Null-coalescing chain of <c>e.services.*.image</c> in the supplied key order
     /// (YouTube-first when callers pass the composed image-coalesce list).
     /// </summary>
-    public static string CoalescedImageFallback(IReadOnlyList<string> imageCoalesceOrder)
+    public static string CoalescedImageFallback(IReadOnlyList<string> imageCoalesceOrder, string documentAlias = "e")
     {
         EnsureCosmosKeys(imageCoalesceOrder, nameof(imageCoalesceOrder));
+        EnsureDocumentAlias(documentAlias);
         return string.Join(
             " ?? ",
-            imageCoalesceOrder.Select(key => $"e.services.{key}.image"));
+            imageCoalesceOrder.Select(key => $"{documentAlias}.services.{key}.image"));
+    }
+
+    /// <summary>
+    /// Image token source with the episode empty-string fallback. A null chain cannot clear a
+    /// previously indexed image; an empty string can.
+    /// </summary>
+    public static string ImageOrEmpty(IReadOnlyList<string> imageCoalesceOrder, string documentAlias = "e") =>
+        $"(({CoalescedImageFallback(imageCoalesceOrder, documentAlias)}) ?? \"\")";
+
+    /// <summary>
+    /// Effective release instant: <c>releaseSort</c> when present, otherwise <c>release</c>.
+    /// Same predicate as <c>Playable.CosmosReleaseSortOrReleaseSql</c> for alias <c>e</c>.
+    /// </summary>
+    public static string ReleaseSortOrRelease(string documentAlias)
+    {
+        EnsureDocumentAlias(documentAlias);
+        return $"(IS_DEFINED({documentAlias}.releaseSort) ? {documentAlias}.releaseSort : {documentAlias}.release)";
+    }
+
+    private static void EnsureDocumentAlias(string documentAlias)
+    {
+        if (string.IsNullOrEmpty(documentAlias) || !CosmosIdentifier.IsMatch(documentAlias))
+        {
+            throw new ArgumentException(
+                $"'{documentAlias}' is not a Cosmos identifier; the document alias must match [A-Za-z][A-Za-z0-9]*.",
+                nameof(documentAlias));
+        }
     }
 
     private static void EnsureCosmosKeys(IReadOnlyList<string> keys, string paramName)

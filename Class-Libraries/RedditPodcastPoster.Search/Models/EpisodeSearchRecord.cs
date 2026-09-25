@@ -1,4 +1,5 @@
-﻿using Azure.Search.Documents.Indexes;
+﻿using System.Text.Json.Serialization;
+using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 
 namespace RedditPodcastPoster.Search.Models;
@@ -8,17 +9,46 @@ public class EpisodeSearchRecord
     [SimpleField(IsKey = true, IsFilterable = true, IsSortable = false, IsFacetable = false)]
     public required string Id { get; set; }
 
+    /// <summary>
+    /// Playable kind: Episode, TvShowEpisode, Film, or NewsReport.
+    /// Omitted filter means all kinds.
+    /// Null is omitted from the hourly upload until the live index has the field.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsFilterable = true, IsFacetable = true, IsSortable = false)]
+    public string? ContentKind { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false)]
-    public required string EpisodeTitle { get; set; }
+    public string? Title { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene,
         IsSortable = false)]
-    public required string PodcastName { get; set; }
+    public string? SeriesName { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
         IsFacetable = false)]
-    public required string EpisodeDescription { get; set; }
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Legacy names for the index that is live today. A rebuilt index does not include them:
+    /// <c>title</c>, <c>seriesName</c>, and <c>description</c> replace them. Null is omitted
+    /// from the upload so the new index is not sent both shapes.
+    /// </summary>
+    [FieldBuilderIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EpisodeTitle { get; set; }
+
+    [FieldBuilderIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PodcastName { get; set; }
+
+    [FieldBuilderIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EpisodeDescription { get; set; }
 
     [SimpleField(IsSortable = true, IsFacetable = false, IsFilterable = false)]
     public required DateTimeOffset Release { get; set; }

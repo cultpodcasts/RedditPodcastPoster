@@ -26,13 +26,14 @@ Small live batch (first 10 needing cutover, stable `ORDER BY c.id`; already-migr
 dotnet run --project films-refactor/EpisodeWireRewrite -- --limit 10 --apply
 ```
 
-Full apply:
+Full apply (`--dop` defaults to 8; scan/plan is ordered; each need-change is patched through a
+bounded channel of capacity `--dop` — never hold the whole planned corpus in memory):
 
 ```powershell
 dotnet run --project films-refactor/EpisodeWireRewrite -- --all --apply
 ```
 
-Optional: `--journal path\to\run.jsonl` only overrides where the pack is written.
+Optional: `--journal path\to\run.jsonl` only overrides where the pack is written. `--dop N` applies to migrate `--apply` and rollback.
 
 Rollback (must point at the evidence pack from migrate):
 

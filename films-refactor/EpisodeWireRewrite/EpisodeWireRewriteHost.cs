@@ -67,7 +67,8 @@ public sealed class EpisodeWireRewriteHost(
             request.Apply,
             journalPath,
             request.ProgressEvery,
-            request.Limit);
+            request.Limit,
+            request.DegreeOfParallelism);
         WriteResult(result);
         if (!request.Apply)
         {

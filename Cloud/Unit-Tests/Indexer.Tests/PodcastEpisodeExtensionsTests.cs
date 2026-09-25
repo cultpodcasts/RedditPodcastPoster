@@ -103,8 +103,8 @@ public class PodcastEpisodeExtensionsTests
     {
         // Arrange
         var episode = CreateEpisode();
-        // Filler plus " Alpha" fits inside DescriptionSize; " Bravo" is the first word past the cut.
-        episode.Description = new string('a', 10) + " " + new string('b', 161) + " Alpha Bravo continues";
+        var kept = new string('a', Constants.DescriptionSize - 24) + " Alpha";
+        episode.Description = kept + " BravoContinuesPastTheCut";
         episode.Description.Length.Should().BeGreaterThan(Constants.DescriptionSize);
 
         // Act
@@ -116,6 +116,34 @@ public class PodcastEpisodeExtensionsTests
         result.EpisodeDescription.Should().EndWith("\u2026");
         result.EpisodeDescription.Should().Contain("Alpha");
         result.EpisodeDescription.Should().NotContain("Bravo");
+    }
+
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord sets contentKind Episode and copies title, series name, and truncated description " +
+        "onto the unified playable fields, and series description from the podcast blurb.")]
+    public void Maps_unified_playable_fields_for_an_episode()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Title = "  " + episode.Title.Trim() + "  ";
+        episode.Description = "Episode blurb";
+        var podcast = new Podcast
+        {
+            Name = " Series ",
+            Description = "Parent blurb"
+        };
+
+        // Act
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
+
+        // Assert
+        result.ContentKind.Should().Be(SearchContentKind.Episode);
+        result.Title.Should().Be(episode.Title.Trim());
+        result.SeriesName.Should().Be("Series");
+        result.Description.Should().Be("Episode blurb");
+        result.EpisodeTitle.Should().BeNull();
+        result.EpisodeDescription.Should().BeNull();
+        result.PodcastName.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -132,6 +160,80 @@ public class PodcastEpisodeExtensionsTests
 
         // Assert
         result.EpisodeDescription.Should().Be("Short description.");
+    }
+
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord leaves contentKind, title, seriesName, and description unset " +
+        "by default, and the upload JSON keeps episodeTitle, podcastName, and episodeDescription, " +
+        "because the live index still uses those names.")]
+    public void omits_unified_playable_fields_from_the_default_upload()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Title = "Kept title";
+        episode.Description = "Episode blurb";
+        var podcast = new Podcast
+        {
+            Name = "Series",
+            Description = "Parent blurb"
+        };
+        var serializerOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        // Act
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+        var json = JsonSerializer.Serialize(result, serializerOptions);
+
+        // Assert
+        result.ContentKind.Should().BeNull();
+        result.Title.Should().BeNull();
+        result.SeriesName.Should().BeNull();
+        result.Description.Should().BeNull();
+        result.EpisodeTitle.Should().Be("Kept title");
+        result.EpisodeDescription.Should().Be("Episode blurb");
+        result.PodcastName.Should().Be("Series");
+        json.Should().NotContain("\"contentKind\"");
+        json.Should().NotContain("\"title\"");
+        json.Should().NotContain("\"seriesName\"");
+        json.Should().NotContain("\"description\"");
+        json.Should().Contain("\"episodeTitle\"");
+    }
+
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord includes contentKind, title, seriesName, and description " +
+        "and omits episodeTitle, podcastName, and episodeDescription when the rebuilt index is in use, " +
+        "because the new names replace the old ones.")]
+    public void includes_unified_playable_fields_in_the_upload_when_enabled()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Title = "Kept title";
+        episode.Description = "Episode blurb";
+        var podcast = new Podcast
+        {
+            Name = "Series",
+            Description = "Parent blurb"
+        };
+        var serializerOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        // Act
+        var result = new PodcastEpisode(podcast, episode)
+            .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
+        var json = JsonSerializer.Serialize(result, serializerOptions);
+
+        // Assert
+        json.Should().Contain("\"contentKind\":\"Episode\"");
+        json.Should().Contain("\"title\":\"Kept title\"");
+        json.Should().Contain("\"seriesName\":\"Series\"");
+        json.Should().Contain("\"description\":\"Episode blurb\"");
+        json.Should().NotContain("episodeTitle");
+        json.Should().NotContain("podcastName");
+        json.Should().NotContain("episodeDescription");
     }
 
     [Fact(DisplayName =
@@ -163,6 +265,19 @@ public class PodcastEpisodeExtensionsTests
         language.IsFilterable.Should().BeTrue();
         language.IsFacetable.Should().BeTrue();
         language.IsHidden.Should().BeFalse();
+
+        var contentKind = fields.Single(field => field.Name == "contentKind");
+        contentKind.IsFilterable.Should().BeTrue();
+        contentKind.IsFacetable.Should().BeTrue();
+        fields.Single(field => field.Name == "title").IsSearchable.Should().BeTrue();
+        fields.Single(field => field.Name == "description").IsSearchable.Should().BeTrue();
+        fields.Should().NotContain(field => field.Name == "seriesDescription");
+        fields.Should().NotContain(field => field.Name == "episodeTitle");
+        fields.Should().NotContain(field => field.Name == "podcastName");
+        fields.Should().NotContain(field => field.Name == "episodeDescription");
+        var seriesName = fields.Single(field => field.Name == "seriesName");
+        seriesName.IsSearchable.Should().BeTrue();
+        seriesName.IsFacetable.Should().BeTrue();
     }
 
     private static Episode CreateEpisode() => new()

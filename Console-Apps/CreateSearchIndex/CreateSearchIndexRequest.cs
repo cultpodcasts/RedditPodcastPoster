@@ -11,12 +11,16 @@ public class CreateSearchIndexRequest
     public bool TearDownIndex { get; set; }
 
     [Option("update-existing", Required = false, Default = false,
-        HelpText = "Add missing index fields (e.g. svc) and upsert the Cosmos data-source query. Refuses --teardown-index.")]
+        HelpText = "Add missing EpisodeSearchRecord fields and upsert the Cosmos data-source query. With --all-playables, also CreateOrUpdate sibling datasources and indexers. Refuses --teardown-index.")]
     public bool UpdateExisting { get; set; }
 
     [Option("reset-indexer", Required = false, Default = false,
         HelpText = "Reset the named indexer high-water mark so existing documents pick up new fields. Use with --update-existing.")]
     public bool ResetIndexer { get; set; }
+
+    [Option("all-playables", Required = false, Default = false,
+        HelpText = "CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index (both a fresh run and --update-existing). With --run-indexer, run each sibling through the same retry monitor. Episode datasource stays --datasource.")]
+    public bool AllPlayables { get; set; }
 
     [Option('d', "datasource", Required = false, Default = null, HelpText = "Data-source name")]
     public string? DataSourceName { get; set; }
@@ -36,8 +40,8 @@ public class CreateSearchIndexRequest
     [Option(shortName: 'b', "not-break-on-duplicates", Required = false, Default = true, HelpText = "Do not break the indexer run if duplicates are found")]
     public bool NotBreakOnDuplicates { get; set; }
 
-    [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 30, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
-    public int RunIndexerMaxWaitSeconds { get; set; }
+    [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 200, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
+    public int RunIndexerMaxWaitSeconds { get; set; } = 200;
 
     [Option("version", HelpText = "Display version information")]
     public bool Version { get; set; }

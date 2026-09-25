@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
 namespace EpisodeWireRewrite;
@@ -30,12 +31,18 @@ public sealed class WireCutoverProcessor(
     /// Already-migrated documents log no-action and do not count.
     /// Stream must be in stable ORDER BY id order.
     /// </param>
+    /// <param name="maxDegreeOfParallelism">
+    /// Max in-flight Cosmos patches on --apply. Scan/plan stays sequential so --limit
+    /// still takes the first N needing change in id order. Changes are applied one-by-one
+    /// through a bounded channel (capacity = dop) — never buffered for the whole corpus.
+    /// </param>
     public async Task<WireCutoverRunResult> MigrateAsync(
         IAsyncEnumerable<string> documents,
         bool apply,
         string journalPath,
         int progressEvery,
         int limit = 0,
+        int maxDegreeOfParallelism = 8,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(documents);
@@ -47,69 +54,116 @@ public sealed class WireCutoverProcessor(
 
         using var journal = new WireCutoverJournal(journalPath);
         var tracker = new CountingProgress(progressReporter, progressEvery, apply, "migrate");
-        var affected = new List<Guid>();
+        // Ids only (cheap) in plan order — never a List of full Before/After snapshots.
+        var affectedIds = new List<Guid>();
         var needChangeTaken = 0;
+        var dop = Math.Max(1, maxDegreeOfParallelism);
 
-        await foreach (var json in documents.WithCancellation(cancellationToken))
+        Channel<WireCutoverChange>? applyChannel = null;
+        Task? applyDrain = null;
+        if (apply)
         {
-            if (limit > 0 && needChangeTaken >= limit)
+            applyChannel = Channel.CreateBounded<WireCutoverChange>(new BoundedChannelOptions(dop)
             {
-                break;
-            }
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleWriter = true,
+                SingleReader = false
+            });
+            applyDrain = Parallel.ForEachAsync(
+                applyChannel.Reader.ReadAllAsync(cancellationToken),
+                new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken },
+                async (change, ct) =>
+                {
+                    try
+                    {
+                        var ok = await store.ApplyCutoverStateAsync(
+                            change.PodcastId,
+                            change.EpisodeId,
+                            change.After,
+                            ct);
+                        if (!ok)
+                        {
+                            tracker.Failed();
+                            journal.Append(change, applied: false);
+                            logger.LogError(
+                                "Wire cutover migrate failed for episode {EpisodeId} podcast {PodcastId}.",
+                                change.EpisodeId,
+                                change.PodcastId);
+                            return;
+                        }
 
-            if (string.IsNullOrWhiteSpace(json))
+                        journal.Append(change, applied: true);
+                        tracker.Written(change.EpisodeId);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // One Cosmos error must not stop the reader. A full channel with no reader deadlocks --apply.
+                        tracker.Failed();
+                        journal.Append(change, applied: false);
+                        logger.LogError(ex,
+                            "Wire cutover migrate failed for episode {EpisodeId} podcast {PodcastId}.",
+                            change.EpisodeId,
+                            change.PodcastId);
+                    }
+                });
+        }
+
+        try
+        {
+            // Ordered scan/plan — hand each need-change to apply workers immediately (or journal on dry-run).
+            await foreach (var json in documents.WithCancellation(cancellationToken))
             {
-                tracker.Unchanged();
-                tracker.Scanned();
-                continue;
+                if (limit > 0 && needChangeTaken >= limit)
+                {
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    tracker.Unchanged();
+                    tracker.Scanned();
+                    continue;
+                }
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                var episodeId = TryPeekId(root);
+                tracker.Scanned(episodeId);
+
+                if (!WireCutoverPlanner.TryCreateChange(root, out var change) || change is null)
+                {
+                    tracker.Unchanged();
+                    logger.LogInformation(
+                        "Wire cutover: no action for episode {EpisodeId} (already migrated or no cutover fields).",
+                        episodeId);
+                    continue;
+                }
+
+                needChangeTaken++;
+                tracker.NeedChange();
+                affectedIds.Add(change.EpisodeId);
+
+                if (!apply)
+                {
+                    journal.Append(change, applied: false);
+                    continue;
+                }
+
+                await applyChannel!.Writer.WriteAsync(change, cancellationToken);
             }
-
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var episodeId = TryPeekId(root);
-            tracker.Scanned(episodeId);
-
-            if (!WireCutoverPlanner.TryCreateChange(root, out var change) || change is null)
+        }
+        finally
+        {
+            // Complete the channel and wait for workers before the journal using-block disposes.
+            applyChannel?.Writer.TryComplete();
+            if (applyDrain is not null)
             {
-                tracker.Unchanged();
-                logger.LogInformation(
-                    "Wire cutover: no action for episode {EpisodeId} (already migrated or no cutover fields).",
-                    episodeId);
-                continue;
+                await applyDrain;
             }
-
-            needChangeTaken++;
-            tracker.NeedChange();
-            affected.Add(change.EpisodeId);
-
-            if (!apply)
-            {
-                journal.Append(change, applied: false);
-                continue;
-            }
-
-            var ok = await store.ApplyCutoverStateAsync(
-                change.PodcastId,
-                change.EpisodeId,
-                change.After,
-                cancellationToken);
-            if (!ok)
-            {
-                tracker.Failed();
-                journal.Append(change, applied: false);
-                logger.LogError(
-                    "Wire cutover migrate failed for episode {EpisodeId} podcast {PodcastId}.",
-                    change.EpisodeId,
-                    change.PodcastId);
-                continue;
-            }
-
-            journal.Append(change, applied: true);
-            tracker.Written(change.EpisodeId);
         }
 
         var snap = tracker.Complete(
-            $"Migrate complete. limit={limit} Journal={journal.Path} AffectedIds={journal.AffectedIdsPath} AppliedIds={journal.AppliedIdsPath} Changes={journal.ChangesPath}");
+            $"Migrate complete. limit={limit} dop={(apply ? dop : 1)} Journal={journal.Path} AffectedIds={journal.AffectedIdsPath} AppliedIds={journal.AppliedIdsPath} Changes={journal.ChangesPath}");
         return new WireCutoverRunResult
         {
             Scanned = snap.Scanned,
@@ -124,7 +178,7 @@ public sealed class WireCutoverProcessor(
             AffectedIdsPath = journal.AffectedIdsPath,
             AppliedIdsPath = journal.AppliedIdsPath,
             ChangesPath = journal.ChangesPath,
-            AffectedEpisodeIds = affected
+            AffectedEpisodeIds = affectedIds
         };
     }
 

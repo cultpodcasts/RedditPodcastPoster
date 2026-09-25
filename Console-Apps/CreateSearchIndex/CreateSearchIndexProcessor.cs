@@ -15,6 +15,7 @@ using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Formatting;
+using RedditPodcastPoster.Search.Indexing;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Search.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -87,6 +88,13 @@ public partial class CreateSearchIndexProcessor(
                     var result = await CreateIndexer(request);
                 }
             }
+
+        }
+
+        if (request.AllPlayables &&
+            !string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            await EnsureSiblingPlayableIndexers(request);
         }
 
         if (request.RunIndexer)
@@ -100,15 +108,23 @@ public partial class CreateSearchIndexProcessor(
                 logger.LogError(ex, message);
                 throw ex;
             }
-            await RunIndexerWithRetries(request);
+            await RunIndexerWithRetries(request, request.IndexerName);
+            if (request.AllPlayables && !string.IsNullOrWhiteSpace(request.IndexName))
+            {
+                foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName))
+                {
+                    await RunIndexerWithRetries(request, source.IndexerName);
+                }
+            }
         }
     }
 
-    private async Task RunIndexerWithRetries(CreateSearchIndexRequest request)
+    private async Task RunIndexerWithRetries(CreateSearchIndexRequest request, string? indexerName)
     {
         var executedAttempts = 0;
         long totalDocsSucceeded = 0;
         long? previousIndexedDocumentCount = null;
+        DateTimeOffset? previousExecutionStart = null;
 
         void LogFinalSummary(string terminalReason)
         {
@@ -119,7 +135,7 @@ public partial class CreateSearchIndexProcessor(
                 terminalReason);
         }
 
-        if (string.IsNullOrWhiteSpace(request.IndexerName))
+        if (string.IsNullOrWhiteSpace(indexerName))
         {
             logger.LogWarning(
                 "Run-indexer requested without --indexer name. Running single trigger without monitoring.");
@@ -145,22 +161,27 @@ public partial class CreateSearchIndexProcessor(
                 "Indexer attempt {Attempt}/{MaxAttempts}: triggering indexer '{IndexerName}'.",
                 attempt,
                 maxAttempts,
-                request.IndexerName);
+                indexerName);
 
             var attemptTriggeredAtUtc = DateTimeOffset.UtcNow;
-            var runState = await searchIndexerService.RunIndexer();
+            var runState = new IndexerStateWrapper(await TriggerNamedIndexer(indexerName));
             logger.LogInformation(
                 "Indexer attempt {Attempt}/{MaxAttempts}: trigger state = {IndexerState}.",
                 attempt,
                 maxAttempts,
                 runState.IndexerState);
 
-            var requiresNewRunCorrelation = runState.IndexerState == IndexerState.Executed;
-            var minRunStartUtc = requiresNewRunCorrelation
-                ? attemptTriggeredAtUtc.AddSeconds(-1)
-                : (DateTimeOffset?)null;
+            // A quota batch ends and the next RunIndexer call returns immediately.
+            // Correlate only on a start time after that batch, otherwise the
+            // previous execution is read again and the document count looks stuck.
+            var requiresNewRunCorrelation = runState.IndexerState == IndexerState.Executed
+                                            || previousExecutionStart.HasValue;
+            var minRunStartUtc = previousExecutionStart?.AddTicks(1)
+                                 ?? (requiresNewRunCorrelation
+                                     ? attemptTriggeredAtUtc.AddSeconds(-1)
+                                     : null);
 
-            var status = await WaitForIndexerCompletion(request.IndexerName, pollInterval, minRunStartUtc, maxWaitDuration);
+            var status = await WaitForIndexerCompletion(indexerName, pollInterval, minRunStartUtc, maxWaitDuration);
             var result = GetCorrelatedExecutionResult(status, minRunStartUtc);
             if (result == null)
             {
@@ -171,7 +192,7 @@ public partial class CreateSearchIndexProcessor(
                     maxAttempts);
                 LogFinalSummary("NoCorrelatedExecutionResult");
                 throw new InvalidOperationException(
-                    $"Indexer attempt {attempt}/{maxAttempts} completed without a correlated execution result for indexer '{request.IndexerName}'.");
+                    $"Indexer attempt {attempt}/{maxAttempts} completed without a correlated execution result for indexer '{indexerName}'.");
             }
 
             if (result.Status == IndexerExecutionStatus.InProgress ||
@@ -190,11 +211,15 @@ public partial class CreateSearchIndexProcessor(
 
                 LogFinalSummary($"MaxAttemptsReachedWithStallStatus:{result.Status}");
                 throw new InvalidOperationException(
-                    $"Indexer '{request.IndexerName}' reached max attempts ({maxAttempts}) stalled with status '{result.Status}'.");
+                    $"Indexer '{indexerName}' reached max attempts ({maxAttempts}) stalled with status '{result.Status}'.");
             }
 
             executedAttempts++;
             totalDocsSucceeded += result.ItemCount;
+            if (result.StartTime.HasValue)
+            {
+                previousExecutionStart = result.StartTime;
+            }
             logger.LogInformation(
                 "Indexer attempt {Attempt}/{MaxAttempts} completed. Status={Status}; DocsSucceeded={ItemCount}; Errors={FailedCount}; StartTime={StartTime}; EndTime={EndTime}; Message={Message}",
                 attempt,
@@ -275,7 +300,7 @@ public partial class CreateSearchIndexProcessor(
             maxAttempts);
         LogFinalSummary("MaxAttemptsReachedWithRetryableFailure");
         throw new InvalidOperationException(
-            $"Indexer '{request.IndexerName}' reached max attempts ({maxAttempts}) with retryable failures.");
+            $"Indexer '{indexerName}' reached max attempts ({maxAttempts}) with retryable failures.");
     }
 
     private async Task<SearchIndexerStatus> WaitForIndexerCompletion(
@@ -331,39 +356,63 @@ public partial class CreateSearchIndexProcessor(
         SearchIndexerStatus status,
         DateTimeOffset? minRunStartUtc)
     {
-        IndexerExecutionResult? latest = null;
-
-        void Consider(IndexerExecutionResult? candidate)
+        var candidates = new List<IndexerExecutionResult>();
+        if (status.LastResult != null)
         {
-            if (candidate == null)
-            {
-                return;
-            }
-
-            if (minRunStartUtc.HasValue)
-            {
-                var matchesByStart = candidate.StartTime.HasValue && candidate.StartTime.Value >= minRunStartUtc.Value;
-                var matchesByEnd = candidate.EndTime.HasValue && candidate.EndTime.Value >= minRunStartUtc.Value;
-                if (!matchesByStart && !matchesByEnd)
-                {
-                    return;
-                }
-            }
-
-            if (latest == null ||
-                (candidate.StartTime ?? DateTimeOffset.MinValue) > (latest.StartTime ?? DateTimeOffset.MinValue))
-            {
-                latest = candidate;
-            }
+            candidates.Add(status.LastResult);
         }
 
-        Consider(status.LastResult);
         foreach (var execution in status.ExecutionHistory)
         {
-            Consider(execution);
+            if (execution != null)
+            {
+                candidates.Add(execution);
+            }
         }
 
-        return latest;
+        var index = IndexerExecutionCorrelation.LatestIndex(
+            minRunStartUtc,
+            candidates.Select(candidate => new IndexerExecutionCandidate(candidate.StartTime, candidate.EndTime)).ToList());
+        return index is null ? null : candidates[index.Value];
+    }
+
+    private async Task<IndexerState> TriggerNamedIndexer(string indexerName)
+    {
+        try
+        {
+            var response = await searchIndexerClient.RunIndexerAsync(indexerName);
+            if (response.Status != (int)HttpStatusCode.Accepted)
+            {
+                logger.LogError(
+                    "Failure to run indexer '{IndexerName}' with status '{ResponseStatus}' and reason '{ResponseReasonPhrase}'.",
+                    indexerName,
+                    response.Status,
+                    response.ReasonPhrase);
+                return IndexerState.Failure;
+            }
+
+            logger.LogInformation("Ran indexer '{IndexerName}'.", indexerName);
+            return IndexerState.Executed;
+        }
+        catch (RequestFailedException ex) when (ex.Status == (int)HttpStatusCode.TooManyRequests)
+        {
+            logger.LogError(ex, "Too Many Requests. Failure to run indexer '{IndexerName}'.", indexerName);
+            return IndexerState.TooManyRequests;
+        }
+        catch (RequestFailedException ex) when (ex.Status == (int)HttpStatusCode.Conflict)
+        {
+            logger.LogError(ex, "Indexer already running. Failure to run indexer '{IndexerName}'.", indexerName);
+            return IndexerState.AlreadyRunning;
+        }
+        catch (RequestFailedException ex)
+        {
+            logger.LogError(ex,
+                "Failure to run indexer '{IndexerName}' with status '{ExStatus}' and message '{ExMessage}'.",
+                indexerName,
+                ex.Status,
+                ex.Message);
+            return IndexerState.Failure;
+        }
     }
 
     private async Task UpdateExistingIndexAndDataSource(CreateSearchIndexRequest request)
@@ -378,10 +427,10 @@ public partial class CreateSearchIndexProcessor(
             throw new InvalidOperationException("--update-existing requires --datasource.");
         }
 
-        await EnsureRetrievableStringField(request.IndexName, "svc");
+        await EnsureMissingEpisodeSearchFields(request.IndexName);
         await CreateDataSource(request);
         logger.LogInformation(
-            "Updated data source '{DataSourceName}' Cosmos SQL (includes svc). Index '{IndexName}' kept in place.",
+            "Updated data source '{DataSourceName}' Cosmos SQL. Index '{IndexName}' kept in place.",
             request.DataSourceName,
             request.IndexName);
 
@@ -397,27 +446,87 @@ public partial class CreateSearchIndexProcessor(
         }
     }
 
-    private async Task EnsureRetrievableStringField(string indexName, string fieldName)
+    private async Task EnsureMissingEpisodeSearchFields(string indexName)
     {
         var index = await searchIndexClient.GetIndexAsync(indexName);
         var fields = index.Value.Fields;
-        if (fields.Any(f => string.Equals(f.Name, fieldName, StringComparison.OrdinalIgnoreCase)))
+        var desired = EpisodeSearchFieldBuilder().Build(typeof(EpisodeSearchRecord));
+        var added = new List<string>();
+        foreach (var field in desired)
         {
-            logger.LogInformation("Index '{IndexName}' already has field '{FieldName}'.", indexName, fieldName);
+            if (fields.Any(existing => string.Equals(existing.Name, field.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            fields.Add(field);
+            added.Add(field.Name);
+        }
+
+        if (added.Count == 0)
+        {
+            logger.LogInformation("Index '{IndexName}' already has every EpisodeSearchRecord field.", indexName);
             return;
         }
 
-        fields.Add(new SearchField(fieldName, SearchFieldDataType.String)
-        {
-            IsKey = false,
-            IsSearchable = false,
-            IsFilterable = false,
-            IsSortable = false,
-            IsFacetable = false,
-            IsHidden = false
-        });
         await searchIndexClient.CreateOrUpdateIndexAsync(index.Value);
-        logger.LogInformation("Added retrievable string field '{FieldName}' to index '{IndexName}'.", fieldName, indexName);
+        logger.LogInformation(
+            "Added EpisodeSearchRecord fields to index '{IndexName}': {FieldNames}.",
+            indexName,
+            string.Join(", ", added));
+    }
+
+    private static FieldBuilder EpisodeSearchFieldBuilder() => new()
+    {
+        Serializer = new JsonObjectSerializer(new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        })
+    };
+
+    private async Task EnsureSiblingPlayableIndexers(CreateSearchIndexRequest request)
+    {
+        var connectionString =
+            $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
+        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        {
+            var hadDataSource = await TryGetDataSource(source.DataSourceName) != null;
+            var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
+            var dataSource = new SearchIndexerDataSourceConnection(
+                source.DataSourceName,
+                SearchIndexerDataSourceType.CosmosDb,
+                connectionString,
+                container)
+            {
+                DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+            };
+            await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
+            logger.LogInformation(
+                "{Action} playable data source '{DataSourceName}' for {ContentKind}.",
+                hadDataSource ? "Updated" : "Created",
+                source.DataSourceName,
+                source.ContentKind);
+
+            var hadIndexer = await TryGetIndexer(source.IndexerName) != null;
+            var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
+            var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+            {
+                Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
+                Description = source.ContentKind,
+                Parameters = new IndexingParameters
+                {
+                    MaxFailedItems = 0,
+                    MaxFailedItemsPerBatch = 0,
+                    Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
+                }
+            };
+            await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
+            logger.LogInformation(
+                "{Action} playable indexer '{IndexerName}' for {ContentKind}.",
+                hadIndexer ? "Updated" : "Created",
+                source.IndexerName,
+                source.ContentKind);
+        }
     }
 
     private async Task<Azure.Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)
@@ -523,11 +632,7 @@ public partial class CreateSearchIndexProcessor(
             @$"CONCAT(""a"", SUBSTRING({appleImageExpr}, 10, 1), SUBSTRING({appleImageExpr}, {applePrefixLength}, LENGTH({appleImageExpr}) - {applePrefixLength}))";
         var query = @$"SELECT
                             e.id,
-                            e.title as episodeTitle,
-                            e.podcastName as podcastName,
-                            IIF(LENGTH(e.description) > {Constants.DescriptionSize},
-                                CONCAT(SUBSTRING(e.description, 0, {Constants.DescriptionSize - 1}), ""{"\u2026"}""),
-                                e.description) as episodeDescription,
+                            {PlayableSearchSql.EpisodeUnifiedColumns()},
                             e.release,
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
                             IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
@@ -572,11 +677,7 @@ public partial class CreateSearchIndexProcessor(
     {
         var index = new SearchIndex(request.IndexName)
         {
-            Fields = new FieldBuilder
-            {
-                Serializer = new JsonObjectSerializer(new JsonSerializerOptions
-                    { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
-            }.Build(typeof(EpisodeSearchRecord)),
+            Fields = EpisodeSearchFieldBuilder().Build(typeof(EpisodeSearchRecord)),
             DefaultScoringProfile = string.Empty,
             CorsOptions = new CorsOptions(["*"]) { MaxAgeInSeconds = 300 }
         };
@@ -585,6 +686,15 @@ public partial class CreateSearchIndexProcessor(
 
     private async Task TearDown(CreateSearchIndexRequest request)
     {
+        if (request.AllPlayables && !string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName))
+            {
+                await DeleteIndexerIfPresent(source.IndexerName);
+                await DeleteDataSourceIfPresent(source.DataSourceName);
+            }
+        }
+
         Response result;
         if (!string.IsNullOrWhiteSpace(request.IndexerName))
         {
@@ -620,6 +730,62 @@ public partial class CreateSearchIndexProcessor(
             }
 
             logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", request.DataSourceName, result.Status);
+        }
+    }
+
+    private async Task DeleteIndexerIfPresent(string indexerName)
+    {
+        if (await TryGetIndexer(indexerName) is null)
+        {
+            logger.LogInformation(
+                "Tear-down indexer '{IndexerName}': HTTP {Status}.",
+                indexerName,
+                (int)HttpStatusCode.NotFound);
+            return;
+        }
+
+        try
+        {
+            var result = await searchIndexerClient.DeleteIndexerAsync(indexerName, CancellationToken.None);
+            if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to tear-down indexer '{indexerName}': HTTP {result.Status} {result.ReasonPhrase}.");
+            }
+
+            logger.LogInformation("Tear-down indexer '{IndexerName}': HTTP {Status}.", indexerName, result.Status);
+        }
+        catch (RequestFailedException ex) when (ex.Status == (int)HttpStatusCode.NotFound)
+        {
+            logger.LogInformation("Tear-down indexer '{IndexerName}': HTTP {Status}.", indexerName, ex.Status);
+        }
+    }
+
+    private async Task DeleteDataSourceIfPresent(string dataSourceName)
+    {
+        if (await TryGetDataSource(dataSourceName) is null)
+        {
+            logger.LogInformation(
+                "Tear-down data-source '{DataSourceName}': HTTP {Status}.",
+                dataSourceName,
+                (int)HttpStatusCode.NotFound);
+            return;
+        }
+
+        try
+        {
+            var result = await searchIndexerClient.DeleteDataSourceConnectionAsync(dataSourceName, CancellationToken.None);
+            if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
+            {
+                throw new InvalidOperationException(
+                    $"Unable to tear-down data-source '{dataSourceName}': HTTP {result.Status} {result.ReasonPhrase}.");
+            }
+
+            logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", dataSourceName, result.Status);
+        }
+        catch (RequestFailedException ex) when (ex.Status == (int)HttpStatusCode.NotFound)
+        {
+            logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", dataSourceName, ex.Status);
         }
     }
 

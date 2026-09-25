@@ -9,21 +9,36 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
+    /// <param name="includeUnifiedPlayableFields">
+    /// When false (the hourly indexer default), the upload uses <c>episodeTitle</c>,
+    /// <c>podcastName</c>, and <c>episodeDescription</c> and omits the replacement fields.
+    /// When true, the upload uses <c>contentKind</c>, <c>title</c>, <c>seriesName</c>, and
+    /// <c>description</c> and omits the legacy names. Turn this on only after the index is
+    /// rebuilt without the old fields. The same <see cref="DescriptionTruncator"/> cap is
+    /// what the Cosmos pull projects.
+    /// </param>
+    public static EpisodeSearchRecord ToEpisodeSearchRecord(
+        this PodcastEpisode podcastEpisode,
+        bool includeUnifiedPlayableFields = false)
     {
         EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
+        var truncatedDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription);
         var duration = podcastEpisode.Episode.Length.ToString();
         return new EpisodeSearchRecord
         {
             AppleId = EpisodeServicePresence.AppleEpisodeId(podcastEpisode.Episode)?.ToString(),
             BBC = BbcSearchField(podcastEpisode.Episode),
+            ContentKind = includeUnifiedPlayableFields ? SearchContentKind.Episode : null,
+            Description = includeUnifiedPlayableFields ? truncatedDescription : null,
             Duration = duration.EndsWith(".0000000", StringComparison.Ordinal) ? duration[..^8] : duration,
-            EpisodeDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription),
+            EpisodeDescription = includeUnifiedPlayableFields ? null : truncatedDescription,
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
-            EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
+            EpisodeTitle = includeUnifiedPlayableFields ? null : podcastEpisode.Episode.Title.Trim(),
+            SeriesName = includeUnifiedPlayableFields ? podcastEpisode.Podcast.Name.Trim() : null,
+            Title = includeUnifiedPlayableFields ? podcastEpisode.Episode.Title.Trim() : null,
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
             InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))
@@ -33,7 +48,7 @@ public static class PodcastEpisodeExtensions
             // See docs/episode-language.md.
             Lang = NullIfWhiteSpace(EpisodeLanguageResolution.ForEpisode(podcastEpisode.Episode)),
             PodcastAppleId = podcastEpisode.Podcast.AppleId?.ToString(),
-            PodcastName = podcastEpisode.Podcast.Name.Trim(),
+            PodcastName = includeUnifiedPlayableFields ? null : podcastEpisode.Podcast.Name.Trim(),
             PublisherSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
             Release = podcastEpisode.Episode.ReleaseUtc,
             Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
