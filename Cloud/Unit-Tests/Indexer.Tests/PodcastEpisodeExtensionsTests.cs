@@ -169,7 +169,7 @@ public class PodcastEpisodeExtensionsTests
         "ToEpisodeSearchRecord leaves contentKind, title, seriesName, and description unset " +
         "when unified fields are turned off, and the upload JSON keeps episodeTitle, podcastName, " +
         "and episodeDescription, for an index that still has the old names.")]
-    public void omits_unified_playable_fields_from_the_default_upload()
+    public void omits_unified_playable_fields_when_the_flag_is_off()
     {
         // Arrange
         var episode = CreateEpisode();
@@ -208,7 +208,7 @@ public class PodcastEpisodeExtensionsTests
         "ToEpisodeSearchRecord by default includes contentKind, title, seriesName, and description " +
         "and omits episodeTitle, podcastName, and episodeDescription, because the rebuilt index " +
         "only has the replacement names.")]
-    public void includes_unified_playable_fields_in_the_upload_when_enabled()
+    public void includes_unified_playable_fields_on_the_default_upload()
     {
         // Arrange
         var episode = CreateEpisode();
