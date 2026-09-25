@@ -90,7 +90,8 @@ internal static partial class Channel4CatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             Channel4PageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(html));
     }
 
     public static bool IsMovie(string html)

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -15,7 +16,8 @@ public class UrlSubmitter(
     IPodcastService podcastService,
     IUrlCategoriser urlCategoriser,
     ICategorisedItemProcessor categorisedItemProcessor,
-    ILogger<UrlSubmitter> logger)
+    ILogger<UrlSubmitter> logger,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -80,11 +82,19 @@ public class UrlSubmitter(
                     submitOptions.PrefetchedMeta,
                     forceMetaExtract: submitOptions.RefreshMeta);
 
+            if (submitContentTypes?.Value?.Enabled == true && submitOptions.ClassificationSignals is null)
+            {
+                submitOptions = submitOptions with
+                {
+                    ClassificationSignals = SubmitContentClassifier.FromSubmission(url, categorisedItem)
+                };
+            }
+
             var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
 
             if (submitResult.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                if (submitResult.Episode == null)
+                if (submitResult.Episode == null && submitResult.PlayableId == null)
                 {
                     logger.LogError(
                         "Submit completed with episode state '{EpisodeResult}' but no episode instance. Url: '{Url}', PodcastId: '{PodcastId}', CreatePodcast: {CreatePodcast}. Result: {SubmitResult}.",
@@ -94,7 +104,7 @@ public class UrlSubmitter(
                         submitOptions.CreatePodcast,
                         submitResult);
                 }
-                else
+                else if (submitResult.Episode != null)
                 {
                     logger.LogInformation(
                         "Submit completed with episode state '{EpisodeResult}' and episode id '{EpisodeId}'. Url: '{Url}'.",
@@ -102,11 +112,23 @@ public class UrlSubmitter(
                         submitResult.Episode.Id,
                         url);
                 }
+                else
+                {
+                    logger.LogInformation(
+                        "Submit completed with content kind '{ContentKind}' and playable id '{PlayableId}'. Url: '{Url}'.",
+                        submitResult.ContentKind,
+                        submitResult.PlayableId,
+                        url);
+                }
             }
 
             return submitResult;
         }
         catch (AmbiguousPodcastNameException)
+        {
+            throw;
+        }
+        catch (AmbiguousParentNameException)
         {
             throw;
         }

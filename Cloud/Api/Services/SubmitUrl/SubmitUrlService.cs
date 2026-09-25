@@ -69,6 +69,11 @@ public class SubmitUrlService(
                 submitOptions);
 
             var episodeId = result.Episode?.Id;
+            if (result.PlayableId.HasValue && result.Episode == null)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
+            }
+
             if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
                 if (episodeId.HasValue)
@@ -103,6 +108,17 @@ public class SubmitUrlService(
                 ex.PodcastName,
                 submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.Conflict, AmbiguousPodcasts: ex.PodcastIds);
+        }
+        catch (AmbiguousParentNameException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Ambiguous {ContentKind} parent '{ParentName}' on submit of '{Url}'.",
+                nameof(SubmitAsync),
+                ex.ContentKind,
+                ex.ParentName,
+                submitUrlModel.Url);
+            return new SubmitUrlResult(SubmitUrlStatus.Conflict, AmbiguousPodcasts: ex.ParentIds);
         }
         catch (SubmitPodcastNotFoundException ex)
         {

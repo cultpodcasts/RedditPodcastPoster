@@ -121,6 +121,29 @@ public class NetflixPageMetaDataExtractorRules
 
         // Assert
         meta.ShowName.Should().Be(seriesName);
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Netflix film pages set MadeAsFilm and leave ShowName unset when the primary catalogue type is Movie, " +
+        "so a flagged submit can store a Film instead of a series episode.")]
+    public async Task film_page_sets_made_as_film()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head>" +
+            $"<body><div>{{\"@type\":\"Movie\",\"name\":\"{title}\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.MadeAsFilm.Should().BeTrue();
+        meta.ShowName.Should().BeNull();
+        meta.Title.Should().Be(title);
     }
 
     [Fact(DisplayName =

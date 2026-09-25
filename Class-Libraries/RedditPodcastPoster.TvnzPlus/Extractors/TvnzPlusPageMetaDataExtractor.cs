@@ -91,7 +91,8 @@ internal static partial class TvnzPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             TvnzPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

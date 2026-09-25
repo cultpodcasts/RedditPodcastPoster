@@ -21,7 +21,9 @@ public class SubmitUrlResponse
                 ToItemState(result.PodcastResult),
                 ToEpisodeDetails(result.SubmitEpisodeDetails),
                 result.Episode?.Id,
-                result.Podcast?.Id)
+                result.Podcast?.Id,
+                result.ContentKind,
+                result.PlayableId)
         };
     }
 
@@ -90,7 +92,9 @@ public class SubmitUrlResponse
         ItemState podcast,
         EpisodeDetails? submitEpisodeDetails,
         Guid? episodeId,
-        Guid? podcastId)
+        Guid? podcastId,
+        string? contentKind = null,
+        Guid? playableId = null)
     {
         [JsonPropertyName("episode")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -105,6 +109,14 @@ public class SubmitUrlResponse
         [JsonPropertyName("podcast")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public ItemState Podcast { get; private set; } = podcast;
+
+        [JsonPropertyName("contentKind")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ContentKind { get; private set; } = contentKind;
+
+        [JsonPropertyName("playableId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Guid? PlayableId { get; private set; } = playableId;
 
         [JsonPropertyName("episodeDetails")]
         public EpisodeDetails? EpisodeDetails { get; private set; } = submitEpisodeDetails;

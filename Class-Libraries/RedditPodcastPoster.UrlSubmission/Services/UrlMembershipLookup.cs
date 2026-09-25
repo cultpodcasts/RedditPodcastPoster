@@ -1,6 +1,11 @@
 using System.Linq.Expressions;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
@@ -8,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
@@ -16,11 +22,25 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 public class UrlMembershipLookup(
     IEpisodeRepository episodeRepository,
     IPodcastRepository podcastRepository,
-    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver)
+    INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null,
+    IFilmRepository? films = null,
+    ITvShowEpisodeRepository? tvShowEpisodes = null,
+    INewsReportRepository? newsReports = null)
     : IUrlMembershipLookup
 {
+    private bool ContentTypesEnabled => submitContentTypes?.Value?.Enabled == true;
+
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
     {
+        if (ContentTypesEnabled && SubmitContentClassifier.IsBbcNews(url))
+        {
+            return new UrlMembershipLookupResult(
+                false,
+                UrlMembershipLookupKinds.Unrecognised,
+                ContentKind: SubmitClassification.NewsReport);
+        }
+
         var kind = Classify(url, out var storedUrlEquals, out var streamingService);
         if (kind == UrlMembershipLookupKinds.Unrecognised || storedUrlEquals is null)
         {
@@ -36,12 +56,12 @@ public class UrlMembershipLookup(
 
         if (matchingPodcastIds.Count > 1)
         {
-            return new UrlMembershipLookupResult(
+            return WithContentKind(new UrlMembershipLookupResult(
                 false,
                 Kind: kind,
                 Ambiguous: true,
                 PodcastIds: matchingPodcastIds,
-                Service: streamingService);
+                Service: streamingService));
         }
 
         if (matchingPodcastIds.Count == 1)
@@ -50,13 +70,21 @@ public class UrlMembershipLookup(
             var podcast = await podcastRepository.GetPodcast(podcastId);
             if (podcast != null)
             {
-                return new UrlMembershipLookupResult(
+                return WithContentKind(new UrlMembershipLookupResult(
                     true,
                     Kind: kind,
                     PodcastId: podcast.Id,
                     PodcastName: podcast.Name,
-                    Service: streamingService);
+                    Service: streamingService,
+                    ContentKind: SubmitClassification.Episode,
+                    ParentName: podcast.Name));
             }
+        }
+
+        var other = await FindOtherPlayable(url, kind, streamingService);
+        if (other != null)
+        {
+            return other;
         }
 
         // Unknown streaming: classify only — prepare owns HTML fetch / show-name extract.
@@ -65,6 +93,79 @@ public class UrlMembershipLookup(
             kind,
             PodcastName: null,
             Service: streamingService);
+    }
+
+    private UrlMembershipLookupResult WithContentKind(UrlMembershipLookupResult result)
+    {
+        if (!ContentTypesEnabled || result.ContentKind != null)
+        {
+            return ContentTypesEnabled
+                ? result
+                : result with { ContentKind = null, ParentName = null };
+        }
+
+        return result with
+        {
+            ContentKind = SubmitClassification.Episode,
+            ParentName = result.PodcastName
+        };
+    }
+
+    private async Task<UrlMembershipLookupResult?> FindOtherPlayable(
+        Uri url,
+        string kind,
+        string? serviceKey)
+    {
+        if (!ContentTypesEnabled || string.IsNullOrWhiteSpace(serviceKey))
+        {
+            return null;
+        }
+
+        if (films != null)
+        {
+            var film = await films.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == url);
+            if (film != null)
+            {
+                return new UrlMembershipLookupResult(
+                    true,
+                    Kind: kind,
+                    Service: serviceKey,
+                    ContentKind: SubmitClassification.Film);
+            }
+        }
+
+        if (tvShowEpisodes != null)
+        {
+            var episode = await tvShowEpisodes.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == url);
+            if (episode != null)
+            {
+                return new UrlMembershipLookupResult(
+                    true,
+                    Kind: kind,
+                    Service: serviceKey,
+                    ContentKind: SubmitClassification.TvShowEpisode,
+                    ParentName: episode.TvShowName);
+            }
+        }
+
+        if (newsReports != null)
+        {
+            var report = await newsReports.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == url);
+            if (report != null)
+            {
+                return new UrlMembershipLookupResult(
+                    true,
+                    Kind: kind,
+                    Service: serviceKey,
+                    ContentKind: SubmitClassification.NewsReport,
+                    ParentName: report.NewsOrganisationName);
+            }
+        }
+
+        return null;
     }
 
     private string Classify(

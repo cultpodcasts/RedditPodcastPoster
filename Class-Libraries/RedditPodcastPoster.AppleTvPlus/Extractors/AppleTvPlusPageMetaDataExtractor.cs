@@ -94,7 +94,8 @@ internal static partial class AppleTvPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             AppleTvPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

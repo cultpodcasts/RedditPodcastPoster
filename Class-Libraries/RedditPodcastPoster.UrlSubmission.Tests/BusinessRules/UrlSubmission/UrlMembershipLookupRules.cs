@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.BBC.Extractors;
@@ -6,9 +8,11 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
@@ -546,6 +550,128 @@ public class UrlMembershipLookupRules
             UrlMembershipLookupKinds.Unrecognised));
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "When submit content types are off, a Netflix URL stored only on a Film stays unknown " +
+        "and membership does not query the Film container, because persist is still Podcast + Episode.")]
+    public async Task flag_off_does_not_return_a_film_match()
+    {
+        // Arrange
+        var url = NetflixWatchUrl();
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.ContentKind.Should().BeNull();
+        result.ParentName.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+        _mocker.GetMock<IFilmRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on, URL membership lookup returns a Film with no parent name " +
+        "when that URL is stored on a Film, and it does not treat the film as a podcast.")]
+    public async Task flag_on_returns_a_known_film_without_a_parent()
+    {
+        // Arrange
+        var url = NetflixWatchUrl();
+        var service = StreamingServiceWire.ToKey(StreamingService.Netflix);
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [service] = new() { Url = url }
+            }
+        };
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
+                predicate.Compile()(film) ? film : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        result.PodcastName.Should().BeNull();
+        result.Service.Should().Be(service);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Streaming);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a Spotify URL is already on one series, " +
+        "membership returns contentKind Episode and the series name as parentName.")]
+    public async Task flag_on_known_spotify_url_returns_episode_kind()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.ParentName.Should().Be(podcast.Name);
+        result.PodcastName.Should().Be(podcast.Name);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on, a BBC /news/ URL is reported as a NewsReport " +
+        "and is not treated as a known podcast, because news has no Sounds or iPlayer catalogue row.")]
+    public async Task flag_on_bbc_news_url_is_a_news_report_hint()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.PodcastId.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, a BBC /news/ URL stays unrecognised and omits contentKind.")]
+    public async Task flag_off_bbc_news_url_omits_content_kind()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
+        result.ContentKind.Should().BeNull();
+    }
+
+    private Uri NetflixWatchUrl() =>
+        new($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
 
     private Uri BbcSoundsUrl() =>
         new($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");

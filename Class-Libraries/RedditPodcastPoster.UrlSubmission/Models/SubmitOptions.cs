@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission.Models;
 
@@ -17,4 +18,5 @@ public record SubmitOptions(
     string? PodcastName = null,
     EpisodeCreationSource CreationSource = EpisodeCreationSource.SubmitUrl,
     NonPodcastServiceItemMetaData? PrefetchedMeta = null,
-    bool RefreshMeta = false);
+    bool RefreshMeta = false,
+    SubmitClassificationSignals? ClassificationSignals = null);

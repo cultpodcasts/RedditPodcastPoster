@@ -62,5 +62,6 @@ public class UrlSubmissionDependencyInjectionTests
         // Assert
         services.Should().Contain(d => d.ServiceType == typeof(IUrlMembershipLookup));
         services.Should().Contain(d => d.ServiceType == typeof(IUrlSubmitter));
+        services.Should().Contain(d => d.ServiceType == typeof(ICatalogueKindSubmitter));
     }
 }

@@ -66,7 +66,8 @@ internal static partial class NetflixCatalogMeta
                 openGraph?.Image,
                 openGraph?.Explicit,
                 "Netflix",
-                ShowName: null);
+                ShowName: null,
+                MadeAsFilm: true);
         }
 
         var showName = openGraph?.ShowName;

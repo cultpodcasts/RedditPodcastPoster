@@ -111,7 +111,8 @@ internal static partial class PlaySuisseCatalogMeta
             PreferCatalogueImage(decodedHtml, openGraph?.Image),
             openGraph?.Explicit,
             PlaySuissePageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

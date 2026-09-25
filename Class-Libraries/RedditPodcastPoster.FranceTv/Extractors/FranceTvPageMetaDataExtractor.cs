@@ -89,7 +89,8 @@ internal static partial class FranceTvCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             FranceTvPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(html));
     }
 
     public static bool IsMovie(string html)

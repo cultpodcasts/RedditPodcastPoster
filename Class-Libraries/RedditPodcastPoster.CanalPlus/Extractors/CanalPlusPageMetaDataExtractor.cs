@@ -94,7 +94,8 @@ internal static partial class CanalPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             CanalPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

@@ -94,7 +94,8 @@ internal static partial class ArdCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             ArdPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

@@ -81,7 +81,8 @@ internal static partial class AmazonPrimeAtvMeta
             openGraph?.Image,
             openGraph?.Explicit,
             "Amazon Prime Video",
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(html));
     }
 
     public static string? TrySeriesName(string html)

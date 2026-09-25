@@ -100,7 +100,8 @@ internal static partial class PeacockCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             PeacockPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

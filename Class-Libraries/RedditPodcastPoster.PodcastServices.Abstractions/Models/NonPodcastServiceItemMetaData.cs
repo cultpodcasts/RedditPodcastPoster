@@ -9,4 +9,5 @@ public record NonPodcastServiceItemMetaData(
     bool? Explicit = null,
     string? Publisher = null,
     string? ShowName = null,
-    string? JsonLdName = null);
+    string? JsonLdName = null,
+    bool MadeAsFilm = false);

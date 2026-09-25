@@ -41,6 +41,7 @@ public class StreamingServiceMetaDataHandler(
             metaData.Release,
             metaData.Duration,
             metaData.Explicit,
-            metaData.ShowName);
+            metaData.ShowName,
+            metaData.MadeAsFilm);
     }
 }
