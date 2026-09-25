@@ -72,11 +72,6 @@ public sealed class TvShowEpisode : Playable
             updated = true;
         }
 
-        if (AssignPublisherDescription(tvShow.Description))
-        {
-            updated = true;
-        }
-
         var updatedMetadata = false;
         if (ParentMetadataVersion != tvShow.Timestamp)
         {

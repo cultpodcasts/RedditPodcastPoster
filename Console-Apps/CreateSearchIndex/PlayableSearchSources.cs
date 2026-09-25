@@ -6,10 +6,8 @@ using RedditPodcastPoster.Search.Models;
 namespace CreateSearchIndex;
 
 /// <summary>
-/// Cosmos pull queries for playables other than Episodes. Parent blurbs come from
-/// denormalised <c>publisherDescription</c>. Film omits series fields. Legacy
-/// episodeTitle / podcastName / episodeDescription stay filled so the shared index
-/// schema still has those required columns.
+/// Cosmos pull queries for playables other than Episodes. Film omits series fields.
+/// <c>title</c>, <c>seriesName</c>, and <c>description</c> are the only title fields.
 /// </summary>
 internal static class PlayableSearchSources
 {

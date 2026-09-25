@@ -72,11 +72,6 @@ public sealed class NewsReport : Playable
             updated = true;
         }
 
-        if (AssignPublisherDescription(organisation.Description))
-        {
-            updated = true;
-        }
-
         var updatedMetadata = false;
         if (ParentMetadataVersion != organisation.Timestamp)
         {

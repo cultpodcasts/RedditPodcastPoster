@@ -141,9 +141,9 @@ public class PodcastEpisodeExtensionsTests
         result.Title.Should().Be(episode.Title.Trim());
         result.SeriesName.Should().Be("Series");
         result.Description.Should().Be("Episode blurb");
-        result.SeriesDescription.Should().Be("Parent blurb");
-        result.EpisodeTitle.Should().Be(result.Title);
-        result.EpisodeDescription.Should().Be(result.Description);
+        result.EpisodeTitle.Should().BeNull();
+        result.EpisodeDescription.Should().BeNull();
+        result.PodcastName.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -163,8 +163,9 @@ public class PodcastEpisodeExtensionsTests
     }
 
     [Fact(DisplayName =
-        "ToEpisodeSearchRecord leaves contentKind, title, seriesName, description, and seriesDescription unset " +
-        "by default, and the upload JSON omits those properties, because the live index does not have them yet.")]
+        "ToEpisodeSearchRecord leaves contentKind, title, seriesName, and description unset " +
+        "by default, and the upload JSON keeps episodeTitle, podcastName, and episodeDescription, " +
+        "because the live index still uses those names.")]
     public void omits_unified_playable_fields_from_the_default_upload()
     {
         // Arrange
@@ -190,7 +191,6 @@ public class PodcastEpisodeExtensionsTests
         result.Title.Should().BeNull();
         result.SeriesName.Should().BeNull();
         result.Description.Should().BeNull();
-        result.SeriesDescription.Should().BeNull();
         result.EpisodeTitle.Should().Be("Kept title");
         result.EpisodeDescription.Should().Be("Episode blurb");
         result.PodcastName.Should().Be("Series");
@@ -198,13 +198,13 @@ public class PodcastEpisodeExtensionsTests
         json.Should().NotContain("\"title\"");
         json.Should().NotContain("\"seriesName\"");
         json.Should().NotContain("\"description\"");
-        json.Should().NotContain("\"seriesDescription\"");
         json.Should().Contain("\"episodeTitle\"");
     }
 
     [Fact(DisplayName =
-        "ToEpisodeSearchRecord includes contentKind, title, seriesName, description, and seriesDescription " +
-        "in the upload JSON when unified fields are requested, because that is the document shape after the index has them.")]
+        "ToEpisodeSearchRecord includes contentKind, title, seriesName, and description " +
+        "and omits episodeTitle, podcastName, and episodeDescription when the rebuilt index is in use, " +
+        "because the new names replace the old ones.")]
     public void includes_unified_playable_fields_in_the_upload_when_enabled()
     {
         // Arrange
@@ -231,7 +231,9 @@ public class PodcastEpisodeExtensionsTests
         json.Should().Contain("\"title\":\"Kept title\"");
         json.Should().Contain("\"seriesName\":\"Series\"");
         json.Should().Contain("\"description\":\"Episode blurb\"");
-        json.Should().Contain("\"seriesDescription\":\"Parent blurb\"");
+        json.Should().NotContain("episodeTitle");
+        json.Should().NotContain("podcastName");
+        json.Should().NotContain("episodeDescription");
     }
 
     [Fact(DisplayName =
@@ -269,7 +271,10 @@ public class PodcastEpisodeExtensionsTests
         contentKind.IsFacetable.Should().BeTrue();
         fields.Single(field => field.Name == "title").IsSearchable.Should().BeTrue();
         fields.Single(field => field.Name == "description").IsSearchable.Should().BeTrue();
-        fields.Single(field => field.Name == "seriesDescription").IsSearchable.Should().BeTrue();
+        fields.Should().NotContain(field => field.Name == "seriesDescription");
+        fields.Should().NotContain(field => field.Name == "episodeTitle");
+        fields.Should().NotContain(field => field.Name == "podcastName");
+        fields.Should().NotContain(field => field.Name == "episodeDescription");
         var seriesName = fields.Single(field => field.Name == "seriesName");
         seriesName.IsSearchable.Should().BeTrue();
         seriesName.IsFacetable.Should().BeTrue();

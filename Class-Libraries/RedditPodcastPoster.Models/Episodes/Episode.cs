@@ -243,11 +243,6 @@ public class Episode : Playable
             updated = true;
         }
 
-        if (AssignPublisherDescription(podcast.Description))
-        {
-            updated = true;
-        }
-
         var updatedMetadata = false;
         if (ParentMetadataVersion != podcast.Timestamp)
         {

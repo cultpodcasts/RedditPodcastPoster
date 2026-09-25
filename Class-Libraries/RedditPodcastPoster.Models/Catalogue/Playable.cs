@@ -150,15 +150,6 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string? PublisherLanguage { get; set; }
 
     /// <summary>
-    /// Denormalised parent publisher description (JSON <c>publisherDescription</c>).
-    /// Search <c>seriesDescription</c> is this text after the shared search truncation.
-    /// Not used on <see cref="Films.Film"/>.
-    /// </summary>
-    [JsonPropertyName("publisherDescription")]
-    [JsonPropertyOrder(95)]
-    public string? PublisherDescription { get; set; }
-
-    /// <summary>
     /// Denormalised parent publisher Cosmos <c>_ts</c> (JSON <c>parentMetadataVersion</c>).
     /// Used to detect stale parent projection. Not used on <see cref="Films.Film"/>.
     /// </summary>
@@ -186,22 +177,6 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string[]? Guests { get; set; }
 
     public bool IsRemoved() => Removed == true;
-
-    /// <summary>
-    /// Copy a parent publisher description onto <see cref="PublisherDescription"/>.
-    /// Blank parent text clears the denormalised blurb.
-    /// </summary>
-    protected bool AssignPublisherDescription(string? parentDescription)
-    {
-        var next = string.IsNullOrWhiteSpace(parentDescription) ? null : parentDescription.Trim();
-        if (PublisherDescription == next)
-        {
-            return false;
-        }
-
-        PublisherDescription = next;
-        return true;
-    }
 
     public void SetRelease(CatalogueRelease? release) => Release = release;
 

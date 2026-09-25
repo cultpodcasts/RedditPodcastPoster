@@ -34,26 +34,21 @@ public class EpisodeSearchRecord
     public string? Description { get; set; }
 
     /// <summary>
-    /// Parent blurb. Film omits it. Hourly push sets it only when unified fields are enabled.
-    /// Cosmos pull truncates denormalised <c>publisherDescription</c> with the same cap.
-    /// Null is omitted from the upload so an index that lacks the field does not reject the document.
+    /// Legacy names for the index that is live today. A rebuilt index does not include them:
+    /// <c>title</c>, <c>seriesName</c>, and <c>description</c> replace them. Null is omitted
+    /// from the upload so the new index is not sent both shapes.
     /// </summary>
+    [FieldBuilderIgnore]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
-        IsFacetable = false)]
-    public string? SeriesDescription { get; set; }
+    public string? EpisodeTitle { get; set; }
 
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
-        IsSortable = false)]
-    public required string EpisodeTitle { get; set; }
+    [FieldBuilderIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PodcastName { get; set; }
 
-    [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene,
-        IsSortable = false)]
-    public required string PodcastName { get; set; }
-
-    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
-        IsFacetable = false)]
-    public required string EpisodeDescription { get; set; }
+    [FieldBuilderIgnore]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EpisodeDescription { get; set; }
 
     [SimpleField(IsSortable = true, IsFacetable = false, IsFilterable = false)]
     public required DateTimeOffset Release { get; set; }

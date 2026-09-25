@@ -625,30 +625,8 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "Episode.SetPodcastProperties copies a trimmed parent description onto publisherDescription, because search seriesDescription is that denormalised blurb.")]
-    public void Episode_SetPodcastProperties_denormalises_parent_description()
-    {
-        // Arrange
-        var description = _fixture.Create<string>();
-        var podcast = new Podcast
-        {
-            Id = _fixture.Create<Guid>(),
-            Name = _fixture.Create<string>(),
-            Description = $" {description} "
-        };
-        var episode = new Episode();
-
-        // Act
-        var (updated, _) = episode.SetPodcastProperties(podcast);
-
-        // Assert
-        updated.Should().BeTrue();
-        episode.PublisherDescription.Should().Be(description);
-    }
-
-    [Fact(DisplayName =
-        "TvShowEpisode.SetTvShowProperties: when parent id, name, search terms, language, description, removed, and metadata " +
-        "version differ, then all are denormalised (name/searchTerms/language/description trimmed), because playables mirror Episode.SetPodcastProperties.")]
+        "TvShowEpisode.SetTvShowProperties: when parent id, name, search terms, language, removed, and metadata " +
+        "version differ, then all are denormalised (name/searchTerms/language trimmed), because playables mirror Episode.SetPodcastProperties.")]
     public void TvShowEpisode_SetTvShowProperties_denormalises_full_parent_projection()
     {
         // Arrange
@@ -657,14 +635,12 @@ public class CatalogueContentTypeModelRulesTests
         var searchTerms = _fixture.Create<string>();
         var language = _fixture.Create<string>();
         var metadataVersion = _fixture.Create<long>();
-        var description = _fixture.Create<string>();
         var tvShow = new TvShow
         {
             Id = tvShowId,
             Name = $" {tvShowName} ",
             SearchTerms = $" {searchTerms} ",
             Language = $" {language} ",
-            Description = $" {description} ",
             Removed = true,
             Timestamp = metadataVersion
         };
@@ -680,7 +656,6 @@ public class CatalogueContentTypeModelRulesTests
         episode.TvShowName.Should().Be(tvShowName);
         episode.PublisherSearchTerms.Should().Be(searchTerms);
         episode.PublisherLanguage.Should().Be(language);
-        episode.PublisherDescription.Should().Be(description);
         episode.ParentRemoved.Should().BeTrue();
         episode.ParentMetadataVersion.Should().Be(metadataVersion);
     }
@@ -723,8 +698,8 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "NewsReport.SetNewsOrganisationProperties: when parent id, name, search terms, language, description, removed, and " +
-        "metadata version differ, then all are denormalised (name/searchTerms/language/description trimmed), because News mirrors TvShow/Episode parent sync.")]
+        "NewsReport.SetNewsOrganisationProperties: when parent id, name, search terms, language, removed, and " +
+        "metadata version differ, then all are denormalised (name/searchTerms/language trimmed), because News mirrors TvShow/Episode parent sync.")]
     public void NewsReport_SetNewsOrganisationProperties_denormalises_full_parent_projection()
     {
         // Arrange
@@ -733,14 +708,12 @@ public class CatalogueContentTypeModelRulesTests
         var searchTerms = _fixture.Create<string>();
         var language = _fixture.Create<string>();
         var metadataVersion = _fixture.Create<long>();
-        var description = _fixture.Create<string>();
         var organisation = new NewsOrganisation
         {
             Id = organisationId,
             Name = $" {organisationName} ",
             SearchTerms = $" {searchTerms} ",
             Language = $" {language} ",
-            Description = $" {description} ",
             Removed = true,
             Timestamp = metadataVersion
         };
@@ -756,7 +729,6 @@ public class CatalogueContentTypeModelRulesTests
         report.NewsOrganisationName.Should().Be(organisationName);
         report.PublisherSearchTerms.Should().Be(searchTerms);
         report.PublisherLanguage.Should().Be(language);
-        report.PublisherDescription.Should().Be(description);
         report.ParentRemoved.Should().BeTrue();
         report.ParentMetadataVersion.Should().Be(metadataVersion);
     }
@@ -800,14 +772,13 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "INTEGRITY PublisherSearchTerms JSON: Episode, TvShowEpisode, and NewsReport all serialize " +
-        "Playable publisherSearchTerms/publisherLanguage/publisherDescription only; never podcast*, tvShow*, newsOrganisation*, " +
+        "Playable publisherSearchTerms/publisherLanguage only; never podcast*, tvShow*, newsOrganisation*, " +
         "or PascalCase; values round-trip through the shared Playable members.")]
     public void Publisher_denormalised_fields_serialize_with_correct_wire_names_only()
     {
         // Arrange
         var searchTerms = _fixture.Create<string>();
         var language = _fixture.Create<string>();
-        var description = _fixture.Create<string>();
         var options = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -816,20 +787,17 @@ public class CatalogueContentTypeModelRulesTests
         var episode = new Episode
         {
             PublisherSearchTerms = searchTerms,
-            PublisherLanguage = language,
-            PublisherDescription = description
+            PublisherLanguage = language
         };
         var tvShowEpisode = new TvShowEpisode
         {
             PublisherSearchTerms = searchTerms,
-            PublisherLanguage = language,
-            PublisherDescription = description
+            PublisherLanguage = language
         };
         var newsReport = new NewsReport
         {
             PublisherSearchTerms = searchTerms,
-            PublisherLanguage = language,
-            PublisherDescription = description
+            PublisherLanguage = language
         };
 
         // Act
@@ -845,7 +813,6 @@ public class CatalogueContentTypeModelRulesTests
         {
             json.Should().Contain("\"publisherSearchTerms\"");
             json.Should().Contain("\"publisherLanguage\"");
-            json.Should().Contain("\"publisherDescription\"");
             json.Should().NotContain("podcastSearchTerms");
             json.Should().NotContain("podcastLanguage");
             json.Should().NotContain("tvShowSearchTerms");
@@ -858,13 +825,10 @@ public class CatalogueContentTypeModelRulesTests
 
         episodeRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         episodeRoundTrip.PublisherLanguage.Should().Be(language);
-        episodeRoundTrip.PublisherDescription.Should().Be(description);
         tvRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         tvRoundTrip.PublisherLanguage.Should().Be(language);
-        tvRoundTrip.PublisherDescription.Should().Be(description);
         newsRoundTrip!.PublisherSearchTerms.Should().Be(searchTerms);
         newsRoundTrip.PublisherLanguage.Should().Be(language);
-        newsRoundTrip.PublisherDescription.Should().Be(description);
     }
 
     [Fact(DisplayName =

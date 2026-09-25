@@ -630,12 +630,8 @@ public partial class CreateSearchIndexProcessor(
                     OR STARTSWITH({appleImageExpr}, ""https://is5{appleHostTail}"")))";
         var appleToken =
             @$"CONCAT(""a"", SUBSTRING({appleImageExpr}, 10, 1), SUBSTRING({appleImageExpr}, {applePrefixLength}, LENGTH({appleImageExpr}) - {applePrefixLength}))";
-        var episodeDescription = DescriptionTruncator.CosmosSql("e.description");
         var query = @$"SELECT
                             e.id,
-                            e.title as episodeTitle,
-                            e.podcastName as podcastName,
-                            {episodeDescription} as episodeDescription,
                             {PlayableSearchSql.EpisodeUnifiedColumns()},
                             e.release,
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,

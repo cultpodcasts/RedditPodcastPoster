@@ -20,19 +20,18 @@ public static class PlayableSearchSql
         bool IncludeSeries);
 
     /// <summary>
-    /// Unified episode columns the hourly push writes only after the index has them.
-    /// <c>seriesDescription</c> is the truncated denormalised parent blurb.
+    /// Replacement columns for the rebuilt index. <c>title</c> replaces
+    /// <c>episodeTitle</c>, <c>seriesName</c> replaces <c>podcastName</c>,
+    /// and <c>description</c> replaces <c>episodeDescription</c>.
     /// </summary>
     public static string EpisodeUnifiedColumns()
     {
         var description = DescriptionTruncator.CosmosSql("e.description");
-        var seriesDescription = DescriptionTruncator.CosmosSql("e.publisherDescription");
         return $"""
             '{SearchContentKind.Episode}' as contentKind,
             e.title as title,
             e.podcastName as seriesName,
-            {description} as description,
-            {seriesDescription} as seriesDescription
+            {description} as description
             """;
     }
 
@@ -51,10 +50,7 @@ public static class PlayableSearchSql
 
         var truncated = DescriptionTruncator.CosmosSql($"{documentAlias}.description");
         var seriesNameSelect = projection.IncludeSeries
-            ? $"{projection.SeriesNameExpression} as seriesName, {projection.SeriesNameExpression} as podcastName,"
-            : "\"\" as podcastName,";
-        var seriesDescriptionSelect = projection.IncludeSeries
-            ? $"{DescriptionTruncator.CosmosSql($"{documentAlias}.publisherDescription")} as seriesDescription,"
+            ? $"{projection.SeriesNameExpression} as seriesName,"
             : string.Empty;
         var release = SearchIndexCosmosSql.ReleaseSortOrRelease(documentAlias);
         var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
@@ -64,11 +60,8 @@ public static class PlayableSearchSql
                 {documentAlias}.id,
                 '{projection.ContentKind}' as contentKind,
                 {projection.TitleExpression} as title,
-                {projection.TitleExpression} as episodeTitle,
                 {seriesNameSelect}
-                {seriesDescriptionSelect}
                 {truncated} as description,
-                {truncated} as episodeDescription,
                 {release} as release,
                 IIF(ENDSWITH({documentAlias}.duration, ".0000000"), SUBSTRING({documentAlias}.duration, 0, LENGTH({documentAlias}.duration) - 8), {documentAlias}.duration) as duration,
                 "" as bbc,
