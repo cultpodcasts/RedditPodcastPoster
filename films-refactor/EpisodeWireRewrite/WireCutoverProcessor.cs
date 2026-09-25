@@ -74,24 +74,37 @@ public sealed class WireCutoverProcessor(
                 new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken },
                 async (change, ct) =>
                 {
-                    var ok = await store.ApplyCutoverStateAsync(
-                        change.PodcastId,
-                        change.EpisodeId,
-                        change.After,
-                        ct);
-                    if (!ok)
+                    try
                     {
+                        var ok = await store.ApplyCutoverStateAsync(
+                            change.PodcastId,
+                            change.EpisodeId,
+                            change.After,
+                            ct);
+                        if (!ok)
+                        {
+                            tracker.Failed();
+                            journal.Append(change, applied: false);
+                            logger.LogError(
+                                "Wire cutover migrate failed for episode {EpisodeId} podcast {PodcastId}.",
+                                change.EpisodeId,
+                                change.PodcastId);
+                            return;
+                        }
+
+                        journal.Append(change, applied: true);
+                        tracker.Written(change.EpisodeId);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // One Cosmos error must not stop the reader. A full channel with no reader deadlocks --apply.
                         tracker.Failed();
                         journal.Append(change, applied: false);
-                        logger.LogError(
+                        logger.LogError(ex,
                             "Wire cutover migrate failed for episode {EpisodeId} podcast {PodcastId}.",
                             change.EpisodeId,
                             change.PodcastId);
-                        return;
                     }
-
-                    journal.Append(change, applied: true);
-                    tracker.Written(change.EpisodeId);
                 });
         }
 
@@ -141,12 +154,12 @@ public sealed class WireCutoverProcessor(
         }
         finally
         {
+            // Complete the channel and wait for workers before the journal using-block disposes.
             applyChannel?.Writer.TryComplete();
-        }
-
-        if (applyDrain is not null)
-        {
-            await applyDrain;
+            if (applyDrain is not null)
+            {
+                await applyDrain;
+            }
         }
 
         var snap = tracker.Complete(

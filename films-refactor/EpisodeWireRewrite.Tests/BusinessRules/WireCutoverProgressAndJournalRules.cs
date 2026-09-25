@@ -326,6 +326,51 @@ public class WireCutoverProgressAndJournalRules
     }
 
     [Fact(DisplayName =
+        "MIGRATE APPLY: a failed patch is counted and MigrateAsync returns, because one Cosmos error must not hang --apply or dispose the journal while workers still write.")]
+    public async Task failed_patch_is_counted_and_migrate_returns()
+    {
+        // Arrange
+        var store = new ThrowOnFirstApplyStore();
+        var podcastId = _fixture.CreateGuid();
+        var orderedIds = Enumerable.Range(0, 2)
+            .Select(_ => _fixture.CreateGuid())
+            .OrderBy(id => id.ToString(), StringComparer.Ordinal)
+            .ToList();
+        foreach (var episodeId in orderedIds)
+        {
+            store.Add(WireCutoverTestJson.LegacyDoc(
+                episodeId,
+                podcastId,
+                searchTerms: _fixture.Create<string>()));
+        }
+
+        var processor = new WireCutoverProcessor(
+            store,
+            new CollectingReporter([]),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WireCutoverProcessor>.Instance);
+        var journalPath = Path.Combine(Path.GetTempPath(), $"wire-fail-{_fixture.CreateGuid():N}.jsonl");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+
+        // Act
+        var result = await processor.MigrateAsync(
+            store.QueryAllRawAsync(),
+            apply: true,
+            journalPath,
+            progressEvery: 1,
+            limit: 0,
+            maxDegreeOfParallelism: 1,
+            timeout.Token);
+
+        // Assert
+        result.Failed.Should().Be(1);
+        result.Written.Should().Be(1);
+        result.NeedChange.Should().Be(2);
+        var journal = WireCutoverJournal.ReadAll(journalPath).ToList();
+        journal.Should().Contain(entry => entry.EpisodeId == orderedIds[0] && entry.Applied == false);
+        journal.Should().Contain(entry => entry.EpisodeId == orderedIds[1] && entry.Applied);
+    }
+
+    [Fact(DisplayName =
         "ORDER: container query text is ORDER BY c.id ASC, because limited runs must pick the same episodes every time.")]
     public void query_order_is_stable_by_id()
     {
@@ -494,5 +539,41 @@ internal sealed class ConcurrentDelayWireCutoverStore(TimeSpan applyDelay) : IWi
         {
             Interlocked.Decrement(ref _current);
         }
+    }
+}
+
+/// <summary>
+/// First Cosmos patch throws. Later patches use the in-memory store.
+/// </summary>
+internal sealed class ThrowOnFirstApplyStore : IWireCutoverEpisodeStore
+{
+    private readonly InMemoryWireCutoverStore _inner = new();
+    private int _applies;
+
+    internal void Add(string json) => _inner.Add(json);
+
+    public IAsyncEnumerable<string> QueryAllRawAsync(CancellationToken cancellationToken = default) =>
+        _inner.QueryAllRawAsync(cancellationToken);
+
+    public IAsyncEnumerable<string> QueryByEpisodeIdsAsync(
+        IReadOnlyList<Guid> episodeIds,
+        CancellationToken cancellationToken = default) =>
+        _inner.QueryByEpisodeIdsAsync(episodeIds, cancellationToken);
+
+    public Task<string?> GetRawAsync(Guid podcastId, Guid episodeId, CancellationToken cancellationToken = default) =>
+        _inner.GetRawAsync(podcastId, episodeId, cancellationToken);
+
+    public Task<bool> ApplyCutoverStateAsync(
+        Guid podcastId,
+        Guid episodeId,
+        IReadOnlyList<WireFieldState> desired,
+        CancellationToken cancellationToken = default)
+    {
+        if (Interlocked.Increment(ref _applies) == 1)
+        {
+            throw new InvalidOperationException("patch failed");
+        }
+
+        return _inner.ApplyCutoverStateAsync(podcastId, episodeId, desired, cancellationToken);
     }
 }

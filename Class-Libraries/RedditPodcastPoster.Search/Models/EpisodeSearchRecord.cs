@@ -1,4 +1,5 @@
-﻿using Azure.Search.Documents.Indexes;
+﻿using System.Text.Json.Serialization;
+using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 
 namespace RedditPodcastPoster.Search.Models;
@@ -11,26 +12,33 @@ public class EpisodeSearchRecord
     /// <summary>
     /// Playable kind: Episode, TvShowEpisode, Film, or NewsReport.
     /// Omitted filter means all kinds.
+    /// Null is omitted from the hourly upload until the live index has the field.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SimpleField(IsFilterable = true, IsFacetable = true, IsSortable = false)]
     public string? ContentKind { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false)]
     public string? Title { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene,
         IsSortable = false)]
     public string? SeriesName { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
         IsFacetable = false)]
     public string? Description { get; set; }
 
     /// <summary>
-    /// Parent blurb when the push path has the parent document. Film omits this.
-    /// The Cosmos pull query cannot join another container, so it leaves this unset.
+    /// Parent blurb. Film omits it. Hourly push sets it only when unified fields are enabled.
+    /// Cosmos pull truncates denormalised <c>publisherDescription</c> with the same cap.
+    /// Null is omitted from the upload so an index that lacks the field does not reject the document.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
         IsFacetable = false)]
     public string? SeriesDescription { get; set; }

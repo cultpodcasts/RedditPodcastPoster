@@ -9,7 +9,16 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 public static class PodcastEpisodeExtensions
 {
-    public static EpisodeSearchRecord ToEpisodeSearchRecord(this PodcastEpisode podcastEpisode)
+    /// <param name="includeUnifiedPlayableFields">
+    /// When false (the hourly indexer default), <c>contentKind</c>, <c>title</c>, <c>seriesName</c>,
+    /// <c>description</c>, and <c>seriesDescription</c> stay null and are omitted from the upload.
+    /// The live index does not have those fields yet; sending them fails every merge.
+    /// Turn this on only after CreateSearchIndex has added the fields. The same
+    /// <see cref="DescriptionTruncator"/> cap is what the Cosmos pull projects.
+    /// </param>
+    public static EpisodeSearchRecord ToEpisodeSearchRecord(
+        this PodcastEpisode podcastEpisode,
+        bool includeUnifiedPlayableFields = false)
     {
         EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);
@@ -21,15 +30,17 @@ public static class PodcastEpisodeExtensions
         {
             AppleId = EpisodeServicePresence.AppleEpisodeId(podcastEpisode.Episode)?.ToString(),
             BBC = BbcSearchField(podcastEpisode.Episode),
-            ContentKind = SearchContentKind.Episode,
-            Description = truncatedDescription,
+            ContentKind = includeUnifiedPlayableFields ? SearchContentKind.Episode : null,
+            Description = includeUnifiedPlayableFields ? truncatedDescription : null,
             Duration = duration.EndsWith(".0000000", StringComparison.Ordinal) ? duration[..^8] : duration,
             EpisodeDescription = truncatedDescription,
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
-            SeriesDescription = DescriptionTruncator.TruncateForSearch(podcastEpisode.Podcast.Description),
-            SeriesName = podcastEpisode.Podcast.Name.Trim(),
-            Title = podcastEpisode.Episode.Title.Trim(),
+            SeriesDescription = includeUnifiedPlayableFields
+                ? DescriptionTruncator.TruncateForSearch(podcastEpisode.Podcast.Description)
+                : null,
+            SeriesName = includeUnifiedPlayableFields ? podcastEpisode.Podcast.Name.Trim() : null,
+            Title = includeUnifiedPlayableFields ? podcastEpisode.Episode.Title.Trim() : null,
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
             InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))

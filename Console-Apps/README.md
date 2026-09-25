@@ -354,11 +354,12 @@ RemoveEpisodes restore removed-episodes-log.txt
 |--------|-------------|
 | `-i, --index` | Index name |
 | `-t, --teardown-index` | Tear down index |
-| `--update-existing` | Keep index; ensure `svc` field; upsert Cosmos datasource SQL from current `SearchEncodedKeys` (use after adding a streaming ServiceKey — **not** a recreate) |
+| `--update-existing` | Keep index; add any missing `EpisodeSearchRecord` fields (including filterable `contentKind`, searchable `title` / `description` / `seriesDescription`, facetable `seriesName`, and `svc`); upsert Cosmos datasource SQL. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. **Not** a recreate |
+| `--all-playables` | CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer` |
 | `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
 | `-d, --datasource` | Data-source name |
 | `-x, --indexer` | Indexer name |
-| `-r, --run-indexer` | Run the indexer |
+| `-r, --run-indexer` | Run the indexer. With `--all-playables`, also run each sibling indexer |
 | `-m, --run-indexer-max-attempts` | Max rerun attempts on timeout (default `10`) |
 | `-p, --run-indexer-poll-seconds` | Poll interval seconds (default `10`) |
 | `-b, --not-break-on-duplicates` | Do not break on duplicates (default `true`) |
