@@ -103,8 +103,8 @@ public class PodcastEpisodeExtensionsTests
     {
         // Arrange
         var episode = CreateEpisode();
-        // Filler plus " Alpha" fits inside DescriptionSize; " Bravo" is the first word past the cut.
-        episode.Description = new string('a', 10) + " " + new string('b', 161) + " Alpha Bravo continues";
+        var kept = new string('a', Constants.DescriptionSize - 24) + " Alpha";
+        episode.Description = kept + " BravoContinuesPastTheCut";
         episode.Description.Length.Should().BeGreaterThan(Constants.DescriptionSize);
 
         // Act
@@ -116,6 +116,34 @@ public class PodcastEpisodeExtensionsTests
         result.EpisodeDescription.Should().EndWith("\u2026");
         result.EpisodeDescription.Should().Contain("Alpha");
         result.EpisodeDescription.Should().NotContain("Bravo");
+    }
+
+    [Fact(DisplayName =
+        "ToEpisodeSearchRecord sets contentKind Episode and copies title, series name, and truncated description " +
+        "onto the unified playable fields, and series description from the podcast blurb.")]
+    public void Maps_unified_playable_fields_for_an_episode()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Title = "  " + episode.Title.Trim() + "  ";
+        episode.Description = "Episode blurb";
+        var podcast = new Podcast
+        {
+            Name = " Series ",
+            Description = "Parent blurb"
+        };
+
+        // Act
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        // Assert
+        result.ContentKind.Should().Be(SearchContentKind.Episode);
+        result.Title.Should().Be(episode.Title.Trim());
+        result.SeriesName.Should().Be("Series");
+        result.Description.Should().Be("Episode blurb");
+        result.SeriesDescription.Should().Be("Parent blurb");
+        result.EpisodeTitle.Should().Be(result.Title);
+        result.EpisodeDescription.Should().Be(result.Description);
     }
 
     [Fact(DisplayName =

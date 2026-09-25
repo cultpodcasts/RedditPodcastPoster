@@ -18,6 +18,10 @@ public class CreateSearchIndexRequest
         HelpText = "Reset the named indexer high-water mark so existing documents pick up new fields. Use with --update-existing.")]
     public bool ResetIndexer { get; set; }
 
+    [Option("all-playables", Required = false, Default = false,
+        HelpText = "Also create TvShowEpisode, Film, and NewsReport datasources and indexers into the same index. Episode datasource stays --datasource.")]
+    public bool AllPlayables { get; set; }
+
     [Option('d', "datasource", Required = false, Default = null, HelpText = "Data-source name")]
     public string? DataSourceName { get; set; }
 

@@ -15,15 +15,21 @@ public static class PodcastEpisodeExtensions
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);
 
         var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
+        var truncatedDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription);
         var duration = podcastEpisode.Episode.Length.ToString();
         return new EpisodeSearchRecord
         {
             AppleId = EpisodeServicePresence.AppleEpisodeId(podcastEpisode.Episode)?.ToString(),
             BBC = BbcSearchField(podcastEpisode.Episode),
+            ContentKind = SearchContentKind.Episode,
+            Description = truncatedDescription,
             Duration = duration.EndsWith(".0000000", StringComparison.Ordinal) ? duration[..^8] : duration,
-            EpisodeDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription),
+            EpisodeDescription = truncatedDescription,
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
             EpisodeTitle = podcastEpisode.Episode.Title.Trim(),
+            SeriesDescription = DescriptionTruncator.TruncateForSearch(podcastEpisode.Podcast.Description),
+            SeriesName = podcastEpisode.Podcast.Name.Trim(),
+            Title = podcastEpisode.Episode.Title.Trim(),
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
             InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))

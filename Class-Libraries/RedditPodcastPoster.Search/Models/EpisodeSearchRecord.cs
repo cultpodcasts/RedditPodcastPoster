@@ -8,6 +8,33 @@ public class EpisodeSearchRecord
     [SimpleField(IsKey = true, IsFilterable = true, IsSortable = false, IsFacetable = false)]
     public required string Id { get; set; }
 
+    /// <summary>
+    /// Playable kind: Episode, TvShowEpisode, Film, or NewsReport.
+    /// Omitted filter means all kinds.
+    /// </summary>
+    [SimpleField(IsFilterable = true, IsFacetable = true, IsSortable = false)]
+    public string? ContentKind { get; set; }
+
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
+        IsSortable = false)]
+    public string? Title { get; set; }
+
+    [SearchableField(IsFilterable = true, IsFacetable = true, AnalyzerName = LexicalAnalyzerName.Values.EnLucene,
+        IsSortable = false)]
+    public string? SeriesName { get; set; }
+
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
+        IsFacetable = false)]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Parent blurb when the push path has the parent document. Film omits this.
+    /// The Cosmos pull query cannot join another container, so it leaves this unset.
+    /// </summary>
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsSortable = false,
+        IsFacetable = false)]
+    public string? SeriesDescription { get; set; }
+
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.EnLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false)]
     public required string EpisodeTitle { get; set; }

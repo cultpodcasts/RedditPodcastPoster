@@ -87,6 +87,12 @@ public partial class CreateSearchIndexProcessor(
                     var result = await CreateIndexer(request);
                 }
             }
+
+            if (request.AllPlayables &&
+                !string.IsNullOrWhiteSpace(request.IndexName))
+            {
+                await EnsureSiblingPlayableIndexers(request);
+            }
         }
 
         if (request.RunIndexer)
@@ -426,6 +432,53 @@ public partial class CreateSearchIndexProcessor(
         logger.LogInformation("Added retrievable string field '{FieldName}' to index '{IndexName}'.", fieldName, indexName);
     }
 
+    private async Task EnsureSiblingPlayableIndexers(CreateSearchIndexRequest request)
+    {
+        var connectionString =
+            $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
+        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        {
+            if (await TryGetDataSource(source.DataSourceName) == null)
+            {
+                var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
+                var dataSource = new SearchIndexerDataSourceConnection(
+                    source.DataSourceName,
+                    SearchIndexerDataSourceType.CosmosDb,
+                    connectionString,
+                    container)
+                {
+                    DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+                };
+                await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
+                logger.LogInformation(
+                    "Created playable data source '{DataSourceName}' for {ContentKind}.",
+                    source.DataSourceName,
+                    source.ContentKind);
+            }
+
+            if (await TryGetIndexer(source.IndexerName) == null)
+            {
+                var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
+                var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+                {
+                    Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
+                    Description = source.ContentKind,
+                    Parameters = new IndexingParameters
+                    {
+                        MaxFailedItems = 0,
+                        MaxFailedItemsPerBatch = 0,
+                        Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
+                    }
+                };
+                await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
+                logger.LogInformation(
+                    "Created playable indexer '{IndexerName}' for {ContentKind}.",
+                    source.IndexerName,
+                    source.ContentKind);
+            }
+        }
+    }
+
     private async Task<Azure.Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)
     {
         var nextIndex = DateTimeOffset.Now
@@ -534,6 +587,12 @@ public partial class CreateSearchIndexProcessor(
                             IIF(LENGTH(e.description) > {Constants.DescriptionSize},
                                 CONCAT(SUBSTRING(e.description, 0, {Constants.DescriptionSize - 1}), ""{"\u2026"}""),
                                 e.description) as episodeDescription,
+                            '{SearchContentKind.Episode}' as contentKind,
+                            e.title as title,
+                            e.podcastName as seriesName,
+                            IIF(LENGTH(e.description) > {Constants.DescriptionSize},
+                                CONCAT(SUBSTRING(e.description, 0, {Constants.DescriptionSize - 1}), ""{"\u2026"}""),
+                                e.description) as description,
                             e.release,
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
                             IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
@@ -591,6 +650,15 @@ public partial class CreateSearchIndexProcessor(
 
     private async Task TearDown(CreateSearchIndexRequest request)
     {
+        if (request.AllPlayables && !string.IsNullOrWhiteSpace(request.IndexName))
+        {
+            foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName))
+            {
+                await DeleteIndexerIfPresent(source.IndexerName);
+                await DeleteDataSourceIfPresent(source.DataSourceName);
+            }
+        }
+
         Response result;
         if (!string.IsNullOrWhiteSpace(request.IndexerName))
         {
@@ -627,6 +695,30 @@ public partial class CreateSearchIndexProcessor(
 
             logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", request.DataSourceName, result.Status);
         }
+    }
+
+    private async Task DeleteIndexerIfPresent(string indexerName)
+    {
+        var result = await searchIndexerClient.DeleteIndexerAsync(indexerName, CancellationToken.None);
+        if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException(
+                $"Unable to tear-down indexer '{indexerName}': HTTP {result.Status} {result.ReasonPhrase}.");
+        }
+
+        logger.LogInformation("Tear-down indexer '{IndexerName}': HTTP {Status}.", indexerName, result.Status);
+    }
+
+    private async Task DeleteDataSourceIfPresent(string dataSourceName)
+    {
+        var result = await searchIndexerClient.DeleteDataSourceConnectionAsync(dataSourceName, CancellationToken.None);
+        if (result.Status != (int)HttpStatusCode.NoContent && result.Status != (int)HttpStatusCode.NotFound)
+        {
+            throw new InvalidOperationException(
+                $"Unable to tear-down data-source '{dataSourceName}': HTTP {result.Status} {result.ReasonPhrase}.");
+        }
+
+        logger.LogInformation("Tear-down data-source '{DataSourceName}': HTTP {Status}.", dataSourceName, result.Status);
     }
 
     private async Task<SearchIndex?> TryGetIndex(string indexName)
