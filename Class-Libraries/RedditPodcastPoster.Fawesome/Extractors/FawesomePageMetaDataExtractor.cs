@@ -91,7 +91,8 @@ internal static partial class FawesomeCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             FawesomePageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

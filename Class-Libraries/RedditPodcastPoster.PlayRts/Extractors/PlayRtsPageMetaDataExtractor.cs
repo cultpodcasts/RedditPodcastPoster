@@ -89,7 +89,8 @@ internal static partial class PlayRtsCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             PlayRtsPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     public static bool IsMovie(Uri url, string html)

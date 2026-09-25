@@ -62,8 +62,9 @@ internal static partial class ZdfCatalogMeta
                 "ZDF page has neither og:title nor a usable document title.");
         }
 
+        var madeAsFilm = IsMovie(url, html);
         var showName = openGraph?.ShowName;
-        if (IsMovie(url, html))
+        if (madeAsFilm)
         {
             showName = null;
         }
@@ -94,7 +95,8 @@ internal static partial class ZdfCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             ZdfPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: madeAsFilm);
     }
 
     /// <summary>

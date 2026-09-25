@@ -91,7 +91,8 @@ internal static partial class HboMaxCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             HboMaxPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

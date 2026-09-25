@@ -123,7 +123,8 @@ internal static partial class TubiCatalogMeta
             image,
             openGraph?.Explicit,
             TubiPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

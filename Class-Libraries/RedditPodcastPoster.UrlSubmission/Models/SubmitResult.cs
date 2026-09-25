@@ -8,7 +8,9 @@ public record SubmitResult(
     SubmitResultState PodcastResult,
     SubmitEpisodeDetails? SubmitEpisodeDetails = null,
     Episode? Episode = null,
-    Podcast? Podcast = null
+    Podcast? Podcast = null,
+    string? ContentKind = null,
+    Guid? PlayableId = null
 )
 {
     public override string ToString()

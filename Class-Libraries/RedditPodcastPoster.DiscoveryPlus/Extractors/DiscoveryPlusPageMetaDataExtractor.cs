@@ -91,7 +91,8 @@ internal static partial class DiscoveryPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             DiscoveryPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

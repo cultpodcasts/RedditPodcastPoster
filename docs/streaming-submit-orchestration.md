@@ -26,7 +26,7 @@ pwsh ./scripts/assert-streaming-submit-contract-copy.ps1
 Worker prepare chooses **how** (`htmlFetchMode` / `scrapeProfiles.mode`) and **where** (`scrapeProfiles.region`: `default` on Api, or Phase 1 `us` via `streaming-scrape-us`). See Api `docs/streaming-submit-orchestration.md` § Browser Rendering allowlist + scrape profiles.
 
 Any service listed in contract `scrapeProfiles` or `defaultBrowserRenderingServices` **must** register `extractFromHtml` on `CatalogKeyedNonPodcastServiceAdapter` (see Peacock / Tubi / Itvx). Without that delegate, Azure extract throws `NotSupportedException` (`HTML extract is not registered for service '…'`).
-5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch.
+5. **Submit** accepts trusted `prefetchedMeta` from the Worker when present — no second page fetch. When `submitContentTypes:Enabled` is true, submit classifies the scraped page and may persist a Film, TvShow episode, or NewsReport instead of a Podcast and Episode. The flag defaults to false, and while it is false submit still writes a Podcast and Episode. Membership may include optional `contentKind` and `parentName` only while the flag is on. Film has no `parentName`. A BBC `/news/` URL is reported as `NewsReport` and is not stored as a podcast. YouTube news-station submit stays an explicit signal (`YouTubeNewsStation`); there is no channel-name allowlist on this path.
 6. Podcast-service platforms remain API-based — not in this contract.
 
 ## Tests

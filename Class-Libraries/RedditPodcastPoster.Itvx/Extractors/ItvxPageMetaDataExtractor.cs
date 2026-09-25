@@ -106,7 +106,8 @@ internal static partial class ItvxCatalogMeta
             image,
             openGraph?.Explicit,
             ItvxPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     private static string? PreferNonEmpty(string? preferred, string? fallback) =>

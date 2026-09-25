@@ -15,7 +15,8 @@ public record ResolvedNonPodcastServiceItem(
     DateTime? Release = null,
     TimeSpan? Duration = null,
     bool? KnownExplicit = false,
-    string? ShowName = null
+    string? ShowName = null,
+    bool MadeAsFilm = false
 )
 {
     public bool Explicit => KnownExplicit ?? false;

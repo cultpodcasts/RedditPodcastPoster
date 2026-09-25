@@ -91,7 +91,8 @@ internal static partial class ParamountPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             ParamountPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

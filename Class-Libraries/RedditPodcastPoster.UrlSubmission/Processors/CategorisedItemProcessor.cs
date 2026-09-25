@@ -16,10 +16,20 @@ public class CategorisedItemProcessor(
     IEpisodeRepository episodeRepository,
     IPodcastAndEpisodeFactory podcastAndEpisodeFactory,
     IHeroEpisodePromoter heroEpisodePromoter,
-    ILogger<CategorisedItem> logger) : ICategorisedItemProcessor
+    ILogger<CategorisedItem> logger,
+    ICatalogueKindSubmitter? catalogueKindSubmitter = null) : ICategorisedItemProcessor
 {
     public async Task<SubmitResult> ProcessCategorisedItem(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
+        if (catalogueKindSubmitter != null)
+        {
+            var kindResult = await catalogueKindSubmitter.TrySubmit(categorisedItem, submitOptions);
+            if (kindResult != null)
+            {
+                return kindResult;
+            }
+        }
+
         void LogSubmitEpisodeState(SubmitResult submitResult)
         {
             if (submitResult.EpisodeResult is not (SubmitResultState.Created or SubmitResultState.Enriched))

@@ -91,7 +91,8 @@ internal static partial class DisneyPlusCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             DisneyPlusPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(url, html));
     }
 
     /// <summary>

@@ -32,6 +32,14 @@ public class SubmitUrlLookupResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Service { get; init; }
 
+    [JsonPropertyName("contentKind")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ContentKind { get; init; }
+
+    [JsonPropertyName("parentName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ParentName { get; init; }
+
     public static SubmitUrlLookupResponse From(RedditPodcastPoster.UrlSubmission.Models.UrlMembershipLookupResult result) =>
         new()
         {
@@ -41,6 +49,8 @@ public class SubmitUrlLookupResponse
             PodcastName = result.PodcastName,
             Ambiguous = result.Ambiguous,
             PodcastIds = result.PodcastIds,
-            Service = result.Service
+            Service = result.Service,
+            ContentKind = result.ContentKind,
+            ParentName = result.ParentName
         };
 }
