@@ -4,9 +4,9 @@ public static class Constants
 {
     /// <summary>
     /// Indexed episode description cap (characters, including the ellipsis).
-    /// 100 targets about 45 MB on the Free cultpodcasts index: at a 180 cap
-    /// the live index was 54.95 MB / 86k docs, and a sample showed descriptions
-    /// averaging 158 characters with most already at the cap.
+    /// Cap 100 is the fitted width for the Free tier. A 120-cap refresh on
+    /// 25 Sep 2026 grew the same index from 46.64 MB to 63.66 MB and then
+    /// rejected further merges.
     /// </summary>
     public const int DescriptionSize = 100;
 }

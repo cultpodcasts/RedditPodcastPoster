@@ -72,7 +72,7 @@ public class EpisodeSearchIndexerService(
                 return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
             }
 
-            var document = podcastEpisode.ToEpisodeSearchRecord();
+            var document = podcastEpisode.ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
             await searchClient.MergeOrUploadDocumentsAsync([document],
                 new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
@@ -119,7 +119,7 @@ public class EpisodeSearchIndexerService(
                 continue;
             }
 
-            documents.Add(new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord());
+            documents.Add(new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true));
         }
 
         if (documents.Count == 0 && deleteIds.Count == 0)
