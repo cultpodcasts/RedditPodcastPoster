@@ -10,16 +10,15 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 public static class PodcastEpisodeExtensions
 {
     /// <param name="includeUnifiedPlayableFields">
-    /// When false (the hourly indexer default), the upload uses <c>episodeTitle</c>,
-    /// <c>podcastName</c>, and <c>episodeDescription</c> and omits the replacement fields.
-    /// When true, the upload uses <c>contentKind</c>, <c>title</c>, <c>seriesName</c>, and
-    /// <c>description</c> and omits the legacy names. Turn this on only after the index is
-    /// rebuilt without the old fields. The same <see cref="DescriptionTruncator"/> cap is
-    /// what the Cosmos pull projects.
+    /// When true (the default after the search rebuild), the upload uses <c>contentKind</c>,
+    /// <c>title</c>, <c>seriesName</c>, and <c>description</c> and omits the legacy names.
+    /// When false, the upload uses <c>episodeTitle</c>, <c>podcastName</c>, and
+    /// <c>episodeDescription</c>. Pass false only for an index that still has those fields.
+    /// The same <see cref="DescriptionTruncator"/> cap is what the Cosmos pull projects.
     /// </param>
     public static EpisodeSearchRecord ToEpisodeSearchRecord(
         this PodcastEpisode podcastEpisode,
-        bool includeUnifiedPlayableFields = false)
+        bool includeUnifiedPlayableFields = true)
     {
         EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);

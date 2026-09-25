@@ -112,10 +112,12 @@ public class PodcastEpisodeExtensionsTests
             .ToEpisodeSearchRecord();
 
         // Assert
-        result.EpisodeDescription.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
-        result.EpisodeDescription.Should().EndWith("\u2026");
-        result.EpisodeDescription.Should().Contain("Alpha");
-        result.EpisodeDescription.Should().NotContain("Bravo");
+        result.Description.Should().NotBeNull();
+        result.Description!.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
+        result.Description.Should().EndWith("\u2026");
+        result.Description.Should().Contain("Alpha");
+        result.Description.Should().NotContain("Bravo");
+        result.EpisodeDescription.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -159,13 +161,14 @@ public class PodcastEpisodeExtensionsTests
             .ToEpisodeSearchRecord();
 
         // Assert
-        result.EpisodeDescription.Should().Be("Short description.");
+        result.Description.Should().Be("Short description.");
+        result.EpisodeDescription.Should().BeNull();
     }
 
     [Fact(DisplayName =
         "ToEpisodeSearchRecord leaves contentKind, title, seriesName, and description unset " +
-        "by default, and the upload JSON keeps episodeTitle, podcastName, and episodeDescription, " +
-        "because the live index still uses those names.")]
+        "when unified fields are turned off, and the upload JSON keeps episodeTitle, podcastName, " +
+        "and episodeDescription, for an index that still has the old names.")]
     public void omits_unified_playable_fields_from_the_default_upload()
     {
         // Arrange
@@ -183,7 +186,7 @@ public class PodcastEpisodeExtensionsTests
         };
 
         // Act
-        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+        var result = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: false);
         var json = JsonSerializer.Serialize(result, serializerOptions);
 
         // Assert
@@ -202,9 +205,9 @@ public class PodcastEpisodeExtensionsTests
     }
 
     [Fact(DisplayName =
-        "ToEpisodeSearchRecord includes contentKind, title, seriesName, and description " +
-        "and omits episodeTitle, podcastName, and episodeDescription when the rebuilt index is in use, " +
-        "because the new names replace the old ones.")]
+        "ToEpisodeSearchRecord by default includes contentKind, title, seriesName, and description " +
+        "and omits episodeTitle, podcastName, and episodeDescription, because the rebuilt index " +
+        "only has the replacement names.")]
     public void includes_unified_playable_fields_in_the_upload_when_enabled()
     {
         // Arrange
@@ -223,7 +226,7 @@ public class PodcastEpisodeExtensionsTests
 
         // Act
         var result = new PodcastEpisode(podcast, episode)
-            .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
+            .ToEpisodeSearchRecord();
         var json = JsonSerializer.Serialize(result, serializerOptions);
 
         // Assert
