@@ -109,6 +109,7 @@ public partial class CreateSearchIndexProcessor(
         var executedAttempts = 0;
         long totalDocsSucceeded = 0;
         long? previousIndexedDocumentCount = null;
+        DateTimeOffset? previousExecutionStart = null;
 
         void LogFinalSummary(string terminalReason)
         {
@@ -155,10 +156,15 @@ public partial class CreateSearchIndexProcessor(
                 maxAttempts,
                 runState.IndexerState);
 
-            var requiresNewRunCorrelation = runState.IndexerState == IndexerState.Executed;
-            var minRunStartUtc = requiresNewRunCorrelation
-                ? attemptTriggeredAtUtc.AddSeconds(-1)
-                : (DateTimeOffset?)null;
+            // A quota batch ends and the next RunIndexer call returns immediately.
+            // Correlate only on a start time after that batch, otherwise the
+            // previous execution is read again and the document count looks stuck.
+            var requiresNewRunCorrelation = runState.IndexerState == IndexerState.Executed
+                                            || previousExecutionStart.HasValue;
+            var minRunStartUtc = previousExecutionStart?.AddTicks(1)
+                                 ?? (requiresNewRunCorrelation
+                                     ? attemptTriggeredAtUtc.AddSeconds(-1)
+                                     : null);
 
             var status = await WaitForIndexerCompletion(request.IndexerName, pollInterval, minRunStartUtc, maxWaitDuration);
             var result = GetCorrelatedExecutionResult(status, minRunStartUtc);
@@ -195,6 +201,10 @@ public partial class CreateSearchIndexProcessor(
 
             executedAttempts++;
             totalDocsSucceeded += result.ItemCount;
+            if (result.StartTime.HasValue)
+            {
+                previousExecutionStart = result.StartTime;
+            }
             logger.LogInformation(
                 "Indexer attempt {Attempt}/{MaxAttempts} completed. Status={Status}; DocsSucceeded={ItemCount}; Errors={FailedCount}; StartTime={StartTime}; EndTime={EndTime}; Message={Message}",
                 attempt,
@@ -340,14 +350,10 @@ public partial class CreateSearchIndexProcessor(
                 return;
             }
 
-            if (minRunStartUtc.HasValue)
+            if (minRunStartUtc.HasValue &&
+                (!candidate.StartTime.HasValue || candidate.StartTime.Value < minRunStartUtc.Value))
             {
-                var matchesByStart = candidate.StartTime.HasValue && candidate.StartTime.Value >= minRunStartUtc.Value;
-                var matchesByEnd = candidate.EndTime.HasValue && candidate.EndTime.Value >= minRunStartUtc.Value;
-                if (!matchesByStart && !matchesByEnd)
-                {
-                    return;
-                }
+                return;
             }
 
             if (latest == null ||

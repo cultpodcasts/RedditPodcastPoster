@@ -28,7 +28,9 @@ public sealed class EpisodeWireRewriteRequest
     [Option("progress-every", Default = 100, HelpText = "Print a progress line every N documents.")]
     public int ProgressEvery { get; set; } = 100;
 
-    [Option("dop", Default = 8, HelpText = "Max degree of parallelism (rollback only; migrate is sequential for stable order).")]
+    [Option("dop", Default = 8, HelpText =
+        "Max degree of parallelism for Cosmos patches on migrate --apply and on rollback. " +
+        "Migrate scan/plan stays sequential (ORDER BY id) so --limit still takes the first N needing change.")]
     public int DegreeOfParallelism { get; set; } = 8;
 
     [Option("ids", HelpText = "Comma-separated episode ids (optional; otherwise --all / --limit).")]

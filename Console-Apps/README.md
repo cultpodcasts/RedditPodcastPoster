@@ -362,7 +362,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 | `-m, --run-indexer-max-attempts` | Max rerun attempts on timeout (default `10`) |
 | `-p, --run-indexer-poll-seconds` | Poll interval seconds (default `10`) |
 | `-b, --not-break-on-duplicates` | Do not break on duplicates (default `true`) |
-| `-w, --run-indexer-max-wait-seconds` | Max wait per run before retryable stall (default `30`) |
+| `-w, --run-indexer-max-wait-seconds` | Max wait per run before retryable stall (default `200`) |
 
 After adding a streaming plugin (see add-streaming-service skill §8):
 

@@ -36,8 +36,8 @@ public class CreateSearchIndexRequest
     [Option(shortName: 'b', "not-break-on-duplicates", Required = false, Default = true, HelpText = "Do not break the indexer run if duplicates are found")]
     public bool NotBreakOnDuplicates { get; set; }
 
-    [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 30, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
-    public int RunIndexerMaxWaitSeconds { get; set; }
+    [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 200, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
+    public int RunIndexerMaxWaitSeconds { get; set; } = 200;
 
     [Option("version", HelpText = "Display version information")]
     public bool Version { get; set; }
