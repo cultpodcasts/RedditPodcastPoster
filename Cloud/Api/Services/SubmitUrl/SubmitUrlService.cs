@@ -68,6 +68,16 @@ public class SubmitUrlService(
                 },
                 submitOptions);
 
+            if (result.Rejected)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.Rejected, result);
+            }
+
+            if (result.RequiresCurator)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.RequiresCurator, result);
+            }
+
             var episodeId = result.Episode?.Id;
             if (result.PlayableId.HasValue && result.Episode == null)
             {
@@ -118,7 +128,11 @@ public class SubmitUrlService(
                 ex.ContentKind,
                 ex.ParentName,
                 submitUrlModel.Url);
-            return new SubmitUrlResult(SubmitUrlStatus.Conflict, AmbiguousPodcasts: ex.ParentIds);
+            return new SubmitUrlResult(
+                SubmitUrlStatus.Conflict,
+                AmbiguousPodcasts: ex.ParentIds,
+                ContentKind: ex.ContentKind,
+                ParentName: ex.ParentName);
         }
         catch (SubmitPodcastNotFoundException ex)
         {
@@ -129,6 +143,16 @@ public class SubmitUrlService(
                 ex.PodcastId,
                 submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "Podcast not found");
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Submit of '{Url}' could not be stored. {Message}",
+                nameof(SubmitAsync),
+                submitUrlModel.Url,
+                ex.Message);
+            return new SubmitUrlResult(SubmitUrlStatus.Failed, Message: ex.Message);
         }
         catch (Exception ex)
         {

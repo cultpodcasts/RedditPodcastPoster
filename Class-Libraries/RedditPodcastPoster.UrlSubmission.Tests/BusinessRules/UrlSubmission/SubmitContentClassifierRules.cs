@@ -207,14 +207,50 @@ public class SubmitContentClassifierRules
         // Act
         var filmSignals = SubmitContentClassifier.FromSubmission(filmUrl, film);
         var seriesSignals = SubmitContentClassifier.FromSubmission(seriesUrl, series);
+        var filmKind = SubmitContentClassifier.Classify(filmSignals);
+        var seriesKind = SubmitContentClassifier.Classify(seriesSignals);
 
         // Assert
         filmSignals.MadeAsFilm.Should().BeTrue();
         filmSignals.Series.Should().BeFalse();
-        SubmitContentClassifier.Classify(filmSignals).ContentKind.Should().Be(SubmitClassification.Film);
+        filmKind.ContentKind.Should().Be(SubmitClassification.Film);
         seriesSignals.Series.Should().BeTrue();
         seriesSignals.MadeAsFilm.Should().BeFalse();
-        SubmitContentClassifier.Classify(seriesSignals).ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        seriesKind.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+    }
+
+    [Fact(DisplayName =
+        "When a resolved item carries both signals, a series signal wins over a provider movie signal, " +
+        "because a miniseries, anthology, or finite series is a TvShow episode and never a Film.")]
+    public void resolved_item_with_film_and_series_signals_is_a_tv_show_episode()
+    {
+        // Arrange
+        var url = NetflixWatchUrl();
+        var seriesName = _fixture.CreateTitle();
+        var item = new CategorisedItem(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new ResolvedNonPodcastServiceItem(
+                StreamingService.Netflix,
+                Url: url,
+                Title: _fixture.CreateTitle(),
+                ShowName: seriesName,
+                MadeAsFilm: true),
+            Service.Other);
+
+        // Act
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        signals.MadeAsFilm.Should().BeTrue();
+        signals.Series.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.HasParent.Should().BeTrue();
     }
 
     [Fact(DisplayName =

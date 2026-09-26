@@ -5,25 +5,28 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
 
 public class CatalogueKindSubmitter(
-    IOptions<SubmitContentTypesOptions>? submitContentTypes,
-    IFilmRepository? films,
-    ITvShowRepository? tvShows,
-    ITvShowEpisodeRepository? tvShowEpisodes,
-    INewsOrganisationRepository? newsOrganisations,
-    INewsReportRepository? newsReports) : ICatalogueKindSubmitter
+    IOptions<SubmitContentTypesOptions> submitContentTypes,
+    IFilmRepository films,
+    ITvShowRepository tvShows,
+    ITvShowEpisodeRepository tvShowEpisodes,
+    INewsOrganisationRepository newsOrganisations,
+    INewsReportRepository newsReports,
+    INonPodcastServiceAdapterResolver adapters) : ICatalogueKindSubmitter
 {
     public async Task<SubmitResult?> TrySubmit(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
-        if (submitContentTypes?.Value?.Enabled != true || submitOptions.ClassificationSignals is null)
+        if (submitContentTypes.Value is not { Enabled: true } || submitOptions.ClassificationSignals is null)
         {
             return null;
         }
@@ -31,7 +34,12 @@ public class CatalogueKindSubmitter(
         var classified = SubmitContentClassifier.Classify(submitOptions.ClassificationSignals);
         if (classified.Reject || classified.RequiresCurator)
         {
-            return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
+            return new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: classified.ContentKind,
+                Rejected: classified.Reject,
+                RequiresCurator: classified.RequiresCurator);
         }
 
         if (classified.ContentKind == SubmitClassification.Episode)
@@ -39,20 +47,34 @@ public class CatalogueKindSubmitter(
             return null;
         }
 
-        if (!submitOptions.PersistToDatabase)
+        if (categorisedItem.ResolvedNonPodcastServiceItem is not { } source)
         {
-            return new SubmitResult(SubmitResultState.Created, SubmitResultState.None);
+            return new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: classified.ContentKind);
         }
 
-        var source = categorisedItem.ResolvedNonPodcastServiceItem
-            ?? throw new InvalidOperationException(
-                "A Film, TV, or News submit needs a resolved non-podcast item.");
+        // A podcast Episode that already owns this URL must not gain a Film, TvShow, or NewsReport sibling.
+        if (categorisedItem.MatchingEpisode is { } existingEpisode)
+        {
+            return AlreadyExists(SubmitClassification.Episode, existingEpisode.Id);
+        }
+
+        if (!submitOptions.PersistToDatabase)
+        {
+            return new SubmitResult(
+                SubmitResultState.Created,
+                SubmitResultState.None,
+                ContentKind: classified.ContentKind);
+        }
 
         if (classified.ContentKind == SubmitClassification.Film)
         {
-            if (films is null)
+            var existing = await FindByCanonicalUrl(films, source);
+            if (existing != null)
             {
-                throw new InvalidOperationException("Film submit is enabled but no film repository is registered.");
+                return AlreadyExists(SubmitClassification.Film, existing.Id);
             }
 
             var film = CreateFilm(source);
@@ -62,18 +84,37 @@ public class CatalogueKindSubmitter(
 
         if (classified.ContentKind == SubmitClassification.TvShowEpisode)
         {
+            var existing = await FindByCanonicalUrl(tvShowEpisodes, source);
+            if (existing != null)
+            {
+                return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id);
+            }
+
             var saved = await SaveTvShowEpisode(source, submitOptions);
             return CreatedPlayable(SubmitClassification.TvShowEpisode, saved.Episode.Id, saved.ParentCreated);
         }
 
         if (classified.ContentKind == SubmitClassification.NewsReport)
         {
+            var existing = await FindByCanonicalUrl(newsReports, source);
+            if (existing != null)
+            {
+                return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
+            }
+
             var saved = await SaveNewsReport(source, submitOptions);
             return CreatedPlayable(SubmitClassification.NewsReport, saved.Report.Id, saved.ParentCreated);
         }
 
         return null;
     }
+
+    private static SubmitResult AlreadyExists(string contentKind, Guid playableId) =>
+        new(
+            SubmitResultState.EpisodeAlreadyExists,
+            SubmitResultState.None,
+            ContentKind: contentKind,
+            PlayableId: playableId);
 
     private static SubmitResult CreatedPlayable(string contentKind, Guid playableId, bool parentCreated) =>
         new(
@@ -82,7 +123,7 @@ public class CatalogueKindSubmitter(
             ContentKind: contentKind,
             PlayableId: playableId);
 
-    private static Film CreateFilm(ResolvedNonPodcastServiceItem source)
+    private Film CreateFilm(ResolvedNonPodcastServiceItem source)
     {
         var film = new Film(RequiredTitle(source))
         {
@@ -99,15 +140,12 @@ public class CatalogueKindSubmitter(
         return film;
     }
 
-    private async Task<(TvShowEpisode Episode, bool ParentCreated)> SaveTvShowEpisode(ResolvedNonPodcastServiceItem source, SubmitOptions submitOptions)
+    private async Task<(TvShowEpisode Episode, bool ParentCreated)> SaveTvShowEpisode(
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions submitOptions)
     {
-        if (tvShows is null || tvShowEpisodes is null)
-        {
-            throw new InvalidOperationException("TV submit is enabled but TV repositories are not registered.");
-        }
-
-        var name = ParentName(source, submitOptions);
-        var parents = await tvShows.GetAllBy(show => show.Name == name).ToListAsync();
+        var name = TvSeriesName(source, submitOptions);
+        var parents = await PublisherNameAttachLookup.FindByName(tvShows, name);
         if (parents.Count > 1)
         {
             throw new AmbiguousParentNameException(
@@ -137,15 +175,12 @@ public class CatalogueKindSubmitter(
         return (episode, parents.Count == 0);
     }
 
-    private async Task<(NewsReport Report, bool ParentCreated)> SaveNewsReport(ResolvedNonPodcastServiceItem source, SubmitOptions submitOptions)
+    private async Task<(NewsReport Report, bool ParentCreated)> SaveNewsReport(
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions submitOptions)
     {
-        if (newsOrganisations is null || newsReports is null)
-        {
-            throw new InvalidOperationException("News submit is enabled but news repositories are not registered.");
-        }
-
-        var name = ParentName(source, submitOptions);
-        var parents = await newsOrganisations.GetAllBy(org => org.Name == name).ToListAsync();
+        var name = NewsOutletName(source, submitOptions);
+        var parents = await PublisherNameAttachLookup.FindByName(newsOrganisations, name);
         if (parents.Count > 1)
         {
             throw new AmbiguousParentNameException(
@@ -175,13 +210,63 @@ public class CatalogueKindSubmitter(
         return (report, parents.Count == 0);
     }
 
-    private static string ParentName(ResolvedNonPodcastServiceItem source, SubmitOptions submitOptions)
+    private async Task<T?> FindByCanonicalUrl<T>(
+        IFilterableRepository<T> repository,
+        ResolvedNonPodcastServiceItem source)
+        where T : class, IPlayable
+    {
+        if (source.Url is null)
+        {
+            return null;
+        }
+
+        var serviceKey = StreamingServiceWire.ToKey(source.StreamingService);
+        var canonical = CanonicalStoredUrl(source.Url);
+        return await repository.GetBy(item =>
+            item.Services != null && item.Services[serviceKey].Url == canonical);
+    }
+
+    private Dictionary<string, ServiceLink> ServiceMap(ResolvedNonPodcastServiceItem source)
+    {
+        if (source.Url is null)
+        {
+            return new Dictionary<string, ServiceLink>();
+        }
+
+        var link = new ServiceLink { Url = CanonicalStoredUrl(source.Url) };
+        if (source.Image is not null)
+        {
+            link.Image = source.Image;
+        }
+
+        return new Dictionary<string, ServiceLink>
+        {
+            [StreamingServiceWire.ToKey(source.StreamingService)] = link
+        };
+    }
+
+    private Uri CanonicalStoredUrl(Uri url) =>
+        adapters.ForSubmit(url)?.CanonicalStoredUrl(url) ?? url;
+
+    private static string TvSeriesName(ResolvedNonPodcastServiceItem source, SubmitOptions submitOptions)
+    {
+        var name = FirstNonEmpty(source.ShowName, submitOptions.PodcastName);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException(
+                "TV submit needs a series name before it can be stored.");
+        }
+
+        return name.Trim();
+    }
+
+    private static string NewsOutletName(ResolvedNonPodcastServiceItem source, SubmitOptions submitOptions)
     {
         var name = FirstNonEmpty(source.ShowName, source.Publisher, submitOptions.PodcastName);
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new InvalidOperationException(
-                "TV and News submit need a series or organisation name before they can be stored.");
+                "News submit needs an organisation name before it can be stored.");
         }
 
         return name.Trim();
@@ -195,19 +280,6 @@ public class CatalogueKindSubmitter(
         }
 
         return source.Title.Trim();
-    }
-
-    private static Dictionary<string, ServiceLink> ServiceMap(ResolvedNonPodcastServiceItem source)
-    {
-        if (source.Url is null)
-        {
-            return new Dictionary<string, ServiceLink>();
-        }
-
-        return new Dictionary<string, ServiceLink>
-        {
-            [StreamingServiceWire.ToKey(source.StreamingService)] = new() { Url = source.Url }
-        };
     }
 
     private static string? FirstNonEmpty(params string?[] values) =>

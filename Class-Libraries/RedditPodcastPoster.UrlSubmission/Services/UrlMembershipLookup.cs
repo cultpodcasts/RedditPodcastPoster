@@ -23,13 +23,13 @@ public class UrlMembershipLookup(
     IEpisodeRepository episodeRepository,
     IPodcastRepository podcastRepository,
     INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
-    IOptions<SubmitContentTypesOptions>? submitContentTypes = null,
-    IFilmRepository? films = null,
-    ITvShowEpisodeRepository? tvShowEpisodes = null,
-    INewsReportRepository? newsReports = null)
+    IOptions<SubmitContentTypesOptions> submitContentTypes,
+    IFilmRepository films,
+    ITvShowEpisodeRepository tvShowEpisodes,
+    INewsReportRepository newsReports)
     : IUrlMembershipLookup
 {
-    private bool ContentTypesEnabled => submitContentTypes?.Value?.Enabled == true;
+    private bool ContentTypesEnabled => submitContentTypes.Value is { Enabled: true };
 
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
     {
@@ -121,52 +121,47 @@ public class UrlMembershipLookup(
             return null;
         }
 
-        if (films != null)
+        var canonical = CanonicalStoredUrl(url);
+        var film = await films.GetBy(item =>
+            item.Services != null && item.Services[serviceKey].Url == canonical);
+        if (film != null)
         {
-            var film = await films.GetBy(item =>
-                item.Services != null && item.Services[serviceKey].Url == url);
-            if (film != null)
-            {
-                return new UrlMembershipLookupResult(
-                    true,
-                    Kind: kind,
-                    Service: serviceKey,
-                    ContentKind: SubmitClassification.Film);
-            }
+            return new UrlMembershipLookupResult(
+                true,
+                Kind: kind,
+                Service: serviceKey,
+                ContentKind: SubmitClassification.Film);
         }
 
-        if (tvShowEpisodes != null)
+        var episode = await tvShowEpisodes.GetBy(item =>
+            item.Services != null && item.Services[serviceKey].Url == canonical);
+        if (episode != null)
         {
-            var episode = await tvShowEpisodes.GetBy(item =>
-                item.Services != null && item.Services[serviceKey].Url == url);
-            if (episode != null)
-            {
-                return new UrlMembershipLookupResult(
-                    true,
-                    Kind: kind,
-                    Service: serviceKey,
-                    ContentKind: SubmitClassification.TvShowEpisode,
-                    ParentName: episode.TvShowName);
-            }
+            return new UrlMembershipLookupResult(
+                true,
+                Kind: kind,
+                Service: serviceKey,
+                ContentKind: SubmitClassification.TvShowEpisode,
+                ParentName: episode.TvShowName);
         }
 
-        if (newsReports != null)
+        var report = await newsReports.GetBy(item =>
+            item.Services != null && item.Services[serviceKey].Url == canonical);
+        if (report != null)
         {
-            var report = await newsReports.GetBy(item =>
-                item.Services != null && item.Services[serviceKey].Url == url);
-            if (report != null)
-            {
-                return new UrlMembershipLookupResult(
-                    true,
-                    Kind: kind,
-                    Service: serviceKey,
-                    ContentKind: SubmitClassification.NewsReport,
-                    ParentName: report.NewsOrganisationName);
-            }
+            return new UrlMembershipLookupResult(
+                true,
+                Kind: kind,
+                Service: serviceKey,
+                ContentKind: SubmitClassification.NewsReport,
+                ParentName: report.NewsOrganisationName);
         }
 
         return null;
     }
+
+    private Uri CanonicalStoredUrl(Uri url) =>
+        nonPodcastServiceAdapterResolver.ForSubmit(url)?.CanonicalStoredUrl(url) ?? url;
 
     private string Classify(
         Uri url,

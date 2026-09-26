@@ -19,6 +19,10 @@ public class InternetArchiveNonPodcastServiceAdapter(
 
     public bool CanExtract(Uri url) => InternetArchiveUrlMatcher.IsInternetArchiveUrl(url);
 
+    public Uri CanonicalStoredUrl(Uri url) =>
+        StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(StreamingService.InternetArchive), url);
+
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
         var key = StreamingServiceWire.ToKey(StreamingService.InternetArchive);

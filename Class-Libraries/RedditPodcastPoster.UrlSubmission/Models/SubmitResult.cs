@@ -10,7 +10,9 @@ public record SubmitResult(
     Episode? Episode = null,
     Podcast? Podcast = null,
     string? ContentKind = null,
-    Guid? PlayableId = null
+    Guid? PlayableId = null,
+    bool Rejected = false,
+    bool RequiresCurator = false
 )
 {
     public override string ToString()

@@ -25,6 +25,12 @@ public interface INonPodcastServiceAdapter
 
     Expression<Func<Episode, bool>> StoredUrlEquals(Uri url);
 
+    /// <summary>
+    /// Canonical service URL <see cref="StoredUrlEquals"/> compares against.
+    /// Submit and membership must use this, not the raw pasted URL.
+    /// </summary>
+    Uri CanonicalStoredUrl(Uri url);
+
     Episode? FindMatchingEpisode(IEnumerable<Episode> episodes, Uri url);
 
     Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url);

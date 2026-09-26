@@ -22,6 +22,10 @@ public class BbcNonPodcastServiceAdapter(
 
     public bool CanExtract(Uri url) => BBCUrlMatcher.IsBBCUrl(url);
 
+    public Uri CanonicalStoredUrl(Uri url) =>
+        StreamingServiceCatalog.CanonicalUrlOrSelf(
+            StreamingServiceWire.ToKey(ResolveService(url)), url);
+
     public Expression<Func<Episode, bool>> StoredUrlEquals(Uri url)
     {
         var iplayer = StreamingServiceCatalog.CanonicalUrlOrSelf(
