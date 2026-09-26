@@ -4,9 +4,11 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
@@ -97,7 +99,8 @@ public class CatalogueKindSubmitRules
     {
         // Arrange
         UseEnabledFlag();
-        var source = Source();
+        var poster = new Uri($"https://example.com/{_fixture.CreateYouTubeId()}");
+        var source = Source() with { Image = poster };
         var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
 
         // Act
@@ -114,6 +117,7 @@ public class CatalogueKindSubmitRules
         _films[0].Name.Should().Be(source.Title);
         _films[0].Services.Should().ContainKey("netflix");
         _films[0].Services!["netflix"].Url.Should().Be(source.Url);
+        _films[0].Services!["netflix"].Image.Should().Be(poster);
         _episodes.Should().BeEmpty();
     }
 
@@ -340,6 +344,34 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When an exact series name has a case-variant sibling stored, submit refuses to attach " +
+        "and does not write a TvShow episode, because both parents still match.")]
+    public async Task exact_series_name_with_a_case_variant_sibling_is_ambiguous()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var exactName = _fixture.CreateTitle();
+        var siblingName = DifferentCasing(exactName);
+        var exact = new TvShow(exactName);
+        var sibling = new TvShow(siblingName);
+        UseStoredShows(exact, sibling);
+        var source = SeriesSource(TubiMovieUrl(), exactName);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var act = () => sut.TrySubmit(Categorised(source), TvOptions(source.Url!));
+
+        // Assert
+        siblingName.Should().NotBe(exactName);
+        var ex = await act.Should().ThrowAsync<AmbiguousParentNameException>();
+        ex.Which.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        ex.Which.ParentName.Should().Be(exactName);
+        ex.Which.ParentIds.Should().BeEquivalentTo([exact.Id, sibling.Id]);
+        _episodes.Should().BeEmpty();
+        _shows.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When a TV submit has a platform publisher but no series name, submit does not create " +
         "a TvShow named after that publisher.")]
     public async Task tv_submit_without_a_series_name_does_not_use_the_publisher()
@@ -465,6 +497,52 @@ public class CatalogueKindSubmitRules
         _episodes.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "When a podcast Episode already stores the canonical service URL, a film or series submit " +
+        "with the content-type flag on returns that Episode and writes no Film, TvShow, or NewsReport.")]
+    public async Task stored_episode_blocks_a_catalogue_sibling()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var podcast = _fixture.CreatePodcast();
+        var (submitted, _, canonical) = TwoUrlsForSameFilm();
+        var seriesName = _fixture.CreateTitle();
+        var outlet = _fixture.Create<string>();
+        var episode = _fixture.CreateStoredEpisode(podcast, stored =>
+        {
+            stored.Services = new Dictionary<string, ServiceLink>
+            {
+                [StreamingServiceWire.ToKey(StreamingService.Tubi)] = new() { Url = canonical }
+            };
+        });
+        var filmSource = FilmSource(submitted);
+        var seriesSource = SeriesSource(submitted, seriesName);
+        var newsSource = OutletSource(submitted, outlet);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var film = await sut.TrySubmit(WithMatchingEpisode(episode, filmSource), FilmOptions(submitted));
+        var series = await sut.TrySubmit(WithMatchingEpisode(episode, seriesSource), TvOptions(submitted));
+        var news = await sut.TrySubmit(WithMatchingEpisode(episode, newsSource), NewsOptions(submitted));
+
+        // Assert
+        film!.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        film.ContentKind.Should().Be(SubmitClassification.Episode);
+        film.PlayableId.Should().Be(episode.Id);
+        series!.ContentKind.Should().Be(SubmitClassification.Episode);
+        series.PlayableId.Should().Be(episode.Id);
+        series.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        news!.ContentKind.Should().Be(SubmitClassification.Episode);
+        news.PlayableId.Should().Be(episode.Id);
+        news.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        _films.Should().BeEmpty();
+        _shows.Should().BeEmpty();
+        _episodes.Should().BeEmpty();
+        _organisations.Should().BeEmpty();
+        _reports.Should().BeEmpty();
+        episode.Services![StreamingServiceWire.ToKey(StreamingService.Tubi)].Url.Should().Be(canonical);
+    }
+
     private void UseEnabledFlag() =>
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
 
@@ -495,6 +573,9 @@ public class CatalogueKindSubmitRules
 
     private CategorisedItem Categorised(ResolvedNonPodcastServiceItem? source = null) =>
         new(null, null, null, null, null, null, source ?? Source(), Service.Other);
+
+    private static CategorisedItem WithMatchingEpisode(Episode episode, ResolvedNonPodcastServiceItem source) =>
+        new(null, null, episode, null, null, null, source, Service.Other);
 
     private ResolvedNonPodcastServiceItem Source(string? showName = null) =>
         new(

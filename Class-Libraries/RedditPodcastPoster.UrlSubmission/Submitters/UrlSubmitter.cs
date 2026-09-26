@@ -28,6 +28,14 @@ public class UrlSubmitter(
         var episodeResult = SubmitResultState.None;
         try
         {
+            if (submitContentTypes?.Value is { Enabled: true } && SubmitContentClassifier.IsBbcNews(url))
+            {
+                return new SubmitResult(
+                    SubmitResultState.None,
+                    SubmitResultState.None,
+                    ContentKind: SubmitClassification.NewsReport);
+            }
+
             Podcast? podcast = null;
             if (!submitOptions.CreatePodcast)
             {
@@ -133,6 +141,10 @@ public class UrlSubmitter(
             throw;
         }
         catch (SubmitPodcastNotFoundException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
         {
             throw;
         }

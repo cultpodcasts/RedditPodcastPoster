@@ -55,6 +55,12 @@ public class CatalogueKindSubmitter(
                 ContentKind: classified.ContentKind);
         }
 
+        // A podcast Episode that already owns this URL must not gain a Film, TvShow, or NewsReport sibling.
+        if (categorisedItem.MatchingEpisode is { } existingEpisode)
+        {
+            return AlreadyExists(SubmitClassification.Episode, existingEpisode.Id);
+        }
+
         if (!submitOptions.PersistToDatabase)
         {
             return new SubmitResult(
@@ -227,9 +233,15 @@ public class CatalogueKindSubmitter(
             return new Dictionary<string, ServiceLink>();
         }
 
+        var link = new ServiceLink { Url = CanonicalStoredUrl(source.Url) };
+        if (source.Image is not null)
+        {
+            link.Image = source.Image;
+        }
+
         return new Dictionary<string, ServiceLink>
         {
-            [StreamingServiceWire.ToKey(source.StreamingService)] = new() { Url = CanonicalStoredUrl(source.Url) }
+            [StreamingServiceWire.ToKey(source.StreamingService)] = link
         };
     }
 

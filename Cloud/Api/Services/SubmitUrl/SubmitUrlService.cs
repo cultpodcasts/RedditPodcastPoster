@@ -144,6 +144,16 @@ public class SubmitUrlService(
                 submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "Podcast not found");
         }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Submit of '{Url}' could not be stored. {Message}",
+                nameof(SubmitAsync),
+                submitUrlModel.Url,
+                ex.Message);
+            return new SubmitUrlResult(SubmitUrlStatus.Failed, Message: ex.Message);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(SubmitAsync), submitUrlModel.Url);

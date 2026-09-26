@@ -207,11 +207,27 @@ public class SubmitContentClassifierRules
         // Act
         var filmSignals = SubmitContentClassifier.FromSubmission(filmUrl, film);
         var seriesSignals = SubmitContentClassifier.FromSubmission(seriesUrl, series);
+        var filmKind = SubmitContentClassifier.Classify(filmSignals);
+        var seriesKind = SubmitContentClassifier.Classify(seriesSignals);
 
         // Assert
-        var bothUrl = NetflixWatchUrl();
-        var bothName = _fixture.CreateTitle();
-        var both = new CategorisedItem(
+        filmSignals.MadeAsFilm.Should().BeTrue();
+        filmSignals.Series.Should().BeFalse();
+        filmKind.ContentKind.Should().Be(SubmitClassification.Film);
+        seriesSignals.Series.Should().BeTrue();
+        seriesSignals.MadeAsFilm.Should().BeFalse();
+        seriesKind.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+    }
+
+    [Fact(DisplayName =
+        "When a resolved item carries both signals, a series signal wins over a provider movie signal, " +
+        "because a miniseries, anthology, or finite series is a TvShow episode and never a Film.")]
+    public void resolved_item_with_film_and_series_signals_is_a_tv_show_episode()
+    {
+        // Arrange
+        var url = NetflixWatchUrl();
+        var seriesName = _fixture.CreateTitle();
+        var item = new CategorisedItem(
             null,
             null,
             null,
@@ -220,23 +236,21 @@ public class SubmitContentClassifierRules
             null,
             new ResolvedNonPodcastServiceItem(
                 StreamingService.Netflix,
-                Url: bothUrl,
+                Url: url,
                 Title: _fixture.CreateTitle(),
-                ShowName: bothName,
+                ShowName: seriesName,
                 MadeAsFilm: true),
             Service.Other);
 
-        filmSignals.MadeAsFilm.Should().BeTrue();
-        filmSignals.Series.Should().BeFalse();
-        SubmitContentClassifier.Classify(filmSignals).ContentKind.Should().Be(SubmitClassification.Film);
-        seriesSignals.Series.Should().BeTrue();
-        seriesSignals.MadeAsFilm.Should().BeFalse();
-        SubmitContentClassifier.Classify(seriesSignals).ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        // Act
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var result = SubmitContentClassifier.Classify(signals);
 
-        var bothSignals = SubmitContentClassifier.FromSubmission(bothUrl, both);
-        bothSignals.MadeAsFilm.Should().BeTrue();
-        bothSignals.Series.Should().BeTrue();
-        SubmitContentClassifier.Classify(bothSignals).ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        // Assert
+        signals.MadeAsFilm.Should().BeTrue();
+        signals.Series.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.HasParent.Should().BeTrue();
     }
 
     [Fact(DisplayName =

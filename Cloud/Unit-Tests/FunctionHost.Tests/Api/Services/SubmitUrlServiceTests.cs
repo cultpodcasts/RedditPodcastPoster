@@ -324,6 +324,34 @@ public class SubmitUrlServiceTests
     }
 
     [Fact(DisplayName =
+        "When a TV submit has no series name, the API does not return success " +
+        "and reports that the series name is required.")]
+    public async Task missing_series_name_is_not_ok()
+    {
+        // Arrange
+        var message = "TV submit needs a series name before it can be stored.";
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ThrowsAsync(new InvalidOperationException(message));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}")
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().NotBe(SubmitUrlStatus.Ok);
+        result.Status.Should().Be(SubmitUrlStatus.Failed);
+        result.Message.Should().Be(message);
+    }
+
+    [Fact(DisplayName =
         "When submit includes PrefetchedMeta from prepare cache, SubmitOptions forwards that specimen " +
         "so the submitter can skip a second scrape (submitUsesPrefetchedMetaWhenCached).")]
     public async Task prefetched_meta_is_forwarded_into_submit_options()
