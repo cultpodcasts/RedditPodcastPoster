@@ -209,12 +209,34 @@ public class SubmitContentClassifierRules
         var seriesSignals = SubmitContentClassifier.FromSubmission(seriesUrl, series);
 
         // Assert
+        var bothUrl = NetflixWatchUrl();
+        var bothName = _fixture.CreateTitle();
+        var both = new CategorisedItem(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new ResolvedNonPodcastServiceItem(
+                StreamingService.Netflix,
+                Url: bothUrl,
+                Title: _fixture.CreateTitle(),
+                ShowName: bothName,
+                MadeAsFilm: true),
+            Service.Other);
+
         filmSignals.MadeAsFilm.Should().BeTrue();
         filmSignals.Series.Should().BeFalse();
         SubmitContentClassifier.Classify(filmSignals).ContentKind.Should().Be(SubmitClassification.Film);
         seriesSignals.Series.Should().BeTrue();
         seriesSignals.MadeAsFilm.Should().BeFalse();
         SubmitContentClassifier.Classify(seriesSignals).ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+
+        var bothSignals = SubmitContentClassifier.FromSubmission(bothUrl, both);
+        bothSignals.MadeAsFilm.Should().BeTrue();
+        bothSignals.Series.Should().BeTrue();
+        SubmitContentClassifier.Classify(bothSignals).ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
     }
 
     [Fact(DisplayName =

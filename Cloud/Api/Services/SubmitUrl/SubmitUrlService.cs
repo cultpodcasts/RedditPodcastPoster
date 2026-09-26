@@ -68,6 +68,16 @@ public class SubmitUrlService(
                 },
                 submitOptions);
 
+            if (result.Rejected)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.Rejected, result);
+            }
+
+            if (result.RequiresCurator)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.RequiresCurator, result);
+            }
+
             var episodeId = result.Episode?.Id;
             if (result.PlayableId.HasValue && result.Episode == null)
             {
@@ -118,7 +128,11 @@ public class SubmitUrlService(
                 ex.ContentKind,
                 ex.ParentName,
                 submitUrlModel.Url);
-            return new SubmitUrlResult(SubmitUrlStatus.Conflict, AmbiguousPodcasts: ex.ParentIds);
+            return new SubmitUrlResult(
+                SubmitUrlStatus.Conflict,
+                AmbiguousPodcasts: ex.ParentIds,
+                ContentKind: ex.ContentKind,
+                ParentName: ex.ParentName);
         }
         catch (SubmitPodcastNotFoundException ex)
         {

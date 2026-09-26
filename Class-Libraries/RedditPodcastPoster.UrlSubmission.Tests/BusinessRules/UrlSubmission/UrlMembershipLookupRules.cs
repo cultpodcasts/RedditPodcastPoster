@@ -30,6 +30,7 @@ public class UrlMembershipLookupRules
 
     public UrlMembershipLookupRules()
     {
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create(

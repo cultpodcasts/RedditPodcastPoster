@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -22,6 +23,17 @@ public class PostSubmitUrlHandler(
                 await ctx.Ok(SubmitUrlResponse.Successful(result.Result!), c),
             SubmitUrlStatus.PodcastNotFound =>
                 await ctx.NotFound(new { message = result.Message }, c),
+            SubmitUrlStatus.Rejected =>
+                await ctx.BadRequest(new SubmitDispositionResponse(result.Result?.ContentKind, rejected: true), c),
+            SubmitUrlStatus.RequiresCurator =>
+                await ctx.Json(
+                    HttpStatusCode.UnprocessableEntity,
+                    new SubmitDispositionResponse(result.Result?.ContentKind, requiresCurator: true),
+                    c),
+            SubmitUrlStatus.Conflict when result.ContentKind != null && result.AmbiguousPodcasts != null =>
+                await ctx.Conflict(
+                    new AmbiguousParentConflict(result.ContentKind, result.ParentName, result.AmbiguousPodcasts),
+                    c),
             SubmitUrlStatus.Conflict when result.AmbiguousPodcasts != null =>
                 await ctx.Conflict(result.AmbiguousPodcasts, c),
             SubmitUrlStatus.Conflict =>

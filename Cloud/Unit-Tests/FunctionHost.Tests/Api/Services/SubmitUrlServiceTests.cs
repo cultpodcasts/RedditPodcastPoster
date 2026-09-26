@@ -9,6 +9,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 using Xunit;
@@ -227,6 +228,99 @@ public class SubmitUrlServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.Conflict);
         result.AmbiguousPodcasts.Should().BeEquivalentTo([firstId, secondId]);
+    }
+
+    [Fact(DisplayName =
+        "When two TvShows share a name, submit is a 409 that keeps the parent ids and includes content kind TvShowEpisode and the parent name.")]
+    public async Task ambiguous_tv_show_name_is_a_conflict_with_kind_and_parent_name()
+    {
+        // Arrange
+        var parentName = _fixture.CreateTitle();
+        var firstId = _fixture.CreateGuid();
+        var secondId = _fixture.CreateGuid();
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ThrowsAsync(new AmbiguousParentNameException(
+                SubmitClassification.TvShowEpisode,
+                parentName,
+                [firstId, secondId]));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}")
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Conflict);
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.ParentName.Should().Be(parentName);
+        result.AmbiguousPodcasts.Should().BeEquivalentTo([firstId, secondId]);
+    }
+
+    [Fact(DisplayName =
+        "When submit classifies a URL as rejected, the API does not return success.")]
+    public async Task rejected_classification_is_not_ok()
+    {
+        // Arrange
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: SubmitClassification.Episode,
+                Rejected: true));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}")
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Rejected);
+        result.Result!.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.Result.Rejected.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When submit needs a curator, the API does not return success.")]
+    public async Task curator_hold_is_not_ok()
+    {
+        // Arrange
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: SubmitClassification.Episode,
+                RequiresCurator: true));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://example.com/{_fixture.Create<string>()}")
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.RequiresCurator);
+        result.Result!.RequiresCurator.Should().BeTrue();
+        result.Result.ContentKind.Should().Be(SubmitClassification.Episode);
     }
 
     [Fact(DisplayName =

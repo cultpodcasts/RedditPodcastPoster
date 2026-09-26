@@ -7,11 +7,15 @@ public enum SubmitUrlStatus
     Ok,
     PodcastNotFound,
     Conflict,
-    Failed
+    Failed,
+    Rejected,
+    RequiresCurator
 }
 
 public record SubmitUrlResult(
     SubmitUrlStatus Status,
     SubmitResult? Result = null,
     string? Message = null,
-    IEnumerable<Guid>? AmbiguousPodcasts = null);
+    IEnumerable<Guid>? AmbiguousPodcasts = null,
+    string? ContentKind = null,
+    string? ParentName = null);

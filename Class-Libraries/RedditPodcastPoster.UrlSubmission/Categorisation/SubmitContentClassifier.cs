@@ -12,7 +12,7 @@ public static class SubmitContentClassifier
     {
         var resolved = item.ResolvedNonPodcastServiceItem;
         var madeAsFilm = resolved?.MadeAsFilm == true;
-        var series = resolved != null && !madeAsFilm && !string.IsNullOrWhiteSpace(resolved.ShowName);
+        var series = resolved != null && !string.IsNullOrWhiteSpace(resolved.ShowName);
         var podcastServiceEpisode = resolved is null && item.Authority is Service.Spotify or Service.Apple or Service.YouTube;
         return new SubmitClassificationSignals(
             url,

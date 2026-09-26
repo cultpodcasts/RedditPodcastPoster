@@ -41,7 +41,7 @@ public class CatalogKeyedNonPodcastServiceAdapter(
             EpisodeServicePresence.TryGetUrl(episode, service) == stored);
     }
 
-    private Uri CanonicalStoredUrl(Uri url) =>
+    public Uri CanonicalStoredUrl(Uri url) =>
         canonicalizeUrl?.Invoke(url) ?? StreamingServiceCatalog.CanonicalUrlOrSelf(_catalogKey, url);
 
     public Task<NonPodcastServiceItemMetaData> ExtractMetaData(Uri url) => extract(url);
