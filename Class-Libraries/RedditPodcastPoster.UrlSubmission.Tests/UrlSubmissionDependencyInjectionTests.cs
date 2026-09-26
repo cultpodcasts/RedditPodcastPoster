@@ -1,9 +1,13 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using FluentAssertions;
+using Moq;
 using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.People;
-using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.UrlSubmission.Processors;
@@ -63,5 +67,31 @@ public class UrlSubmissionDependencyInjectionTests
         services.Should().Contain(d => d.ServiceType == typeof(IUrlMembershipLookup));
         services.Should().Contain(d => d.ServiceType == typeof(IUrlSubmitter));
         services.Should().Contain(d => d.ServiceType == typeof(ICatalogueKindSubmitter));
+    }
+
+    [Fact(DisplayName =
+        "AddUrlSubmission resolves the catalogue submitter without a caller options registration, " +
+        "and the flag stays off when the submit content-type section is absent.")]
+    public void catalogue_submitter_resolves_without_caller_options_and_flag_stays_off()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton(Mock.Of<IFilmRepository>());
+        services.AddSingleton(Mock.Of<ITvShowRepository>());
+        services.AddSingleton(Mock.Of<ITvShowEpisodeRepository>());
+        services.AddSingleton(Mock.Of<INewsOrganisationRepository>());
+        services.AddSingleton(Mock.Of<INewsReportRepository>());
+        services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
+        services.AddUrlSubmission();
+
+        // Act
+        using var provider = services.BuildServiceProvider();
+        var submitter = provider.GetRequiredService<ICatalogueKindSubmitter>();
+        var options = provider.GetRequiredService<IOptions<SubmitContentTypesOptions>>().Value;
+
+        // Assert
+        submitter.Should().BeOfType<CatalogueKindSubmitter>();
+        options.Enabled.Should().BeFalse();
     }
 }

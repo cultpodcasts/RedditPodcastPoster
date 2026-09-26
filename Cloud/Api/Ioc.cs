@@ -23,7 +23,6 @@ using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Indexing.Extensions;
 using RedditPodcastPoster.People.Extensions;
-using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Extensions;
@@ -94,7 +93,6 @@ public static class Ioc
             .BindConfiguration<HostingOptions>("hosting")
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
-            .BindConfiguration<SubmitContentTypesOptions>(SubmitContentTypesOptions.SectionName)
             .AddSingleton<IValidateOptions<HostingOptions>, HostingOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
             .AddPostingCriteria();

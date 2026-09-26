@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
 using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
@@ -33,6 +35,7 @@ public static class ServiceCollectionExtensions
         bool useRefreshMetaEnricher = false)
     {
         services
+            .AddSubmitContentTypes()
             .AddPeopleServices()
             .AddScoped<IUrlCategoriser, UrlCategoriser>()
             .AddScoped<IAppleUrlCategoriser, AppleUrlCategoriser>()
@@ -63,5 +66,19 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>()
             .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
             .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
+    }
+
+    /// <summary>
+    /// Binds <c>submitContentTypes</c> once. When the section is absent, <see cref="SubmitContentTypesOptions.Enabled"/> stays false.
+    /// Hosts that already bound this options type are left unchanged so Api does not configure it twice.
+    /// </summary>
+    private static IServiceCollection AddSubmitContentTypes(this IServiceCollection services)
+    {
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IConfigureOptions<SubmitContentTypesOptions>)))
+        {
+            return services;
+        }
+
+        return services.BindConfiguration<SubmitContentTypesOptions>(SubmitContentTypesOptions.SectionName);
     }
 }
