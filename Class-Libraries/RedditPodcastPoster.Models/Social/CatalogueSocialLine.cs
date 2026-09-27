@@ -1,21 +1,18 @@
+using RedditPodcastPoster.Models.ContentKinds;
+
 namespace RedditPodcastPoster.Models.Social;
 
 /// <summary>
 /// Parent line for a social post. Podcast posting stays on its current template.
-/// A film has no parent. TV and news name the show or organisation.
+/// A film has no parent. An episode, TV episode, and news report name the show or organisation.
 /// </summary>
 public static class CatalogueSocialLine
 {
-    public static string? ParentLine(string? contentKind, string? parentName)
+    public static string? ParentLine(ContentKind? contentKind, string? parentName)
     {
-        if (contentKind is "Film")
+        if (contentKind is ContentKind.Film)
         {
             return null;
-        }
-
-        if (contentKind is "TvShowEpisode" or "NewsReport")
-        {
-            return string.IsNullOrWhiteSpace(parentName) ? null : parentName.Trim();
         }
 
         return string.IsNullOrWhiteSpace(parentName) ? null : parentName.Trim();

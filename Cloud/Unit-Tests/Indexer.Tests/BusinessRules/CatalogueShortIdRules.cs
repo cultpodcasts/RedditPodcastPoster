@@ -74,6 +74,23 @@ public class CatalogueShortIdRules
         episode.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "A film playable path keeps an apostrophe, parentheses, !, and * literal " +
+        "and still percent-encodes space, +, and ?.")]
+    public void film_path_encodes_the_slug_like_the_site()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        const string slug = "Director's Cut (1984)!*+?";
+
+        // Act
+        var path = CatalogueShortId.PlayablePath(slug, id, CatalogueShortId.Film);
+
+        // Assert
+        path.Should().Be(
+            $"/film/Director's%20Cut%20(1984)!*%2B%3F/{CatalogueShortId.Encode(id, CatalogueShortId.Film)}");
+    }
+
     private static byte[] DecodeUrlBase64(string shortId)
     {
         var padded = shortId.Replace('-', '/').Replace('_', '+');

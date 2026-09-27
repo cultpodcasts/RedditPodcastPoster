@@ -38,8 +38,20 @@ public static class CatalogueShortId
             _ => "podcast"
         };
         var shortId = root == "podcast" ? Encode(id, null) : Encode(id, contentKind);
-        return $"/{root}/{Uri.EscapeDataString(slug)}/{shortId}";
+        return $"/{root}/{EncodePlayableSlug(slug)}/{shortId}";
     }
+
+    /// <summary>
+    /// Match the site <c>encodeURIComponent</c> contract. <see cref="Uri.EscapeDataString"/>
+    /// also encodes <c>!</c> <c>'</c> <c>(</c> <c>)</c> <c>*</c>, which the site leaves literal.
+    /// </summary>
+    private static string EncodePlayableSlug(string slug) =>
+        Uri.EscapeDataString(slug)
+            .Replace("%21", "!")
+            .Replace("%27", "'")
+            .Replace("%28", "(")
+            .Replace("%29", ")")
+            .Replace("%2A", "*");
 
     /// <summary>
     /// An existing unprefixed short link still identifies the same id.
