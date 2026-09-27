@@ -1,6 +1,6 @@
 # Build 3 — Submit / lookup v2
 
-**Status:** open — [gate-2.md](./gate-2.md) is done.
+**Status:** done — [pull request 997](https://github.com/cultpodcasts/RedditPodcastPoster/pull/997) merged to `main` on 26 Sep 2026 (`afb34215`). [gate-2.md](./gate-2.md) is done. The submit flag stays off until [gate-3.md](./gate-3.md).
 
 ## Done when
 
