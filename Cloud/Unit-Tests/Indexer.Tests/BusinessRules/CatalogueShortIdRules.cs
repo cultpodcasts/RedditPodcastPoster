@@ -28,6 +28,48 @@ public class CatalogueShortIdRules
         kind.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "A missing kind stays the same unprefixed podcast short id as Episode, " +
+        "so an omitted content kind does not look like Film, TV, or News.")]
+    public void omitted_kind_matches_the_episode_short_id()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+
+        // Act
+        var omitted = CatalogueShortId.Encode(id, null);
+        var episode = CatalogueShortId.Encode(id, "Episode");
+
+        // Assert
+        omitted.Should().Be(id.ToBase64());
+        omitted.Should().Be(episode);
+    }
+
+    [Theory(DisplayName =
+        "An unknown kind, including Movie and the wrong case, throws " +
+        "instead of minting a podcast short id.")]
+    [InlineData("Movie")]
+    [InlineData("film")]
+    [InlineData("movie")]
+    [InlineData("newsreport")]
+    [InlineData("")]
+    public void unknown_kind_throws_instead_of_a_podcast_short_id(string contentKind)
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var slug = _fixture.CreateTitle();
+
+        // Act
+        var encode = () => CatalogueShortId.Encode(id, contentKind);
+        var path = () => CatalogueShortId.PlayablePath(slug, id, contentKind);
+
+        // Assert
+        encode.Should().Throw<ArgumentException>()
+            .Which.Message.Should().Be($"Unknown catalogue content kind \"{contentKind}\".");
+        path.Should().Throw<ArgumentException>()
+            .Which.Message.Should().Be($"Unknown catalogue content kind \"{contentKind}\".");
+    }
+
     [Theory(DisplayName =
         "Film, TV, and News short ids prepend f, t, or n before the GUID bytes, " +
         "and decode back to that kind.")]

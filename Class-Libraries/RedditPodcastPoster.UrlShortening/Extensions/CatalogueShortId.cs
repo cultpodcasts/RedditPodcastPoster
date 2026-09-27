@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.ContentKinds;
+
 namespace RedditPodcastPoster.UrlShortening.Extensions;
 
 /// <summary>
@@ -6,18 +8,27 @@ namespace RedditPodcastPoster.UrlShortening.Extensions;
 /// </summary>
 public static class CatalogueShortId
 {
-    public const string Film = "Film";
-    public const string TvShowEpisode = "TvShowEpisode";
-    public const string NewsReport = "NewsReport";
+    public const string Film = nameof(ContentKind.Film);
+    public const string TvShowEpisode = nameof(ContentKind.TvShowEpisode);
+    public const string NewsReport = nameof(ContentKind.NewsReport);
 
+    /// <summary>
+    /// A missing kind and Episode stay the unprefixed podcast id.
+    /// Film, TV, and News are prefixed. Any other string throws.
+    /// </summary>
     public static string Encode(Guid id, string? contentKind)
     {
-        var guidBytes = id.ToByteArray();
-        if (!TryPrefix(contentKind, out var prefix))
+        if (IsUnprefixedEpisode(contentKind))
         {
             return GuidExtensions.ToBase64(id);
         }
 
+        if (!TryPrefix(contentKind, out var prefix))
+        {
+            throw UnknownKind(contentKind);
+        }
+
+        var guidBytes = id.ToByteArray();
         var payload = new byte[guidBytes.Length + 1];
         payload[0] = prefix;
         guidBytes.CopyTo(payload, 1);
@@ -32,12 +43,13 @@ public static class CatalogueShortId
     {
         var root = contentKind switch
         {
+            null or nameof(ContentKind.Episode) => "podcast",
             Film => "film",
             TvShowEpisode => "tv",
             NewsReport => "news",
-            _ => "podcast"
+            _ => throw UnknownKind(contentKind)
         };
-        var shortId = root == "podcast" ? Encode(id, null) : Encode(id, contentKind);
+        var shortId = Encode(id, contentKind);
         return $"/{root}/{EncodePlayableSlug(slug)}/{shortId}";
     }
 
@@ -101,13 +113,19 @@ public static class CatalogueShortId
     private static string ToUrlBase64(byte[] bytes) =>
         Convert.ToBase64String(bytes).Replace("/", "-").Replace("+", "_").Replace("=", "");
 
+    private static bool IsUnprefixedEpisode(string? contentKind) =>
+        contentKind is null || contentKind == nameof(ContentKind.Episode);
+
+    private static ArgumentException UnknownKind(string? contentKind) =>
+        new($"Unknown catalogue content kind \"{contentKind}\".");
+
     private static bool TryPrefix(string? contentKind, out byte prefix)
     {
         prefix = contentKind switch
         {
-            Film => (byte)'f',
-            TvShowEpisode => (byte)'t',
-            NewsReport => (byte)'n',
+            nameof(ContentKind.Film) => (byte)'f',
+            nameof(ContentKind.TvShowEpisode) => (byte)'t',
+            nameof(ContentKind.NewsReport) => (byte)'n',
             _ => 0
         };
         return prefix != 0;
