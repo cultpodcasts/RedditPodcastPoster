@@ -1,6 +1,6 @@
 # Build 4 — UI & curation
 
-**Status:** locked — open only after [gate-3.md](./gate-3.md) is done.
+**Status:** open — [gate-3.md](./gate-3.md) is done.
 
 ## Done when
 

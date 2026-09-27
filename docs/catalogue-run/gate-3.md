@@ -1,6 +1,6 @@
 # GATE 3 — Submit flag on
 
-**Status:** open — [build-3.md](./build-3.md) is done. `submitContentTypes__Enabled=true` on `api-infra` (no staging slot; new submits only). Dry-run samples classified a BBC news URL as NewsReport, a Netflix title link as rejected, and Netflix watch `80057281` as TvShowEpisode. Nothing was persisted.
+**Status:** done — flag on for new submits on `api-infra`. Backup `2026-09-27`. Dry-run samples classified. The one live YouTube submit stayed an Episode.
 
 ## Steps (when unlocked)
 
