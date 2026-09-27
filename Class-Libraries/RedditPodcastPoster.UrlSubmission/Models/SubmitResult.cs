@@ -33,6 +33,26 @@ public record SubmitResult(
             results.Add($"episode-id: '{Episode.Id}'");
         }
 
+        if (ContentKind != null)
+        {
+            results.Add($"content-kind: '{ContentKind}'");
+        }
+
+        if (PlayableId != null)
+        {
+            results.Add($"playable-id: '{PlayableId}'");
+        }
+
+        if (Rejected)
+        {
+            results.Add("rejected: 'True'");
+        }
+
+        if (RequiresCurator)
+        {
+            results.Add("requires-curator: 'True'");
+        }
+
         if (SubmitEpisodeDetails != null)
         {
             results.Add(

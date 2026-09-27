@@ -85,9 +85,10 @@ public class SubmitUrlProcessor(
                     request.PodcastName,
                     RefreshMeta: request.RefreshMeta));
             logger.LogInformation(result.ToString());
-            if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
+            if (result.Episode != null &&
+                result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
-                updatedEpisodeIds.Add(result.Episode!.Id);
+                updatedEpisodeIds.Add(result.Episode.Id);
             }
         }
 

@@ -1,6 +1,6 @@
 # GATE 3 — Submit flag on
 
-**Status:** locked — open only after [build-3.md](./build-3.md) is done.
+**Status:** open — [build-3.md](./build-3.md) is done. `submitContentTypes__Enabled=true` on `api-infra` (no staging slot; new submits only). Dry-run samples classified a BBC news URL as NewsReport, a Netflix title link as rejected, and Netflix watch `80057281` as TvShowEpisode. Nothing was persisted.
 
 ## Steps (when unlocked)
 
