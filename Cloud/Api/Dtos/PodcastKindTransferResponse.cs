@@ -9,7 +9,6 @@ public sealed class PodcastKindTransferResponse
     public Guid? ParentId { get; init; }
 
     [JsonPropertyName("targetKind")]
-    [JsonConverter(typeof(JsonStringEnumConverter))]
     public CatalogueParentKind? TargetKind { get; init; }
 
     [JsonPropertyName("playableCount")]

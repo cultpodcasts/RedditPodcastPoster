@@ -107,4 +107,31 @@ public class CatalogueParentKindMapperRules
         values.Should().Contain(CatalogueParentKind.NewsOrganisation);
         names.Should().NotContain("Film");
     }
+
+    [Fact(DisplayName =
+        "Mapping a stored episode whose Language is null keeps Language null on the TV and news playables and SetRelease keeps ReleaseSort and ReleaseCosmosFallback in sync, because null is English and must not inherit publisher language.")]
+    public void playable_language_null_stays_null_and_set_release_syncs_sort()
+    {
+        // Arrange
+        var publisherLanguage = _fixture.Create<string>();
+        var podcast = _fixture.CreatePodcast(p => p.Language = publisherLanguage);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Language = null;
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var tvPlayable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        var newsPlayable = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+
+        // Assert
+        publisherLanguage.Should().NotBeNullOrWhiteSpace();
+        tvPlayable.Language.Should().BeNull();
+        newsPlayable.Language.Should().BeNull();
+        tvPlayable.Release.Should().Be(episode.Release);
+        tvPlayable.ReleaseSort.Should().Be(episode.ReleaseSort);
+        tvPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
+        newsPlayable.ReleaseSort.Should().Be(episode.ReleaseSort);
+        newsPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
+    }
 }

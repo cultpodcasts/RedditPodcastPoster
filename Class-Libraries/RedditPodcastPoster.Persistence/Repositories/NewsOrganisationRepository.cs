@@ -33,6 +33,20 @@ public class NewsOrganisationRepository(
             new PartitionKey(organisation.Id.ToString()));
     }
 
+    public async Task Delete(Guid newsOrganisationId)
+    {
+        try
+        {
+            await newsOrganisationsContainer.DeleteItemAsync<NewsOrganisation>(
+                newsOrganisationId.ToString(),
+                new PartitionKey(newsOrganisationId.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // idempotent delete
+        }
+    }
+
     public async Task<int> Count()
     {
         var iterator = newsOrganisationsContainer.GetItemQueryIterator<int>(

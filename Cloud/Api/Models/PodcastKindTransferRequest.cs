@@ -6,6 +6,5 @@ namespace Api.Models;
 public class PodcastKindTransferRequest
 {
     [JsonPropertyName("targetKind")]
-    [JsonConverter(typeof(JsonStringEnumConverter))]
     public CatalogueParentKind? TargetKind { get; set; }
 }

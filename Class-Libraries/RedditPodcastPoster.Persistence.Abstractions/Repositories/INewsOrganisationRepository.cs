@@ -5,4 +5,5 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 public interface INewsOrganisationRepository : IRepository<NewsOrganisation>, IFilterableRepository<NewsOrganisation>
 {
     Task<NewsOrganisation?> GetNewsOrganisation(Guid newsOrganisationId);
+    Task Delete(Guid newsOrganisationId);
 }

@@ -3,7 +3,9 @@ using Api.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
@@ -33,8 +35,19 @@ public class PodcastKindTransferService(
         try
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
+            var existingTvShow = await tvShowRepository.GetTvShow(podcastId);
+            var existingNewsOrganisation = await newsOrganisationRepository.GetNewsOrganisation(podcastId);
+
             if (podcast is null)
             {
+                if (existingTvShow is not null || existingNewsOrganisation is not null)
+                {
+                    return new PodcastKindTransferResult(
+                        PodcastKindTransferStatus.Conflict,
+                        podcastId,
+                        targetKind);
+                }
+
                 return new PodcastKindTransferResult(PodcastKindTransferStatus.NotFound, podcastId);
             }
 
@@ -48,9 +61,9 @@ public class PodcastKindTransferService(
             return targetKind switch
             {
                 CatalogueParentKind.TvShow =>
-                    await TransferToTvShow(podcast, episodes, cancellationToken),
+                    await TransferToTvShow(podcast, episodes, existingNewsOrganisation is not null, cancellationToken),
                 CatalogueParentKind.NewsOrganisation =>
-                    await TransferToNewsOrganisation(podcast, episodes, cancellationToken),
+                    await TransferToNewsOrganisation(podcast, episodes, existingTvShow is not null, cancellationToken),
                 _ => new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget)
             };
         }
@@ -61,76 +74,149 @@ public class PodcastKindTransferService(
         }
     }
 
-    private async Task<PodcastKindTransferResult> TransferToTvShow(
+    private Task<PodcastKindTransferResult> TransferToTvShow(
         Podcast podcast,
         IReadOnlyList<Episode> episodes,
+        bool siblingParentExists,
+        CancellationToken cancellationToken) =>
+        TransferParent(
+            podcast,
+            episodes,
+            siblingParentExists,
+            CatalogueParentKind.TvShow,
+            SearchContentKind.TvShowEpisode,
+            CatalogueParentKindMapper.ToTvShow,
+            CatalogueParentKindMapper.ToTvShowEpisode,
+            tvShowRepository.Save,
+            tvShowEpisodeRepository.Save,
+            tvShowEpisodeRepository.Delete,
+            tvShowRepository.Delete,
+            cancellationToken);
+
+    private Task<PodcastKindTransferResult> TransferToNewsOrganisation(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        bool siblingParentExists,
+        CancellationToken cancellationToken) =>
+        TransferParent(
+            podcast,
+            episodes,
+            siblingParentExists,
+            CatalogueParentKind.NewsOrganisation,
+            SearchContentKind.NewsReport,
+            CatalogueParentKindMapper.ToNewsOrganisation,
+            CatalogueParentKindMapper.ToNewsReport,
+            newsOrganisationRepository.Save,
+            newsReportRepository.Save,
+            newsReportRepository.Delete,
+            newsOrganisationRepository.Delete,
+            cancellationToken);
+
+    private async Task<PodcastKindTransferResult> TransferParent<TParent, TPlayable>(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        bool siblingParentExists,
+        CatalogueParentKind targetKind,
+        string searchContentKind,
+        Func<Podcast, TParent> mapParent,
+        Func<Episode, TParent, TPlayable> mapPlayable,
+        Func<TParent, Task> saveParent,
+        Func<TPlayable, Task> savePlayable,
+        Func<Guid, Guid, Task> deletePlayable,
+        Func<Guid, Task> deleteParent,
         CancellationToken cancellationToken)
+        where TParent : class
+        where TPlayable : Playable
     {
-        var existing = await tvShowRepository.GetTvShow(podcast.Id);
-        if (existing is not null)
+        if (siblingParentExists)
         {
             return new PodcastKindTransferResult(
                 PodcastKindTransferStatus.Conflict,
                 podcast.Id,
-                CatalogueParentKind.TvShow);
+                targetKind);
         }
 
-        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var parent = mapParent(podcast);
         var playables = episodes
-            .Select(episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show))
+            .Select(episode => mapPlayable(episode, parent))
             .ToList();
 
-        await tvShowRepository.Save(show);
-        foreach (var playable in playables)
+        var writtenPlayableIds = new List<Guid>();
+        var parentWritten = false;
+        try
         {
-            await tvShowEpisodeRepository.Save(playable);
+            await saveParent(parent);
+            parentWritten = true;
+            foreach (var playable in playables)
+            {
+                await savePlayable(playable);
+                writtenPlayableIds.Add(playable.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "{method}: Dest write failed for podcast '{podcastId}' to {targetKind}; compensating dest rows.",
+                nameof(TransferParent),
+                podcast.Id,
+                targetKind);
+            await CompensateDest(podcast.Id, parentWritten, writtenPlayableIds, deletePlayable, deleteParent);
+            throw;
         }
 
-        var indexed = await SwapSearch(podcast, episodes, SearchContentKind.TvShowEpisode, cancellationToken);
+        var indexed = await SwapSearch(podcast, episodes, searchContentKind, cancellationToken);
         await DeletePodcastRows(podcast, episodes);
 
         return new PodcastKindTransferResult(
             PodcastKindTransferStatus.Accepted,
-            show.Id,
-            CatalogueParentKind.TvShow,
+            podcast.Id,
+            targetKind,
             playables.Count,
             FailureIndexingPlayables: !indexed);
     }
 
-    private async Task<PodcastKindTransferResult> TransferToNewsOrganisation(
-        Podcast podcast,
-        IReadOnlyList<Episode> episodes,
-        CancellationToken cancellationToken)
+    private async Task CompensateDest(
+        Guid parentId,
+        bool parentWritten,
+        IReadOnlyList<Guid> writtenPlayableIds,
+        Func<Guid, Guid, Task> deletePlayable,
+        Func<Guid, Task> deleteParent)
     {
-        var existing = await newsOrganisationRepository.GetNewsOrganisation(podcast.Id);
-        if (existing is not null)
+        foreach (var playableId in writtenPlayableIds)
         {
-            return new PodcastKindTransferResult(
-                PodcastKindTransferStatus.Conflict,
-                podcast.Id,
-                CatalogueParentKind.NewsOrganisation);
+            try
+            {
+                await deletePlayable(parentId, playableId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "{method}: Failed to compensate dest playable '{playableId}' for parent '{parentId}'.",
+                    nameof(CompensateDest),
+                    playableId,
+                    parentId);
+            }
         }
 
-        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
-        var playables = episodes
-            .Select(episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation))
-            .ToList();
-
-        await newsOrganisationRepository.Save(organisation);
-        foreach (var playable in playables)
+        if (!parentWritten)
         {
-            await newsReportRepository.Save(playable);
+            return;
         }
 
-        var indexed = await SwapSearch(podcast, episodes, SearchContentKind.NewsReport, cancellationToken);
-        await DeletePodcastRows(podcast, episodes);
-
-        return new PodcastKindTransferResult(
-            PodcastKindTransferStatus.Accepted,
-            organisation.Id,
-            CatalogueParentKind.NewsOrganisation,
-            playables.Count,
-            FailureIndexingPlayables: !indexed);
+        try
+        {
+            await deleteParent(parentId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{method}: Failed to compensate dest parent '{parentId}'.",
+                nameof(CompensateDest),
+                parentId);
+        }
     }
 
     private async Task<bool> SwapSearch(

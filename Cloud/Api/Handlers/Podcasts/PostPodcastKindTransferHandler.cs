@@ -1,6 +1,7 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
 
@@ -23,25 +24,11 @@ public class PostPodcastKindTransferHandler(
         return result.Status switch
         {
             PodcastKindTransferStatus.Accepted =>
-                await ctx.Accepted(
-                    new PodcastKindTransferResponse
-                    {
-                        ParentId = result.ParentId,
-                        TargetKind = result.TargetKind,
-                        PlayableCount = result.PlayableCount,
-                        FailureIndexingPlayables = result.FailureIndexingPlayables
-                    },
-                    cancellationToken),
+                await ctx.Accepted(result.ToDto(), cancellationToken),
             PodcastKindTransferStatus.NotFound =>
                 await ctx.NotFound(new { id = result.ParentId }, cancellationToken),
             PodcastKindTransferStatus.Conflict =>
-                await ctx.Conflict(
-                    new PodcastKindTransferResponse
-                    {
-                        ParentId = result.ParentId,
-                        TargetKind = result.TargetKind
-                    },
-                    cancellationToken),
+                await ctx.Conflict(result.ToDto(), cancellationToken),
             PodcastKindTransferStatus.InvalidTarget =>
                 await ctx.BadRequest(
                     ApiErrorResponse.Failure("targetKind must be TvShow or NewsOrganisation"),
