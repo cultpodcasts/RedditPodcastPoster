@@ -213,6 +213,14 @@
 
     <Project Path="Console-Apps/CategorisePodcastEpisodes/CategorisePodcastEpisodes.csproj" />
 
+    <Project Path="Console-Apps/CatalogueMigrateIdentify/CatalogueMigrateIdentify.csproj" />
+
+    <Project Path="Console-Apps/CatalogueMigrateIdentify.Tests/CatalogueMigrateIdentify.Tests.csproj" />
+
+    <Project Path="Console-Apps/CatalogueMigrate/CatalogueMigrate.csproj" />
+
+    <Project Path="Console-Apps/CatalogueMigrate.Tests/CatalogueMigrate.Tests.csproj" />
+
     <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
 
     <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />

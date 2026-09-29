@@ -2,6 +2,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Persistence.Tests;
@@ -133,5 +134,48 @@ public class CatalogueParentKindMapperRules
         tvPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
         newsPlayable.ReleaseSort.Should().Be(episode.ReleaseSort);
         newsPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
+    }
+
+    [Fact(DisplayName =
+        "Mapping a one-off episode to a Film keeps the episode id, uses the episode title as the Film name, " +
+        "and does not use the podcast id as a parent, because Film has no parent.")]
+    public void film_keeps_episode_id_and_is_not_parented()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        film.Id.Should().Be(episode.Id);
+        film.Id.Should().NotBe(podcast.Id);
+        film.Name.Should().Be(episode.Title);
+        film.Description.Should().Be(episode.Description);
+        film.ModelType.Should().Be(ModelType.Film);
+        film.FileKey.Should().Be(FileKeyFactory.GetFilmFileKey(episode.Title));
+        film.Services.Should().NotBeNull();
+        film.Services!.ContainsKey(ServiceKeys.YouTube).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Mapping a Film keeps Language null when the episode Language is null, " +
+        "because null is English and must not inherit the podcast language.")]
+    public void film_language_null_stays_null()
+    {
+        // Arrange
+        var publisherLanguage = _fixture.Create<string>();
+        var podcast = _fixture.CreatePodcast(p => p.Language = publisherLanguage);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Language = null;
+
+        // Act
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        publisherLanguage.Should().NotBeNullOrWhiteSpace();
+        film.Language.Should().BeNull();
+        film.ReleaseSort.Should().Be(episode.ReleaseSort);
     }
 }

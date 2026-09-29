@@ -268,6 +268,29 @@ RemoveEpisodes restore removed-episodes-log.txt
 | `<channel-name>` | YouTube channel name |
 | `<most-recent-upload-name>` | Title of the channel’s most recent upload |
 
+### CatalogueMigrateIdentify
+
+**Purpose:** Dry-run corpus identify for Build 5. Scans stored episode service URLs (no scrape). Logs News / Film / TV candidates. `--apply` is refused (exit 2); GATE 5 is the only apply path. News candidates need an allowlist before any apply (S-008).
+
+**Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
+
+| Option | Description |
+|--------|-------------|
+| `--podcast-id` | Identify a single podcast GUID. Default is every podcast |
+| `--apply` | Refused. Prints GATE 5 only and exits 2 |
+
+### CatalogueMigrate
+
+**Purpose:** Dry-run corpus **move plans** for Build 5. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply will need an allowlist (S-008). Film is a one-off (episode id, no parent). `--apply` is refused (exit 2). Film and TV require `--podcast-id` because stored identify cannot flag them.
+
+**Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
+
+| Option | Description |
+|--------|-------------|
+| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required) |
+| `--podcast-id` | One podcast GUID. Required for Film and TV. Optional for News (scan identify candidates) |
+| `--apply` | Refused. Prints GATE 5 only and exits 2 |
+
 ### CategorisePodcastEpisodes
 
 **Purpose:** Categorise / subject-tag podcast episodes.

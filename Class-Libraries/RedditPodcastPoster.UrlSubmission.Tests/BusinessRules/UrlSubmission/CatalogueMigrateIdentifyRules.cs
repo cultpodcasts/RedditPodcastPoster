@@ -1,5 +1,7 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Migration;
 using Xunit;
@@ -134,6 +136,65 @@ public class CatalogueMigrateIdentifyRules
 
         // Act
         var result = CatalogueMigrateIdentify.FromSignals(signals);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A stored episode whose service URL is a BBC news page is a NewsReport candidate that needs an allowlist, " +
+        "because corpus identify reads episode URLs without scraping.")]
+    public void stored_bbc_news_episode_url_is_a_news_candidate()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        EpisodeServicePresence.Upsert(
+            episode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromEpisodes([episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A stored Spotify episode stays Episode, " +
+        "because podcast-service URLs are not corpus-migrate candidates.")]
+    public void stored_spotify_episode_stays_episode()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        EpisodeServicePresence.Upsert(
+            episode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromEpisodes([episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A podcast with no episode service URLs stays Episode, " +
+        "because identify has no signals to classify.")]
+    public void episodes_with_no_urls_stay_episode()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromEpisodes([episode]);
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);

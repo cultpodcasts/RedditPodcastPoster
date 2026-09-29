@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
@@ -8,8 +9,9 @@ using RedditPodcastPoster.Models.TvShows;
 namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
-/// Maps a Podcast (+ episodes) onto a TvShow or NewsOrganisation parent.
-/// Parent id is the podcast id; each playable keeps its episode id. Never Film.
+/// Maps a Podcast (+ episodes) onto a TvShow or NewsOrganisation parent,
+/// or a one-off episode onto a Film (no parent). Parent id is the podcast id;
+/// each playable keeps its episode id. Film is never a parent.
 /// </summary>
 public static class CatalogueParentKindMapper
 {
@@ -51,6 +53,42 @@ public static class CatalogueParentKindMapper
         playable.SetTvShowProperties(tvShow);
         playable.ModelType = ModelType.TvShowEpisode;
         return playable;
+    }
+
+    /// <summary>
+    /// One-off film: keep the episode id (playable identity). Name and description
+    /// come from the episode; publisher social fields come from the podcast.
+    /// </summary>
+    public static Film ToFilm(Podcast podcast, Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        ArgumentNullException.ThrowIfNull(episode);
+        var film = new Film(episode.Title)
+        {
+            Id = episode.Id
+        };
+        CopyPublisher(podcast, film);
+        film.Name = episode.Title;
+        film.Description = episode.Description;
+        film.Language = episode.Language;
+        film.SearchTerms = episode.SearchTerms;
+        film.HashTag = episode.HashTag ?? podcast.HashTag;
+        film.FileKey = FileKeyFactory.GetFilmFileKey(episode.Title);
+        film.ModelType = ModelType.Film;
+        film.SetRelease(episode.Release);
+        film.Length = episode.Length;
+        film.Explicit = episode.Explicit;
+        film.Posted = episode.Posted;
+        film.Tweeted = episode.Tweeted;
+        film.OldBlueskyPosted = episode.OldBlueskyPosted;
+        film.BlueskyPost = episode.BlueskyPost;
+        film.Ignored = episode.Ignored;
+        film.Subjects = [.. episode.Subjects];
+        film.RemovedSubjects = [.. episode.RemovedSubjects];
+        film.Matches = episode.Matches.Select(CloneMatch).ToList();
+        film.Services = CloneServices(episode.Services);
+        film.Guests = CloneArray(episode.Guests);
+        return film;
     }
 
     public static NewsReport ToNewsReport(Episode episode, NewsOrganisation organisation)

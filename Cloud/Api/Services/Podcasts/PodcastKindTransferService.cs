@@ -7,7 +7,6 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
 
 namespace Api.Services.Podcasts;
@@ -225,14 +224,7 @@ public class PodcastKindTransferService(
         string contentKind,
         CancellationToken cancellationToken)
     {
-        var documents = new List<EpisodeSearchRecord>(episodes.Count);
-        foreach (var episode in episodes)
-        {
-            var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
-            record.ContentKind = contentKind;
-            documents.Add(record);
-        }
-
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
         return await searchSwap.UploadAsync(documents, cancellationToken);
     }
 
