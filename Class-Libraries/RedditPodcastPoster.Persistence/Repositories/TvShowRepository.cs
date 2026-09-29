@@ -31,6 +31,20 @@ public class TvShowRepository(
         await tvShowsContainer.UpsertItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
     }
 
+    public async Task Delete(Guid tvShowId)
+    {
+        try
+        {
+            await tvShowsContainer.DeleteItemAsync<TvShow>(
+                tvShowId.ToString(),
+                new PartitionKey(tvShowId.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // idempotent delete
+        }
+    }
+
     public async Task<int> Count()
     {
         var iterator = tvShowsContainer.GetItemQueryIterator<int>(

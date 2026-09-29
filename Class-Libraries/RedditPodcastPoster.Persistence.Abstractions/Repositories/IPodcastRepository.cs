@@ -5,4 +5,5 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 public interface IPodcastRepository : IRepository<Podcast>, IFilterableRepository<Podcast>
 {
     Task<Podcast?> GetPodcast(Guid podcastId);
+    Task Delete(Guid podcastId);
 }
