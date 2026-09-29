@@ -30,6 +30,12 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
         return Task.CompletedTask;
     }
 
+    public Task Delete(Guid podcastId)
+    {
+        _podcasts.Remove(podcastId);
+        return Task.CompletedTask;
+    }
+
     public Task<int> Count() => Task.FromResult(_podcasts.Count);
 
     public async IAsyncEnumerable<Podcast> GetAll()

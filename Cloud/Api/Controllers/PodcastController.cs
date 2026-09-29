@@ -15,6 +15,7 @@ namespace Api.Controllers;
 public class PodcastController(
     IGetPodcastHandler getPodcastHandler,
     IPostPodcastHandler postPodcastHandler,
+    IPostPodcastKindTransferHandler postPodcastKindTransferHandler,
     IIndexPodcastHandler indexPodcastHandler,
     IRenamePodcastHandler renamePodcastHandler,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -117,6 +118,21 @@ public class PodcastController(
 
         return GetByIdentifier(req, podcastIdentifier, ct);
     }
+
+    [Function("PodcastKindTransfer")]
+    public Task<HttpResponseData> TransferKind(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}/kind")]
+        HttpRequestData req,
+        Guid podcastId,
+        [FromBody] PodcastKindTransferRequest request,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["curate"],
+            new PodcastKindTransferCommand(podcastId, request),
+            postPodcastKindTransferHandler.Handle,
+            Unauthorised,
+            ct);
 
     [Function("PodcastPost")]
     public Task<HttpResponseData> Post(

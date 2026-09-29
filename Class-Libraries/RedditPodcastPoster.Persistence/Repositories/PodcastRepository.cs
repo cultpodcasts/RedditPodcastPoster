@@ -29,6 +29,20 @@ public class PodcastRepository(
         await podcastsContainer.UpsertItemAsync(podcast, new PartitionKey(podcast.Id.ToString()));
     }
 
+    public async Task Delete(Guid podcastId)
+    {
+        try
+        {
+            await podcastsContainer.DeleteItemAsync<Podcast>(
+                podcastId.ToString(),
+                new PartitionKey(podcastId.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // idempotent delete
+        }
+    }
+
     public async Task<int> Count()
     {
         var iterator = podcastsContainer.GetItemQueryIterator<int>(
