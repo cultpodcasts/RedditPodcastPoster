@@ -36,47 +36,47 @@ public sealed class DownloadContainerSelection
         NewsReportsName
     ];
 
-    private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, IReadOnlyList<string>> Aliases = new(StringComparer.OrdinalIgnoreCase)
     {
-        [PodcastsName] = PodcastsName,
-        ["podcast"] = PodcastsName,
-        [EpisodesName] = EpisodesName,
-        ["episode"] = EpisodesName,
-        [LookUpsName] = LookUpsName,
-        ["lookup"] = LookUpsName,
-        ["look-ups"] = LookUpsName,
-        [TitleCasingName] = TitleCasingName,
-        ["title-casing"] = TitleCasingName,
-        ["title-casing-rules"] = TitleCasingName,
-        ["titlecasingrules"] = TitleCasingName,
-        [SubjectsName] = SubjectsName,
-        ["subject"] = SubjectsName,
-        [DiscoveryName] = DiscoveryName,
-        ["discovery-results"] = DiscoveryName,
-        ["discoveryresults"] = DiscoveryName,
-        [PushSubscriptionsName] = PushSubscriptionsName,
-        ["push"] = PushSubscriptionsName,
-        ["push-subscriptions"] = PushSubscriptionsName,
-        ["pushsubscription"] = PushSubscriptionsName,
-        [PeopleName] = PeopleName,
-        ["person"] = PeopleName,
-        [FilmsName] = FilmsName,
-        ["film"] = FilmsName,
-        [TvShowsName] = TvShowsName,
-        ["tv"] = TvShowsName,
-        ["tvshow"] = TvShowsName,
-        ["tv-show"] = TvShowsName,
-        [TvShowEpisodesName] = TvShowEpisodesName,
-        ["tvshowepisode"] = TvShowEpisodesName,
-        ["tv-show-episodes"] = TvShowEpisodesName,
-        [NewsOrganisationsName] = NewsOrganisationsName,
-        ["news"] = NewsOrganisationsName,
-        ["newsorg"] = NewsOrganisationsName,
-        ["newsorganisation"] = NewsOrganisationsName,
-        ["news-organisation"] = NewsOrganisationsName,
-        [NewsReportsName] = NewsReportsName,
-        ["newsreport"] = NewsReportsName,
-        ["news-reports"] = NewsReportsName
+        [PodcastsName] = [PodcastsName],
+        ["podcast"] = [PodcastsName],
+        [EpisodesName] = [EpisodesName],
+        ["episode"] = [EpisodesName],
+        [LookUpsName] = [LookUpsName],
+        ["lookup"] = [LookUpsName],
+        ["look-ups"] = [LookUpsName],
+        [TitleCasingName] = [TitleCasingName],
+        ["title-casing"] = [TitleCasingName],
+        ["title-casing-rules"] = [TitleCasingName],
+        ["titlecasingrules"] = [TitleCasingName],
+        [SubjectsName] = [SubjectsName],
+        ["subject"] = [SubjectsName],
+        [DiscoveryName] = [DiscoveryName],
+        ["discovery-results"] = [DiscoveryName],
+        ["discoveryresults"] = [DiscoveryName],
+        [PushSubscriptionsName] = [PushSubscriptionsName],
+        ["push"] = [PushSubscriptionsName],
+        ["push-subscriptions"] = [PushSubscriptionsName],
+        ["pushsubscription"] = [PushSubscriptionsName],
+        [PeopleName] = [PeopleName],
+        ["person"] = [PeopleName],
+        [FilmsName] = [FilmsName],
+        ["film"] = [FilmsName],
+        [TvShowsName] = [TvShowsName],
+        ["tv"] = [TvShowsName, TvShowEpisodesName],
+        ["tvshow"] = [TvShowsName],
+        ["tv-show"] = [TvShowsName],
+        [TvShowEpisodesName] = [TvShowEpisodesName],
+        ["tvshowepisode"] = [TvShowEpisodesName],
+        ["tv-show-episodes"] = [TvShowEpisodesName],
+        [NewsOrganisationsName] = [NewsOrganisationsName],
+        ["news"] = [NewsOrganisationsName, NewsReportsName],
+        ["newsorg"] = [NewsOrganisationsName],
+        ["newsorganisation"] = [NewsOrganisationsName],
+        ["news-organisation"] = [NewsOrganisationsName],
+        [NewsReportsName] = [NewsReportsName],
+        ["newsreport"] = [NewsReportsName],
+        ["news-reports"] = [NewsReportsName]
     };
 
     public bool Podcasts { get; private init; }
@@ -150,7 +150,10 @@ public sealed class DownloadContainerSelection
         {
             foreach (var name in only)
             {
-                enabled.Add(ResolveName(name));
+                foreach (var canonical in ResolveNames(name))
+                {
+                    enabled.Add(canonical);
+                }
             }
         }
         else
@@ -162,7 +165,10 @@ public sealed class DownloadContainerSelection
 
             foreach (var name in skip)
             {
-                enabled.Remove(ResolveName(name));
+                foreach (var canonical in ResolveNames(name))
+                {
+                    enabled.Remove(canonical);
+                }
             }
         }
 
@@ -196,7 +202,7 @@ public sealed class DownloadContainerSelection
         .Where(v => v.Length > 0)
         .ToList();
 
-    private static string ResolveName(string raw)
+    private static IReadOnlyList<string> ResolveNames(string raw)
     {
         if (Aliases.TryGetValue(raw.Trim(), out var canonical))
         {

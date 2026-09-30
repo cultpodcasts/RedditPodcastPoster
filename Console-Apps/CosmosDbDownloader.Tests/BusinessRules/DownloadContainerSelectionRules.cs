@@ -5,9 +5,9 @@ namespace CosmosDbDownloader.Tests.BusinessRules;
 public class DownloadContainerSelectionRules
 {
     [Fact(DisplayName =
-        "Cosmos dump: when no --only or --skip is set, then Film, TvShow, TvShowEpisode, " +
-        "NewsOrganisation, and NewsReport containers are included, because GATE 5 backups " +
-        "must cover the new catalogue families.")]
+        "Cosmos dump: when no --only or --skip is set, then every downloader container is selected " +
+        "(including Film, TvShow, TvShowEpisode, NewsOrganisation, and NewsReport), because GATE 5 " +
+        "backups must match production.")]
     public void default_all_includes_catalogue_containers()
     {
         // Arrange
@@ -22,19 +22,12 @@ public class DownloadContainerSelectionRules
         selection.TvShowEpisodes.Should().BeTrue();
         selection.NewsOrganisations.Should().BeTrue();
         selection.NewsReports.Should().BeTrue();
-        selection.EnabledNames.Should().Contain(
-        [
-            DownloadContainerSelection.FilmsName,
-            DownloadContainerSelection.TvShowsName,
-            DownloadContainerSelection.TvShowEpisodesName,
-            DownloadContainerSelection.NewsOrganisationsName,
-            DownloadContainerSelection.NewsReportsName
-        ]);
+        selection.EnabledNames.Should().BeEquivalentTo(DownloadContainerSelection.AllNames);
     }
 
     [Fact(DisplayName =
-        "Cosmos dump: when --only names a catalogue container, then only that family is selected, " +
-        "because operators can dump Film/TV/News without re-pulling episodes.")]
+        "Cosmos dump: when --only names film, then only the films container is selected, " +
+        "because Film is a one-off with no parent catalogue.")]
     public void only_films_selects_films_alone()
     {
         // Arrange
@@ -51,6 +44,59 @@ public class DownloadContainerSelectionRules
     }
 
     [Fact(DisplayName =
+        "Cosmos dump: when --only names the tv family alias, then tvshows and tvshowepisodes " +
+        "are selected together, because TV is parent plus playable.")]
+    public void only_tv_selects_tv_shows_and_episodes()
+    {
+        // Arrange
+        var request = new CosmosDbDownloaderRequest { Only = ["tv"] };
+
+        // Act
+        var selection = DownloadContainerSelection.FromRequest(request);
+
+        // Assert
+        selection.EnabledNames.Should().BeEquivalentTo(
+        [
+            DownloadContainerSelection.TvShowsName,
+            DownloadContainerSelection.TvShowEpisodesName
+        ]);
+    }
+
+    [Fact(DisplayName =
+        "Cosmos dump: when --only names the news family alias, then newsorganisations and " +
+        "newsreports are selected together, because News is parent plus playable.")]
+    public void only_news_selects_news_organisations_and_reports()
+    {
+        // Arrange
+        var request = new CosmosDbDownloaderRequest { Only = ["news"] };
+
+        // Act
+        var selection = DownloadContainerSelection.FromRequest(request);
+
+        // Assert
+        selection.EnabledNames.Should().BeEquivalentTo(
+        [
+            DownloadContainerSelection.NewsOrganisationsName,
+            DownloadContainerSelection.NewsReportsName
+        ]);
+    }
+
+    [Fact(DisplayName =
+        "Cosmos dump: when --only names a per-container TV alias, then only tvshows is selected, " +
+        "because tvshow is not a family alias.")]
+    public void only_tvshow_selects_tv_shows_alone()
+    {
+        // Arrange
+        var request = new CosmosDbDownloaderRequest { Only = ["tvshow"] };
+
+        // Act
+        var selection = DownloadContainerSelection.FromRequest(request);
+
+        // Assert
+        selection.EnabledNames.Should().Equal(DownloadContainerSelection.TvShowsName);
+    }
+
+    [Fact(DisplayName =
         "Cosmos dump: when --skip names news organisations, then news reports still download, " +
         "because skip is per container name not a whole product family.")]
     public void skip_news_organisations_keeps_news_reports()
@@ -64,5 +110,23 @@ public class DownloadContainerSelectionRules
         // Assert
         selection.NewsOrganisations.Should().BeFalse();
         selection.NewsReports.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Cosmos dump: when --skip names the news family alias, then news organisations and " +
+        "news reports are both omitted, because family aliases apply to every container in that family.")]
+    public void skip_news_omits_news_organisations_and_reports()
+    {
+        // Arrange
+        var request = new CosmosDbDownloaderRequest { Skip = ["news"] };
+
+        // Act
+        var selection = DownloadContainerSelection.FromRequest(request);
+
+        // Assert
+        selection.NewsOrganisations.Should().BeFalse();
+        selection.NewsReports.Should().BeFalse();
+        selection.EnabledNames.Should().NotContain(DownloadContainerSelection.NewsOrganisationsName);
+        selection.EnabledNames.Should().NotContain(DownloadContainerSelection.NewsReportsName);
     }
 }

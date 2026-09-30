@@ -486,7 +486,17 @@ LookUps are written under `lookups/` via typed getters (elimination terms, disco
 | `--skip a,b,…` | Skip these containers (cannot combine with `--only`) |
 | `-o, --overwrite` | Replace existing local JSON files (default: fail if a file already exists) |
 
-Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions`, `people`, `films`, `tvshows`, `tvshowepisodes`, `newsorganisations`, `newsreports` (aliases like `title-casing`, `push`, `person`, `film`, `tv-show`, `news` accepted). Activities are not downloaded. Catalogue folders: `film/`, `tvshow/`, `tvshowepisode/`, `newsorganisation/`, `newsreport/`.
+Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions`, `people`, `films`, `tvshows`, `tvshowepisodes`, `newsorganisations`, `newsreports`. Canonical names and most aliases (`title-casing`, `push`, `person`, `film`, `tvshow`, `tv-show`, `newsorganisation`, `newsreport`, …) select **one** container. Family aliases expand to parent plus playable: `tv` → `tvshows` + `tvshowepisodes`; `news` → `newsorganisations` + `newsreports`. Film has no parent, so `film` is films only. `--only` / `--skip` apply that resolved set. Activities are not downloaded. Catalogue folders: `film/`, `tvshow/`, `tvshowepisode/`, `newsorganisation/`, `newsreport/`.
+
+```mermaid
+flowchart LR
+  tv["--only/--skip tv"] --> tvs[tvshows]
+  tv --> tve[tvshowepisodes]
+  news["--only/--skip news"] --> no[newsorganisations]
+  news --> nr[newsreports]
+  film["--only/--skip film"] --> films[films]
+```
+
 
 Examples:
 
