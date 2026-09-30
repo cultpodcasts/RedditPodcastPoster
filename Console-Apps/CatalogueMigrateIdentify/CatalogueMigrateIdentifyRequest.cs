@@ -8,7 +8,7 @@ public class CatalogueMigrateIdentifyRequest
     public Guid? PodcastId { get; set; }
 
     [Option("apply", Required = false, Default = false,
-        HelpText = "Refused in this Build. GATE 5 is the only apply path.")]
+        HelpText = "Refused without explicit human consent. Dry-run only; does not write Cosmos.")]
     public bool Apply { get; set; }
 
     [Option("version", HelpText = "Display version information")]

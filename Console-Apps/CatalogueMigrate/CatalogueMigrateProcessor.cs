@@ -20,7 +20,7 @@ public class CatalogueMigrateProcessor(
         if (request.Apply)
         {
             logger.LogError(
-                "Catalogue migrate --apply is GATE 5 only. This tool is dry-run plan and does not write Cosmos.");
+                "Catalogue migrate --apply requires explicit human consent in the current conversation. This tool is dry-run only and does not write Cosmos.");
             return new CatalogueMigrateRunResult(2, 0, 0);
         }
 

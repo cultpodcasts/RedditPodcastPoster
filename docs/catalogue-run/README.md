@@ -4,8 +4,7 @@
 
 | Status | Open this |
 |--------|-----------|
-| **NOW** | [build-5.md](./build-5.md) — corpus migrate tooling |
-| Next (locked) | [gate-5.md](./gate-5.md) — after merge |
+| **NOW** | [gate-5.md](./gate-5.md) — corpus migrate ops (**locked**; no `--apply` without consent) |
 | Later | — |
 
 Pattern: **Build** (code on `main`) → **GATE** (deploy + ops) → next Build.
@@ -18,8 +17,7 @@ How to deploy Functions: [deployment.md](../deployment.md)
 ## Tiny map
 
 ```text
-  [x] 0 … 4 done
+  [x] 0 … 5 done
   [x] G4 GATE 4
-  [~] 5 Build 5   ← you are here
-  [ ] G5 GATE 5   ← locked
+  [ ] G5 GATE 5   ← you are here (locked; dry-run only unless consented)
 ```

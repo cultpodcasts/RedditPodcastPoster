@@ -18,7 +18,7 @@ public class CatalogueMigrateIdentifyProcessor(
         if (request.Apply)
         {
             logger.LogError(
-                "Catalogue migrate --apply is GATE 5 only. This tool is dry-run identify and does not write Cosmos.");
+                "Catalogue migrate --apply requires explicit human consent in the current conversation. This tool is dry-run identify and does not write Cosmos.");
             return new CatalogueMigrateIdentifyRunResult(2, 0);
         }
 

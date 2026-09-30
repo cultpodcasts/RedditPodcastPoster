@@ -1,0 +1,29 @@
+---
+description: HARD GUARDRAIL — CatalogueMigrate CLIs stay dry-run unless the user consents in this conversation
+alwaysApply: true
+---
+
+# Catalogue migrate CLIs — dry-run unless consented
+
+`CatalogueMigrateIdentify` and `CatalogueMigrate` must **not** run in write / `--apply` / live mode unless the user **explicitly consents in the current conversation**.
+
+GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does not** count as apply consent.
+
+## Forbidden always (no named consent)
+
+- `dotnet run` / published exe / PATH invoke of `CatalogueMigrateIdentify` or `CatalogueMigrate` **with `--apply`**
+- Any other flag or env that would write Cosmos, delete podcast/episode rows, or upload Azure Search for these tools
+- Treating `--apply` refuse (exit 2) as a bug to “fix” by implementing writes without consent
+
+## Allowed without extra consent
+
+- Code, tests, and docs on a branch
+- **Dry-run only** (omit `--apply`): identify / plan / log. No Cosmos writes. No search upload.
+
+## Allowed ONLY with explicit consent
+
+The user must **name** `--apply` (or “apply CatalogueMigrate”, “apply CatalogueMigrateIdentify”) **and** approve production writes **in this conversation**. News still needs an allowlist (S-008).
+
+## Stop
+
+If a migrate CLI is running with `--apply` or any write path, **stop immediately**.

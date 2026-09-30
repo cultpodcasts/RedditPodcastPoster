@@ -8,6 +8,10 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 - Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
 - **Planned epic (not scheduled):** [`docs/catalogue-content-types-epic.md`](docs/catalogue-content-types-epic.md) — separate TvShow/TvShowEpisode, **Film** (made-as-film one-off, cinema or TV; no parent), NewsOrganisation/NewsReport containers + unified search `contentKind` (`Episode | TvShowEpisode | Film | NewsReport`). Phase 0 sign-off 2026-09-23: [ADRs](./docs/adr/README.md), [search storage impact](./docs/catalogue-content-types-search-storage-impact.md). Do not use product name Movie.
 
+## Catalogue migrate CLIs (HARD)
+
+`CatalogueMigrateIdentify` and `CatalogueMigrate` are **dry-run unless the user consents in the current conversation**. Never pass `--apply`. Never write Cosmos or upload Search from these tools without that named consent. GATE 5 / “continue” / deploy is **not** apply consent. Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+
 ## Unit tests (HARD)
 
 Any agent (Cursor, Codex, Copilot, etc.) editing tests **MUST** follow:

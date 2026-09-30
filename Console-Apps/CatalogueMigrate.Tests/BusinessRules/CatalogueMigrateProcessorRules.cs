@@ -29,7 +29,7 @@ public class CatalogueMigrateProcessorRules
 
     [Fact(DisplayName =
         "Catalogue migrate: when --apply is set, then the tool exits 2 without planning, " +
-        "because apply is GATE 5 only.")]
+        "because apply needs explicit human consent and this CLI is dry-run only.")]
     public async Task apply_is_refused()
     {
         // Arrange
