@@ -223,6 +223,8 @@
 
     <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
 
+    <Project Path="Console-Apps/CosmosDbDownloader.Tests/CosmosDbDownloader.Tests.csproj" />
+
     <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />
 
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />

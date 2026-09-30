@@ -472,7 +472,7 @@ Index --reindex-search -n "<PodcastName>"
 
 ### CosmosDbDownloader
 
-**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, LookUps, title-casing rules) to local JSON files.
+**Purpose:** Download Cosmos containers (podcasts, episodes, subjects, discovery, push subscriptions, LookUps, title-casing rules, people, films, TV shows/episodes, news organisations/reports) to local JSON files.
 
 LookUps are written under `lookups/` via typed getters (elimination terms, discovery schedule, supported languages, homepage cache, YouTube quota/state, plus legacy KnownTerms if still present). Title-casing known terms live in the TitleCasingRules container (`titlecasing/`), not LookUps.
 
@@ -486,7 +486,17 @@ LookUps are written under `lookups/` via typed getters (elimination terms, disco
 | `--skip a,b,…` | Skip these containers (cannot combine with `--only`) |
 | `-o, --overwrite` | Replace existing local JSON files (default: fail if a file already exists) |
 
-Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions`, `people` (aliases like `title-casing`, `push`, `person` accepted). Activities are not downloaded.
+Container names: `podcasts`, `episodes`, `lookups`, `titlecasing`, `subjects`, `discovery`, `pushsubscriptions`, `people`, `films`, `tvshows`, `tvshowepisodes`, `newsorganisations`, `newsreports`. Canonical names and most aliases (`title-casing`, `push`, `person`, `film`, `tvshow`, `tv-show`, `newsorganisation`, `newsreport`, …) select **one** container. Family aliases expand to parent plus playable: `tv` → `tvshows` + `tvshowepisodes`; `news` → `newsorganisations` + `newsreports`. Film has no parent, so `film` is films only. `--only` / `--skip` apply that resolved set. Activities are not downloaded. Catalogue folders: `film/`, `tvshow/`, `tvshowepisode/`, `newsorganisation/`, `newsreport/`.
+
+```mermaid
+flowchart LR
+  tv["--only/--skip tv"] --> tvs[tvshows]
+  tv --> tve[tvshowepisodes]
+  news["--only/--skip news"] --> no[newsorganisations]
+  news --> nr[newsreports]
+  film["--only/--skip film"] --> films[films]
+```
+
 
 Examples:
 

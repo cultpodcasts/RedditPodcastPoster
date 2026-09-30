@@ -22,6 +22,11 @@ public class CosmosDbDownloader(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPushSubscriptionRepository pushSubscriptionRepository,
     IPersonRepository personRepository,
+    IFilmRepository filmRepository,
+    ITvShowRepository tvShowRepository,
+    ITvShowEpisodeRepository tvShowEpisodeRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
+    INewsReportRepository newsReportRepository,
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider)
 {
     private const string FileExtension = ".json";
@@ -100,6 +105,31 @@ public class CosmosDbDownloader(
                     downloads.Add(DownloadPeople(ctx.AddTask("People")));
                 }
 
+                if (selection.Films)
+                {
+                    downloads.Add(DownloadFilms(ctx.AddTask("Films")));
+                }
+
+                if (selection.TvShows)
+                {
+                    downloads.Add(DownloadTvShows(ctx.AddTask("TvShows")));
+                }
+
+                if (selection.TvShowEpisodes)
+                {
+                    downloads.Add(DownloadTvShowEpisodes(ctx.AddTask("TvShowEpisodes")));
+                }
+
+                if (selection.NewsOrganisations)
+                {
+                    downloads.Add(DownloadNewsOrganisations(ctx.AddTask("NewsOrganisations")));
+                }
+
+                if (selection.NewsReports)
+                {
+                    downloads.Add(DownloadNewsReports(ctx.AddTask("NewsReports")));
+                }
+
                 await Task.WhenAll(downloads);
             });
 
@@ -153,6 +183,30 @@ public class CosmosDbDownloader(
         if (selection.LookUps)
         {
             checks.Add(ValidateLookUpFileKeys(ctx.AddTask("File-key check: LookUps", maxValue: 1)));
+        }
+
+        if (selection.Films)
+        {
+            checks.Add(ValidateFileKeys(
+                filmRepository.GetAll().Select(f => f.FileKey),
+                "Films",
+                ctx.AddTask("File-key check: Films", maxValue: 1)));
+        }
+
+        if (selection.TvShows)
+        {
+            checks.Add(ValidateFileKeys(
+                tvShowRepository.GetAll().Select(t => t.FileKey),
+                "TvShows",
+                ctx.AddTask("File-key check: TvShows", maxValue: 1)));
+        }
+
+        if (selection.NewsOrganisations)
+        {
+            checks.Add(ValidateFileKeys(
+                newsOrganisationRepository.GetAll().Select(n => n.FileKey),
+                "NewsOrganisations",
+                ctx.AddTask("File-key check: NewsOrganisations", maxValue: 1)));
         }
 
         if (checks.Count > 0)
@@ -309,6 +363,46 @@ public class CosmosDbDownloader(
         await WriteAllParallelAsync(
             personRepository.GetAll(),
             person => WriteJson("person", person.Id.ToString(), person),
+            progress);
+        progress.StopTask();
+    }
+
+    private Task DownloadFilms(ProgressTask progress) =>
+        DownloadFileKeyed(progress, filmRepository, "film", film => film.FileKey);
+
+    private Task DownloadTvShows(ProgressTask progress) =>
+        DownloadFileKeyed(progress, tvShowRepository, "tvshow", show => show.FileKey);
+
+    private Task DownloadNewsOrganisations(ProgressTask progress) =>
+        DownloadFileKeyed(progress, newsOrganisationRepository, "newsorganisation", org => org.FileKey);
+
+    private Task DownloadTvShowEpisodes(ProgressTask progress) =>
+        DownloadFileKeyed(progress, tvShowEpisodeRepository, "tvshowepisode", episode => episode.Id.ToString());
+
+    private Task DownloadNewsReports(ProgressTask progress) =>
+        DownloadFileKeyed(progress, newsReportRepository, "newsreport", report => report.Id.ToString());
+
+    private async Task DownloadFileKeyed<T>(
+        ProgressTask progress,
+        IRepository<T> repository,
+        string folder,
+        Func<T, string> fileKey)
+        where T : notnull
+    {
+        var count = await repository.Count();
+        progress.MaxValue = Math.Max(count, 1);
+        Directory.CreateDirectory(folder);
+
+        if (count == 0)
+        {
+            progress.Increment(1);
+            progress.StopTask();
+            return;
+        }
+
+        await WriteAllParallelAsync(
+            repository.GetAll(),
+            item => WriteJson(folder, fileKey(item), item),
             progress);
         progress.StopTask();
     }
