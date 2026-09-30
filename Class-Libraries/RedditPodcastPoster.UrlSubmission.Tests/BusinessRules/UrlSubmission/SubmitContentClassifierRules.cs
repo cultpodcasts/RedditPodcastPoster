@@ -275,6 +275,66 @@ public class SubmitContentClassifierRules
         iplayerResult.ContentKind.Should().Be(SubmitClassification.Episode);
     }
 
+    [Fact(DisplayName =
+        "A BBC iPlayer episode page path is an iPlayer episode URL, " +
+        "because stored TV identify matches playable episode pages without scrape flags.")]
+    public void bbc_iplayer_episode_page_is_an_iplayer_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var result = SubmitContentClassifier.IsBbcIplayerEpisode(url);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A BBC iPlayer episodes listing path is not an iPlayer episode URL, " +
+        "because /iplayer/episode is a path-segment prefix of /iplayer/episodes.")]
+    public void bbc_iplayer_episodes_listing_is_not_an_iplayer_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episodes/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var result = SubmitContentClassifier.IsBbcIplayerEpisode(url);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A BBC Sounds play URL is not an iPlayer episode URL, " +
+        "because Sounds is audio catalogue, not an iPlayer playable.")]
+    public void bbc_sounds_play_is_not_an_iplayer_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var result = SubmitContentClassifier.IsBbcIplayerEpisode(url);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A BBC news URL is not an iPlayer episode URL, " +
+        "because news is a separate matcher from iPlayer.")]
+    public void bbc_news_is_not_an_iplayer_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+
+        // Act
+        var result = SubmitContentClassifier.IsBbcIplayerEpisode(url);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
     private SubmitClassificationSignals Signals(
         Uri url,
         bool podcastServiceEpisode = false,

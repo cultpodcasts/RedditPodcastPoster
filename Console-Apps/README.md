@@ -270,7 +270,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### CatalogueMigrateIdentify
 
-**Purpose:** Dry-run corpus identify. Scans stored episode service URLs (no scrape). The stored-URL heuristic is BBC `/news/` → News + allowlist (S-008). Film and TV are not discovered here (those flags are not on stored episodes; use `CatalogueMigrate --podcast-id`). YouTube news-station candidates are curator/allowlist, not this scan. Mixed Spotify/Apple/YouTube entertainment URLs plus a stray `/news/` URL stay Episode and need a curator. **`--apply` always exits 2.** Dry-run identify only; no Cosmos or Search writes. Agent run-gate (if writes exist later): [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+**Purpose:** Dry-run corpus identify. URL scan: BBC `/news/` → News + allowlist (S-008). Podcast-level: YouTube-only **four-letter** names with YouTube-only episodes → News + allowlist; **two or more** stored BBC iPlayer episode URLs (no Spotify/Apple ids) → TV, even when some other episodes lack iPlayer. Film is not discovered here (use `CatalogueMigrate --kind Film --podcast-id`). Mixed Spotify plus `/news/` stays Episode and needs a curator. The TV scan reads `episode.Services` only; leftover-only iPlayer in Cosmos `urls.bbc` is not on the typed Episode and needs EpisodeServiceBackfill first. **`--apply` always exits 2.** Dry-run only; agent run-gate: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
 
@@ -281,14 +281,14 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### CatalogueMigrate
 
-**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply will need an allowlist (S-008). Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Dry-run plan only; no Cosmos or Search writes. Agent run-gate (if writes exist later): [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Film and TV require `--podcast-id` because stored identify cannot flag them.
+**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply will need an allowlist (S-008). Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Film requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
 
 | Option | Description |
 |--------|-------------|
 | `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required) |
-| `--podcast-id` | One podcast GUID. Required for Film and TV. Optional for News (scan identify candidates) |
+| `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
 | `--apply` | Always refused (exit 2). Dry-run only; does not write Cosmos |
 
 ### CategorisePodcastEpisodes

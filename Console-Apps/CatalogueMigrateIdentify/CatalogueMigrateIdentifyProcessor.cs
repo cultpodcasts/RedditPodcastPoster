@@ -35,7 +35,7 @@ public class CatalogueMigrateIdentifyProcessor(
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id)
                 .Where(episode => !episode.Removed)
                 .ToListAsync();
-            var suggestion = Identify.FromEpisodes(episodes);
+            var suggestion = Identify.FromPodcast(podcast, episodes);
             if (suggestion.ContentKind == SubmitClassification.Episode)
             {
                 continue;

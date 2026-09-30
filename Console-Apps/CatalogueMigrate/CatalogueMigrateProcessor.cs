@@ -32,12 +32,10 @@ public class CatalogueMigrateProcessor(
             return new CatalogueMigrateRunResult(1, 0, 0);
         }
 
-        if (request.Kind is SubmitClassification.Film or SubmitClassification.TvShowEpisode
-            && request.PodcastId is null)
+        if (request.Kind == SubmitClassification.Film && request.PodcastId is null)
         {
             logger.LogError(
-                "Catalogue migrate --kind {Kind} requires --podcast-id, because stored identify cannot flag Film or TV.",
-                request.Kind);
+                "Catalogue migrate --kind Film requires --podcast-id, because stored identify cannot flag Film.");
             return new CatalogueMigrateRunResult(1, 0, 0);
         }
 
@@ -59,28 +57,28 @@ public class CatalogueMigrateProcessor(
                 .ToListAsync();
 
             var planEpisodes = episodes;
+            var suggestion = Identify.FromPodcast(podcast, episodes);
             if (request.Kind == SubmitClassification.NewsReport)
             {
-                var nonNewsIds = Identify.NonNewsEpisodeIds(episodes);
-                if (nonNewsIds.Count > 0)
-                {
-                    if (nonNewsIds.Count < episodes.Count)
-                    {
-                        logger.LogWarning(
-                            "Catalogue migrate skipped mixed News show {PodcastId}; non-News episode ids: {EpisodeIds}",
-                            podcast.Id,
-                            string.Join(",", nonNewsIds));
-                    }
-
-                    continue;
-                }
-
-                if (Identify.FromEpisodes(episodes).ContentKind != SubmitClassification.NewsReport)
+                if (suggestion.ContentKind != SubmitClassification.NewsReport || suggestion.RequiresCurator)
                 {
                     continue;
                 }
 
-                planEpisodes = episodes.Where(Identify.IsNewsReportEpisode).ToList();
+                planEpisodes = Identify.IsYouTubeOnlyFourLetterNewsStation(podcast, episodes)
+                    ? episodes
+                    : episodes.Where(Identify.IsNewsReportEpisode).ToList();
+                if (planEpisodes.Count == 0)
+                {
+                    continue;
+                }
+            }
+            else if (request.Kind == SubmitClassification.TvShowEpisode && request.PodcastId is null)
+            {
+                if (suggestion.ContentKind != SubmitClassification.TvShowEpisode)
+                {
+                    continue;
+                }
             }
 
             var plan = CatalogueMigrateMover.Plan(podcast, planEpisodes, request.Kind);

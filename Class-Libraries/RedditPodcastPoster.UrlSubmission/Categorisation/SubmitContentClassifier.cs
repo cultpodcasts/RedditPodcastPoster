@@ -106,6 +106,21 @@ public static class SubmitContentClassifier
         return url.AbsolutePath.StartsWith("/news/", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// BBC iPlayer episode pages (not Sounds, not /news/). Used for stored TV identify without scrape.
+    /// </summary>
+    public static bool IsBbcIplayerEpisode(Uri url)
+    {
+        if (!url.IsAbsoluteUri || (!HostIs(url, "bbc.co.uk") && !HostIs(url, "bbc.com")))
+        {
+            return false;
+        }
+
+        var path = url.AbsolutePath;
+        return path.Equals("/iplayer/episode", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/iplayer/episode/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool HostIs(Uri url, string host)
     {
         var value = url.Host;
