@@ -9,7 +9,7 @@ public class CatalogueMigrateRequest
     public string Kind { get; set; } = string.Empty;
 
     [Option("podcast-id", Required = false,
-        HelpText = "Move one podcast. Required for Film and TV. Optional for News (default is identify-scan).")]
+        HelpText = "Move one podcast. Required for Film. Optional for News and TV (default is identify-scan).")]
     public Guid? PodcastId { get; set; }
 
     [Option("apply", Required = false, Default = false,

@@ -182,4 +182,80 @@ public class CatalogueMigrateIdentifyProcessorRules
         // Assert
         result.CandidateCount.Should().Be(1);
     }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a YouTube-only four-letter publisher has a YouTube episode, " +
+        "then dry-run counts one News candidate, because S-008 heuristics apply without BBC news URLs.")]
+    public async Task youtube_only_four_letter_is_a_dry_run_news_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = CreateFourLetterName();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.CandidateCount.Should().Be(1);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when two stored iPlayer episode URLs exist and the publisher has no Spotify or Apple ids, " +
+        "then dry-run counts one TV candidate.")]
+    public async Task two_iplayer_urls_are_a_dry_run_tv_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(first, second);
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.CandidateCount.Should().Be(1);
+    }
+
+    private string CreateFourLetterName()
+    {
+        var seed = _fixture.Create<int>() & int.MaxValue;
+        return string.Create(4, seed, static (span, value) =>
+        {
+            var n = value;
+            for (var i = 0; i < span.Length; i++)
+            {
+                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                n = HashCode.Combine(n, i);
+            }
+        });
+    }
 }

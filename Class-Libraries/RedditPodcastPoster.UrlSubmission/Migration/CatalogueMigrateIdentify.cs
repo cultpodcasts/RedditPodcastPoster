@@ -9,6 +9,8 @@ namespace RedditPodcastPoster.UrlSubmission.Migration;
 /// Apply batches in GATE 5 are still News then Film then TV (S-007).
 /// Mixed classified kinds (News plus Episode/Film/TV) stay Episode and need a curator.
 /// Homogeneous News still requires every classified URL to be News.
+/// Podcast-level dry-run: YouTube-only four-letter names (S-008 heuristic) and multi-episode
+/// BBC iPlayer episode URLs (TV). Film still needs --podcast-id / scrape flags.
 /// </summary>
 public static class CatalogueMigrateIdentify
 {
@@ -62,8 +64,44 @@ public static class CatalogueMigrateIdentify
     }
 
     /// <summary>
+    /// Stored-corpus identify from the publisher row plus episodes, without scraping.
+    /// URL rules run first. YouTube-only four-letter names are News + allowlist (S-008 dry-run).
+    /// Two or more BBC iPlayer episode URLs with no Spotify/Apple publisher ids are TV.
+    /// </summary>
+    public static CatalogueMigrateSuggestion FromPodcast(Podcast podcast, IEnumerable<Episode> episodes)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        ArgumentNullException.ThrowIfNull(episodes);
+        var active = episodes.Where(episode => !episode.Removed).ToList();
+        var fromUrls = FromEpisodes(active);
+        if (fromUrls.ContentKind != SubmitClassification.Episode || fromUrls.RequiresCurator)
+        {
+            return fromUrls;
+        }
+
+        if (IsYouTubeOnlyFourLetterNewsStation(podcast))
+        {
+            return new CatalogueMigrateSuggestion(
+                SubmitClassification.NewsReport,
+                RequiresAllowlist: true,
+                RequiresCurator: false);
+        }
+
+        if (IsStoredIplayerSeries(podcast, active))
+        {
+            return new CatalogueMigrateSuggestion(
+                SubmitClassification.TvShowEpisode,
+                RequiresAllowlist: false,
+                RequiresCurator: false);
+        }
+
+        return fromUrls;
+    }
+
+    /// <summary>
     /// Stored-corpus identify: classify from episode service URLs without scraping.
     /// Film and series flags are not on stored episodes, so those rows stay Episode until GATE 5 movers get curator/scrape signals.
+    /// Prefer <see cref="FromPodcast"/> when the publisher row is available.
     /// </summary>
     public static CatalogueMigrateSuggestion FromEpisodes(IEnumerable<Episode> episodes)
     {
@@ -87,6 +125,40 @@ public static class CatalogueMigrateIdentify
         }
 
         return FromSignals(signals);
+    }
+
+    public static bool IsYouTubeOnlyFourLetterNewsStation(Podcast podcast)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId) || podcast.AppleId is not null)
+        {
+            return false;
+        }
+
+        var name = podcast.Name?.Trim() ?? string.Empty;
+        return name.Length == 4 && name.All(char.IsAsciiLetter);
+    }
+
+    public static bool IsStoredIplayerSeries(Podcast podcast, IReadOnlyList<Episode> episodes)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        ArgumentNullException.ThrowIfNull(episodes);
+        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId) || podcast.AppleId is not null)
+        {
+            return false;
+        }
+
+        if (episodes.Count < 2)
+        {
+            return false;
+        }
+
+        return episodes.All(HasBbcIplayerEpisodeUrl);
     }
 
     /// <summary>
@@ -153,6 +225,17 @@ public static class CatalogueMigrateIdentify
                 link.Url,
                 PodcastServiceEpisode: podcastServiceEpisode);
         }
+    }
+
+    private static bool HasBbcIplayerEpisodeUrl(Episode episode)
+    {
+        if (episode.Services is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        return episode.Services.Values.Any(link =>
+            link?.Url is not null && SubmitContentClassifier.IsBbcIplayerEpisode(link.Url));
     }
 }
 

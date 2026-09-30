@@ -236,4 +236,123 @@ public class CatalogueMigrateIdentifyRules
             .Should()
             .Equal(spotifyEpisode.Id);
     }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name is four ASCII letters is a NewsReport candidate that needs an allowlist, " +
+        "because S-008 dry-run may use call-sign style names without scraping.")]
+    public void youtube_only_four_letter_name_is_a_news_station_candidate()
+    {
+        // Arrange
+        var callSign = CreateFourLetterName();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = callSign;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A four-letter YouTube publisher that also has a Spotify id stays Episode, " +
+        "because the news-station heuristic is YouTube-only.")]
+    public void four_letter_name_with_spotify_is_not_a_news_station()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = CreateFourLetterName();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Two stored BBC iPlayer episode URLs on a publisher with no Spotify or Apple ids are a TvShowEpisode candidate, " +
+        "because a series has more than one playable and iPlayer episode paths are stored without scrape flags.")]
+    public void two_iplayer_episode_urls_are_a_tv_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [first, second]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A single stored BBC iPlayer episode URL is not a TV candidate, " +
+        "because Film is a one-off and identify must not treat one playable as a series.")]
+    public void one_iplayer_episode_url_is_not_a_tv_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            episode,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+    }
+
+    private string CreateFourLetterName()
+    {
+        var seed = Math.Abs(_fixture.Create<int>());
+        return string.Create(4, seed, static (span, value) =>
+        {
+            var n = value;
+            for (var i = 0; i < span.Length; i++)
+            {
+                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                n = HashCode.Combine(n, i);
+            }
+        });
+    }
 }
