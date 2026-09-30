@@ -13,7 +13,7 @@ public class CatalogueMigrateRequest
     public Guid? PodcastId { get; set; }
 
     [Option("apply", Required = false, Default = false,
-        HelpText = "Refused in this Build. GATE 5 is the only apply path.")]
+        HelpText = "Refused (exit 2). Dry-run only; does not write Cosmos. Writes are not implemented.")]
     public bool Apply { get; set; }
 
     [Option("version", HelpText = "Display version information")]

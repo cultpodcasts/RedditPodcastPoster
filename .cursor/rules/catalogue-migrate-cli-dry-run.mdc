@@ -1,0 +1,34 @@
+---
+description: HARD GUARDRAIL — CatalogueMigrate binaries always refuse --apply; named consent is a later run gate only
+alwaysApply: true
+---
+
+# Catalogue migrate CLIs — dry-run; `--apply` always refused
+
+`CatalogueMigrateIdentify` and `CatalogueMigrate` have **two layers**. Naming `--apply` in chat is a **run** gate if writes exist later — it is **not** a trigger to implement Cosmos or Search writes.
+
+GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does not** count as apply consent.
+
+## 1. This code (binaries in this checkout)
+
+- `--apply` **always** exits 2. There is no Cosmos write path and no Azure Search upload.
+- Do **not** treat exit 2 as a bug to “fix” by implementing writes.
+- Do **not** add a write path unless a later PR **explicitly** asks to implement apply.
+
+## 2. Agent run (if writes exist later)
+
+Even after a later PR implements writes, never invoke these CLIs **with `--apply`** unless the user **names** `--apply` (or “apply CatalogueMigrate”, “apply CatalogueMigrateIdentify”) **and** approves production writes **in this conversation**. News still needs an allowlist (S-008).
+
+## Allowed without extra consent
+
+- Code, tests, and docs on a branch
+- **Dry-run only** (omit `--apply`): identify / plan / log. No Cosmos writes. No search upload.
+
+## Forbidden always
+
+- `dotnet run` / published exe / PATH invoke of `CatalogueMigrateIdentify` or `CatalogueMigrate` **with `--apply`**
+- Any other flag or env that would write Cosmos, delete podcast/episode rows, or upload Azure Search for these tools
+
+## Stop
+
+If a migrate CLI is running with `--apply` or any write path, **stop immediately**.

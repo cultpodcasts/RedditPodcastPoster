@@ -28,7 +28,7 @@ public class CatalogueMigrateIdentifyProcessorRules
 
     [Fact(DisplayName =
         "Catalogue migrate identify: when --apply is set, then the tool exits 2 without scanning, " +
-        "because apply is GATE 5 only.")]
+        "because --apply is always refused and writes are not implemented.")]
     public async Task apply_is_refused_without_scanning()
     {
         // Arrange
