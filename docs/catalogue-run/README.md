@@ -4,7 +4,7 @@
 
 | Status | Open this |
 |--------|-----------|
-| **NOW** | [gate-5.md](./gate-5.md) — corpus migrate ops (**locked**; no `--apply` without consent) |
+| **NOW** | [gate-5.md](./gate-5.md) — corpus migrate ops (**locked**; dry-run; `--apply` always exits 2) |
 | Later | — |
 
 Pattern: **Build** (code on `main`) → **GATE** (deploy + ops) → next Build.
@@ -19,5 +19,5 @@ How to deploy Functions: [deployment.md](../deployment.md)
 ```text
   [x] 0 … 5 done
   [x] G4 GATE 4
-  [ ] G5 GATE 5   ← you are here (locked; dry-run only unless consented)
+  [ ] G5 GATE 5   ← you are here (locked; dry-run; --apply exits 2)
 ```

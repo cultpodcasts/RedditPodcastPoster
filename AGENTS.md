@@ -10,7 +10,10 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 
 ## Catalogue migrate CLIs (HARD)
 
-`CatalogueMigrateIdentify` and `CatalogueMigrate` are **dry-run unless the user consents in the current conversation**. Never pass `--apply`. Never write Cosmos or upload Search from these tools without that named consent. GATE 5 / “continue” / deploy is **not** apply consent. Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+1. **This checkout:** `CatalogueMigrateIdentify` and `CatalogueMigrate` **always refuse `--apply` (exit 2)**. They do not write Cosmos or upload Search. Do not implement a write path to “honour” named consent. Exit 2 is intended.
+2. **If writes exist later:** never pass `--apply` unless the user names `--apply` (or “apply CatalogueMigrate…”) **and** production writes **in this conversation**. GATE 5 / “continue” / deploy / merge is **not** that consent. News still needs S-008.
+
+Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
 
 ## Unit tests (HARD)
 

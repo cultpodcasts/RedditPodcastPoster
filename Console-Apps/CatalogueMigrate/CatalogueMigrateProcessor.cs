@@ -20,7 +20,7 @@ public class CatalogueMigrateProcessor(
         if (request.Apply)
         {
             logger.LogError(
-                "Catalogue migrate --apply requires explicit human consent in the current conversation. This tool is dry-run only and does not write Cosmos.");
+                "Catalogue migrate --apply is refused (exit 2). This tool does not write Cosmos or upload Search. Exit 2 is intended.");
             return new CatalogueMigrateRunResult(2, 0, 0);
         }
 
