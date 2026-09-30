@@ -4,9 +4,9 @@
 
 | Status | Open this |
 |--------|-----------|
-| **NOW** | [build-1.md](./build-1.md) — **ready to merge** (#988 + films-refactor) |
-| Next (locked) | gate-1.md — after merge |
-| Later | build-2 … gate-5 — one file at a time when unlocked |
+| **NOW** | [build-5.md](./build-5.md) — corpus migrate tooling |
+| Next (locked) | [gate-5.md](./gate-5.md) — after merge |
+| Later | — |
 
 Pattern: **Build** (code on `main`) → **GATE** (deploy + ops) → next Build.
 
@@ -18,8 +18,8 @@ How to deploy Functions: [deployment.md](../deployment.md)
 ## Tiny map
 
 ```text
-  [x] 0 done
-  [~] 1 Build 1   ← you are here
-  [ ] G1 GATE 1   ← locked
-  [ ] 2 … 5       ← locked
+  [x] 0 … 4 done
+  [x] G4 GATE 4
+  [~] 5 Build 5   ← you are here
+  [ ] G5 GATE 5   ← locked
 ```

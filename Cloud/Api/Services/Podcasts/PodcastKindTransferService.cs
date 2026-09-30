@@ -1,13 +1,13 @@
 using Microsoft.Extensions.Logging;
 using Api.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
 
 namespace Api.Services.Podcasts;
@@ -19,7 +19,7 @@ public class PodcastKindTransferService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
-    IPodcastKindSearchSwap searchSwap,
+    IPlayableSearchDocumentSwap searchSwap,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
     public async Task<PodcastKindTransferResult> TransferAsync(
@@ -225,14 +225,7 @@ public class PodcastKindTransferService(
         string contentKind,
         CancellationToken cancellationToken)
     {
-        var documents = new List<EpisodeSearchRecord>(episodes.Count);
-        foreach (var episode in episodes)
-        {
-            var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
-            record.ContentKind = contentKind;
-            documents.Add(record);
-        }
-
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
         return await searchSwap.UploadAsync(documents, cancellationToken);
     }
 

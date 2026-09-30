@@ -2,13 +2,20 @@ using Azure.Search.Documents;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Search.Models;
 
-namespace Api.Services.Podcasts;
+namespace RedditPodcastPoster.EntitySearchIndexer.Services;
 
-public class PodcastKindSearchSwap(
-    SearchClient searchClient,
-    ILogger<PodcastKindSearchSwap> logger) : IPodcastKindSearchSwap
+public interface IPlayableSearchDocumentSwap
 {
-    public async Task<bool> UploadAsync(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken)
+    Task<bool> UploadAsync(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken);
+}
+
+public class PlayableSearchDocumentSwap(
+    SearchClient searchClient,
+    ILogger<PlayableSearchDocumentSwap> logger) : IPlayableSearchDocumentSwap
+{
+    public async Task<bool> UploadAsync(
+        IReadOnlyList<EpisodeSearchRecord> documents,
+        CancellationToken cancellationToken)
     {
         if (documents.Count == 0)
         {
@@ -34,7 +41,7 @@ public class PodcastKindSearchSwap(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to swap search documents after podcast kind transfer.");
+            logger.LogError(ex, "Failed to swap search documents after catalogue kind migrate.");
             return false;
         }
     }

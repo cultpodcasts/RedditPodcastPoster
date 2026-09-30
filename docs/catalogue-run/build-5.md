@@ -1,6 +1,6 @@
 # Build 5 — Corpus migrate tooling
 
-**Status:** locked — open only after [gate-4.md](./gate-4.md) is done.
+**Status:** open — [gate-4.md](./gate-4.md) is done. Apply still runs in GATE 5 only.
 
 ## Done when
 
@@ -8,10 +8,14 @@ Migrator tooling (+ any bridge-drop code) is **merged to `main`**. Apply runs in
 
 ## Checklist (when unlocked)
 
-- [ ] Candidate identify tools
-- [ ] Migrators News → Film → TV (keep GUIDs)
-- [ ] Search swap helpers
+- [x] Candidate identify tools (`CatalogueMigrateIdentify` console + `FromEpisodes` — stored-URL heuristic is BBC `/news/` → News + allowlist; Film/TV and YouTube news-station are not discovered from stored episodes; mixed entertainment + `/news/` is curator; `--apply` refused)
+- [~] Migrators News → Film → TV (keep GUIDs) — dry-run `CatalogueMigrate` plans only; `--apply` refused
+- [~] Search swap helpers (`CatalogueMigrateSearchDocuments` + `PlayableSearchDocumentSwap`; transfer delegates; dry-run does not upload)
 - [ ] Merged to `main`
+
+## Notes
+
+Dry-run default. `--apply` is GATE 5 and needs an explicit allowlist for News (S-008). Do not write Cosmos from this Build.
 
 ## When Build 5 is done
 

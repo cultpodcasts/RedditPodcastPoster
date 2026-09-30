@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddSearch()
+            .AddScoped<IPlayableSearchDocumentSwap, PlayableSearchDocumentSwap>()
             .AddScoped<IEpisodeSearchIndexerService, EpisodeSearchIndexerService>();
     }
 }
