@@ -13,6 +13,11 @@ public sealed class DownloadContainerSelection
     public const string DiscoveryName = "discovery";
     public const string PushSubscriptionsName = "pushsubscriptions";
     public const string PeopleName = "people";
+    public const string FilmsName = "films";
+    public const string TvShowsName = "tvshows";
+    public const string TvShowEpisodesName = "tvshowepisodes";
+    public const string NewsOrganisationsName = "newsorganisations";
+    public const string NewsReportsName = "newsreports";
 
     public static readonly IReadOnlyList<string> AllNames =
     [
@@ -23,7 +28,12 @@ public sealed class DownloadContainerSelection
         SubjectsName,
         DiscoveryName,
         PushSubscriptionsName,
-        PeopleName
+        PeopleName,
+        FilmsName,
+        TvShowsName,
+        TvShowEpisodesName,
+        NewsOrganisationsName,
+        NewsReportsName
     ];
 
     private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
@@ -49,7 +59,24 @@ public sealed class DownloadContainerSelection
         ["push-subscriptions"] = PushSubscriptionsName,
         ["pushsubscription"] = PushSubscriptionsName,
         [PeopleName] = PeopleName,
-        ["person"] = PeopleName
+        ["person"] = PeopleName,
+        [FilmsName] = FilmsName,
+        ["film"] = FilmsName,
+        [TvShowsName] = TvShowsName,
+        ["tv"] = TvShowsName,
+        ["tvshow"] = TvShowsName,
+        ["tv-show"] = TvShowsName,
+        [TvShowEpisodesName] = TvShowEpisodesName,
+        ["tvshowepisode"] = TvShowEpisodesName,
+        ["tv-show-episodes"] = TvShowEpisodesName,
+        [NewsOrganisationsName] = NewsOrganisationsName,
+        ["news"] = NewsOrganisationsName,
+        ["newsorg"] = NewsOrganisationsName,
+        ["newsorganisation"] = NewsOrganisationsName,
+        ["news-organisation"] = NewsOrganisationsName,
+        [NewsReportsName] = NewsReportsName,
+        ["newsreport"] = NewsReportsName,
+        ["news-reports"] = NewsReportsName
     };
 
     public bool Podcasts { get; private init; }
@@ -60,6 +87,11 @@ public sealed class DownloadContainerSelection
     public bool Discovery { get; private init; }
     public bool PushSubscriptions { get; private init; }
     public bool People { get; private init; }
+    public bool Films { get; private init; }
+    public bool TvShows { get; private init; }
+    public bool TvShowEpisodes { get; private init; }
+    public bool NewsOrganisations { get; private init; }
+    public bool NewsReports { get; private init; }
 
     public IEnumerable<string> EnabledNames
     {
@@ -73,6 +105,11 @@ public sealed class DownloadContainerSelection
             if (Discovery) yield return DiscoveryName;
             if (PushSubscriptions) yield return PushSubscriptionsName;
             if (People) yield return PeopleName;
+            if (Films) yield return FilmsName;
+            if (TvShows) yield return TvShowsName;
+            if (TvShowEpisodes) yield return TvShowEpisodesName;
+            if (NewsOrganisations) yield return NewsOrganisationsName;
+            if (NewsReports) yield return NewsReportsName;
         }
     }
 
@@ -85,7 +122,12 @@ public sealed class DownloadContainerSelection
         Subjects = true,
         Discovery = true,
         PushSubscriptions = true,
-        People = true
+        People = true,
+        Films = true,
+        TvShows = true,
+        TvShowEpisodes = true,
+        NewsOrganisations = true,
+        NewsReports = true
     };
 
     public static DownloadContainerSelection FromRequest(CosmosDbDownloaderRequest request)
@@ -139,7 +181,12 @@ public sealed class DownloadContainerSelection
             Subjects = enabled.Contains(SubjectsName),
             Discovery = enabled.Contains(DiscoveryName),
             PushSubscriptions = enabled.Contains(PushSubscriptionsName),
-            People = enabled.Contains(PeopleName)
+            People = enabled.Contains(PeopleName),
+            Films = enabled.Contains(FilmsName),
+            TvShows = enabled.Contains(TvShowsName),
+            TvShowEpisodes = enabled.Contains(TvShowEpisodesName),
+            NewsOrganisations = enabled.Contains(NewsOrganisationsName),
+            NewsReports = enabled.Contains(NewsReportsName)
         };
     }
 
