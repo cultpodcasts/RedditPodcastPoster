@@ -8,7 +8,7 @@ Migrator tooling (+ any bridge-drop code) is **merged to `main`**. Apply runs in
 
 ## Checklist (when unlocked)
 
-- [x] Candidate identify tools (`CatalogueMigrateIdentify` console + `FromEpisodes` — News allowlist for apply; stored URLs only; `--apply` refused)
+- [x] Candidate identify tools (`CatalogueMigrateIdentify` console + `FromEpisodes` — stored-URL heuristic is BBC `/news/` → News + allowlist; Film/TV and YouTube news-station are not discovered from stored episodes; mixed entertainment + `/news/` is curator; `--apply` refused)
 - [~] Migrators News → Film → TV (keep GUIDs) — dry-run `CatalogueMigrate` plans only; `--apply` refused
 - [~] Search swap helpers (`CatalogueMigrateSearchDocuments` + `PlayableSearchDocumentSwap`; transfer delegates; dry-run does not upload)
 - [ ] Merged to `main`

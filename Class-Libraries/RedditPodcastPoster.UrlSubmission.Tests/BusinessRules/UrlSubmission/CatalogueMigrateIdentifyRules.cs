@@ -33,9 +33,9 @@ public class CatalogueMigrateIdentifyRules
     }
 
     [Fact(DisplayName =
-        "News beats Film when both signals appear, " +
-        "because corpus migrate order is News then Film then TV.")]
-    public void news_wins_over_film_when_both_are_present()
+        "Mixed News and Film signals stay Episode and need a curator, " +
+        "because a News station candidate requires every classified URL to be News.")]
+    public void mixed_news_and_film_signals_are_not_a_news_station()
     {
         // Arrange
         var signals = new[]
@@ -50,14 +50,15 @@ public class CatalogueMigrateIdentifyRules
         var result = CatalogueMigrateIdentify.FromSignals(signals);
 
         // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeTrue();
     }
 
     [Fact(DisplayName =
-        "A series signal beats a made-as-film signal when News is absent, " +
-        "because a miniseries or anthology is a TvShow and never a Film.")]
-    public void series_beats_film_when_news_is_absent()
+        "Mixed series and made-as-film URLs stay Episode and need a curator, " +
+        "because a migrate candidate requires every classified URL to be the same kind.")]
+    public void mixed_series_and_film_signals_are_not_a_tv_station()
     {
         // Arrange
         var signals = new[]
@@ -74,8 +75,9 @@ public class CatalogueMigrateIdentifyRules
         var result = CatalogueMigrateIdentify.FromSignals(signals);
 
         // Assert
-        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
         result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -200,5 +202,38 @@ public class CatalogueMigrateIdentifyRules
         result.ContentKind.Should().Be(SubmitClassification.Episode);
         result.RequiresAllowlist.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A stored Spotify URL plus a BBC news URL on the same podcast stays Episode and needs a curator, " +
+        "because mixed entertainment and News is not a News station candidate.")]
+    public void stored_spotify_plus_bbc_news_is_not_a_news_station()
+    {
+        // Arrange
+        var newsEpisode = _fixture.CreateEpisode();
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var spotifyEpisode = _fixture.CreateEpisode();
+        EpisodeServicePresence.Upsert(
+            spotifyEpisode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromEpisodes([newsEpisode, spotifyEpisode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeTrue();
+        CatalogueMigrateIdentify.IsNewsReportEpisode(newsEpisode).Should().BeTrue();
+        CatalogueMigrateIdentify.IsNewsReportEpisode(spotifyEpisode).Should().BeFalse();
+        CatalogueMigrateIdentify.NonNewsEpisodeIds([newsEpisode, spotifyEpisode])
+            .Should()
+            .Equal(spotifyEpisode.Id);
     }
 }

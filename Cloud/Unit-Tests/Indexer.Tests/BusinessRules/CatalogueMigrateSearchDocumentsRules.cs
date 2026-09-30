@@ -1,6 +1,8 @@
+using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
 
@@ -53,12 +55,14 @@ public class CatalogueMigrateSearchDocumentsRules
 
     [Fact(DisplayName =
         "A Film search-swap document uses the episode id as the search key, sets contentKind Film, " +
-        "and clears seriesName, because Film has no parent.")]
+        "clears seriesName because Film has no parent, caps description at the search size, " +
+        "and omits seriesDescription from JSON.")]
     public void film_swap_uses_episode_id_and_has_no_series()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisode(podcast);
+        episode.Description = new string('a', Constants.DescriptionSize - 10) + " extra words beyond the search cap";
 
         // Act
         var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
@@ -72,6 +76,9 @@ public class CatalogueMigrateSearchDocumentsRules
         documents[0].ContentKind.Should().Be(SearchContentKind.Film);
         documents[0].SeriesName.Should().BeNull();
         documents[0].Title.Should().Be(episode.Title.Trim());
+        documents[0].Description.Should().Be(DescriptionTruncator.TruncateForSearch(episode.Description));
+        documents[0].Description!.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
+        JsonSerializer.Serialize(documents[0]).Should().NotContain("seriesDescription");
     }
 
     [Fact(DisplayName =

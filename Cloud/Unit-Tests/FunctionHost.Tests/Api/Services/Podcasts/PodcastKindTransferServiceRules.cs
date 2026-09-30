@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Podcasts;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
@@ -72,7 +73,7 @@ public class PodcastKindTransferServiceRules
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
             .Returns(Task.CompletedTask);
-        _mocker.GetMock<IPodcastKindSearchSwap>()
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
             .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .Callback<IReadOnlyList<EpisodeSearchRecord>, CancellationToken>(
                 (documents, _) => _uploadedSearchDocuments = documents)

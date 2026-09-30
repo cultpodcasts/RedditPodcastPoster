@@ -270,7 +270,7 @@ RemoveEpisodes restore removed-episodes-log.txt
 
 ### CatalogueMigrateIdentify
 
-**Purpose:** Dry-run corpus identify for Build 5. Scans stored episode service URLs (no scrape). Logs News / Film / TV candidates. `--apply` is refused (exit 2); GATE 5 is the only apply path. News candidates need an allowlist before any apply (S-008).
+**Purpose:** Dry-run corpus identify for Build 5. Scans stored episode service URLs (no scrape). The stored-URL heuristic is BBC `/news/` → News + allowlist (S-008). Film and TV are not discovered here (those flags are not on stored episodes; use `CatalogueMigrate --podcast-id`). YouTube news-station candidates are curator/allowlist, not this scan. Mixed Spotify/Apple/YouTube entertainment URLs plus a stray `/news/` URL stay Episode and need a curator. `--apply` is refused (exit 2); GATE 5 is the only apply path.
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
 

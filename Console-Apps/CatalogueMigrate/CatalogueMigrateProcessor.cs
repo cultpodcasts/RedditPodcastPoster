@@ -58,14 +58,32 @@ public class CatalogueMigrateProcessor(
                 .Where(episode => !episode.Removed)
                 .ToListAsync();
 
-            if (request.PodcastId is null
-                && request.Kind == SubmitClassification.NewsReport
-                && Identify.FromEpisodes(episodes).ContentKind != SubmitClassification.NewsReport)
+            var planEpisodes = episodes;
+            if (request.Kind == SubmitClassification.NewsReport)
             {
-                continue;
+                var nonNewsIds = Identify.NonNewsEpisodeIds(episodes);
+                if (nonNewsIds.Count > 0)
+                {
+                    if (nonNewsIds.Count < episodes.Count)
+                    {
+                        logger.LogWarning(
+                            "Catalogue migrate skipped mixed News show {PodcastId}; non-News episode ids: {EpisodeIds}",
+                            podcast.Id,
+                            string.Join(",", nonNewsIds));
+                    }
+
+                    continue;
+                }
+
+                if (Identify.FromEpisodes(episodes).ContentKind != SubmitClassification.NewsReport)
+                {
+                    continue;
+                }
+
+                planEpisodes = episodes.Where(Identify.IsNewsReportEpisode).ToList();
             }
 
-            var plan = CatalogueMigrateMover.Plan(podcast, episodes, request.Kind);
+            var plan = CatalogueMigrateMover.Plan(podcast, planEpisodes, request.Kind);
             if (!plan.Accepted)
             {
                 logger.LogWarning(
@@ -78,7 +96,7 @@ public class CatalogueMigrateProcessor(
 
             var searchDocuments = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
                 podcast,
-                episodes,
+                planEpisodes,
                 request.Kind);
             plannedCount++;
             searchDocumentCount += searchDocuments.Count;

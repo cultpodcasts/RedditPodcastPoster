@@ -95,6 +95,76 @@ public class CatalogueMigrateProcessorRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when a podcast has a BBC news episode and a Spotify episode, then News dry-run " +
+        "does not increment PlannedCount, because mixed shows are not an accepted station move.")]
+    public async Task mixed_bbc_news_and_spotify_is_not_planned()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var newsEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var spotifyEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            spotifyEpisode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(newsEpisode, spotifyEpisode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.PlannedCount.Should().Be(0);
+        result.SearchDocumentCount.Should().Be(0);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when --podcast-id News is mixed BBC news and Spotify, then dry-run still does not plan, " +
+        "because targeted News does not skip mixed-show identify.")]
+    public async Task podcast_id_news_mixed_is_not_planned()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var newsEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var spotifyEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            spotifyEpisode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(newsEpisode, spotifyEpisode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest
+        {
+            Kind = SubmitClassification.NewsReport,
+            PodcastId = podcast.Id
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.PlannedCount.Should().Be(0);
+        result.SearchDocumentCount.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when Film is given --podcast-id and one episode, then dry-run plans a Film move.")]
     public async Task film_podcast_id_plans_one_off()
     {

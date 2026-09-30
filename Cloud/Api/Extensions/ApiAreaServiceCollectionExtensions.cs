@@ -68,7 +68,6 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<PodcastChangeApplier>()
             .AddScoped<IPodcastGetService, PodcastGetService>()
             .AddScoped<IPodcastUpdateService, PodcastUpdateService>()
-            .AddScoped<IPodcastKindSearchSwap, PodcastKindSearchSwap>()
             .AddScoped<IPodcastKindTransferService, PodcastKindTransferService>()
             .AddScoped<IPodcastIndexService, PodcastIndexService>()
             .AddScoped<IPodcastRenameService, PodcastRenameService>()

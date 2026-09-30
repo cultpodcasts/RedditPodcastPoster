@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Api.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
@@ -18,7 +19,7 @@ public class PodcastKindTransferService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
-    IPodcastKindSearchSwap searchSwap,
+    IPlayableSearchDocumentSwap searchSwap,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
     public async Task<PodcastKindTransferResult> TransferAsync(
