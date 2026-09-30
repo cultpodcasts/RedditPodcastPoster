@@ -2,6 +2,8 @@ namespace CosmosDbDownloader;
 
 /// <summary>
 /// Which Cosmos containers to download. Default is all; use --only or --skip to narrow.
+/// Canonical names, extra aliases, and family aliases come from one catalog so a new
+/// container is added in one place rather than a boolean bag plus parallel maps.
 /// </summary>
 public sealed class DownloadContainerSelection
 {
@@ -19,116 +21,64 @@ public sealed class DownloadContainerSelection
     public const string NewsOrganisationsName = "newsorganisations";
     public const string NewsReportsName = "newsreports";
 
-    public static readonly IReadOnlyList<string> AllNames =
+    /// <summary>One row per Cosmos container. Extra aliases are single-container only.</summary>
+    private static readonly ContainerCatalogEntry[] Catalog =
     [
-        PodcastsName,
-        EpisodesName,
-        LookUpsName,
-        TitleCasingName,
-        SubjectsName,
-        DiscoveryName,
-        PushSubscriptionsName,
-        PeopleName,
-        FilmsName,
-        TvShowsName,
-        TvShowEpisodesName,
-        NewsOrganisationsName,
-        NewsReportsName
+        new(PodcastsName, ["podcast"]),
+        new(EpisodesName, ["episode"]),
+        new(LookUpsName, ["lookup", "look-ups"]),
+        new(TitleCasingName, ["title-casing", "title-casing-rules", "titlecasingrules"]),
+        new(SubjectsName, ["subject"]),
+        new(DiscoveryName, ["discovery-results", "discoveryresults"]),
+        new(PushSubscriptionsName, ["push", "push-subscriptions", "pushsubscription"]),
+        new(PeopleName, ["person"]),
+        new(FilmsName, ["film"]),
+        new(TvShowsName, ["tvshow", "tv-show"]),
+        new(TvShowEpisodesName, ["tvshowepisode", "tv-show-episodes"]),
+        new(NewsOrganisationsName, ["newsorg", "newsorganisation", "news-organisation"]),
+        new(NewsReportsName, ["newsreport", "news-reports"])
     ];
 
-    private static readonly Dictionary<string, IReadOnlyList<string>> Aliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        [PodcastsName] = [PodcastsName],
-        ["podcast"] = [PodcastsName],
-        [EpisodesName] = [EpisodesName],
-        ["episode"] = [EpisodesName],
-        [LookUpsName] = [LookUpsName],
-        ["lookup"] = [LookUpsName],
-        ["look-ups"] = [LookUpsName],
-        [TitleCasingName] = [TitleCasingName],
-        ["title-casing"] = [TitleCasingName],
-        ["title-casing-rules"] = [TitleCasingName],
-        ["titlecasingrules"] = [TitleCasingName],
-        [SubjectsName] = [SubjectsName],
-        ["subject"] = [SubjectsName],
-        [DiscoveryName] = [DiscoveryName],
-        ["discovery-results"] = [DiscoveryName],
-        ["discoveryresults"] = [DiscoveryName],
-        [PushSubscriptionsName] = [PushSubscriptionsName],
-        ["push"] = [PushSubscriptionsName],
-        ["push-subscriptions"] = [PushSubscriptionsName],
-        ["pushsubscription"] = [PushSubscriptionsName],
-        [PeopleName] = [PeopleName],
-        ["person"] = [PeopleName],
-        [FilmsName] = [FilmsName],
-        ["film"] = [FilmsName],
-        [TvShowsName] = [TvShowsName],
-        ["tv"] = [TvShowsName, TvShowEpisodesName],
-        ["tvshow"] = [TvShowsName],
-        ["tv-show"] = [TvShowsName],
-        [TvShowEpisodesName] = [TvShowEpisodesName],
-        ["tvshowepisode"] = [TvShowEpisodesName],
-        ["tv-show-episodes"] = [TvShowEpisodesName],
-        [NewsOrganisationsName] = [NewsOrganisationsName],
-        ["news"] = [NewsOrganisationsName, NewsReportsName],
-        ["newsorg"] = [NewsOrganisationsName],
-        ["newsorganisation"] = [NewsOrganisationsName],
-        ["news-organisation"] = [NewsOrganisationsName],
-        [NewsReportsName] = [NewsReportsName],
-        ["newsreport"] = [NewsReportsName],
-        ["news-reports"] = [NewsReportsName]
-    };
+    /// <summary>Aliases that expand to every container in a product family (parent + playable).</summary>
+    private static readonly (string Alias, IReadOnlyList<string> CanonicalNames)[] FamilyAliases =
+    [
+        ("tv", [TvShowsName, TvShowEpisodesName]),
+        ("news", [NewsOrganisationsName, NewsReportsName])
+    ];
 
-    public bool Podcasts { get; private init; }
-    public bool Episodes { get; private init; }
-    public bool LookUps { get; private init; }
-    public bool TitleCasing { get; private init; }
-    public bool Subjects { get; private init; }
-    public bool Discovery { get; private init; }
-    public bool PushSubscriptions { get; private init; }
-    public bool People { get; private init; }
-    public bool Films { get; private init; }
-    public bool TvShows { get; private init; }
-    public bool TvShowEpisodes { get; private init; }
-    public bool NewsOrganisations { get; private init; }
-    public bool NewsReports { get; private init; }
+    private static readonly Dictionary<string, IReadOnlyList<string>> Aliases = BuildAliases();
 
-    public IEnumerable<string> EnabledNames
+    private readonly HashSet<string> _enabled;
+
+    private DownloadContainerSelection(HashSet<string> enabled)
     {
-        get
-        {
-            if (Podcasts) yield return PodcastsName;
-            if (Episodes) yield return EpisodesName;
-            if (LookUps) yield return LookUpsName;
-            if (TitleCasing) yield return TitleCasingName;
-            if (Subjects) yield return SubjectsName;
-            if (Discovery) yield return DiscoveryName;
-            if (PushSubscriptions) yield return PushSubscriptionsName;
-            if (People) yield return PeopleName;
-            if (Films) yield return FilmsName;
-            if (TvShows) yield return TvShowsName;
-            if (TvShowEpisodes) yield return TvShowEpisodesName;
-            if (NewsOrganisations) yield return NewsOrganisationsName;
-            if (NewsReports) yield return NewsReportsName;
-        }
+        _enabled = enabled;
     }
 
-    public static DownloadContainerSelection All() => new()
-    {
-        Podcasts = true,
-        Episodes = true,
-        LookUps = true,
-        TitleCasing = true,
-        Subjects = true,
-        Discovery = true,
-        PushSubscriptions = true,
-        People = true,
-        Films = true,
-        TvShows = true,
-        TvShowEpisodes = true,
-        NewsOrganisations = true,
-        NewsReports = true
-    };
+    public static readonly IReadOnlyList<string> AllNames =
+        Catalog.Select(entry => entry.CanonicalName).ToArray();
+
+    public bool Podcasts => Includes(PodcastsName);
+    public bool Episodes => Includes(EpisodesName);
+    public bool LookUps => Includes(LookUpsName);
+    public bool TitleCasing => Includes(TitleCasingName);
+    public bool Subjects => Includes(SubjectsName);
+    public bool Discovery => Includes(DiscoveryName);
+    public bool PushSubscriptions => Includes(PushSubscriptionsName);
+    public bool People => Includes(PeopleName);
+    public bool Films => Includes(FilmsName);
+    public bool TvShows => Includes(TvShowsName);
+    public bool TvShowEpisodes => Includes(TvShowEpisodesName);
+    public bool NewsOrganisations => Includes(NewsOrganisationsName);
+    public bool NewsReports => Includes(NewsReportsName);
+
+    public IEnumerable<string> EnabledNames => AllNames.Where(Includes);
+
+    public bool Includes(string canonicalName) =>
+        _enabled.Contains(canonicalName);
+
+    public static DownloadContainerSelection All() =>
+        new(new HashSet<string>(AllNames, StringComparer.OrdinalIgnoreCase));
 
     public static DownloadContainerSelection FromRequest(CosmosDbDownloaderRequest request)
     {
@@ -178,22 +128,28 @@ public sealed class DownloadContainerSelection
                 "No containers selected. Check --only / --skip against: " + string.Join(", ", AllNames));
         }
 
-        return new DownloadContainerSelection
+        return new DownloadContainerSelection(enabled);
+    }
+
+    private static Dictionary<string, IReadOnlyList<string>> BuildAliases()
+    {
+        var aliases = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in Catalog)
         {
-            Podcasts = enabled.Contains(PodcastsName),
-            Episodes = enabled.Contains(EpisodesName),
-            LookUps = enabled.Contains(LookUpsName),
-            TitleCasing = enabled.Contains(TitleCasingName),
-            Subjects = enabled.Contains(SubjectsName),
-            Discovery = enabled.Contains(DiscoveryName),
-            PushSubscriptions = enabled.Contains(PushSubscriptionsName),
-            People = enabled.Contains(PeopleName),
-            Films = enabled.Contains(FilmsName),
-            TvShows = enabled.Contains(TvShowsName),
-            TvShowEpisodes = enabled.Contains(TvShowEpisodesName),
-            NewsOrganisations = enabled.Contains(NewsOrganisationsName),
-            NewsReports = enabled.Contains(NewsReportsName)
-        };
+            IReadOnlyList<string> singleton = [entry.CanonicalName];
+            aliases[entry.CanonicalName] = singleton;
+            foreach (var extra in entry.ExtraAliases)
+            {
+                aliases[extra] = singleton;
+            }
+        }
+
+        foreach (var (alias, canonicalNames) in FamilyAliases)
+        {
+            aliases[alias] = canonicalNames;
+        }
+
+        return aliases;
     }
 
     private static List<string> NormaliseList(IEnumerable<string>? values) =>
@@ -212,4 +168,6 @@ public sealed class DownloadContainerSelection
         throw new InvalidOperationException(
             $"Unknown container '{raw}'. Valid names: {string.Join(", ", AllNames)}.");
     }
+
+    private sealed record ContainerCatalogEntry(string CanonicalName, IReadOnlyList<string> ExtraAliases);
 }

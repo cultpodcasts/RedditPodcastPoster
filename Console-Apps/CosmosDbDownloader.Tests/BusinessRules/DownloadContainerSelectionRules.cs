@@ -129,4 +129,32 @@ public class DownloadContainerSelectionRules
         selection.EnabledNames.Should().NotContain(DownloadContainerSelection.NewsOrganisationsName);
         selection.EnabledNames.Should().NotContain(DownloadContainerSelection.NewsReportsName);
     }
+
+    public static TheoryData<string> CanonicalContainerNames()
+    {
+        var data = new TheoryData<string>();
+        foreach (var name in DownloadContainerSelection.AllNames)
+        {
+            data.Add(name);
+        }
+
+        return data;
+    }
+
+    [Theory(DisplayName =
+        "Cosmos dump: when --only names a canonical container from the catalog, then only that " +
+        "container is selected, because FromRequest is derived from one catalog not a boolean bag.")]
+    [MemberData(nameof(CanonicalContainerNames))]
+    public void only_canonical_name_selects_that_container_alone(string canonicalName)
+    {
+        // Arrange
+        var request = new CosmosDbDownloaderRequest { Only = [canonicalName] };
+
+        // Act
+        var selection = DownloadContainerSelection.FromRequest(request);
+
+        // Assert
+        selection.EnabledNames.Should().Equal(canonicalName);
+        selection.Includes(canonicalName).Should().BeTrue();
+    }
 }
