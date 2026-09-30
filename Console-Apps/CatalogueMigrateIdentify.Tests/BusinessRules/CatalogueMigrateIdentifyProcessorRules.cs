@@ -245,6 +245,30 @@ public class CatalogueMigrateIdentifyProcessorRules
         result.CandidateCount.Should().Be(1);
     }
 
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a four-letter YouTube publisher has no episodes, " +
+        "then dry-run counts no News candidate, because the call-sign heuristic needs YouTube-only playables.")]
+    public async Task four_letter_youtube_publisher_with_no_episodes_is_not_a_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = CreateFourLetterName();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        _podcasts.Seed(podcast);
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.CandidateCount.Should().Be(0);
+    }
+
     private string CreateFourLetterName()
     {
         var seed = _fixture.Create<int>() & int.MaxValue;

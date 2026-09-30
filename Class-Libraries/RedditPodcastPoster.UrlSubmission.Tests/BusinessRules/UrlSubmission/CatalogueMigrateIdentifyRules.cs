@@ -342,6 +342,159 @@ public class CatalogueMigrateIdentifyRules
         result.ContentKind.Should().Be(SubmitClassification.Episode);
     }
 
+    [Fact(DisplayName =
+        "Two stored BBC iPlayer episode URLs plus one episode without iPlayer are still a TvShowEpisode candidate, " +
+        "because series identify counts iPlayer playables rather than requiring every episode to have iPlayer.")]
+    public void two_iplayer_urls_plus_one_without_iplayer_are_a_tv_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        var withoutIplayer = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [first, second, withoutIplayer]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Two stored BBC iPlayer episode URLs on a publisher that also has a Spotify id stay Episode, " +
+        "because publisher Spotify means the show is still a podcast catalogue row.")]
+    public void two_iplayer_urls_with_publisher_spotify_stay_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [first, second]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Two stored BBC iPlayer episode URLs on a publisher that also has an Apple id stay Episode, " +
+        "because publisher Apple means the show is still a podcast catalogue row.")]
+    public void two_iplayer_urls_with_publisher_apple_stay_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = _fixture.CreateAppleId();
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [first, second]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A four-letter YouTube publisher with two stored iPlayer episode URLs is a TvShowEpisode candidate, " +
+        "because a stored iPlayer series is TV and is not YouTube-only news.")]
+    public void four_letter_youtube_publisher_with_two_iplayer_urls_is_tv()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = CreateFourLetterName();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [first, second]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A four-letter YouTube publisher with no active episodes stays Episode, " +
+        "because the news-station heuristic needs YouTube-only playables and must not flag an empty publisher.")]
+    public void four_letter_youtube_publisher_with_no_episodes_stays_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = CreateFourLetterName();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, []);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
     private string CreateFourLetterName()
     {
         var seed = Math.Abs(_fixture.Create<int>());

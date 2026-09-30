@@ -116,7 +116,9 @@ public static class SubmitContentClassifier
             return false;
         }
 
-        return url.AbsolutePath.StartsWith("/iplayer/episode", StringComparison.OrdinalIgnoreCase);
+        var path = url.AbsolutePath;
+        return path.Equals("/iplayer/episode", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/iplayer/episode/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HostIs(Uri url, string host)
