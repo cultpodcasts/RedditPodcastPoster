@@ -55,43 +55,50 @@ public class GetMostRecentByPodcastIdRules
     }
 
     [Fact(DisplayName =
-        "Cosmos EpisodeRepository.GetMostRecentByPodcastId must not ORDER BY the dual-key ternary, because Cosmos error 2206 rejects computed ORDER BY expressions.")]
-    public void Cosmos_most_recent_scans_then_picks_in_process()
+        "EpisodeMostRecent.OfAsync returns null for an empty stream, because a podcast with no episodes has no latest release.")]
+    public async Task Empty_stream_has_no_most_recent()
     {
         // Arrange
-        var source = File.ReadAllText(LocateEpisodeRepositorySource());
-        var start = source.IndexOf("public async Task<Episode?> GetMostRecentByPodcastId", StringComparison.Ordinal);
-        var next = source.IndexOf("public async Task Save(Episode episode)", start, StringComparison.Ordinal);
-        var method = source[start..next];
+        var none = EmptyEpisodeStream();
 
         // Act
-        var ordersByTernary = method.Contains("OrderByDescending", StringComparison.Ordinal);
-        var usesInProcessPick = method.Contains("EpisodeMostRecent.Of", StringComparison.Ordinal);
+        var mostRecent = await EpisodeMostRecent.OfAsync(none);
 
         // Assert
-        ordersByTernary.Should().BeFalse();
-        usesInProcessPick.Should().BeTrue();
+        mostRecent.Should().BeNull();
     }
 
-    private static string LocateEpisodeRepositorySource()
+    [Fact(DisplayName =
+        "EpisodeMostRecent.OfAsync returns the episode with the latest ReleaseUtc from a stream, because Cosmos scans the partition and the winner is folded in process (2206).")]
+    public async Task Stream_picks_latest_ReleaseUtc_without_buffering_requirement()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var older = _fixture.CreateStoredEpisode(podcast, episode =>
+            episode.ReleaseUtc = DomainTestFixture.UtcDaysAgo(10));
+        var newer = _fixture.CreateStoredEpisode(podcast, episode =>
+            episode.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1));
+
+        // Act
+        var mostRecent = await EpisodeMostRecent.OfAsync(EpisodeStream(older, newer));
+
+        // Assert
+        mostRecent.Should().NotBeNull();
+        mostRecent!.Id.Should().Be(newer.Id);
+    }
+
+    private static async IAsyncEnumerable<Episode> EmptyEpisodeStream()
+    {
+        await Task.CompletedTask;
+        yield break;
+    }
+
+    private static async IAsyncEnumerable<Episode> EpisodeStream(params Episode[] episodes)
+    {
+        foreach (var episode in episodes)
         {
-            var candidate = Path.Combine(
-                dir.FullName,
-                "Class-Libraries",
-                "RedditPodcastPoster.Persistence",
-                "Repositories",
-                "EpisodeRepository.cs");
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            dir = dir.Parent;
+            yield return episode;
+            await Task.Yield();
         }
-
-        throw new InvalidOperationException("EpisodeRepository.cs was not found walking up from the test output directory.");
     }
 }
