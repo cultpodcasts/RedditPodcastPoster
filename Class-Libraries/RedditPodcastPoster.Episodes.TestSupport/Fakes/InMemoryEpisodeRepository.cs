@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Models.Services;
 
@@ -81,9 +82,8 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
     {
-        var mostRecent = _episodes.Values
-            .Where(x => x.PodcastId == podcastId)
-            .MaxBy(x => x.ReleaseUtc);
+        var mostRecent = EpisodeMostRecent.Of(
+            _episodes.Values.Where(x => x.PodcastId == podcastId));
         return Task.FromResult(mostRecent is null ? null : Clone(mostRecent));
     }
 

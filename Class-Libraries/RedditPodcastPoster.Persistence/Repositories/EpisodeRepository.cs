@@ -5,6 +5,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
@@ -149,28 +150,13 @@ public class EpisodeRepository(
         }
     }
 
-    public async Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
+    public Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
     {
-        var query = container
-            .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
-            {
-                PartitionKey = ToPartitionKey(podcastId)
-            })
-            .Where(x => x.PodcastId == podcastId)
-            .OrderByDescending(x =>
-                x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback)
-            .Take(1);
-
-        var items = query.ToFeedIterator();
-        while (items.HasMoreResults)
-        {
-            foreach (var item in await items.ReadNextAsync())
-            {
-                return item;
-            }
-        }
-
-        return null;
+        // Cosmos 2206: ORDER BY is only a document path. Dual-key
+        // (IS_DEFINED(releaseSort) ? releaseSort : release) cannot be ordered server-side.
+        // The podcast partition is scanned; ReleaseUtc is set on deserialize from either JSON key.
+        // Fold while streaming so the full partition is not held in memory.
+        return EpisodeMostRecent.OfAsync(GetByPodcastId(podcastId));
     }
 
     public async Task Save(Episode episode)
