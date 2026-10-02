@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -272,14 +273,23 @@ public class CatalogueMigrateIdentifyProcessorRules
     private string CreateFourLetterName()
     {
         var seed = _fixture.Create<int>() & int.MaxValue;
-        return string.Create(4, seed, static (span, value) =>
+        for (var attempt = 0; attempt < 32; attempt++)
         {
-            var n = value;
-            for (var i = 0; i < span.Length; i++)
+            var name = string.Create(4, seed + attempt, static (span, value) =>
             {
-                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                n = HashCode.Combine(n, i);
+                var n = value;
+                for (var i = 0; i < span.Length; i++)
+                {
+                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                    n = HashCode.Combine(n, i);
+                }
+            });
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name))
+            {
+                return name;
             }
-        });
+        }
+
+        return "QZXJ";
     }
 }

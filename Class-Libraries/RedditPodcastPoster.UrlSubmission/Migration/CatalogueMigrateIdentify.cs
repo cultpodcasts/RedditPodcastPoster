@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -10,7 +12,8 @@ namespace RedditPodcastPoster.UrlSubmission.Migration;
 /// Mixed classified kinds (News plus Episode/Film/TV) stay Episode and need a curator.
 /// Homogeneous News still requires every classified URL to be News.
 /// Podcast-level dry-run: two or more stored BBC iPlayer episode URLs (TV, count not All),
-/// then YouTube-only four-letter names with YouTube-only episodes (S-008 heuristic).
+/// curator-named TV programmes (canonical show name, many platform services),
+/// with YouTube-only episodes (S-008 heuristic).
 /// Film still needs --podcast-id / scrape flags.
 /// </summary>
 public static class CatalogueMigrateIdentify
@@ -67,8 +70,15 @@ public static class CatalogueMigrateIdentify
     /// <summary>
     /// Stored-corpus identify from the publisher row plus episodes, without scraping.
     /// URL rules run first. Two or more BBC iPlayer episode URLs with no Spotify/Apple publisher
-    /// ids are TV. YouTube-only four-letter names with YouTube-only active episodes are News +
-    /// allowlist (S-008 dry-run). TV is checked before the call-sign heuristic.
+    /// ids are TV. YouTube-only publishers whose names look like news organisations
+    /// (four-letter call sign, a News word, a newspaper masthead, 24/7, France 24 /
+    /// Jazeera / Euronews, or ABC/NBC/CBS/FOX plus a channel number)
+    /// with YouTube-only active episodes are News + allowlist (S-008 dry-run).
+    /// US stations often brand as ABC7 / FOX 5; newspapers and rolling-news
+    /// channels (Manila Times, ANC 24/7) are not US-only. TV is checked
+    /// before the news-name heuristic: iPlayer series, then curator-named TV
+    /// programmes (canonical show name; episode services hold every platform),
+    /// then news. Curator stay-podcast names (partisan/advocacy/satire) stay Episode.
     /// </summary>
     public static CatalogueMigrateSuggestion FromPodcast(Podcast podcast, IEnumerable<Episode> episodes)
     {
@@ -89,7 +99,15 @@ public static class CatalogueMigrateIdentify
                 RequiresCurator: false);
         }
 
-        if (IsYouTubeOnlyFourLetterNewsStation(podcast, active))
+        if (IsNamedTvShow(podcast, active))
+        {
+            return new CatalogueMigrateSuggestion(
+                SubmitClassification.TvShowEpisode,
+                RequiresAllowlist: false,
+                RequiresCurator: false);
+        }
+
+        if (IsYouTubeOnlyNewsOrganisation(podcast, active))
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.NewsReport,
@@ -129,7 +147,7 @@ public static class CatalogueMigrateIdentify
         return FromSignals(signals);
     }
 
-    public static bool IsYouTubeOnlyFourLetterNewsStation(Podcast podcast, IReadOnlyList<Episode> episodes)
+    public static bool IsYouTubeOnlyNewsOrganisation(Podcast podcast, IReadOnlyList<Episode> episodes)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
@@ -153,9 +171,113 @@ public static class CatalogueMigrateIdentify
             return false;
         }
 
-        var name = podcast.Name?.Trim() ?? string.Empty;
-        return name.Length == 4 && name.All(char.IsAsciiLetter);
+        return LooksLikeNewsOrganisationName(podcast.Name);
     }
+
+    /// <summary>
+    /// Dry-run name heuristic only. Apply still needs S-008. Four-letter call signs
+    /// are one US pattern; many affiliates publish as ABC7, FOX 5, or “… News”.
+    /// Newspapers (Times, Herald, …) and rolling-news names (24/7, France 24)
+    /// are outlets worldwide, not only US TV.
+    /// </summary>
+    public static bool LooksLikeNewsOrganisationName(string? name)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        if (PublisherNameSaysPodcast(trimmed)
+            || PublisherStaysPodcast(trimmed)
+            || PublisherIsTvShow(trimmed))
+        {
+            return false;
+        }
+
+        if (trimmed.Length == 4 && trimmed.All(char.IsAsciiLetter))
+        {
+            return true;
+        }
+
+        return NewsWordInName.IsMatch(trimmed)
+               || UsAffiliateChannelNumber.IsMatch(trimmed)
+               || NewspaperMastheadInName.IsMatch(trimmed)
+               || RoundTheClockNewsInName.IsMatch(trimmed)
+               || InternationalNewsBrandInName.IsMatch(trimmed);
+    }
+
+    private static bool PublisherNameSaysPodcast(string name) =>
+        NameSaysPodcast.IsMatch(name);
+
+    private static bool PublisherStaysPodcast(string name) =>
+        StayPodcastPublisherNames.Contains(name);
+
+    private static bool PublisherIsTvShow(string name) =>
+        CatalogueTvShowCanonicalNames.IsPublisherName(name);
+
+    /// <summary>
+    /// Curator-named TV programmes. Platform ids on the old podcast row do not
+    /// decide kind: a TvShowEpisode canonical page holds many <c>services</c>.
+    /// </summary>
+    public static bool IsNamedTvShow(Podcast podcast, IReadOnlyList<Episode> episodes)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        ArgumentNullException.ThrowIfNull(episodes);
+        if (episodes.Count == 0)
+        {
+            return false;
+        }
+
+        return PublisherIsTvShow(podcast.Name?.Trim() ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Curator: partisan, advocacy, or news-satire publishers stay podcasts even when
+    /// the name looks like a news organisation. News Central TV and BreakThrough News
+    /// are outlets and are not on this list.
+    /// </summary>
+    public static readonly IReadOnlySet<string> StayPodcastPublisherNames =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Crime News AEOR",
+            "Daily Caller News",
+            "NIUS",
+            "MAGNO NEWS",
+            "HW News English",
+            "MintPress News"
+        };
+
+    /// <summary>
+    /// Cosmo publisher names whose items are TV programmes (canonical show names live on
+    /// <see cref="CatalogueTvShowCanonicalNames"/>).
+    /// </summary>
+    public static IEnumerable<string> TvShowPublisherNames =>
+        CatalogueTvShowCanonicalNames.PublisherNames;
+
+    private static readonly Regex NameSaysPodcast = new(
+        @"\bpodcasts?\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex NewsWordInName = new(
+        @"\bnews\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex UsAffiliateChannelNumber = new(
+        @"\b(?:abc|nbc|cbs|fox)\s*-?\s*\d+\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex NewspaperMastheadInName = new(
+        @"(?<!end\s)\btimes\b|\b(?:tribune|herald|gazette|chronicle|inquirer|bulletin|telegraph|guardian|observer|sentinel|examiner|enquirer)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex RoundTheClockNewsInName = new(
+        @"24\s*[/–-]\s*7",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static readonly Regex InternationalNewsBrandInName = new(
+        @"\b(?:jazeera|france\s*24|euronews)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static bool IsStoredIplayerSeries(Podcast podcast, IReadOnlyList<Episode> episodes)
     {
