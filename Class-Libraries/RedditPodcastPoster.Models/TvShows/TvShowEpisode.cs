@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.Models.TvShows;
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.TvShowEpisode)]
-public sealed class TvShowEpisode : Playable
+public sealed class TvShowEpisode : Playable, ITvCanonical
 {
     public TvShowEpisode()
     {
@@ -30,6 +30,18 @@ public sealed class TvShowEpisode : Playable
     [JsonPropertyName("tvShowName")]
     [JsonPropertyOrder(90)]
     public string? TvShowName { get; set; }
+
+    /// <summary>IMDb title page for this episode (homonym disambiguation).</summary>
+    [JsonPropertyName("imdb")]
+    [JsonPropertyOrder(140)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Imdb { get; set; }
+
+    /// <summary>TheTVDB episode page for this playable (homonym disambiguation).</summary>
+    [JsonPropertyName("tvdb")]
+    [JsonPropertyOrder(141)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Tvdb { get; set; }
 
     /// <summary>
     /// Denormalise parent TvShow fields onto this playable (mirrors

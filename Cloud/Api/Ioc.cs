@@ -79,6 +79,8 @@ public static class Ioc
             .AddEpisodeSearchIndexerService()
             .AddApiEpisodes()
             .AddApiPodcasts()
+            .AddApiTvShows()
+            .AddApiFilms()
             .AddApiPeople()
             .AddApiSubjects()
             .AddApiPublic()
