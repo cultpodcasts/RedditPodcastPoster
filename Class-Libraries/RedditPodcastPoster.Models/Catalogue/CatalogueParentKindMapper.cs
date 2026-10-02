@@ -18,12 +18,13 @@ public static class CatalogueParentKindMapper
     public static TvShow ToTvShow(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var show = new TvShow(podcast.Name)
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+        var show = new TvShow(showName)
         {
             Id = podcast.Id
         };
         CopyPublisher(podcast, show);
-        show.FileKey = FileKeyFactory.GetTvShowFileKey(podcast.Name);
+        show.FileKey = FileKeyFactory.GetTvShowFileKey(showName);
         show.ModelType = ModelType.TvShow;
         return show;
     }

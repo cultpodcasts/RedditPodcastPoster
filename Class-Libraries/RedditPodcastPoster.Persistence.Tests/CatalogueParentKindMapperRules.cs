@@ -34,6 +34,28 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
+        "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
+        "because the public hub is the programme, not the channel we found it on.")]
+    public void tv_show_uses_canonical_programme_name()
+    {
+        // Arrange
+        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(publisherName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+
+        // Act
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+
+        // Assert
+        show.Name.Should().Be(showName);
+        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(showName));
+        playable.TvShowName.Should().Be(showName);
+        playable.Services.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
         "Mapping a podcast to a news organisation keeps the podcast id as the news organisation id.")]
     public void news_organisation_keeps_podcast_id()
     {

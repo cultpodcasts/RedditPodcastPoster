@@ -65,7 +65,7 @@ public class CatalogueMigrateProcessor(
                     continue;
                 }
 
-                planEpisodes = Identify.IsYouTubeOnlyFourLetterNewsStation(podcast, episodes)
+                planEpisodes = Identify.IsYouTubeOnlyNewsOrganisation(podcast, episodes)
                     ? episodes
                     : episodes.Where(Identify.IsNewsReportEpisode).ToList();
                 if (planEpisodes.Count == 0)

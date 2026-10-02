@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -263,6 +264,313 @@ public class CatalogueMigrateIdentifyRules
     }
 
     [Fact(DisplayName =
+        "A YouTube-only publisher whose name contains the word News is a NewsReport candidate that needs an allowlist, " +
+        "because many US stations brand as Eyewitness News or 9 News rather than a four-letter call sign.")]
+    public void youtube_only_name_with_news_word_is_a_news_organisation_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} News";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name is a US network plus a channel number is a NewsReport candidate that needs an allowlist, " +
+        "because affiliates often publish as ABC7 or FOX 5 instead of four call letters.")]
+    public void youtube_only_us_affiliate_channel_number_is_a_news_organisation_candidate()
+    {
+        // Arrange
+        var channelNumber = Math.Abs(_fixture.Create<int>()) % 9 + 1;
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"ABC{channelNumber}";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+    }
+
+    public static TheoryData<string> NewspaperMastheadRows() =>
+        ["Times", "Tribune", "Herald", "Gazette", "Chronicle"];
+
+    [Theory(DisplayName =
+        "A YouTube-only publisher whose name contains a newspaper masthead word is a NewsReport candidate that needs an allowlist, " +
+        "because papers such as a city Times or Herald are news organisations worldwide, not only US TV call signs.")]
+    [MemberData(nameof(NewspaperMastheadRows))]
+    public void youtube_only_newspaper_masthead_name_is_a_news_organisation_candidate(string masthead)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} {masthead}";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name uses End Times as prophecy language stays Episode, " +
+        "because that is not a newspaper masthead.")]
+    public void youtube_only_end_times_name_is_not_a_news_organisation()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} End Times";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name includes 24/7 is a NewsReport candidate that needs an allowlist, " +
+        "because rolling-news channels outside the US brand that way rather than with a News word.")]
+    public void youtube_only_round_the_clock_name_is_a_news_organisation_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} 24/7";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name is an international news brand without the word News is a NewsReport candidate that needs an allowlist, " +
+        "because outlets such as France 24 are news organisations worldwide.")]
+    public void youtube_only_international_news_brand_is_a_news_organisation_candidate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"France 24 {_fixture.CreateTitle()}";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name has no News word, newspaper masthead, 24/7 mark, or US affiliate channel number stays Episode, " +
+        "because entertainment YouTube channels must not become NewsOrganisation from the name heuristic.")]
+    public void youtube_only_entertainment_name_is_not_a_news_organisation()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = _fixture.CreateTitle();
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A publisher whose name contains News but also has a Spotify id stays Episode, " +
+        "because the news-organisation heuristic is YouTube-only.")]
+    public void news_word_name_with_spotify_is_not_a_news_organisation()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} News";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    public static TheoryData<string> TvShowPublisherNameRows()
+    {
+        var rows = new TheoryData<string>();
+        foreach (var name in CatalogueTvShowCanonicalNames.PublisherNames)
+        {
+            rows.Add(name);
+        }
+
+        return rows;
+    }
+
+    [Theory(DisplayName =
+        "A publisher whose exact name is a curator TV programme is a TvShowEpisode candidate, " +
+        "because those rows are a TV show, not a news desk, and platform ids do not decide kind.")]
+    [MemberData(nameof(TvShowPublisherNameRows))]
+    public void named_tv_show_publisher_is_a_tv_candidate(string name)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = name;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A curator-named TV programme still identifies as TvShowEpisode when the old podcast row has a Spotify id, " +
+        "because a TV episode page holds many platform services and is not YouTube-only.")]
+    public void named_tv_show_with_spotify_is_still_tv()
+    {
+        // Arrange
+        var name = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = name;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    public static TheoryData<string> StayPodcastPublisherNameRows()
+    {
+        var rows = new TheoryData<string>();
+        foreach (var name in CatalogueMigrateIdentify.StayPodcastPublisherNames)
+        {
+            rows.Add(name);
+        }
+
+        return rows;
+    }
+
+    [Theory(DisplayName =
+        "A YouTube-only publisher whose exact name is on the stay-podcast list stays Episode, " +
+        "because partisan, advocacy, and news-satire rows remain podcasts.")]
+    [MemberData(nameof(StayPodcastPublisherNameRows))]
+    public void stay_podcast_publisher_name_stays_episode(string name)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = name;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A YouTube-only publisher whose name contains News and the word Podcast stays Episode, " +
+        "because a show that calls itself a podcast is still a podcast catalogue row.")]
+    public void youtube_only_news_name_that_says_podcast_stays_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} News Podcast";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "A four-letter YouTube publisher that also has a Spotify id stays Episode, " +
         "because the news-station heuristic is YouTube-only.")]
     public void four_letter_name_with_spotify_is_not_a_news_station()
@@ -498,14 +806,23 @@ public class CatalogueMigrateIdentifyRules
     private string CreateFourLetterName()
     {
         var seed = Math.Abs(_fixture.Create<int>());
-        return string.Create(4, seed, static (span, value) =>
+        for (var attempt = 0; attempt < 8; attempt++)
         {
-            var n = value;
-            for (var i = 0; i < span.Length; i++)
+            var name = string.Create(4, seed + attempt, static (span, value) =>
             {
-                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                n = HashCode.Combine(n, i);
+                var n = value;
+                for (var i = 0; i < span.Length; i++)
+                {
+                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                    n = HashCode.Combine(n, i);
+                }
+            });
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name))
+            {
+                return name;
             }
-        });
+        }
+
+        return "WXYZ";
     }
 }

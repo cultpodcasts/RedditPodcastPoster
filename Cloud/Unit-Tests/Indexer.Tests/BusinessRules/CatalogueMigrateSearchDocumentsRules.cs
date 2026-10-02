@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -50,6 +51,29 @@ public class CatalogueMigrateSearchDocumentsRules
         // Assert
         documents.Should().ContainSingle();
         documents[0].Id.Should().Be(episode.Id.ToString());
+        documents[0].ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
+        documents[0].SeriesName.Should().Be(CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name));
+    }
+
+    [Fact(DisplayName =
+        "A TV search-swap document for a curator programme uses the canonical show name as seriesName, " +
+        "because the public TV page is the show, not the channel the videos were filed under.")]
+    public void tv_swap_uses_canonical_show_name()
+    {
+        // Arrange
+        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        var episode = _fixture.CreateStoredEpisode(podcast);
+
+        // Act
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast,
+            [episode],
+            SearchContentKind.TvShowEpisode);
+
+        // Assert
+        documents.Should().ContainSingle();
+        documents[0].SeriesName.Should().Be(CatalogueTvShowCanonicalNames.ShowNameFor(publisherName));
         documents[0].ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
     }
 

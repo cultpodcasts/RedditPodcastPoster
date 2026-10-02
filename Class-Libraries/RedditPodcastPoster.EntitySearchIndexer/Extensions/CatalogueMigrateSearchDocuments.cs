@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -39,6 +40,10 @@ public static class CatalogueMigrateSearchDocuments
             if (contentKind == SearchContentKind.Film)
             {
                 record.SeriesName = null;
+            }
+            else if (contentKind == SearchContentKind.TvShowEpisode)
+            {
+                record.SeriesName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
             }
 
             documents.Add(record);
