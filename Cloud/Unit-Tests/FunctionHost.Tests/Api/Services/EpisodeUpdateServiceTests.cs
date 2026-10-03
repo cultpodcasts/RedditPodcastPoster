@@ -1,21 +1,20 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using Api.Models;
 using Api.Resolvers;
 using Api.Services.Episodes;
 using Azure.Search.Documents;
 using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
-using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Twitter.Managers;
-using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -24,26 +23,52 @@ namespace FunctionHost.Tests.Api.Services;
 
 public class EpisodeUpdateServiceTests
 {
+    private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private PodcastEpisodeResolverResponse _resolved =
+        new(null, null, PodcastEpisodeResolveState.PodcastNotFound);
+    private Episode? _saved;
+    private string? _uriSeenByRemove;
+    private Func<Task<EntitySearchIndexerResponse>> _index = () =>
+        Task.FromResult(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
+
+    public EpisodeUpdateServiceTests()
+    {
+        _mocker.Use(new EpisodeChangeApplier(NullLogger<EpisodeChangeApplier>.Instance));
+        _mocker.Use(new EpisodeSearchIndexCleanup(
+            CreateUninitializedSearchClient(),
+            NullLogger<EpisodeSearchIndexCleanup>.Instance));
+        _mocker.Use(NullLogger<EpisodeUpdateService>.Instance);
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .ReturnsAsync(() => _resolved);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<Episode>()))
+            .Callback<Episode>(episode => _saved = episode)
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<IEpisodeSearchIndexerService>()
+            .Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
+            .Returns((Podcast _, Episode _, CancellationToken _) => _index());
+    }
+
     [Fact(DisplayName =
         "Plain English rule: when the episode is not found, then return NotFound and do not save, because there is nothing to update.")]
     public async Task update_returns_not_found_and_does_not_save_when_episode_missing()
     {
         // Arrange
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound));
-
-        var episodeRepo = new Mock<IEpisodeRepository>(MockBehavior.Strict);
-        var service = CreateService(resolver.Object, episodeRepo.Object);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(Guid.NewGuid(), Guid.NewGuid(), new EpisodeChangeRequest { Title = "New" }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                _fixture.CreateGuid(),
+                _fixture.CreateGuid(),
+                new EpisodeChangeRequest { Title = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.NotFound);
-        episodeRepo.Verify(r => r.Save(It.IsAny<Episode>()), Times.Never);
+        _saved.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -51,25 +76,21 @@ public class EpisodeUpdateServiceTests
     public async Task update_returns_not_found_and_does_not_save_when_podcast_missing()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
-        var episode = new Episode { Id = episodeId, PodcastId = podcastId, ReleaseUtc = DateTime.UtcNow.AddDays(-30) };
-
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, null, PodcastEpisodeResolveState.Resolved));
-
-        var episodeRepo = new Mock<IEpisodeRepository>(MockBehavior.Strict);
-        var service = CreateService(resolver.Object, episodeRepo.Object);
+        var episode = OldEpisode();
+        _resolved = new PodcastEpisodeResolverResponse(episode, null, PodcastEpisodeResolveState.Resolved);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { Title = "New" }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                episode.PodcastId,
+                episode.Id,
+                new EpisodeChangeRequest { Title = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.NotFound);
-        episodeRepo.Verify(r => r.Save(It.IsAny<Episode>()), Times.Never);
+        _saved.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -77,38 +98,20 @@ public class EpisodeUpdateServiceTests
     public async Task update_happy_path_saves_episode_once()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
-        var episode = new Episode
-        {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Original",
-            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
-        };
-        var podcast = new Podcast { Id = podcastId, Name = "Show" };
-
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(resolver.Object, episodeRepo.Object, indexer: indexer.Object);
+        var (episode, podcast) = ResolvedOldPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { Title = "Updated" }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                podcast.Id,
+                episode.Id,
+                new EpisodeChangeRequest { Title = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
-        episodeRepo.Verify(r => r.Save(episode), Times.Once);
+        _saved.Should().Be(episode);
     }
 
     [Fact(DisplayName =
@@ -116,50 +119,25 @@ public class EpisodeUpdateServiceTests
     public async Task update_without_unsocial_flags_does_not_call_social_managers()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
-        var episode = new Episode
+        var (episode, podcast) = ResolvedOldPair(e =>
         {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Original",
-            Tweeted = true,
-            BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2",
-            Ignored = false,
-            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
-        };
-        var podcast = new Podcast { Id = podcastId, Name = "Show" };
-
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var tweetManager = new Mock<ITweetManager>(MockBehavior.Strict);
-        var blueskyPostManager = new Mock<IBlueskyPostManager>(MockBehavior.Strict);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(
-            resolver.Object,
-            episodeRepo.Object,
-            tweetManager: tweetManager.Object,
-            blueskyPostManager: blueskyPostManager.Object,
-            indexer: indexer.Object);
+            e.Tweeted = true;
+            e.BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+        });
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { Title = "Updated" }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                podcast.Id,
+                episode.Id,
+                new EpisodeChangeRequest { Title = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
-        tweetManager.Verify(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()), Times.Never);
-        blueskyPostManager.Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Never);
+        _mocker.GetMock<ITweetManager>().Verify(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()), Times.Never);
+        _mocker.GetMock<IBlueskyPostManager>().Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -167,54 +145,28 @@ public class EpisodeUpdateServiceTests
     public async Task update_unbluesky_deletes_then_clears_on_success()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
         const string atUri = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
-        var episode = new Episode
-        {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Original",
-            BlueskyPost = atUri,
-            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
-        };
-        var podcast = new Podcast { Id = podcastId, Name = "Show" };
-
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        string? uriSeenByRemove = null;
-        var blueskyPostManager = new Mock<IBlueskyPostManager>(MockBehavior.Strict);
-        blueskyPostManager
+        var (episode, podcast) = ResolvedOldPair(e => e.BlueskyPost = atUri);
+        _mocker.GetMock<IBlueskyPostManager>()
             .Setup(m => m.RemovePost(It.IsAny<PodcastEpisode>()))
-            .Callback<PodcastEpisode>(pe => uriSeenByRemove = pe.Episode.BlueskyPost)
+            .Callback<PodcastEpisode>(pe => _uriSeenByRemove = pe.Episode.BlueskyPost)
             .ReturnsAsync(RemovePostState.Deleted);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(
-            resolver.Object,
-            episodeRepo.Object,
-            blueskyPostManager: blueskyPostManager.Object,
-            indexer: indexer.Object);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { UnBluesky = true }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                podcast.Id,
+                episode.Id,
+                new EpisodeChangeRequest { UnBluesky = true }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
         result.Outcome!.BlueskyPostDeleted.Should().BeTrue();
-        uriSeenByRemove.Should().Be(atUri);
+        _uriSeenByRemove.Should().Be(atUri);
         episode.BlueskyPost.Should().BeNull();
-        blueskyPostManager.Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Once);
+        _mocker.GetMock<IBlueskyPostManager>().Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -222,44 +174,19 @@ public class EpisodeUpdateServiceTests
     public async Task update_unbluesky_keeps_at_uri_when_delete_fails()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
         const string atUri = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
-        var episode = new Episode
-        {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Original",
-            BlueskyPost = atUri,
-            ReleaseUtc = DateTime.UtcNow.AddDays(-30)
-        };
-        var podcast = new Podcast { Id = podcastId, Name = "Show" };
-
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
-
-        var episodeRepo = new Mock<IEpisodeRepository>();
-        episodeRepo.Setup(r => r.Save(It.IsAny<Episode>())).Returns(Task.CompletedTask);
-
-        var blueskyPostManager = new Mock<IBlueskyPostManager>(MockBehavior.Strict);
-        blueskyPostManager
+        var (episode, podcast) = ResolvedOldPair(e => e.BlueskyPost = atUri);
+        _mocker.GetMock<IBlueskyPostManager>()
             .Setup(m => m.RemovePost(It.IsAny<PodcastEpisode>()))
             .ReturnsAsync(RemovePostState.Other);
-
-        var indexer = new Mock<IEpisodeSearchIndexerService>();
-        indexer.Setup(s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
-
-        var service = CreateService(
-            resolver.Object,
-            episodeRepo.Object,
-            blueskyPostManager: blueskyPostManager.Object,
-            indexer: indexer.Object);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
 
         // Act
-        var result = await service.UpdateAsync(
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, new EpisodeChangeRequest { UnBluesky = true }),
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                podcast.Id,
+                episode.Id,
+                new EpisodeChangeRequest { UnBluesky = true }),
             CancellationToken.None);
 
         // Assert
@@ -269,28 +196,44 @@ public class EpisodeUpdateServiceTests
         episode.BlueskyPosted.Should().BeTrue();
     }
 
-    private static EpisodeUpdateService CreateService(
-        IPodcastEpisodeResolver resolver,
-        IEpisodeRepository episodeRepository,
-        ITweetManager? tweetManager = null,
-        IBlueskyPostManager? blueskyPostManager = null,
-        IEpisodeSearchIndexerService? indexer = null)
+    [Fact(DisplayName =
+        "When search indexing throws after Cosmos save, then the update is still Accepted, because a curator guests POST must not 500 after the document is persisted.")]
+    public async Task update_accepted_when_indexer_throws_after_save()
     {
-        return new EpisodeUpdateService(
-            episodeRepository,
-            resolver,
-            new EpisodeChangeApplier(NullLogger<EpisodeChangeApplier>.Instance),
-            new EpisodeSearchIndexCleanup(
-                CreateUninitializedSearchClient(),
-                NullLogger<EpisodeSearchIndexCleanup>.Instance),
-            Mock.Of<IHomepagePublisher>(),
-            tweetManager ?? Mock.Of<ITweetManager>(),
-            blueskyPostManager ?? Mock.Of<IBlueskyPostManager>(),
-            Mock.Of<IShortnerService>(),
-            Mock.Of<RedditPodcastPoster.PodcastServices.Updaters.IImageUpdater>(),
-            indexer ?? Mock.Of<IEpisodeSearchIndexerService>(),
-            NullLogger<EpisodeUpdateService>.Instance);
+        // Arrange
+        var guest = _fixture.CreateTitle();
+        var (episode, podcast) = ResolvedOldPair();
+        _index = () => throw new InvalidOperationException("search unavailable");
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(
+                podcast.Id,
+                episode.Id,
+                new EpisodeChangeRequest { Guests = [guest] }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _saved.Should().Be(episode);
+        episode.Guests.Should().Equal(guest);
     }
+
+    private (Episode Episode, Podcast Podcast) ResolvedOldPair(Action<Episode>? customize = null)
+    {
+        var episode = OldEpisode(customize);
+        var podcast = _fixture.CreatePodcast(p => p.Id = episode.PodcastId);
+        _resolved = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        return (episode, podcast);
+    }
+
+    private Episode OldEpisode(Action<Episode>? customize = null) =>
+        _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = DateTime.UtcNow.AddDays(-30);
+            customize?.Invoke(e);
+        });
 
 #pragma warning disable SYSLIB0050
     private static SearchClient CreateUninitializedSearchClient() =>

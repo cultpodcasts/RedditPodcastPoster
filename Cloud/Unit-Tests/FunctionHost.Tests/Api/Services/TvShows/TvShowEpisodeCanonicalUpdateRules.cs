@@ -20,7 +20,7 @@ public class TvShowEpisodeCanonicalUpdateRules
 
     public TvShowEpisodeCanonicalUpdateRules()
     {
-        _mocker.Use(NullLogger<TvShowEpisodeUpdateService>.Instance);
+        _mocker.Use(NullLogger<TvShowEpisodeService>.Instance);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
             .Callback<TvShowEpisode>(episode => _saved = episode)
@@ -38,7 +38,7 @@ public class TvShowEpisodeCanonicalUpdateRules
             .ReturnsAsync(episode);
         var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
         var tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
-        var sut = _mocker.CreateInstance<TvShowEpisodeUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowEpisodeService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -70,7 +70,7 @@ public class TvShowEpisodeCanonicalUpdateRules
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync(episode);
-        var sut = _mocker.CreateInstance<TvShowEpisodeUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowEpisodeService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -94,7 +94,7 @@ public class TvShowEpisodeCanonicalUpdateRules
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync(episode);
-        var sut = _mocker.CreateInstance<TvShowEpisodeUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowEpisodeService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -122,10 +122,10 @@ public class TvShowEpisodeCanonicalUpdateRules
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync(episode);
-        var getService = _mocker.CreateInstance<TvShowEpisodeGetService>();
+        var sut = _mocker.CreateInstance<TvShowEpisodeService>();
 
         // Act
-        var result = await getService.GetAsync(episode.Id, CancellationToken.None);
+        var result = await sut.GetAsync(episode.Id, CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(TvShowEpisodeGetStatus.Found);

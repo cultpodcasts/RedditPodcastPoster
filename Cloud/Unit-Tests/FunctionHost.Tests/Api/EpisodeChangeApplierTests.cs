@@ -227,6 +227,38 @@ public class EpisodeChangeApplierTests
         state.PublishHomepage.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "Guests-only change on a recent episode does not publish homepage, because homepage JSON has no guests and a full republish was timing curator POSTs into Worker 500s.")]
+    public void apply_guests_only_does_not_publish_homepage_for_recent_episode()
+    {
+        // Arrange
+        var episode = CreateEpisode(e => e.ReleaseUtc = DateTime.UtcNow.AddDays(-1));
+        var sut = CreateSut();
+
+        // Act
+        var guest = _fixture.CreateTitle();
+        var state = sut.Apply(episode, new EpisodeChangeRequest { Guests = [guest] });
+
+        // Assert
+        episode.Guests.Should().Equal(guest);
+        state.PublishHomepage.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Title change on a recent episode still publishes homepage, because title is on the homepage payload.")]
+    public void apply_title_on_recent_episode_still_publishes_homepage()
+    {
+        // Arrange
+        var episode = CreateEpisode(e => e.ReleaseUtc = DateTime.UtcNow.AddDays(-1));
+        var sut = CreateSut();
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest { Title = "Updated title" });
+
+        // Assert
+        state.PublishHomepage.Should().BeTrue();
+    }
+
     [Fact(DisplayName = "Apply does not set PublishHomepage when there is no change at all")]
     public void Apply_does_not_set_publish_homepage_when_no_change()
     {

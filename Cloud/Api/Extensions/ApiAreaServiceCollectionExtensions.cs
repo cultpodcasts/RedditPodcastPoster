@@ -84,19 +84,16 @@ public static class ApiAreaServiceCollectionExtensions
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services
-            .AddScoped<ITvShowGetService, TvShowGetService>()
-            .AddScoped<ITvShowUpdateService, TvShowUpdateService>()
+            .AddScoped<ITvShowService, TvShowService>()
             .AddScoped<IGetTvShowHandler, GetTvShowHandler>()
             .AddScoped<IPostTvShowHandler, PostTvShowHandler>()
-            .AddScoped<ITvShowEpisodeGetService, TvShowEpisodeGetService>()
-            .AddScoped<ITvShowEpisodeUpdateService, TvShowEpisodeUpdateService>()
+            .AddScoped<ITvShowEpisodeService, TvShowEpisodeService>()
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
             .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
-            .AddScoped<IFilmGetService, FilmGetService>()
-            .AddScoped<IFilmUpdateService, FilmUpdateService>()
+            .AddScoped<IFilmService, FilmService>()
             .AddScoped<IGetFilmHandler, GetFilmHandler>()
             .AddScoped<IPostFilmHandler, PostFilmHandler>();
 

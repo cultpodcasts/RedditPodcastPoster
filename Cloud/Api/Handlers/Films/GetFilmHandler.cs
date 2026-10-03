@@ -8,7 +8,7 @@ using Api.Services.Films;
 namespace Api.Handlers.Films;
 
 public class GetFilmHandler(
-    IFilmGetService filmGetService,
+    IFilmService filmService,
     ILogger<GetFilmHandler> logger) : IGetFilmHandler
 {
     public async Task<HttpResponseData> Handle(
@@ -16,7 +16,7 @@ public class GetFilmHandler(
         string identifier,
         CancellationToken c)
     {
-        var result = await filmGetService.GetAsync(identifier, c);
+        var result = await filmService.GetAsync(identifier, c);
 
         return result.Status switch
         {

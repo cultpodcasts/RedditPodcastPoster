@@ -7,7 +7,7 @@ using Api.Services.Films;
 namespace Api.Handlers.Films;
 
 public class PostFilmHandler(
-    IFilmUpdateService filmUpdateService,
+    IFilmService filmService,
     ILogger<PostFilmHandler> logger) : IPostFilmHandler
 {
     public async Task<HttpResponseData> Handle(
@@ -15,7 +15,7 @@ public class PostFilmHandler(
         FilmChangeRequestWrapper request,
         CancellationToken c)
     {
-        var result = await filmUpdateService.UpdateAsync(request, c);
+        var result = await filmService.UpdateAsync(request, c);
 
         return result.Status switch
         {

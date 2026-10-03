@@ -22,8 +22,7 @@ public class TvShowCanonicalUpdateRules
 
     public TvShowCanonicalUpdateRules()
     {
-        _mocker.Use(NullLogger<TvShowUpdateService>.Instance);
-        _mocker.Use(NullLogger<TvShowGetService>.Instance);
+        _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.Save(It.IsAny<TvShow>()))
             .Callback<TvShow>(show => _saved = show)
@@ -44,7 +43,7 @@ public class TvShowCanonicalUpdateRules
             .ReturnsAsync(show);
         var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
         var tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
-        var sut = _mocker.CreateInstance<TvShowUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -76,7 +75,7 @@ public class TvShowCanonicalUpdateRules
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
             .ReturnsAsync(show);
-        var sut = _mocker.CreateInstance<TvShowUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -100,7 +99,7 @@ public class TvShowCanonicalUpdateRules
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
             .ReturnsAsync(show);
-        var sut = _mocker.CreateInstance<TvShowUpdateService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -128,7 +127,7 @@ public class TvShowCanonicalUpdateRules
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
             .ReturnsAsync(show);
-        var sut = _mocker.CreateInstance<TvShowGetService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.GetAsync(show.Id.ToString(), CancellationToken.None);
@@ -147,7 +146,7 @@ public class TvShowCanonicalUpdateRules
         var name = _fixture.CreateTitle();
         var show = new TvShow(name) { Id = _fixture.CreateGuid() };
         _catalogue.Add(show);
-        var sut = _mocker.CreateInstance<TvShowGetService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.GetAsync(Uri.EscapeDataString(name), CancellationToken.None);
@@ -167,7 +166,7 @@ public class TvShowCanonicalUpdateRules
         var second = new TvShow(name) { Id = _fixture.CreateGuid() };
         _catalogue.Add(first);
         _catalogue.Add(second);
-        var sut = _mocker.CreateInstance<TvShowGetService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.GetAsync(name, CancellationToken.None);
@@ -187,7 +186,7 @@ public class TvShowCanonicalUpdateRules
         var second = new TvShow(name.ToUpperInvariant()) { Id = _fixture.CreateGuid() };
         _catalogue.Add(first);
         _catalogue.Add(second);
-        var sut = _mocker.CreateInstance<TvShowGetService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.GetAsync(name, CancellationToken.None);
@@ -202,7 +201,7 @@ public class TvShowCanonicalUpdateRules
     public async Task get_by_name_not_found()
     {
         // Arrange
-        var sut = _mocker.CreateInstance<TvShowGetService>();
+        var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.GetAsync(_fixture.CreateTitle(), CancellationToken.None);

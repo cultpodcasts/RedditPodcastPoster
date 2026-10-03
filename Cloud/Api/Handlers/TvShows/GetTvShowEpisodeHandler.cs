@@ -8,7 +8,7 @@ using Api.Services.TvShows;
 namespace Api.Handlers.TvShows;
 
 public class GetTvShowEpisodeHandler(
-    ITvShowEpisodeGetService tvShowEpisodeGetService,
+    ITvShowEpisodeService tvShowEpisodeService,
     ILogger<GetTvShowEpisodeHandler> logger) : IGetTvShowEpisodeHandler
 {
     public async Task<HttpResponseData> Handle(
@@ -16,7 +16,7 @@ public class GetTvShowEpisodeHandler(
         Guid episodeId,
         CancellationToken c)
     {
-        var result = await tvShowEpisodeGetService.GetAsync(episodeId, c);
+        var result = await tvShowEpisodeService.GetAsync(episodeId, c);
 
         return result.Status switch
         {

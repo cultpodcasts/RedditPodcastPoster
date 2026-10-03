@@ -21,8 +21,7 @@ public class FilmCanonicalUpdateRules
 
     public FilmCanonicalUpdateRules()
     {
-        _mocker.Use(NullLogger<FilmUpdateService>.Instance);
-        _mocker.Use(NullLogger<FilmGetService>.Instance);
+        _mocker.Use(NullLogger<FilmService>.Instance);
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.Save(It.IsAny<Film>()))
             .Callback<Film>(film => _saved = film)
@@ -42,7 +41,7 @@ public class FilmCanonicalUpdateRules
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
         var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-        var sut = _mocker.CreateInstance<FilmUpdateService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -63,7 +62,7 @@ public class FilmCanonicalUpdateRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(filmId))
             .ReturnsAsync((Film?)null);
-        var sut = _mocker.CreateInstance<FilmUpdateService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -91,7 +90,7 @@ public class FilmCanonicalUpdateRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
-        var sut = _mocker.CreateInstance<FilmUpdateService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -117,7 +116,7 @@ public class FilmCanonicalUpdateRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
-        var sut = _mocker.CreateInstance<FilmUpdateService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -138,7 +137,7 @@ public class FilmCanonicalUpdateRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
-        var sut = _mocker.CreateInstance<FilmUpdateService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
@@ -164,7 +163,7 @@ public class FilmCanonicalUpdateRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
-        var sut = _mocker.CreateInstance<FilmGetService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.GetAsync(film.Id.ToString(), CancellationToken.None);
@@ -183,7 +182,7 @@ public class FilmCanonicalUpdateRules
         var name = _fixture.CreateTitle();
         var film = new Film(name) { Id = _fixture.CreateGuid() };
         _catalogue.Add(film);
-        var sut = _mocker.CreateInstance<FilmGetService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.GetAsync(Uri.EscapeDataString(name), CancellationToken.None);
@@ -203,7 +202,7 @@ public class FilmCanonicalUpdateRules
         var second = new Film(name.ToUpperInvariant()) { Id = _fixture.CreateGuid() };
         _catalogue.Add(first);
         _catalogue.Add(second);
-        var sut = _mocker.CreateInstance<FilmGetService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.GetAsync(name, CancellationToken.None);
@@ -218,7 +217,7 @@ public class FilmCanonicalUpdateRules
     public async Task get_by_name_not_found()
     {
         // Arrange
-        var sut = _mocker.CreateInstance<FilmGetService>();
+        var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.GetAsync(_fixture.CreateTitle(), CancellationToken.None);

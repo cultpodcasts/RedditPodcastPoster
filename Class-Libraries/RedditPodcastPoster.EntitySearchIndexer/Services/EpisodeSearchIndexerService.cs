@@ -84,6 +84,13 @@ public class EpisodeSearchIndexerService(
                 episodeId, ex.Status, ex.Message);
             return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to index episode with id '{episodeId}' (non-search exception).",
+                episodeId);
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
+        }
     }
 
     public async Task<EntitySearchIndexerResponse> IndexEpisodes(IEnumerable<Guid> episodeIds, CancellationToken c)
