@@ -1,3 +1,3 @@
 namespace Api.Models;
 
-public record TvShowEpisodeChangeRequestWrapper(Guid EpisodeId, TvShowChangeRequest Change);
+public record TvShowEpisodeChangeRequestWrapper(Guid EpisodeId, TvShowEpisodeChangeRequest Change);

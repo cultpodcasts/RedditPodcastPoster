@@ -4,7 +4,7 @@ namespace Api.Services.TvShows;
 
 public interface ITvShowEpisodeUpdateService
 {
-    Task<TvShowUpdateResult> UpdateAsync(
+    Task<TvShowEpisodeUpdateResult> UpdateAsync(
         TvShowEpisodeChangeRequestWrapper request,
         CancellationToken cancellationToken);
 }

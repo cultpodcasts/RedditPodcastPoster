@@ -32,7 +32,7 @@ public class TvShowEpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshowepisode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
-        [FromBody] TvShowChangeRequest change,
+        [FromBody] TvShowEpisodeChangeRequest change,
         CancellationToken ct) =>
         HandleRequest(
             req,

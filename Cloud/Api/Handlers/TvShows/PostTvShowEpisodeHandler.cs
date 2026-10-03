@@ -19,13 +19,13 @@ public class PostTvShowEpisodeHandler(
 
         return result.Status switch
         {
-            TvShowUpdateStatus.Accepted =>
+            TvShowEpisodeUpdateStatus.Accepted =>
                 ctx.Accepted(),
-            TvShowUpdateStatus.NotFound =>
+            TvShowEpisodeUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.EpisodeId }, c),
-            TvShowUpdateStatus.BadRequest =>
+            TvShowEpisodeUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
-            TvShowUpdateStatus.Failed =>
+            TvShowEpisodeUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update TV-show episode"), c),
             _ => await LogAndFail(ctx, c)
         };

@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Films;
 
@@ -20,14 +21,14 @@ public class FilmGetService(
                     : new FilmGetResult(FilmGetStatus.Found, byId);
             }
 
-            var matches = await filmRepository.GetAllBy(film => film.Name == identifier)
-                .ToArrayAsync(cancellationToken);
-            if (matches.Length == 0)
+            var name = PodcastRouteNameNormalizer.Normalize(identifier);
+            var matches = await PublisherNameAttachLookup.FindByName(filmRepository, name, cancellationToken);
+            if (matches.Count == 0)
             {
                 return new FilmGetResult(FilmGetStatus.NotFound);
             }
 
-            if (matches.Length == 1)
+            if (matches.Count == 1)
             {
                 return new FilmGetResult(FilmGetStatus.Found, matches[0]);
             }

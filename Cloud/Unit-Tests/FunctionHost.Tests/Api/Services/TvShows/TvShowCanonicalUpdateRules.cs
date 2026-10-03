@@ -17,16 +17,20 @@ public class TvShowCanonicalUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly List<TvShow> _catalogue = [];
     private TvShow? _saved;
 
     public TvShowCanonicalUpdateRules()
     {
-        _mocker.Use(_mocker.GetMock<ITvShowRepository>());
         _mocker.Use(NullLogger<TvShowUpdateService>.Instance);
+        _mocker.Use(NullLogger<TvShowGetService>.Instance);
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.Save(It.IsAny<TvShow>()))
             .Callback<TvShow>(show => _saved = show)
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .Returns((Expression<Func<TvShow, bool>> selector) => FilterAsync(_catalogue, selector));
     }
 
     [Fact(DisplayName =
@@ -57,15 +61,17 @@ public class TvShowCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "POST TV show with an empty IMDb string clears the stored URI, because the curator can remove a wrong identity link.")]
+        "POST TV show with an empty IMDb string clears IMDb and leaves TVDB, because omitted JSON is a no-op.")]
     public async Task update_clears_imdb_when_empty_string()
     {
         // Arrange
-        var existing = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var existingImdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var existingTvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
         var show = new TvShow(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = existing
+            Imdb = existingImdb,
+            Tvdb = existingTvdb
         };
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
@@ -82,7 +88,7 @@ public class TvShowCanonicalUpdateRules
         // Assert
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
         _saved!.Imdb.Should().BeNull();
-        _saved.Tvdb.Should().BeNull();
+        _saved.Tvdb.Should().Be(existingTvdb);
     }
 
     [Fact(DisplayName =
@@ -109,6 +115,49 @@ public class TvShowCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
+        "GET TV show by id returns Found with IMDb, because curator UIs resolve a known parent document.")]
+    public async Task get_by_id_returns_imdb()
+    {
+        // Arrange
+        var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var show = new TvShow(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Imdb = imdb
+        };
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(show.Id))
+            .ReturnsAsync(show);
+        var sut = _mocker.CreateInstance<TvShowGetService>();
+
+        // Act
+        var result = await sut.GetAsync(show.Id.ToString(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowGetStatus.Found);
+        result.TvShow.Should().NotBeNull();
+        result.TvShow!.Imdb.Should().Be(imdb);
+    }
+
+    [Fact(DisplayName =
+        "GET TV show by percent-encoded name returns Found, because route segments are decoded without treating plus as space.")]
+    public async Task get_by_name_found_after_route_normalize()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var show = new TvShow(name) { Id = _fixture.CreateGuid() };
+        _catalogue.Add(show);
+        var sut = _mocker.CreateInstance<TvShowGetService>();
+
+        // Act
+        var result = await sut.GetAsync(Uri.EscapeDataString(name), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowGetStatus.Found);
+        result.TvShow!.Id.Should().Be(show.Id);
+    }
+
+    [Fact(DisplayName =
         "GET TV show by name returns Conflict with each matching id when two shows share a display name, because IMDb/TVDB exist to disambiguate.")]
     public async Task get_by_name_conflicts_when_homonyms()
     {
@@ -116,19 +165,51 @@ public class TvShowCanonicalUpdateRules
         var name = _fixture.CreateTitle();
         var first = new TvShow(name) { Id = _fixture.CreateGuid() };
         var second = new TvShow(name) { Id = _fixture.CreateGuid() };
-        _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
-            .Returns(AsAsync(first, second));
-        var getService = new TvShowGetService(
-            _mocker.GetMock<ITvShowRepository>().Object,
-            NullLogger<TvShowGetService>.Instance);
+        _catalogue.Add(first);
+        _catalogue.Add(second);
+        var sut = _mocker.CreateInstance<TvShowGetService>();
 
         // Act
-        var result = await getService.GetAsync(name, CancellationToken.None);
+        var result = await sut.GetAsync(name, CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(TvShowGetStatus.Conflict);
         result.AmbiguousIds.Should().BeEquivalentTo([first.Id, second.Id]);
+    }
+
+    [Fact(DisplayName =
+        "GET TV show by name returns Conflict when two shows differ only by case, because homonyms must not hide behind exact equality.")]
+    public async Task get_by_name_conflicts_when_case_variant_homonyms()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var first = new TvShow(name) { Id = _fixture.CreateGuid() };
+        var second = new TvShow(name.ToUpperInvariant()) { Id = _fixture.CreateGuid() };
+        _catalogue.Add(first);
+        _catalogue.Add(second);
+        var sut = _mocker.CreateInstance<TvShowGetService>();
+
+        // Act
+        var result = await sut.GetAsync(name, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowGetStatus.Conflict);
+        result.AmbiguousIds.Should().BeEquivalentTo([first.Id, second.Id]);
+    }
+
+    [Fact(DisplayName =
+        "GET TV show by name returns NotFound when no publisher matches the decoded name.")]
+    public async Task get_by_name_not_found()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<TvShowGetService>();
+
+        // Act
+        var result = await sut.GetAsync(_fixture.CreateTitle(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowGetStatus.NotFound);
+        result.TvShow.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -142,6 +223,7 @@ public class TvShowCanonicalUpdateRules
         var omitOk = CanonicalUriPatch.TryApply(null, uri => target = uri, out _);
         var afterOmit = target;
         var clearOk = CanonicalUriPatch.TryApply("", uri => target = uri, out _);
+        var afterClear = target;
         var setUrl = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
         var setOk = CanonicalUriPatch.TryApply(setUrl.ToString(), uri => target = uri, out _);
 
@@ -149,14 +231,17 @@ public class TvShowCanonicalUpdateRules
         omitOk.Should().BeTrue();
         afterOmit.Should().NotBeNull();
         clearOk.Should().BeTrue();
-        target.Should().BeNull();
+        afterClear.Should().BeNull();
         setOk.Should().BeTrue();
         target.Should().Be(setUrl);
     }
 
-    private static async IAsyncEnumerable<TvShow> AsAsync(params TvShow[] shows)
+    private static async IAsyncEnumerable<TvShow> FilterAsync(
+        IEnumerable<TvShow> source,
+        Expression<Func<TvShow, bool>> selector)
     {
-        foreach (var show in shows)
+        var predicate = selector.Compile();
+        foreach (var show in source.Where(predicate))
         {
             yield return show;
         }

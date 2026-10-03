@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.TvShows;
 
@@ -20,14 +21,14 @@ public class TvShowGetService(
                     : new TvShowGetResult(TvShowGetStatus.Found, byId);
             }
 
-            var matches = await tvShowRepository.GetAllBy(show => show.Name == identifier)
-                .ToArrayAsync(cancellationToken);
-            if (matches.Length == 0)
+            var name = PodcastRouteNameNormalizer.Normalize(identifier);
+            var matches = await PublisherNameAttachLookup.FindByName(tvShowRepository, name, cancellationToken);
+            if (matches.Count == 0)
             {
                 return new TvShowGetResult(TvShowGetStatus.NotFound);
             }
 
-            if (matches.Length == 1)
+            if (matches.Count == 1)
             {
                 return new TvShowGetResult(TvShowGetStatus.Found, matches[0]);
             }
