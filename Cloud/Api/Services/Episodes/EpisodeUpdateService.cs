@@ -151,34 +151,43 @@ public class EpisodeUpdateService(
                     or RemovePostState.NotFound;
             }
 
-            if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
-                episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
+            try
             {
-                await searchIndexCleanup.DeleteSearchEntry(
-                    podcastEpisodeResolverResponse.Podcast.Name,
-                    episodeChangeRequestWrapper.EpisodeId,
-                    cancellationToken);
-                await shortnerService.Delete(new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
-                    podcastEpisodeResolverResponse.Episode));
-
-                if (changeState.PublishHomepage)
+                if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
+                    episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
                 {
-                    await contentPublisher.PublishHomepage();
+                    await searchIndexCleanup.DeleteSearchEntry(
+                        podcastEpisodeResolverResponse.Podcast.Name,
+                        episodeChangeRequestWrapper.EpisodeId,
+                        cancellationToken);
+                    await shortnerService.Delete(new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                        podcastEpisodeResolverResponse.Episode));
+
+                    if (changeState.PublishHomepage)
+                    {
+                        await contentPublisher.PublishHomepage();
+                    }
+                }
+                else
+                {
+                    var indexTask = episodeSearchIndexerService.IndexEpisode(
+                        podcastEpisodeResolverResponse.Podcast,
+                        podcastEpisodeResolverResponse.Episode,
+                        cancellationToken);
+                    var homepageTask = changeState.PublishHomepage
+                        ? contentPublisher.PublishHomepage()
+                        : Task.CompletedTask;
+
+                    await Task.WhenAll(indexTask, homepageTask);
+
+                    outcome.SearchIndexer = await indexTask;
                 }
             }
-            else
+            catch (Exception ex)
             {
-                var indexTask = episodeSearchIndexerService.IndexEpisode(
-                    podcastEpisodeResolverResponse.Podcast,
-                    podcastEpisodeResolverResponse.Episode,
-                    cancellationToken);
-                var homepageTask = changeState.PublishHomepage
-                    ? contentPublisher.PublishHomepage()
-                    : Task.CompletedTask;
-
-                await Task.WhenAll(indexTask, homepageTask);
-
-                outcome.SearchIndexer = await indexTask;
+                logger.LogError(ex,
+                    "{method}: Cosmos save succeeded for episode-id '{episodeId}' but search-index or homepage publish failed. Returning Accepted so a curator retry is not required.",
+                    nameof(UpdateAsync), episodeChangeRequestWrapper.EpisodeId);
             }
 
             return new EpisodeUpdateResult(EpisodeUpdateStatus.Accepted, outcome);

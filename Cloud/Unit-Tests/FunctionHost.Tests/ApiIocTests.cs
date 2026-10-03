@@ -4,8 +4,10 @@ using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;
 using Api.Handlers.Homepage;
 using Api.Handlers.People;
+using Api.Handlers.Films;
 using Api.Handlers.Podcasts;
 using Api.Handlers.Public;
+using Api.Handlers.TvShows;
 using Api.Handlers.PushSubscriptions;
 using Api.Handlers.SearchIndex;
 using Api.Handlers.Subjects;
@@ -23,6 +25,12 @@ public class ApiIocTests
     [
         [typeof(IGetPodcastHandler)],
         [typeof(IPostPodcastHandler)],
+        [typeof(IGetTvShowHandler)],
+        [typeof(IPostTvShowHandler)],
+        [typeof(IGetTvShowEpisodeHandler)],
+        [typeof(IPostTvShowEpisodeHandler)],
+        [typeof(IGetFilmHandler)],
+        [typeof(IPostFilmHandler)],
         [typeof(IIndexPodcastHandler)],
         [typeof(IRenamePodcastHandler)],
         [typeof(IGetEpisodeHandler)],

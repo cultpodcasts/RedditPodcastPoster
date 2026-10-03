@@ -109,7 +109,7 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "Episode, TvShowEpisode, and NewsReport subclass Playable and implement IMediaProduction, IPlayable, " +
-        "and IPromotable; Film implements IPlayable and IPromotable via Publisher dual-role " +
+        "and IPromotable; Film implements IPlayable, IPromotable, and IFilmCanonical via Publisher dual-role " +
         "but not IMediaProduction or Playable. IsRemoved is on IPlayable and Publisher.")]
     public void Catalogue_playables_use_playable_base_and_capability_interfaces()
     {
@@ -142,6 +142,14 @@ public class CatalogueContentTypeModelRulesTests
         typeof(IPromotable).GetMethod(nameof(IPromotable.ClearBlueskyPostState)).Should().NotBeNull();
         typeof(IPromotable).GetProperty(nameof(IPromotable.BlueskyPosted)).Should().NotBeNull();
         typeof(IPromotable).GetProperty(nameof(IPromotable.HashTag)).Should().NotBeNull();
+
+        typeof(Film).Should().BeAssignableTo<IFilmCanonical>();
+        typeof(TvShow).Should().BeAssignableTo<ITvCanonical>();
+        typeof(TvShowEpisode).Should().BeAssignableTo<ITvCanonical>();
+        typeof(TvShow).Should().NotBeAssignableTo<IFilmCanonical>();
+        typeof(Film).Should().NotBeAssignableTo<ITvCanonical>();
+        typeof(Podcast).Should().NotBeAssignableTo<IFilmCanonical>();
+        typeof(Podcast).Should().NotBeAssignableTo<ITvCanonical>();
 
         new Episode().ModelType.Should().Be(ModelType.Episode);
         new Episode().IsRemoved().Should().BeFalse();
@@ -622,6 +630,65 @@ public class CatalogueContentTypeModelRulesTests
         tvShow.FileKey.Should().Be($"{FileKeyFactory.TvShowPrefix}{slug}");
         newsOrg.FileKey.Should().Be($"{FileKeyFactory.NewsOrganisationPrefix}{slug}");
         slug.Should().NotStartWith("film-");
+    }
+
+    [Fact(DisplayName =
+        "Film stores IMDb on IFilmCanonical; TvShow and TvShowEpisode store IMDb plus TheTVDB on ITvCanonical as Uri fields, " +
+        "because several titles share a display name and those pages are identity, not StreamingService watch keys.")]
+    public void film_tv_show_and_tv_show_episode_store_canonical_authority_uris()
+    {
+        // Arrange
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+        var imdbUrl = new Uri($"https://www.imdb.com/title/tt{_domain.CreateAppleId()}/");
+        var tvdbUrl = new Uri($"https://www.thetvdb.com/series/{_domain.CreateYouTubeId()}");
+        var film = new Film(_domain.CreateTitle()) { Imdb = imdbUrl };
+        var show = new TvShow(_domain.CreateTitle())
+        {
+            Imdb = imdbUrl,
+            Tvdb = tvdbUrl
+        };
+        var episode = new TvShowEpisode(_domain.CreateTitle())
+        {
+            Imdb = imdbUrl,
+            Tvdb = tvdbUrl
+        };
+
+        // Act
+        var filmJson = JsonSerializer.Serialize(film, options);
+        var showJson = JsonSerializer.Serialize(show, options);
+        var episodeJson = JsonSerializer.Serialize(episode, options);
+        var filmRoundTrip = JsonSerializer.Deserialize<Film>(filmJson, options);
+        var showRoundTrip = JsonSerializer.Deserialize<TvShow>(showJson, options);
+        var episodeRoundTrip = JsonSerializer.Deserialize<TvShowEpisode>(episodeJson, options);
+
+        // Assert
+        typeof(IFilmCanonical).GetProperty(nameof(IFilmCanonical.Imdb))!.PropertyType.Should().Be(typeof(Uri));
+        typeof(ITvCanonical).GetProperty(nameof(ITvCanonical.Imdb))!.PropertyType.Should().Be(typeof(Uri));
+        typeof(ITvCanonical).GetProperty(nameof(ITvCanonical.Tvdb))!.PropertyType.Should().Be(typeof(Uri));
+        typeof(IFilmCanonical).GetProperty("Tvdb").Should().BeNull();
+        typeof(Film).GetProperty("Tvdb").Should().BeNull();
+        filmJson.Should().Contain("\"imdb\"");
+        filmJson.Should().NotContain("\"tvdb\"");
+        showJson.Should().Contain("\"imdb\"");
+        showJson.Should().Contain("\"tvdb\"");
+        episodeJson.Should().Contain("\"imdb\"");
+        episodeJson.Should().Contain("\"tvdb\"");
+        filmRoundTrip!.Imdb.Should().Be(imdbUrl);
+        showRoundTrip!.Imdb.Should().Be(imdbUrl);
+        showRoundTrip.Tvdb.Should().Be(tvdbUrl);
+        episodeRoundTrip!.Imdb.Should().Be(imdbUrl);
+        episodeRoundTrip.Tvdb.Should().Be(tvdbUrl);
+        IFilmCanonical asFilm = film;
+        ITvCanonical asShow = show;
+        ITvCanonical asEpisode = episode;
+        asFilm.Imdb.Should().Be(imdbUrl);
+        asShow.Tvdb.Should().Be(tvdbUrl);
+        asEpisode.Imdb.Should().Be(imdbUrl);
+        asEpisode.Tvdb.Should().Be(tvdbUrl);
     }
 
     [Fact(DisplayName =

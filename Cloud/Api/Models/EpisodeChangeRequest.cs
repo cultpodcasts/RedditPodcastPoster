@@ -84,4 +84,24 @@ public class EpisodeChangeRequest
         HashTag != null ||
         Language != null ||
         Guests != null;
+
+    /// <summary>
+    /// Homepage JSON does not include guests, search terms, hash tags, or social un-post flags.
+    /// A guests-only curator POST must not wait on a full homepage republish.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasHomepageAffectingChange =>
+        Title != null ||
+        Description != null ||
+        Posted != null ||
+        Ignored != null ||
+        Removed != null ||
+        Explicit != null ||
+        Release != null ||
+        Duration != null ||
+        Urls != null ||
+        Images != null ||
+        Services != null ||
+        Subjects != null ||
+        Language != null;
 }

@@ -297,7 +297,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             episode.Language = NormaliseEpisodeLanguage(episodeChangeRequest.Language);
         }
 
-        if (episodeChangeRequest.HasChange && inPastWeek)
+        if (episodeChangeRequest.HasHomepageAffectingChange && inPastWeek)
         {
             changeState.PublishHomepage = true;
         }

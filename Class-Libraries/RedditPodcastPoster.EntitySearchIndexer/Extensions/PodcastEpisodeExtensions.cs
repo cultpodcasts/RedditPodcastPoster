@@ -23,7 +23,7 @@ public static class PodcastEpisodeExtensions
         EpisodeServicePresence.NormalizeCatalog(podcastEpisode.Episode);
         var image = SearchEpisodeImage.From(podcastEpisode.Episode);
 
-        var podcastEpisodeDescription = podcastEpisode.Episode.Description.Trim();
+        var podcastEpisodeDescription = podcastEpisode.Episode.Description?.Trim() ?? string.Empty;
         var truncatedDescription = DescriptionTruncator.TruncateForSearch(podcastEpisodeDescription);
         var duration = podcastEpisode.Episode.Length.ToString();
         return new EpisodeSearchRecord
@@ -35,9 +35,9 @@ public static class PodcastEpisodeExtensions
             Duration = duration.EndsWith(".0000000", StringComparison.Ordinal) ? duration[..^8] : duration,
             EpisodeDescription = includeUnifiedPlayableFields ? null : truncatedDescription,
             EpisodeSearchTerms = podcastEpisode.Episode.SearchTerms ?? string.Empty,
-            EpisodeTitle = includeUnifiedPlayableFields ? null : podcastEpisode.Episode.Title.Trim(),
+            EpisodeTitle = includeUnifiedPlayableFields ? null : podcastEpisode.Episode.Title?.Trim(),
             SeriesName = includeUnifiedPlayableFields ? podcastEpisode.Podcast.Name.Trim() : null,
-            Title = includeUnifiedPlayableFields ? podcastEpisode.Episode.Title.Trim() : null,
+            Title = includeUnifiedPlayableFields ? podcastEpisode.Episode.Title?.Trim() ?? string.Empty : null,
             Id = podcastEpisode.Episode.Id.ToString(),
             Image = image.Image,
             InternetArchive = EpisodeServicePresence.TryGetUrl(podcastEpisode.Episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))
@@ -52,7 +52,7 @@ public static class PodcastEpisodeExtensions
             Release = podcastEpisode.Episode.ReleaseUtc,
             Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
             SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
-            Subjects = podcastEpisode.Episode.Subjects.ToArray(),
+            Subjects = podcastEpisode.Episode.Subjects?.ToArray() ?? [],
             YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode))
         };
     }

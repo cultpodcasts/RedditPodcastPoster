@@ -4,6 +4,7 @@ using Api.Dtos.Mapping;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.Episodes;
+using Api.Handlers.Films;
 using Api.Handlers.Homepage;
 using Api.Handlers.People;
 using Api.Handlers.Podcasts;
@@ -14,10 +15,12 @@ using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
 using Api.Handlers.SupportedLanguages;
 using Api.Handlers.TitleCasingRules;
+using Api.Handlers.TvShows;
 using Api.Resolvers;
 using Api.Services.Discovery;
 using Api.Services.DiscoverySchedule;
 using Api.Services.Episodes;
+using Api.Services.Films;
 using Api.Services.Homepage;
 using Api.Services.People;
 using Api.Services.Podcasts;
@@ -28,6 +31,7 @@ using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
 using Api.Services.SupportedLanguages;
 using Api.Services.TitleCasingRules;
+using Api.Services.TvShows;
 
 namespace Api.Extensions;
 
@@ -77,6 +81,21 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IIndexPodcastHandler, IndexPodcastHandler>()
             .AddScoped<IRenamePodcastHandler, RenamePodcastHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>();
+
+    public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
+        services
+            .AddScoped<ITvShowService, TvShowService>()
+            .AddScoped<IGetTvShowHandler, GetTvShowHandler>()
+            .AddScoped<IPostTvShowHandler, PostTvShowHandler>()
+            .AddScoped<ITvShowEpisodeService, TvShowEpisodeService>()
+            .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
+            .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
+
+    public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
+        services
+            .AddScoped<IFilmService, FilmService>()
+            .AddScoped<IGetFilmHandler, GetFilmHandler>()
+            .AddScoped<IPostFilmHandler, PostFilmHandler>();
 
     public static IServiceCollection AddApiPeople(this IServiceCollection services) =>
         services

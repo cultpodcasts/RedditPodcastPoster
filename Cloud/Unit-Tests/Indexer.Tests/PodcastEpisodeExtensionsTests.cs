@@ -166,6 +166,24 @@ public class PodcastEpisodeExtensionsTests
     }
 
     [Fact(DisplayName =
+        "ToEpisodeSearchRecord maps a null episode description to empty text, because Trim on null used to throw during curator reindex.")]
+    public void maps_null_description_without_throwing()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        episode.Description = null!;
+        episode.Subjects = null!;
+
+        // Act
+        var result = new PodcastEpisode(new Podcast { Name = "Series" }, episode)
+            .ToEpisodeSearchRecord();
+
+        // Assert
+        result.Description.Should().BeEmpty();
+        result.Subjects.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "ToEpisodeSearchRecord leaves contentKind, title, seriesName, and description unset " +
         "when unified fields are turned off, and the upload JSON keeps episodeTitle, podcastName, " +
         "and episodeDescription, for an index that still has the old names.")]
