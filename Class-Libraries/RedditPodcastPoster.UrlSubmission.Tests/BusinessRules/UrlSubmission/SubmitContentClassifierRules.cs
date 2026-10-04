@@ -306,6 +306,70 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
+        "A BBC iPlayer episode URL with a scraped series name is a TvShow episode with a parent, " +
+        "and it is not a Sounds play URL, because iPlayer is television catalogue.")]
+    public void bbc_iplayer_episode_with_series_name_is_a_tv_show_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var item = new CategorisedItem(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new ResolvedNonPodcastServiceItem(
+                StreamingService.BbcIplayer,
+                Url: url,
+                Title: _fixture.CreateTitle(),
+                ShowName: _fixture.CreateTitle()),
+            Service.Other);
+
+        // Act
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        signals.Series.Should().BeTrue();
+        SubmitContentClassifier.IsBbcSoundsPlay(url).Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.HasParent.Should().BeTrue();
+        result.Reject.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A BBC Sounds play URL with a scraped series name stays a podcast Episode, " +
+        "because Sounds is audio catalogue and must attach to a podcast rather than mint a TvShow.")]
+    public void bbc_sounds_play_with_series_name_stays_a_podcast_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+        var item = new CategorisedItem(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new ResolvedNonPodcastServiceItem(
+                StreamingService.BbcSounds,
+                Url: url,
+                Title: _fixture.CreateTitle(),
+                ShowName: _fixture.CreateTitle()),
+            Service.Other);
+
+        // Act
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        signals.Series.Should().BeTrue();
+        SubmitContentClassifier.IsBbcSoundsPlay(url).Should().BeTrue();
+        result.Should().BeEquivalentTo(SubmitClassification.PodcastEpisode());
+    }
+
+    [Fact(DisplayName =
         "A BBC Sounds play URL is not an iPlayer episode URL, " +
         "because Sounds is audio catalogue, not an iPlayer playable.")]
     public void bbc_sounds_play_is_not_an_iplayer_episode()

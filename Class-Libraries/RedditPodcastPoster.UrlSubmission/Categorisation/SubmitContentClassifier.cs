@@ -1,3 +1,4 @@
+using RedditPodcastPoster.BBC.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -41,6 +42,11 @@ public static class SubmitContentClassifier
                 HasParent: true,
                 Reject: false,
                 RequiresCurator: false);
+        }
+
+        if (IsBbcSoundsPlay(signals.Url))
+        {
+            return SubmitClassification.PodcastEpisode();
         }
 
         if (signals.Series)
@@ -105,6 +111,12 @@ public static class SubmitContentClassifier
 
         return url.AbsolutePath.StartsWith("/news/", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// BBC Sounds play pages are audio catalogue. A scraped series name must not
+    /// file them as TvShow episodes when the curator is attaching to a podcast.
+    /// </summary>
+    public static bool IsBbcSoundsPlay(Uri url) => BBCUrlMatcher.IsSoundsPlayUrl(url);
 
     /// <summary>
     /// BBC iPlayer episode pages (not Sounds, not /news/). Used for stored TV identify without scrape.
