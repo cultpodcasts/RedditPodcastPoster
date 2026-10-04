@@ -24,6 +24,7 @@ public static class CatalogueParentKindMapper
             Id = podcast.Id
         };
         CopyPublisher(podcast, show);
+        show.Name = showName;
         show.FileKey = FileKeyFactory.GetTvShowFileKey(showName);
         show.ModelType = ModelType.TvShow;
         return show;
