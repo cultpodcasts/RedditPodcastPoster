@@ -61,13 +61,6 @@ public class CatalogueKindSubmitter(
             return AlreadyExists(SubmitClassification.Episode, existingEpisode.Id);
         }
 
-        // Curator attached this URL to an existing podcast (id or unique name). Stay on the podcast path
-        // so extra-service match can enrich that series instead of minting a TvShow/Film/News sibling.
-        if (categorisedItem.MatchingPodcast != null)
-        {
-            return null;
-        }
-
         if (!submitOptions.PersistToDatabase)
         {
             return new SubmitResult(

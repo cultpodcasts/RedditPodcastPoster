@@ -498,24 +498,117 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
-        "When submit already resolved a matching podcast, a series-classified URL does not mint a TvShow, " +
-        "because the curator is attaching an extra listen URL to that podcast.")]
-    public async Task matching_podcast_does_not_mint_a_tv_show()
+        "When an iPlayer episode URL has a scraped series name and no matching podcast, " +
+        "submit writes a TvShow and TvShowEpisode, because iPlayer is television catalogue.")]
+    public async Task iplayer_series_without_a_matching_podcast_writes_a_tv_show()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var series = _fixture.CreateTitle();
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.BbcIplayer,
+            Url: url,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: series);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(url));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        _shows.Should().ContainSingle();
+        _shows[0].Name.Should().Be(series);
+        _episodes.Should().ContainSingle();
+        _episodes[0].TvShowId.Should().Be(_shows[0].Id);
+        _films.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit already resolved a matching podcast, a film URL still writes a Film, " +
+        "because a unique podcast name must not swallow a standalone film.")]
+    public async Task matching_podcast_still_writes_a_film()
     {
         // Arrange
         UseEnabledFlag();
         var podcast = _fixture.CreatePodcast();
-        var source = Source(_fixture.CreateTitle());
+        var source = FilmSource(TubiMovieUrl());
         var item = new CategorisedItem(podcast, null, null, null, null, null, source, Service.Other);
         var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
 
         // Act
-        var result = await sut.TrySubmit(item, TvOptions(source.Url));
+        var result = await sut.TrySubmit(item, FilmOptions(source.Url));
+
+        // Assert
+        result!.ContentKind.Should().Be(SubmitClassification.Film);
+        result.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _films.Should().ContainSingle();
+        _films[0].Name.Should().Be(source.Title);
+        _shows.Should().BeEmpty();
+        _episodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit already resolved a matching podcast, a news URL still writes a NewsReport, " +
+        "because a unique podcast name must not swallow news.")]
+    public async Task matching_podcast_still_writes_a_news_report()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var podcast = _fixture.CreatePodcast();
+        var outlet = _fixture.CreateTitle();
+        var source = OutletSource(TubiMovieUrl(), outlet);
+        var item = new CategorisedItem(podcast, null, null, null, null, null, source, Service.Other);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(item, NewsOptions(source.Url!));
+
+        // Assert
+        result!.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _organisations.Should().ContainSingle();
+        _reports.Should().ContainSingle();
+        _films.Should().BeEmpty();
+        _shows.Should().BeEmpty();
+        _episodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit already resolved a matching podcast, a BBC Sounds play URL with a series name " +
+        "returns to the podcast path and writes no TvShow, because Sounds is audio catalogue.")]
+    public async Task sounds_with_a_matching_podcast_does_not_mint_a_tv_show()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var podcast = _fixture.CreatePodcast();
+        var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.BbcSounds,
+            Url: url,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: _fixture.CreateTitle());
+        var item = new CategorisedItem(podcast, null, null, null, null, null, source, Service.Other);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(
+            item,
+            new SubmitOptions(
+                null,
+                MatchOtherServices: false,
+                PersistToDatabase: true,
+                ClassificationSignals: SubmitContentClassifier.FromSubmission(url, item)));
 
         // Assert
         result.Should().BeNull();
         _shows.Should().BeEmpty();
         _episodes.Should().BeEmpty();
+        _films.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
