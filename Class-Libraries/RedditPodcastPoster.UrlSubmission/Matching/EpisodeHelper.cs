@@ -29,9 +29,14 @@ public class EpisodeHelper : IEpisodeHelper
                                categorisedItem.ResolvedYouTubeItem.EpisodeId) ||
                               categorisedItem.ResolvedYouTubeItem == null;
         var alreadyCategorised = spotifyResolved && appleResolved && youTubeResolved;
-        // BBC Sounds / other streaming has no Spotify/Apple/YouTube resolved item, so the
-        // three-platform check is vacuously true. Still match by title or existing service URL.
-        if (alreadyCategorised && categorisedItem.Authority != Service.Other)
+        var hasPodcastServiceItem =
+            categorisedItem.ResolvedSpotifyItem != null ||
+            categorisedItem.ResolvedAppleItem != null ||
+            categorisedItem.ResolvedYouTubeItem != null;
+        // A Sounds/IA/other submit has no Spotify/Apple/YouTube resolved item, so the
+        // three-platform check is vacuously true. Only early-return when a podcast-service
+        // item is present and already assigned to a different identity.
+        if (hasPodcastServiceItem && alreadyCategorised)
         {
             return false;
         }
@@ -54,9 +59,16 @@ public class EpisodeHelper : IEpisodeHelper
             return true;
         }
 
-        if (MatchesResolvedNonPodcastUrl(episode, categorisedItem.ResolvedNonPodcastServiceItem))
+        var nonPodcastUrlMatch =
+            ClassifyResolvedNonPodcastUrl(episode, categorisedItem.ResolvedNonPodcastServiceItem);
+        if (nonPodcastUrlMatch == true)
         {
             return true;
+        }
+
+        if (nonPodcastUrlMatch == false)
+        {
+            return false;
         }
 
         var episodeTitle = WebUtility.HtmlDecode(episode.Title.Trim());
@@ -109,31 +121,28 @@ public class EpisodeHelper : IEpisodeHelper
         return true;
     }
 
-    private static bool MatchesResolvedNonPodcastUrl(Episode episode, ResolvedNonPodcastServiceItem? item)
+    /// <summary>
+    /// <see langword="true"/> same streaming-service URL; <see langword="false"/> same key,
+    /// different URL (conflict — do not title-match); <see langword="null"/> no keyed URL to compare.
+    /// </summary>
+    private static bool? ClassifyResolvedNonPodcastUrl(Episode episode, ResolvedNonPodcastServiceItem? item)
     {
-        if (item?.Url is null || episode.Services is not { Count: > 0 })
+        if (item?.Url is null)
         {
-            return false;
+            return null;
         }
 
-        foreach (var link in episode.Services.Values)
+        var existing = EpisodeServicePresence.TryGetUrl(episode, item.StreamingService);
+        if (existing is null)
         {
-            if (link.Url is null)
-            {
-                continue;
-            }
-
-            if (Uri.Compare(
-                    link.Url,
-                    item.Url,
-                    UriComponents.Scheme | UriComponents.Host | UriComponents.Path,
-                    UriFormat.Unescaped,
-                    StringComparison.OrdinalIgnoreCase) == 0)
-            {
-                return true;
-            }
+            return null;
         }
 
-        return false;
+        return Uri.Compare(
+                   existing,
+                   item.Url,
+                   UriComponents.Scheme | UriComponents.Host | UriComponents.Path,
+                   UriFormat.Unescaped,
+                   StringComparison.OrdinalIgnoreCase) == 0;
     }
 }

@@ -40,7 +40,7 @@ public class PodcastProcessor(
                         categorisedItem.ResolvedYouTubeItem?.EpisodeTitle ??
                         categorisedItem.ResolvedNonPodcastServiceItem?.Title;
             matchingEpisode = string.IsNullOrWhiteSpace(title)
-                ? matchingEpisodes.First()
+                ? null
                 : FuzzyMatcher.Match(title, matchingEpisodes, x => x.Title);
         }
         else
