@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Matching;
+using RedditPodcastPoster.Text.Matchers;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -55,8 +56,28 @@ public class NonPodcastEpisodeMatchingRules
     }
 
     [Fact(DisplayName =
-        "When a BBC Sounds URL is submitted against a podcast episode with a different title and no Sounds URL, " +
-        "the stored episode does not match.")]
+        "When a BBC Sounds title is a one-character typo of the stored Spotify episode title, " +
+        "the stored episode matches using the same 95 fuzzy threshold as YouTube against Spotify and Apple.")]
+    public void bbc_sounds_submit_matches_spotify_episode_on_typo_title()
+    {
+        // Arrange
+        var storedTitle = _fixture.CreateShortTitle();
+        var submittedTitle = DomainTestFixture.CreateTypoTitleVariant(storedTitle);
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, title: storedTitle);
+        var categorisedItem = OtherSubmit(
+            podcast, [episode], submittedTitle, StreamingService.BbcSounds, SoundsPlayUrl());
+
+        // Act
+        var result = Sut.IsMatchingEpisode(episode, categorisedItem);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a BBC Sounds URL is submitted against a podcast episode whose title is neither a substring " +
+        "nor a 95-or-better fuzzy match, and the episode has no Sounds URL, the stored episode does not match.")]
     public void bbc_sounds_submit_does_not_match_unrelated_title()
     {
         // Arrange
@@ -143,18 +164,23 @@ public class NonPodcastEpisodeMatchingRules
         {
             stored = _fixture.CreateTitle();
             submitted = _fixture.CreateTitle();
-        } while (TitlesCouldSubstringMatch(stored, submitted));
+        } while (TitlesCouldMatch(stored, submitted));
 
         return (stored, submitted);
     }
 
-    private static bool TitlesCouldSubstringMatch(string stored, string submitted)
+    private static bool TitlesCouldMatch(string stored, string submitted)
     {
         var episodeTitle = WebUtility.HtmlDecode(stored.Trim());
         var resolvedTitle = WebUtility.HtmlDecode(submitted.Trim());
-        return resolvedTitle == episodeTitle ||
-               resolvedTitle.Contains(episodeTitle) ||
-               episodeTitle.Contains(resolvedTitle);
+        if (resolvedTitle == episodeTitle ||
+            resolvedTitle.Contains(episodeTitle) ||
+            episodeTitle.Contains(resolvedTitle))
+        {
+            return true;
+        }
+
+        return FuzzyMatcher.IsMatch(resolvedTitle, episodeTitle, e => e, 95);
     }
 
     private CategorisedItem OtherSubmit(
