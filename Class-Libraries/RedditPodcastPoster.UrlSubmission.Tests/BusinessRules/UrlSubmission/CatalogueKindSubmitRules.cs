@@ -498,6 +498,27 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When submit already resolved a matching podcast, a series-classified URL does not mint a TvShow, " +
+        "because the curator is attaching an extra listen URL to that podcast.")]
+    public async Task matching_podcast_does_not_mint_a_tv_show()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var podcast = _fixture.CreatePodcast();
+        var source = Source(_fixture.CreateTitle());
+        var item = new CategorisedItem(podcast, null, null, null, null, null, source, Service.Other);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(item, TvOptions(source.Url));
+
+        // Assert
+        result.Should().BeNull();
+        _shows.Should().BeEmpty();
+        _episodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When a podcast Episode already stores the canonical service URL, a film or series submit " +
         "with the content-type flag on returns that Episode and writes no Film, TvShow, or NewsReport.")]
     public async Task stored_episode_blocks_a_catalogue_sibling()

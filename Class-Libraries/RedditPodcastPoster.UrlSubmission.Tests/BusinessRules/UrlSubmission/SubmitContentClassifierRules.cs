@@ -306,6 +306,37 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
+        "A BBC Sounds play URL with a scraped series name stays a podcast Episode, " +
+        "because Sounds is audio catalogue and must attach to a podcast rather than mint a TvShow.")]
+    public void bbc_sounds_play_with_series_name_stays_a_podcast_episode()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+        var item = new CategorisedItem(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new ResolvedNonPodcastServiceItem(
+                StreamingService.BbcSounds,
+                Url: url,
+                Title: _fixture.CreateTitle(),
+                ShowName: _fixture.CreateTitle()),
+            Service.Other);
+
+        // Act
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        signals.Series.Should().BeTrue();
+        SubmitContentClassifier.IsBbcSoundsPlay(url).Should().BeTrue();
+        result.Should().BeEquivalentTo(SubmitClassification.PodcastEpisode());
+    }
+
+    [Fact(DisplayName =
         "A BBC Sounds play URL is not an iPlayer episode URL, " +
         "because Sounds is audio catalogue, not an iPlayer playable.")]
     public void bbc_sounds_play_is_not_an_iplayer_episode()

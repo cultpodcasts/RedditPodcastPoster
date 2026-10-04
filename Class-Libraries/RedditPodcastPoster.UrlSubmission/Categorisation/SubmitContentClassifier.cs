@@ -43,6 +43,11 @@ public static class SubmitContentClassifier
                 RequiresCurator: false);
         }
 
+        if (IsBbcSoundsPlay(signals.Url))
+        {
+            return SubmitClassification.PodcastEpisode();
+        }
+
         if (signals.Series)
         {
             return new SubmitClassification(
@@ -104,6 +109,20 @@ public static class SubmitContentClassifier
         }
 
         return url.AbsolutePath.StartsWith("/news/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// BBC Sounds play pages are audio catalogue. A scraped series name must not
+    /// file them as TvShow episodes when the curator is attaching to a podcast.
+    /// </summary>
+    public static bool IsBbcSoundsPlay(Uri url)
+    {
+        if (!url.IsAbsoluteUri || (!HostIs(url, "bbc.co.uk") && !HostIs(url, "bbc.com")))
+        {
+            return false;
+        }
+
+        return url.AbsolutePath.StartsWith("/sounds/play/", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
