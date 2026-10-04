@@ -53,6 +53,7 @@ public static class HostFactory
         logging.AddFilter("System", LogLevel.Warning);
         logging.AddFilter("Function", LogLevel.Warning);
         logging.AddFilter("Host", LogLevel.Warning);
+        logging.AddFilter("Host.Results", LogLevel.Error);
         logging.AddFilter("Azure", LogLevel.Warning);
         logging.AddFilter("RedditPodcastPoster", LogLevel.Warning);
         logging.AddFilter("Indexer", LogLevel.Information);
@@ -66,7 +67,7 @@ public static class HostFactory
     {
         options.TracesPerSecond = null;
         options.SamplingRatio = ResolveTraceSamplingRatio(configuration);
-        options.EnableTraceBasedLogsSampler = true;
+        options.EnableTraceBasedLogsSampler = AzureMonitorExporterPolicy.EnableTraceBasedLogsSampler;
     }
 
     private static float ResolveTraceSamplingRatio(IConfiguration configuration)

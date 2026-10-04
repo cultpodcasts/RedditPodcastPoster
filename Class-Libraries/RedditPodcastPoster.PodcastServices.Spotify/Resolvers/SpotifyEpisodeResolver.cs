@@ -41,7 +41,12 @@ public class SpotifyEpisodeResolver(
             fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
             if (fullEpisode != null)
             {
-                return new FindEpisodeResponse(TakeIfFree(fullEpisode, market));
+                if (!fullEpisode.IsSpotifyFree())
+                {
+                    SpotifyNonPlayableSkipLogger.Log(logger, fullEpisode, market);
+                }
+
+                return new FindEpisodeResponse(fullEpisode);
             }
         }
 
