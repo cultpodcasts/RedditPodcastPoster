@@ -37,8 +37,11 @@ public class PodcastProcessor(
         {
             var title = categorisedItem.ResolvedAppleItem?.EpisodeTitle ??
                         categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ??
-                        categorisedItem.ResolvedYouTubeItem?.EpisodeTitle;
-            matchingEpisode = FuzzyMatcher.Match(title!, matchingEpisodes, x => x.Title);
+                        categorisedItem.ResolvedYouTubeItem?.EpisodeTitle ??
+                        categorisedItem.ResolvedNonPodcastServiceItem?.Title;
+            matchingEpisode = string.IsNullOrWhiteSpace(title)
+                ? matchingEpisodes.First()
+                : FuzzyMatcher.Match(title, matchingEpisodes, x => x.Title);
         }
         else
         {
