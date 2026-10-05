@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -86,9 +87,9 @@ public sealed class TmdbClient(
             throw new InvalidOperationException("TMDB ApiKey is not configured.");
         }
 
-        var separator = path.Contains('?', StringComparison.Ordinal) ? "&" : "?";
-        var requestPath = $"{path}{separator}api_key={Uri.EscapeDataString(_options.ApiKey)}";
-        using var response = await httpClient.GetAsync(requestPath, cancellationToken).ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
@@ -130,7 +131,9 @@ public sealed class TmdbClient(
             imdbId,
             tvdbId,
             imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
-            tvdbId is null ? null : CatalogueCanonicalId.TvdbPage(tvdbId.Value, kind),
+            kind == TmdbTitleKind.Movie || tvdbId is null
+                ? null
+                : CatalogueCanonicalId.TvdbPage(tvdbId.Value, kind),
             canonical);
     }
 

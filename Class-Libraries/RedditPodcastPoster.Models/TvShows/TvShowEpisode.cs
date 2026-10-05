@@ -43,12 +43,6 @@ public sealed class TvShowEpisode : Playable, ITvCanonical
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Tvdb { get; set; }
 
-    /// <summary>TMDB episode id. Omitted when unknown.</summary>
-    [JsonPropertyName("tmdbId")]
-    [JsonPropertyOrder(142)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? TmdbId { get; set; }
-
     /// <summary>
     /// Denormalise parent TvShow fields onto this playable (mirrors
     /// <c>Episode.SetPodcastProperties</c>). First flag = projection fields;

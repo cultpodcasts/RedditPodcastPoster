@@ -100,7 +100,7 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Imdb { get; set; }
 
-    /// <summary>TMDB movie id. Omitted when unknown.</summary>
+    /// <summary>TMDB id for this film. Omitted when unknown.</summary>
     [JsonPropertyName("tmdbId")]
     [JsonPropertyOrder(142)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

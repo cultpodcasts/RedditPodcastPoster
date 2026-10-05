@@ -89,8 +89,9 @@ public class TmdbClientRules
         var movieId = CreateTmdbId();
         var name = _fixture.CreateTitle();
         var imdbId = "tt" + _fixture.CreateAppleId();
+        var tvdbId = _fixture.CreateAppleId();
         var year = DomainTestFixture.UtcToday.Year;
-        _handler.Enqueue(HttpStatusCode.OK, DetailsJson(movieId, name, imdbId, tvdbId: null, year, movie: true));
+        _handler.Enqueue(HttpStatusCode.OK, DetailsJson(movieId, name, imdbId, tvdbId, year, movie: true));
         var sut = _mocker.CreateInstance<TmdbClient>();
 
         // Act
@@ -103,6 +104,55 @@ public class TmdbClientRules
         title.Canonical!.Source.Should().Be(CatalogueCanonicalSource.Imdb);
         title.Canonical.Url.Should().Be(new Uri($"https://www.imdb.com/title/{imdbId}/"));
         title.TvdbUrl.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A movie with no IMDb id has a null canonical and a null TvdbUrl, because a film must not get a TheTVDB page.")]
+    public async Task movie_without_imdb_has_null_canonical_and_null_tvdb_url()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var name = _fixture.CreateTitle();
+        var tvdbId = _fixture.CreateAppleId();
+        _handler.Enqueue(HttpStatusCode.OK, DetailsJson(movieId, name, imdbId: null, tvdbId, year: DomainTestFixture.UtcToday.Year, movie: true));
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var title = await sut.GetMovieAsync(movieId);
+
+        // Assert
+        title.Should().NotBeNull();
+        title!.Kind.Should().Be(TmdbTitleKind.Movie);
+        title.ImdbId.Should().BeNull();
+        title.ImdbUrl.Should().BeNull();
+        title.Canonical.Should().BeNull();
+        title.TvdbUrl.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A successful TMDB call sends the read access token on Authorization Bearer and does not put the key on the request URI.")]
+    public async Task successful_call_sends_bearer_token_and_omits_key_from_uri()
+    {
+        // Arrange
+        var seriesId = CreateTmdbId();
+        var name = _fixture.CreateTitle();
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        _handler.Enqueue(HttpStatusCode.OK, DetailsJson(seriesId, name, imdbId, tvdbId: null, year: DomainTestFixture.UtcToday.Year));
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var title = await sut.GetTvSeriesAsync(seriesId);
+
+        // Assert
+        title.Should().NotBeNull();
+        _handler.Requests.Should().ContainSingle();
+        var request = _handler.Requests[0];
+        request.Headers.Authorization.Should().NotBeNull();
+        request.Headers.Authorization!.Scheme.Should().Be("Bearer");
+        request.Headers.Authorization.Parameter.Should().Be(_options.ApiKey);
+        request.RequestUri.Should().NotBeNull();
+        request.RequestUri!.OriginalString.Should().NotContain(_options.ApiKey);
+        request.RequestUri.Query.Should().NotContain("api_key");
     }
 
     [Fact(DisplayName =

@@ -2,8 +2,8 @@
 # Mirrors the tmdb var in functions.bicep (core settings, all three apps).
 # The running app reads the literal app setting. It does not call Key Vault.
 #
-# Prerequisite: Key Vault secret Tmdb-ApiKey (the TMDB v3 API key).
-#   az keyvault secret set --vault-name cultpodcasts-deployment --name Tmdb-ApiKey --value '<key>'
+# Prerequisite: Key Vault secret Tmdb-ApiKey (the TMDB API Read Access Token, not a v3 query key).
+#   az keyvault secret set --vault-name cultpodcasts-deployment --name Tmdb-ApiKey --value '<token>'
 #   .\scripts\apply-tmdb-settings.ps1
 
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -28,7 +28,7 @@ if (-not $account) {
 
 $apiKey = az keyvault secret show --vault-name $KeyVaultName --name 'Tmdb-ApiKey' --query value -o tsv 2>$null
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($apiKey)) {
-    throw "Key Vault secret '$KeyVaultName/Tmdb-ApiKey' is missing. Create a TMDB v3 API key, then: az keyvault secret set --vault-name $KeyVaultName --name Tmdb-ApiKey --value '<key>'"
+    throw "Key Vault secret '$KeyVaultName/Tmdb-ApiKey' is missing. Store the TMDB API Read Access Token (not a v3 query key), then: az keyvault secret set --vault-name $KeyVaultName --name Tmdb-ApiKey --value '<token>'"
 }
 
 Write-Host "Azure subscription: $account"

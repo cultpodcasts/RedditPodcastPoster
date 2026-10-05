@@ -58,6 +58,7 @@ param spotifyClientSecret string
 param taddyApiKey string
 @secure()
 param taddyUserId string
+@description('TMDB API Read Access Token sent as Authorization Bearer. Not a v3 query key. Key Vault secret Tmdb-ApiKey.')
 @secure()
 param tmdbApiKey string
 @secure()

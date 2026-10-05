@@ -18,7 +18,4 @@ public class TvShowEpisodeDto
 
     [JsonPropertyName("tvdb")]
     public Uri? Tvdb { get; set; }
-
-    [JsonPropertyName("tmdbId")]
-    public int? TmdbId { get; set; }
 }

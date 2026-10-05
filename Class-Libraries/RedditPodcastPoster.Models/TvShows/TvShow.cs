@@ -31,7 +31,10 @@ public sealed class TvShow : Publisher, ITvCanonical
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Tvdb { get; set; }
 
-    /// <summary>TMDB television id. Omitted when unknown.</summary>
+    /// <summary>
+    /// TMDB series id for GetTvSeriesAsync. Omitted when unknown.
+    /// Not a page URL, and not shared with episodes.
+    /// </summary>
     [JsonPropertyName("tmdbId")]
     [JsonPropertyOrder(142)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

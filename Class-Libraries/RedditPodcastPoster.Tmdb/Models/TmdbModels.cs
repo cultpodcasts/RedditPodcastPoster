@@ -18,7 +18,8 @@ public enum CatalogueCanonicalSource
 
 /// <summary>
 /// The identity link for a film, series, or episode. An IMDb title id wins.
-/// A TheTVDB id is used only when TMDB has no IMDb title id.
+/// A TheTVDB id is used only for a series or episode when TMDB has no IMDb title id.
+/// A film never uses a TheTVDB page.
 /// </summary>
 public sealed partial record CatalogueCanonicalId(string Id, CatalogueCanonicalSource Source, Uri Url)
 {
@@ -29,28 +30,31 @@ public sealed partial record CatalogueCanonicalId(string Id, CatalogueCanonicalS
             return new CatalogueCanonicalId(imdbId, CatalogueCanonicalSource.Imdb, ImdbPage(imdbId));
         }
 
-        if (tvdbId is > 0)
+        if (kind == TmdbTitleKind.Movie || tvdbId is not > 0)
         {
-            var id = tvdbId.Value.ToString(CultureInfo.InvariantCulture);
-            return new CatalogueCanonicalId(id, CatalogueCanonicalSource.Tvdb, TvdbPage(tvdbId.Value, kind));
+            return null;
         }
 
-        return null;
+        var id = tvdbId.Value.ToString(CultureInfo.InvariantCulture);
+        return new CatalogueCanonicalId(id, CatalogueCanonicalSource.Tvdb, TvdbPage(tvdbId.Value, kind));
     }
 
     public static Uri ImdbPage(string imdbId) => new($"https://www.imdb.com/title/{imdbId}/");
 
     /// <summary>
-    /// TheTVDB numeric redirect. TMDB stores the id, not the slug.
+    /// TheTVDB numeric redirect for a series or episode. TMDB stores the id, not the slug.
+    /// Films do not use this page.
     /// </summary>
     public static Uri TvdbPage(long tvdbId, TmdbTitleKind kind)
     {
         var page = kind switch
         {
-            TmdbTitleKind.Movie => "movie",
             TmdbTitleKind.TvSeries => "series",
             TmdbTitleKind.TvEpisode => "episode",
-            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(kind),
+                kind,
+                "TheTVDB pages are for series and episodes.")
         };
         return new Uri($"https://www.thetvdb.com/dereferrer/{page}/{tvdbId.ToString(CultureInfo.InvariantCulture)}");
     }
@@ -64,7 +68,8 @@ public sealed record TmdbSearchHit(int Id, string Name, TmdbTitleKind Kind, int?
 
 /// <summary>
 /// A TMDB movie, series, or episode with both external ids when TMDB has them.
-/// <see cref="Canonical"/> is the IMDb title when present, otherwise the TheTVDB id.
+/// <see cref="Canonical"/> is the IMDb title when present. For a series or episode
+/// with no IMDb title id, it is the TheTVDB id. A film has no TheTVDB canonical.
 /// </summary>
 public sealed record TmdbTitle(
     int Id,
