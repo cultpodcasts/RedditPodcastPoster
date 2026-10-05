@@ -148,7 +148,9 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "auth0client:Domain": "xxxx.auth0.com",
   "auth0client:Audience": "https://xxxx",
   "auth0client:ClientId": "xxxx",
-  "auth0client:ClientSecret": "xxxx"
+  "auth0client:ClientSecret": "xxxx",
+
+  "tmdb:ApiKey": "xxxx"
 }
 ```
 

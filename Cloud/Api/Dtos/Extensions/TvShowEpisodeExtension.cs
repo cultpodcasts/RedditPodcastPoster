@@ -12,7 +12,8 @@ public static class TvShowEpisodeExtension
             TvShowId = episode.TvShowId,
             Title = episode.Title,
             Imdb = episode.Imdb,
-            Tvdb = episode.Tvdb
+            Tvdb = episode.Tvdb,
+            TmdbId = episode.TmdbId
         };
     }
 }

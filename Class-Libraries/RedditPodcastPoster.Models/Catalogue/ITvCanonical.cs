@@ -10,4 +10,7 @@ public interface ITvCanonical
     Uri? Imdb { get; set; }
 
     Uri? Tvdb { get; set; }
+
+    /// <summary>TMDB id used to refresh <see cref="Imdb"/> and <see cref="Tvdb"/>. Not a page URL.</summary>
+    int? TmdbId { get; set; }
 }

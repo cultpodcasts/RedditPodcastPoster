@@ -30,4 +30,10 @@ public sealed class TvShow : Publisher, ITvCanonical
     [JsonPropertyOrder(141)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Tvdb { get; set; }
+
+    /// <summary>TMDB television id. Omitted when unknown.</summary>
+    [JsonPropertyName("tmdbId")]
+    [JsonPropertyOrder(142)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? TmdbId { get; set; }
 }

@@ -59,6 +59,8 @@ param taddyApiKey string
 @secure()
 param taddyUserId string
 @secure()
+param tmdbApiKey string
+@secure()
 param textanalyticsApiKey string
 @secure()
 param textanalyticsEndPoint string
@@ -364,6 +366,10 @@ var taddy= {
     taddy__Userid: taddyUserId
 }
 
+var tmdb= {
+    tmdb__ApiKey: tmdbApiKey
+}
+
 var indexerActivities= {
     activities__RunIndex: 'true'
     activities__RunCategoriser: 'true'
@@ -487,6 +493,7 @@ var coreSettings= union(
     shortner,
     spotify, 
     subreddit,
+    tmdb,
     textanalytics, 
     twitter, 
     youtube, 
