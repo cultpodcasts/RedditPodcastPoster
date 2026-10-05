@@ -40,6 +40,10 @@ internal sealed class TheTvdbRemoteId
     [JsonPropertyName("id")]
     public string? Id { get; init; }
 
+    /// <summary>TheTVDB source type. Title ids and collection ids can share <see cref="SourceName"/>.</summary>
+    [JsonPropertyName("type")]
+    public int? Type { get; init; }
+
     [JsonPropertyName("sourceName")]
     public string? SourceName { get; init; }
 }

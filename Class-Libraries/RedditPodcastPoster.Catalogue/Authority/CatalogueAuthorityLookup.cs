@@ -11,6 +11,7 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
         int tmdbId,
         CancellationToken cancellationToken = default)
     {
+        // Films have no TheTVDB id. This lookup does not call TheTVDB.
         var movie = await tmdb.GetMovieAsync(tmdbId, cancellationToken).ConfigureAwait(false);
         var imdbId = ValidImdb(movie?.ImdbId);
         return new CatalogueAuthorityIds(
@@ -31,20 +32,30 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
             throw new ArgumentException("A TV show lookup needs a TMDB series id or a TheTVDB series id.");
         }
 
-        var series = tmdbId is int id
-            ? await tmdb.GetTvSeriesAsync(id, cancellationToken).ConfigureAwait(false)
+        var tvdbSeries = tvdbId is long knownTvdbId and > 0
+            ? await theTvdb.GetSeriesAsync(knownTvdbId, cancellationToken).ConfigureAwait(false)
             : null;
-        var resolvedTvdbId = tvdbId is > 0 ? tvdbId : series?.TvdbId;
-        var tvdbSeries = resolvedTvdbId is long theTvdbId and > 0
-            ? await theTvdb.GetSeriesAsync(theTvdbId, cancellationToken).ConfigureAwait(false)
+        // A caller-supplied TMDB series id wins. A TheTVDB-only show uses the series title id.
+        var seriesTmdbId = tmdbId ?? PositiveTmdbId(tvdbSeries?.TmdbSeriesId);
+        var series = seriesTmdbId is int seriesId
+            ? await tmdb.GetTvSeriesAsync(seriesId, cancellationToken).ConfigureAwait(false)
             : null;
+        if (tvdbSeries is null && series?.TvdbId is long discoveredTvdbId and > 0)
+        {
+            tvdbSeries = await theTvdb.GetSeriesAsync(discoveredTvdbId, cancellationToken).ConfigureAwait(false);
+        }
+
         var imdbId = PreferImdb(series?.ImdbId, tvdbSeries?.ImdbTitleId);
-        long? storedTvdbId = tvdbSeries?.Id is > 0
-            ? tvdbSeries!.Id
-            : resolvedTvdbId is > 0 ? resolvedTvdbId : null;
+        long? storedTvdbId = tvdbSeries is { Id: > 0 } knownSeries
+            ? knownSeries.Id
+            : tvdbId is > 0
+                ? tvdbId
+                : series?.TvdbId is > 0
+                    ? series.TvdbId
+                    : null;
         return new CatalogueAuthorityIds(
             imdbId,
-            series?.Id ?? tmdbId,
+            series?.Id ?? seriesTmdbId,
             storedTvdbId,
             imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
             TvdbPage(storedTvdbId, tvdbSeries?.CanonicalUrl, TmdbTitleKind.TvSeries));
@@ -69,7 +80,9 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
             : null;
         var season = seasonNumber ?? tvdbEpisode?.SeasonNumber;
         var number = episodeNumber ?? tvdbEpisode?.EpisodeNumber;
-        var tmdbEpisode = tmdbSeriesId is int seriesId && season is int seasonNo && number is int episodeNo
+        var seriesTmdbId = await ResolveSeriesTmdbIdAsync(tmdbSeriesId, tvdbEpisode, cancellationToken)
+            .ConfigureAwait(false);
+        var tmdbEpisode = seriesTmdbId is int seriesId && season is int seasonNo && number is int episodeNo
             ? await tmdb.GetTvEpisodeAsync(seriesId, seasonNo, episodeNo, cancellationToken).ConfigureAwait(false)
             : null;
         if (tvdbEpisode is null && tmdbEpisode?.TvdbId is long discovered and > 0)
@@ -87,11 +100,55 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
                     : null;
         return new CatalogueAuthorityIds(
             imdbId,
-            tmdbEpisode?.Id,
+            StoredEpisodeTmdbId(tmdbEpisode?.Id, tvdbEpisode?.TmdbEpisodeId),
             storedTvdbId,
             imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
             TvdbPage(storedTvdbId, tvdbEpisode?.CanonicalUrl, TmdbTitleKind.TvEpisode));
     }
+
+    /// <summary>
+    /// Parent series id for <see cref="ITmdbClient.GetTvEpisodeAsync"/>.
+    /// TheMovieDB.com on the episode row is an episode id and is never passed here.
+    /// </summary>
+    private async Task<int?> ResolveSeriesTmdbIdAsync(
+        int? callerSeriesTmdbId,
+        TheTvdbEpisode? tvdbEpisode,
+        CancellationToken cancellationToken)
+    {
+        if (callerSeriesTmdbId is int callerId)
+        {
+            return callerId;
+        }
+
+        if (tvdbEpisode is not { SeriesId: > 0 } episode)
+        {
+            return PositiveTmdbId(tvdbEpisode?.TmdbSeriesId);
+        }
+
+        var parent = await theTvdb.GetSeriesAsync(episode.SeriesId, cancellationToken).ConfigureAwait(false);
+        return PositiveTmdbId(parent?.TmdbSeriesId) ?? PositiveTmdbId(episode.TmdbSeriesId);
+    }
+
+    /// <summary>
+    /// The stored episode TMDB id is the TMDB payload id.
+    /// A TheMovieDB.com id on the TheTVDB episode row is kept only when it matches that payload.
+    /// </summary>
+    private static int? StoredEpisodeTmdbId(int? payloadId, int? episodeRowTmdbId)
+    {
+        if (payloadId is not int id || id <= 0)
+        {
+            return null;
+        }
+
+        if (episodeRowTmdbId is int rowId && rowId == id)
+        {
+            return rowId;
+        }
+
+        return id;
+    }
+
+    private static int? PositiveTmdbId(int? id) => id is > 0 ? id : null;
 
     private static Uri? TvdbPage(long? tvdbId, Uri? canonicalUrl, TmdbTitleKind kind)
     {

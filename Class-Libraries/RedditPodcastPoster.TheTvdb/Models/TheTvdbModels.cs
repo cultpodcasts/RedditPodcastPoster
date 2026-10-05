@@ -19,7 +19,11 @@ public sealed record TheTvdbSearchHit(
     Uri? CanonicalUrl,
     Uri? ImdbUrl);
 
-/// <summary>A TheTVDB series record.</summary>
+/// <summary>
+/// A TheTVDB series record.
+/// <see cref="TmdbSeriesId"/> is the TMDB series id from the extended record
+/// (TheMovieDB.com title id, source type 12). A collection id that shares that source name is not stored.
+/// </summary>
 public sealed record TheTvdbSeries(
     long Id,
     string Name,
@@ -27,10 +31,15 @@ public sealed record TheTvdbSeries(
     string? Country,
     string? Slug,
     string? ImdbTitleId,
+    int? TmdbSeriesId,
     Uri? CanonicalUrl,
     Uri? ImdbUrl);
 
-/// <summary>A TheTVDB episode record. <see cref="CanonicalUrl"/> is the episode page, not the series page.</summary>
+/// <summary>
+/// A TheTVDB episode record. <see cref="CanonicalUrl"/> is the episode page, not the series page.
+/// <see cref="TmdbSeriesId"/> is the parent series id from the series record, so it can be passed to a series lookup.
+/// <see cref="TmdbEpisodeId"/> is the TheMovieDB.com id on this episode row. It is an episode id, not a series id.
+/// </summary>
 public sealed record TheTvdbEpisode(
     long Id,
     long SeriesId,
@@ -39,5 +48,7 @@ public sealed record TheTvdbEpisode(
     int? EpisodeNumber,
     string? Year,
     string? ImdbTitleId,
+    int? TmdbSeriesId,
+    int? TmdbEpisodeId,
     Uri? CanonicalUrl,
     Uri? ImdbUrl);
