@@ -46,19 +46,9 @@ public abstract class BaseHttpFunction(
         if (isAuthorised || roles.Contains("*"))
         {
             logger.LogInformation("{method} Authorised.", nameof(HandleRequest));
-            try
-            {
-                var response = await authorised(ctx, ct);
-                logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
-                return response;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "{method} failed for '{url}' / '{httpMethod}'.",
-                    nameof(HandleRequest), req.Url, req.Method);
-                throw;
-            }
+            var response = await authorised(ctx, ct);
+            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
+            return response;
         }
 
         logger.LogWarning("{method} Unauthorised.", nameof(HandleRequest));
@@ -92,19 +82,9 @@ public abstract class BaseHttpFunction(
         if (isAuthorised)
         {
             logger.LogInformation("{method} Authorised.", nameof(HandleRequest));
-            try
-            {
-                var response = await authorised(ctx, model, ct);
-                logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
-                return response;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "{method} failed for '{url}' / '{httpMethod}'.",
-                    nameof(HandleRequest), req.Url, req.Method);
-                throw;
-            }
+            var response = await authorised(ctx, model, ct);
+            logger.LogInformation("{method} Response Gathered.", nameof(HandleRequest));
+            return response;
         }
 
         logger.LogWarning("{method} Unauthorised.", nameof(HandleRequest));
@@ -127,19 +107,9 @@ public abstract class BaseHttpFunction(
         if (isAuthorised)
         {
             logger.LogInformation("{method} Authorised.", nameof(HandlePublicRequest));
-            try
-            {
-                var response = await authorised(ctx, model, ct);
-                logger.LogInformation("{method} Response Gathered.", nameof(HandlePublicRequest));
-                return response;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "{method} failed for '{url}' / '{httpMethod}'.",
-                    nameof(HandlePublicRequest), req.Url, req.Method);
-                throw;
-            }
+            var response = await authorised(ctx, model, ct);
+            logger.LogInformation("{method} Response Gathered.", nameof(HandlePublicRequest));
+            return response;
         }
 
         logger.LogWarning("{method} Unauthorised.", nameof(HandlePublicRequest));

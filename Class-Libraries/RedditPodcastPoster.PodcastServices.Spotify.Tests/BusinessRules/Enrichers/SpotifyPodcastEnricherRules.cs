@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using SpotifyAPI.Web;
@@ -143,6 +144,84 @@ public class SpotifyPodcastEnricherRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()),
             Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When an episode is missing a Spotify id and FindEpisode returns a market-restricted episode, AddIdAndUrls sets that id " +
+        "because a GB market block must not strip a Spotify episode id this submit stored or is about to store.")]
+    public async Task Market_restricted_find_episode_still_sets_spotify_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
+            e.Title = _fixture.CreateTitle();
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(1);
+            e.Length = _fixture.CreateDuration();
+        });
+        var resolvedEpisodeId = _fixture.CreateSpotifyId();
+        var fullEpisode = new FullEpisodeWithRestrictions
+        {
+            Id = resolvedEpisodeId,
+            Name = episode.Title,
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string>
+            {
+                ["reason"] = SpotifyNonPlayableSkipLogger.MarketRestrictionReason
+            }
+        };
+        _mocker.GetMock<ISpotifyEpisodeResolver>()
+            .Setup(x => x.FindEpisode(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Func<SimpleEpisode, bool>?>()))
+            .ReturnsAsync(new FindEpisodeResponse(fullEpisode));
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
+
+        // Act
+        var updated = await sut.AddIdAndUrls(podcast, [episode], new IndexingContext());
+
+        // Assert
+        updated.Should().BeTrue();
+        episode.SpotifyId.Should().Be(resolvedEpisodeId);
+    }
+
+    [Fact(DisplayName =
+        "When an episode is missing a Spotify id and FindEpisode is unplayable for a reason other than market, AddIdAndUrls leaves the id empty " +
+        "because catalogue and CLI enrich still drop non-market restrictions.")]
+    public async Task Non_market_restricted_find_episode_does_not_set_spotify_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
+            e.Title = _fixture.CreateTitle();
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(1);
+            e.Length = _fixture.CreateDuration();
+        });
+        var fullEpisode = new FullEpisodeWithRestrictions
+        {
+            Id = _fixture.CreateSpotifyId(),
+            Name = episode.Title,
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string> { ["reason"] = "product" }
+        };
+        _mocker.GetMock<ISpotifyEpisodeResolver>()
+            .Setup(x => x.FindEpisode(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Func<SimpleEpisode, bool>?>()))
+            .ReturnsAsync(new FindEpisodeResponse(fullEpisode));
+        var sut = _mocker.CreateInstance<SpotifyPodcastEnricher>();
+
+        // Act
+        var updated = await sut.AddIdAndUrls(podcast, [episode], new IndexingContext());
+
+        // Assert
+        updated.Should().BeFalse();
+        episode.SpotifyId.Should().BeNullOrWhiteSpace();
     }
 
     [Fact(DisplayName =

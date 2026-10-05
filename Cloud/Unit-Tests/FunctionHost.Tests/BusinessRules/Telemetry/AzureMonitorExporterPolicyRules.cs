@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
 using FluentAssertions;
 using Azure;
 using Xunit;
@@ -13,10 +14,13 @@ public class AzureMonitorExporterPolicyRules
     public void trace_based_log_sampler_is_off()
     {
         // Arrange
+        var options = new AzureMonitorExporterOptions { EnableTraceBasedLogsSampler = true };
+
         // Act
-        var samplerEnabled = AzureMonitorExporterPolicy.EnableTraceBasedLogsSampler;
+        AzureMonitorExporterPolicy.Apply(options);
 
         // Assert
-        samplerEnabled.Should().BeFalse();
+        AzureMonitorExporterPolicy.EnableTraceBasedLogsSampler.Should().BeFalse();
+        options.EnableTraceBasedLogsSampler.Should().BeFalse();
     }
 }

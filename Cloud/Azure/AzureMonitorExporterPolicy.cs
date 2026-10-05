@@ -1,3 +1,5 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
+
 namespace Azure;
 
 /// <summary>
@@ -11,4 +13,10 @@ public static class AzureMonitorExporterPolicy
     /// 2026-10-04 POST SubmitUrl 500 had that gap. Keep false so Error logs always export.
     /// </summary>
     public const bool EnableTraceBasedLogsSampler = false;
+
+    public static void Apply(AzureMonitorExporterOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.EnableTraceBasedLogsSampler = EnableTraceBasedLogsSampler;
+    }
 }
