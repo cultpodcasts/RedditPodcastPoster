@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using System.Net;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -28,8 +28,6 @@ public class SubmitUrlControllerAuthTests
 
     public SubmitUrlControllerAuthTests()
     {
-        _mocker.Use<Microsoft.Extensions.Logging.ILogger<SubmitUrlController>>(
-            NullLogger<SubmitUrlController>.Instance);
         _mocker.Use(Options.Create(new HostingOptions { TestMode = false, UserRoles = [] }));
         _mocker.GetMock<IClientPrincipalFactory>()
             .Setup(f => f.CreateAsync(It.IsAny<HttpRequestData>()))
@@ -91,6 +89,52 @@ public class SubmitUrlControllerAuthTests
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
             h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When Isolated POST SubmitUrl handler throws, the memory probe logs one Error with the URL and method and returns 500 " +
+        "because a 5xx Isolated invoke must be visible in AppTraces.")]
+    public async Task post_handler_throw_logs_error()
+    {
+        // Arrange
+        UsePermission("curate");
+        var logger = _mocker.GetMock<ILogger<SubmitUrlController>>();
+        var boom = new InvalidOperationException(_fixture.CreateTitle());
+        _mocker.GetMock<IPostSubmitUrlHandler>()
+            .Setup(h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.IsAny<SubmitUrlRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(boom);
+        var sut = _mocker.CreateInstance<SubmitUrlController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var model = new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
+
+        // Act
+        var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) =>
+                    v.ToString()!.Contains("Unhandled exception in") &&
+                    v.ToString()!.Contains("TestFunction") &&
+                    v.ToString()!.Contains(req.Object.Url.ToString()) &&
+                    v.ToString()!.Contains("POST")),
+                boom,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("HandleRequest failed")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
+using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.Text;
@@ -257,6 +258,123 @@ public class SpotifyEpisodeEnricherCatalogueRules
         enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "When the stored episode already has a Spotify id and FindEpisode returns that episode as market-restricted, the enricher keeps the id and URL " +
+        "and does not log a skip, because indexing must not strip a Spotify id this submit just stored.")]
+    public async Task enrich_keeps_spotify_id_when_direct_episode_is_market_restricted()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+        var spotifyId = episode.SpotifyId!;
+        var fullEpisode = new FullEpisodeWithRestrictions
+        {
+            Id = spotifyId,
+            Name = episode.Title,
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string>
+            {
+                ["reason"] = SpotifyNonPlayableSkipLogger.MarketRestrictionReason
+            }
+        };
+        var logger = new CapturingLogger<SpotifyEpisodeEnricher>();
+        var sut = CreateEnricher(new FixedFullEpisodeResolver(fullEpisode), logger);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.SpotifyId.Should().Be(spotifyId);
+        episode.Urls.Spotify.Should().NotBeNull();
+        logger.Warnings.Should().NotContain(m => m.Contains("Skipping Spotify episode"));
+        logger.Errors.Should().NotContain(m =>
+            m.Contains(SpotifyNonPlayableSkipLogger.MarketUnavailableMessagePrefix));
+    }
+
+    [Fact(DisplayName =
+        "When FindEpisode returns a market-restricted episode that is not yet linked, the enricher attaches the Spotify id " +
+        "because a GB market block must not refuse the identity a curator submit persists.")]
+    public async Task enrich_attaches_market_restricted_episode_when_id_is_missing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var duration = _fixture.CreateDuration();
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(duration));
+        episode.Title = _fixture.CreateTitle();
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
+        var spotifyId = _fixture.CreateSpotifyId();
+        var fullEpisode = new FullEpisodeWithRestrictions
+        {
+            Id = spotifyId,
+            Name = episode.Title,
+            HtmlDescription = $"<p>{_fixture.CreateTitle()}</p>",
+            DurationMs = (int)duration.TotalMilliseconds,
+            ReleaseDate = episode.ReleaseUtc.ToString("yyyy-MM-dd"),
+            IsPlayable = false,
+            ExternalUrls = new Dictionary<string, string>
+            {
+                ["spotify"] = _fixture.DefaultSpotifyUrl(spotifyId).ToString()
+            },
+            Images = [],
+            Restrictions = new Dictionary<string, string>
+            {
+                ["reason"] = SpotifyNonPlayableSkipLogger.MarketRestrictionReason
+            }
+        };
+        var sut = CreateEnricher(new FixedFullEpisodeResolver(fullEpisode));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.SpotifyId.Should().Be(spotifyId);
+        episode.Urls.Spotify.Should().NotBeNull();
+        enrichmentContext.SpotifyUrlUpdated.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When FindEpisode returns an episode that is unplayable for a reason other than market, the enricher does not attach a Spotify id " +
+        "because non-market restrictions stay a catalogue drop.")]
+    public async Task enrich_does_not_attach_non_market_restricted_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var episode = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithDuration(_fixture.CreateDuration()));
+        episode.Title = _fixture.CreateTitle();
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
+        var fullEpisode = new FullEpisodeWithRestrictions
+        {
+            Id = _fixture.CreateSpotifyId(),
+            Name = episode.Title,
+            IsPlayable = false,
+            Restrictions = new Dictionary<string, string> { ["reason"] = "product" }
+        };
+        var logger = new CapturingLogger<SpotifyEpisodeEnricher>();
+        var sut = CreateEnricher(new FixedFullEpisodeResolver(fullEpisode), logger);
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.SpotifyId.Should().BeNullOrWhiteSpace();
+        enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
+        logger.Warnings.Should().Contain(m => m.Contains("Skipping Spotify episode"));
+    }
+
     private SpotifyEpisodeEnricher CreateEnricher(
         ISpotifyEpisodeResolver resolver,
         ILogger<SpotifyEpisodeEnricher>? logger = null) =>
@@ -349,9 +467,19 @@ public class SpotifyEpisodeEnricherCatalogueRules
         }
     }
 
+    private sealed class FixedFullEpisodeResolver(FullEpisode episode) : ISpotifyEpisodeResolver
+    {
+        public Task<FindEpisodeResponse> FindEpisode(
+            FindSpotifyEpisodeRequest request,
+            IndexingContext indexingContext,
+            Func<SimpleEpisode, bool>? reducer = null) =>
+            Task.FromResult(new FindEpisodeResponse(episode));
+    }
+
     private sealed class CapturingLogger<T> : ILogger<T>
     {
         public List<string> Warnings { get; } = [];
+        public List<string> Errors { get; } = [];
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -367,6 +495,10 @@ public class SpotifyEpisodeEnricherCatalogueRules
             if (logLevel == LogLevel.Warning)
             {
                 Warnings.Add(formatter(state, exception));
+            }
+            else if (logLevel == LogLevel.Error)
+            {
+                Errors.Add(formatter(state, exception));
             }
         }
     }

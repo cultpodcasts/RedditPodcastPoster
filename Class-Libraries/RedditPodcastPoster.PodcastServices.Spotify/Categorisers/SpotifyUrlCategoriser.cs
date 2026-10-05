@@ -149,7 +149,9 @@ public class SpotifyUrlCategoriser(
             indexingContext);
         if (findEpisodeResponse.FullEpisode != null)
         {
-            if (!findEpisodeResponse.FullEpisode.IsSpotifyFree())
+            if (!findEpisodeResponse.FullEpisode.IsSpotifyFree() &&
+                !SpotifyNonPlayableSkipLogger.IsMarketUnavailable(
+                    findEpisodeResponse.FullEpisode.GetSpotifyRestrictionReason()))
             {
                 SpotifyNonPlayableSkipLogger.Log(
                     logger,

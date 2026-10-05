@@ -68,8 +68,11 @@ public abstract class MemoryProbedHttpBaseClass(
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            _logger.LogError(ex, "Unhandled exception in {FunctionName}.",
-                req.FunctionContext.FunctionDefinition.Name);
+            _logger.LogError(ex,
+                "Unhandled exception in {FunctionName} for '{Url}' / '{HttpMethod}'.",
+                req.FunctionContext.FunctionDefinition.Name,
+                req.Url,
+                req.Method);
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             return await errorResponse.WithJsonBody(
                 new { error = "Internal server error" },
