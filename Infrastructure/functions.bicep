@@ -61,6 +61,9 @@ param taddyUserId string
 @description('TMDB API Read Access Token sent as Authorization Bearer. Not a v3 query key. Key Vault secret Tmdb-ApiKey.')
 @secure()
 param tmdbApiKey string
+@description('TheTVDB API v4 project key. Key Vault secret TheTvdb-ApiKey.')
+@secure()
+param thetvdbApiKey string
 @secure()
 param textanalyticsApiKey string
 @secure()
@@ -371,6 +374,10 @@ var tmdb= {
     tmdb__ApiKey: tmdbApiKey
 }
 
+var thetvdb= {
+    thetvdb__ApiKey: thetvdbApiKey
+}
+
 var indexerActivities= {
     activities__RunIndex: 'true'
     activities__RunCategoriser: 'true'
@@ -495,6 +502,7 @@ var coreSettings= union(
     spotify, 
     subreddit,
     tmdb,
+    thetvdb,
     textanalytics, 
     twitter, 
     youtube, 

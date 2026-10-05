@@ -11,7 +11,9 @@ public static class TvShowExtension
             Id = show.Id,
             Name = show.Name,
             Imdb = show.Imdb,
+            ImdbId = show.ImdbId,
             Tvdb = show.Tvdb,
+            TvdbId = show.TvdbId,
             TmdbId = show.TmdbId
         };
     }

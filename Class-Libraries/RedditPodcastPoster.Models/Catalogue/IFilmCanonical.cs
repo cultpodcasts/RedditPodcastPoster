@@ -8,6 +8,9 @@ public interface IFilmCanonical
 {
     Uri? Imdb { get; set; }
 
-    /// <summary>TMDB id for this film, used to refresh <see cref="Imdb"/>. Not a page URL.</summary>
+    /// <summary>IMDb title id (<c>tt…</c>) for this film. The page is <see cref="Imdb"/>.</summary>
+    string? ImdbId { get; set; }
+
+    /// <summary>TMDB id for this film. Not a page URL. Films do not store a TheTVDB id.</summary>
     int? TmdbId { get; set; }
 }
