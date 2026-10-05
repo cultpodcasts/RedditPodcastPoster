@@ -63,7 +63,9 @@ public class SpotifyEpisodeEnricher(
                      request.Podcast));
 
         if (findEpisodeResult.FullEpisode != null &&
-            !findEpisodeResult.FullEpisode.IsSpotifyFree())
+            !findEpisodeResult.FullEpisode.IsSpotifyFree() &&
+            !SpotifyNonPlayableSkipLogger.IsMarketUnavailable(
+                findEpisodeResult.FullEpisode.GetSpotifyRestrictionReason()))
         {
             SpotifyNonPlayableSkipLogger.Log(
                 logger,

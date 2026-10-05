@@ -40,6 +40,22 @@ public class BbcUrlMatcherRules
     }
 
     [Fact(DisplayName =
+        "A Sounds play path on a host that only contains bbc.co.uk as a substring is not a Sounds play URL, " +
+        "because the host must be bbc.co.uk or a subdomain.")]
+    public void host_that_contains_bbc_co_uk_as_a_substring_is_not_sounds_play()
+    {
+        // Arrange
+        var url = new Uri($"https://evilbbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var matches = BBCUrlMatcher.IsSoundsPlayUrl(url);
+
+        // Assert
+        matches.Should().BeFalse();
+        BBCUrlMatcher.IsBBCUrl(url).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A BBC host URL that is not Sounds play or iPlayer episode is not a submit URL, " +
         "so news and other BBC pages are not ingested.")]
     public void bbc_news_path_is_not_submit_url()

@@ -33,6 +33,8 @@
     <ProjectReference Include="..\RedditPodcastPoster.InternetArchive\RedditPodcastPoster.InternetArchive.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Netflix\RedditPodcastPoster.Netflix.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.TheTvdb\RedditPodcastPoster.TheTvdb.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Tmdb\RedditPodcastPoster.Tmdb.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Episodes\RedditPodcastPoster.Episodes.csproj" />

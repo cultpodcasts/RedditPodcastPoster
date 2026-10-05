@@ -10,7 +10,9 @@ public static class FilmExtension
         {
             Id = film.Id,
             Name = film.Name,
-            Imdb = film.Imdb
+            Imdb = film.Imdb,
+            ImdbId = film.ImdbId,
+            TmdbId = film.TmdbId
         };
     }
 }

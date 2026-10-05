@@ -148,9 +148,17 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "auth0client:Domain": "xxxx.auth0.com",
   "auth0client:Audience": "https://xxxx",
   "auth0client:ClientId": "xxxx",
-  "auth0client:ClientSecret": "xxxx"
+  "auth0client:ClientSecret": "xxxx",
+
+  "tmdb:ApiKey": "xxxx",
+
+  "thetvdb:ApiKey": "xxxx"
 }
 ```
+
+`tmdb:ApiKey` (Azure app setting `tmdb__ApiKey`, Key Vault secret `Tmdb-ApiKey`) is the TMDB API Read Access Token, sent as `Authorization: Bearer`. It is not a v3 query key.
+
+`thetvdb:ApiKey` (Azure app setting `thetvdb__ApiKey`, Key Vault secret `TheTvdb-ApiKey`) is the TheTVDB API v4 project key. It is sent in the login body, then calls use the returned bearer token.
 
 `Index` / `SubmitUrl` (and Cloud Indexer/Api) call the edge hero API via `AddEdgeApiClient`. Committed `api:Endpoint` / source defaults stay **`https://api.cultpodcasts.com`**. Production `api__Endpoint` is a **Key Vault secret** (`Api-Endpoint` → `@secure()` bicep param) — same deploy-time pattern as other secrets. **Never commit personal `*.workers.dev` hosts** (or any alternate edge host) in bicep, appsettings, or docs; set them only in KV / Azure app settings / local user-secrets when Free-plan Bot Fight Mode blocks M2M against the custom domain. Long-term: Pro WAF skip for Bearer on `/hero-curation` so M2M can use `api.cultpodcasts.com`. See [docs/deployment.md](docs/deployment.md) (§ Edge API endpoint) and Api `docs/hero-curation-m2m-edge.md`. M2M Auth0 (`auth0client:*`) belongs in user-secrets (same shared `UserSecretsId`).
 

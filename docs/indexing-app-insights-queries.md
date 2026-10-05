@@ -137,8 +137,9 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `YouTubeAuthorityPodcastAudit` | `PodcastsUpdater` | Per YouTube-authority podcast |
 | `YouTubeAuthorityIndexingAudit` | `PodcastsUpdater` | Batch-level YouTube-authority summary |
 | `Spotify enrich miss:` | `SpotifyEpisodeEnricher` | Warning — no Spotify candidate matched, with rejection context |
-| `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — Spotify returned `restrictions.reason=market` |
-| `Skipping Spotify episode` | `SpotifyNonPlayableSkipLogger` | Warning — non-playable for a reason other than market |
+| `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — dropped; Spotify returned `restrictions.reason=market` |
+| `Skipping Spotify episode` | `SpotifyNonPlayableSkipLogger` | Warning — dropped; non-playable for a reason other than market |
+| `Spotify episode returned despite market:` | `SpotifyEpisodeResolver` (`LogReturnedDespiteMarket`) | Warning — direct episode-id lookup kept the episode. Not a skip |
 | `Spotify pagination circuit-breaker tripped:` | Spotify paginators | **Error** — a bounded catalogue walk hit `MaxPages` / `MaxWalkBackPages`; in-window episodes may be missing |
 | `Spotify expensive-query flag flipped:` | `SpotifyExpensiveQueryFlag` | Warning — conclusive catalogue-order probe changed `SpotifyEpisodesQueryIsExpensive` |
 | `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
@@ -906,7 +907,7 @@ AppTraces
 | order by TimeGenerated desc
 ```
 
-`SeverityLevel == 3` (Error) is market-unavailable or a tripped circuit breaker; `2` (Warning) is an enrich miss or another non-playable reason.
+`SeverityLevel == 3` (Error) is a dropped market-unavailable episode or a tripped circuit breaker; `2` (Warning) is an enrich miss, another non-playable skip, or `Spotify episode returned despite market:` (kept on a direct episode-id lookup — that prefix is intentionally absent from the skip filter above).
 
 ### B. Ascending pagination circuit breaker (quota cap hit)
 

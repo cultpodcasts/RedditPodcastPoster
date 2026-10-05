@@ -66,7 +66,7 @@ public static class HostFactory
     {
         options.TracesPerSecond = null;
         options.SamplingRatio = ResolveTraceSamplingRatio(configuration);
-        options.EnableTraceBasedLogsSampler = true;
+        AzureMonitorExporterPolicy.Apply(options);
     }
 
     private static float ResolveTraceSamplingRatio(IConfiguration configuration)

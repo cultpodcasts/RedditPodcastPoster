@@ -100,6 +100,8 @@ Converts user-secrets JSON (`section:key`) to Azure format (`section__key`).
 | `upload-discovery-model.ps1` | Upload ML scorer bundle to `discovery-models` |
 | `apply-discover-scorer-settings.ps1` | Apply `discover__scorer__*` on `discover-infra` when bicep not deploying |
 | `apply-youtube-keys.ps1` | Apply YouTube API keys + DisplayNames when bicep not deploying (see [youtube-keys.md](youtube-keys.md)) |
+| `apply-tmdb-settings.ps1` | Apply `tmdb__ApiKey` (TMDB API Read Access Token, not a v3 query key) from Key Vault `Tmdb-ApiKey` onto api, discover, and indexer when bicep is not deploying |
+| `apply-thetvdb-settings.ps1` | Apply `thetvdb__ApiKey` (TheTVDB API v4 project key) from Key Vault `TheTvdb-ApiKey` onto api, discover, and indexer when bicep is not deploying |
 | `apply-youtube-display-names.ps1` | DisplayNames only (wrapper over `apply-youtube-keys.ps1`) |
 
 Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `artifacts/.console-publish-staging/`.

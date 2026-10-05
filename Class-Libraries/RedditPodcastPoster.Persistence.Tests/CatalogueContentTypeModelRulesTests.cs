@@ -633,8 +633,8 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "Film stores IMDb on IFilmCanonical; TvShow and TvShowEpisode store IMDb plus TheTVDB on ITvCanonical as Uri fields, " +
-        "because several titles share a display name and those pages are identity, not StreamingService watch keys.")]
+        "Film stores an IMDb id and a TMDB id and no TheTVDB id; TvShow and TvShowEpisode store an IMDb id, " +
+        "a TMDB id, and a TheTVDB id, because those are the three authority ids we collect.")]
     public void film_tv_show_and_tv_show_episode_store_canonical_authority_uris()
     {
         // Arrange
@@ -643,18 +643,27 @@ public class CatalogueContentTypeModelRulesTests
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
-        var imdbUrl = new Uri($"https://www.imdb.com/title/tt{_domain.CreateAppleId()}/");
-        var tvdbUrl = new Uri($"https://www.thetvdb.com/series/{_domain.CreateYouTubeId()}");
-        var film = new Film(_domain.CreateTitle()) { Imdb = imdbUrl };
+        var imdbId = "tt" + _domain.CreateAppleId().ToString(CultureInfo.InvariantCulture);
+        var imdbUrl = new Uri($"https://www.imdb.com/title/{imdbId}/");
+        var tvdbId = _domain.CreateAppleId();
+        var tvdbUrl = new Uri($"https://www.thetvdb.com/dereferrer/series/{tvdbId.ToString(CultureInfo.InvariantCulture)}");
+        var tmdbId = CreateTmdbId();
+        var film = new Film(_domain.CreateTitle()) { Imdb = imdbUrl, ImdbId = imdbId, TmdbId = tmdbId };
         var show = new TvShow(_domain.CreateTitle())
         {
             Imdb = imdbUrl,
-            Tvdb = tvdbUrl
+            ImdbId = imdbId,
+            Tvdb = tvdbUrl,
+            TvdbId = tvdbId,
+            TmdbId = tmdbId
         };
         var episode = new TvShowEpisode(_domain.CreateTitle())
         {
             Imdb = imdbUrl,
-            Tvdb = tvdbUrl
+            ImdbId = imdbId,
+            Tvdb = tvdbUrl,
+            TvdbId = tvdbId,
+            TmdbId = tmdbId
         };
 
         // Act
@@ -671,24 +680,64 @@ public class CatalogueContentTypeModelRulesTests
         typeof(ITvCanonical).GetProperty(nameof(ITvCanonical.Tvdb))!.PropertyType.Should().Be(typeof(Uri));
         typeof(IFilmCanonical).GetProperty("Tvdb").Should().BeNull();
         typeof(Film).GetProperty("Tvdb").Should().BeNull();
+        typeof(IFilmCanonical).GetProperty(nameof(IFilmCanonical.ImdbId))!.PropertyType.Should().Be(typeof(string));
+        typeof(IFilmCanonical).GetProperty(nameof(IFilmCanonical.TmdbId))!.PropertyType.Should().Be(typeof(int?));
+        typeof(IFilmCanonical).GetProperty("TvdbId").Should().BeNull();
+        typeof(Film).GetProperty("TvdbId").Should().BeNull();
+        typeof(ITvCanonical).GetProperty(nameof(ITvCanonical.TmdbId))!.PropertyType.Should().Be(typeof(int?));
+        typeof(ITvCanonical).GetProperty(nameof(ITvCanonical.TvdbId))!.PropertyType.Should().Be(typeof(long?));
+        typeof(TvShow).GetProperty(nameof(TvShow.TmdbId))!.PropertyType.Should().Be(typeof(int?));
+        typeof(TvShowEpisode).GetProperty(nameof(TvShowEpisode.TmdbId))!.PropertyType.Should().Be(typeof(int?));
         filmJson.Should().Contain("\"imdb\"");
+        filmJson.Should().Contain($"\"imdbId\":\"{imdbId}\"");
+        filmJson.Should().Contain($"\"tmdbId\":{tmdbId.ToString(CultureInfo.InvariantCulture)}");
         filmJson.Should().NotContain("\"tvdb\"");
+        filmJson.Should().NotContain("tvdbId");
         showJson.Should().Contain("\"imdb\"");
+        showJson.Should().Contain($"\"imdbId\":\"{imdbId}\"");
         showJson.Should().Contain("\"tvdb\"");
+        showJson.Should().Contain($"\"tvdbId\":{tvdbId.ToString(CultureInfo.InvariantCulture)}");
+        showJson.Should().Contain($"\"tmdbId\":{tmdbId.ToString(CultureInfo.InvariantCulture)}");
         episodeJson.Should().Contain("\"imdb\"");
+        episodeJson.Should().Contain($"\"imdbId\":\"{imdbId}\"");
         episodeJson.Should().Contain("\"tvdb\"");
+        episodeJson.Should().Contain($"\"tvdbId\":{tvdbId.ToString(CultureInfo.InvariantCulture)}");
+        episodeJson.Should().Contain($"\"tmdbId\":{tmdbId.ToString(CultureInfo.InvariantCulture)}");
+        JsonSerializer.Serialize(new Film(_domain.CreateTitle()), options).Should().NotContain("\"tmdbId\"");
+        JsonSerializer.Serialize(new TvShow(_domain.CreateTitle()), options).Should().NotContain("\"tmdbId\"");
+        JsonSerializer.Serialize(new TvShowEpisode(_domain.CreateTitle()), options).Should().NotContain("\"tmdbId\"");
         filmRoundTrip!.Imdb.Should().Be(imdbUrl);
+        filmRoundTrip.ImdbId.Should().Be(imdbId);
+        filmRoundTrip.TmdbId.Should().Be(tmdbId);
         showRoundTrip!.Imdb.Should().Be(imdbUrl);
+        showRoundTrip.ImdbId.Should().Be(imdbId);
         showRoundTrip.Tvdb.Should().Be(tvdbUrl);
+        showRoundTrip.TvdbId.Should().Be(tvdbId);
+        showRoundTrip.TmdbId.Should().Be(tmdbId);
         episodeRoundTrip!.Imdb.Should().Be(imdbUrl);
+        episodeRoundTrip.ImdbId.Should().Be(imdbId);
         episodeRoundTrip.Tvdb.Should().Be(tvdbUrl);
+        episodeRoundTrip.TvdbId.Should().Be(tvdbId);
+        episodeRoundTrip.TmdbId.Should().Be(tmdbId);
         IFilmCanonical asFilm = film;
         ITvCanonical asShow = show;
         ITvCanonical asEpisode = episode;
         asFilm.Imdb.Should().Be(imdbUrl);
+        asFilm.ImdbId.Should().Be(imdbId);
+        asFilm.TmdbId.Should().Be(tmdbId);
         asShow.Tvdb.Should().Be(tvdbUrl);
+        asShow.TvdbId.Should().Be(tvdbId);
+        asShow.TmdbId.Should().Be(tmdbId);
         asEpisode.Imdb.Should().Be(imdbUrl);
+        asEpisode.ImdbId.Should().Be(imdbId);
         asEpisode.Tvdb.Should().Be(tvdbUrl);
+        asEpisode.TmdbId.Should().Be(tmdbId);
+    }
+
+    private int CreateTmdbId()
+    {
+        var value = (int)(_domain.CreateAppleId() % 1_000_000_000L);
+        return value == 0 ? 1 : value;
     }
 
     [Fact(DisplayName =

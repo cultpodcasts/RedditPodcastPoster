@@ -12,4 +12,10 @@ public class FilmDto
 
     [JsonPropertyName("imdb")]
     public Uri? Imdb { get; set; }
+
+    [JsonPropertyName("imdbId")]
+    public string? ImdbId { get; set; }
+
+    [JsonPropertyName("tmdbId")]
+    public int? TmdbId { get; set; }
 }

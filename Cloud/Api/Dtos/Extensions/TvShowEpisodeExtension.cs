@@ -12,7 +12,10 @@ public static class TvShowEpisodeExtension
             TvShowId = episode.TvShowId,
             Title = episode.Title,
             Imdb = episode.Imdb,
-            Tvdb = episode.Tvdb
+            ImdbId = episode.ImdbId,
+            Tvdb = episode.Tvdb,
+            TvdbId = episode.TvdbId,
+            TmdbId = episode.TmdbId
         };
     }
 }
