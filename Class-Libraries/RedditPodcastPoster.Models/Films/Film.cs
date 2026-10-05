@@ -100,6 +100,18 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Imdb { get; set; }
 
+    /// <summary>IMDb title id (<c>tt…</c>) for this film. Omitted when unknown.</summary>
+    [JsonPropertyName("imdbId")]
+    [JsonPropertyOrder(143)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ImdbId { get; set; }
+
+    /// <summary>TMDB id for this film. Omitted when unknown. Films have no TheTVDB id.</summary>
+    [JsonPropertyName("tmdbId")]
+    [JsonPropertyOrder(142)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? TmdbId { get; set; }
+
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLink>? Services { get; set; }
