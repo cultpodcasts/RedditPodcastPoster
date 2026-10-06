@@ -1,5 +1,3 @@
-using RedditPodcastPoster.Models.Languages;
-
 namespace Api.Models;
 
 public enum SupportedLanguagesUpdateStatus
@@ -11,5 +9,4 @@ public enum SupportedLanguagesUpdateStatus
 
 public record SupportedLanguagesUpdateResult(
     SupportedLanguagesUpdateStatus Status,
-    SupportedLanguagesConfig? Config = null,
     string? Error = null);
