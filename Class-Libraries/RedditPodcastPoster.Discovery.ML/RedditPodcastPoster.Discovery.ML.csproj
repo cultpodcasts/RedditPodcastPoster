@@ -7,14 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.17.1" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.26.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.9" />
-    <PackageReference Include="Microsoft.ML" Version="4.0.2" />
-    <PackageReference Include="Microsoft.ML.LightGbm" Version="4.0.2" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.21.0" />
-    <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.2" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageReference Include="Microsoft.ML" Version="4.0.3" />
+    <PackageReference Include="Microsoft.ML.LightGbm" Version="4.0.3" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.3" />
   </ItemGroup>
 
   <ItemGroup>
