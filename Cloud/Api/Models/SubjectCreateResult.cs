@@ -1,5 +1,3 @@
-using Subject = RedditPodcastPoster.Models.Subjects.Subject;
-
 namespace Api.Models;
 
 public enum SubjectCreateStatus
@@ -12,6 +10,5 @@ public enum SubjectCreateStatus
 
 public record SubjectCreateResult(
     SubjectCreateStatus Status,
-    Subject? Subject = null,
     string? ConflictName = null,
     string? Message = null);

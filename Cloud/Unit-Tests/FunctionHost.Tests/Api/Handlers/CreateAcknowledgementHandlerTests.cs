@@ -11,8 +11,6 @@ using Api.Services.People;
 using Api.Services.Subjects;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
-using Person = RedditPodcastPoster.Models.People.Person;
-using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
@@ -34,10 +32,9 @@ public class CreateAcknowledgementHandlerTests
     {
         // Arrange
         var name = _fixture.CreateTitle();
-        var created = new Subject(name) { Id = _fixture.CreateGuid() };
         _mocker.GetMock<ISubjectCreateService>()
             .Setup(s => s.CreateAsync(It.IsAny<SubjectChangeRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubjectCreateResult(SubjectCreateStatus.Accepted, created));
+            .ReturnsAsync(new SubjectCreateResult(SubjectCreateStatus.Accepted));
         var handler = _mocker.CreateInstance<PutSubjectHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("PUT");
 
@@ -58,10 +55,9 @@ public class CreateAcknowledgementHandlerTests
     {
         // Arrange
         var name = _fixture.CreateTitle();
-        var created = new Person(name) { Id = _fixture.CreateGuid() };
         _mocker.GetMock<IPersonCreateService>()
             .Setup(s => s.CreateAsync(It.IsAny<PersonChangeRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PersonCreateResult(PersonCreateStatus.Accepted, created));
+            .ReturnsAsync(new PersonCreateResult(PersonCreateStatus.Accepted));
         var handler = _mocker.CreateInstance<PutPersonHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("PUT");
 

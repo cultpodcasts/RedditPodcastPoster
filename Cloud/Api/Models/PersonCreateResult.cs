@@ -1,5 +1,3 @@
-using Person = RedditPodcastPoster.Models.People.Person;
-
 namespace Api.Models;
 
 public enum PersonCreateStatus
@@ -12,6 +10,5 @@ public enum PersonCreateStatus
 
 public record PersonCreateResult(
     PersonCreateStatus Status,
-    Person? Person = null,
     string? Message = null,
     string? ConflictName = null);
