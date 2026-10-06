@@ -1,5 +1,4 @@
 using Api.Dtos;
-using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Services.TitleCasingRules;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -23,9 +22,7 @@ public class PostTitleCasingRulesKnownTermHandler(
         return result.Status switch
         {
             TitleCasingRulesUpdateStatus.Ok =>
-                await ctx.Ok(
-                    TitleCasingRulesResponseBuilder.Build(result.Document!, isDefault: false),
-                    c),
+                ctx.Accepted(),
             TitleCasingRulesUpdateStatus.BadRequest =>
                 await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Bad request"), c),
             TitleCasingRulesUpdateStatus.Failed =>

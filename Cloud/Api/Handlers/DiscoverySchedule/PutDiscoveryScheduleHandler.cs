@@ -1,7 +1,5 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Api.Dtos;
-using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Services.DiscoverySchedule;
 
@@ -11,8 +9,6 @@ public class PutDiscoveryScheduleHandler(
     IDiscoveryScheduleUpdateService discoveryScheduleUpdateService,
     ILogger<PutDiscoveryScheduleHandler> logger) : IPutDiscoveryScheduleHandler
 {
-    private const int NextRunsPreviewCount = 6;
-
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
         DiscoveryScheduleUpdateRequest body,
@@ -22,12 +18,7 @@ public class PutDiscoveryScheduleHandler(
         return result.Status switch
         {
             DiscoveryScheduleUpdateStatus.Ok =>
-                await ctx.Ok(
-                    DiscoveryScheduleResponseBuilder.Build(
-                        result.Config!,
-                        isDefault: false,
-                        NextRunsPreviewCount),
-                    c),
+                ctx.Accepted(),
             DiscoveryScheduleUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { error = result.Error }, c),
             DiscoveryScheduleUpdateStatus.Failed =>

@@ -1,7 +1,6 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Subjects;
 
@@ -21,7 +20,7 @@ public class PutSubjectHandler(
         return result.Status switch
         {
             SubjectCreateStatus.Accepted =>
-                await ctx.Accepted(result.Subject!.ToDto(), ct),
+                ctx.Accepted(),
             SubjectCreateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, ct),
             SubjectCreateStatus.Conflict =>

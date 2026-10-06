@@ -51,7 +51,7 @@ public class PersonCreateService(
 
             await personRepository.Save(entity);
             await peoplePublisher.PublishPeople();
-            return new PersonCreateResult(PersonCreateStatus.Accepted, entity);
+            return new PersonCreateResult(PersonCreateStatus.Accepted);
         }
         catch (Exception ex)
         {

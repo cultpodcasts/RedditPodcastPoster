@@ -46,7 +46,7 @@ public class TitleCasingRulesUpdateService(
 
             document.LowerCaseTerms = mutation.Terms.ToList();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
@@ -89,7 +89,7 @@ public class TitleCasingRulesUpdateService(
 
             document.LowerCaseTerms = mutation.Terms.ToList();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
@@ -128,7 +128,7 @@ public class TitleCasingRulesUpdateService(
 
             document.KnownTerms = mutation.Terms.ToList();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
@@ -165,7 +165,7 @@ public class TitleCasingRulesUpdateService(
 
             document.KnownTerms = mutation.Terms.ToList();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
@@ -200,7 +200,7 @@ public class TitleCasingRulesUpdateService(
 
             document.IgnoredSubjects = mutation.Terms.Count == 0 ? null : mutation.Terms.ToArray();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
@@ -235,7 +235,7 @@ public class TitleCasingRulesUpdateService(
 
             document.IgnoredSubjects = mutation.Terms.Count == 0 ? null : mutation.Terms.ToArray();
             await titleCasingRulesRepository.Save(document);
-            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok, document);
+            return new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok);
         }
         catch (Exception ex)
         {
