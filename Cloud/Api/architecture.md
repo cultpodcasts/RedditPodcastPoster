@@ -72,32 +72,19 @@ PersonController.Post
   → client then GET /person/{name}           // PersonDto
 ```
 
-PUT subject and PUT person create follow the same acknowledgement. `SubjectCreateResult` and `PersonCreateResult` carry status, conflict name, and message. They do not carry the saved entity.
+A command result carries status and command details. It does not carry the saved aggregate.
 
 ## CQRS
 
-Adopted standard for every client of this API: Azure Functions (`api-infra`), the Cloudflare Worker, and the Angular app.
+Standing HTTP standard for every client of this API: Azure Functions (`api-infra`), the Cloudflare Worker, and the Angular app.
 
 | Kind | HTTP | Body |
 | ---- | ---- | ---- |
-| **Command acknowledgement** | `ctx.Accepted()` → 202 | None. The client loads the resource with GET. |
-| **Command outcome** | 200 or 202 | What the command did (flags, counts, publish result). Not the saved entity as a `*Dto`. |
+| **Command acknowledgement** | `ctx.Accepted()` → 202 | None. The client loads the resource with GET and binds that body. |
+| **Command outcome** | 200 or 202 | What the command did. Not the saved entity as a `*Dto`. |
 | **Query** | `ctx.Ok(entity.ToDto())` | The resource read model. The handler changes nothing. |
 
-The bar is subject and person create/update:
-
-- `PUT /subject` and `PUT /person`: 202, empty body.
-- `POST /subject/{id}` and `POST /person/{id}`: 202, empty body.
-- After 202, the client GETs `/subject/{name}` or `/person/{name}` (name encoded once) and binds that body. Do not bind an edit form from the command response.
-
-These 202/200 bodies stay, because they are command outcomes:
-
-- Episode update (`EpisodeUpdateResponse`)
-- Podcast update failure flags, or an empty 202 when the update succeeded
-- Podcast kind transfer
-- Publish, rename, discovery submit, homepage publish, search-index run
-
-Do not strip those. Do not add a resource `*Dto` to a command to “save a round trip”.
+A write that returns the resource read model is a CQRS breach. A query that changes state is a CQRS breach. Do not add a resource `*Dto` to a command to save a round trip.
 
 ---
 
@@ -259,7 +246,7 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | `CancellationToken` on `IHandlerContext` | Keep CT as a `Handle` parameter; pass into `ctx.Ok(body, ct)` |
 | `new PersonDto { ... }` inside a service | Return a status result; a query handler `.ToDto()` |
 | Command returns the resource `*Dto` (`ctx.Accepted(entity.ToDto())`) | `ctx.Accepted()`; client GETs the resource |
-| Create result carries the saved `Person` / `Subject` | Status, conflict name, and message only |
+| Command result carries the saved aggregate | Status and command details only |
 | Inheriting domain `Episode` for API JSON | Flat `EpisodeDto` projection |
 | Top-level entity DTO without `*Dto` suffix | `PublicEpisodeDto`, `IndexerStateDto`, … |
 | Shared nested type forced inner on one root | Sibling file when several roots use it |

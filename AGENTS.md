@@ -38,9 +38,9 @@ Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`d
 
 ## CQRS (HARD)
 
-Commands change state and return an acknowledgement or a command outcome. They do not return the resource read model. Queries return the read model and change nothing.
+A command changes state and returns an acknowledgement (empty 202) or a command outcome. It does not return the resource read model. A query returns the read model and changes nothing.
 
-The bar: `PUT`/`POST` subject and person return `ctx.Accepted()` with no body. The client then GETs `/subject/{name}` or `/person/{name}`. Create results do not carry the saved entity. Episode update, podcast failure flags, kind transfer, publish, rename, discovery submit, homepage publish, and search-index run keep their outcome bodies.
+After an acknowledgement, the client GETs the resource and binds that body. A write that returns the resource, or a query that changes state, is a CQRS breach. A command result carries status and command details, not the saved aggregate.
 
 Authoritative: [`Cloud/Api/architecture.md`](Cloud/Api/architecture.md) § CQRS.
 
@@ -66,6 +66,24 @@ Before changing Spotify paginators, YouTube playlist walks, expensive-query flag
 Keep circuit-breaker and flag-flip **log message prefixes** stable (App Insights keys off them).
 Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` test whose
 `DisplayName` states the rule.
+
+## Domain conventions
+
+- Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
+- Do not add Episode members for compact IDs. Use the existing Spotify, YouTube, and Apple IDs. Derive the Apple episode slug from the Apple URL.
+- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.
+- Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
+- Episode ID is globally unique. Azure Search indexing does not use soft-delete.
+- `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
+- Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
+- Cosmos settings bind to the `cosmosdb` configuration section.
+- `docs/migration` is historical. When persistence architecture changes, update `docs/migration/README.md` and `docs/post-migration/README.md`. Keep `docs/post-migration/cost-analysis.md` current and name the next step.
+- Do not change Reddit posting or Twitter posting while doing cost-reduction work unless that change is requested.
+- Indexer cost investigation must cover every activity in the orchestration, not only Indexer. Cost-probe logs are Warning or above. For the Indexer cost probe, log `updateMs` only.
+- Before judging an Azure Search indexer rerun, wait until the newly triggered run has started.
+- In duplicate-episode verification, do not modify backup files. A canonical episode must not be ignored or removed when any deleted duplicate had ignored or removed set to false.
+- Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
+- Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
 ## Cursor Cloud specific instructions
 
