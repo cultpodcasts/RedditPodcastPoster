@@ -13,7 +13,6 @@ public class BlueskyPoster(
     IEpisodeRepository episodeRepository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
     IEmbedCardBlueskyClient blueSkyClient,
-    IEmbedCardRequestFactory embedCardRequestFactory,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -21,27 +20,17 @@ public class BlueskyPoster(
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl, hasShareImage);
         BlueskySendStatus sendStatus;
-        var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)
             ? "en"
             : podcastEpisode.Episode.Language.Trim();
         string blueskyPostUri;
         try
         {
-            if (embedCardRequest != null)
-            {
-                logger.LogInformation(
-                    "Non-Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
-                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                blueskyPostUri = await blueSkyClient.Post(embedPost.Text, embedCardRequest, language);
-            }
-            else
-            {
-                logger.LogError("Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
-                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                blueskyPostUri =
-                    await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}", language);
-            }
+            logger.LogInformation(
+                "Posting bluesky open-graph card for episode '{podcastEpisodeId}' at '{embedPostUrl}'.",
+                podcastEpisode.Episode.Id,
+                embedPost.Url);
+            blueskyPostUri = await blueSkyClient.Post(embedPost.Text, embedPost.Url, language);
 
             sendStatus = BlueskySendStatus.Success;
             BlueskyPostLogger.LogPosted(

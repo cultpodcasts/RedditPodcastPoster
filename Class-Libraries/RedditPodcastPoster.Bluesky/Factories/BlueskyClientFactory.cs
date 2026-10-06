@@ -18,15 +18,13 @@ public class BlueskyClientFactory(
 
     public IEmbedCardBlueskyClient Create()
     {
-        logger.LogInformation("Creating blue-sky client with reuse-session: '{optionsReuseSession}'.",
+        logger.LogInformation(
+            "Creating blue-sky client. X.Bluesky 2.0.7 reuses the session. Configured reuse-session: '{optionsReuseSession}'.",
             _options.ReuseSession);
 
         return new EmbedCardBlueskyClient(
-            new BlueskyHttpClientFactory(),
             _options.Identifier,
             _options.Password,
-            ["en", "en-US"],
-            _options.ReuseSession,
             blueskyLogger,
             blueskyClientLogger,
             mentionResolver);

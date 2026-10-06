@@ -7,7 +7,6 @@ using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.People.Extensions;
@@ -29,9 +28,6 @@ public static class ServiceCollectionExtensions
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
-            .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>()
-            .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
-            .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
             .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
             // BlueskyAgent is from external library (idunno.Bluesky), so we use the concrete type here
             // rather than creating a wrapper interface
