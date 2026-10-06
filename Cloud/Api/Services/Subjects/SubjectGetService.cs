@@ -14,7 +14,7 @@ public class SubjectGetService(
         {
             var name = PodcastRouteNameNormalizer.Normalize(subjectName);
             logger.LogInformation("Get subject '{subjectName}'.", name);
-            var subject = await subjectRepository.GetBy(x => x.Name == name);
+            var subject = await subjectRepository.GetByName(name);
             if (subject == null)
             {
                 logger.LogInformation("Could not find subject with name '{subjectName}'.", name);
