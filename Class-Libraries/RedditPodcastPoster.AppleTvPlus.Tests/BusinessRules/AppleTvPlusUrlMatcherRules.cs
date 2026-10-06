@@ -70,15 +70,19 @@ public class AppleTvPlusUrlMatcherRules
     /// <summary>
     /// Apple catalogue ids are <c>umc.cmc.</c> plus <c>[a-z0-9]+</c>.
     /// <see cref="DomainTestFixture.CreateYouTubeId"/> also emits <c>-</c> and <c>_</c>, which the matcher rejects.
+    /// Draws are capped so a run of separator-bearing ids fails the test instead of hanging it.
     /// </summary>
     private string CatalogueContentId()
     {
-        string token;
-        do
+        for (var attempt = 0; attempt < 32; attempt++)
         {
-            token = _fixture.CreateYouTubeId().ToLowerInvariant();
-        } while (token.Any(static c => c is '-' or '_'));
+            var token = _fixture.CreateYouTubeId().ToLowerInvariant();
+            if (!token.Any(static c => c is '-' or '_'))
+            {
+                return $"umc.cmc.{token}";
+            }
+        }
 
-        return $"umc.cmc.{token}";
+        throw new InvalidOperationException("Could not draw an Apple catalogue id token of [a-z0-9]+.");
     }
 }

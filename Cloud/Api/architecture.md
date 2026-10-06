@@ -13,7 +13,7 @@ Azure Functions HTTP API for Cult Podcasts curation and related operations (`api
 | Principle | Detail |
 | --------- | ------ |
 | **Controller wires HTTP only** | Route, auth roles, deserialize body/query, call `HandleRequest` → handler. No business logic, no Cosmos, no `ToDto`. |
-| **Handler maps outcomes to HTTP** | Receives `IHandlerContext` + model + `CancellationToken`. Calls one service method, switches on `*Status` / `*Result`, returns responses via `ctx.Ok` / `ctx.NotFound` / … and `.ToDto()` for bodies. Does not take `HttpRequestData` or `ClientPrincipal`. |
+| **Handler maps outcomes to HTTP** | Receives `IHandlerContext` + model + `CancellationToken`. Calls one service method, switches on `*Status` / `*Result`. Queries return `entity.ToDto()` via `ctx.Ok`. Commands return `ctx.Accepted()` with no body, or a command-outcome body. Never the saved aggregate. Does not take `HttpRequestData` or `ClientPrincipal`. |
 | **Service owns use-case logic** | Returns `Api.Models` result/outcome types (and domain entities). **Must not** reference `Api.Dtos`, construct response DTOs, or touch `HttpResponseData`. |
 | **Models = internal + request shapes** | `*ChangeRequest`, `*Command`, wrappers, `*Result` / `*Outcome` / status enums. Mutation JSON bodies bind to Models (same pattern as `EpisodeChangeRequest`). |
 | **Dtos = response (and rare wire) JSON** | `*Dto`, response envelopes, `ApiErrorResponse`. Mapping lives in `Dtos/Extensions` (and `Dtos/Mapping` for non-trivial maps). |
@@ -36,7 +36,7 @@ flowchart LR
     S[Service]
     Dom[(Domain repos / libs)]
     M[Models.*Result]
-    D[Dtos via ToDto]
+    D[Query ToDto or command ack]
 
     Client --> Ctrl --> Auth --> Ctx --> H --> S --> Dom
     S --> M --> H
@@ -45,7 +45,7 @@ flowchart LR
 
 1. **Controller** — `[Function]`, route, `[FromBody]` Models request (when mutating), required roles (`curate`, `admin`, `publish`, …).
 2. **Auth base** — `HandleRequest` / `HandlePublicRequest` enforce principal and roles; memory probe wraps execution; constructs `HandlerContext` and passes `IHandlerContext` to the handler.
-3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → `ctx.Ok` / `ctx.NotFound` / `ctx.InternalError(...)`.
+3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → queries `ctx.Ok(entity.ToDto())`; commands `ctx.Accepted()` with no body, or a command-outcome body; failures `ctx.NotFound` / `ctx.InternalError(...)`. Never the saved aggregate.
 4. **Service** — load/apply/persist via class libraries; return typed result (never DTOs).
 5. **Handler edge** — queries: `entity.ToDto()` into `ctx.Ok`. Commands: `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
 
@@ -193,7 +193,7 @@ Cloud/Api/
 1. **Decide the area** (or add `Handlers/NewArea` + `Services/NewArea` with matching namespaces).
 2. **Models** — request body (if any) as `*ChangeRequest` or command; `*Result` + status enum for the service return.
 3. **Service** — `IFooService` + `FooService` as separate files in `Services/{Area}/`; register via `AddApi{Area}()` in `Extensions/ApiAreaServiceCollectionExtensions.cs` (wired from `Ioc.cs`).
-4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`; map status → HTTP + `ToDto` / `ApiErrorResponse`.
+4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`. Queries map status to `ctx.Ok(entity.ToDto())`. Commands map status to `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse`. Never the saved aggregate.
 5. **Dto** (if new response shape) — `Dtos/FooDto.cs` + `ToDto` extension in `Dtos/Extensions/` (no static factories on DTO types).
 6. **Controller** — one method under `Controllers/` (`Api.Controllers`): roles + `HandleRequest(..., handler.Handle, ...)`.
 7. **Tests** — at least: service status cases and/or handler status→HTTP matrix (see below).
