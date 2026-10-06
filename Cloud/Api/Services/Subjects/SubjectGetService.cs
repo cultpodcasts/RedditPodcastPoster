@@ -12,11 +12,12 @@ public class SubjectGetService(
     {
         try
         {
-            logger.LogInformation("Get subject '{subjectName}'.", subjectName);
-            var subject = await subjectRepository.GetBy(x => x.Name == subjectName);
+            var name = PodcastRouteNameNormalizer.Normalize(subjectName);
+            logger.LogInformation("Get subject '{subjectName}'.", name);
+            var subject = await subjectRepository.GetBy(x => x.Name == name);
             if (subject == null)
             {
-                logger.LogInformation("Could not find subject with name '{subjectName}'.", subjectName);
+                logger.LogInformation("Could not find subject with name '{subjectName}'.", name);
                 return new SubjectGetResult(SubjectGetStatus.NotFound);
             }
 
