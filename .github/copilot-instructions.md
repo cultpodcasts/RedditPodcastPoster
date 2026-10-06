@@ -1,6 +1,7 @@
 # Copilot Instructions
 
 ## Project Guidelines
+- CQRS is the HTTP standard. A command returns an acknowledgement (`ctx.Accepted()`, empty 202) or a command outcome, not the resource read model. A query returns the read model and changes nothing. Subject and person create/update are the bar: empty 202, then the client GETs the resource. Do not put the saved entity on create results. Command-outcome bodies (episode update, podcast failure flags, kind transfer, publish, rename, discovery submit, homepage publish, search-index run) stay. See `Cloud/Api/architecture.md` § CQRS.
 - User prefers minimizing search-index payload by storing compact identifiers (YouTube/Spotify/Apple IDs) and reduced key names, with UI reconstructing URLs.
 - User prefers using the term `CompactSearchRecord` and avoiding obsolete `V2` / `Legacy` terminology in docs and schema naming.
 - User does not want additional Episode members for compact IDs; use existing Spotify/YouTube/Apple IDs and derive Apple episode slug from Apple URL via regex.

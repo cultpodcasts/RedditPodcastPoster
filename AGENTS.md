@@ -36,6 +36,14 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
 Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`docs/streaming-submit-orchestration.md`](docs/streaming-submit-orchestration.md). JSON copy under `docs/contracts/` must match Api fixture — `pwsh ./scripts/assert-streaming-submit-contract-copy.ps1`.
 
+## CQRS (HARD)
+
+Commands change state and return an acknowledgement or a command outcome. They do not return the resource read model. Queries return the read model and change nothing.
+
+The bar: `PUT`/`POST` subject and person return `ctx.Accepted()` with no body. The client then GETs `/subject/{name}` or `/person/{name}`. Create results do not carry the saved entity. Episode update, podcast failure flags, kind transfer, publish, rename, discovery submit, homepage publish, and search-index run keep their outcome bodies.
+
+Authoritative: [`Cloud/Api/architecture.md`](Cloud/Api/architecture.md) § CQRS.
+
 ## Episode language (HARD)
 
 `Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`.

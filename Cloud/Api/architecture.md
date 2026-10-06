@@ -20,6 +20,7 @@ Azure Functions HTTP API for Cult Podcasts curation and related operations (`api
 | **Folder = namespace** | `Controllers/PersonController.cs` → `Api.Controllers`. `Handlers/People/…` → `Api.Handlers.People`. Same for `Services/{Area}/`. See ADR 0001. |
 | **One verb, one handler, one service** | Prefer `GetPersonHandler` + `IPersonGetService` over multi-verb god types. |
 | **IHandlerContext at the HTTP edge** | `BaseHttpFunction` builds concrete `HandlerContext` from `HttpRequestData` + principal after auth. Handlers depend only on `IHandlerContext` (`Subject`, `Query`, status helpers). Cancellation tokens stay as separate `Handle` parameters — not on the context. |
+| **CQRS at the HTTP boundary** | A command changes state and returns an acknowledgement or a command outcome. It does not return the resource read model. A query returns the read model and changes nothing. See [CQRS](#cqrs). |
 
 ---
 
@@ -46,7 +47,7 @@ flowchart LR
 2. **Auth base** — `HandleRequest` / `HandlePublicRequest` enforce principal and roles; memory probe wraps execution; constructs `HandlerContext` and passes `IHandlerContext` to the handler.
 3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → `ctx.Ok` / `ctx.NotFound` / `ctx.InternalError(...)`.
 4. **Service** — load/apply/persist via class libraries; return typed result (never DTOs).
-5. **Handler edge** — `entity.ToDto()` or outcome `.ToDto()` into `ctx.Ok` / `ctx.Accepted`; failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
+5. **Handler edge** — queries: `entity.ToDto()` into `ctx.Ok`. Commands: `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
 
 ### Exemplar: GET person
 
@@ -58,7 +59,7 @@ PersonController.Get
       → NotFound → ctx.NotFound()
       → Failed  → await ctx.InternalError(ApiErrorResponse.Failure(...), ct)
 ```
-### Exemplar: PATCH/POST person
+### Exemplar: POST person (command)
 
 ```
 PersonController.Post
@@ -66,9 +67,37 @@ PersonController.Post
   → PersonChangeRequestWrapper
   → PostPersonHandler → IPersonUpdateService
       → PersonChangeApplier.Apply(entity, change)  // Models only
-      → PersonUpdateResult
-  → handler maps status → HTTP (no DTO until response if returning entity)
+      → PersonUpdateResult                    // status only — not PersonDto
+  → Accepted → ctx.Accepted()                // 202, empty body
+  → client then GET /person/{name}           // PersonDto
 ```
+
+PUT subject and PUT person create follow the same acknowledgement. `SubjectCreateResult` and `PersonCreateResult` carry status, conflict name, and message. They do not carry the saved entity.
+
+## CQRS
+
+Adopted standard for every client of this API: Azure Functions (`api-infra`), the Cloudflare Worker, and the Angular app.
+
+| Kind | HTTP | Body |
+| ---- | ---- | ---- |
+| **Command acknowledgement** | `ctx.Accepted()` → 202 | None. The client loads the resource with GET. |
+| **Command outcome** | 200 or 202 | What the command did (flags, counts, publish result). Not the saved entity as a `*Dto`. |
+| **Query** | `ctx.Ok(entity.ToDto())` | The resource read model. The handler changes nothing. |
+
+The bar is subject and person create/update:
+
+- `PUT /subject` and `PUT /person`: 202, empty body.
+- `POST /subject/{id}` and `POST /person/{id}`: 202, empty body.
+- After 202, the client GETs `/subject/{name}` or `/person/{name}` (name encoded once) and binds that body. Do not bind an edit form from the command response.
+
+These 202/200 bodies stay, because they are command outcomes:
+
+- Episode update (`EpisodeUpdateResponse`)
+- Podcast update failure flags, or an empty 202 when the update succeeded
+- Podcast kind transfer
+- Publish, rename, discovery submit, homepage publish, search-index run
+
+Do not strip those. Do not add a resource `*Dto` to a command to “save a round trip”.
 
 ---
 
@@ -86,7 +115,7 @@ Cloud/Api/
 ├── Extensions/             HTTP helpers + ApiAreaServiceCollectionExtensions (DI)
 ├── Handlers/
 │   ├── IHandlerContext.cs / HandlerContext.cs   HTTP edge for handlers (Subject, Query, status helpers)
-│   └── {Area}/         Api.Handlers.{Area} — status → HTTP + ToDto
+│   └── {Area}/         Api.Handlers.{Area} — status → HTTP; queries ToDto, commands acknowledge
 ├── Services/{Area}/        Api.Services.{Area} — use cases, appliers (IService + Service split files)
 ├── Models/                 Requests, commands, results, outcomes
 ├── Dtos/                   Response JSON types
@@ -153,7 +182,8 @@ Cloud/Api/
 - [ ] Depend on `I{Area}{Verb}Service` (or equivalent), not repositories directly (unless a rare pure map with no I/O).
 - [ ] Signature: `Handle(IHandlerContext ctx, …, CancellationToken ct)` — never `HttpRequestData` / `ClientPrincipal`.
 - [ ] Exhaustive `switch` on status; unexpected → log + `ctx.InternalError(ApiErrorResponse.Failure(...), ct)`.
-- [ ] Response mapping: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` / `ctx.Accepted`.
+- [ ] Queries: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` only.
+- [ ] Commands: `ctx.Accepted()` with no body, or a command-outcome type. Never `entity.ToDto()` on a write.
 - [ ] Use `ctx.Subject` / `ctx.Query(...)` only when needed (most handlers ignore subject; auth already ran).
 - [ ] Keep orchestration light; query parsing and batch mapping belong in services / `Dtos/Mapping` (handlers stay status→HTTP).
 
@@ -227,7 +257,9 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | `HttpResponseData` in `Services/` | Return `*Result`; handler maps HTTP |
 | `HttpRequestData` / `ClientPrincipal` on handlers | `IHandlerContext` (+ separate `CancellationToken`) |
 | `CancellationToken` on `IHandlerContext` | Keep CT as a `Handle` parameter; pass into `ctx.Ok(body, ct)` |
-| `new PersonDto { ... }` inside a service | Return domain entity; handler `.ToDto()` |
+| `new PersonDto { ... }` inside a service | Return a status result; a query handler `.ToDto()` |
+| Command returns the resource `*Dto` (`ctx.Accepted(entity.ToDto())`) | `ctx.Accepted()`; client GETs the resource |
+| Create result carries the saved `Person` / `Subject` | Status, conflict name, and message only |
 | Inheriting domain `Episode` for API JSON | Flat `EpisodeDto` projection |
 | Top-level entity DTO without `*Dto` suffix | `PublicEpisodeDto`, `IndexerStateDto`, … |
 | Shared nested type forced inner on one root | Sibling file when several roots use it |
