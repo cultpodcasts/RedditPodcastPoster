@@ -1,3 +1,4 @@
+using idunno.AtProto;
 using idunno.Bluesky;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,7 @@ public class BlueskyAgentFactory(
             logger.LogError(
                 "Bluesky login failed. Status-code: {statusCode}, error-detail-error: {errorDetailError}, error-detail-message: {errorDetailMessage}.",
                 result.StatusCode, result.AtErrorDetail?.Error, result.AtErrorDetail?.Message);
+            throw new AuthenticationRequiredException();
         }
 
         return agent;

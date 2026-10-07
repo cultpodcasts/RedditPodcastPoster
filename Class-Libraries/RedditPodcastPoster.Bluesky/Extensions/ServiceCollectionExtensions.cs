@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddPeopleServices()
+            .AddScoped<IBlueskyPlatformCardSource, BlueskyPlatformCardSource>()
+            .AddSingleton<IBlueskyCardImageDownloader, BlueskyCardImageDownloader>()
             .AddScoped<IBlueskyFeedClient, BlueskyFeedClient>()
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()

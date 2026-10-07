@@ -7,6 +7,8 @@ namespace RedditPodcastPoster.Bluesky.Client;
 
 public class BlueskyFeedClient(
     IAsyncInstance<BlueskyAgent> blueskyAgent,
+    IBlueskyPlatformCardSource cardSource,
+    IBlueskyCardImageDownloader imageDownloader,
     ILogger<BlueskyFeedClient> logger) : IBlueskyFeedClient
 {
     public async Task<string?> PostOpenGraphCard(string text, Uri url, string language)
@@ -35,26 +37,45 @@ public class BlueskyFeedClient(
 
     private async Task<EmbeddedExternal?> TryCreateCard(BlueskyAgent agent, Uri url)
     {
+        var details = await cardSource.TryGetAsync(url).ConfigureAwait(false);
+        if (details is null)
+        {
+            return null;
+        }
+
+        BlueskyCardImage? image;
         try
         {
-            var generator = agent.CreateOpenGraphEmbeddedCardGenerator();
-            var card = await generator.Generate(url);
-            if (card is null)
-            {
-                logger.LogWarning(
-                    "Bluesky open-graph card was empty for '{url}'. Posting without a card.",
-                    url);
-            }
-
-            return card;
+            image = await imageDownloader.Download(details.ImageUrl).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogWarning(
                 ex,
-                "Bluesky open-graph card generation failed for '{url}'. Posting without a card.",
+                "Bluesky card image download failed for '{url}'. Posting without a card.",
                 url);
             return null;
         }
+
+        if (image is null)
+        {
+            logger.LogWarning(
+                "Bluesky card image download failed for '{url}'. Posting without a card.",
+                url);
+            return null;
+        }
+
+        var uploaded = await agent.UploadImage(image.Bytes, image.MimeType, details.Title, aspectRatio: null)
+            .ConfigureAwait(false);
+        if (!uploaded.Succeeded || uploaded.Result?.Image is null)
+        {
+            logger.LogWarning(
+                "Bluesky card image upload failed for '{url}'. Status-code: {statusCode}. Posting without a card.",
+                url,
+                uploaded.StatusCode);
+            return null;
+        }
+
+        return new EmbeddedExternal(details.Link.AbsoluteUri, details.Title, details.Description, uploaded.Result.Image);
     }
 }

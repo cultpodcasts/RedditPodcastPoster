@@ -1,4 +1,5 @@
 using System.Security.Authentication;
+using idunno.AtProto;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
@@ -54,7 +55,7 @@ public class BlueskyPoster(
                 embedPost.Text, embedPost.Url);
             return BlueskySendStatus.FailureHttp;
         }
-        catch (AuthenticationException ex)
+        catch (Exception ex) when (ex is AuthenticationException or AuthenticationRequiredException)
         {
             logger.LogError(ex,
                 "Failure authenticating to send blue-sky post. Post: '{embedPostText}'.", embedPost.Text);
