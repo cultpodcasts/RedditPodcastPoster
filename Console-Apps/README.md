@@ -104,7 +104,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `-y, --skip-youtube-url-enrichment` | Skip YouTube URL resolving |
 | `-a, --acknowledge-expensive-queries` | Allow expensive queries |
 | `-m, --match-other-services` | Match other services |
-| `-d, --dry-run` | Do not commit to database |
+| `-d, --dry-run` | Run matching, but do not write the database or the search index |
 | `-i, --no-index` | Do not reindex search index |
 | `-l, --is-internet-archive-playlist` | URL is an Internet Archive playlist |
 | `-c, --create-podcast` | Create new podcast |

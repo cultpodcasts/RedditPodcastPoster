@@ -5,15 +5,16 @@ using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Logging;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
-using RedditPodcastPoster.PodcastServices.Spotify.Providers;
+using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 public class SpotifyEpisodeResolver(
-    ISpotifyPodcastEpisodesProvider spotifyPodcastEpisodesProvider,
+    ISpotifyEpisodeTitleSearch episodeTitleSearch,
     ISpotifyClientWrapper spotifyClientWrapper,
     ISpotifySearchResultFinder searchResultFinder,
     ILogger<SpotifyEpisodeResolver> logger)
@@ -51,16 +52,54 @@ public class SpotifyEpisodeResolver(
             }
         }
 
-        var podcastEpisodes = await spotifyPodcastEpisodesProvider.GetAllEpisodes(request, indexingContext, market);
+        var candidates = await episodeTitleSearch.FindCandidates(request, indexingContext, market);
+        var matchingEpisode = await MatchCandidates(request, candidates, reducer);
 
-        SimpleEpisode? matchingEpisode;
+        if (matchingEpisode != null)
+        {
+            var showRequest = new EpisodeRequest { Market = market };
+            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
+        }
+
+        return new FindEpisodeResponse(TakeIfFree(fullEpisode, market));
+    }
+
+    private async Task<SimpleEpisode?> MatchCandidates(
+        FindSpotifyEpisodeRequest request,
+        IReadOnlyList<SimpleEpisode> candidates,
+        Func<SimpleEpisode, bool>? reducer)
+    {
+        if (!request.Released.HasValue)
+        {
+            return await MatchSlice(request, candidates, reducer);
+        }
+
+        var inBand = candidates
+            .Where(x => EpisodeReleaseTolerance.IsInSubmitMatchBand(x.GetReleaseDate(), request.Released.Value))
+            .ToList();
+        var outOfBand = candidates
+            .Where(x => !EpisodeReleaseTolerance.IsInSubmitMatchBand(x.GetReleaseDate(), request.Released.Value))
+            .ToList();
+        return await MatchSlice(request, inBand, reducer) ?? await MatchSlice(request, outOfBand, reducer);
+    }
+
+    private async Task<SimpleEpisode?> MatchSlice(
+        FindSpotifyEpisodeRequest request,
+        IReadOnlyList<SimpleEpisode> candidates,
+        Func<SimpleEpisode, bool>? reducer)
+    {
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
         if (request.Length is { } episodeLength && episodeLength > TimeSpan.Zero &&
             (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode))
         {
-            matchingEpisode = await searchResultFinder.FindMatchingEpisodeByLength(
+            return await searchResultFinder.FindMatchingEpisodeByLength(
                 request.EpisodeTitle,
                 episodeLength,
-                podcastEpisodes.Episodes,
+                candidates,
                 reducer,
                 request.ReleaseAuthority,
                 request.Released,
@@ -70,20 +109,11 @@ public class SpotifyEpisodeResolver(
                 request.IgnoredSubjects,
                 request.Language);
         }
-        else
-        {
-            matchingEpisode =
-                searchResultFinder.FindMatchingEpisodeByDate(request.EpisodeTitle, request.Released,
-                    podcastEpisodes.Episodes);
-        }
 
-        if (matchingEpisode != null)
-        {
-            var showRequest = new EpisodeRequest { Market = market };
-            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
-        }
-
-        return new FindEpisodeResponse(TakeIfFree(fullEpisode, market), podcastEpisodes.ExpensiveQueryFound);
+        return searchResultFinder.FindMatchingEpisodeByDate(
+            request.EpisodeTitle,
+            request.Released,
+            candidates);
     }
 
     private FullEpisode? TakeIfFree(FullEpisode? episode, string market)

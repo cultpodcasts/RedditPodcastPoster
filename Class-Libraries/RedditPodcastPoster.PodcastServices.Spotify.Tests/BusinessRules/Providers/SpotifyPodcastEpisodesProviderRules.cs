@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -22,6 +23,12 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Provid
 public class SpotifyPodcastEpisodesProviderRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public SpotifyPodcastEpisodesProviderRules()
+    {
+        _mocker.Use(NullLogger<SpotifyPodcastEpisodesProvider>.Instance);
+    }
 
     [Fact(DisplayName =
         "When resolving by podcast name with ReleasedSince, GetShowEpisodes uses Limit=50 " +
@@ -32,7 +39,7 @@ public class SpotifyPodcastEpisodesProviderRules
         ShowEpisodesRequest? capturedRequest = null;
         var show = new SimpleShow { Id = "show-1", Name = "News Hour" };
         var episode = CreateEpisode("ep-1", daysAgo: 1);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetSimpleShows(It.IsAny<SearchRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([show]);
@@ -46,17 +53,17 @@ public class SpotifyPodcastEpisodesProviderRules
                 capturedRequest = request)
             .ReturnsAsync(new Paging<SimpleEpisode> { Items = [episode], Next = null });
 
-        var finder = new Mock<ISpotifySearchResultFinder>();
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
         finder
             .Setup(x => x.FindMatchingPodcasts(It.IsAny<string>(), It.IsAny<List<SimpleShow>?>()))
             .Returns([show]);
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new PodcastEpisodesResult([episode]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: "",
             PodcastName: "News Hour",
@@ -85,7 +92,7 @@ public class SpotifyPodcastEpisodesProviderRules
         var show = new SimpleShow { Id = "show-1", Name = "News Hour" };
         var episode1 = CreateEpisode("ep-1", daysAgo: 1);
         var episode2 = CreateEpisode("ep-2", daysAgo: 0);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetSimpleShows(It.IsAny<SearchRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([show]);
@@ -97,17 +104,17 @@ public class SpotifyPodcastEpisodesProviderRules
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Paging<SimpleEpisode> { Items = [episode1, episode2], Next = null });
 
-        var finder = new Mock<ISpotifySearchResultFinder>();
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
         finder
             .Setup(x => x.FindMatchingPodcasts(It.IsAny<string>(), It.IsAny<List<SimpleShow>?>()))
             .Returns([show]);
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new PodcastEpisodesResult([episode1, episode2]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: "",
             PodcastName: "News Hour",
@@ -115,7 +122,9 @@ public class SpotifyPodcastEpisodesProviderRules
             EpisodeTitle: "Today",
             Released: DateTime.UtcNow.Date,
             HasExpensiveSpotifyEpisodesQuery: false);
-        var indexingContext = new IndexingContext(SkipPodcastDiscovery: false);
+        var indexingContext = new IndexingContext(
+            ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
+            SkipPodcastDiscovery: false);
 
         // Act
         var result = await sut.GetAllEpisodes(request, indexingContext, Market.CountryCode);
@@ -133,7 +142,7 @@ public class SpotifyPodcastEpisodesProviderRules
         ShowEpisodesRequest? capturedRequest = null;
         var showId = _fixture.CreateSpotifyId();
         var episode = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetShowEpisodes(
                 showId,
@@ -144,12 +153,12 @@ public class SpotifyPodcastEpisodesProviderRules
                 capturedRequest = request)
             .ReturnsAsync(new Paging<SimpleEpisode> { Items = [episode], Next = null });
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new PodcastEpisodesResult([episode]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var indexingContext = new IndexingContext(
             ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipPodcastDiscovery: true);
@@ -175,7 +184,7 @@ public class SpotifyPodcastEpisodesProviderRules
         // Arrange
         var show = new SimpleShow { Id = _fixture.CreateSpotifyId(), Name = _fixture.CreateTitle() };
         var episode = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetSimpleShows(It.IsAny<SearchRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([show]);
@@ -187,13 +196,13 @@ public class SpotifyPodcastEpisodesProviderRules
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Paging<SimpleEpisode> { Items = [episode], Next = "https://api.spotify.com/v1/shows/x/episodes?offset=1" });
 
-        var finder = new Mock<ISpotifySearchResultFinder>();
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
         finder
             .Setup(x => x.FindMatchingPodcasts(It.IsAny<string>(), It.IsAny<List<SimpleShow>?>()))
             .Returns([show]);
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
-        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: "",
             PodcastName: show.Name,
@@ -224,7 +233,7 @@ public class SpotifyPodcastEpisodesProviderRules
         var show = new SimpleShow { Id = _fixture.CreateSpotifyId(), Name = _fixture.CreateTitle() };
         var oldest = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 2000);
         var recent = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetSimpleShows(It.IsAny<SearchRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([show]);
@@ -240,17 +249,17 @@ public class SpotifyPodcastEpisodesProviderRules
                 Next = "https://api.spotify.com/v1/shows/x/episodes?offset=1"
             });
 
-        var finder = new Mock<ISpotifySearchResultFinder>();
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
         finder
             .Setup(x => x.FindMatchingPodcasts(It.IsAny<string>(), It.IsAny<List<SimpleShow>?>()))
             .Returns([show]);
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new PodcastEpisodesResult([oldest, recent]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: "",
             PodcastName: show.Name,
@@ -279,10 +288,9 @@ public class SpotifyPodcastEpisodesProviderRules
     public async Task Empty_spotify_id_with_skip_podcast_discovery_does_not_name_search()
     {
         // Arrange
-        var wrapper = new Mock<ISpotifyClientWrapper>();
-        var finder = new Mock<ISpotifySearchResultFinder>();
-        var paginator = new Mock<ISpotifyQueryPaginator>();
-        var sut = CreateSut(wrapper.Object, paginator.Object, finder.Object);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var request = new FindSpotifyEpisodeRequest(
             PodcastSpotifyId: "",
             PodcastName: _fixture.CreateTitle(),
@@ -323,7 +331,7 @@ public class SpotifyPodcastEpisodesProviderRules
         // Arrange
         var showId = _fixture.CreateSpotifyId();
         var episode = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetShowEpisodes(
                 showId,
@@ -336,8 +344,8 @@ public class SpotifyPodcastEpisodesProviderRules
                 Next = "https://api.spotify.com/v1/shows/x/episodes?offset=5"
             });
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
-        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var indexingContext = new IndexingContext(
             SkipPodcastDiscovery: true,
             SkipExpensiveSpotifyQueries: true);
@@ -364,7 +372,7 @@ public class SpotifyPodcastEpisodesProviderRules
         var oldest = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 2000);
         var recent = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1);
         ShowEpisodesRequest? capturedRequest = null;
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetShowEpisodes(
                 showId,
@@ -379,12 +387,12 @@ public class SpotifyPodcastEpisodesProviderRules
                 Next = "https://api.spotify.com/v1/shows/x/episodes?offset=5"
             });
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new PodcastEpisodesResult([oldest, recent]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var indexingContext = new IndexingContext(
             ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipPodcastDiscovery: true,
@@ -419,7 +427,7 @@ public class SpotifyPodcastEpisodesProviderRules
         var indexingReleasedSince = DomainTestFixture.UtcDateDaysAgo(2);
         var episodeJustBeforeFloor = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 3);
         IndexingContext? capturedFetchContext = null;
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetShowEpisodes(
                 showId,
@@ -432,13 +440,13 @@ public class SpotifyPodcastEpisodesProviderRules
                 Next = null
             });
 
-        var paginator = new Mock<ISpotifyQueryPaginator>();
+        var paginator = _mocker.GetMock<ISpotifyQueryPaginator>();
         paginator
             .Setup(x => x.PaginateEpisodes(It.IsAny<IPaginatable<SimpleEpisode>?>(), It.IsAny<IndexingContext>()))
             .Callback<IPaginatable<SimpleEpisode>?, IndexingContext>((_, ctx) => capturedFetchContext = ctx)
             .ReturnsAsync(new PodcastEpisodesResult([episodeJustBeforeFloor]));
 
-        var sut = CreateSut(wrapper.Object, paginator.Object, Mock.Of<ISpotifySearchResultFinder>());
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var indexingContext = new IndexingContext(
             ReleasedSince: indexingReleasedSince,
             SkipPodcastDiscovery: true,
@@ -466,7 +474,7 @@ public class SpotifyPodcastEpisodesProviderRules
         var showId = _fixture.CreateSpotifyId();
         var free = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1, isPlayable: true);
         var paywalled = CreateEpisode(_fixture.CreateSpotifyId(), daysAgo: 1, isPlayable: false);
-        var wrapper = new Mock<ISpotifyClientWrapper>();
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetShowEpisodes(
                 showId,
@@ -479,7 +487,7 @@ public class SpotifyPodcastEpisodesProviderRules
                 Next = "https://api.spotify.com/v1/shows/x/episodes?offset=5"
             });
 
-        var sut = CreateSut(wrapper.Object, Mock.Of<ISpotifyQueryPaginator>(), Mock.Of<ISpotifySearchResultFinder>());
+        var sut = _mocker.CreateInstance<SpotifyPodcastEpisodesProvider>();
         var indexingContext = new IndexingContext(
             SkipPodcastDiscovery: true,
             SkipExpensiveSpotifyQueries: true);
@@ -492,12 +500,6 @@ public class SpotifyPodcastEpisodesProviderRules
         // Assert
         result.Episodes.Select(x => x.Id).Should().ContainSingle().Which.Should().Be(free.Id);
     }
-
-    private static SpotifyPodcastEpisodesProvider CreateSut(
-        ISpotifyClientWrapper wrapper,
-        ISpotifyQueryPaginator paginator,
-        ISpotifySearchResultFinder finder) =>
-        new(wrapper, paginator, finder, NullLogger<SpotifyPodcastEpisodesProvider>.Instance);
 
     private SimpleEpisode CreateEpisode(string id, int daysAgo, bool isPlayable = true) =>
         new()

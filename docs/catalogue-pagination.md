@@ -48,8 +48,34 @@ window; a backlog video added long after publication keeps added-at, which is th
 "new to this feed" signal. Playlist item requests therefore ask for `contentDetails` whenever
 `ReleasedSince` is set (same 1-unit page cost).
 
-MatchOtherServices / SubmitUrl narrows Spotify and Apple lookups with `ReleasedSince`
-derived from the authority release (YouTube → authority minus publishing delay).
+MatchOtherServices / SubmitUrl sets `ReleasedSince` from the authority release for catalogue-floor
+walks (Apple pages while the newest-first tail is still on or after that floor). A YouTube
+URL with no catalogue podcast still sets that floor from the default one-hour matching
+delay. Spotify episode matching does not read the floor. Name-search with no `ReleasedSince`
+does not paginate the show, even when the request carries an episode release: a single-episode
+match must not download the catalogue. An Apple published-before ceiling is a separate change.
+
+A single-episode FindEpisode does not paginate show catalogues at all. It runs one Spotify
+episode-title search (`Limit` 10). When the show name is known it is included in the query.
+The page is then filtered to the known Spotify show id or else an exact show name, and matched
+inside `EpisodeReleaseTolerance.GetSubmitMatchBand` (expected release date minus 14 days through
+that date plus 14 days). In-band hits are tried first; other hits on the same page are the weaker
+second pass. If that page has no show hit, the lookup stops. There is no catalogue fallback.
+The same band is used for a recent episode and a years-old episode. Indexer catalogue walks
+are unchanged.
+
+The other direction uses the same band. When a Spotify or Apple submit already knows a
+YouTube channel and Search.List is allowed, `YouTubeUrlCategoriser` searches that channel
+with both `publishedAfter` and `publishedBefore` (`YouTubeChannelReleaseBandSearch`: at most
+2 pages of 50; account-delegation forbidden throws `YouTubeChannelSearchForbiddenException`).
+Expected publish is the audio release plus the podcast's YouTube publishing delay. If
+`GetUploadsPlaylistReason` is set, or Search.List is account-delegation forbidden, the
+categoriser does not keep calling Search.List. It reads the stored playlist when one exists,
+otherwise the channel uploads playlist, sets the walk floor to the band start (a years-old
+forbidden channel still pages back to that date, and the categoriser logs the date), and drops
+items newer than the band end. The forbidden result is stored on
+`Podcast.YouTubeChannelSearchForbidden`. No channel means no YouTube search. Indexer playlist
+and uploads walks, and `GetLatestChannelVideoSnippets`, are unchanged.
 
 ### Expensive-query flags (podcast document)
 
@@ -116,7 +142,8 @@ Probe: releases monotonically non-increasing?
         └─ <2       → ExpensiveQueryFound = null  → flag unchanged; treat as reverse for walk
         │
         ▼
-ReleasedSince == null?  → PaginateAll (full catalogue; rare for indexer)
+ReleasedSince == null?  → known show id: PaginateAll (full catalogue; rare for indexer).
+                          Name-search: refuse. Single-episode match must not walk every episode.
 ReleasedSince set       → date-scoped strategy above
         │
         ▼
@@ -176,6 +203,10 @@ non-primary passes must not start catalogue walks even when discovery would.
 | Discovery persists flag | `.../SpotifyEpisodeRetrievalHandlerRules.cs` |
 | Enrichment side-effect | `.../Enrichers/SpotifyExpensiveQuerySideEffectRules.cs` |
 | Categoriser hard-skip (no ReleasedSince carve-out) | `.../Categorisers/SpotifyUrlCategoriserRules.cs` |
+| Single-episode title search (one page, one show, no catalogue walk) | `.../Search/SpotifyEpisodeTitleSearchRules.cs` |
+| In-band match before out-of-band on that page | `.../Resolvers/SpotifyEpisodeResolverRules.cs` |
+| Submit-match band width (recent and years-old) | `Episodes.Tests/BusinessRules/Matching/SubmitMatchBandRules.cs` |
+| Name-search refuses a catalogue walk when `ReleasedSince` is unset, even if the episode release is set | `.../Providers/SpotifyNameMatchCatalogueLimitRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 
 ---
@@ -280,6 +311,8 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
 | `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
+| Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |
+| Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 
 ---

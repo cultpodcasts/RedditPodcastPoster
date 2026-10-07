@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Providers;
+using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -19,7 +20,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Resolv
 
 /// <summary>
 /// FindEpisode must short-circuit on SkipSpotifyUrlResolving, prefer GetFullEpisode when an episode id is known,
-/// and after id miss / no id page the catalogue choosing by-date vs by-length before hydrating via GetFullEpisode.
+/// and after id miss / no id search the episode title on one page, choosing by-date vs by-length before hydrating via GetFullEpisode.
 /// </summary>
 public class SpotifyEpisodeResolverRules
 {
@@ -105,8 +106,8 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
-        "When EpisodeSpotifyId is empty, FindEpisode pages GetAllEpisodes, matches by date, then hydrates via GetFullEpisode " +
-        "because catalogue identity must be resolved before a full episode document is returned.")]
+        "When EpisodeSpotifyId is empty, FindEpisode searches the episode title, matches by date, then hydrates via GetFullEpisode " +
+        "because a single submitted episode must not page the show catalogue.")]
     public async Task No_episode_id_pages_catalogue_matches_by_date_then_hydrates()
     {
         // Arrange
@@ -115,13 +116,13 @@ public class SpotifyEpisodeResolverRules
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released);
         var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([catalogueEpisode]));
+            .ReturnsAsync([catalogueEpisode]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetFullEpisode(
@@ -150,12 +151,18 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeSameAs(hydrated);
-        provider.Verify(
-            x => x.GetAllEpisodes(
+        titleSearch.Verify(
+            x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()),
             Times.Once);
+        _mocker.GetMock<ISpotifyPodcastEpisodesProvider>().Verify(
+            x => x.GetAllEpisodes(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()),
+            Times.Never);
         finder.Verify(
             x => x.FindMatchingEpisodeByDate(title, released, It.IsAny<IEnumerable<SimpleEpisode>>()),
             Times.Once);
@@ -184,8 +191,8 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
-        "When EpisodeSpotifyId is set but GetFullEpisode returns null, FindEpisode falls through to GetAllEpisodes " +
-        "because a stale or invalid stored id must not block catalogue name/date matching.")]
+        "When EpisodeSpotifyId is set but GetFullEpisode returns null, FindEpisode falls through to an episode-title search " +
+        "because a stale or invalid stored id must not block title matching and must not page the show catalogue.")]
     public async Task Episode_id_miss_falls_through_to_catalogue_paging()
     {
         // Arrange
@@ -195,13 +202,13 @@ public class SpotifyEpisodeResolverRules
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released);
         var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([catalogueEpisode]));
+            .ReturnsAsync([catalogueEpisode]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetFullEpisode(
@@ -235,12 +242,18 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeSameAs(hydrated);
-        provider.Verify(
-            x => x.GetAllEpisodes(
+        titleSearch.Verify(
+            x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()),
             Times.Once);
+        _mocker.GetMock<ISpotifyPodcastEpisodesProvider>().Verify(
+            x => x.GetAllEpisodes(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()),
+            Times.Never);
         wrapper.Verify(
             x => x.GetFullEpisode(
                 missingId,
@@ -258,7 +271,7 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
-        "When ReleaseAuthority is YouTube and Length is set, FindEpisode matches by length after GetAllEpisodes " +
+        "When ReleaseAuthority is YouTube and Length is set, FindEpisode matches by length after the episode-title search " +
         "because YouTube-authority audio lookups tolerate release lag and prefer duration alignment.")]
     public async Task YouTube_authority_with_length_matches_by_length_then_hydrates()
     {
@@ -270,13 +283,13 @@ public class SpotifyEpisodeResolverRules
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released, length);
         var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
         Func<SimpleEpisode, bool>? reducer = _ => true;
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([catalogueEpisode]));
+            .ReturnsAsync([catalogueEpisode]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetFullEpisode(
@@ -348,8 +361,8 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
-        "When EnrichingYouTubeDiscoveredEpisode is true and Length is set, FindEpisode matches by length after GetAllEpisodes " +
-        "because YouTube-discovered enrichment must use duration-aware catalogue matching even on Spotify-primary shows.")]
+        "When EnrichingYouTubeDiscoveredEpisode is true and Length is set, FindEpisode matches by length after the episode-title search " +
+        "because YouTube-discovered enrichment must use duration-aware matching even on Spotify-primary shows.")]
     public async Task Enriching_youtube_discovered_episode_matches_by_length_then_hydrates()
     {
         // Arrange
@@ -359,13 +372,13 @@ public class SpotifyEpisodeResolverRules
         var matchId = _fixture.CreateSpotifyId();
         var catalogueEpisode = CreateSimpleEpisode(matchId, title, released, length);
         var hydrated = new FullEpisode { Id = matchId, Name = title, IsPlayable = true };
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([catalogueEpisode], expensiveQueryFound: true));
+            .ReturnsAsync([catalogueEpisode]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetFullEpisode(
@@ -407,7 +420,7 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeSameAs(hydrated);
-        result.IsExpensiveQuery.Should().BeTrue();
+        result.IsExpensiveQuery.Should().BeNull();
         finder.Verify(
             x => x.FindMatchingEpisodeByLength(
                 title,
@@ -439,13 +452,13 @@ public class SpotifyEpisodeResolverRules
         // Arrange
         var title = _fixture.CreateTitle();
         var released = DomainTestFixture.UtcDateDaysAgo(1);
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([]));
+            .ReturnsAsync([]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
         finder
@@ -465,12 +478,18 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeNull();
-        provider.Verify(
-            x => x.GetAllEpisodes(
+        titleSearch.Verify(
+            x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()),
             Times.Once);
+        _mocker.GetMock<ISpotifyPodcastEpisodesProvider>().Verify(
+            x => x.GetAllEpisodes(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()),
+            Times.Never);
         wrapper.VerifyNoOtherCalls();
     }
 
@@ -616,13 +635,13 @@ public class SpotifyEpisodeResolverRules
             Name = title,
             IsPlayable = false
         };
-        var provider = _mocker.GetMock<ISpotifyPodcastEpisodesProvider>();
-        provider
-            .Setup(x => x.GetAllEpisodes(
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodesResult([catalogueEpisode]));
+            .ReturnsAsync([catalogueEpisode]);
         var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
         wrapper
             .Setup(x => x.GetFullEpisode(
@@ -661,12 +680,136 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
-        provider.Verify(
-            x => x.GetAllEpisodes(
+        titleSearch.Verify(
+            x => x.FindCandidates(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()),
             Times.Once);
+        _mocker.GetMock<ISpotifyPodcastEpisodesProvider>().Verify(
+            x => x.GetAllEpisodes(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the title-search page contains an in-band episode and a years-apart episode, FindEpisode matches the in-band episode first " +
+        "because the YouTube or audio release date is a short window, not a walk from that date to today.")]
+    public async Task In_band_candidate_is_matched_before_years_apart_candidate()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var released = DomainTestFixture.UtcDateDaysAgo(1);
+        var inBandId = _fixture.CreateSpotifyId();
+        var outOfBandId = _fixture.CreateSpotifyId();
+        var inBand = CreateSimpleEpisode(inBandId, title, released);
+        var outOfBand = CreateSimpleEpisode(outOfBandId, title, DomainTestFixture.UtcDateDaysAgo(400));
+        var hydrated = new FullEpisode { Id = inBandId, Name = title, IsPlayable = true };
+        var seenCandidateIds = new List<string[]>();
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()))
+            .ReturnsAsync([outOfBand, inBand]);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetFullEpisode(
+                inBandId,
+                It.IsAny<EpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hydrated);
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
+        finder
+            .Setup(x => x.FindMatchingEpisodeByDate(title, released, It.IsAny<IEnumerable<SimpleEpisode>>()))
+            .Callback<string, DateTime?, IEnumerable<SimpleEpisode>>((_, _, episodes) =>
+                seenCandidateIds.Add(episodes.Select(episode => episode.Id).ToArray()))
+            .Returns<string, DateTime?, IEnumerable<SimpleEpisode>>((_, _, episodes) => episodes.FirstOrDefault());
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: _fixture.CreateSpotifyId(),
+            PodcastName: _fixture.CreateTitle(),
+            EpisodeSpotifyId: string.Empty,
+            EpisodeTitle: title,
+            Released: released,
+            HasExpensiveSpotifyEpisodesQuery: false,
+            ReleaseAuthority: Service.Spotify);
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeSameAs(hydrated);
+        seenCandidateIds.Should().ContainSingle();
+        seenCandidateIds[0].Should().Equal(inBandId);
+    }
+
+    [Fact(DisplayName =
+        "When the in-band title-search hits do not match, FindEpisode tries the out-of-band hits on the same page " +
+        "because a years-apart publishing lag is a weaker second pass and must not start a catalogue walk.")]
+    public async Task Out_of_band_candidate_is_matched_only_after_in_band_miss()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var released = DomainTestFixture.UtcDateDaysAgo(1);
+        var inBandId = _fixture.CreateSpotifyId();
+        var outOfBandId = _fixture.CreateSpotifyId();
+        var inBand = CreateSimpleEpisode(inBandId, title, released);
+        var outOfBand = CreateSimpleEpisode(outOfBandId, title, DomainTestFixture.UtcDateDaysAgo(400));
+        var hydrated = new FullEpisode { Id = outOfBandId, Name = title, IsPlayable = true };
+        var seenCandidateIds = new List<string[]>();
+        var titleSearch = _mocker.GetMock<ISpotifyEpisodeTitleSearch>();
+        titleSearch
+            .Setup(x => x.FindCandidates(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()))
+            .ReturnsAsync([outOfBand, inBand]);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetFullEpisode(
+                outOfBandId,
+                It.IsAny<EpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hydrated);
+        var finder = _mocker.GetMock<ISpotifySearchResultFinder>();
+        finder
+            .Setup(x => x.FindMatchingEpisodeByDate(title, released, It.IsAny<IEnumerable<SimpleEpisode>>()))
+            .Returns<string, DateTime?, IEnumerable<SimpleEpisode>>((_, _, episodes) =>
+            {
+                var ids = episodes.Select(episode => episode.Id).ToArray();
+                seenCandidateIds.Add(ids);
+                return ids.Contains(outOfBandId) ? outOfBand : null;
+            });
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: _fixture.CreateSpotifyId(),
+            PodcastName: _fixture.CreateTitle(),
+            EpisodeSpotifyId: string.Empty,
+            EpisodeTitle: title,
+            Released: released,
+            HasExpensiveSpotifyEpisodesQuery: false,
+            ReleaseAuthority: Service.Spotify);
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeSameAs(hydrated);
+        seenCandidateIds.Should().HaveCount(2);
+        seenCandidateIds[0].Should().Equal(inBandId);
+        seenCandidateIds[1].Should().Equal(outOfBandId);
+        _mocker.GetMock<ISpotifyPodcastEpisodesProvider>().Verify(
+            x => x.GetAllEpisodes(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()),
+            Times.Never);
     }
 
     private SimpleEpisode CreateSimpleEpisode(

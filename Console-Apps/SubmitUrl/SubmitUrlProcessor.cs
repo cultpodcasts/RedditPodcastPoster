@@ -67,6 +67,12 @@ public class SubmitUrlProcessor(
             urls = await File.ReadAllLinesAsync(request.UrlOrFile!);
         }
 
+        if (request.DryRun)
+        {
+            logger.LogWarning(
+                "Dry-run: matching will run. Database and search-index writes are skipped.");
+        }
+
         var updatedEpisodeIds = new List<Guid>();
 
         foreach (var url in urls)
@@ -92,6 +98,11 @@ public class SubmitUrlProcessor(
         }
 
         updatedEpisodeIds = updatedEpisodeIds.Distinct().ToList();
+        if (request.DryRun)
+        {
+            return;
+        }
+
         if (!request.NoIndex && updatedEpisodeIds.Count > 0)
         {
             try

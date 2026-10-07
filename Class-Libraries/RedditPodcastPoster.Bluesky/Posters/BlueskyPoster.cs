@@ -1,4 +1,5 @@
 using System.Security.Authentication;
+using idunno.AtProto;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Factories;
@@ -30,7 +31,11 @@ public class BlueskyPoster(
                 "Posting bluesky open-graph card for episode '{podcastEpisodeId}' at '{embedPostUrl}'.",
                 podcastEpisode.Episode.Id,
                 embedPost.Url);
-            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(embedPost.Text, embedPost.Url, language);
+            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(
+                embedPost.Text,
+                embedPost.Url,
+                language,
+                embedPost.PlatformUrl);
             if (string.IsNullOrWhiteSpace(blueskyPostUri))
             {
                 return BlueskySendStatus.Failure;
@@ -54,7 +59,7 @@ public class BlueskyPoster(
                 embedPost.Text, embedPost.Url);
             return BlueskySendStatus.FailureHttp;
         }
-        catch (AuthenticationException ex)
+        catch (Exception ex) when (ex is AuthenticationException or AuthenticationRequiredException)
         {
             logger.LogError(ex,
                 "Failure authenticating to send blue-sky post. Post: '{embedPostText}'.", embedPost.Text);
