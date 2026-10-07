@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Bluesky.Client;
@@ -80,5 +81,43 @@ public class BlueskyPosterAtUriRules
         status.Should().Be(BlueskySendStatus.Failure);
         episode.BlueskyPost.Should().BeNull();
         _saved.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A successful Bluesky post logs the AT URI at Information with the episode id, because Warning is the cost-probe stream and the post is already recorded separately.")]
+    public async Task successful_post_logs_the_at_uri_at_information()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        var pair = new PodcastEpisode(podcast, episode);
+        _card = new BlueskyEmbedCardPost(episode.Title, _fixture.Create<Uri>(), Service.YouTube);
+        _postedUri = CreatedAtUri;
+        var sut = _mocker.CreateInstance<BlueskyPoster>();
+
+        // Act
+        var status = await sut.Post(pair, shortUrl: null);
+
+        // Assert
+        status.Should().Be(BlueskySendStatus.Success);
+        _mocker.GetMock<ILogger<BlueskyPoster>>().Verify(
+            logger => logger.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state!.ToString()!.Contains(CreatedAtUri, StringComparison.Ordinal) &&
+                    state.ToString()!.Contains(episode.Id.ToString(), StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        _mocker.GetMock<ILogger<BlueskyPoster>>().Verify(
+            logger => logger.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state!.ToString()!.Contains(CreatedAtUri, StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
     }
 }

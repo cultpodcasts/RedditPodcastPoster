@@ -23,10 +23,14 @@ public sealed class DashedHandleFacetExtractor : IFacetExtractor
         foreach (var mention in DashedMentionScanner.Find(text))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (IsCovered(facets, mention.ByteStart, mention.ByteEnd))
+            if (IsFullyCovered(facets, mention.ByteStart, mention.ByteEnd))
             {
                 continue;
             }
+
+            // The default mention pattern stops at '-'. A shorter mention facet that
+            // overlaps this token is that truncation, and it can name a different account.
+            RemoveTruncatedMentionFacets(facets, mention.ByteStart, mention.ByteEnd);
 
             Did? did;
             try
@@ -36,10 +40,6 @@ public sealed class DashedHandleFacetExtractor : IFacetExtractor
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
-            }
-            catch (Exception)
-            {
-                continue;
             }
 
             if (did is null)
@@ -54,16 +54,43 @@ public sealed class DashedHandleFacetExtractor : IFacetExtractor
         return facets;
     }
 
-    private static bool IsCovered(IReadOnlyList<Facet> facets, long byteStart, long byteEnd)
+    private static bool IsFullyCovered(IReadOnlyList<Facet> facets, long byteStart, long byteEnd)
     {
         foreach (var facet in facets)
         {
-            if (facet.Index is null)
+            if (facet.Index is not null &&
+                facet.Index.ByteStart <= byteStart &&
+                facet.Index.ByteEnd >= byteEnd)
             {
-                continue;
+                return true;
             }
+        }
 
-            if (facet.Index.ByteStart < byteEnd && byteStart < facet.Index.ByteEnd)
+        return false;
+    }
+
+    private static void RemoveTruncatedMentionFacets(List<Facet> facets, long byteStart, long byteEnd)
+    {
+        facets.RemoveAll(facet => IsTruncatedMention(facet, byteStart, byteEnd));
+    }
+
+    private static bool IsTruncatedMention(Facet facet, long byteStart, long byteEnd)
+    {
+        if (facet.Index is null || !HasMention(facet))
+        {
+            return false;
+        }
+
+        var overlaps = facet.Index.ByteStart < byteEnd && byteStart < facet.Index.ByteEnd;
+        var coversFullToken = facet.Index.ByteStart <= byteStart && facet.Index.ByteEnd >= byteEnd;
+        return overlaps && !coversFullToken;
+    }
+
+    private static bool HasMention(Facet facet)
+    {
+        foreach (var feature in facet.Features)
+        {
+            if (feature is MentionFacetFeature)
             {
                 return true;
             }

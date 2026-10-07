@@ -41,11 +41,10 @@ public class BlueskyPoster(
                 logger,
                 podcastEpisode,
                 caller: nameof(BlueskyPoster) + "." + nameof(Post));
-            logger.LogWarning(
+            logger.LogInformation(
                 "Bluesky post AT URI: {BlueskyPostUri}. Episode-id: {EpisodeId}.",
                 blueskyPostUri,
                 podcastEpisode.Episode.Id);
-            Console.WriteLine($"Bluesky post AT URI: {blueskyPostUri}");
         }
         catch (HttpRequestException ex)
         {
