@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Categorisers;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.UrlSubmission;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -115,6 +116,45 @@ public class UrlCategoriserReleasedSinceRules
         // Assert
         capturedContext.Should().NotBeNull();
         capturedContext!.ReleasedSince.Should().Be(release.Subtract(delay));
+    }
+
+    [Fact(DisplayName =
+        "When MatchOtherServices resolves Spotify from a YouTube URL and no podcast is attached, ReleasedSince is the YouTube release minus the default matching delay " +
+        "because an unknown series must date-scope the Spotify catalogue instead of downloading every episode.")]
+    public async Task YouTube_authority_without_podcast_sets_spotify_released_since_to_release_minus_default_delay()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(10));
+        var youTubeId = _fixture.CreateYouTubeId();
+        var youTubeUrl = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        IndexingContext? capturedContext = null;
+
+        _mocker.GetMock<IYouTubeUrlCategoriser>()
+            .Setup(x => x.Resolve(
+                It.IsAny<Podcast?>(),
+                It.IsAny<IList<Episode>>(),
+                youTubeUrl,
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateYouTubeItem(youTubeUrl, youTubeId, release));
+
+        _mocker.GetMock<ISpotifyUrlCategoriser>()
+            .Setup(x => x.Resolve(
+                It.IsAny<PodcastServiceSearchCriteria>(),
+                It.IsAny<Podcast?>(),
+                It.IsAny<IndexingContext>()))
+            .Callback<PodcastServiceSearchCriteria, Podcast?, IndexingContext>((_, _, ctx) =>
+                capturedContext = ctx)
+            .ReturnsAsync((ResolvedSpotifyItem?)null);
+
+        var sut = _mocker.CreateInstance<UrlCategoriser>();
+
+        // Act
+        await sut.Categorise(null, youTubeUrl, new IndexingContext(), matchOtherServices: true);
+
+        // Assert
+        capturedContext.Should().NotBeNull();
+        capturedContext!.ReleasedSince.Should().Be(
+            release.Subtract(Constants.DefaultMatchingPodcastYouTubePublishingDelay));
     }
 
     [Fact(DisplayName =

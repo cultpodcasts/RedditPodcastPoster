@@ -116,12 +116,9 @@ public class UrlCategoriser(
                     {
                         indexingContext = indexingContext with { ReleasedSince = criteria.Release.AddDays(-1) };
                     }
-                    else if (authority == Service.YouTube && podcast != null)
+                    else if (authority == Service.YouTube)
                     {
-                        indexingContext = indexingContext with
-                        {
-                            ReleasedSince = criteria.Release.Subtract(podcast.YouTubePublishingDelay())
-                        };
+                        indexingContext = WithYouTubeAudioReleasedSince(indexingContext, podcast, criteria.Release);
                     }
 
                     var spotifyPlatform =
@@ -153,12 +150,9 @@ public class UrlCategoriser(
                             };
                         }
                     }
-                    else if (authority == Service.YouTube && podcast != null)
+                    else if (authority == Service.YouTube)
                     {
-                        indexingContext = indexingContext with
-                        {
-                            ReleasedSince = criteria.Release.Subtract(podcast.YouTubePublishingDelay())
-                        };
+                        indexingContext = WithYouTubeAudioReleasedSince(indexingContext, podcast, criteria.Release);
                     }
 
                     var applePlatform = await appleUrlCategoriser.Resolve(criteria, podcast, indexingContext);
@@ -223,5 +217,20 @@ public class UrlCategoriser(
         }
 
         throw new InvalidOperationException($"Unable to handle url '{url}'.");
+    }
+
+    /// <summary>
+    /// Audio catalogues lag YouTube. An unattached submit still gets the default matching delay so Spotify
+    /// and Apple stay date-scoped instead of downloading the whole show.
+    /// </summary>
+    private static IndexingContext WithYouTubeAudioReleasedSince(
+        IndexingContext indexingContext,
+        Podcast? podcast,
+        DateTime youTubeRelease)
+    {
+        var delay = podcast == null
+            ? Constants.DefaultMatchingPodcastYouTubePublishingDelay
+            : podcast.YouTubePublishingDelay();
+        return indexingContext with { ReleasedSince = youTubeRelease.Subtract(delay) };
     }
 }

@@ -7,8 +7,9 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
-using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
+using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
@@ -25,12 +26,10 @@ public class YouTubeUrlCategoriser(
     IYouTubeServiceWrapper youTubeService,
     ITolerantYouTubeChannelService youTubeChannelService,
     ITolerantYouTubeVideoService youTubeVideoService,
-    IYouTubeChannelVideosService youTubeChannelVideosService,
+    IYouTubeChannelReleaseBandSearch youTubeChannelReleaseBandSearch,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<YouTubeUrlCategoriser> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : IYouTubeUrlCategoriser
 {
     private const int MultiplePublicationDateMatchTitleThreshold = 60;
@@ -172,27 +171,31 @@ public class YouTubeUrlCategoriser(
                     $"Podcast with id '{matchingPodcast.Id}' has episodes with inconsistent youtube-id && youtube-url. Episode-ids: {string.Join(", ", mismatchedEpisodes.Select(x => x.Id))}");
             }
 
-            IList<PlaylistItem>? items = null;
-            if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
-            {
-                var playlistVideoSnippetsResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
-                    new YouTubePlaylistId(matchingPodcast.YouTubePlaylistId, YouTubePlaylistIdSource.PodcastEntity,
-                        matchingPodcast.Id.ToString()), indexingContext,
-                    expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
-                items = playlistVideoSnippetsResponse.Result;
-            }
-            else
-            {
-                var channelUploadsResponse =
-                    await youTubeChannelVideosService.GetChannelVideos(
-                        new YouTubeChannelId(matchingPodcast.YouTubeChannelId), indexingContext);
-                if (channelUploadsResponse.PlaylistItems != null)
+            var expectedPublish = criteria.Release.Add(matchingPodcast.YouTubePublishingDelay());
+            var band = EpisodeReleaseTolerance.GetSubmitMatchBand(expectedPublish);
+            var publishedAfter = new DateTimeOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
+            var publishedBefore = new DateTimeOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
+            var bandResults = await youTubeChannelReleaseBandSearch.Search(
+                matchingPodcast.YouTubeChannelId,
+                publishedAfter,
+                publishedBefore,
+                indexingContext);
+            IList<PlaylistItem>? items = bandResults?
+                .Where(x => x.Id?.VideoId != null && x.Snippet != null)
+                .Select(x => new PlaylistItem
                 {
-                    items = channelUploadsResponse.PlaylistItems;
-                    channelDescription = channelUploadsResponse.Channel!.Snippet.Description;
-                    channelContentOwner = channelUploadsResponse.Channel.ContentOwnerDetails.ContentOwner;
-                }
-            }
+                    Id = x.Id.VideoId,
+                    Snippet = new PlaylistItemSnippet
+                    {
+                        Title = x.Snippet.Title,
+                        Description = x.Snippet.Description,
+                        ChannelId = x.Snippet.ChannelId,
+                        ChannelTitle = x.Snippet.ChannelTitle,
+                        PublishedAtDateTimeOffset = x.Snippet.PublishedAtDateTimeOffset,
+                        ResourceId = new ResourceId { VideoId = x.Id.VideoId }
+                    }
+                })
+                .ToList();
 
             if (items == null || !items.Any())
             {
@@ -204,7 +207,6 @@ public class YouTubeUrlCategoriser(
                 .Where(id => !string.IsNullOrWhiteSpace(id));
             var unassignedChannelUploads =
                 items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id)).ToArray();
-            var expectedPublish = criteria.Release + matchingPodcast.YouTubePublishingDelay();
             var publishedWithin = unassignedChannelUploads.Where(x =>
                     x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
                     x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold))
@@ -258,6 +260,17 @@ public class YouTubeUrlCategoriser(
 
             if (match != null)
             {
+                var channel = await youTubeChannelService.GetChannel(
+                    new YouTubeChannelId(match.Snippet.ChannelId),
+                    indexingContext,
+                    true,
+                    true);
+                if (channel != null)
+                {
+                    channelDescription = channel.Snippet.Description;
+                    channelContentOwner = channel.ContentOwnerDetails.ContentOwner;
+                }
+
                 var video = await youTubeVideoService.GetVideoContentDetails(youTubeService,
                     [match.Snippet.ResourceId.VideoId],
                     indexingContext,

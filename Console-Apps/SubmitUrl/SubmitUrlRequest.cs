@@ -32,7 +32,7 @@ public class SubmitUrlRequest
     [Option('m', "match-other-services", Required = false, Default = false, HelpText = "Match other services")]
     public bool MatchOtherServices { get; set; }
 
-    [Option('d', "dry-run", Required = false, Default = false, HelpText = "Do not commit to database")]
+    [Option('d', "dry-run", Required = false, Default = false, HelpText = "Run matching but do not write the database or search index")]
     public bool DryRun { get; set; }
 
     [Option('i', "no-index", Default = false, HelpText = "Do not reindex search-index")]
