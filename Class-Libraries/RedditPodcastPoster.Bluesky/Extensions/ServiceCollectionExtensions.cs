@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddPeopleServices()
-            .AddScoped<IBlueskyFeedClient, IdunnoBlueskyFeedClient>()
+            .AddScoped<IBlueskyFeedClient, BlueskyFeedClient>()
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()

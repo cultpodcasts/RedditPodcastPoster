@@ -21,7 +21,8 @@ public class BlueskyAgentOptionsFactoryRules
         // Arrange
         const string handle = "some-name.bsky.social";
         string? resolved = null;
-        var sut = new BlueskyAgentOptionsFactory();
+        var loggerFactory = NullLoggerFactory.Instance;
+        var sut = new BlueskyAgentOptionsFactory(loggerFactory);
         var options = sut.Create((candidate, _) =>
         {
             resolved = candidate;
@@ -33,6 +34,7 @@ public class BlueskyAgentOptionsFactoryRules
 
         // Assert
         resolved.Should().Be(handle);
+        options.LoggerFactory.Should().BeSameAs(loggerFactory);
     }
 
     [Fact(DisplayName =

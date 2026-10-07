@@ -5,9 +5,9 @@ using RedditPodcastPoster.DependencyInjection;
 
 namespace RedditPodcastPoster.Bluesky.Client;
 
-public class IdunnoBlueskyFeedClient(
+public class BlueskyFeedClient(
     IAsyncInstance<BlueskyAgent> blueskyAgent,
-    ILogger<IdunnoBlueskyFeedClient> logger) : IBlueskyFeedClient
+    ILogger<BlueskyFeedClient> logger) : IBlueskyFeedClient
 {
     public async Task<string?> PostOpenGraphCard(string text, Uri url, string language)
     {
