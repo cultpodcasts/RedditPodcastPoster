@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.Bluesky.Posters;
 public class BlueskyPoster(
     IEpisodeRepository episodeRepository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
-    IEmbedCardBlueskyClient blueSkyClient,
+    IBlueskyFeedClient blueSkyClient,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -23,24 +23,29 @@ public class BlueskyPoster(
         var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)
             ? "en"
             : podcastEpisode.Episode.Language.Trim();
-        string blueskyPostUri;
+        string? blueskyPostUri;
         try
         {
             logger.LogInformation(
                 "Posting bluesky open-graph card for episode '{podcastEpisodeId}' at '{embedPostUrl}'.",
                 podcastEpisode.Episode.Id,
                 embedPost.Url);
-            blueskyPostUri = await blueSkyClient.Post(embedPost.Text, embedPost.Url, language);
+            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(embedPost.Text, embedPost.Url, language);
+            if (string.IsNullOrWhiteSpace(blueskyPostUri))
+            {
+                return BlueskySendStatus.Failure;
+            }
 
             sendStatus = BlueskySendStatus.Success;
             BlueskyPostLogger.LogPosted(
                 logger,
                 podcastEpisode,
                 caller: nameof(BlueskyPoster) + "." + nameof(Post));
-            logger.LogInformation(
-                "Posted to bluesky: '{EmbedPostText}'. AT-URI: '{BlueskyPostUri}'.",
-                embedPost.Text,
-                blueskyPostUri);
+            logger.LogWarning(
+                "Bluesky post AT URI: {BlueskyPostUri}. Episode-id: {EpisodeId}.",
+                blueskyPostUri,
+                podcastEpisode.Episode.Id);
+            Console.WriteLine($"Bluesky post AT URI: {blueskyPostUri}");
         }
         catch (HttpRequestException ex)
         {

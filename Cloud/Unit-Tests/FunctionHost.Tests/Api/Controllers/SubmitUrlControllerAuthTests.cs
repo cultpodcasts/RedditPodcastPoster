@@ -120,10 +120,10 @@ public class SubmitUrlControllerAuthTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Unhandled exception in") &&
-                    v.ToString()!.Contains("TestFunction") &&
-                    v.ToString()!.Contains(req.Object.Url.ToString()) &&
-                    v.ToString()!.Contains("POST")),
+                    v!.ToString()!.Contains("Unhandled exception in") &&
+                    v!.ToString()!.Contains("TestFunction") &&
+                    v!.ToString()!.Contains(req.Object.Url.ToString()) &&
+                    v!.ToString()!.Contains("POST")),
                 boom,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -131,7 +131,7 @@ public class SubmitUrlControllerAuthTests
             x => x.Log(
                 LogLevel.Error,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("HandleRequest failed")),
+                It.Is<It.IsAnyType>((v, _) => v!.ToString()!.Contains("HandleRequest failed")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);

@@ -63,6 +63,16 @@ public class ListenNotesSearcher(
             {
                 var apiResponse = await _client.Search(parameters);
                 var response = apiResponse.ToJSON<ListenNotesResponse>();
+                if (response is null)
+                {
+                    logger.LogError(
+                        "Listen Notes search returned empty JSON for query:'{Parameter}', offset:'{Offset}'.",
+                        parameters[QueryKey],
+                        parameters[OffsetKey]);
+                    error = true;
+                    continue;
+                }
+
                 var episodeResults = response.Results.Select(ToEpisodeResult);
                 results.AddRange(episodeResults);
 

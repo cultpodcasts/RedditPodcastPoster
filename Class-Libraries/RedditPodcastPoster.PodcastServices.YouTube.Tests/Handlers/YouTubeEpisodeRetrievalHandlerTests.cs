@@ -190,9 +190,9 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) =>
-                    state.ToString()!.Contains(podcast.Name) &&
-                    state.ToString()!.Contains(playlistId) &&
-                    state.ToString()!.Contains("not found", StringComparison.OrdinalIgnoreCase)),
+                    state!.ToString()!.Contains(podcast.Name) &&
+                    state!.ToString()!.Contains(playlistId) &&
+                    state!.ToString()!.Contains("not found", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

@@ -522,10 +522,10 @@ public class SpotifyEpisodeResolverRules
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains(SpotifyNonPlayableSkipLogger.ReturnedDespiteMarketMessagePrefix) &&
-                    v.ToString()!.Contains(episodeId) &&
-                    v.ToString()!.Contains($"market='{Market.CountryCode}'") &&
-                    v.ToString()!.Contains(
+                    v!.ToString()!.Contains(SpotifyNonPlayableSkipLogger.ReturnedDespiteMarketMessagePrefix) &&
+                    v!.ToString()!.Contains(episodeId) &&
+                    v!.ToString()!.Contains($"market='{Market.CountryCode}'") &&
+                    v!.ToString()!.Contains(
                         $"restrictions.reason='{SpotifyNonPlayableSkipLogger.MarketRestrictionReason}'")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
@@ -535,8 +535,8 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<LogLevel>(),
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Skipping Spotify episode") ||
-                    v.ToString()!.Contains(SpotifyNonPlayableSkipLogger.MarketUnavailableMessagePrefix)),
+                    v!.ToString()!.Contains("Skipping Spotify episode") ||
+                    v!.ToString()!.Contains(SpotifyNonPlayableSkipLogger.MarketUnavailableMessagePrefix)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
@@ -592,9 +592,9 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<LogLevel>(),
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains(SpotifyNonPlayableSkipLogger.ReturnedDespiteMarketMessagePrefix) ||
-                    v.ToString()!.Contains("Skipping Spotify episode") ||
-                    v.ToString()!.Contains(SpotifyNonPlayableSkipLogger.MarketUnavailableMessagePrefix)),
+                    v!.ToString()!.Contains(SpotifyNonPlayableSkipLogger.ReturnedDespiteMarketMessagePrefix) ||
+                    v!.ToString()!.Contains("Skipping Spotify episode") ||
+                    v!.ToString()!.Contains(SpotifyNonPlayableSkipLogger.MarketUnavailableMessagePrefix)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
@@ -656,8 +656,8 @@ public class SpotifyEpisodeResolverRules
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Skipping Spotify episode") &&
-                    v.ToString()!.Contains(matchId)),
+                    v!.ToString()!.Contains("Skipping Spotify episode") &&
+                    v!.ToString()!.Contains(matchId)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

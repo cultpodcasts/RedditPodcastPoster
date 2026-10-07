@@ -23,11 +23,18 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddPeopleServices()
-            .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
-            .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
+            .AddScoped<IBlueskyFeedClient, IdunnoBlueskyFeedClient>()
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
+            .AddSingleton<IBlueskyAgentOptionsFactory, BlueskyAgentOptionsFactory>()
+            .AddSingleton(sp => sp.GetRequiredService<IBlueskyAgentOptionsFactory>().Create(async (handle, token) =>
+            {
+                var agent = await sp.GetRequiredService<IAsyncInstance<BlueskyAgent>>()
+                    .GetAsync(token)
+                    .ConfigureAwait(false);
+                return await agent.ResolveHandle(handle, token).ConfigureAwait(false);
+            }))
             .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
             // BlueskyAgent is from external library (idunno.Bluesky), so we use the concrete type here
             // rather than creating a wrapper interface

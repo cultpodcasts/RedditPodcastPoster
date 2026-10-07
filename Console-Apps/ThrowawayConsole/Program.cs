@@ -1,23 +1,25 @@
 using System.Diagnostics;
 using System.Reflection;
+using idunno.AtProto;
+using idunno.Bluesky;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Bluesky.Extensions;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.Clients;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
-using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.DependencyInjection;
 
 if (args.Contains("--version"))
 {
     VersionInfo.PrintVersion();
     return 0;
+}
+
+if (args.Length != 1 || !AtUri.TryParse(args[0], out var atUri) || atUri.RecordKey is null)
+{
+    Console.Error.WriteLine("Usage: ThrowawayConsole <bluesky-at-uri>");
+    return 1;
 }
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -33,27 +35,19 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddEpisodesDomain()
-    .AddRepositories()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddHttpClient();
+    .AddBlueskyServices();
 
 using var host = builder.Build();
-
-if (args.Length == 0)
+var agent = await host.Services.GetRequiredService<IAsyncInstance<BlueskyAgent>>().GetAsync();
+var deleted = await agent.DeletePost(atUri);
+if (!deleted.Succeeded)
 {
-    Console.Error.WriteLine("Usage: ThrowawayConsole <internet-archive-url>");
+    Console.Error.WriteLine(
+        $"Bluesky delete failed. Status-code: {deleted.StatusCode}. Error: {deleted.AtErrorDetail?.Error}. Message: {deleted.AtErrorDetail?.Message}.");
     return 1;
 }
 
-var service = host.Services.GetRequiredService<IYouTubeServiceWrapper>();
-var service2 = host.Services.GetRequiredService<IYouTubeVideoService>();
-var service3 = host.Services.GetRequiredService<IYouTubeThumbnailResolver>();
-
-var video = await service2.GetVideoContentDetails(service, [args[0]], new IndexingContext(), true);
-var image = await service3.GetImageUrlAsync(video?.SingleOrDefault());
-
-
+Console.WriteLine($"Deleted Bluesky post {atUri}");
 return 0;
 
 string GetBasePath()
