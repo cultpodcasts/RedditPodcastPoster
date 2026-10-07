@@ -22,8 +22,11 @@ public class SpotifyEpisodeTitleSearch(
             return [];
         }
 
+        var query = string.IsNullOrWhiteSpace(request.PodcastName)
+            ? request.EpisodeTitle
+            : $"{request.EpisodeTitle} {request.PodcastName.Trim()}";
         var page = await spotifyClient.FindEpisodes(
-            new SearchRequest(SearchRequest.Types.Episode, request.EpisodeTitle)
+            new SearchRequest(SearchRequest.Types.Episode, query)
             {
                 Market = market,
                 Limit = MaxResults

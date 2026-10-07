@@ -11,6 +11,7 @@ using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
@@ -27,6 +28,7 @@ public class YouTubeUrlCategoriser(
     ITolerantYouTubeChannelService youTubeChannelService,
     ITolerantYouTubeVideoService youTubeVideoService,
     IYouTubeChannelReleaseBandSearch youTubeChannelReleaseBandSearch,
+    IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
     ILogger<YouTubeUrlCategoriser> logger)
@@ -175,27 +177,11 @@ public class YouTubeUrlCategoriser(
             var band = EpisodeReleaseTolerance.GetSubmitMatchBand(expectedPublish);
             var publishedAfter = new DateTimeOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
             var publishedBefore = new DateTimeOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
-            var bandResults = await youTubeChannelReleaseBandSearch.Search(
-                matchingPodcast.YouTubeChannelId,
+            var items = await LoadSubmitMatchCandidates(
+                matchingPodcast,
+                indexingContext,
                 publishedAfter,
-                publishedBefore,
-                indexingContext);
-            IList<PlaylistItem>? items = bandResults?
-                .Where(x => x.Id?.VideoId != null && x.Snippet != null)
-                .Select(x => new PlaylistItem
-                {
-                    Id = x.Id.VideoId,
-                    Snippet = new PlaylistItemSnippet
-                    {
-                        Title = x.Snippet.Title,
-                        Description = x.Snippet.Description,
-                        ChannelId = x.Snippet.ChannelId,
-                        ChannelTitle = x.Snippet.ChannelTitle,
-                        PublishedAtDateTimeOffset = x.Snippet.PublishedAtDateTimeOffset,
-                        ResourceId = new ResourceId { VideoId = x.Id.VideoId }
-                    }
-                })
-                .ToList();
+                publishedBefore);
 
             if (items == null || !items.Any())
             {
@@ -306,6 +292,140 @@ public class YouTubeUrlCategoriser(
         }
 
         return null;
+    }
+
+    private async Task<IList<PlaylistItem>?> LoadSubmitMatchCandidates(
+        Podcast matchingPodcast,
+        IndexingContext indexingContext,
+        DateTimeOffset publishedAfter,
+        DateTimeOffset publishedBefore)
+    {
+        var uploadsPlaylistReason = youTubeChannelVideoRetrievalPolicy.GetUploadsPlaylistReason(matchingPodcast);
+        if (uploadsPlaylistReason != null)
+        {
+            return await LoadBandBoundedPlaylist(
+                matchingPodcast, indexingContext, publishedAfter, publishedBefore, uploadsPlaylistReason);
+        }
+
+        try
+        {
+            var bandResults = await youTubeChannelReleaseBandSearch.Search(
+                matchingPodcast.YouTubeChannelId,
+                publishedAfter,
+                publishedBefore,
+                indexingContext);
+            return bandResults?
+                .Where(x => x.Id?.VideoId != null && x.Snippet != null)
+                .Select(x => new PlaylistItem
+                {
+                    Id = x.Id.VideoId,
+                    Snippet = new PlaylistItemSnippet
+                    {
+                        Title = x.Snippet.Title,
+                        Description = x.Snippet.Description,
+                        ChannelId = x.Snippet.ChannelId,
+                        ChannelTitle = x.Snippet.ChannelTitle,
+                        PublishedAtDateTimeOffset = x.Snippet.PublishedAtDateTimeOffset,
+                        ResourceId = new ResourceId { VideoId = x.Id.VideoId }
+                    }
+                })
+                .ToList();
+        }
+        catch (YouTubeChannelSearchForbiddenException ex)
+        {
+            logger.LogInformation(ex,
+                "Search.List is not permitted for channel-id '{ChannelId}'; falling back to the playlist.",
+                matchingPodcast.YouTubeChannelId);
+            matchingPodcast.YouTubeChannelSearchForbidden = true;
+            return await LoadBandBoundedPlaylist(
+                matchingPodcast,
+                indexingContext,
+                publishedAfter,
+                publishedBefore,
+                "youTubeChannelSearchForbidden");
+        }
+    }
+
+    /// <summary>
+    /// Playlist and uploads walks have a floor and no ceiling. The floor is the band start so paging
+    /// stops once publish times are older than it. A years-old band still pages back to that date.
+    /// Items newer than the band end are dropped here.
+    /// </summary>
+    private async Task<IList<PlaylistItem>?> LoadBandBoundedPlaylist(
+        Podcast matchingPodcast,
+        IndexingContext indexingContext,
+        DateTimeOffset publishedAfter,
+        DateTimeOffset publishedBefore,
+        string reason)
+    {
+        logger.LogInformation(
+            "Submit match paging playlist until publish times are older than {BandStart:u} for channel '{ChannelId}' ({Reason}). Items newer than {BandEnd:u} are dropped.",
+            publishedAfter,
+            matchingPodcast.YouTubeChannelId,
+            reason,
+            publishedBefore);
+
+        var playlistId = await ResolveFallbackPlaylistId(matchingPodcast, indexingContext);
+        if (playlistId == null)
+        {
+            return null;
+        }
+
+        var playlistContext = indexingContext with { ReleasedSince = publishedAfter.UtcDateTime };
+        var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
+            playlistId,
+            playlistContext,
+            expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
+        return WithinSubmitMatchBand(response.Result, publishedAfter, publishedBefore);
+    }
+
+    private async Task<YouTubePlaylistId?> ResolveFallbackPlaylistId(
+        Podcast matchingPodcast,
+        IndexingContext indexingContext)
+    {
+        if (!string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
+        {
+            return new YouTubePlaylistId(
+                matchingPodcast.YouTubePlaylistId,
+                YouTubePlaylistIdSource.PodcastEntity,
+                matchingPodcast.Id.ToString());
+        }
+
+        var channel = await youTubeChannelService.GetChannel(
+            new YouTubeChannelId(matchingPodcast.YouTubeChannelId),
+            indexingContext,
+            withContentDetails: true);
+        var uploadsId = channel?.ContentDetails?.RelatedPlaylists?.Uploads;
+        if (string.IsNullOrWhiteSpace(uploadsId))
+        {
+            logger.LogInformation(
+                "No uploads playlist for channel-id '{ChannelId}'.",
+                matchingPodcast.YouTubeChannelId);
+            return null;
+        }
+
+        return new YouTubePlaylistId(
+            uploadsId,
+            YouTubePlaylistIdSource.ChannelUploads,
+            matchingPodcast.YouTubeChannelId);
+    }
+
+    private static IList<PlaylistItem>? WithinSubmitMatchBand(
+        IList<PlaylistItem>? items,
+        DateTimeOffset publishedAfter,
+        DateTimeOffset publishedBefore)
+    {
+        if (items == null)
+        {
+            return null;
+        }
+
+        return items.Where(item =>
+        {
+            var published = item.ContentDetails?.VideoPublishedAtDateTimeOffset
+                            ?? item.Snippet?.PublishedAtDateTimeOffset;
+            return published >= publishedAfter && published < publishedBefore;
+        }).ToList();
     }
 
     /// <summary>

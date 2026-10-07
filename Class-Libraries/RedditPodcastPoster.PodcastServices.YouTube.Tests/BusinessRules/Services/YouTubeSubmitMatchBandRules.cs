@@ -5,16 +5,21 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Services;
 
 /// <summary>
-/// Matching a known YouTube channel from a Spotify or Apple submit searches a short publish band.
-/// It must not walk the channel uploads or playlist through to now.
+/// Matching a known YouTube channel from a Spotify or Apple submit searches a short publish band
+/// when Search.List is allowed. A forbidden channel or PreferUploadsPlaylist reads the stored
+/// playlist, or the uploads playlist, and keeps only items inside that same band.
 /// </summary>
 public class YouTubeSubmitMatchBandRules
 {
@@ -143,31 +148,283 @@ public class YouTubeSubmitMatchBandRules
             Times.Never);
     }
 
-    [Fact(DisplayName =
-        "The channel release-band search is at most two pages of fifty videos " +
-        "because a submit looks around one date and must not page the channel to now.")]
-    public void Channel_search_is_capped_at_two_pages()
+    [Theory(DisplayName =
+        "When Search.List must not be used, Resolve returns the in-band playlist hit and does not call channel search, " +
+        "because a forbidden channel or PreferUploadsPlaylist is read from the playlist inside the submit-match band.")]
+    [InlineData("youTubeChannelSearchForbidden")]
+    [InlineData("PreferUploadsPlaylist")]
+    public async Task Playlist_fallback_returns_in_band_hit_without_channel_search(string reason)
     {
         // Arrange
-        var pageSize = YouTubeChannelReleaseBandSearch.PageSize;
-        var maxPages = YouTubeChannelReleaseBandSearch.MaxPages;
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var release = DomainTestFixture.UtcDateDaysAgo(10);
+        var title = _fixture.CreateTitle();
+        var inBandVideoId = _fixture.CreateYouTubeId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+            p.YouTubePublicationOffset = 0;
+        });
+        var band = EpisodeReleaseTolerance.GetSubmitMatchBand(release);
+        var publishedAfter = new DateTimeOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
+        IndexingContext? capturedContext = null;
+        _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
+            .Setup(x => x.GetUploadsPlaylistReason(podcast))
+            .Returns(reason);
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((_, ctx, _, _, _) =>
+                capturedContext = ctx)
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
+            [
+                CreatePlaylistItem(inBandVideoId, channelId, title, new DateTimeOffset(release)),
+                CreatePlaylistItem(
+                    _fixture.CreateYouTubeId(),
+                    channelId,
+                    title,
+                    publishedAfter.AddDays(-2))
+            ]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
 
         // Act
-        var videosExamined = pageSize * maxPages;
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [], new IndexingContext());
 
         // Assert
-        pageSize.Should().Be(50);
-        maxPages.Should().Be(2);
-        videosExamined.Should().Be(100);
+        result.Should().NotBeNull();
+        result!.EpisodeId.Should().Be(inBandVideoId);
+        capturedContext.Should().NotBeNull();
+        capturedContext!.ReleasedSince.Should().Be(publishedAfter.UtcDateTime);
+        _mocker.GetMock<IYouTubeChannelReleaseBandSearch>().Verify(
+            x => x.Search(
+                It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<IndexingContext>()),
+            Times.Never);
     }
 
-    private PodcastServiceSearchCriteria CreateCriteria(DateTime release) =>
+    [Fact(DisplayName =
+        "When the channel has no stored playlist, a PreferUploadsPlaylist submit reads the uploads playlist inside the band " +
+        "and returns that hit, because Search.List is skipped for that policy.")]
+    public async Task Uploads_playlist_fallback_returns_in_band_hit()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var uploadsPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var release = DomainTestFixture.UtcDateDaysAgo(12);
+        var title = _fixture.CreateTitle();
+        var inBandVideoId = _fixture.CreateYouTubeId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+            p.YouTubePublicationOffset = 0;
+        });
+        YouTubePlaylistId? capturedPlaylist = null;
+        _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
+            .Setup(x => x.GetUploadsPlaylistReason(podcast))
+            .Returns("PreferUploadsPlaylist");
+        _mocker.GetMock<ITolerantYouTubeChannelService>()
+            .Setup(x => x.GetChannel(
+                It.IsAny<YouTubeChannelId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(CreateChannel(uploadsPlaylistId));
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((id, _, _, _, _) =>
+                capturedPlaylist = id)
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
+            [
+                CreatePlaylistItem(inBandVideoId, channelId, title, new DateTimeOffset(release))
+            ]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [], new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.EpisodeId.Should().Be(inBandVideoId);
+        capturedPlaylist.Should().NotBeNull();
+        capturedPlaylist!.PlaylistId.Should().Be(uploadsPlaylistId);
+        capturedPlaylist.Source.Should().Be(YouTubePlaylistIdSource.ChannelUploads);
+        _mocker.GetMock<IYouTubeChannelReleaseBandSearch>().Verify(
+            x => x.Search(
+                It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<IndexingContext>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When Search.List is account-delegation forbidden, Resolve stores that on the podcast and returns the in-band playlist hit " +
+        "because the channel can still be read from its playlist.")]
+    public async Task Search_forbidden_records_the_channel_and_returns_the_playlist_hit()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var release = DomainTestFixture.UtcDateDaysAgo(8);
+        var title = _fixture.CreateTitle();
+        var inBandVideoId = _fixture.CreateYouTubeId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePublicationOffset = 0;
+            p.YouTubeChannelSearchForbidden = null;
+        });
+        _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
+            .Setup(x => x.GetUploadsPlaylistReason(podcast))
+            .Returns((string?)null);
+        _mocker.GetMock<IYouTubeChannelReleaseBandSearch>()
+            .Setup(x => x.Search(
+                channelId,
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new YouTubeChannelSearchForbiddenException(
+                channelId,
+                new InvalidOperationException("accountDelegationForbidden")));
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
+            [
+                CreatePlaylistItem(inBandVideoId, channelId, title, new DateTimeOffset(release))
+            ]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [], new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.EpisodeId.Should().Be(inBandVideoId);
+        podcast.YouTubeChannelSearchForbidden.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When the playlist fallback's only video is newer than the submit-match band, Resolve returns nothing " +
+        "because a hit outside the band is not a match for that episode.")]
+    public async Task Playlist_item_newer_than_the_band_is_not_returned()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var release = DomainTestFixture.UtcDateDaysAgo(30);
+        var title = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePublicationOffset = 0;
+        });
+        var band = EpisodeReleaseTolerance.GetSubmitMatchBand(release);
+        var newerThanBand = new DateTimeOffset(DateTime.SpecifyKind(band.End.AddDays(2), DateTimeKind.Utc));
+        _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
+            .Setup(x => x.GetUploadsPlaylistReason(podcast))
+            .Returns("youTubeChannelSearchForbidden");
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
+            [
+                CreatePlaylistItem(_fixture.CreateYouTubeId(), channelId, title, newerThanBand)
+            ]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [], new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+        _mocker.GetMock<ITolerantYouTubeVideoService>().Verify(
+            x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    private PodcastServiceSearchCriteria CreateCriteria(DateTime release, string? episodeTitle = null) =>
         new(
             ShowName: _fixture.CreateTitle(),
             ShowDescription: _fixture.CreateTitle(),
             Publisher: _fixture.CreateTitle(),
-            EpisodeTitle: _fixture.CreateTitle(),
+            EpisodeTitle: episodeTitle ?? _fixture.CreateTitle(),
             EpisodeDescription: _fixture.CreateTitle(),
             Release: release,
             Duration: _fixture.CreateDuration());
+
+    private void StubVideoDetails() =>
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new List<Google.Apis.YouTube.v3.Data.Video>());
+
+    private Google.Apis.YouTube.v3.Data.Channel CreateChannel(string uploadsPlaylistId) =>
+        new()
+        {
+            Snippet = new ChannelSnippet { Description = _fixture.CreateTitle() },
+            ContentOwnerDetails = new ChannelContentOwnerDetails { ContentOwner = _fixture.CreateTitle() },
+            ContentDetails = new ChannelContentDetails
+            {
+                RelatedPlaylists = new ChannelContentDetails.RelatedPlaylistsData { Uploads = uploadsPlaylistId }
+            }
+        };
+
+    private static PlaylistItem CreatePlaylistItem(
+        string videoId,
+        string channelId,
+        string title,
+        DateTimeOffset published) =>
+        new()
+        {
+            Id = videoId,
+            Snippet = new PlaylistItemSnippet
+            {
+                Title = title,
+                Description = title,
+                ChannelId = channelId,
+                ChannelTitle = title,
+                PublishedAtDateTimeOffset = published,
+                ResourceId = new ResourceId { VideoId = videoId }
+            }
+        };
 }

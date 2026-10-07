@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<ITolerantYouTubeVideoService, TolerantYouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+            .AddScoped<IYouTubeSearchListExecutor, YouTubeSearchListExecutor>()
             .AddScoped<IYouTubeChannelReleaseBandSearch, YouTubeChannelReleaseBandSearch>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>

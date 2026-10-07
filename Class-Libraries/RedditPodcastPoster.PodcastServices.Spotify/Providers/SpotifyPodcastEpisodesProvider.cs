@@ -44,26 +44,11 @@ public class SpotifyPodcastEpisodesProvider(
         {
             if (!indexingContext.ReleasedSince.HasValue)
             {
-                if (indexingContext.SkipExpensiveSpotifyQueries && request.HasExpensiveSpotifyEpisodesQuery)
-                {
-                    logger.LogInformation(
-                        "{nameofGetAllEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
-                        nameof(GetAllEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
-                    return new PodcastEpisodesResult([], expensiveQueryFound);
-                }
-
-                if (request.Released is { } episodeRelease)
-                {
-                    indexingContext = indexingContext with { ReleasedSince = episodeRelease };
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "{nameofGetAllEpisodes} - Refusing full Spotify catalogue pagination for show '{showName}' because ReleasedSince is unset. A single-episode name match must not walk every episode.",
-                        nameof(GetAllEpisodes),
-                        request.PodcastName);
-                    return new PodcastEpisodesResult([], expensiveQueryFound);
-                }
+                logger.LogWarning(
+                    "{nameofGetAllEpisodes} - Refusing full Spotify catalogue pagination for show '{showName}' because ReleasedSince is unset. A single-episode name match must not walk every episode.",
+                    nameof(GetAllEpisodes),
+                    request.PodcastName);
+                return new PodcastEpisodesResult([], expensiveQueryFound);
             }
 
             var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName) {Market = market};

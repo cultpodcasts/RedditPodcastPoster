@@ -53,6 +53,7 @@ public class SpotifyEpisodeTitleSearchRules
         // Arrange
         var title = _fixture.CreateTitle();
         var showId = _fixture.CreateSpotifyId();
+        var showName = _fixture.CreateTitle();
         var keptId = _fixture.CreateSpotifyId();
         var otherId = _fixture.CreateSpotifyId();
         var kept = CreateSimpleEpisode(keptId, title);
@@ -65,7 +66,11 @@ public class SpotifyEpisodeTitleSearchRules
             CreateFullEpisode(otherId, title, _fixture.CreateSpotifyId(), _fixture.CreateTitle())
         ]);
         var sut = _mocker.CreateInstance<SpotifyEpisodeTitleSearch>();
-        var request = CreateRequest(title, DomainTestFixture.UtcDateDaysAgo(800), podcastSpotifyId: showId);
+        var request = CreateRequest(
+            title,
+            DomainTestFixture.UtcDateDaysAgo(800),
+            podcastSpotifyId: showId,
+            podcastName: showName);
 
         // Act
         var result = await sut.FindCandidates(request, new IndexingContext(), Market.CountryCode);
@@ -74,7 +79,8 @@ public class SpotifyEpisodeTitleSearchRules
         result.Select(x => x.Id).Should().Equal(keptId);
         captured.Should().NotBeNull();
         captured!.Limit.Should().Be(SpotifyEpisodeTitleSearch.MaxResults);
-        captured.Query.Should().Be(title);
+        captured.Query.Should().Contain(title);
+        captured.Query.Should().Contain(showName);
         captured.Type.Should().Be(SearchRequest.Types.Episode);
         VerifyFindEpisodes(Times.Once());
         VerifyNoCatalogueWalk();
@@ -90,7 +96,10 @@ public class SpotifyEpisodeTitleSearchRules
         var showName = _fixture.CreateTitle();
         var keptId = _fixture.CreateSpotifyId();
         var otherId = _fixture.CreateSpotifyId();
-        StubSearch([CreateSimpleEpisode(keptId, title), CreateSimpleEpisode(otherId, title)]);
+        SearchRequest? captured = null;
+        StubSearch(
+            [CreateSimpleEpisode(keptId, title), CreateSimpleEpisode(otherId, title)],
+            search => captured = search);
         StubHydration(
         [
             CreateFullEpisode(keptId, title, _fixture.CreateSpotifyId(), showName),
@@ -108,6 +117,9 @@ public class SpotifyEpisodeTitleSearchRules
 
         // Assert
         result.Select(x => x.Id).Should().Equal(keptId);
+        captured.Should().NotBeNull();
+        captured!.Query.Should().Contain(title);
+        captured.Query.Should().Contain(showName.ToUpperInvariant());
         VerifyFindEpisodes(Times.Once());
         VerifyNoCatalogueWalk();
     }

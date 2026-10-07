@@ -119,8 +119,8 @@ public class UrlCategoriserReleasedSinceRules
     }
 
     [Fact(DisplayName =
-        "When MatchOtherServices resolves Spotify from a YouTube URL and no podcast is attached, ReleasedSince is the YouTube release minus the default matching delay " +
-        "because an unknown series must date-scope the Spotify catalogue instead of downloading every episode.")]
+        "When MatchOtherServices resolves an unattached YouTube URL, ReleasedSince is the YouTube release minus the default matching delay " +
+        "because Apple and other catalogue-floor walks use that floor, while Spotify episode match uses the title-search band.")]
     public async Task YouTube_authority_without_podcast_sets_spotify_released_since_to_release_minus_default_delay()
     {
         // Arrange

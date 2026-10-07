@@ -1,6 +1,5 @@
 using System.Net;
 using Google;
-using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -12,6 +11,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 
 public class YouTubeChannelReleaseBandSearch(
     IYouTubeServiceWrapper youTubeServiceWrapper,
+    IYouTubeSearchListExecutor youTubeSearchListExecutor,
     IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubeChannelReleaseBandSearch> logger) : IYouTubeChannelReleaseBandSearch
 {
@@ -32,16 +32,13 @@ public class YouTubeChannelReleaseBandSearch(
             SearchListResponse response;
             try
             {
-                var searchListRequest = youTubeServiceWrapper.YouTubeService.Search.List("snippet");
-                searchListRequest.MaxResults = PageSize;
-                searchListRequest.ChannelId = channelId;
-                searchListRequest.Type = "video";
-                searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
-                searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-                searchListRequest.PublishedAfterDateTimeOffset = publishedAfter;
-                searchListRequest.PublishedBeforeDateTimeOffset = publishedBefore;
-                searchListRequest.PageToken = nextPageToken;
-                response = await searchListRequest.ExecuteAsync();
+                response = await youTubeSearchListExecutor.ExecuteAsync(
+                    new YouTubeChannelSearchPageRequest(
+                        channelId,
+                        publishedAfter,
+                        publishedBefore,
+                        nextPageToken,
+                        PageSize));
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
@@ -59,6 +56,11 @@ public class YouTubeChannelReleaseBandSearch(
                         youTubeServiceWrapper.Usage,
                         YouTubeQuotaOperation.SearchList);
                     throw new YouTubeQuotaException();
+                }
+
+                if (IsAccountDelegationForbidden(ex))
+                {
+                    throw new YouTubeChannelSearchForbiddenException(channelId, ex);
                 }
 
                 logger.LogError(ex,
@@ -88,4 +90,9 @@ public class YouTubeChannelReleaseBandSearch(
 
         return result;
     }
+
+    private static bool IsAccountDelegationForbidden(GoogleApiException ex) =>
+        ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+        (ex.Error?.Errors?.Any(e => e.Reason == "accountDelegationForbidden") == true ||
+         ex.Message.Contains("accountDelegationForbidden", StringComparison.OrdinalIgnoreCase));
 }

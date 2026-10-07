@@ -220,8 +220,9 @@ public class UrlCategoriser(
     }
 
     /// <summary>
-    /// Audio catalogues lag YouTube. An unattached submit still gets the default matching delay so Spotify
-    /// and Apple stay date-scoped instead of downloading the whole show.
+    /// Audio catalogues lag YouTube. This value is a floor for Apple and any other catalogue walk that
+    /// keeps paging while the newest-first tail is still on or after <see cref="IndexingContext.ReleasedSince"/>.
+    /// Spotify episode matching does not read it; that match is the title-search band. There is no Apple ceiling here.
     /// </summary>
     private static IndexingContext WithYouTubeAudioReleasedSince(
         IndexingContext indexingContext,
