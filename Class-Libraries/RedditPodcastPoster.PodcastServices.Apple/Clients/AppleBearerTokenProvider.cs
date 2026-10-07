@@ -23,13 +23,18 @@ public class AppleBearerTokenProvider(
         var applePodcastTokenNodes =
             document.DocumentNode.SelectNodes("//meta[@property=\"apple-podcast-token\"]/@content");
 
-        if (!applePodcastTokenNodes.Any() || applePodcastTokenNodes.Count > 1)
+        if (applePodcastTokenNodes is not { Count: 1 })
         {
             throw new InvalidOperationException(
-                $"Found {applePodcastTokenNodes.Count} apple-podcast-token meta-property tags.");
+                $"Found {applePodcastTokenNodes?.Count ?? 0} apple-podcast-token meta-property tags.");
         }
 
-        var token = applePodcastTokenNodes.Single().Attributes["content"].Value;
+        var token = applePodcastTokenNodes[0].Attributes["content"]?.Value;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException("apple-podcast-token meta-property has no content.");
+        }
+
         return new AuthenticationHeaderValue("Bearer", token);
     }
 }

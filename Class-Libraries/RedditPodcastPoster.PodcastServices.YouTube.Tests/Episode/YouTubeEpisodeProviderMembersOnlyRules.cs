@@ -160,7 +160,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
             x => x.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(fragment)),
+                It.Is<It.IsAnyType>((state, _) => state!.ToString()!.Contains(fragment)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

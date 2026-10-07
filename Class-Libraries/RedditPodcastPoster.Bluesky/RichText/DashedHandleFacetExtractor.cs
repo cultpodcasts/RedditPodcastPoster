@@ -1,0 +1,101 @@
+using idunno.AtProto;
+using idunno.Bluesky.RichText;
+
+namespace RedditPodcastPoster.Bluesky.RichText;
+
+public sealed class DashedHandleFacetExtractor : IFacetExtractor
+{
+    private readonly DefaultFacetExtractor _defaultExtractor;
+    private readonly Func<string, CancellationToken, Task<Did?>> _resolveHandle;
+
+    public DashedHandleFacetExtractor(Func<string, CancellationToken, Task<Did?>> resolveHandle)
+    {
+        ArgumentNullException.ThrowIfNull(resolveHandle);
+        _resolveHandle = resolveHandle;
+        _defaultExtractor = new DefaultFacetExtractor(resolveHandle);
+    }
+
+    public async Task<IList<Facet>> ExtractFacets(string text, CancellationToken cancellationToken = default)
+    {
+        var facets = new List<Facet>(
+            await _defaultExtractor.ExtractFacets(text, cancellationToken).ConfigureAwait(false));
+
+        foreach (var mention in DashedMentionScanner.Find(text))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsFullyCovered(facets, mention.ByteStart, mention.ByteEnd))
+            {
+                continue;
+            }
+
+            // The default mention pattern stops at '-'. A shorter mention facet that
+            // overlaps this token is that truncation, and it can name a different account.
+            RemoveTruncatedMentionFacets(facets, mention.ByteStart, mention.ByteEnd);
+
+            Did? did;
+            try
+            {
+                did = await _resolveHandle(mention.Handle, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
+            if (did is null)
+            {
+                continue;
+            }
+
+            IList<FacetFeature> features = [new MentionFacetFeature(did)];
+            facets.Add(new Facet(new ByteSlice(mention.ByteStart, mention.ByteEnd), features));
+        }
+
+        return facets;
+    }
+
+    private static bool IsFullyCovered(IReadOnlyList<Facet> facets, long byteStart, long byteEnd)
+    {
+        foreach (var facet in facets)
+        {
+            if (facet.Index is not null &&
+                facet.Index.ByteStart <= byteStart &&
+                facet.Index.ByteEnd >= byteEnd)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void RemoveTruncatedMentionFacets(List<Facet> facets, long byteStart, long byteEnd)
+    {
+        facets.RemoveAll(facet => IsTruncatedMention(facet, byteStart, byteEnd));
+    }
+
+    private static bool IsTruncatedMention(Facet facet, long byteStart, long byteEnd)
+    {
+        if (facet.Index is null || !HasMention(facet))
+        {
+            return false;
+        }
+
+        var overlaps = facet.Index.ByteStart < byteEnd && byteStart < facet.Index.ByteEnd;
+        var coversFullToken = facet.Index.ByteStart <= byteStart && facet.Index.ByteEnd >= byteEnd;
+        return overlaps && !coversFullToken;
+    }
+
+    private static bool HasMention(Facet facet)
+    {
+        foreach (var feature in facet.Features)
+        {
+            if (feature is MentionFacetFeature)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

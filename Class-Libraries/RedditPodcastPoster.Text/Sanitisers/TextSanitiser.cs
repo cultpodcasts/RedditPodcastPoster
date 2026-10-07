@@ -221,8 +221,8 @@ public partial class TextSanitiser(
     {
         var doc = new HtmlDocument();
         doc.LoadHtml("<body>" + text + "</body>");
-        var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
-        return innerText.Trim();
+        var innerText = doc.DocumentNode.SelectSingleNode("//body")?.InnerText;
+        return (innerText ?? text).Trim();
     }
 
     private string FixCharacters(string title)

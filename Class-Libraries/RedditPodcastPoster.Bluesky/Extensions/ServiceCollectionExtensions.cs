@@ -7,7 +7,6 @@ using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
-using RedditPodcastPoster.Bluesky.YouTube;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.People.Extensions;
@@ -24,14 +23,18 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddPeopleServices()
-            .AddSingleton<IBlueskyClientFactory, BlueskyClientFactory>()
-            .AddSingleton(x => x.GetService<IBlueskyClientFactory>()!.Create())
+            .AddScoped<IBlueskyFeedClient, BlueskyFeedClient>()
             .AddScoped<IBlueskyEmbedCardPostFactory, BlueskyEmbedCardPostFactory>()
             .AddScoped<IBlueskyPoster, BlueskyPoster>()
             .AddScoped<IBlueskyPostManager, BlueskyPostManager>()
-            .AddScoped<IEmbedCardRequestFactory, EmbedCardRequestFactory>()
-            .AddScoped<IBlueskyYouTubeServiceFactory, BlueskyYouTubeServiceFactory>()
-            .AddScoped(s => s.GetService<IBlueskyYouTubeServiceFactory>()!.Create())
+            .AddSingleton<IBlueskyAgentOptionsFactory, BlueskyAgentOptionsFactory>()
+            .AddSingleton(sp => sp.GetRequiredService<IBlueskyAgentOptionsFactory>().Create(async (handle, token) =>
+            {
+                var agent = await sp.GetRequiredService<IAsyncInstance<BlueskyAgent>>()
+                    .GetAsync(token)
+                    .ConfigureAwait(false);
+                return await agent.ResolveHandle(handle, token).ConfigureAwait(false);
+            }))
             .AddSingleton<IBlueskyAgentFactory, BlueskyAgentFactory>()
             // BlueskyAgent is from external library (idunno.Bluesky), so we use the concrete type here
             // rather than creating a wrapper interface

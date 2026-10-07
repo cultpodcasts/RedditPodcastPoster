@@ -1301,11 +1301,11 @@ public class UrlSubmissionEnrichmentRules
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) =>
-                    state.ToString()!.Contains("Refresh-meta plan", StringComparison.Ordinal) &&
-                    state.ToString()!.Contains($"title: '{staleTitle}' -> '{freshTitle}'", StringComparison.Ordinal) &&
-                    state.ToString()!.Contains("length:", StringComparison.Ordinal) &&
-                    state.ToString()!.Contains("image:", StringComparison.Ordinal) &&
-                    state.ToString()!.Contains(" -> ", StringComparison.Ordinal)),
+                    state!.ToString()!.Contains("Refresh-meta plan", StringComparison.Ordinal) &&
+                    state!.ToString()!.Contains($"title: '{staleTitle}' -> '{freshTitle}'", StringComparison.Ordinal) &&
+                    state!.ToString()!.Contains("length:", StringComparison.Ordinal) &&
+                    state!.ToString()!.Contains("image:", StringComparison.Ordinal) &&
+                    state!.ToString()!.Contains(" -> ", StringComparison.Ordinal)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);

@@ -145,18 +145,29 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         Uri? maxImageUrl = null;
         if (imageContainer != null)
         {
-            var maxImage = imageContainer
-                .Where(x => !string.IsNullOrWhiteSpace(x.Attributes["srcset"]?.Value))
-                .Select(x => x.Attributes["srcset"].Value.Split(" ", StringSplitOptions.RemoveEmptyEntries))
-                .Where(x => x.Length >= 2 && NumericPrefix.IsMatch(x[1]))
-                .Select(x => new
+            maxImageUrl = imageContainer
+                .Select(x =>
                 {
-                    Width = int.Parse(NumericPrefix.Match(x[1]).Groups["numericprefix"].Value),
-                    Url = new Uri(x[0])
+                    var srcset = x.Attributes["srcset"]?.Value;
+                    if (string.IsNullOrWhiteSpace(srcset))
+                    {
+                        return (Width: 0, Url: (Uri?)null);
+                    }
+
+                    var parts = srcset.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 2 || !NumericPrefix.IsMatch(parts[1]))
+                    {
+                        return (Width: 0, Url: (Uri?)null);
+                    }
+
+                    return (
+                        Width: int.Parse(NumericPrefix.Match(parts[1]).Groups["numericprefix"].Value),
+                        Url: (Uri?)new Uri(parts[0]));
                 })
-                .OrderByDescending(x => x.Width)
+                .Where(candidate => candidate.Url is not null)
+                .OrderByDescending(candidate => candidate.Width)
+                .Select(candidate => candidate.Url)
                 .FirstOrDefault();
-            maxImageUrl = maxImage?.Url;
         }
 
         var @explicit = false;

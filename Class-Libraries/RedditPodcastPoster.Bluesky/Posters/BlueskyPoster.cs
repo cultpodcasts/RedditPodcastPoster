@@ -12,8 +12,7 @@ namespace RedditPodcastPoster.Bluesky.Posters;
 public class BlueskyPoster(
     IEpisodeRepository episodeRepository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
-    IEmbedCardBlueskyClient blueSkyClient,
-    IEmbedCardRequestFactory embedCardRequestFactory,
+    IBlueskyFeedClient blueSkyClient,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -21,26 +20,20 @@ public class BlueskyPoster(
     {
         var embedPost = await embedCardPostFactory.Create(podcastEpisode, shortUrl, hasShareImage);
         BlueskySendStatus sendStatus;
-        var embedCardRequest = await embedCardRequestFactory.CreateEmbedCardRequest(podcastEpisode, embedPost);
         var language = string.IsNullOrWhiteSpace(podcastEpisode.Episode.Language)
             ? "en"
             : podcastEpisode.Episode.Language.Trim();
-        string blueskyPostUri;
+        string? blueskyPostUri;
         try
         {
-            if (embedCardRequest != null)
+            logger.LogInformation(
+                "Posting bluesky open-graph card for episode '{podcastEpisodeId}' at '{embedPostUrl}'.",
+                podcastEpisode.Episode.Id,
+                embedPost.Url);
+            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(embedPost.Text, embedPost.Url, language);
+            if (string.IsNullOrWhiteSpace(blueskyPostUri))
             {
-                logger.LogInformation(
-                    "Non-Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
-                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                blueskyPostUri = await blueSkyClient.Post(embedPost.Text, embedCardRequest, language);
-            }
-            else
-            {
-                logger.LogError("Null {nameofEmbedCardRequest} for episode with id '{podcastEpisodeId}'.",
-                    nameof(EmbedCardRequest), podcastEpisode.Episode.Id);
-                blueskyPostUri =
-                    await blueSkyClient.Post($"{embedPost.Text}{Environment.NewLine}{embedPost.Url}", language);
+                return BlueskySendStatus.Failure;
             }
 
             sendStatus = BlueskySendStatus.Success;
@@ -49,9 +42,9 @@ public class BlueskyPoster(
                 podcastEpisode,
                 caller: nameof(BlueskyPoster) + "." + nameof(Post));
             logger.LogInformation(
-                "Posted to bluesky: '{EmbedPostText}'. AT-URI: '{BlueskyPostUri}'.",
-                embedPost.Text,
-                blueskyPostUri);
+                "Bluesky post AT URI: {BlueskyPostUri}. Episode-id: {EpisodeId}.",
+                blueskyPostUri,
+                podcastEpisode.Episode.Id);
         }
         catch (HttpRequestException ex)
         {
