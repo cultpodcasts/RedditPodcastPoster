@@ -47,8 +47,8 @@ public class BlueskyPlatformCardSourceRules
                 }
             });
         _mocker.GetMock<IYouTubeThumbnailResolver>()
-            .Setup(resolver => resolver.GetImageUrlAsync(It.IsAny<Video>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(image);
+            .Setup(resolver => resolver.GetUsableCandidateUrls(It.IsAny<Video>()))
+            .Returns([image]);
         var sut = _mocker.CreateInstance<BlueskyPlatformCardSource>();
 
         // Act
@@ -59,7 +59,7 @@ public class BlueskyPlatformCardSourceRules
         card!.Link.Should().Be(watch);
         card.Title.Should().Be(title);
         card.Description.Should().Be(description);
-        card.ImageUrl.Should().Be(image);
+        card.ImageUrls.Should().Equal(image);
         _mocker.GetMock<ISpotifyClientWrapper>()
             .Verify(client => client.GetFullEpisode(
                     It.IsAny<string>(),
@@ -91,8 +91,8 @@ public class BlueskyPlatformCardSourceRules
                 new() { Id = videoId, Snippet = new VideoSnippet { Title = title, Description = string.Empty } }
             });
         _mocker.GetMock<IYouTubeThumbnailResolver>()
-            .Setup(resolver => resolver.GetImageUrlAsync(It.IsAny<Video>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(image);
+            .Setup(resolver => resolver.GetUsableCandidateUrls(It.IsAny<Video>()))
+            .Returns([image]);
         var sut = _mocker.CreateInstance<BlueskyPlatformCardSource>();
 
         // Act
@@ -101,11 +101,11 @@ public class BlueskyPlatformCardSourceRules
         // Assert
         card.Should().NotBeNull();
         card!.Title.Should().Be(title);
-        card.ImageUrl.Should().Be(image);
+        card.ImageUrls.Should().Equal(image);
     }
 
     [Fact(DisplayName =
-        "A Spotify episode URL becomes a card from the full episode name, description, and largest image, because the episode page is not fetched.")]
+        "A Spotify episode URL becomes a card from the full episode name, description, and images tallest-first, because a smaller image can still be the thumb when the tallest is too large, and the episode page is not fetched.")]
     public async Task spotify_episode_url_uses_the_episode_api()
     {
         // Arrange
@@ -142,7 +142,7 @@ public class BlueskyPlatformCardSourceRules
         card!.Link.Should().Be(episodeUrl);
         card.Title.Should().Be(title);
         card.Description.Should().Be(description);
-        card.ImageUrl.Should().Be(new Uri(large));
+        card.ImageUrls.Should().Equal(new Uri(large), new Uri(small));
         _mocker.GetMock<IYouTubeVideoService>()
             .Verify(service => service.GetVideoContentDetails(
                     It.IsAny<IYouTubeServiceWrapper>(),
@@ -209,8 +209,7 @@ public class BlueskyPlatformCardSourceRules
         // Assert
         card.Should().BeNull();
         _mocker.GetMock<IYouTubeThumbnailResolver>()
-            .Verify(resolver => resolver.GetImageUrlAsync(It.IsAny<Video>(), It.IsAny<CancellationToken>()),
-                Times.Never);
+            .Verify(resolver => resolver.GetUsableCandidateUrls(It.IsAny<Video>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -235,8 +234,8 @@ public class BlueskyPlatformCardSourceRules
                 new() { Id = videoId, Snippet = new VideoSnippet { Title = title, Description = string.Empty } }
             });
         _mocker.GetMock<IYouTubeThumbnailResolver>()
-            .Setup(resolver => resolver.GetImageUrlAsync(It.IsAny<Video>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(image);
+            .Setup(resolver => resolver.GetUsableCandidateUrls(It.IsAny<Video>()))
+            .Returns([image]);
         var sut = _mocker.CreateInstance<BlueskyPlatformCardSource>();
 
         // Act

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
@@ -40,6 +39,7 @@ public class BlueskyPlatformCardSource(
 
     private async Task<BlueskyPlatformCard?> TryYouTubeAsync(Uri url, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var videoId = YouTubeIdResolver.Extract(url);
         if (string.IsNullOrWhiteSpace(videoId))
         {
@@ -73,8 +73,8 @@ public class BlueskyPlatformCardSource(
             return null;
         }
 
-        var imageUrl = await youTubeThumbnailResolver.GetImageUrlAsync(video, cancellationToken).ConfigureAwait(false);
-        if (imageUrl is null)
+        var imageUrls = youTubeThumbnailResolver.GetUsableCandidateUrls(video);
+        if (imageUrls.Count == 0)
         {
             logger.LogWarning(
                 "Bluesky YouTube card lookup returned no image for '{url}'. Posting without a card.",
@@ -86,7 +86,7 @@ public class BlueskyPlatformCardSource(
             url,
             BlueskyEmbedText.Truncate(video.Snippet.Title, BlueskyEmbedText.MaxTitleLength),
             BlueskyEmbedText.Truncate(video.Snippet.Description, BlueskyEmbedText.MaxDescriptionLength),
-            imageUrl);
+            imageUrls);
     }
 
     private async Task<BlueskyPlatformCard?> TrySpotifyAsync(Uri url, CancellationToken cancellationToken)
@@ -124,16 +124,8 @@ public class BlueskyPlatformCardSource(
             return null;
         }
 
-        if (episode.Images is null || episode.Images.Count == 0)
-        {
-            logger.LogWarning(
-                "Bluesky Spotify card lookup returned no image for '{url}'. Posting without a card.",
-                url);
-            return null;
-        }
-
-        var imageUrl = episode.GetBestImageUrl();
-        if (imageUrl is null)
+        var imageUrls = LargestImageUrls(episode);
+        if (imageUrls.Count == 0)
         {
             logger.LogWarning(
                 "Bluesky Spotify card lookup returned no image for '{url}'. Posting without a card.",
@@ -145,7 +137,21 @@ public class BlueskyPlatformCardSource(
             url,
             BlueskyEmbedText.Truncate(episode.Name, BlueskyEmbedText.MaxTitleLength),
             BlueskyEmbedText.Truncate(episode.Description, BlueskyEmbedText.MaxDescriptionLength),
-            imageUrl);
+            imageUrls);
+    }
+
+    private static IReadOnlyList<Uri> LargestImageUrls(FullEpisode episode)
+    {
+        if (episode.Images is null || episode.Images.Count == 0)
+        {
+            return [];
+        }
+
+        return episode.Images
+            .Where(image => image is not null && !string.IsNullOrWhiteSpace(image.Url))
+            .OrderByDescending(image => image.Height)
+            .Select(image => new Uri(image.Url))
+            .ToArray();
     }
 
     private static bool IsYouTube(Uri url)

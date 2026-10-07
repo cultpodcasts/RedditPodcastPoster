@@ -1,4 +1,5 @@
 using FluentAssertions;
+using idunno.AtProto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
@@ -23,6 +24,8 @@ public class BlueskyPosterAtUriRules
     private BlueskyEmbedCardPost? _card;
     private string? _postedUri;
     private string? _language;
+    private Uri? _seenUrl;
+    private Uri? _seenPlatformUrl;
     private Episode? _saved;
 
     public BlueskyPosterAtUriRules()
@@ -31,8 +34,17 @@ public class BlueskyPosterAtUriRules
             .Setup(factory => factory.Create(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync(() => _card!);
         _mocker.GetMock<IBlueskyFeedClient>()
-            .Setup(client => client.PostOpenGraphCard(It.IsAny<string>(), It.IsAny<Uri>(), It.IsAny<string>()))
-            .Callback<string, Uri, string>((_, _, language) => _language = language)
+            .Setup(client => client.PostOpenGraphCard(
+                It.IsAny<string>(),
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<Uri?>()))
+            .Callback<string, Uri, string, Uri?>((_, url, language, platformUrl) =>
+            {
+                _language = language;
+                _seenUrl = url;
+                _seenPlatformUrl = platformUrl;
+            })
             .ReturnsAsync(() => _postedUri);
         _mocker.GetMock<IEpisodeRepository>()
             .Setup(repository => repository.Save(It.IsAny<Episode>()))
@@ -119,5 +131,54 @@ public class BlueskyPosterAtUriRules
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When Bluesky authentication is required, the post returns FailureAuth and the episode is not saved, because login failed before a card was created.")]
+    public async Task authentication_required_does_not_save_the_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        var pair = new PodcastEpisode(podcast, episode);
+        _card = new BlueskyEmbedCardPost(episode.Title, _fixture.Create<Uri>(), Service.YouTube);
+        _mocker.GetMock<IBlueskyFeedClient>()
+            .Setup(client => client.PostOpenGraphCard(
+                It.IsAny<string>(),
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<Uri?>()))
+            .ThrowsAsync(new AuthenticationRequiredException());
+        var sut = _mocker.CreateInstance<BlueskyPoster>();
+
+        // Act
+        var status = await sut.Post(pair, shortUrl: null);
+
+        // Assert
+        status.Should().Be(BlueskySendStatus.FailureAuth);
+        episode.BlueskyPost.Should().BeNull();
+        _saved.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the embed keeps a platform URL beside the short link, the feed client receives both, because the card API cannot read a video or episode id from the short link.")]
+    public async Task short_link_post_passes_the_platform_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var pair = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        _card = new BlueskyEmbedCardPost(episode.Title, shortUrl, Service.YouTube, episode.Urls.YouTube);
+        _postedUri = CreatedAtUri;
+        var sut = _mocker.CreateInstance<BlueskyPoster>();
+
+        // Act
+        var status = await sut.Post(pair, shortUrl);
+
+        // Assert
+        status.Should().Be(BlueskySendStatus.Success);
+        _seenUrl.Should().Be(shortUrl);
+        _seenPlatformUrl.Should().Be(episode.Urls.YouTube);
     }
 }

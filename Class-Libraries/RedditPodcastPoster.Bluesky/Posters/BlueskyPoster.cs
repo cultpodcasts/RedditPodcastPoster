@@ -31,7 +31,11 @@ public class BlueskyPoster(
                 "Posting bluesky open-graph card for episode '{podcastEpisodeId}' at '{embedPostUrl}'.",
                 podcastEpisode.Episode.Id,
                 embedPost.Url);
-            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(embedPost.Text, embedPost.Url, language);
+            blueskyPostUri = await blueSkyClient.PostOpenGraphCard(
+                embedPost.Text,
+                embedPost.Url,
+                language,
+                embedPost.PlatformUrl);
             if (string.IsNullOrWhiteSpace(blueskyPostUri))
             {
                 return BlueskySendStatus.Failure;

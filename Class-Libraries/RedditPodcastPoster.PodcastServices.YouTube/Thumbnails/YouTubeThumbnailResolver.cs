@@ -24,6 +24,16 @@ public class YouTubeThumbnailResolver : IYouTubeThumbnailResolver
         return null;
     }
 
+    public IReadOnlyList<Uri> GetUsableCandidateUrls(Google.Apis.YouTube.v3.Data.Video? video)
+    {
+        return video.GetThumbnailCandidates()
+            .Where(candidate =>
+                candidate.Height > 0 &&
+                (candidate.IsDefaultTier || candidate.Height > YouTubeThumbnailValidation.PlaceholderMaxHeight))
+            .Select(candidate => candidate.Url)
+            .ToArray();
+    }
+
     private static async Task<bool> IsUsableThumbnailAsync(
         ThumbnailCandidate candidate,
         CancellationToken cancellationToken)

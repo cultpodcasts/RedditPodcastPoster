@@ -11,14 +11,30 @@ public class BlueskyFeedClient(
     IBlueskyCardImageDownloader imageDownloader,
     ILogger<BlueskyFeedClient> logger) : IBlueskyFeedClient
 {
-    public async Task<string?> PostOpenGraphCard(string text, Uri url, string language)
+    public async Task<string?> PostOpenGraphCard(string text, Uri url, string language, Uri? platformUrl = null)
     {
         var agent = await blueskyAgent.GetAsync();
         var post = new Post(text, langs: [language]);
-        var card = await TryCreateCard(agent, url);
+        var card = await TryCreateApiCard(url, platformUrl ?? url).ConfigureAwait(false);
         if (card is not null)
         {
-            post.Embed(card);
+            var uploaded = await agent.UploadImage(card.Image.Bytes, card.Image.MimeType, card.Title, aspectRatio: null)
+                .ConfigureAwait(false);
+            if (!uploaded.Succeeded || uploaded.Result?.Image is null)
+            {
+                logger.LogWarning(
+                    "Bluesky card image upload failed for '{url}'. Status-code: {statusCode}. Posting without a card.",
+                    url,
+                    uploaded.StatusCode);
+            }
+            else
+            {
+                post.Embed(new EmbeddedExternal(
+                    card.Link.AbsoluteUri,
+                    card.Title,
+                    card.Description,
+                    uploaded.Result.Image));
+            }
         }
 
         var result = await agent.Post(post);
@@ -35,9 +51,12 @@ public class BlueskyFeedClient(
         return result.Result.StrongReference.Uri.ToString();
     }
 
-    private async Task<EmbeddedExternal?> TryCreateCard(BlueskyAgent agent, Uri url)
+    internal async Task<BlueskyApiCard?> TryCreateApiCard(
+        Uri publicUrl,
+        Uri platformUrl,
+        CancellationToken cancellationToken = default)
     {
-        var details = await cardSource.TryGetAsync(url).ConfigureAwait(false);
+        var details = await cardSource.TryGetAsync(platformUrl, cancellationToken).ConfigureAwait(false);
         if (details is null)
         {
             return null;
@@ -46,14 +65,14 @@ public class BlueskyFeedClient(
         BlueskyCardImage? image;
         try
         {
-            image = await imageDownloader.Download(details.ImageUrl).ConfigureAwait(false);
+            image = await imageDownloader.Download(details.ImageUrls, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogWarning(
                 ex,
                 "Bluesky card image download failed for '{url}'. Posting without a card.",
-                url);
+                publicUrl);
             return null;
         }
 
@@ -61,21 +80,10 @@ public class BlueskyFeedClient(
         {
             logger.LogWarning(
                 "Bluesky card image download failed for '{url}'. Posting without a card.",
-                url);
+                publicUrl);
             return null;
         }
 
-        var uploaded = await agent.UploadImage(image.Bytes, image.MimeType, details.Title, aspectRatio: null)
-            .ConfigureAwait(false);
-        if (!uploaded.Succeeded || uploaded.Result?.Image is null)
-        {
-            logger.LogWarning(
-                "Bluesky card image upload failed for '{url}'. Status-code: {statusCode}. Posting without a card.",
-                url,
-                uploaded.StatusCode);
-            return null;
-        }
-
-        return new EmbeddedExternal(details.Link.AbsoluteUri, details.Title, details.Description, uploaded.Result.Image);
+        return new BlueskyApiCard(publicUrl, details.Title, details.Description, image);
     }
 }
