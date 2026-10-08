@@ -39,9 +39,9 @@ public class PersonController(
         CancellationToken ct) =>
         HandleRequest(req, ["curate"], personName, getPersonHandler.Handle, Unauthorised, ct);
 
-    [Function("PersonPost")]
+    [Function("PersonPatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "person/{personId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "person/{personId:guid}")]
         HttpRequestData req,
         Guid personId,
         FunctionContext executionContext,
@@ -55,9 +55,9 @@ public class PersonController(
             Unauthorised,
             ct);
 
-    [Function("PersonPut")]
+    [Function("PersonPost")]
     public Task<HttpResponseData> Put(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "person")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "person")]
         HttpRequestData req,
         FunctionContext executionContext,
         [FromBody] PersonChangeRequest personChangeRequest,

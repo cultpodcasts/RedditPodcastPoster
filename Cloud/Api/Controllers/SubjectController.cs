@@ -37,9 +37,9 @@ public class SubjectController(
             Unauthorised,
             ct);
 
-    [Function("SubjectPost")]
+    [Function("SubjectPatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "subject/{subjectId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "subject/{subjectId:guid}")]
         HttpRequestData req,
         Guid subjectId,
         FunctionContext executionContext,
@@ -54,9 +54,9 @@ public class SubjectController(
             Unauthorised,
             ct);
 
-    [Function("SubjectPut")]
+    [Function("SubjectPost")]
     public Task<HttpResponseData> Put(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "subject")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "subject")]
         HttpRequestData req,
         FunctionContext executionContext,
         [FromBody] SubjectChangeRequest subjectChangeRequest,

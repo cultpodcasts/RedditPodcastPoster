@@ -27,9 +27,9 @@ public class FilmController(
         CancellationToken ct) =>
         HandleRequest(req, ["curate"], filmIdentifier, getFilmHandler.Handle, Unauthorised, ct);
 
-    [Function("FilmPost")]
+    [Function("FilmPatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "film/{filmId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "film/{filmId:guid}")]
         HttpRequestData req,
         Guid filmId,
         [FromBody] FilmChangeRequest change,

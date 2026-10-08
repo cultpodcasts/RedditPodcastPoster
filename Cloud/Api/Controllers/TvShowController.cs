@@ -27,9 +27,9 @@ public class TvShowController(
         CancellationToken ct) =>
         HandleRequest(req, ["curate"], tvShowIdentifier, getTvShowHandler.Handle, Unauthorised, ct);
 
-    [Function("TvShowPost")]
+    [Function("TvShowPatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshow/{tvShowId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "tvshow/{tvShowId:guid}")]
         HttpRequestData req,
         Guid tvShowId,
         [FromBody] TvShowChangeRequest change,

@@ -110,31 +110,9 @@ public class EpisodeController(
             ct);
     }
 
-    [Function("EpisodePost")]
-    public Task<HttpResponseData> PostEpisodeByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext _,
-        [FromBody]
-        EpisodeChangeRequest episodeChangeRequest,
-        CancellationToken ct
-    )
-    {
-        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
-            nameof(PostEpisodeByEpisodeId), episodeId);
-        return HandleRequest(
-            req,
-            ["curate"],
-            new EpisodeChangeRequestWrapper(null, episodeId, episodeChangeRequest),
-            postEpisodeHandler.Handle,
-            Unauthorised,
-            ct);
-    }
-
-    [Function("PodcastEpisodePost")]
+    [Function("PodcastEpisodePatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastIdRoute)]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = PodcastIdRoute)]
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
@@ -190,26 +168,6 @@ public class EpisodeController(
             ["curate"],
             new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
             publishEpisodeHandler.Handle,
-            Unauthorised,
-            ct);
-    }
-
-    [Function("EpisodeDelete")]
-    public Task<HttpResponseData> DeleteEpisodeByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext _,
-        CancellationToken ct
-    )
-    {
-        logger.LogWarning("{method}: Deleting episode by ID: {EpisodeId} without any podcast-identifier",
-            nameof(DeleteEpisodeByEpisodeId), episodeId);
-        return HandleRequest(
-            req,
-            ["admin"],
-            new PodcastEpisodeRequestWrapper(episodeId),
-            deleteEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }

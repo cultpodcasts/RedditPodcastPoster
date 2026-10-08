@@ -134,24 +134,9 @@ public class PodcastController(
             Unauthorised,
             ct);
 
-    [Function("PodcastPost")]
+    [Function("PodcastPatch")]
     public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}")]
-        HttpRequestData req,
-        Guid podcastId,
-        [FromBody] PodcastChangeRequest podcastChangeRequest,
-        CancellationToken ct
-    ) => HandleRequest(
-            req,
-            ["curate"],
-            new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest),
-            postPodcastHandler.Handle,
-            Unauthorised,
-            ct);
-
-    [Function("PodcastPut")]
-    public Task<HttpResponseData> Put(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "podcast/{podcastId:guid}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
         [FromBody] PodcastChangeRequest podcastChangeRequest,

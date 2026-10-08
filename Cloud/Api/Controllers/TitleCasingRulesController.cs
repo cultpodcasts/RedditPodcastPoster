@@ -28,7 +28,6 @@ public class TitleCasingRulesController(
     private const string LanguageRoute = "title-casing-rules/{language}";
     private const string LowerCaseTermsRoute = "title-casing-rules/{language}/lower-case-terms";
     private const string LowerCaseTermRoute = "title-casing-rules/{language}/lower-case-terms/{term}";
-    private const string KnownTermsRoute = "title-casing-rules/{language}/known-terms";
     private const string KnownTermRoute = "title-casing-rules/{language}/known-terms/{literal}";
     private const string IgnoredSubjectsRoute = "title-casing-rules/{language}/ignored-subjects";
     private const string IgnoredSubjectRoute = "title-casing-rules/{language}/ignored-subjects/{term}";
@@ -80,18 +79,26 @@ public class TitleCasingRulesController(
             Unauthorised,
             ct);
 
-    [Function("TitleCasingRulesPostKnownTerm")]
-    public Task<HttpResponseData> PostKnownTerm(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = KnownTermsRoute)]
+    [Function("TitleCasingRulesPutKnownTerm")]
+    public Task<HttpResponseData> PutKnownTerm(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = KnownTermRoute)]
         HttpRequestData req,
         string language,
+        string literal,
         FunctionContext _,
-        [FromBody] KnownTermUpdate body,
+        [FromBody] KnownTermUpsertBody body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageKnownTermAdd(language, body),
+            new TitleCasingRulesLanguageKnownTermAdd(
+                language,
+                new KnownTermUpdate
+                {
+                    Literal = Uri.UnescapeDataString(literal),
+                    Pattern = body.Pattern,
+                    Options = body.Options
+                }),
             postTitleCasingRulesKnownTermHandler.Handle,
             Unauthorised,
             ct);
