@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
@@ -28,10 +29,11 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 public class UrlSubmissionGuestEnrichmentRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
 
     private static PersonMatch CreatePersonMatch(string name) =>
         new(
-            new PersonMatchPerson(Guid.NewGuid(), name, null, null),
+            new Person(name),
             [new PersonMatchResult(name, 1)]);
 
     [Fact(DisplayName =
@@ -45,7 +47,7 @@ public class UrlSubmissionGuestEnrichmentRules
         created.PodcastId = podcast.Id;
         created.Subjects = ["Cults"];
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
@@ -86,10 +88,10 @@ public class UrlSubmissionGuestEnrichmentRules
         created.Subjects = ["Cults"];
 
         var skipped = new PersonMatch(
-            new PersonMatchPerson(Guid.NewGuid(), "Sam", null, null),
+            new Person("Sam"),
             [new PersonMatchResult("Sam", 1)]);
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichGuestsResult([], [skipped]));
@@ -122,7 +124,7 @@ public class UrlSubmissionGuestEnrichmentRules
         existing.Subjects = ["Cults"];
         existing.Guests = null;
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(existing, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
@@ -167,7 +169,7 @@ public class UrlSubmissionGuestEnrichmentRules
         existing.Subjects = ["Cults"];
         existing.Guests = ["Existing Guest"];
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         var processor = CreateProcessor(
             matchingEpisode: existing,
             createdEpisode: null,
@@ -198,22 +200,22 @@ public class UrlSubmissionGuestEnrichmentRules
         var created = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithDuration(_fixture.CreateDuration()));
 
-        var episodeFactory = new Mock<IEpisodeFactory>();
+        var episodeFactory = _mocker.GetMock<IEpisodeFactory>();
         episodeFactory
             .Setup(x => x.CreateEpisode(It.IsAny<CategorisedItem>()))
             .Returns(created);
 
-        var podcastFactory = new Mock<IPodcastFactory>();
+        var podcastFactory = _mocker.GetMock<IPodcastFactory>();
         podcastFactory
             .Setup(x => x.Create(It.IsAny<string>()))
             .ReturnsAsync(_fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId()));
 
-        var subjectEnricher = new Mock<ISubjectEnricher>();
+        var subjectEnricher = _mocker.GetMock<ISubjectEnricher>();
         subjectEnricher
             .Setup(x => x.EnrichSubjects(created, It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult(["Cults"], []));
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(created, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
@@ -268,12 +270,12 @@ public class UrlSubmissionGuestEnrichmentRules
         IEpisodeGuestEnricher guestEnricher,
         SubmitResultState appliedEpisodeResult = SubmitResultState.None)
     {
-        var episodeHelper = new Mock<IEpisodeHelper>();
+        var episodeHelper = _mocker.GetMock<IEpisodeHelper>();
         episodeHelper
             .Setup(x => x.IsMatchingEpisode(It.IsAny<Episode>(), It.IsAny<CategorisedItem>()))
             .Returns(true);
 
-        var episodeEnricher = new Mock<IEpisodeEnricher>();
+        var episodeEnricher = _mocker.GetMock<IEpisodeEnricher>();
         episodeEnricher
             .Setup(x => x.ApplyResolvedPodcastServiceProperties(
                 It.IsAny<Podcast>(),
@@ -284,7 +286,7 @@ public class UrlSubmissionGuestEnrichmentRules
                 appliedEpisodeResult,
                 new SubmitEpisodeDetails(false, false, false)));
 
-        var episodeFactory = new Mock<IEpisodeFactory>();
+        var episodeFactory = _mocker.GetMock<IEpisodeFactory>();
         if (createdEpisode != null)
         {
             episodeFactory
@@ -292,12 +294,12 @@ public class UrlSubmissionGuestEnrichmentRules
                 .Returns(createdEpisode);
         }
 
-        var subjectEnricher = new Mock<ISubjectEnricher>();
+        var subjectEnricher = _mocker.GetMock<ISubjectEnricher>();
         subjectEnricher
             .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult(["Cults"], []));
 
-        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        var subjectEnrichmentOptionsFactory = _mocker.GetMock<ISubjectEnrichmentOptionsFactory>();
         subjectEnrichmentOptionsFactory
             .Setup(x => x.CreateAsync(
                 It.IsAny<Podcast>(),

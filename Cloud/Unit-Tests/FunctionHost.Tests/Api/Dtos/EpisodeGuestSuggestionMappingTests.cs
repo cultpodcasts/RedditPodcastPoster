@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Api.Dtos.Mapping;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Models;
 using Xunit;
 
@@ -22,9 +23,16 @@ public class EpisodeGuestSuggestionMappingTests
         var bluesky = _fixture.Create<string>();
         var alias = _fixture.Create<string>();
         var term = _fixture.Create<string>();
-        var match = new PersonMatch(
-            new PersonMatchPerson(id, name, twitter, bluesky, sortName, true, [alias]),
-            [new PersonMatchResult(term, 1)]);
+        var person = new Person(name)
+        {
+            Id = id,
+            SortName = sortName,
+            TwitterHandle = twitter,
+            BlueskyHandle = bluesky,
+            IsOrganization = true,
+            Aliases = [alias]
+        };
+        var match = new PersonMatch(person, [new PersonMatchResult(term, 1)]);
 
         // Act
         var dto = EpisodeDtoMapper.ToPersonMatch(match);
