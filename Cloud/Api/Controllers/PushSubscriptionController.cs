@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.PushSubscriptions;
@@ -23,14 +24,14 @@ public class PushSubscriptionController(
     public Task<HttpResponseData> CreatePushSubscription(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "pushsubscription")]
         HttpRequestData req,
-        [FromBody] PushSubscription pushSubscription,
+        [FromBody] Dtos.PushSubscription pushSubscription,
         FunctionContext executionContext,
         CancellationToken ct
     ) =>
         HandleRequest(
             req,
             ["admin"],
-            pushSubscription,
+            pushSubscription.ToModel(),
             createPushSubscriptionHandler.Handle,
             Unauthorised,
             ct);

@@ -1,7 +1,4 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Dtos;
 
@@ -44,26 +41,4 @@ public class SubmitUrlPrepareResponse
     [JsonPropertyName("showName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ShowName { get; init; }
-
-    public static SubmitUrlPrepareResponse From(
-        Uri url,
-        NonPodcastServiceItemMetaData meta,
-        StreamingService service)
-    {
-        var serviceKey = StreamingServiceWire.ToKey(service);
-
-        return new SubmitUrlPrepareResponse
-        {
-            Service = serviceKey,
-            PodcastName = NonPodcastShowNameResolver.TrySeriesName(meta.ShowName, meta.Publisher, service),
-            Title = meta.Title,
-            Description = meta.Description,
-            Duration = meta.Duration,
-            Release = meta.Release,
-            Image = meta.Image,
-            Explicit = meta.Explicit,
-            Publisher = meta.Publisher,
-            ShowName = meta.ShowName
-        };
-    }
 }

@@ -86,7 +86,14 @@ public class PersonService(
 
     private static PersonMatchPerson ToMatchPerson(Person person)
     {
-        return new PersonMatchPerson(person.Id, person.Name, person.TwitterHandle, person.BlueskyHandle);
+        return new PersonMatchPerson(
+            person.Id,
+            person.Name,
+            person.TwitterHandle,
+            person.BlueskyHandle,
+            person.SortName,
+            person.IsOrganization,
+            person.Aliases);
     }
 
     private PersonMatchResult[] MatchTerms(Episode episode, Person person, bool withDescription)

@@ -9,7 +9,7 @@ using Xunit;
 namespace FunctionHost.Tests.Api.Models;
 
 /// <summary>
-/// Characterises Isolated <c>[FromBody] SubmitUrlRequest</c> binding.
+/// Characterises Isolated <c>[FromBody] Api.Dtos.SubmitUrlRequest</c> binding.
 /// Isolated HTTP (no ASP.NET Core integration in this host) deserialises the body with
 /// <see cref="JsonObjectSerializer"/> wrapping the worker default
 /// <see cref="JsonSerializerOptions"/> (<c>PropertyNameCaseInsensitive = true</c>),
@@ -230,11 +230,11 @@ public class SubmitUrlRequestFromBodyBindingTests
         bound.PrefetchedMeta.Publisher.Should().Be(publisher);
     }
 
-    private static async Task<SubmitUrlRequest> BindAsync(string json)
+    private static async Task<global::Api.Dtos.SubmitUrlRequest> BindAsync(string json)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         var bound = await IsolatedSerializer.DeserializeAsync(
-            stream, typeof(SubmitUrlRequest), CancellationToken.None);
-        return (SubmitUrlRequest)bound!;
+            stream, typeof(global::Api.Dtos.SubmitUrlRequest), CancellationToken.None);
+        return (global::Api.Dtos.SubmitUrlRequest)bound!;
     }
 }

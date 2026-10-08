@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.Episodes;
 using Api.Models;
@@ -118,14 +119,14 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodeChangeRequest episodeChangeRequest,
+        Dtos.EpisodeChangeRequest episodeChangeRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest),
+            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest.ToModel()),
             postEpisodeHandler.Handle,
             Unauthorised,
             ct);
@@ -138,14 +139,14 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodePublishRequest episodePostRequest,
+        Dtos.EpisodePublishRequest episodePostRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest),
+            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest.ToModel()),
             publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
@@ -159,14 +160,14 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodePublishRequest episodePostRequest,
+        Dtos.EpisodePublishRequest episodePostRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
+            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest.ToModel()),
             publishEpisodeHandler.Handle,
             Unauthorised,
             ct);

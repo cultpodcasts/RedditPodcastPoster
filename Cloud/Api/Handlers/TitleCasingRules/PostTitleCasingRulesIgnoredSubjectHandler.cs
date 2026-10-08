@@ -12,12 +12,12 @@ public class PostTitleCasingRulesIgnoredSubjectHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageTerm body,
+        TitleCasingRulesIgnoredSubjectAdd body,
         CancellationToken c)
     {
         var result = await titleCasingRulesUpdateService.AddIgnoredSubjectAsync(
             body.Language,
-            new TitleCasingRulesAddLowerCaseTermRequest { Term = body.Term },
+            body.Term,
             c);
         return result.Status switch
         {

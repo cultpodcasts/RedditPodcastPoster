@@ -12,7 +12,7 @@ public class PutSubjectHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        SubjectChangeRequest subject,
+        Api.Models.SubjectChangeRequest subject,
         CancellationToken ct)
     {
         var result = await subjectCreateService.CreateAsync(subject, ct);

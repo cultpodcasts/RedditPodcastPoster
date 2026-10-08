@@ -11,7 +11,7 @@ public class PutDiscoveryScheduleHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        DiscoveryScheduleUpdateRequest body,
+        Api.Models.DiscoveryScheduleUpdateRequest body,
         CancellationToken c)
     {
         var result = await discoveryScheduleUpdateService.UpdateAsync(body, c);

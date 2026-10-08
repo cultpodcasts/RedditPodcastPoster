@@ -3,6 +3,8 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
+using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.Films;
 using Api.Models;
@@ -32,12 +34,12 @@ public class FilmController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "film/{filmId:guid}")]
         HttpRequestData req,
         Guid filmId,
-        [FromBody] FilmChangeRequest change,
+        [FromBody] Dtos.FilmChangeRequest change,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["curate"],
-            new FilmChangeRequestWrapper(filmId, change),
+            new FilmChangeRequestWrapper(filmId, change.ToModel()),
             postFilmHandler.Handle,
             Unauthorised,
             ct);

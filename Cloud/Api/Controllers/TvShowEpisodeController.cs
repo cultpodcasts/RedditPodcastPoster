@@ -3,6 +3,8 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
+using Api;
+using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.TvShows;
 using Api.Models;
@@ -32,12 +34,12 @@ public class TvShowEpisodeController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "tvshowepisode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,
-        [FromBody] TvShowEpisodeChangeRequest change,
+        [FromBody] Dtos.TvShowEpisodeChangeRequest change,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["curate"],
-            new TvShowEpisodeChangeRequestWrapper(episodeId, change),
+            new TvShowEpisodeChangeRequestWrapper(episodeId, change.ToModel()),
             postTvShowEpisodeHandler.Handle,
             Unauthorised,
             ct);

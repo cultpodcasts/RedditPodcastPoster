@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.Podcasts;
 using Api.Models;
@@ -124,12 +125,12 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}/kind")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody] PodcastKindTransferRequest request,
+        [FromBody] Dtos.PodcastKindTransferRequest request,
         CancellationToken ct
     ) => HandleRequest(
             req,
             ["curate"],
-            new PodcastKindTransferCommand(podcastId, request),
+            new PodcastKindTransferCommand(podcastId, request.ToModel()),
             postPodcastKindTransferHandler.Handle,
             Unauthorised,
             ct);
@@ -139,12 +140,12 @@ public class PodcastController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "podcast/{podcastId:guid}")]
         HttpRequestData req,
         Guid podcastId,
-        [FromBody] PodcastChangeRequest podcastChangeRequest,
+        [FromBody] Dtos.PodcastChangeRequest podcastChangeRequest,
         CancellationToken ct
     ) => HandleRequest(
             req,
             ["curate"],
-            new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest, true),
+            new PodcastChangeRequestWrapper(podcastId, podcastChangeRequest.ToModel(), true),
             postPodcastHandler.Handle,
             Unauthorised,
             ct);

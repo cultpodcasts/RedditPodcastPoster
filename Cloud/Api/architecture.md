@@ -132,8 +132,8 @@ Cloud/Api/
 
 | Kind | Namespace | Examples | Bound from HTTP? | Returned as JSON? |
 | ---- | --------- | -------- | ---------------- | ----------------- |
-| Change / create body | `Api.Models` | `EpisodeChangeRequest`, `PersonChangeRequest`, `PodcastChangeRequest`, `SubjectChangeRequest` | Yes (`[FromBody]`) | Only if you deliberately echo it (prefer `*Dto` for GET) |
-| Command / wrapper | `Api.Models` | `PodcastRenameCommand`, `EpisodePublishRequestWrapper`, `PersonChangeRequestWrapper` | Wrapper built in controller | No |
+| Change / create body | `Api.Dtos` | `EpisodeChangeRequest`, `PersonChangeRequest`, `PodcastRenameRequest` | Yes (`[FromBody]`) | No — controller maps to a Model |
+| Command / wrapper | `Api.Models` | `PodcastRenameCommand`, `EpisodeChangeRequest`, `PersonChangeRequestWrapper` | Built in the controller from the DTO | No |
 | Result / outcome | `Api.Models` | `PersonGetResult`, `EpisodeUpdateOutcome`, status enums | No | No — handler maps them |
 | Response DTO | `Api.Dtos` | `PersonDto`, `PodcastDto`, `SubjectDto`, `EpisodeDto`, `PublicEpisodeDto` | No | Yes via `ToDto` |
 | Error envelope | `Api.Dtos` | `ApiErrorResponse` | No | Yes on failure paths |
@@ -149,7 +149,7 @@ Cloud/Api/
 - Prefer flat projections over inheriting domain entities (especially `Episode`).
 - Never put `Dto` on a type that is only nested under another JSON root.
 
-**Rename:** wire JSON for rename body is `Api.Dtos.PodcastRenameRequest`; internal command is `Api.Models.PodcastRenameCommand`.
+**Rename and other split bodies:** wire JSON is an `Api.Dtos` request. The controller maps it to an `Api.Models` command or change request. `PodcastRenameRequest` becomes `PodcastRenameCommand`. A `[FromBody]` change request becomes the same-named type in `Api.Models` via `ToModel()`.
 
 ---
 
@@ -159,7 +159,7 @@ Cloud/Api/
 
 - [ ] Import only the handler area(s) you call (`using Api.Handlers.People;` — not every area).
 - [ ] Do not import a non-existent `Api.Handlers` namespace (types live in nested areas).
-- [ ] Deserialize mutations to **Models** change-request types.
+- [ ] Deserialize mutations to **Dtos** request types and map them to **Models** before the handler.
 - [ ] Pass thin wrappers (`*RequestWrapper`) into handlers when route ids + body must travel together.
 
 ### Handlers
@@ -189,7 +189,7 @@ Cloud/Api/
 ## Adding a new endpoint
 
 1. **Decide the area** (or add `Handlers/NewArea` + `Services/NewArea` with matching namespaces).
-2. **Models** — request body (if any) as `*ChangeRequest` or command; `*Result` + status enum for the service return.
+2. **Models** — command or change request the service applies (`*ChangeRequest` / `*Command`); `*Result` + status enum for the service return. The `[FromBody]` type is the matching `Dtos` request, mapped in the controller.
 3. **Service** — `IFooService` + `FooService` as separate files in `Services/{Area}/`; register via `AddApi{Area}()` in `Extensions/ApiAreaServiceCollectionExtensions.cs` (wired from `Ioc.cs`).
 4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`. Queries map status to `ctx.Ok(entity.ToDto())`. Commands map status to `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse`. Never the saved aggregate.
 5. **Dto** (if new response shape) — `Dtos/FooDto.cs` + `ToDto` extension in `Dtos/Extensions/` (no static factories on DTO types).

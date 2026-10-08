@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.Subjects;
@@ -43,13 +44,13 @@ public class SubjectController(
         HttpRequestData req,
         Guid subjectId,
         FunctionContext executionContext,
-        [FromBody] SubjectChangeRequest subjectChangeRequest,
+        [FromBody] Dtos.SubjectChangeRequest subjectChangeRequest,
         CancellationToken ct
     ) =>
         HandleRequest(
             req,
             ["curate"],
-            new SubjectChangeRequestWrapper(subjectId, subjectChangeRequest),
+            new SubjectChangeRequestWrapper(subjectId, subjectChangeRequest.ToModel()),
             postSubjectHandler.Handle,
             Unauthorised,
             ct);
@@ -59,13 +60,13 @@ public class SubjectController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "subject")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] SubjectChangeRequest subjectChangeRequest,
+        [FromBody] Dtos.SubjectChangeRequest subjectChangeRequest,
         CancellationToken ct
     ) =>
         HandleRequest(
             req,
             ["curate"],
-            subjectChangeRequest,
+            subjectChangeRequest.ToModel(),
             putSubjectHandler.Handle,
             Unauthorised,
             ct);

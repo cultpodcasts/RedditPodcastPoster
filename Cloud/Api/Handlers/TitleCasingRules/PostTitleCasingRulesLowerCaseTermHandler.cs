@@ -12,12 +12,12 @@ public class PostTitleCasingRulesLowerCaseTermHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageTerm body,
+        TitleCasingRulesLowerCaseTermAdd body,
         CancellationToken c)
     {
         var result = await titleCasingRulesUpdateService.AddLowerCaseTermAsync(
             body.Language,
-            new TitleCasingRulesAddLowerCaseTermRequest { Term = body.Term },
+            body.Term,
             c);
         return result.Status switch
         {

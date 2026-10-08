@@ -121,13 +121,7 @@ public class EpisodeDtoMapper(
     {
         return new EpisodeDto.PersonMatch
         {
-            Person = new PersonDto
-            {
-                Id = match.Person.Id,
-                Name = match.Person.Name,
-                TwitterHandle = match.Person.TwitterHandle,
-                BlueskyHandle = match.Person.BlueskyHandle
-            },
+            Person = match.Person.ToDto(),
             MatchResults = match.MatchResults
                 .Select(x => new EpisodeDto.MatchResult { Term = x.Term, Matches = x.Matches })
                 .ToArray()

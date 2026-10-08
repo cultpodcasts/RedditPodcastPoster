@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
 using Api.Factories;
+using Api.Dtos.Extensions;
 using Api.Handlers.People;
 using Api.Models;
 using Azure.Diagnostics;
@@ -45,12 +46,12 @@ public class PersonController(
         HttpRequestData req,
         Guid personId,
         FunctionContext executionContext,
-        [FromBody] PersonChangeRequest personChangeRequest,
+        [FromBody] Dtos.PersonChangeRequest personChangeRequest,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["curate"],
-            new PersonChangeRequestWrapper(personId, personChangeRequest),
+            new PersonChangeRequestWrapper(personId, personChangeRequest.ToModel()),
             postPersonHandler.Handle,
             Unauthorised,
             ct);
@@ -60,7 +61,7 @@ public class PersonController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "person")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] PersonChangeRequest personChangeRequest,
+        [FromBody] Dtos.PersonChangeRequest personChangeRequest,
         CancellationToken ct) =>
-        HandleRequest(req, ["curate"], personChangeRequest, putPersonHandler.Handle, Unauthorised, ct);
+        HandleRequest(req, ["curate"], personChangeRequest.ToModel(), putPersonHandler.Handle, Unauthorised, ct);
 }
