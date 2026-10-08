@@ -95,7 +95,7 @@ public class TitleCasingRulesController(
                 language,
                 new KnownTermUpdate
                 {
-                    Literal = Uri.UnescapeDataString(literal),
+                    Literal = literal,
                     Pattern = body.Pattern,
                     Options = body.Options
                 }),
@@ -114,7 +114,7 @@ public class TitleCasingRulesController(
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageKnownTermDelete(language, Uri.UnescapeDataString(literal)),
+            new TitleCasingRulesLanguageKnownTermDelete(language, literal),
             deleteTitleCasingRulesKnownTermHandler.Handle,
             Unauthorised,
             ct);

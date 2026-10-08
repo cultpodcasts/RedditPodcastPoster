@@ -111,7 +111,7 @@ public class EpisodeController(
     }
 
     [Function("PodcastEpisodePatch")]
-    public Task<HttpResponseData> Post(
+    public Task<HttpResponseData> Patch(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = PodcastIdRoute)]
         HttpRequestData req,
         Guid podcastId,

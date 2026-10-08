@@ -40,7 +40,7 @@ public class PersonController(
         HandleRequest(req, ["curate"], personName, getPersonHandler.Handle, Unauthorised, ct);
 
     [Function("PersonPatch")]
-    public Task<HttpResponseData> Post(
+    public Task<HttpResponseData> Patch(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "person/{personId:guid}")]
         HttpRequestData req,
         Guid personId,
@@ -56,7 +56,7 @@ public class PersonController(
             ct);
 
     [Function("PersonPost")]
-    public Task<HttpResponseData> Put(
+    public Task<HttpResponseData> Post(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "person")]
         HttpRequestData req,
         FunctionContext executionContext,

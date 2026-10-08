@@ -64,10 +64,8 @@ PersonController.Get
 ```
 PersonController.Post
   → [FromBody] PersonChangeRequest          // Models
-  → PersonChangeRequestWrapper
-  → PostPersonHandler → IPersonUpdateService
-      → PersonChangeApplier.Apply(entity, change)  // Models only
-      → PersonUpdateResult                    // status only — not PersonDto
+  → PutPersonHandler → IPersonCreateService
+      → PersonCreateResult                    // status only — not PersonDto
   → Accepted → ctx.Accepted()                // 202, empty body
   → client then GET /person/{name}           // PersonDto
 ```

@@ -28,7 +28,7 @@ public class TvShowEpisodeController(
         HandleRequest(req, ["curate"], episodeId, getTvShowEpisodeHandler.Handle, Unauthorised, ct);
 
     [Function("TvShowEpisodePatch")]
-    public Task<HttpResponseData> Post(
+    public Task<HttpResponseData> Patch(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "tvshowepisode/{episodeId:guid}")]
         HttpRequestData req,
         Guid episodeId,

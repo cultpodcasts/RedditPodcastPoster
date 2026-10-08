@@ -28,7 +28,7 @@ public class FilmController(
         HandleRequest(req, ["curate"], filmIdentifier, getFilmHandler.Handle, Unauthorised, ct);
 
     [Function("FilmPatch")]
-    public Task<HttpResponseData> Post(
+    public Task<HttpResponseData> Patch(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "film/{filmId:guid}")]
         HttpRequestData req,
         Guid filmId,
