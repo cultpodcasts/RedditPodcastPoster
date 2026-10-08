@@ -7,6 +7,6 @@ public interface IPostTitleCasingRulesIgnoredSubjectHandler
 {
     Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageTerm body,
+        TitleCasingRulesIgnoredSubjectAdd body,
         CancellationToken c);
 }

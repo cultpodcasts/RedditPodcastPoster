@@ -39,18 +39,4 @@ public class SubmitUrlLookupResponse
     [JsonPropertyName("parentName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ParentName { get; init; }
-
-    public static SubmitUrlLookupResponse From(RedditPodcastPoster.UrlSubmission.Models.UrlMembershipLookupResult result) =>
-        new()
-        {
-            Known = result.Known,
-            Kind = result.Kind,
-            PodcastId = result.PodcastId,
-            PodcastName = result.PodcastName,
-            Ambiguous = result.Ambiguous,
-            PodcastIds = result.PodcastIds,
-            Service = result.Service,
-            ContentKind = result.ContentKind,
-            ParentName = result.ParentName
-        };
 }

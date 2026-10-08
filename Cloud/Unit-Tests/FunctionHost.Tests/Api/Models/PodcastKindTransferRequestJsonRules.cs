@@ -28,7 +28,7 @@ public class PodcastKindTransferRequestJsonRules
         var json = "{\"targetKind\":\"NewsOrganisation\"}";
 
         // Act
-        var request = JsonSerializer.Deserialize<PodcastKindTransferRequest>(json);
+        var request = JsonSerializer.Deserialize<global::Api.Dtos.PodcastKindTransferRequest>(json);
         var responseJson = JsonSerializer.Serialize(new PodcastKindTransferResponse
         {
             TargetKind = CatalogueParentKind.TvShow,
@@ -50,7 +50,7 @@ public class PodcastKindTransferRequestJsonRules
         var json = "{\"targetKind\":\"Film\"}";
 
         // Act
-        var act = () => JsonSerializer.Deserialize<PodcastKindTransferRequest>(json);
+        var act = () => JsonSerializer.Deserialize<global::Api.Dtos.PodcastKindTransferRequest>(json);
 
         // Assert
         act.Should().Throw<JsonException>();
@@ -93,11 +93,11 @@ public class PodcastKindTransferRequestJsonRules
         dto.FailureIndexingPlayables.Should().BeTrue();
     }
 
-    private static async Task<PodcastKindTransferRequest> BindAsync(string json)
+    private static async Task<global::Api.Dtos.PodcastKindTransferRequest> BindAsync(string json)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         var bound = await IsolatedSerializer.DeserializeAsync(
-            stream, typeof(PodcastKindTransferRequest), CancellationToken.None);
-        return (PodcastKindTransferRequest)bound!;
+            stream, typeof(global::Api.Dtos.PodcastKindTransferRequest), CancellationToken.None);
+        return (global::Api.Dtos.PodcastKindTransferRequest)bound!;
     }
 }

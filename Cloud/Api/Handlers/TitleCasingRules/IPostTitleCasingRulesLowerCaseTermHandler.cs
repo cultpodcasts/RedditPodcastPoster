@@ -7,6 +7,6 @@ public interface IPostTitleCasingRulesLowerCaseTermHandler
 {
     Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        TitleCasingRulesLanguageTerm body,
+        TitleCasingRulesLowerCaseTermAdd body,
         CancellationToken c);
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.Discovery;
@@ -41,12 +42,12 @@ public class DiscoveryCurationController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         FunctionContext _,
-        [FromBody] DiscoverySubmitRequest discoverySubmitRequest,
+        [FromBody] Dtos.DiscoverySubmitRequest discoverySubmitRequest,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["curate"],
-            discoverySubmitRequest,
+            discoverySubmitRequest.ToModel(),
             postDiscoveryCurationHandler.Handle,
             Unauthorised,
             ct);

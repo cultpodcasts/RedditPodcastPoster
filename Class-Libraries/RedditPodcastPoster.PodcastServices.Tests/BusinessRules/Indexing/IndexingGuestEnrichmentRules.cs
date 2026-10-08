@@ -1,12 +1,14 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using FluentAssertions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Indexing.Models;
 using RedditPodcastPoster.Indexing.Services;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
@@ -27,10 +29,11 @@ public class IndexingGuestEnrichmentRules
 {
     private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
 
     private static PersonMatch CreatePersonMatch(string name) =>
         new(
-            new PersonMatchPerson(Guid.NewGuid(), name, null, null),
+            new Person(name),
             [new PersonMatchResult(name, 1)]);
 
     [Fact(DisplayName =
@@ -50,7 +53,7 @@ public class IndexingGuestEnrichmentRules
         added.PodcastId = podcast.Id;
         added.Guests = null;
 
-        var podcastUpdater = new Mock<IPodcastUpdater>();
+        var podcastUpdater = _mocker.GetMock<IPodcastUpdater>();
         podcastUpdater
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .ReturnsAsync(new IndexPodcastResult(
@@ -61,12 +64,12 @@ public class IndexingGuestEnrichmentRules
                 SpotifyBypassed: false,
                 YouTubeBypassed: false));
 
-        var subjectEnricher = new Mock<ISubjectEnricher>();
+        var subjectEnricher = _mocker.GetMock<ISubjectEnricher>();
         subjectEnricher
             .Setup(x => x.EnrichSubjects(added, It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult([], []));
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(added, It.IsAny<GuestEnrichmentOptions?>()))
             .Callback<Episode, GuestEnrichmentOptions?>((episode, _) =>
@@ -75,7 +78,7 @@ public class IndexingGuestEnrichmentRules
             })
             .ReturnsAsync(new EnrichGuestsResult([CreatePersonMatch("Ada Example")], []));
 
-        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        var subjectEnrichmentOptionsFactory = _mocker.GetMock<ISubjectEnrichmentOptionsFactory>();
         subjectEnrichmentOptionsFactory
             .Setup(x => x.CreateAsync(
                 It.IsAny<Podcast>(),
@@ -124,7 +127,7 @@ public class IndexingGuestEnrichmentRules
         added.PodcastId = podcast.Id;
         added.Guests = ["Already Linked"];
 
-        var podcastUpdater = new Mock<IPodcastUpdater>();
+        var podcastUpdater = _mocker.GetMock<IPodcastUpdater>();
         podcastUpdater
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .ReturnsAsync(new IndexPodcastResult(
@@ -135,17 +138,17 @@ public class IndexingGuestEnrichmentRules
                 SpotifyBypassed: false,
                 YouTubeBypassed: false));
 
-        var subjectEnricher = new Mock<ISubjectEnricher>();
+        var subjectEnricher = _mocker.GetMock<ISubjectEnricher>();
         subjectEnricher
             .Setup(x => x.EnrichSubjects(added, It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult([], []));
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
+        var guestEnricher = _mocker.GetMock<IEpisodeGuestEnricher>();
         guestEnricher
             .Setup(x => x.EnrichGuests(added, It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichGuestsResult([], []));
 
-        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
+        var subjectEnrichmentOptionsFactory = _mocker.GetMock<ISubjectEnrichmentOptionsFactory>();
         subjectEnrichmentOptionsFactory
             .Setup(x => x.CreateAsync(
                 It.IsAny<Podcast>(),

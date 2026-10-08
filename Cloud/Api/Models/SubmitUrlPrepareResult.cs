@@ -1,4 +1,5 @@
-using Api.Dtos;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Models;
 
@@ -11,5 +12,6 @@ public enum SubmitUrlPrepareStatus
 
 public record SubmitUrlPrepareResult(
     SubmitUrlPrepareStatus Status,
-    SubmitUrlPrepareResponse? Response = null,
+    StreamingService? Service = null,
+    NonPodcastServiceItemMetaData? Meta = null,
     string? Message = null);

@@ -1,6 +1,7 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.SubmitUrl;
 
@@ -12,14 +13,14 @@ public class PostSubmitUrlExtractHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        SubmitUrlExtractRequest request,
+        Api.Models.SubmitUrlExtractRequest request,
         CancellationToken c)
     {
         var result = await submitUrlPrepareService.ExtractAsync(request.Url, request.Html, c);
         return result.Status switch
         {
             SubmitUrlPrepareStatus.Ok =>
-                await ctx.Ok(result.Response!, c),
+                await ctx.Ok(result.Meta!.ToDto(result.Service!.Value), c),
             SubmitUrlPrepareStatus.BadRequest =>
                 await ctx.BadRequest(ApiErrorResponse.Failure(result.Message ?? "Bad request"), c),
             SubmitUrlPrepareStatus.Failed =>

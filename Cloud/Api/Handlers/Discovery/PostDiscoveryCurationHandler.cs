@@ -13,7 +13,7 @@ public class PostDiscoveryCurationHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        DiscoverySubmitRequest model,
+        Api.Models.DiscoverySubmitRequest model,
         CancellationToken c)
     {
         var result = await discoveryCurationSubmitService.SubmitAsync(model, c);

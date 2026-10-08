@@ -176,7 +176,7 @@ public class TitleCasingRulesUpdateService(
 
     public async Task<TitleCasingRulesUpdateResult> AddIgnoredSubjectAsync(
         string language,
-        TitleCasingRulesAddLowerCaseTermRequest body,
+        TitleCasingRulesAddIgnoredSubjectRequest body,
         CancellationToken cancellationToken)
     {
         try

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.Episodes;
 using Api.Models;
@@ -110,44 +111,22 @@ public class EpisodeController(
             ct);
     }
 
-    [Function("EpisodePost")]
-    public Task<HttpResponseData> PostEpisodeByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext _,
-        [FromBody]
-        EpisodeChangeRequest episodeChangeRequest,
-        CancellationToken ct
-    )
-    {
-        logger.LogWarning("{method}: Fetching episode by ID: {EpisodeId} without any podcast-identifier",
-            nameof(PostEpisodeByEpisodeId), episodeId);
-        return HandleRequest(
-            req,
-            ["curate"],
-            new EpisodeChangeRequestWrapper(null, episodeId, episodeChangeRequest),
-            postEpisodeHandler.Handle,
-            Unauthorised,
-            ct);
-    }
-
-    [Function("PodcastEpisodePost")]
-    public Task<HttpResponseData> Post(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = PodcastIdRoute)]
+    [Function("PodcastEpisodePatch")]
+    public Task<HttpResponseData> Patch(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = PodcastIdRoute)]
         HttpRequestData req,
         Guid podcastId,
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodeChangeRequest episodeChangeRequest,
+        Dtos.EpisodeChangeRequest episodeChangeRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest),
+            new EpisodeChangeRequestWrapper(podcastId, episodeId, episodeChangeRequest.ToModel()),
             postEpisodeHandler.Handle,
             Unauthorised,
             ct);
@@ -160,14 +139,14 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodePublishRequest episodePostRequest,
+        Dtos.EpisodePublishRequest episodePostRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest),
+            new EpisodePublishRequestWrapper(null, episodeId, episodePostRequest.ToModel()),
             publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
@@ -181,35 +160,15 @@ public class EpisodeController(
         Guid episodeId,
         FunctionContext _,
         [FromBody]
-        EpisodePublishRequest episodePostRequest,
+        Dtos.EpisodePublishRequest episodePostRequest,
         CancellationToken ct
     )
     {
         return HandleRequest(
             req,
             ["curate"],
-            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest),
+            new EpisodePublishRequestWrapper(podcastId, episodeId, episodePostRequest.ToModel()),
             publishEpisodeHandler.Handle,
-            Unauthorised,
-            ct);
-    }
-
-    [Function("EpisodeDelete")]
-    public Task<HttpResponseData> DeleteEpisodeByEpisodeId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = Route)]
-        HttpRequestData req,
-        Guid episodeId,
-        FunctionContext _,
-        CancellationToken ct
-    )
-    {
-        logger.LogWarning("{method}: Deleting episode by ID: {EpisodeId} without any podcast-identifier",
-            nameof(DeleteEpisodeByEpisodeId), episodeId);
-        return HandleRequest(
-            req,
-            ["admin"],
-            new PodcastEpisodeRequestWrapper(episodeId),
-            deleteEpisodeHandler.Handle,
             Unauthorised,
             ct);
     }

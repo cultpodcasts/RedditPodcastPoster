@@ -12,7 +12,7 @@ public class PutPersonHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        PersonChangeRequest person,
+        Api.Models.PersonChangeRequest person,
         CancellationToken ct)
     {
         var result = await personCreateService.CreateAsync(person, ct);

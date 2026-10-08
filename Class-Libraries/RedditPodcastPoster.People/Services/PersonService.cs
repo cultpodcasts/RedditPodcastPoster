@@ -41,7 +41,7 @@ public class PersonService(
         var people = await personRepository.GetAll().ToListAsync();
         return people
             .Select(person => new PersonMatch(
-                ToMatchPerson(person),
+                person,
                 MatchTerms(episode, person, withDescription)))
             .Where(x => x.MatchResults.Length > 0)
             .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches))
@@ -82,11 +82,6 @@ public class PersonService(
             .Where(byCanonicalName.ContainsKey)
             .Select(name => byCanonicalName[name])
             .ToArray();
-    }
-
-    private static PersonMatchPerson ToMatchPerson(Person person)
-    {
-        return new PersonMatchPerson(person.Id, person.Name, person.TwitterHandle, person.BlueskyHandle);
     }
 
     private PersonMatchResult[] MatchTerms(Episode episode, Person person, bool withDescription)

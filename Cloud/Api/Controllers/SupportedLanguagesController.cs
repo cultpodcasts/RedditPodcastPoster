@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.SupportedLanguages;
@@ -57,12 +58,12 @@ public class SupportedLanguagesController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)]
         HttpRequestData req,
         FunctionContext _,
-        [FromBody] SupportedLanguageAddRequest body,
+        [FromBody] Dtos.SupportedLanguageAddRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            body,
+            body.ToModel(),
             postSupportedLanguagesHandler.Handle,
             Unauthorised,
             ct);

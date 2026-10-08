@@ -165,7 +165,9 @@ public class ConfigWriteAcknowledgementHandlerTests
         // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new TitleCasingRulesLanguageTerm(_fixture.Create<string>(), _fixture.Create<string>()),
+            new TitleCasingRulesLowerCaseTermAdd(
+                _fixture.Create<string>(),
+                new TitleCasingRulesAddLowerCaseTermRequest { Term = _fixture.Create<string>() }),
             CancellationToken.None);
 
         // Assert
@@ -262,7 +264,7 @@ public class ConfigWriteAcknowledgementHandlerTests
         _mocker.GetMock<ITitleCasingRulesUpdateService>()
             .Setup(s => s.AddIgnoredSubjectAsync(
                 It.IsAny<string>(),
-                It.IsAny<TitleCasingRulesAddLowerCaseTermRequest>(),
+                It.IsAny<TitleCasingRulesAddIgnoredSubjectRequest>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Ok));
         var handler = _mocker.CreateInstance<PostTitleCasingRulesIgnoredSubjectHandler>();
@@ -271,7 +273,9 @@ public class ConfigWriteAcknowledgementHandlerTests
         // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new TitleCasingRulesLanguageTerm(_fixture.Create<string>(), _fixture.Create<string>()),
+            new TitleCasingRulesIgnoredSubjectAdd(
+                _fixture.Create<string>(),
+                new TitleCasingRulesAddIgnoredSubjectRequest { Term = _fixture.Create<string>() }),
             CancellationToken.None);
 
         // Assert
@@ -322,11 +326,40 @@ public class ConfigWriteAcknowledgementHandlerTests
         // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new TitleCasingRulesLanguageTerm(_fixture.Create<string>(), _fixture.Create<string>()),
+            new TitleCasingRulesLowerCaseTermAdd(
+                _fixture.Create<string>(),
+                new TitleCasingRulesAddLowerCaseTermRequest { Term = _fixture.Create<string>() }),
             CancellationToken.None);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await ReadErrorAsync(result)).Should().Be(error);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a title-casing write fails in the service, then respond 500 with an empty body, because a persistence failure is not a validation message.")]
+    public async Task title_casing_write_failed_returns_500()
+    {
+        // Arrange
+        _mocker.GetMock<ITitleCasingRulesUpdateService>()
+            .Setup(s => s.AddLowerCaseTermAsync(
+                It.IsAny<string>(),
+                It.IsAny<TitleCasingRulesAddLowerCaseTermRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TitleCasingRulesUpdateResult(TitleCasingRulesUpdateStatus.Failed));
+        var handler = _mocker.CreateInstance<PostTitleCasingRulesLowerCaseTermHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new TitleCasingRulesLowerCaseTermAdd(
+                _fixture.Create<string>(),
+                new TitleCasingRulesAddLowerCaseTermRequest { Term = _fixture.Create<string>() }),
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        (await ReadBodyAsync(result)).Should().BeEmpty();
     }
 }

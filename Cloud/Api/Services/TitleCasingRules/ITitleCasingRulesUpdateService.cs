@@ -26,7 +26,7 @@ public interface ITitleCasingRulesUpdateService
 
     Task<TitleCasingRulesUpdateResult> AddIgnoredSubjectAsync(
         string language,
-        TitleCasingRulesAddLowerCaseTermRequest body,
+        TitleCasingRulesAddIgnoredSubjectRequest body,
         CancellationToken cancellationToken);
 
     Task<TitleCasingRulesUpdateResult> DeleteIgnoredSubjectAsync(

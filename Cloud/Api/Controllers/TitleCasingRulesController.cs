@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.TitleCasingRules;
@@ -28,7 +29,6 @@ public class TitleCasingRulesController(
     private const string LanguageRoute = "title-casing-rules/{language}";
     private const string LowerCaseTermsRoute = "title-casing-rules/{language}/lower-case-terms";
     private const string LowerCaseTermRoute = "title-casing-rules/{language}/lower-case-terms/{term}";
-    private const string KnownTermsRoute = "title-casing-rules/{language}/known-terms";
     private const string KnownTermRoute = "title-casing-rules/{language}/known-terms/{literal}";
     private const string IgnoredSubjectsRoute = "title-casing-rules/{language}/ignored-subjects";
     private const string IgnoredSubjectRoute = "title-casing-rules/{language}/ignored-subjects/{term}";
@@ -54,12 +54,12 @@ public class TitleCasingRulesController(
         HttpRequestData req,
         string language,
         FunctionContext _,
-        [FromBody] TitleCasingRulesAddLowerCaseTermRequest body,
+        [FromBody] Dtos.TitleCasingRulesAddLowerCaseTermRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageTerm(language, body.Term),
+            new TitleCasingRulesLowerCaseTermAdd(language, body.ToModel()),
             postTitleCasingRulesLowerCaseTermHandler.Handle,
             Unauthorised,
             ct);
@@ -75,23 +75,31 @@ public class TitleCasingRulesController(
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageTerm(language, Uri.UnescapeDataString(term)),
+            new TitleCasingRulesLanguageTerm(language, term),
             deleteTitleCasingRulesLowerCaseTermHandler.Handle,
             Unauthorised,
             ct);
 
-    [Function("TitleCasingRulesPostKnownTerm")]
-    public Task<HttpResponseData> PostKnownTerm(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = KnownTermsRoute)]
+    [Function("TitleCasingRulesPutKnownTerm")]
+    public Task<HttpResponseData> PutKnownTerm(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = KnownTermRoute)]
         HttpRequestData req,
         string language,
+        string literal,
         FunctionContext _,
-        [FromBody] KnownTermUpdate body,
+        [FromBody] Dtos.KnownTermUpsertBody body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageKnownTermAdd(language, body),
+            new TitleCasingRulesLanguageKnownTermAdd(
+                language,
+                new KnownTermUpdate
+                {
+                    Literal = literal,
+                    Pattern = body.Pattern,
+                    Options = body.Options
+                }),
             postTitleCasingRulesKnownTermHandler.Handle,
             Unauthorised,
             ct);
@@ -107,7 +115,7 @@ public class TitleCasingRulesController(
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageKnownTermDelete(language, Uri.UnescapeDataString(literal)),
+            new TitleCasingRulesLanguageKnownTermDelete(language, literal),
             deleteTitleCasingRulesKnownTermHandler.Handle,
             Unauthorised,
             ct);
@@ -118,12 +126,12 @@ public class TitleCasingRulesController(
         HttpRequestData req,
         string language,
         FunctionContext _,
-        [FromBody] TitleCasingRulesAddLowerCaseTermRequest body,
+        [FromBody] Dtos.TitleCasingRulesAddIgnoredSubjectRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageTerm(language, body.Term),
+            new TitleCasingRulesIgnoredSubjectAdd(language, body.ToModel()),
             postTitleCasingRulesIgnoredSubjectHandler.Handle,
             Unauthorised,
             ct);
@@ -139,7 +147,7 @@ public class TitleCasingRulesController(
         HandleRequest(
             req,
             ["admin"],
-            new TitleCasingRulesLanguageTerm(language, Uri.UnescapeDataString(term)),
+            new TitleCasingRulesLanguageTerm(language, term),
             deleteTitleCasingRulesIgnoredSubjectHandler.Handle,
             Unauthorised,
             ct);
