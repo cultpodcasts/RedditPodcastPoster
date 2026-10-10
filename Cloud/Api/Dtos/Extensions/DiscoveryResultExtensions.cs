@@ -59,6 +59,7 @@ public static class DiscoveryResultExtensions
         result.ContainsSyntheticMedia = item.ContainsSyntheticMedia;
         result.Guests = item.Guests;
         result.Subjects = item.Subjects;
+        result.SubjectMatches = item.SubjectMatches ?? [];
         result.Sources = item.Sources
             .Select(x =>
                 x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoveryResponse.Item.DiscoverService>(true))

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Converters;
 using RedditPodcastPoster.Models.Discovery;
 
@@ -52,6 +53,10 @@ public class DiscoveryResponse
         [JsonPropertyName("subjects")]
         [JsonPropertyOrder(80)]
         public IEnumerable<string> Subjects { get; set; } = [];
+
+        [JsonPropertyName("subjectMatches")]
+        [JsonPropertyOrder(85)]
+        public IEnumerable<PlayableSubjectMatch> SubjectMatches { get; set; } = [];
 
         [JsonPropertyName("youTubeViews")]
         [JsonPropertyOrder(90)]

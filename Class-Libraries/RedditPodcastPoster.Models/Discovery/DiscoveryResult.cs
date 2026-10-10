@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Converters;
 
 
@@ -46,6 +47,14 @@ public class DiscoveryResult
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(100)]
     public IEnumerable<string> Subjects { get; set; } = [];
+
+    /// <summary>
+    /// Why each subject matched: the matched term (subject name, alias or associated subject)
+    /// and the field it matched in. Empty for results persisted before this was recorded.
+    /// </summary>
+    [JsonPropertyName("subjectMatches")]
+    [JsonPropertyOrder(105)]
+    public List<PlayableSubjectMatch> SubjectMatches { get; set; } = [];
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(110)]

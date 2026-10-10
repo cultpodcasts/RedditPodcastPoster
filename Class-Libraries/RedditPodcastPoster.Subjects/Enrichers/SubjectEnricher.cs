@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Subjects.Extensions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -120,7 +121,7 @@ public class SubjectEnricher(
                 continue;
             }
 
-            var evidence = match.MatchResults.Where(r => r.Source.HasValue).ToArray();
+            var evidence = match.ToPlayableSubjectMatches().ToArray();
             if (evidence.Length == 0)
             {
                 continue;
@@ -128,16 +129,7 @@ public class SubjectEnricher(
 
             episode.Matches.RemoveAll(m =>
                 m.Subject.Equals(match.Subject.Name, StringComparison.OrdinalIgnoreCase));
-
-            foreach (var result in evidence)
-            {
-                episode.Matches.Add(new PlayableSubjectMatch
-                {
-                    Subject = match.Subject.Name,
-                    Term = result.Term,
-                    Source = result.Source!.Value
-                });
-            }
+            episode.Matches.AddRange(evidence);
         }
 
         SyncPodcastDefaultMatch(episode, defaultSubject);
