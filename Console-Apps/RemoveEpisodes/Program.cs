@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
 using RemoveEpisodes;
+using RemoveEpisodes.PodcastRestore;
+using RedditPodcastPoster.Cloudflare.Extensions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -29,16 +32,20 @@ builder.Services
     .AddLogging()
     .AddScoped<Processor>()
     .AddScoped<RestoreProcessor>()
+    .AddScoped<RestorePodcastProcessor>()
+    .AddCloudflareClients()
+    .AddShortnerServices()
     .AddRepositories()
     .AddEpisodeSearchIndexerService()
     .AddHttpClient();
 
 using var host = builder.Build();
 
-return await Parser.Default.ParseArguments<RemoveRequest, RestoreRequest>(args)
+return await Parser.Default.ParseArguments<RemoveRequest, RestoreRequest, RestorePodcastRequest>(args)
     .MapResult(
         (RemoveRequest request) => RunRemove(request),
         (RestoreRequest request) => RunRestore(request),
+        (RestorePodcastRequest request) => host.Services.GetRequiredService<RestorePodcastProcessor>().Process(request),
         errs => Task.FromResult(-1));
 
 async Task<int> RunRemove(RemoveRequest request)

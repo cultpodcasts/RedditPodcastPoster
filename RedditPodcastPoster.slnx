@@ -274,6 +274,7 @@
     <Project Path="Console-Apps/PublishR2/PublishR2.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
+    <Project Path="Console-Apps/RemoveEpisodes.Tests/RemoveEpisodes.Tests.csproj" />
 
     <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
 
