@@ -22,7 +22,18 @@ public static class ServiceDtoMappers
         };
 
     public static ServiceDto? ToDto(this Service? service) =>
-        service is null ? null : (ServiceDto)(int)service.Value;
+        service?.ToDto();
+
+    /// <summary>Maps by name; throws on an unmapped member so enum drift fails loudly.</summary>
+    public static ServiceDto ToDto(this Service service) =>
+        service switch
+        {
+            Service.Spotify => ServiceDto.Spotify,
+            Service.Apple => ServiceDto.Apple,
+            Service.YouTube => ServiceDto.YouTube,
+            Service.Other => ServiceDto.Other,
+            _ => throw new ArgumentOutOfRangeException(nameof(service), service, "Unmapped Service value.")
+        };
 
     public static EpisodeImagesDto? ToDto(this EpisodeImages? images) =>
         images is null

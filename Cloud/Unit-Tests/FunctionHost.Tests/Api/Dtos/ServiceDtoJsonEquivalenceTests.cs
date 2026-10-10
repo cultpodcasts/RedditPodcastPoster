@@ -161,4 +161,37 @@ public class ServiceDtoJsonEquivalenceTests
         // Assert
         ShouldSerializeIdentically(model, dto);
     }
+
+    [Fact(DisplayName =
+        "When every Service value is mapped, it becomes the ServiceDto with the same name and number, and both enums have the same members, so the API contract can't drift from the domain.")]
+    public void service_dto_has_parity_with_service()
+    {
+        // Arrange
+        var services = Enum.GetValues<Service>();
+
+        // Act
+        var mapped = services.Select(s => (Source: s, Dto: s.ToDto())).ToArray();
+
+        // Assert
+        Enum.GetValues<ServiceDto>().Should().HaveSameCount(services);
+        mapped.Should().AllSatisfy(m =>
+        {
+            m.Dto.ToString().Should().Be(m.Source.ToString());
+            ((int)m.Dto).Should().Be((int)m.Source);
+        });
+    }
+
+    [Fact(DisplayName =
+        "When an undefined Service value is mapped, it throws, so an unmapped enum member fails loudly instead of being silently renumbered.")]
+    public void undefined_service_throws()
+    {
+        // Arrange
+        var undefined = (Service)int.MaxValue;
+
+        // Act
+        var act = () => undefined.ToDto();
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }
