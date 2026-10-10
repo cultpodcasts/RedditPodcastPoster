@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Converters;
 using RedditPodcastPoster.Models.Discovery;
 
@@ -60,7 +59,7 @@ public class DiscoveryResponse
         /// Why each subject matched. <c>null</c> for historic results recorded before provenance
         /// existed (serialised as <c>"subjectMatches": null</c>); <c>[]</c> when recorded but empty.
         /// </summary>
-        public IEnumerable<PlayableSubjectMatch>? SubjectMatches { get; set; }
+        public IEnumerable<SubjectMatchDto>? SubjectMatches { get; set; }
 
         [JsonPropertyName("youTubeViews")]
         [JsonPropertyOrder(90)]

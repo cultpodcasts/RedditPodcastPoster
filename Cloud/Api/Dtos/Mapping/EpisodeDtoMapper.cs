@@ -77,7 +77,7 @@ public class EpisodeDtoMapper(
             Services = episode.Services,
             Subjects = episode.Subjects,
             RemovedSubjects = episode.RemovedSubjects,
-            Matches = episode.Matches,
+            Matches = episode.Matches.ToDtos() ?? [],
             SearchTerms = episode.SearchTerms,
             HashTag = episode.HashTag,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),

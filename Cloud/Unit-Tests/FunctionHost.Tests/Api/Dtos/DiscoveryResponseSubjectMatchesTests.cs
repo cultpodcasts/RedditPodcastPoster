@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Api.Dtos;
 using Api.Dtos.Extensions;
+using Api.Dtos.Mapping;
 using AutoFixture;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Catalogue;
@@ -55,5 +56,51 @@ public class DiscoveryResponseSubjectMatchesTests
 
         // Assert
         json.Should().Contain(expectedJson);
+    }
+
+    [Theory(DisplayName =
+        "When a subject match is mapped to its API DTO, the JSON is identical to the domain model's previous output, so existing episode and discovery consumers see no change.")]
+    [InlineData(SubjectMatchSource.Title)]
+    [InlineData(SubjectMatchSource.Description)]
+    [InlineData(SubjectMatchSource.PodcastDefault)]
+    public void subject_match_dto_json_matches_domain_shape(SubjectMatchSource source)
+    {
+        // Arrange
+        var match = new PlayableSubjectMatch
+        {
+            Subject = _fixture.Create<string>(), Term = _fixture.Create<string>(), Source = source
+        };
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        // Act
+        var dtoJson = JsonSerializer.Serialize(match.ToDto(), options);
+
+        // Assert
+        dtoJson.Should().Be(JsonSerializer.Serialize(match, options));
+        dtoJson.Should().Contain($"\"source\":\"{source}\"");
+    }
+
+    [Fact(DisplayName =
+        "When episode matches are mapped for the API, each becomes a SubjectMatchDto carrying subject, term and source, and an empty list stays empty.")]
+    public void episode_matches_map_to_dtos()
+    {
+        // Arrange
+        var match = new PlayableSubjectMatch
+        {
+            Subject = _fixture.Create<string>(), Term = _fixture.Create<string>(),
+            Source = SubjectMatchSource.Description
+        };
+        List<PlayableSubjectMatch> empty = [];
+
+        // Act
+        var dtos = new List<PlayableSubjectMatch> { match }.ToDtos();
+        var emptyDtos = empty.ToDtos();
+
+        // Assert
+        dtos.Should().ContainSingle().Which.Should().BeEquivalentTo(new SubjectMatchDto
+        {
+            Subject = match.Subject, Term = match.Term, Source = "Description"
+        });
+        emptyDtos.Should().NotBeNull().And.BeEmpty();
     }
 }
