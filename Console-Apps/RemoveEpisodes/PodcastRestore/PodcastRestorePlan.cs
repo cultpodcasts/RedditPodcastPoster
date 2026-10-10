@@ -13,6 +13,8 @@ namespace RemoveEpisodes.PodcastRestore;
 ///     deletes every episode's search document, and deletes every episode's short-URL key.
 ///     It never touches <c>episode.removed</c>, so episodes removed before the accident stay removed
 ///     and are excluded from re-indexing and short-URL re-creation.
+///     Selection/reporting only: the processor restores the episode projection with
+///     <see cref="Episode.SetPodcastProperties" />, the same domain projection removal relies on.
 /// </remarks>
 public sealed record PodcastRestorePlan(
     Podcast Podcast,
@@ -33,19 +35,5 @@ public sealed record PodcastRestorePlan(
             all.Where(e => e.ParentRemoved == true).ToList(),
             all.Where(e => !e.IsRemoved()).ToList(),
             all.Where(e => e.IsRemoved()).ToList());
-    }
-
-    /// <summary>Mutates the in-memory models to the restored state. Caller persists.</summary>
-    public void ApplyToModels()
-    {
-        if (PodcastNeedsUnremove)
-        {
-            Podcast.Removed = false;
-        }
-
-        foreach (var episode in EpisodesToClearParentRemoved)
-        {
-            episode.ParentRemoved = false;
-        }
     }
 }

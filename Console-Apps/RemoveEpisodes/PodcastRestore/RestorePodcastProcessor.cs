@@ -1,16 +1,19 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 
 namespace RemoveEpisodes.PodcastRestore;
 
 /// <summary>
 ///     Undo of an accidental podcast removal. Dry run by default; <c>--non-dry-run</c> persists.
+///     Exit codes: 0 success, 1 a side effect failed for at least one podcast (re-run; it is idempotent),
+///     2 bad/ambiguous target (nothing written).
 /// </summary>
 public class RestorePodcastProcessor(
+    PodcastTargetResolver targetResolver,
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
@@ -19,15 +22,7 @@ public class RestorePodcastProcessor(
 {
     public async Task<int> Process(RestorePodcastRequest request, CancellationToken c = default)
     {
-        var ids = request.PodcastIds.ToList();
-        var names = request.PodcastNames.ToList();
-        if (ids.Count == 0 && names.Count == 0)
-        {
-            logger.LogError("Supply at least one --podcast-id or --podcast-name.");
-            return 2;
-        }
-
-        var podcasts = await ResolvePodcasts(ids, names);
+        var podcasts = await targetResolver.Resolve(request.PodcastIds.ToList(), request.PodcastNames.ToList(), c);
         if (podcasts == null)
         {
             return 2;
@@ -37,6 +32,7 @@ public class RestorePodcastProcessor(
         var exit = 0;
         foreach (var podcast in podcasts)
         {
+            c.ThrowIfCancellationRequested();
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync(c);
             var plan = PodcastRestorePlan.Create(podcast, episodes);
             Report(mode, plan, request.SkipShortner);
@@ -58,40 +54,6 @@ public class RestorePodcastProcessor(
         }
 
         return exit;
-    }
-
-    private async Task<List<Podcast>?> ResolvePodcasts(List<Guid> ids, List<string> names)
-    {
-        var resolved = new Dictionary<Guid, Podcast>();
-        foreach (var id in ids)
-        {
-            var podcast = await podcastRepository.GetPodcast(id);
-            if (podcast == null)
-            {
-                logger.LogError("No podcast with id '{podcastId}'.", id);
-                return null;
-            }
-
-            resolved[podcast.Id] = podcast;
-        }
-
-        foreach (var name in names)
-        {
-            var trimmed = name.Trim();
-            var matches = await podcastRepository.GetAllBy(x => x.Name == trimmed).ToListAsync();
-            if (matches.Count != 1)
-            {
-                logger.LogError(
-                    "Expected exactly one podcast named '{name}', found {count}{ids}. Use --podcast-id instead.",
-                    trimmed, matches.Count,
-                    matches.Count > 0 ? ": " + string.Join(", ", matches.Select(x => $"'{x.Id}'")) : string.Empty);
-                return null;
-            }
-
-            resolved[matches[0].Id] = matches[0];
-        }
-
-        return resolved.Values.ToList();
     }
 
     private void Report(string mode, PodcastRestorePlan plan, bool skipShortner)
@@ -118,48 +80,79 @@ public class RestorePodcastProcessor(
 
     private async Task<bool> Apply(PodcastRestorePlan plan, bool skipShortner, CancellationToken c)
     {
-        plan.ApplyToModels();
+        var podcast = plan.Podcast;
         if (plan.PodcastNeedsUnremove)
         {
-            await podcastRepository.Save(plan.Podcast);
+            podcast.Removed = false;
+            await podcastRepository.Save(podcast);
         }
 
+        // Same domain projection that stamps parentRemoved on removal (Episode.SetPodcastProperties).
         foreach (var episode in plan.EpisodesToClearParentRemoved)
         {
+            c.ThrowIfCancellationRequested();
+            episode.SetPodcastProperties(podcast, inheritLanguageIfUnset: false);
             await episodeRepository.Save(episode);
         }
 
-        var ok = true;
-        if (plan.EpisodesToRepublish.Count > 0)
+        if (plan.EpisodesToRepublish.Count == 0)
         {
-            try
-            {
-                var response = await episodeSearchIndexerService.IndexEpisodes(
-                    plan.EpisodesToRepublish.Select(x => x.Id), c);
-                logger.LogInformation("Search re-index for '{podcastId}': {state}.", plan.Podcast.Id,
-                    response.EpisodeIndexRequestState);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Search re-index failed for podcast '{podcastId}'. Cosmos is restored; re-run to retry.",
-                    plan.Podcast.Id);
-                ok = false;
-            }
-
-            if (!skipShortner)
-            {
-                var result = await shortnerService.Write(
-                    plan.EpisodesToRepublish.Select(e => new PodcastEpisode(plan.Podcast, e)));
-                if (!result.Success)
-                {
-                    logger.LogError("Short-URL re-creation failed for podcast '{podcastId}'. Re-run to retry.",
-                        plan.Podcast.Id);
-                    ok = false;
-                }
-            }
+            logger.LogInformation("[APPLY] Restored podcast '{name}' ({id}).", podcast.Name, podcast.Id);
+            return true;
         }
 
-        logger.LogInformation("[APPLY] Restored podcast '{name}' ({id}).", plan.Podcast.Name, plan.Podcast.Id);
+        var ok = await Reindex(plan, c);
+        if (!skipShortner)
+        {
+            ok &= await RewriteShortUrls(plan);
+        }
+
+        logger.LogInformation("[APPLY] Restored podcast '{name}' ({id}){suffix}.", podcast.Name, podcast.Id,
+            ok ? "" : " with side-effect failures; re-run with the same arguments");
         return ok;
+    }
+
+    private async Task<bool> Reindex(PodcastRestorePlan plan, CancellationToken c)
+    {
+        try
+        {
+            var response = await episodeSearchIndexerService.IndexEpisodes(
+                plan.EpisodesToRepublish.Select(x => x.Id), c);
+            if (response.IndexerState == IndexerState.Executed)
+            {
+                return true;
+            }
+
+            logger.LogError(
+                "Search re-index for podcast '{podcastId}' did not succeed: indexer-state={indexerState}, request-state={requestState}.",
+                plan.Podcast.Id, response.IndexerState, response.EpisodeIndexRequestState);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Search re-index failed for podcast '{podcastId}'.", plan.Podcast.Id);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> RewriteShortUrls(PodcastRestorePlan plan)
+    {
+        try
+        {
+            var result = await shortnerService.Write(
+                plan.EpisodesToRepublish.Select(e => new PodcastEpisode(plan.Podcast, e)));
+            if (result.Success)
+            {
+                return true;
+            }
+
+            logger.LogError("Short-URL re-creation failed for podcast '{podcastId}'.", plan.Podcast.Id);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Short-URL re-creation threw for podcast '{podcastId}'.", plan.Podcast.Id);
+        }
+
+        return false;
     }
 }

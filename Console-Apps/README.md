@@ -223,7 +223,9 @@ RemoveEpisodes restore-podcast --podcast-name "Some Podcast"            # dry ru
 RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 ```
 
-Needs the same secrets as `KVWriter` (Cosmos, search, Cloudflare `shortner`/KV) via user-secrets or `RedditPodcastPoster_` env vars.
+**Exit codes / recovery:** `0` success · `1` Cosmos restored but a side effect (search re-index or short-URL write) failed for at least one podcast, or Ctrl+C mid-apply. Re-run the same command; it is idempotent: Cosmos saves are skipped once restored, search is re-indexed again and only missing short-URL keys are written (or `KVWriter --episode-guid <id>` for a single short URL) · `2` no/unknown/ambiguous target, nothing written.
+
+`restore-podcast --non-dry-run` needs the same secrets as `KVWriter` (Cosmos, search, Cloudflare `shortner`/KV) via user-secrets or `RedditPodcastPoster_` env vars.
 
 ---
 

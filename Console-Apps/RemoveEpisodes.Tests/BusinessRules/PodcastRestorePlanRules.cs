@@ -9,8 +9,8 @@ public class PodcastRestorePlanRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "Restore podcast: when a removed podcast's episodes carry parentRemoved, then the plan un-removes the " +
-        "podcast and clears parentRemoved on every episode, because podcast removal stamped all of them.")]
+        "Restore podcast: when a removed podcast's episodes carry parentRemoved, then the plan selects the podcast " +
+        "for un-remove and every episode for parentRemoved clearing, without mutating anything, because podcast removal stamped all of them.")]
     public void removed_podcast_clears_parent_removed_on_all_episodes()
     {
         // Arrange
@@ -23,13 +23,11 @@ public class PodcastRestorePlanRules
 
         // Act
         var plan = PodcastRestorePlan.Create(podcast, episodes);
-        plan.ApplyToModels();
 
         // Assert
         plan.PodcastNeedsUnremove.Should().BeTrue();
         plan.EpisodesToClearParentRemoved.Should().BeEquivalentTo(episodes);
-        podcast.Removed.Should().BeFalse();
-        episodes.Should().OnlyContain(e => e.ParentRemoved == false);
+        podcast.Removed.Should().BeTrue("building a plan must not mutate state (dry run)");
     }
 
     [Fact(DisplayName =
@@ -48,7 +46,6 @@ public class PodcastRestorePlanRules
 
         // Act
         var plan = PodcastRestorePlan.Create(podcast, [live, previouslyRemoved]);
-        plan.ApplyToModels();
 
         // Assert
         plan.EpisodesToRepublish.Should().ContainSingle().Which.Id.Should().Be(live.Id);
