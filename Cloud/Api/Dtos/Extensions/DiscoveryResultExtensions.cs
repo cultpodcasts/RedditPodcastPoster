@@ -34,7 +34,7 @@ public static class DiscoveryResultExtensions
         IDictionary<Guid, DiscoveryResponse.Item.MatchingPodcast> podcasts)
     {
         var result = new DiscoveryResponse.Item();
-        result.Urls = item.Urls;
+        result.Urls = item.Urls.ToDto();
         result.Released = item.Released;
         result.Description = item.Description;
         result.ShowDescription = item.ShowDescription;

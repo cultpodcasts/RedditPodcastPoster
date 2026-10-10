@@ -1,7 +1,4 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
@@ -88,11 +85,11 @@ public class EpisodeDto
 
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; }
+    public EpisodeIdsDto? Ids { get; set; }
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(60)]
-    public ServiceUrls Urls { get; set; } = new();
+    public ServiceUrlsDto Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -116,11 +113,11 @@ public class EpisodeDto
 
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
-    public EpisodeImages? Images { get; set; }
+    public EpisodeImagesDto? Images { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, ServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
@@ -141,12 +138,12 @@ public class EpisodeDto
     [JsonPropertyName("releaseAuthority")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(210)]
-    public Service? ReleaseAuthority { get; set; }
+    public ServiceDto? ReleaseAuthority { get; set; }
 
     [JsonPropertyName("primaryPostService")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(211)]
-    public Service? PrimaryPostService { get; set; }
+    public ServiceDto? PrimaryPostService { get; set; }
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]

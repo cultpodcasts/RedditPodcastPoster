@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Converters;
-using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Dtos;
 
@@ -47,7 +46,7 @@ public class DiscoveryResponse
 
         [JsonPropertyName("urls")]
         [JsonPropertyOrder(70)]
-        public DiscoveryResultUrls Urls { get; set; } = new();
+        public DiscoveryResultUrlsDto Urls { get; set; } = new();
 
         [JsonPropertyName("subjects")]
         [JsonPropertyOrder(80)]
