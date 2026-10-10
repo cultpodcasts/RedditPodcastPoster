@@ -61,7 +61,7 @@ public class DiscoverySubjectMatchProvenanceRules
     {
         // Arrange
         var subject = _fixture.Create<string>();
-        var json = $$"""{"id":"{{Guid.NewGuid()}}","subjects":["{{subject}}"]}""";
+        var json = $$"""{"id":"{{_fixture.Create<Guid>()}}","subjects":["{{subject}}"]}""";
 
         // Act
         var result = JsonSerializer.Deserialize<DiscoveryResult>(json)!;
@@ -92,27 +92,83 @@ public class DiscoverySubjectMatchProvenanceRules
     }
 
     [Fact(DisplayName =
-        "When duplicates are collapsed, the surviving result keeps its subject match provenance, because deduplication must not lose why subjects matched.")]
-    public void deduplication_preserves_subject_match_provenance()
+        "When a stored discovery result has an explicit null subjectMatches, it reads as empty, because the model normalises null once for every consumer.")]
+    public void explicit_null_subject_matches_deserializes_as_empty()
     {
         // Arrange
-        var match = new PlayableSubjectMatch
-        {
-            Subject = _fixture.Create<string>(), Term = _fixture.Create<string>(),
-            Source = SubjectMatchSource.Title
-        };
-        var result = new DiscoveryResult
-        {
-            EpisodeName = _fixture.Create<string>(),
-            Subjects = [match.Subject],
-            SubjectMatches = [match]
-        };
+        var json = $$"""{"id":"{{_fixture.Create<Guid>()}}","subjectMatches":null}""";
 
         // Act
-        var deduplicated = new DiscoveryResultDeduplicator().Deduplicate([result]);
+        var result = JsonSerializer.Deserialize<DiscoveryResult>(json)!;
 
         // Assert
-        deduplicated.Should().ContainSingle().Which.SubjectMatches.Should().ContainSingle(m =>
-            m.Subject == match.Subject && m.Term == match.Term && m.Source == SubjectMatchSource.Title);
+        result.SubjectMatches.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When discovery matches several subjects, subjectMatches is grouped in the same order as subjects, so the two lists never disagree.")]
+    public async Task subject_matches_follow_subjects_order()
+    {
+        // Arrange
+        var weaker = new Subject(_fixture.Create<string>());
+        var stronger = new Subject(_fixture.Create<string>());
+        _subjectMatches =
+        [
+            new SubjectMatch(weaker, [new MatchResult(_fixture.Create<string>(), 1, SubjectMatchSource.Description)]),
+            new SubjectMatch(stronger,
+            [
+                new MatchResult(_fixture.Create<string>(), 2, SubjectMatchSource.Title),
+                new MatchResult(_fixture.Create<string>(), 3, SubjectMatchSource.Description)
+            ])
+        ];
+        var sut = _mocker.CreateInstance<EnrichedEpisodeResultAdapter>();
+
+        // Act
+        var result = await sut.ToDiscoveryResult(CreateEpisodeResult());
+
+        // Assert
+        result.Subjects.Should().Equal(stronger.Name, weaker.Name);
+        result.SubjectMatches.Select(m => m.Subject).Distinct().Should().Equal(result.Subjects);
+    }
+
+    [Fact(DisplayName =
+        "When two duplicate discovery results are collapsed, the survivor's subjects and subject matches come from the same result, so provenance agrees with the subjects shown.")]
+    public void deduplication_keeps_subjects_and_subject_matches_in_agreement()
+    {
+        // Arrange
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.Create<Guid>():N}");
+        var episodeName = _fixture.Create<string>();
+        var showName = _fixture.Create<string>();
+        var released = _fixture.Create<DateTime>();
+        DiscoveryResult CreateDuplicate()
+        {
+            var match = new PlayableSubjectMatch
+            {
+                Subject = _fixture.Create<string>(), Term = _fixture.Create<string>(),
+                Source = SubjectMatchSource.Title
+            };
+            return new DiscoveryResult
+            {
+                EpisodeName = episodeName,
+                ShowName = showName,
+                Released = released,
+                Urls = { Spotify = spotifyUrl },
+                Subjects = [match.Subject],
+                SubjectMatches = [match]
+            };
+        }
+
+        var first = CreateDuplicate();
+        var second = CreateDuplicate();
+
+        // Act
+        var deduplicated = new DiscoveryResultDeduplicator().Deduplicate([first, second]);
+
+        // Assert
+        var survivor = deduplicated.Should().ContainSingle().Subject;
+        survivor.SubjectMatches.Select(m => m.Subject).Distinct().Should().Equal(survivor.Subjects);
+        survivor.Subjects.Should().ContainSingle().Which.Should().BeOneOf(first.Subjects.Single(), second.Subjects.Single());
+        survivor.SubjectMatches.Should().NotContain(m => first.SubjectMatches.Contains(m) || second.SubjectMatches.Contains(m),
+            "the survivor owns copies, not the inputs' instances");
     }
 }

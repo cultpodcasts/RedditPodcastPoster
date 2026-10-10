@@ -370,9 +370,7 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
                 YouTube = source.Urls.YouTube
             },
             Subjects = source.Subjects.ToArray(),
-            SubjectMatches = (source.SubjectMatches ?? [])
-                .Select(m => new PlayableSubjectMatch { Subject = m.Subject, Term = m.Term, Source = m.Source })
-                .ToList(),
+            SubjectMatches = source.SubjectMatches.Select(m => m.Clone()).ToList(),
             YouTubeViews = source.YouTubeViews,
             YouTubeChannelMembers = source.YouTubeChannelMembers,
             ContainsSyntheticMedia = source.ContainsSyntheticMedia,

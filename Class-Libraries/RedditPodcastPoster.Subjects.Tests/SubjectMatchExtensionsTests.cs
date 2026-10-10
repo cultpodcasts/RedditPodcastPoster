@@ -49,4 +49,25 @@ public class SubjectMatchExtensionsTests
         // Assert
         result.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "When the matcher reports the same term and field twice for a subject (any casing), it is recorded once, so stored provenance has no repeated rows.")]
+    public void to_playable_subject_matches_collapses_duplicate_evidence()
+    {
+        // Arrange
+        var term = _fixture.Create<string>();
+        var match = new SubjectMatch(new Subject(_fixture.Create<string>()),
+        [
+            new MatchResult(term, 1, SubjectMatchSource.Title),
+            new MatchResult(term.ToUpperInvariant(), 1, SubjectMatchSource.Title),
+            new MatchResult(term, 1, SubjectMatchSource.Description)
+        ]);
+
+        // Act
+        var result = match.ToPlayableSubjectMatches().ToArray();
+
+        // Assert
+        result.Select(m => (m.Term, m.Source)).Should().Equal(
+            (term, SubjectMatchSource.Title), (term, SubjectMatchSource.Description));
+    }
 }

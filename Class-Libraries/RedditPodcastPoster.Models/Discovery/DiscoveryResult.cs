@@ -50,11 +50,19 @@ public class DiscoveryResult
 
     /// <summary>
     /// Why each subject matched: the matched term (subject name, alias or associated subject)
-    /// and the field it matched in. Empty for results persisted before this was recorded.
+    /// and the field it matched in. Empty for results persisted before this was recorded
+    /// (absent key or explicit null). Ordered like <see cref="Subjects"/>: grouped per subject
+    /// in the same sequence.
     /// </summary>
     [JsonPropertyName("subjectMatches")]
     [JsonPropertyOrder(105)]
-    public List<PlayableSubjectMatch> SubjectMatches { get; set; } = [];
+    public List<PlayableSubjectMatch> SubjectMatches
+    {
+        get => _subjectMatches;
+        set => _subjectMatches = value ?? [];
+    }
+
+    private List<PlayableSubjectMatch> _subjectMatches = [];
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(110)]
