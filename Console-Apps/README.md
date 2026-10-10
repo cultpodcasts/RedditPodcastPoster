@@ -173,7 +173,7 @@ MigrateConfig launch-settings Cloud/Indexer/Properties/launchSettings.json Index
 
 ### RemoveEpisodes
 
-**Purpose:** Mark matching search episodes as removed, or restore from a prior remove log. `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
+**Purpose:** Mark matching search episodes as removed, restore from a prior remove log, or undo an accidental podcast removal (`restore-podcast`). `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
 
 **Run:** `dotnet run --project Console-Apps/RemoveEpisodes --` · PATH: `RemoveEpisodes`
 
@@ -199,6 +199,33 @@ RemoveEpisodes "some query" 10
 RemoveEpisodes remove "some query" --non-dry-run
 RemoveEpisodes restore removed-episodes-log.txt
 ```
+
+#### `restore-podcast` (undo an accidental podcast removal)
+
+Removing a podcast in the UI/API (`PodcastUpdateService`, `removed: true`) is a **soft delete**: it sets
+`podcast.removed = true`, stamps `parentRemoved = true` on every episode, deletes every episode's Azure Search
+document and deletes every episode's short-URL (Cloudflare KV) key. It does **not** change `episode.removed`.
+
+`restore-podcast` reverses that: `podcast.removed = false`, clears `parentRemoved` on its episodes, re-indexes the
+episodes that are not themselves `removed` (the indexer applies `EpisodeSearchIndexEligibility`), and re-writes
+their short-URL keys (existing keys are left alone). Episodes removed before or independently of the podcast stay
+removed. Dry run by default; idempotent, so re-run after a partial failure.
+
+| Option | Description |
+|---|---|
+| `-i`, `--podcast-id` | Podcast id(s), comma separated |
+| `-p`, `--podcast-name` | Exact podcast name(s), `\|` separated; each must match exactly one podcast (else exit 2) |
+| `--skip-shortner` | Do not re-create short-URL keys |
+| `-r`, `--non-dry-run` | Persist (Cosmos, search index, short URLs) |
+
+```bash
+RemoveEpisodes restore-podcast --podcast-name "Some Podcast"            # dry run: lists podcast + episode ids
+RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
+```
+
+**Exit codes / recovery:** `0` success · `1` Cosmos restored but a side effect (search re-index or short-URL write) failed for at least one podcast, or Ctrl+C mid-apply. Re-run the same command; it is idempotent: Cosmos saves are skipped once restored, search is re-indexed again and only missing short-URL keys are written (or `KVWriter --episode-guid <id>` for a single short URL) · `2` no/unknown/ambiguous target, nothing written.
+
+`restore-podcast --non-dry-run` needs the same secrets as `KVWriter` (Cosmos, search, Cloudflare `shortner`/KV) via user-secrets or `RedditPodcastPoster_` env vars.
 
 ---
 
