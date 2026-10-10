@@ -1,8 +1,9 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models.Podcasts;
+namespace Api.Dtos;
 
-public class ServiceUrls
+/// <summary>Platform episode URLs. JSON-identical to the domain <c>ServiceUrls</c>.</summary>
+public class ServiceUrlsDto
 {
     [JsonPropertyName("spotify")]
     [JsonPropertyOrder(1)]

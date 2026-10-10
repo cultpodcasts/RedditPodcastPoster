@@ -1,8 +1,4 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
@@ -28,7 +24,7 @@ public class EpisodeDto
     public string Title { get; set; } = "";
 
     [JsonPropertyName("displayTitle")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(32)]
     public string DisplayTitle { get; set; } = "";
 
     [JsonPropertyName("description")]
@@ -40,15 +36,15 @@ public class EpisodeDto
     public string DisplayDescription { get; set; } = "";
 
     [JsonPropertyName("release")]
-    [JsonPropertyOrder(30)]
+    [JsonPropertyOrder(31)]
     public DateTime Release { get; set; }
 
     [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(33)]
     public TimeSpan Length { get; set; }
 
     [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
+    [JsonPropertyOrder(34)]
     public bool Explicit { get; set; }
 
     [JsonPropertyName("posted")]
@@ -56,23 +52,23 @@ public class EpisodeDto
     public bool Posted { get; set; }
 
     [JsonPropertyName("tweeted")]
-    [JsonPropertyOrder(41)]
+    [JsonPropertyOrder(42)]
     public bool Tweeted { get; set; }
 
     [JsonPropertyName("bluesky")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public bool? BlueskyPosted { get; set; }
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
+    [JsonPropertyOrder(45)]
     public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
+    [JsonPropertyOrder(46)]
     public string? Language { get; set; }
 
     [JsonPropertyName("spotifyId")]
@@ -89,11 +85,11 @@ public class EpisodeDto
 
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(53)]
-    public EpisodeIds? Ids { get; set; }
+    public EpisodeIdsDto? Ids { get; set; }
 
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(60)]
-    public ServiceUrls Urls { get; set; } = new();
+    public ServiceUrlsDto Urls { get; set; } = new();
 
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(70)]
@@ -105,7 +101,7 @@ public class EpisodeDto
 
     [JsonPropertyName("matches")]
     [JsonPropertyOrder(72)]
-    public List<PlayableSubjectMatch> Matches { get; set; } = [];
+    public List<SubjectMatchDto> Matches { get; set; } = [];
 
     [JsonPropertyName("searchTerms")]
     [JsonPropertyOrder(80)]
@@ -117,11 +113,11 @@ public class EpisodeDto
 
     [JsonPropertyName("images")]
     [JsonPropertyOrder(150)]
-    public EpisodeImages? Images { get; set; }
+    public EpisodeImagesDto? Images { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
-    public Dictionary<string, ServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
@@ -142,12 +138,12 @@ public class EpisodeDto
     [JsonPropertyName("releaseAuthority")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(210)]
-    public Service? ReleaseAuthority { get; set; }
+    public ServiceDto? ReleaseAuthority { get; set; }
 
     [JsonPropertyName("primaryPostService")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(211)]
-    public Service? PrimaryPostService { get; set; }
+    public ServiceDto? PrimaryPostService { get; set; }
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]

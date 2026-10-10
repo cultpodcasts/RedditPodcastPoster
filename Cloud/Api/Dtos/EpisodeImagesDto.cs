@@ -1,8 +1,9 @@
 using System.Text.Json.Serialization;
 
-namespace RedditPodcastPoster.Models.Episodes;
+namespace Api.Dtos;
 
-public class EpisodeImages
+/// <summary>Episode artwork per platform. JSON-identical to the domain <c>EpisodeImages</c>.</summary>
+public class EpisodeImagesDto
 {
     [JsonPropertyName("youtube")]
     [JsonPropertyOrder(1)]

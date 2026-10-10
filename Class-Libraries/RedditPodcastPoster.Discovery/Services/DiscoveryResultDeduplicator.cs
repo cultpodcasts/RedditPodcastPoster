@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
@@ -369,6 +370,7 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
                 YouTube = source.Urls.YouTube
             },
             Subjects = source.Subjects.ToArray(),
+            SubjectMatches = source.SubjectMatches?.Select(m => m.Clone()).ToList(),
             YouTubeViews = source.YouTubeViews,
             YouTubeChannelMembers = source.YouTubeChannelMembers,
             ContainsSyntheticMedia = source.ContainsSyntheticMedia,

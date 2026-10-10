@@ -155,13 +155,7 @@ public static class CatalogueParentKindMapper
     private static string[]? CloneArray(string[]? values) =>
         values is null ? null : [.. values];
 
-    private static PlayableSubjectMatch CloneMatch(PlayableSubjectMatch match) =>
-        new()
-        {
-            Subject = match.Subject,
-            Term = match.Term,
-            Source = match.Source
-        };
+    private static PlayableSubjectMatch CloneMatch(PlayableSubjectMatch match) => match.Clone();
 
     private static Dictionary<string, ServiceLink>? CloneServices(Dictionary<string, ServiceLink>? services)
     {
