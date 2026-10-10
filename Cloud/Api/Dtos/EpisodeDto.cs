@@ -24,7 +24,7 @@ public class EpisodeDto
     public string Title { get; set; } = "";
 
     [JsonPropertyName("displayTitle")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(32)]
     public string DisplayTitle { get; set; } = "";
 
     [JsonPropertyName("description")]
@@ -36,15 +36,15 @@ public class EpisodeDto
     public string DisplayDescription { get; set; } = "";
 
     [JsonPropertyName("release")]
-    [JsonPropertyOrder(30)]
+    [JsonPropertyOrder(31)]
     public DateTime Release { get; set; }
 
     [JsonPropertyName("duration")]
-    [JsonPropertyOrder(31)]
+    [JsonPropertyOrder(33)]
     public TimeSpan Length { get; set; }
 
     [JsonPropertyName("explicit")]
-    [JsonPropertyOrder(32)]
+    [JsonPropertyOrder(34)]
     public bool Explicit { get; set; }
 
     [JsonPropertyName("posted")]
@@ -52,23 +52,23 @@ public class EpisodeDto
     public bool Posted { get; set; }
 
     [JsonPropertyName("tweeted")]
-    [JsonPropertyOrder(41)]
+    [JsonPropertyOrder(42)]
     public bool Tweeted { get; set; }
 
     [JsonPropertyName("bluesky")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public bool? BlueskyPosted { get; set; }
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
+    [JsonPropertyOrder(45)]
     public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
+    [JsonPropertyOrder(46)]
     public string? Language { get; set; }
 
     [JsonPropertyName("spotifyId")]

@@ -33,7 +33,7 @@ public class DiscoveryResponse
         public string? Description { get; set; }
 
         [JsonPropertyName("showDescription")]
-        [JsonPropertyOrder(40)]
+        [JsonPropertyOrder(41)]
         public string? ShowDescription { get; set; }
 
         [JsonPropertyName("released")]

@@ -10,7 +10,7 @@ public class EpisodeImagesDto
     public Uri? YouTube { get; set; }
 
     [JsonPropertyName("spotify")]
-    [JsonPropertyOrder(3)]
+    [JsonPropertyOrder(2)]
     public Uri? Spotify { get; set; }
 
     [JsonPropertyName("apple")]
