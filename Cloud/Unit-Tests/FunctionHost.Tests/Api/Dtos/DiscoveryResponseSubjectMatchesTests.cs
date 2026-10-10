@@ -35,17 +35,25 @@ public class DiscoveryResponseSubjectMatchesTests
         json.Should().Contain($"\"subjectMatches\":[{{\"subject\":\"{match.Subject}\",\"term\":\"{match.Term}\",\"source\":\"Title\"}}]");
     }
 
-    [Fact(DisplayName =
-        "When a legacy discovery result has no subject matches, the API returns an empty subjectMatches array, so clients need no null handling.")]
-    public void discovery_response_item_defaults_to_empty_subject_matches()
+    [Theory(DisplayName =
+        "When the API serialises a result, historic (null) subjectMatches is written as null and recorded-but-empty as [], so the website can tell 'not recorded' from 'no evidence'.")]
+    [InlineData(true, "\"subjectMatches\":null")]
+    [InlineData(false, "\"subjectMatches\":[]")]
+    public void discovery_response_item_preserves_null_versus_empty(bool historic, string expectedJson)
     {
         // Arrange
-        var item = new DiscoveryResult { Subjects = [_fixture.Create<string>()], SubjectMatches = null! };
+        var item = new DiscoveryResult
+        {
+            Subjects = [_fixture.Create<string>()],
+            SubjectMatches = historic ? null : []
+        };
 
         // Act
         var dto = item.ToDiscoveryResponseItem(new Dictionary<Guid, DiscoveryResponse.Item.MatchingPodcast>());
+        // Functions worker default serializer: web defaults, nulls are not ignored.
+        var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         // Assert
-        dto.SubjectMatches.Should().BeEmpty();
+        json.Should().Contain(expectedJson);
     }
 }

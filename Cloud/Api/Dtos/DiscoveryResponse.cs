@@ -56,7 +56,11 @@ public class DiscoveryResponse
 
         [JsonPropertyName("subjectMatches")]
         [JsonPropertyOrder(85)]
-        public IEnumerable<PlayableSubjectMatch> SubjectMatches { get; set; } = [];
+        /// <summary>
+        /// Why each subject matched. <c>null</c> for historic results recorded before provenance
+        /// existed (serialised as <c>"subjectMatches": null</c>); <c>[]</c> when recorded but empty.
+        /// </summary>
+        public IEnumerable<PlayableSubjectMatch>? SubjectMatches { get; set; }
 
         [JsonPropertyName("youTubeViews")]
         [JsonPropertyOrder(90)]

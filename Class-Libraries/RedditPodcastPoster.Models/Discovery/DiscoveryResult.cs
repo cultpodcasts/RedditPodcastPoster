@@ -50,19 +50,17 @@ public class DiscoveryResult
 
     /// <summary>
     /// Why each subject matched: the matched term (subject name, alias or associated subject)
-    /// and the field it matched in. Empty for results persisted before this was recorded
-    /// (absent key or explicit null). Ordered like <see cref="Subjects"/>: grouped per subject
+    /// and the field it matched in. Ordered like <see cref="Subjects"/>: grouped per subject
     /// in the same sequence.
+    /// <para>
+    /// <c>null</c> means "not recorded": a historic document written before provenance existed
+    /// (key missing or null in Cosmos). An empty collection means provenance was recorded and
+    /// no subject had title/description evidence. Discovery always assigns a collection.
+    /// </para>
     /// </summary>
     [JsonPropertyName("subjectMatches")]
     [JsonPropertyOrder(105)]
-    public List<PlayableSubjectMatch> SubjectMatches
-    {
-        get => _subjectMatches;
-        set => _subjectMatches = value ?? [];
-    }
-
-    private List<PlayableSubjectMatch> _subjectMatches = [];
+    public IEnumerable<PlayableSubjectMatch>? SubjectMatches { get; set; }
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(110)]

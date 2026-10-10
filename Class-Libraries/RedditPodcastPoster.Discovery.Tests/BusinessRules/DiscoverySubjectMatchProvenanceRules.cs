@@ -56,7 +56,7 @@ public class DiscoverySubjectMatchProvenanceRules
     }
 
     [Fact(DisplayName =
-        "When a discovery result persisted before provenance existed is read, subjectMatches is empty rather than null, so old documents stay readable.")]
+        "When a discovery result persisted before provenance existed is read (key missing), subjectMatches is null, so historic results are distinguishable from results with no evidence.")]
     public void legacy_discovery_result_deserializes_with_empty_subject_matches()
     {
         // Arrange
@@ -68,7 +68,7 @@ public class DiscoverySubjectMatchProvenanceRules
 
         // Assert
         result.Subjects.Should().Equal(subject);
-        result.SubjectMatches.Should().BeEmpty();
+        result.SubjectMatches.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -92,7 +92,7 @@ public class DiscoverySubjectMatchProvenanceRules
     }
 
     [Fact(DisplayName =
-        "When a stored discovery result has an explicit null subjectMatches, it reads as empty, because the model normalises null once for every consumer.")]
+        "When a stored discovery result has an explicit null subjectMatches, it reads as null, because null means provenance was not recorded.")]
     public void explicit_null_subject_matches_deserializes_as_empty()
     {
         // Arrange
@@ -102,7 +102,82 @@ public class DiscoverySubjectMatchProvenanceRules
         var result = JsonSerializer.Deserialize<DiscoveryResult>(json)!;
 
         // Assert
+        result.SubjectMatches.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a stored discovery result has an empty subjectMatches, it reads as an empty list, because provenance was recorded with no evidence.")]
+    public void empty_subject_matches_deserializes_as_empty()
+    {
+        // Arrange
+        var json = $$"""{"id":"{{_fixture.Create<Guid>()}}","subjectMatches":[]}""";
+
+        // Act
+        var result = JsonSerializer.Deserialize<DiscoveryResult>(json)!;
+
+        // Assert
         result.SubjectMatches.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a populated subjectMatches is serialised and read back, every match survives unchanged, so stored provenance round-trips.")]
+    public void populated_subject_matches_round_trip()
+    {
+        // Arrange
+        var match = new PlayableSubjectMatch
+        {
+            Subject = _fixture.Create<string>(), Term = _fixture.Create<string>(),
+            Source = SubjectMatchSource.Description
+        };
+        var original = new DiscoveryResult { SubjectMatches = [match] };
+
+        // Act
+        var result = JsonSerializer.Deserialize<DiscoveryResult>(JsonSerializer.Serialize(original))!;
+
+        // Assert
+        result.SubjectMatches.Should().BeEquivalentTo([match]);
+    }
+
+    [Fact(DisplayName =
+        "When discovery matches no subjects, subjectMatches is an empty list, not null, so new results are distinguishable from historic ones.")]
+    public async Task discovery_result_without_matches_records_empty_subject_matches()
+    {
+        // Arrange
+        _subjectMatches = [];
+        var sut = _mocker.CreateInstance<EnrichedEpisodeResultAdapter>();
+
+        // Act
+        var result = await sut.ToDiscoveryResult(CreateEpisodeResult());
+
+        // Assert
+        result.SubjectMatches.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "When a result is deduplicated, null subjectMatches stays null and an empty list stays empty, because dedup must not change whether provenance was recorded.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void deduplication_preserves_null_versus_empty_subject_matches(bool historic)
+    {
+        // Arrange
+        var result = new DiscoveryResult
+        {
+            EpisodeName = _fixture.Create<string>(),
+            SubjectMatches = historic ? null : []
+        };
+
+        // Act
+        var survivor = new DiscoveryResultDeduplicator().Deduplicate([result]).Single();
+
+        // Assert
+        if (historic)
+        {
+            survivor.SubjectMatches.Should().BeNull();
+        }
+        else
+        {
+            survivor.SubjectMatches.Should().NotBeNull().And.BeEmpty();
+        }
     }
 
     [Fact(DisplayName =
@@ -128,7 +203,7 @@ public class DiscoverySubjectMatchProvenanceRules
 
         // Assert
         result.Subjects.Should().Equal(stronger.Name, weaker.Name);
-        result.SubjectMatches.Select(m => m.Subject).Distinct().Should().Equal(result.Subjects);
+        result.SubjectMatches!.Select(m => m.Subject).Distinct().Should().Equal(result.Subjects);
     }
 
     [Fact(DisplayName =
@@ -166,9 +241,9 @@ public class DiscoverySubjectMatchProvenanceRules
 
         // Assert
         var survivor = deduplicated.Should().ContainSingle().Subject;
-        survivor.SubjectMatches.Select(m => m.Subject).Distinct().Should().Equal(survivor.Subjects);
+        survivor.SubjectMatches!.Select(m => m.Subject).Distinct().Should().Equal(survivor.Subjects);
         survivor.Subjects.Should().ContainSingle().Which.Should().BeOneOf(first.Subjects.Single(), second.Subjects.Single());
-        survivor.SubjectMatches.Should().NotContain(m => first.SubjectMatches.Contains(m) || second.SubjectMatches.Contains(m),
+        survivor.SubjectMatches.Should().NotContain(m => first.SubjectMatches!.Contains(m) || second.SubjectMatches!.Contains(m),
             "the survivor owns copies, not the inputs' instances");
     }
 }
