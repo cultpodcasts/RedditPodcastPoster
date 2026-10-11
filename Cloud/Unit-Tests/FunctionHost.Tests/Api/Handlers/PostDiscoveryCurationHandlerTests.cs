@@ -198,7 +198,7 @@ public class PostDiscoveryCurationHandlerTests
 
     private Mock<IHandlerContext> BodyCapturingContext()
     {
-        var ctx = new Mock<IHandlerContext>();
+        var ctx = _mocker.GetMock<IHandlerContext>();
         ctx.Setup(x => x.HasScope("curate:supervised")).Returns(true);
         ctx.SetupGet(x => x.Subject).Returns(_fixture.Create<string>());
         ctx.Setup(x => x.ClaimValues(It.IsAny<string>())).Returns([]);
