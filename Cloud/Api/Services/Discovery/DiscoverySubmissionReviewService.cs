@@ -25,7 +25,16 @@ public class DiscoverySubmissionReviewService(
     public const string ReleasedAction = "Released";
     public const string RecoveredAction = "Recovered";
 
-    /// <summary>An Applying claim older than this may be recovered by an admin.</summary>
+    /// <summary>
+    /// The Api host's <c>functionTimeout</c> (Cloud/Api/host.json). The host kills any invocation after this,
+    /// so an Applying claim older than <see cref="StaleInProgressAfter"/> cannot still be running.
+    /// </summary>
+    public static readonly TimeSpan FunctionTimeout = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// An Applying claim older than this may be recovered by an admin. Must stay well above
+    /// <see cref="FunctionTimeout"/> (asserted by unit test against host.json).
+    /// </summary>
     public static readonly TimeSpan StaleInProgressAfter = TimeSpan.FromMinutes(30);
 
     public const string InterruptedError = "Interrupted: the operation stopped without recording this result; verify the catalogue before retrying.";
@@ -506,12 +515,29 @@ public class DiscoverySubmissionReviewService(
                 submission.ReleasedAt ??= now;
                 break;
             case DiscoverySubmissionOperation.Apply
-                when reports.All(r => r.State == DiscoveryResultsDocumentState.PendingSupervisor):
-                // Nothing was claimed or ingested: back to where it was.
+                when reports.Any(r => r.State == DiscoveryResultsDocumentState.PendingSupervisor):
+                // Apply claims every report (PendingSupervisor -> Processed) before ingesting anything, so a report
+                // still held means the claim loop never finished and nothing was ingested. Undo any partial claim
+                // (guarded Processed -> PendingSupervisor) and return the submission to where it was, so it can be
+                // applied again or released.
+                foreach (var report in reports.Where(r => r.State == DiscoveryResultsDocumentState.Processed))
+                {
+                    if (!await discoveryResultsRepository.TryTransitionState(report.Id,
+                            DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.PendingSupervisor, c))
+                    {
+                        logger.LogWarning(
+                            "Recover of submission '{SubmissionId}': report '{ReportId}' changed; could not return it to PendingSupervisor.",
+                            submissionId, report.Id);
+                    }
+                }
+
                 submission.Status = submission.StatusBeforeInProgress ?? DiscoverySubmissionStatus.Pending;
                 break;
             default:
-                // Ingestion may have happened: results without a recorded outcome become Failed (interrupted).
+                // Every report was claimed, so ingestion may have happened: results without a recorded outcome become
+                // Failed (interrupted). Retrying one that was in fact ingested before the crash does not duplicate it:
+                // DiscoveryUrlSubmitter matches the existing episode (PodcastProcessor.AddEpisodeToExistingPodcast
+                // enriches it rather than creating; catalogue kinds report EpisodeAlreadyExists, see CatalogueKindSubmitRules).
                 var byId = (submission.ItemOutcomes ?? []).ToDictionary(x => x.ResultId);
                 foreach (var id in submission.InProgressResultIds ?? [])
                 {

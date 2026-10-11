@@ -848,6 +848,63 @@ public class DiscoverySubmissionReviewServiceTests
     }
 
     [Fact(DisplayName =
+        "An admin recovering a stale Applying apply that crashed mid-claim (one report Processed, one still PendingSupervisor) returns the Processed report to PendingSupervisor and the submission to its previous status, because apply claims every report before ingesting so nothing was ingested, and leaving it half-claimed would make apply/retry conflict forever.")]
+    public async Task recover_half_claimed_apply_unclaims_and_returns_to_pending()
+    {
+        // Arrange
+        var claimed = ArrangeApplying(DiscoveryResultsDocumentState.Processed);
+        var held = new DiscoveryResultsDocument(DateTime.UtcNow.AddDays(-1),
+            [new DiscoveryResult { Id = _fixture.Create<Guid>() }])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.PendingSupervisor
+        };
+        _documents = [claimed, held];
+        _submission!.DiscoveryResultsDocumentIds = [claimed.Id, held.Id];
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Recover(_submission.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
+            Admin(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Pending);
+        var repo = _mocker.GetMock<IDiscoveryResultsRepository>();
+        repo.Verify(r => r.TryTransitionState(claimed.Id, DiscoveryResultsDocumentState.Processed,
+            DiscoveryResultsDocumentState.PendingSupervisor, It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryTransitionState(held.Id, It.IsAny<DiscoveryResultsDocumentState>(),
+            It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<CancellationToken>()), Times.Never);
+        var final = _replaced.Last();
+        final.InProgressOperation.Should().BeNull();
+        final.ItemOutcomes.Should().BeNullOrEmpty();
+        _applied.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "The recover threshold stays well above the Api host's functionTimeout (host.json), so an admin can never recover an operation the host may still be running.")]
+    public void recover_threshold_exceeds_function_timeout()
+    {
+        // Arrange
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Cloud", "Api", "host.json")))
+        {
+            dir = dir.Parent;
+        }
+
+        dir.Should().NotBeNull("the repo's Cloud/Api/host.json must be reachable from the test output");
+        var host = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(dir!.FullName, "Cloud", "Api", "host.json")));
+
+        // Act
+        var timeout = TimeSpan.Parse(host.RootElement.GetProperty("functionTimeout").GetString()!);
+
+        // Assert
+        timeout.Should().Be(DiscoverySubmissionReviewService.FunctionTimeout);
+        DiscoverySubmissionReviewService.StaleInProgressAfter.Should()
+            .BeGreaterThanOrEqualTo(timeout * 2, "recovery must not race an invocation the host has not yet killed");
+    }
+
+    [Fact(DisplayName =
         "Recovery is refused for an Applying submission that is not yet stale, because the operation may still be running.")]
     public async Task recover_refused_when_fresh()
     {
