@@ -85,4 +85,21 @@ public class DiscoveryResultsServiceClaimTests
         report.State.Should().Be(DiscoveryResultsDocumentState.PendingSupervisor);
         _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.Save(It.IsAny<DiscoveryResultsDocument>()), Times.Never);
     }
+
+    [Fact(DisplayName =
+        "Releasing a claim moves each report Processed back to Unprocessed with a guarded transition, so a concurrently re-claimed report is not disturbed.")]
+    public async Task release_claim_reverts_reports()
+    {
+        // Arrange
+        var id = _fixture.Create<Guid>();
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        await sut.ReleaseClaim([id]);
+
+        // Assert
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(id,
+            DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

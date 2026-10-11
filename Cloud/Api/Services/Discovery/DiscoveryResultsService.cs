@@ -98,6 +98,16 @@ public class DiscoveryResultsService(
         }
     }
 
+    public async Task ReleaseClaim(Guid[] documentIds)
+    {
+        foreach (var id in documentIds.Distinct())
+        {
+            await discoveryResultsRepository.TryTransitionState(id,
+                DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
+                CancellationToken.None);
+        }
+    }
+
     public async Task<IReadOnlyList<Guid>> TryClaimForProcessing(Guid[] documentIds,
         CancellationToken cancellationToken = default)
     {
@@ -112,13 +122,7 @@ public class DiscoveryResultsService(
                 continue;
             }
 
-            foreach (var id in claimed)
-            {
-                await discoveryResultsRepository.TryTransitionState(id,
-                    DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
-                    CancellationToken.None);
-            }
-
+            await ReleaseClaim(claimed.ToArray());
             return [documentId];
         }
 

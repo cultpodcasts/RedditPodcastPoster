@@ -20,6 +20,8 @@ public class DiscoveryCurationSubmitService(
         DiscoverySubmitRequest request,
         CancellationToken cancellationToken)
     {
+        var claimed = false;
+        var submitAttempted = false;
         try
         {
             var errorsOccured = false;
@@ -43,6 +45,8 @@ public class DiscoveryCurationSubmitService(
                     UnavailableDocumentIds: unclaimed);
             }
 
+            claimed = true;
+
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var submitResults = new List<DiscoverySubmitItemOutcome>();
             var erroredResults = new List<Guid>();
@@ -52,6 +56,7 @@ public class DiscoveryCurationSubmitService(
                 logger.LogInformation(
                     "Submitting discovery-result '{discoveryResultId}' with indexing-context: {indexingContext}",
                     discoveryResult.Id, indexingContext);
+                submitAttempted = true;
                 try
                 {
                     var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
@@ -93,9 +98,28 @@ public class DiscoveryCurationSubmitService(
         }
         catch (Exception e)
         {
+            if (claimed && !submitAttempted)
+            {
+                // Nothing was ingested: hand the reports back so the submit can be retried.
+                // Once any episode submit was attempted they stay Processed to avoid double ingestion.
+                await ReleaseClaim(request.DiscoveryResultsDocumentIds);
+            }
+
             logger.LogError(e, "Failure handling post of {nameofDiscoverySubmitRequest}",
                 nameof(DiscoverySubmitRequest));
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
+        }
+    }
+
+    private async Task ReleaseClaim(Guid[] documentIds)
+    {
+        try
+        {
+            await discoveryResultsService.ReleaseClaim(documentIds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure releasing claimed discovery reports: {DocumentIds}.", string.Join(",", documentIds));
         }
     }
 }
