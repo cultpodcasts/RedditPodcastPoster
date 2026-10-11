@@ -58,14 +58,23 @@ public class DiscoveryResultsService(
                     pd.name,
                     pd.isVisible,
                     visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0));
+        var awaitingReview = await discoveryResultsRepository.GetAllPendingSupervisor()
+            .Select(x => new DiscoveryAwaitingReview(x.Id, x.DiscoveryBegan, x.DiscoveryResults.Count()))
+            .ToListAsync(c);
         var result = new DiscoveryCurationData(
             documents.Select(x => x.Id),
             results,
             podcastsLookup,
-            hiddenCount);
+            hiddenCount,
+            awaitingReview);
         logger.LogInformation("{Method} gathered {ResultCount} results ({HiddenCount} auto-hidden).",
             nameof(Get), result.Results.Count, hiddenCount);
         return result;
+    }
+
+    public async Task<IReadOnlyList<DiscoveryResultsDocument>> GetDocuments(IEnumerable<Guid> documentIds)
+    {
+        return await discoveryResultsRepository.GetByIds(documentIds).ToListAsync();
     }
 
     public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest)

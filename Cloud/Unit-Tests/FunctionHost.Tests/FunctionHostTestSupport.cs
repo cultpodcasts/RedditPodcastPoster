@@ -38,6 +38,7 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:PeopleContainer"] = "People",
             ["cosmosdb:ActivitiesContainer"] = "Activity",
             ["cosmosdb:DiscoveryContainer"] = "Discovery",
+            ["cosmosdb:DiscoverySubmissionsContainer"] = "DiscoverySubmissions",
             ["cosmosdb:LookUpsContainer"] = "LookUps",
             ["cosmosdb:TitleCasingRulesContainer"] = "TitleCasingRules",
             ["cosmosdb:PushSubscriptionsContainer"] = "PushSubscriptions",
@@ -171,6 +172,7 @@ internal static class FunctionHostTestSupport
         mockContainerFactory.Setup(x => x.CreatePeopleContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateActivitiesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateDiscoveryContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateDiscoverySubmissionsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateLookUpsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateTitleCasingRulesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreatePushSubscriptionsContainer()).Returns(mockContainer.Object);

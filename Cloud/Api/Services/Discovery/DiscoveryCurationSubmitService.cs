@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -29,6 +30,17 @@ public class DiscoveryCurationSubmitService(
                 SkipExpensiveSpotifyQueries = false
             };
             var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
+
+            var held = (await discoveryResultsService.GetDocuments(request.DiscoveryResultsDocumentIds))
+                .Where(x => x.State == DiscoveryResultsDocumentState.PendingSupervisor)
+                .Select(x => x.Id)
+                .ToArray();
+            if (held.Length > 0)
+            {
+                logger.LogWarning("Refusing discovery submit: reports held for supervisor review: {DocumentIds}.",
+                    string.Join(",", held));
+                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Conflict);
+            }
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var submitResults = new List<DiscoverySubmitItemOutcome>();

@@ -7,6 +7,9 @@ public interface IHandlerContext
 {
     string? Subject { get; }
 
+    /// <summary>True when the caller's token grants <paramref name="scope"/> (Auth0 permission or OAuth scope).</summary>
+    bool HasScope(string scope);
+
     string? Query(string name);
 
     HttpResponseData Status(HttpStatusCode statusCode);

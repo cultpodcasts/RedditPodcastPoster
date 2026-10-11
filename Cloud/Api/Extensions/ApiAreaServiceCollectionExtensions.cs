@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
@@ -152,6 +153,8 @@ public static class ApiAreaServiceCollectionExtensions
         services
             .AddScoped<IDiscoveryCurationGetService, DiscoveryCurationGetService>()
             .AddScoped<IDiscoveryCurationSubmitService, DiscoveryCurationSubmitService>()
+            .AddScoped<IDiscoverySubmissionHoldService, DiscoverySubmissionHoldService>()
+            .AddTimeProviderIfMissing()
             .AddScoped<IGetDiscoveryCurationHandler, GetDiscoveryCurationHandler>()
             .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>();
 
@@ -182,4 +185,10 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDeleteTitleCasingRulesKnownTermHandler, DeleteTitleCasingRulesKnownTermHandler>()
             .AddScoped<IPostTitleCasingRulesIgnoredSubjectHandler, PostTitleCasingRulesIgnoredSubjectHandler>()
             .AddScoped<IDeleteTitleCasingRulesIgnoredSubjectHandler, DeleteTitleCasingRulesIgnoredSubjectHandler>();
+
+    private static IServiceCollection AddTimeProviderIfMissing(this IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        return services;
+    }
 }

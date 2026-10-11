@@ -25,7 +25,15 @@ public static class DiscoveryResultExtensions
                 .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
                 .OrderByDescending(x => x.AcceptProbability ?? -1f)
                 .ThenBy(x => x.Released),
-            HiddenCount = data.HiddenCount
+            HiddenCount = data.HiddenCount,
+            AwaitingReview = data.AwaitingReview
+                .Select(x => new DiscoveryAwaitingReviewDto
+                {
+                    Id = x.DocumentId,
+                    DiscoveryBegan = x.DiscoveryBegan,
+                    ResultCount = x.ResultCount
+                })
+                .ToArray()
         };
     }
 

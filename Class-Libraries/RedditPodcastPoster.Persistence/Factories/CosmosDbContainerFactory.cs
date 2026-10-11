@@ -81,6 +81,11 @@ public class CosmosDbContainerFactory(
         return GetContainer(cosmosDbSettings.DiscoveryContainer, "cosmosdb:DiscoveryContainer");
     }
 
+    public Container CreateDiscoverySubmissionsContainer()
+    {
+        return GetContainer(cosmosDbSettings.DiscoverySubmissionsContainer, "cosmosdb:DiscoverySubmissionsContainer");
+    }
+
     public Container CreateLookUpsContainer()
     {
         return GetContainer(cosmosDbSettings.LookUpsContainer, "cosmosdb:LookUpsContainer");

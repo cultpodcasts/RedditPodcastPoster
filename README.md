@@ -98,6 +98,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "cosmosdb:PeopleContainer": "People",
   "cosmosdb:ActivitiesContainer": "Activity",
   "cosmosdb:DiscoveryContainer": "Discovery",
+  "cosmosdb:DiscoverySubmissionsContainer": "DiscoverySubmissions",
   "cosmosdb:LookUpsContainer": "LookUps",
   "cosmosdb:TitleCasingRulesContainer": "TitleCasingRules",
   "cosmosdb:PushSubscriptionsContainer": "PushSubscriptions",
