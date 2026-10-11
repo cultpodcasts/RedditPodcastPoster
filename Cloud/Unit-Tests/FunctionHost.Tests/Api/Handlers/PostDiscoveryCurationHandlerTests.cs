@@ -158,6 +158,53 @@ public class PostDiscoveryCurationHandlerTests
         return new HandlerContext(req.Object, principal);
     }
 
+    [Fact(DisplayName =
+        "A supervised submit 409 writes a DiscoveryUnavailableReportsResponse DTO (camelCase documentIds), not an anonymous object.")]
+    public async Task supervised_conflict_body_is_dto()
+    {
+        // Arrange
+        var documentIds = _fixture.CreateMany<Guid>().ToArray();
+        _holdResult = new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.Conflict,
+            UnavailableDocumentIds: documentIds);
+        var ctx = BodyCapturingContext();
+        var sut = _mocker.CreateInstance<PostDiscoveryCurationHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new DiscoverySubmitRequest(), CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.Conflict(It.Is<global::Api.Dtos.DiscoveryUnavailableReportsResponse>(b =>
+            b.DocumentIds.SequenceEqual(documentIds)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A supervised submit 400 for unknown result ids writes a DiscoveryUnknownResultIdsResponse DTO (camelCase resultIds), not an anonymous object.")]
+    public async Task supervised_unknown_results_body_is_dto()
+    {
+        // Arrange
+        var resultIds = _fixture.CreateMany<Guid>().ToArray();
+        _holdResult = new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.InvalidResultIds,
+            UnknownResultIds: resultIds);
+        var ctx = BodyCapturingContext();
+        var sut = _mocker.CreateInstance<PostDiscoveryCurationHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new DiscoverySubmitRequest(), CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.BadRequest(It.Is<global::Api.Dtos.DiscoveryUnknownResultIdsResponse>(b =>
+            b.ResultIds.SequenceEqual(resultIds)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private Mock<IHandlerContext> BodyCapturingContext()
+    {
+        var ctx = new Mock<IHandlerContext>();
+        ctx.Setup(x => x.HasScope("curate:supervised")).Returns(true);
+        ctx.SetupGet(x => x.Subject).Returns(_fixture.Create<string>());
+        ctx.Setup(x => x.ClaimValues(It.IsAny<string>())).Returns([]);
+        return ctx;
+    }
+
     private static async Task<JsonElement> ReadJson(Microsoft.Azure.Functions.Worker.Http.HttpResponseData response)
     {
         response.Body.Position = 0;

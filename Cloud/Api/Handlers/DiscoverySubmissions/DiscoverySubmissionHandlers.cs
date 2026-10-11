@@ -1,3 +1,4 @@
+using Api.Dtos;
 using System.Net;
 using Api.Dtos.Extensions;
 using Api.Models;
@@ -72,25 +73,25 @@ internal static class SupervisionCallerFactory
     }
 
     public static Task<HttpResponseData> Forbidden(IHandlerContext ctx, CancellationToken c) =>
-        ctx.Json(HttpStatusCode.Forbidden, new { Message = "Forbidden" }, c);
+        ctx.Json(HttpStatusCode.Forbidden, new DiscoveryErrorResponse { Message = "Forbidden" }, c);
 
     public static Task<HttpResponseData> MissingSubject(IHandlerContext ctx, CancellationToken c) =>
-        ctx.BadRequest(new { Message = "Missing subject." }, c);
+        ctx.BadRequest(new DiscoveryErrorResponse { Message = "Missing subject." }, c);
 
     public static Task<HttpResponseData> Query<T>(IHandlerContext ctx, DiscoverySubmissionQueryResult<T> result,
         Func<T, object> toDto, CancellationToken c) => result.Status switch
     {
         DiscoverySubmissionQueryStatus.Ok => ctx.Ok(toDto(result.Value!), c),
-        DiscoverySubmissionQueryStatus.NotFound => ctx.NotFound(new { Message = "Not found" }, c),
+        DiscoverySubmissionQueryStatus.NotFound => ctx.NotFound(new DiscoveryErrorResponse { Message = "Not found" }, c),
         DiscoverySubmissionQueryStatus.Forbidden => Forbidden(ctx, c),
-        _ => ctx.InternalError(new { Message = "Failure" }, c)
+        _ => ctx.InternalError(new DiscoveryErrorResponse { Message = "Failure" }, c)
     };
 
     public static Task<HttpResponseData> Command(IHandlerContext ctx, Guid submissionId,
         DiscoverySubmissionCommandResult result, HttpStatusCode okStatus, CancellationToken c) => result.Status switch
     {
         DiscoverySubmissionCommandStatus.Ok => ctx.Json(okStatus, result.ToDto(submissionId), c),
-        DiscoverySubmissionCommandStatus.NotFound => ctx.NotFound(new { Message = "Not found" }, c),
+        DiscoverySubmissionCommandStatus.NotFound => ctx.NotFound(new DiscoveryErrorResponse { Message = "Not found" }, c),
         DiscoverySubmissionCommandStatus.Forbidden => Forbidden(ctx, c),
         DiscoverySubmissionCommandStatus.Conflict => ctx.Conflict(result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.Invalid => ctx.BadRequest(result.ToDto(submissionId), c),

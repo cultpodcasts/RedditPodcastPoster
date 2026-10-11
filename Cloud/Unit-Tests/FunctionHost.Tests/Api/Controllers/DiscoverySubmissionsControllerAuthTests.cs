@@ -41,6 +41,11 @@ public class DiscoverySubmissionsControllerAuthTests
                 It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest> _,
                 CancellationToken _) => ctx.Accepted());
+        _mocker.GetMock<IPostDiscoverySubmissionRecoverHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(),
+                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> _,
+                CancellationToken _) => ctx.Ok());
         _mocker.GetMock<IGetDiscoverySubmissionsHandler>()
             .Setup(h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IHandlerContext ctx, CancellationToken _) => ctx.Ok());
@@ -178,6 +183,46 @@ public class DiscoverySubmissionsControllerAuthTests
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission recover rejects non-admin callers (supervise, curate:supervised, curate), because only an admin may recover a stuck Applying submission.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task recover_rejects_non_admins(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRecover(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionRecoverRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _mocker.GetMock<IPostDiscoverySubmissionRecoverHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Discovery submission recover admits an admin caller through to the handler.")]
+    public async Task recover_admits_admin()
+    {
+        // Arrange
+        UsePermission("admin");
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRecover(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionRecoverRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     private void UsePermission(string permission)

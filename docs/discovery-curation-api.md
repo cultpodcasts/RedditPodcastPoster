@@ -591,3 +591,10 @@ for more than 30 minutes (409 otherwise). Reconciles from report state:
   with error `"Interrupted: …verify the catalogue before retrying."` → `ApplyFailed`/`PartiallyApplied`.
 - Release → remaining `PendingSupervisor` reports go to `Unprocessed`; submission `Released`.
 Records a `Recovered` history entry. Response is the standard command response.
+
+### Error bodies (camelCase DTOs)
+
+- `POST /DiscoveryCuration` 409: `{ "message": "One or more reports are not available for curation.", "documentIds": ["<guid>"] }`
+- Supervised `POST /DiscoveryCuration` 400: `{ "message": "Result ids are not in the submitted reports.", "resultIds": ["<guid>"] }`
+- Missing subject (400), forbidden (403), not found (404), failure (500): `{ "message": "..." }`
+- `DiscoverySubmissions/*` command errors (409/400/500) use the standard command response body.

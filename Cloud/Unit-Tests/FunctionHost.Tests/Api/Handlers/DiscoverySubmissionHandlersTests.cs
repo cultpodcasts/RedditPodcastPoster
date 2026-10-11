@@ -176,6 +176,50 @@ public class DiscoverySubmissionHandlersTests
             Times.Never);
     }
 
+    [Theory(DisplayName =
+        "Recovering a stuck Applying submission is admin-only: a supervisor, or a supervised curator holding admin, is forbidden.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised", "admin")]
+    public async Task recover_admin_only(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionRecoverHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionRecoverRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.Recover(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionRecoverRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "An admin's recover request reaches the review service.")]
+    public async Task admin_recover_reaches_service()
+    {
+        // Arrange
+        _mocker.GetMock<IDiscoverySubmissionReviewService>()
+            .Setup(s => s.Recover(It.IsAny<Guid>(), It.IsAny<DiscoverySubmissionRecoverRequest>(),
+                It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DiscoverySubmissionCommandResult(DiscoverySubmissionCommandStatus.Ok));
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionRecoverHandler>();
+
+        // Act
+        var result = await sut.Handle(Context("admin"),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionRecoverRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.Recover(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionRecoverRequest>(), It.Is<SupervisionCaller>(x => x.IsAdmin),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private IHandlerContext Context(params string[] permissions)
     {
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
