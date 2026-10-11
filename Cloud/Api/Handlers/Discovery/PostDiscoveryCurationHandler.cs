@@ -29,7 +29,11 @@ public class PostDiscoveryCurationHandler(
             DiscoveryCurationSubmitStatus.Ok =>
                 await ctx.Ok(result.Outcome!.ToDto(), c),
             DiscoveryCurationSubmitStatus.Conflict =>
-                await ctx.Conflict(new { Message = "One or more reports are awaiting supervisor review." }, c),
+                await ctx.Conflict(new
+                {
+                    Message = "One or more reports are not available for curation.",
+                    DocumentIds = result.UnavailableDocumentIds ?? []
+                }, c),
             DiscoveryCurationSubmitStatus.Failed =>
                 await ctx.InternalError(new { Message = "Failure" }, c),
             _ => await LogAndFail(ctx, c)
@@ -58,6 +62,8 @@ public class PostDiscoveryCurationHandler(
                 }, c),
             DiscoverySubmissionHoldStatus.Conflict => await ctx.Conflict(
                 new { Message = "One or more reports are not available for curation.", DocumentIds = held.UnavailableDocumentIds ?? [] }, c),
+            DiscoverySubmissionHoldStatus.InvalidResultIds => await ctx.BadRequest(
+                new { Message = "Result ids are not in the submitted reports.", ResultIds = held.UnknownResultIds ?? [] }, c),
             _ => await ctx.InternalError(new { Message = "Failure" }, c)
         };
     }

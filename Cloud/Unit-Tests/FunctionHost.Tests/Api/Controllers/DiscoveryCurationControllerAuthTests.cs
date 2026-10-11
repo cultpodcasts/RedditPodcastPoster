@@ -71,11 +71,46 @@ public class DiscoveryCurationControllerAuthTests
             Times.Never);
     }
 
-    private void UsePermission(string permission)
+    [Fact(DisplayName =
+        "INTEGRITY: A supervised curator holding curate and curate:supervised can load discovery reports, because supervised users must also hold curate (only discovery submit is supervised).")]
+    public async Task get_allows_curate_plus_supervised()
+    {
+        // Arrange
+        UsePermission("curate", "curate:supervised");
+        _mocker.GetMock<IGetDiscoveryCurationHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, CancellationToken _) => ctx.Ok());
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoveryCurationController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await sut.Get(req.Object, null!, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName =
+        "INTEGRITY: curate:supervised alone does not grant discovery GET, because the documented role combination is curate plus curate:supervised.")]
+    public async Task get_rejects_supervised_only()
+    {
+        // Arrange
+        UsePermission("curate:supervised");
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoveryCurationController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await sut.Get(req.Object, null!, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    private void UsePermission(params string[] permissions)
     {
         _principal = new ClientPrincipal
         {
-            Claims = [new ClientPrincipalClaim { Type = "permissions", Value = permission }]
+            Claims = permissions.Select(p => new ClientPrincipalClaim { Type = "permissions", Value = p }).ToArray()
         };
     }
 }

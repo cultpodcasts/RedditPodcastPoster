@@ -31,15 +31,16 @@ public class DiscoveryCurationSubmitService(
             };
             var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
 
-            var held = (await discoveryResultsService.GetDocuments(request.DiscoveryResultsDocumentIds))
-                .Where(x => x.State == DiscoveryResultsDocumentState.PendingSupervisor)
-                .Select(x => x.Id)
-                .ToArray();
-            if (held.Length > 0)
+            // Claim every report before any ingestion so a concurrent hold (or another curator) cannot
+            // also act on it. All-or-nothing; nothing is submitted when any claim fails.
+            var unclaimed = await discoveryResultsService.TryClaimForProcessing(
+                request.DiscoveryResultsDocumentIds, cancellationToken);
+            if (unclaimed.Count > 0)
             {
-                logger.LogWarning("Refusing discovery submit: reports held for supervisor review: {DocumentIds}.",
-                    string.Join(",", held));
-                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Conflict);
+                logger.LogWarning("Refusing discovery submit: reports not claimable (held, processed or changed): {DocumentIds}.",
+                    string.Join(",", unclaimed));
+                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Conflict,
+                    UnavailableDocumentIds: unclaimed);
             }
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);

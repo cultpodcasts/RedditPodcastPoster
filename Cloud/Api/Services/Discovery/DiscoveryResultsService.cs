@@ -98,6 +98,33 @@ public class DiscoveryResultsService(
         }
     }
 
+    public async Task<IReadOnlyList<Guid>> TryClaimForProcessing(Guid[] documentIds,
+        CancellationToken cancellationToken = default)
+    {
+        var claimed = new List<Guid>();
+        foreach (var documentId in documentIds.Distinct())
+        {
+            if (await discoveryResultsRepository.TryTransitionState(documentId,
+                    DiscoveryResultsDocumentState.Unprocessed, DiscoveryResultsDocumentState.Processed,
+                    cancellationToken))
+            {
+                claimed.Add(documentId);
+                continue;
+            }
+
+            foreach (var id in claimed)
+            {
+                await discoveryResultsRepository.TryTransitionState(id,
+                    DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
+                    CancellationToken.None);
+            }
+
+            return [documentId];
+        }
+
+        return [];
+    }
+
     public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds)
     {
         foreach (var documentId in documentIds)
@@ -108,14 +135,16 @@ public class DiscoveryResultsService(
                 logger.LogError("No {DiscoveryResultsDocumentName} with id '{DocumentId}'.",
                     nameof(DiscoveryResultsDocument), documentId);
             }
-            else if (document.State != DiscoveryResultsDocumentState.Unprocessed)
+            else if (document.State == DiscoveryResultsDocumentState.PendingSupervisor)
             {
+                // Only a supervisor applying the held submission may promote a held report.
                 logger.LogWarning(
-                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is not in unprocessed-state. Has state '{DiscoveryResultsDocumentState}'.",
-                    nameof(DiscoveryResultsDocument), documentId, document.State);
+                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is awaiting supervisor review; not stamping.",
+                    nameof(DiscoveryResultsDocument), documentId);
             }
-            else if (document.State == DiscoveryResultsDocumentState.Unprocessed)
+            else
             {
+                // Report was claimed (Unprocessed -> Processed) by TryClaimForProcessing; stamp result states.
                 document.State = DiscoveryResultsDocumentState.Processed;
 
                 foreach (var documentDiscoveryResult in document.DiscoveryResults)

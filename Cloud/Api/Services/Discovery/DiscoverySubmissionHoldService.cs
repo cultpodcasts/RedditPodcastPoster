@@ -21,6 +21,7 @@ public class DiscoverySubmissionHoldService(
     {
         var documentIds = request.DiscoveryResultsDocumentIds.Distinct().ToArray();
         var moved = new List<Guid>();
+        Guid? attemptedSubmissionId = null;
         try
         {
             var documents = await discoveryResultsService.GetDocuments(documentIds);
@@ -36,6 +37,18 @@ public class DiscoverySubmissionHoldService(
             }
 
             var knownResultIds = documents.SelectMany(d => d.DiscoveryResults).Select(r => r.Id).ToHashSet();
+            var acceptedResultIds = request.ResultIds.Distinct().ToArray();
+            var unknownResultIds = acceptedResultIds.Where(id => !knownResultIds.Contains(id)).ToArray();
+            if (unknownResultIds.Length > 0)
+            {
+                // Refuse rather than silently drop: the submitter (often an AI) must learn its input was wrong,
+                // and the stored accepted set must be exactly what it sent for the supervisor diff.
+                logger.LogWarning("Supervised discovery submit refused; result ids not in the submitted reports: {ResultIds}.",
+                    string.Join(",", unknownResultIds));
+                return new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.InvalidResultIds,
+                    UnknownResultIds: unknownResultIds);
+            }
+
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var submission = new DiscoverySubmission
             {
@@ -44,7 +57,7 @@ public class DiscoverySubmissionHoldService(
                 SubmitterSubject = submitterSubject,
                 SubmittedAt = now,
                 DiscoveryResultsDocumentIds = documentIds,
-                SubmitterAcceptedResultIds = request.ResultIds.Distinct().Where(knownResultIds.Contains).ToArray(),
+                SubmitterAcceptedResultIds = acceptedResultIds,
                 History = [new DiscoverySubmissionHistoryEntry { At = now, ActorSubject = submitterSubject, Action = SubmittedAction }]
             };
 
@@ -62,6 +75,7 @@ public class DiscoverySubmissionHoldService(
                 moved.Add(documentId);
             }
 
+            attemptedSubmissionId = submission.Id;
             await discoverySubmissionsRepository.Save(submission, cancellationToken);
             await discoveryResultsService.UpdateDiscoveryInfoContent();
             logger.LogInformation(
@@ -72,6 +86,21 @@ public class DiscoverySubmissionHoldService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failure holding supervised discovery submission.");
+            if (attemptedSubmissionId is { } submissionId)
+            {
+                // The save may have committed before throwing; never leave a Pending submission over released reports.
+                try
+                {
+                    await discoverySubmissionsRepository.Delete(submissionId, CancellationToken.None);
+                }
+                catch (Exception deleteEx)
+                {
+                    logger.LogError(deleteEx,
+                        "Failure deleting orphaned discovery submission '{SubmissionId}'; apply must re-check report state.",
+                        submissionId);
+                }
+            }
+
             await Release(moved, CancellationToken.None);
             return new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.Failed);
         }

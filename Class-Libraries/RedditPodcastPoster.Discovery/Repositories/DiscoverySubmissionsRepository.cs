@@ -15,6 +15,18 @@ public class DiscoverySubmissionsRepository(Container submissionsContainer) : ID
             cancellationToken: cancellationToken);
     }
 
+    public async Task Delete(Guid id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await submissionsContainer.DeleteItemAsync<DiscoverySubmission>(id.ToString(),
+                new PartitionKey(id.ToString()), cancellationToken: cancellationToken);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+        }
+    }
+
     public async Task<DiscoverySubmission?> GetById(Guid id, CancellationToken cancellationToken = default)
     {
         try

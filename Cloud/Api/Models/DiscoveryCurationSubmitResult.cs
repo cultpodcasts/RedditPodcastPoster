@@ -11,4 +11,5 @@ public enum DiscoveryCurationSubmitStatus
 
 public record DiscoveryCurationSubmitResult(
     DiscoveryCurationSubmitStatus Status,
-    DiscoverySubmitOutcome? Outcome = null);
+    DiscoverySubmitOutcome? Outcome = null,
+    IReadOnlyList<Guid>? UnavailableDocumentIds = null);

@@ -94,6 +94,23 @@ public class PostDiscoveryCurationHandlerTests
     }
 
     [Fact(DisplayName =
+        "When a supervised submit names result ids outside its reports, the handler returns 400, because the request itself is invalid and nothing was held.")]
+    public async Task supervised_submit_unknown_results_returns_400()
+    {
+        // Arrange
+        _holdResult = new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.InvalidResultIds,
+            UnknownResultIds: [_fixture.Create<Guid>()]);
+        var sut = _mocker.CreateInstance<PostDiscoveryCurationHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(_fixture.Create<string>(), "curate", "curate:supervised"),
+            new DiscoverySubmitRequest(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact(DisplayName =
         "When an unsupervised curator submits, the submit is applied directly as before and never held.")]
     public async Task unsupervised_submit_is_applied()
     {

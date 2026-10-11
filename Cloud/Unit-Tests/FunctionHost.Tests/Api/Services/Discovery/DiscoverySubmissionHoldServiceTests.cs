@@ -89,20 +89,51 @@ public class DiscoverySubmissionHoldServiceTests
     }
 
     [Fact(DisplayName =
-        "When the submitter's accepted ids include results outside the submitted reports, those ids are dropped from the held submission, because only the held reports can be applied later.")]
-    public async Task drops_accepted_ids_not_in_submitted_reports()
+        "When the submitter's accepted ids include results outside the submitted reports, the hold is refused naming them and nothing is held or saved, because the submitter must learn its input was wrong and the stored accepted set must be exactly what it sent.")]
+    public async Task refuses_unknown_result_ids()
     {
         // Arrange
         var report = CreateReport(2);
         _documents = [report];
+        var unknown = _fixture.Create<Guid>();
         var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
 
         // Act
-        await sut.HoldAsync(Request([report.Id], _fixture.Create<Guid>()), _fixture.Create<string>(),
-            CancellationToken.None);
+        var result = await sut.HoldAsync(Request([report.Id], report.DiscoveryResults.First().Id, unknown),
+            _fixture.Create<string>(), CancellationToken.None);
 
         // Assert
-        _saved.Should().ContainSingle().Which.SubmitterAcceptedResultIds.Should().BeEmpty();
+        result.Status.Should().Be(DiscoverySubmissionHoldStatus.InvalidResultIds);
+        result.UnknownResultIds.Should().Equal(unknown);
+        _saved.Should().BeEmpty();
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(It.IsAny<Guid>(),
+            It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<DiscoveryResultsDocumentState>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When saving the submission fails (possibly after committing), the submission is deleted and the reports are released, because a Pending submission must never point at reports that are curatable again.")]
+    public async Task save_failure_deletes_submission_and_releases_reports()
+    {
+        // Arrange
+        var report = CreateReport(1);
+        _documents = [report];
+        Guid? savedId = null;
+        _mocker.GetMock<IDiscoverySubmissionsRepository>()
+            .Setup(r => r.Save(It.IsAny<DiscoverySubmission>(), It.IsAny<CancellationToken>()))
+            .Callback((DiscoverySubmission s, CancellationToken _) => savedId = s.Id)
+            .ThrowsAsync(new InvalidOperationException());
+        var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
+
+        // Act
+        var result = await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionHoldStatus.Failed);
+        _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(r => r.Delete(savedId!.Value, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(report.Id,
+            DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName =
