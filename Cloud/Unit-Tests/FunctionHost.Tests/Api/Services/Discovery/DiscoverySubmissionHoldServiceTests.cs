@@ -47,7 +47,7 @@ public class DiscoverySubmissionHoldServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
 
         // Act
-        var result = await sut.HoldAsync(Request([report.Id], accepted), subject, CancellationToken.None);
+        var result = await sut.HoldAsync(Request([report.Id], accepted), subject, [], CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionHoldStatus.Held);
@@ -75,7 +75,7 @@ public class DiscoverySubmissionHoldServiceTests
 
         // Act
         await sut.HoldAsync(Request([report.Id], report.DiscoveryResults.Select(r => r.Id).ToArray()),
-            _fixture.Create<string>(), CancellationToken.None);
+            _fixture.Create<string>(), [], CancellationToken.None);
 
         // Assert
         _mocker.GetMock<RedditPodcastPoster.UrlSubmission.Submitters.IDiscoveryUrlSubmitter>().VerifyNoOtherCalls();
@@ -100,7 +100,7 @@ public class DiscoverySubmissionHoldServiceTests
 
         // Act
         var result = await sut.HoldAsync(Request([report.Id], report.DiscoveryResults.First().Id, unknown),
-            _fixture.Create<string>(), CancellationToken.None);
+            _fixture.Create<string>(), [], CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionHoldStatus.InvalidResultIds);
@@ -126,7 +126,7 @@ public class DiscoverySubmissionHoldServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
 
         // Act
-        var result = await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), CancellationToken.None);
+        var result = await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), [], CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionHoldStatus.Failed);
@@ -147,7 +147,7 @@ public class DiscoverySubmissionHoldServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
 
         // Act
-        var result = await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), CancellationToken.None);
+        var result = await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), [], CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionHoldStatus.Conflict);
@@ -167,7 +167,7 @@ public class DiscoverySubmissionHoldServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
 
         // Act
-        var result = await sut.HoldAsync(Request([first.Id, second.Id]), _fixture.Create<string>(),
+        var result = await sut.HoldAsync(Request([first.Id, second.Id]), _fixture.Create<string>(), [],
             CancellationToken.None);
 
         // Assert
@@ -176,6 +176,23 @@ public class DiscoverySubmissionHoldServiceTests
         _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(first.Id,
             DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed,
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When the supervised curator's token names supervisors, the held submission records them so only those supervisors (or an admin) may review it.")]
+    public async Task records_supervisor_mapping()
+    {
+        // Arrange
+        var report = CreateReport(1);
+        _documents = [report];
+        var supervisor = _fixture.Create<string>();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionHoldService>();
+
+        // Act
+        await sut.HoldAsync(Request([report.Id]), _fixture.Create<string>(), [supervisor], CancellationToken.None);
+
+        // Assert
+        _saved.Should().ContainSingle().Which.SupervisorSubjects.Should().Equal(supervisor);
     }
 
     private DiscoveryResultsDocument CreateReport(int results) =>

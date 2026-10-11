@@ -11,6 +11,15 @@ public static class DiscoveryPermissions
     /// </summary>
     public const string CurateSupervised = "curate:supervised";
 
-    /// <summary>May review and apply held discovery submissions (endpoints land in a later PR).</summary>
+    /// <summary>May review and apply held discovery submissions.</summary>
     public const string Supervise = "supervise";
+
+    /// <summary>Admins may supervise any submission, regardless of supervisor mapping.</summary>
+    public const string Admin = "admin";
+
+    /// <summary>
+    /// Optional Auth0 custom claim on a supervised curator's token listing the subjects of their supervisors.
+    /// Captured onto the held submission; when present, only those supervisors (or an admin) may review it.
+    /// </summary>
+    public const string SupervisorsClaim = "https://api.cultpodcasts.com/supervisors";
 }

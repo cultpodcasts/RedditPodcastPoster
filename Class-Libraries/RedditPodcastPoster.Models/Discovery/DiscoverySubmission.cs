@@ -71,9 +71,36 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(120)]
     public DateTime? AppliedAt { get; set; }
 
+    /// <summary>
+    /// Supervisor subjects mapped to the submitter (Auth0 <c>https://api.cultpodcasts.com/supervisors</c> claim)
+    /// captured at submit. <c>null</c>/empty: any supervisor may review. Admins may always review.
+    /// </summary>
+    [JsonPropertyName("supervisorSubjects")]
+    [JsonPropertyOrder(130)]
+    public string[]? SupervisorSubjects { get; set; }
+
+    /// <summary>Why the last apply failed. <c>null</c> unless <see cref="Status"/> is <c>ApplyFailed</c>.</summary>
+    [JsonPropertyName("applyError")]
+    [JsonPropertyOrder(140)]
+    public string? ApplyError { get; set; }
+
+    /// <summary>Number of results ingested by the apply (accepted minus errored). <c>null</c> until applied.</summary>
+    [JsonPropertyName("appliedResultCount")]
+    [JsonPropertyOrder(150)]
+    public int? AppliedResultCount { get; set; }
+
+    /// <summary>Results whose ingest errored during apply. <c>null</c> until applied.</summary>
+    [JsonPropertyName("erroredResultIds")]
+    [JsonPropertyOrder(160)]
+    public Guid[]? ErroredResultIds { get; set; }
+
     [JsonPropertyName("history")]
     [JsonPropertyOrder(200)]
     public DiscoverySubmissionHistoryEntry[] History { get; set; } = [];
+
+    /// <summary>Cosmos ETag; read-only system property used for optimistic concurrency.</summary>
+    [JsonPropertyName("_etag")]
+    public string? ETag { get; set; }
 }
 
 public enum DiscoverySubmissionStatus

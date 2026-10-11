@@ -16,8 +16,19 @@ public class DiscoveryCurationSubmitService(
     IEpisodeSearchIndexerService searchIndexerService,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
-    public async Task<DiscoveryCurationSubmitResult> SubmitAsync(
+    public Task<DiscoveryCurationSubmitResult> SubmitAsync(
         DiscoverySubmitRequest request,
+        CancellationToken cancellationToken) =>
+        IngestAsync(request, held: false, cancellationToken);
+
+    public Task<DiscoveryCurationSubmitResult> ApplyHeldAsync(
+        DiscoverySubmitRequest request,
+        CancellationToken cancellationToken) =>
+        IngestAsync(request, held: true, cancellationToken);
+
+    private async Task<DiscoveryCurationSubmitResult> IngestAsync(
+        DiscoverySubmitRequest request,
+        bool held,
         CancellationToken cancellationToken)
     {
         var claimed = false;
@@ -35,8 +46,12 @@ public class DiscoveryCurationSubmitService(
 
             // Claim every report before any ingestion so a concurrent hold (or another curator) cannot
             // also act on it. All-or-nothing; nothing is submitted when any claim fails.
-            var unclaimed = await discoveryResultsService.TryClaimForProcessing(
-                request.DiscoveryResultsDocumentIds, cancellationToken);
+            // Held reports (supervisor apply) are claimed PendingSupervisor -> Processed; others Unprocessed -> Processed.
+            var unclaimed = held
+                ? await discoveryResultsService.TryClaimHeldForProcessing(request.DiscoveryResultsDocumentIds,
+                    cancellationToken)
+                : await discoveryResultsService.TryClaimForProcessing(request.DiscoveryResultsDocumentIds,
+                    cancellationToken);
             if (unclaimed.Count > 0)
             {
                 logger.LogWarning("Refusing discovery submit: reports not claimable (held, processed or changed): {DocumentIds}.",
@@ -74,7 +89,7 @@ public class DiscoveryCurationSubmitService(
                     submitResults.Add(
                         new DiscoverySubmitItemOutcome(discoveryResult.Id, null, null, "Error"));
                     logger.LogError(ex, "{method} Failure submitting discovery-result '{discoveryResultId}'.",
-                        nameof(SubmitAsync), discoveryResult.Id);
+                        nameof(IngestAsync), discoveryResult.Id);
                 }
             }
 
@@ -102,7 +117,7 @@ public class DiscoveryCurationSubmitService(
             {
                 // Nothing was ingested: hand the reports back so the submit can be retried.
                 // Once any episode submit was attempted they stay Processed to avoid double ingestion.
-                await ReleaseClaim(request.DiscoveryResultsDocumentIds);
+                await ReleaseClaim(request.DiscoveryResultsDocumentIds, held);
             }
 
             logger.LogError(e, "Failure handling post of {nameofDiscoverySubmitRequest}",
@@ -111,11 +126,19 @@ public class DiscoveryCurationSubmitService(
         }
     }
 
-    private async Task ReleaseClaim(Guid[] documentIds)
+    private async Task ReleaseClaim(Guid[] documentIds, bool held)
     {
         try
         {
-            await discoveryResultsService.ReleaseClaim(documentIds);
+            // A supervisor apply hands held reports back to PendingSupervisor; a curator submit back to Unprocessed.
+            if (held)
+            {
+                await discoveryResultsService.ReleaseHeldClaim(documentIds);
+            }
+            else
+            {
+                await discoveryResultsService.ReleaseClaim(documentIds);
+            }
         }
         catch (Exception ex)
         {

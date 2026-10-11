@@ -51,7 +51,8 @@ public class PostDiscoveryCurationHandler(
             return await ctx.BadRequest(new { Message = "Missing subject." }, c);
         }
 
-        var held = await discoverySubmissionHoldService.HoldAsync(model, ctx.Subject, c);
+        var held = await discoverySubmissionHoldService.HoldAsync(model, ctx.Subject,
+            ctx.ClaimValues(DiscoveryPermissions.SupervisorsClaim), c);
         return held.Status switch
         {
             DiscoverySubmissionHoldStatus.Held => await ctx.Accepted(

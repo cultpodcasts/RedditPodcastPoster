@@ -24,7 +24,7 @@ public class PostDiscoveryCurationHandlerTests
     public PostDiscoveryCurationHandlerTests()
     {
         _mocker.GetMock<IDiscoverySubmissionHoldService>()
-            .Setup(s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _holdResult);
         _mocker.GetMock<IDiscoveryCurationSubmitService>()
             .Setup(s => s.SubmitAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
@@ -51,7 +51,7 @@ public class PostDiscoveryCurationHandlerTests
         body.GetProperty("submissionId").GetGuid().Should().Be(submissionId);
         body.GetProperty("status").GetString().Should().Be("Pending");
         _mocker.GetMock<IDiscoverySubmissionHoldService>().Verify(
-            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), subject, It.IsAny<CancellationToken>()), Times.Once);
+            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), subject, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()), Times.Once);
         _mocker.GetMock<IDiscoveryCurationSubmitService>().Verify(
             s => s.SubmitAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -126,7 +126,7 @@ public class PostDiscoveryCurationHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IDiscoverySubmissionHoldService>().Verify(
-            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

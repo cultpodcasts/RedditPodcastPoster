@@ -1,0 +1,127 @@
+using System.Net;
+using System.Security.Claims;
+using AutoFixture;
+using FluentAssertions;
+using Moq;
+using Moq.AutoMock;
+using Api.Handlers;
+using Api.Handlers.DiscoverySubmissions;
+using Api.Models;
+using Api.Services.Discovery;
+using RedditPodcastPoster.Auth0.Models;
+using Xunit;
+
+namespace FunctionHost.Tests.Api.Handlers;
+
+public class DiscoverySubmissionHandlersTests
+{
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private SupervisionCaller? _caller;
+
+    public DiscoverySubmissionHandlersTests()
+    {
+        _mocker.GetMock<IDiscoverySubmissionReviewService>()
+            .Setup(s => s.Apply(It.IsAny<Guid>(), It.IsAny<DiscoverySubmissionApplyRequest>(),
+                It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()))
+            .Callback((Guid _, DiscoverySubmissionApplyRequest _, SupervisionCaller c, CancellationToken _) => _caller = c)
+            .ReturnsAsync(new DiscoverySubmissionCommandResult(DiscoverySubmissionCommandStatus.Ok));
+        _mocker.GetMock<IDiscoverySubmissionReviewService>()
+            .Setup(s => s.SaveReview(It.IsAny<Guid>(), It.IsAny<DiscoverySubmissionReviewRequest>(),
+                It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DiscoverySubmissionCommandResult(DiscoverySubmissionCommandStatus.Ok));
+        _mocker.GetMock<IDiscoverySubmissionReviewService>()
+            .Setup(s => s.List(It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()))
+            .Callback((SupervisionCaller c, CancellationToken _) => _caller = c)
+            .ReturnsAsync(new DiscoverySubmissionQueryResult<DiscoverySubmissionList>(DiscoverySubmissionQueryStatus.Ok,
+                new DiscoverySubmissionList([], 0, false)));
+    }
+
+    [Theory(DisplayName =
+        "INVARIANT: A curate:supervised caller is forbidden from applying a submission even when also granted supervise or admin, because a supervised curator must never promote reports to Processed.")]
+    [InlineData("curate:supervised", "supervise")]
+    [InlineData("curate:supervised", "admin")]
+    [InlineData("curate:supervised", "supervise", "admin", "curate")]
+    public async Task supervised_caller_cannot_apply(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionApplyHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionApplyRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.Apply(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionApplyRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "A curate:supervised caller is forbidden from saving a supervisor review, because reviewing is a supervisor action.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate:supervised", "supervise")]
+    public async Task supervised_caller_cannot_review(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PutDiscoverySubmissionReviewHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionReviewRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.SaveReview(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionReviewRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A supervise caller's apply reaches the review service as a supervisor and a successful apply returns 200 with the command outcome.")]
+    public async Task supervisor_apply_reaches_service()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionApplyHandler>();
+
+        // Act
+        var result = await sut.Handle(Context("supervise"),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionApplyRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        _caller!.IsSupervisor.Should().BeTrue();
+        _caller.IsAdmin.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A curate:supervised caller listing submissions is treated as a submitter (their own submissions), never as a supervisor.")]
+    public async Task supervised_caller_lists_as_submitter()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<GetDiscoverySubmissionsHandler>();
+
+        // Act
+        var result = await sut.Handle(Context("curate:supervised", "supervise"), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        _caller!.CanSuperviseAny.Should().BeFalse();
+    }
+
+    private IHandlerContext Context(params string[] permissions)
+    {
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var principal = new ClientPrincipal
+        {
+            Claims = permissions.Select(p => new ClientPrincipalClaim { Type = "permissions", Value = p })
+                .Append(new ClientPrincipalClaim { Type = ClaimTypes.NameIdentifier, Value = _fixture.Create<string>() })
+                .ToArray()
+        };
+        return new HandlerContext(req.Object, principal);
+    }
+}

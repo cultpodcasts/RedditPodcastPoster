@@ -56,4 +56,37 @@ public class DiscoverySubmissionsRepository(Container submissionsContainer) : ID
             }
         }
     }
+
+    public async IAsyncEnumerable<DiscoverySubmission> GetBySubmitter(
+        string submitterSubject,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var iterator = submissionsContainer
+            .GetItemLinqQueryable<DiscoverySubmission>()
+            .Where(x => x.SubmitterSubject == submitterSubject)
+            .ToFeedIterator();
+        while (iterator.HasMoreResults)
+        {
+            foreach (var item in await iterator.ReadNextAsync(cancellationToken))
+            {
+                yield return item;
+            }
+        }
+    }
+
+    public async Task<string?> TryReplace(DiscoverySubmission submission, string etag,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await submissionsContainer.ReplaceItemAsync(submission, submission.Id.ToString(),
+                new PartitionKey(submission.Id.ToString()), new ItemRequestOptions { IfMatchEtag = etag },
+                cancellationToken);
+            return response.ETag;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
 }
