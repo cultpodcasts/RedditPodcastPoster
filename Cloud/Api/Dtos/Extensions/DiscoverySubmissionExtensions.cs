@@ -29,8 +29,13 @@ public static class DiscoverySubmissionExtensions
         SucceededCount = s.ItemOutcomes?.Count(x => x.State == DiscoverySubmissionItemState.Succeeded),
         AbandonedCount = s.ItemOutcomes?.Count(x => x.State == DiscoverySubmissionItemState.Abandoned),
         ReleasedAt = s.ReleasedAt,
-        ReleaseReason = s.ReleaseReason
+        ReleaseReason = s.ReleaseReason,
+        InProgressOperation = s.InProgressOperation?.ToString(),
+        InProgressSince = s.InProgressSince
     };
+
+    public static DiscoverySubmissionRecoverRequest ToModel(this DiscoverySubmissionRecoverRequestDto dto) =>
+        new() { ETag = dto.ETag };
 
     public static DiscoverySubmissionReleaseRequest ToModel(this DiscoverySubmissionReleaseRequestDto dto) =>
         new() { ETag = dto.ETag, Reason = dto.Reason };
@@ -91,6 +96,8 @@ public static class DiscoverySubmissionExtensions
             ItemOutcomes = s.ItemOutcomes.ToDtos(),
             ReleasedAt = s.ReleasedAt,
             ReleaseReason = s.ReleaseReason,
+            InProgressOperation = s.InProgressOperation?.ToString(),
+            InProgressSince = s.InProgressSince,
             Reports = detail.Reports.Select(r => new DiscoverySubmissionReportDto
             {
                 Id = r.Id,

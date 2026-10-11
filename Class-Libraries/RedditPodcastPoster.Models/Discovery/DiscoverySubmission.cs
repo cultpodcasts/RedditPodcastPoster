@@ -110,8 +110,33 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(190)]
     public string? ReleaseReason { get; set; }
 
-    [JsonPropertyName("history")]
+    /// <summary>Operation holding the submission while <c>Status</c> is <c>Applying</c>. <c>null</c> otherwise.</summary>
+    [JsonPropertyName("inProgressOperation")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(200)]
+    public DiscoverySubmissionOperation? InProgressOperation { get; set; }
+
+    [JsonPropertyName("inProgressSince")]
+    [JsonPropertyOrder(210)]
+    public DateTime? InProgressSince { get; set; }
+
+    [JsonPropertyName("inProgressBy")]
+    [JsonPropertyOrder(220)]
+    public string? InProgressBy { get; set; }
+
+    /// <summary>Results being ingested by the in-progress operation (apply final set / retried items).</summary>
+    [JsonPropertyName("inProgressResultIds")]
+    [JsonPropertyOrder(230)]
+    public Guid[]? InProgressResultIds { get; set; }
+
+    /// <summary>Status before the in-progress claim (restored when an apply is refused before any ingest).</summary>
+    [JsonPropertyName("statusBeforeInProgress")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyOrder(240)]
+    public DiscoverySubmissionStatus? StatusBeforeInProgress { get; set; }
+
+    [JsonPropertyName("history")]
+    [JsonPropertyOrder(300)]
     public DiscoverySubmissionHistoryEntry[] History { get; set; } = [];
 
     /// <summary>Cosmos ETag; read-only system property used for optimistic concurrency.</summary>
@@ -129,8 +154,21 @@ public enum DiscoverySubmissionStatus
     /// <summary>Apply ingested some results but others failed; failed items await retry or abandonment.</summary>
     PartiallyApplied,
 
+    /// <summary>
+    /// In progress: an apply, retry or release has claimed the submission (see <c>InProgressOperation</c>).
+    /// Not reviewable, retryable or releasable until it finishes or an admin recovers it.
+    /// </summary>
+    Applying,
+
     /// <summary>Terminal: a supervisor released the held reports back to Unprocessed; nothing was ingested.</summary>
     Released
+}
+
+public enum DiscoverySubmissionOperation
+{
+    Apply = 1,
+    Retry,
+    Release
 }
 
 public enum DiscoverySubmissionItemState

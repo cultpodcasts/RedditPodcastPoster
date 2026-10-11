@@ -571,3 +571,23 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 | `Cloud/Api/Services/Discovery/DiscoverySubmissionReviewService.cs` | List/get/review/apply/retry/release |
 | `Cloud/Api/Services/Discovery/DiscoverySubmissionRules.cs` | Who may review; supervisor diff |
 | `Class-Libraries/RedditPodcastPoster.Models/Discovery/DiscoverySubmission.cs` | Persisted submission |
+
+
+### In-progress state (`Applying`) and recovery
+
+Apply, retry and release first persist `status: "Applying"` in their ETag-guarded claim, with
+`inProgressOperation` (`Apply` | `Retry` | `Release`) and `inProgressSince` (both returned in list/detail, `null` otherwise).
+While `Applying`, review, apply, retry, release and stuck-report release all return **409**; the submission is shown
+in the supervisor queue.
+
+The final write is merged and retried (up to 3 attempts) if it gets a 412 while the submission is still held by the
+same operation; if the outcome still cannot be recorded the command returns **500** with
+`"Outcome could not be recorded…"` (never `200`).
+
+`POST /DiscoverySubmissions/{id}/recover` — **admin only**, body `{ "etag": "..." }`. Allowed only when `Applying`
+for more than 30 minutes (409 otherwise). Reconciles from report state:
+- Apply, all reports still `PendingSupervisor` → previous status (normally `Pending`); nothing was ingested.
+- Apply with reports `Processed`, or Retry → each in-flight result without a `Succeeded` outcome becomes `Failed`
+  with error `"Interrupted: …verify the catalogue before retrying."` → `ApplyFailed`/`PartiallyApplied`.
+- Release → remaining `PendingSupervisor` reports go to `Unprocessed`; submission `Released`.
+Records a `Recovered` history entry. Response is the standard command response.

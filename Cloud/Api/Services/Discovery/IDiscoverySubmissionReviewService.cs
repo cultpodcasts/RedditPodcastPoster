@@ -33,4 +33,11 @@ public interface IDiscoverySubmissionReviewService
     /// </summary>
     Task<DiscoverySubmissionCommandResult> ReleaseStuckReport(Guid documentId, DiscoveryReportReleaseRequest request,
         SupervisionCaller caller, CancellationToken c);
+
+    /// <summary>
+    /// Admin only: recovers a submission stuck in Applying (older than the stale threshold), reconciling from report
+    /// state and recorded outcomes.
+    /// </summary>
+    Task<DiscoverySubmissionCommandResult> Recover(Guid submissionId, DiscoverySubmissionRecoverRequest request,
+        SupervisionCaller caller, CancellationToken c);
 }

@@ -87,6 +87,15 @@ public class DiscoverySubmissionSummaryDto
     [JsonPropertyName("releaseReason")]
     [JsonPropertyOrder(160)]
     public string? ReleaseReason { get; set; }
+
+    /// <summary>While status is Applying: Apply | Retry | Release. <c>null</c> otherwise.</summary>
+    [JsonPropertyName("inProgressOperation")]
+    [JsonPropertyOrder(170)]
+    public string? InProgressOperation { get; set; }
+
+    [JsonPropertyName("inProgressSince")]
+    [JsonPropertyOrder(180)]
+    public DateTime? InProgressSince { get; set; }
 }
 
 /// <summary>GET DiscoverySubmissions/{id} — the submission plus its held reports' full results.</summary>
@@ -171,6 +180,14 @@ public class DiscoverySubmissionDetailResponse
     [JsonPropertyName("releaseReason")]
     [JsonPropertyOrder(167)]
     public string? ReleaseReason { get; set; }
+
+    [JsonPropertyName("inProgressOperation")]
+    [JsonPropertyOrder(168)]
+    public string? InProgressOperation { get; set; }
+
+    [JsonPropertyName("inProgressSince")]
+    [JsonPropertyOrder(169)]
+    public DateTime? InProgressSince { get; set; }
 
     [JsonPropertyName("reports")]
     [JsonPropertyOrder(170)]
@@ -259,6 +276,13 @@ public class DiscoverySubmissionReleaseRequestDto
 
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+}
+
+/// <summary>POST DiscoverySubmissions/{id}/recover (admin).</summary>
+public class DiscoverySubmissionRecoverRequestDto
+{
+    [JsonPropertyName("etag")]
+    public string ETag { get; set; } = "";
 }
 
 /// <summary>POST DiscoveryReports/{documentId}/release (admin).</summary>

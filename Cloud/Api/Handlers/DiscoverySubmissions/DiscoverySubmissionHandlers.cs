@@ -46,6 +46,12 @@ public interface IPostDiscoveryReportReleaseHandler
         DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest> model, CancellationToken c);
 }
 
+public interface IPostDiscoverySubmissionRecoverHandler
+{
+    Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> model, CancellationToken c);
+}
+
 internal static class SupervisionCallerFactory
 {
     /// <summary>
@@ -245,5 +251,28 @@ public class PostDiscoveryReportReleaseHandler(IDiscoverySubmissionReviewService
             DiscoverySubmissionCommandStatus.Conflict => await ctx.Conflict(body, c),
             _ => await ctx.InternalError(body, c)
         };
+    }
+}
+
+/// <summary>Admin-only recovery of a submission stuck in Applying.</summary>
+public class PostDiscoverySubmissionRecoverHandler(IDiscoverySubmissionReviewService service)
+    : IPostDiscoverySubmissionRecoverHandler
+{
+    public async Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> model, CancellationToken c)
+    {
+        var caller = SupervisionCallerFactory.From(ctx);
+        if (caller == null)
+        {
+            return await SupervisionCallerFactory.MissingSubject(ctx, c);
+        }
+
+        if (!caller.IsAdmin)
+        {
+            return await SupervisionCallerFactory.Forbidden(ctx, c);
+        }
+
+        var result = await service.Recover(model.SubmissionId, model.Request, caller, c);
+        return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
     }
 }

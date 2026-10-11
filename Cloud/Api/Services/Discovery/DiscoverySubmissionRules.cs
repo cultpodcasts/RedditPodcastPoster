@@ -38,6 +38,7 @@ public static class DiscoverySubmissionRules
         submission.Status == DiscoverySubmissionStatus.ApplyFailed && submission.ItemOutcomes == null;
 
     /// <summary>Retry/abandon is possible when an apply ingested and some items are still Failed.</summary>
+    /// <summary>Applying is never retryable (a retry/apply already holds it).</summary>
     public static bool IsRetryable(DiscoverySubmission submission) =>
         submission.Status is DiscoverySubmissionStatus.PartiallyApplied or DiscoverySubmissionStatus.ApplyFailed &&
         submission.ItemOutcomes?.Any(x => x.State == DiscoverySubmissionItemState.Failed) == true;

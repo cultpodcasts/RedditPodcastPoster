@@ -21,6 +21,7 @@ public class DiscoverySubmissionsController(
     IPostDiscoverySubmissionRetryHandler postDiscoverySubmissionRetryHandler,
     IPostDiscoverySubmissionReleaseHandler postDiscoverySubmissionReleaseHandler,
     IPostDiscoveryReportReleaseHandler postDiscoveryReportReleaseHandler,
+    IPostDiscoverySubmissionRecoverHandler postDiscoverySubmissionRecoverHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoverySubmissionsController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -131,6 +132,23 @@ public class DiscoverySubmissionsController(
             [DiscoveryPermissions.Admin],
             new DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest>(documentId, request.ToModel()),
             postDiscoveryReportReleaseHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>Admin only: recover a submission stuck in Applying.</summary>
+    [Function("DiscoverySubmissionRecoverPost")]
+    public Task<HttpResponseData> PostRecover(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/recover")]
+        HttpRequestData req,
+        Guid submissionId,
+        FunctionContext _,
+        [FromBody] Dtos.DiscoverySubmissionRecoverRequestDto request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            [DiscoveryPermissions.Admin],
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>(submissionId, request.ToModel()),
+            postDiscoverySubmissionRecoverHandler.Handle,
             Unauthorised,
             ct);
 }
