@@ -27,6 +27,25 @@ public sealed class DiscoverySubmissionApplyRequest
     public Guid[]? AcceptedResultIds { get; init; }
 }
 
+public sealed class DiscoverySubmissionRetryRequest
+{
+    public required string ETag { get; init; }
+
+    /// <summary>Failed items to abandon (not retried) so the submission can close.</summary>
+    public Guid[]? AbandonResultIds { get; init; }
+}
+
+public sealed class DiscoverySubmissionReleaseRequest
+{
+    public required string ETag { get; init; }
+    public string? Reason { get; init; }
+}
+
+public sealed class DiscoveryReportReleaseRequest
+{
+    public string? Reason { get; init; }
+}
+
 public sealed record DiscoverySubmissionReviewRoute<T>(Guid SubmissionId, T Request);
 
 public enum DiscoverySubmissionCommandStatus
@@ -52,7 +71,8 @@ public sealed record DiscoverySubmissionCommandResult(
     DiscoverySubmissionStatus? SubmissionStatus = null,
     DiscoverySubmissionDiff? Diff = null,
     DiscoverySubmitOutcome? Outcome = null,
-    IReadOnlyList<Guid>? InvalidIds = null);
+    IReadOnlyList<Guid>? InvalidIds = null,
+    IReadOnlyList<DiscoverySubmissionItemOutcome>? ItemOutcomes = null);
 
 public sealed record DiscoverySubmissionDiff(Guid[] Added, Guid[] Removed);
 

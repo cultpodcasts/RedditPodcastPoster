@@ -18,6 +18,9 @@ public class DiscoverySubmissionsController(
     IGetDiscoverySubmissionHandler getDiscoverySubmissionHandler,
     IPutDiscoverySubmissionReviewHandler putDiscoverySubmissionReviewHandler,
     IPostDiscoverySubmissionApplyHandler postDiscoverySubmissionApplyHandler,
+    IPostDiscoverySubmissionRetryHandler postDiscoverySubmissionRetryHandler,
+    IPostDiscoverySubmissionReleaseHandler postDiscoverySubmissionReleaseHandler,
+    IPostDiscoveryReportReleaseHandler postDiscoveryReportReleaseHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoverySubmissionsController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -79,6 +82,55 @@ public class DiscoverySubmissionsController(
             SuperviseRoles,
             new DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>(submissionId, request.ToModel()),
             postDiscoverySubmissionApplyHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("DiscoverySubmissionRetryPost")]
+    public Task<HttpResponseData> PostRetry(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/retry")]
+        HttpRequestData req,
+        Guid submissionId,
+        FunctionContext _,
+        [FromBody] Dtos.DiscoverySubmissionRetryRequestDto request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            SuperviseRoles,
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest>(submissionId, request.ToModel()),
+            postDiscoverySubmissionRetryHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("DiscoverySubmissionReleasePost")]
+    public Task<HttpResponseData> PostRelease(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/release")]
+        HttpRequestData req,
+        Guid submissionId,
+        FunctionContext _,
+        [FromBody] Dtos.DiscoverySubmissionReleaseRequestDto request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            SuperviseRoles,
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionReleaseRequest>(submissionId, request.ToModel()),
+            postDiscoverySubmissionReleaseHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>Admin only: release a report stuck in PendingSupervisor with no live submission.</summary>
+    [Function("DiscoveryReportReleasePost")]
+    public Task<HttpResponseData> PostReportRelease(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DiscoveryReports/{documentId:guid}/release")]
+        HttpRequestData req,
+        Guid documentId,
+        FunctionContext _,
+        [FromBody] Dtos.DiscoveryReportReleaseRequestDto request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            [DiscoveryPermissions.Admin],
+            new DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest>(documentId, request.ToModel()),
+            postDiscoveryReportReleaseHandler.Handle,
             Unauthorised,
             ct);
 }

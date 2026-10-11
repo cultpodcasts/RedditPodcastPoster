@@ -29,8 +29,26 @@ public static class DiscoverySubmissionRules
     public static bool CanView(SupervisionCaller caller, DiscoverySubmission submission) =>
         caller.Subject == submission.SubmitterSubject || CanReview(caller, submission);
 
+    /// <summary>
+    /// Review/apply is possible only while nothing has been ingested: Pending, or ApplyFailed before any submit
+    /// (no item outcomes). Once ingestion was attempted, only retry/abandon of failed items applies.
+    /// </summary>
     public static bool IsReviewable(DiscoverySubmission submission) =>
-        submission.Status is DiscoverySubmissionStatus.Pending or DiscoverySubmissionStatus.ApplyFailed;
+        submission.Status == DiscoverySubmissionStatus.Pending ||
+        submission.Status == DiscoverySubmissionStatus.ApplyFailed && submission.ItemOutcomes == null;
+
+    /// <summary>Retry/abandon is possible when an apply ingested and some items are still Failed.</summary>
+    public static bool IsRetryable(DiscoverySubmission submission) =>
+        submission.Status is DiscoverySubmissionStatus.PartiallyApplied or DiscoverySubmissionStatus.ApplyFailed &&
+        submission.ItemOutcomes?.Any(x => x.State == DiscoverySubmissionItemState.Failed) == true;
+
+    /// <summary>Applied when nothing is Failed; PartiallyApplied when some succeeded; otherwise ApplyFailed.</summary>
+    public static DiscoverySubmissionStatus DeriveStatus(IReadOnlyCollection<DiscoverySubmissionItemOutcome> outcomes) =>
+        outcomes.All(x => x.State != DiscoverySubmissionItemState.Failed)
+            ? DiscoverySubmissionStatus.Applied
+            : outcomes.Any(x => x.State == DiscoverySubmissionItemState.Succeeded)
+                ? DiscoverySubmissionStatus.PartiallyApplied
+                : DiscoverySubmissionStatus.ApplyFailed;
 
     /// <summary>Added = final minus submitter's; removed = submitter's minus final. Distinct, order of first appearance.</summary>
     public static DiscoverySubmissionDiff ComputeDiff(IEnumerable<Guid> submitterAccepted, IEnumerable<Guid> finalAccepted)

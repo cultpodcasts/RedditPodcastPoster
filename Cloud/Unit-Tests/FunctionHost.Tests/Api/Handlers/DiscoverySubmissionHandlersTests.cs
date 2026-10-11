@@ -113,6 +113,69 @@ public class DiscoverySubmissionHandlersTests
         _caller!.CanSuperviseAny.Should().BeFalse();
     }
 
+    [Theory(DisplayName =
+        "INVARIANT: A curate:supervised caller is forbidden from retrying a submission even when also granted supervise or admin, because retry ingests episodes.")]
+    [InlineData("curate:supervised", "supervise")]
+    [InlineData("curate:supervised", "admin")]
+    public async Task supervised_caller_cannot_retry(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionRetryHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionRetryRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.Retry(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionRetryRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "A curate:supervised caller is forbidden from releasing a submission even when also granted supervise or admin.")]
+    [InlineData("curate:supervised", "supervise")]
+    [InlineData("curate:supervised", "admin")]
+    public async Task supervised_caller_cannot_release(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionReleaseHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionReleaseRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionReleaseRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.Release(It.IsAny<Guid>(),
+            It.IsAny<DiscoverySubmissionReleaseRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Releasing a stuck report is admin-only: a supervisor, or a supervised curator holding admin, is forbidden.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised", "admin")]
+    public async Task stuck_report_release_admin_only(params string[] permissions)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PostDiscoveryReportReleaseHandler>();
+
+        // Act
+        var result = await sut.Handle(Context(permissions),
+            new DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest>(_fixture.Create<Guid>(),
+                new DiscoveryReportReleaseRequest()), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        _mocker.GetMock<IDiscoverySubmissionReviewService>().Verify(s => s.ReleaseStuckReport(It.IsAny<Guid>(),
+            It.IsAny<DiscoveryReportReleaseRequest>(), It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     private IHandlerContext Context(params string[] permissions)
     {
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");

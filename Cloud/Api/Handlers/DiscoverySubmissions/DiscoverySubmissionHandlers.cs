@@ -28,6 +28,24 @@ public interface IPostDiscoverySubmissionApplyHandler
         DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest> model, CancellationToken c);
 }
 
+public interface IPostDiscoverySubmissionRetryHandler
+{
+    Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest> model, CancellationToken c);
+}
+
+public interface IPostDiscoverySubmissionReleaseHandler
+{
+    Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionReleaseRequest> model, CancellationToken c);
+}
+
+public interface IPostDiscoveryReportReleaseHandler
+{
+    Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest> model, CancellationToken c);
+}
+
 internal static class SupervisionCallerFactory
 {
     /// <summary>
@@ -146,5 +164,86 @@ public class PostDiscoverySubmissionApplyHandler(IDiscoverySubmissionReviewServi
 
         var result = await service.Apply(model.SubmissionId, model.Request, caller, c);
         return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
+    }
+}
+
+public class PostDiscoverySubmissionRetryHandler(IDiscoverySubmissionReviewService service)
+    : IPostDiscoverySubmissionRetryHandler
+{
+    public async Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest> model, CancellationToken c)
+    {
+        var caller = SupervisionCallerFactory.From(ctx);
+        if (caller == null)
+        {
+            return await SupervisionCallerFactory.MissingSubject(ctx, c);
+        }
+
+        if (!caller.CanSuperviseAny)
+        {
+            return await SupervisionCallerFactory.Forbidden(ctx, c);
+        }
+
+        var result = await service.Retry(model.SubmissionId, model.Request, caller, c);
+        return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
+    }
+}
+
+public class PostDiscoverySubmissionReleaseHandler(IDiscoverySubmissionReviewService service)
+    : IPostDiscoverySubmissionReleaseHandler
+{
+    public async Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionReleaseRequest> model, CancellationToken c)
+    {
+        var caller = SupervisionCallerFactory.From(ctx);
+        if (caller == null)
+        {
+            return await SupervisionCallerFactory.MissingSubject(ctx, c);
+        }
+
+        if (!caller.CanSuperviseAny)
+        {
+            return await SupervisionCallerFactory.Forbidden(ctx, c);
+        }
+
+        var result = await service.Release(model.SubmissionId, model.Request, caller, c);
+        return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
+    }
+}
+
+/// <summary>Admin-only release of a report stuck in PendingSupervisor with no live submission.</summary>
+public class PostDiscoveryReportReleaseHandler(IDiscoverySubmissionReviewService service)
+    : IPostDiscoveryReportReleaseHandler
+{
+    public async Task<HttpResponseData> Handle(IHandlerContext ctx,
+        DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest> model, CancellationToken c)
+    {
+        var caller = SupervisionCallerFactory.From(ctx);
+        if (caller == null)
+        {
+            return await SupervisionCallerFactory.MissingSubject(ctx, c);
+        }
+
+        if (!caller.IsAdmin)
+        {
+            return await SupervisionCallerFactory.Forbidden(ctx, c);
+        }
+
+        var result = await service.ReleaseStuckReport(model.SubmissionId, model.Request, caller, c);
+        var body = new Dtos.DiscoveryReportReleaseResponse
+        {
+            DocumentId = model.SubmissionId,
+            Status = result.Status == DiscoverySubmissionCommandStatus.Ok ? "Released" : result.Status.ToString(),
+            Message = result.Message,
+            SubmissionIds = result.InvalidIds?.ToArray()
+        };
+        return result.Status switch
+        {
+            DiscoverySubmissionCommandStatus.Ok => await ctx.Ok(body, c),
+            DiscoverySubmissionCommandStatus.NotFound => await ctx.NotFound(body, c),
+            DiscoverySubmissionCommandStatus.Forbidden => await SupervisionCallerFactory.Forbidden(ctx, c),
+            DiscoverySubmissionCommandStatus.Conflict => await ctx.Conflict(body, c),
+            _ => await ctx.InternalError(body, c)
+        };
     }
 }

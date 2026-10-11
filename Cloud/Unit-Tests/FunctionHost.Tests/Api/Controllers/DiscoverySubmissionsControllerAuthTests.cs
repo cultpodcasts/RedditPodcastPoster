@@ -120,6 +120,66 @@ public class DiscoverySubmissionsControllerAuthTests
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    [Theory(DisplayName =
+        "Discovery submission retry rejects callers without supervise or admin (including curate:supervised), because retry ingests episodes.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task retry_rejects_non_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRetry(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionRetryRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _mocker.GetMock<IPostDiscoverySubmissionRetryHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission release rejects callers without supervise or admin, including curate:supervised.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task release_rejects_non_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRelease(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionReleaseRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory(DisplayName =
+        "Stuck-report release rejects non-admin callers (supervise, curate:supervised) at the controller.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised")]
+    public async Task report_release_rejects_non_admin(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostReportRelease(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoveryReportReleaseRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
     private void UsePermission(string permission)
     {
         _principal = new ClientPrincipal

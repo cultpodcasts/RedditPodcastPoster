@@ -122,6 +122,40 @@ public class DiscoveryResultsService(
         CancellationToken cancellationToken = default) =>
         TryClaim(DiscoveryResultsDocumentState.PendingSupervisor, documentIds, cancellationToken);
 
+    public async Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds)
+    {
+        foreach (var documentId in documentIds.Distinct())
+        {
+            var document = await discoveryResultsRepository.GetById(documentId);
+            if (document is not { State: DiscoveryResultsDocumentState.Processed })
+            {
+                logger.LogWarning("{Method}: '{DocumentId}' is missing or not Processed; not restamping.",
+                    nameof(UpdateResultStates), documentId);
+                continue;
+            }
+
+            var changed = false;
+            foreach (var result in document.DiscoveryResults)
+            {
+                if (succeededResultIds.Contains(result.Id))
+                {
+                    result.State = DiscoveryResultState.Accepted;
+                    changed = true;
+                }
+                else if (erroredResultIds.Contains(result.Id))
+                {
+                    result.State = DiscoveryResultState.AcceptError;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await discoveryResultsRepository.Save(document);
+            }
+        }
+    }
+
     public async Task ReleaseHeldClaim(Guid[] documentIds)
     {
         foreach (var id in documentIds.Distinct())

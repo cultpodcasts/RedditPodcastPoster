@@ -66,6 +66,27 @@ public class DiscoverySubmissionSummaryDto
     [JsonPropertyName("applyError")]
     [JsonPropertyOrder(110)]
     public string? ApplyError { get; set; }
+
+    /// <summary>Items that failed to ingest and await retry/abandon. <c>null</c> until an apply attempted ingestion.</summary>
+    [JsonPropertyName("failedCount")]
+    [JsonPropertyOrder(120)]
+    public int? FailedCount { get; set; }
+
+    [JsonPropertyName("succeededCount")]
+    [JsonPropertyOrder(130)]
+    public int? SucceededCount { get; set; }
+
+    [JsonPropertyName("abandonedCount")]
+    [JsonPropertyOrder(140)]
+    public int? AbandonedCount { get; set; }
+
+    [JsonPropertyName("releasedAt")]
+    [JsonPropertyOrder(150)]
+    public DateTime? ReleasedAt { get; set; }
+
+    [JsonPropertyName("releaseReason")]
+    [JsonPropertyOrder(160)]
+    public string? ReleaseReason { get; set; }
 }
 
 /// <summary>GET DiscoverySubmissions/{id} — the submission plus its held reports' full results.</summary>
@@ -138,6 +159,19 @@ public class DiscoverySubmissionDetailResponse
     [JsonPropertyOrder(160)]
     public Guid[]? ErroredResultIds { get; set; }
 
+    /// <summary>Per-result apply/retry outcome with failure reasons. <c>null</c> until an apply attempted ingestion.</summary>
+    [JsonPropertyName("itemOutcomes")]
+    [JsonPropertyOrder(165)]
+    public DiscoverySubmissionItemOutcomeDto[]? ItemOutcomes { get; set; }
+
+    [JsonPropertyName("releasedAt")]
+    [JsonPropertyOrder(166)]
+    public DateTime? ReleasedAt { get; set; }
+
+    [JsonPropertyName("releaseReason")]
+    [JsonPropertyOrder(167)]
+    public string? ReleaseReason { get; set; }
+
     [JsonPropertyName("reports")]
     [JsonPropertyOrder(170)]
     public required IEnumerable<DiscoverySubmissionReportDto> Reports { get; set; }
@@ -166,6 +200,94 @@ public class DiscoverySubmissionReportDto
     [JsonPropertyName("results")]
     [JsonPropertyOrder(40)]
     public required IEnumerable<DiscoveryResponse.Item> Results { get; set; }
+}
+
+public class DiscoverySubmissionItemOutcomeDto
+{
+    [JsonPropertyName("resultId")]
+    [JsonPropertyOrder(10)]
+    public required Guid ResultId { get; set; }
+
+    /// <summary>Succeeded | Failed | Abandoned.</summary>
+    [JsonPropertyName("state")]
+    [JsonPropertyOrder(20)]
+    public required string State { get; set; }
+
+    [JsonPropertyName("episodeId")]
+    [JsonPropertyOrder(30)]
+    public Guid? EpisodeId { get; set; }
+
+    [JsonPropertyName("podcastId")]
+    [JsonPropertyOrder(40)]
+    public Guid? PodcastId { get; set; }
+
+    /// <summary>Submit outcome from the ingester (e.g. Created, Enriched, Error).</summary>
+    [JsonPropertyName("message")]
+    [JsonPropertyOrder(50)]
+    public string? Message { get; set; }
+
+    /// <summary>Why it failed. <c>null</c> unless the last attempt failed.</summary>
+    [JsonPropertyName("error")]
+    [JsonPropertyOrder(60)]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("attempts")]
+    [JsonPropertyOrder(70)]
+    public required int Attempts { get; set; }
+
+    [JsonPropertyName("lastAttemptAt")]
+    [JsonPropertyOrder(80)]
+    public DateTime? LastAttemptAt { get; set; }
+}
+
+/// <summary>POST DiscoverySubmissions/{id}/retry.</summary>
+public class DiscoverySubmissionRetryRequestDto
+{
+    [JsonPropertyName("etag")]
+    public string ETag { get; set; } = "";
+
+    /// <summary>Failed items to abandon instead of retrying.</summary>
+    [JsonPropertyName("abandonResultIds")]
+    public Guid[]? AbandonResultIds { get; set; }
+}
+
+/// <summary>POST DiscoverySubmissions/{id}/release.</summary>
+public class DiscoverySubmissionReleaseRequestDto
+{
+    [JsonPropertyName("etag")]
+    public string ETag { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+}
+
+/// <summary>POST DiscoveryReports/{documentId}/release (admin).</summary>
+public class DiscoveryReportReleaseRequestDto
+{
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+}
+
+/// <summary>Command outcome for an admin stuck-report release.</summary>
+public class DiscoveryReportReleaseResponse
+{
+    [JsonPropertyName("documentId")]
+    [JsonPropertyOrder(10)]
+    public required Guid DocumentId { get; set; }
+
+    /// <summary>Released | Conflict | NotFound | Forbidden.</summary>
+    [JsonPropertyName("status")]
+    [JsonPropertyOrder(20)]
+    public required string Status { get; set; }
+
+    [JsonPropertyName("message")]
+    [JsonPropertyOrder(30)]
+    public string? Message { get; set; }
+
+    /// <summary>On conflict: live submission ids still holding the report.</summary>
+    [JsonPropertyName("submissionIds")]
+    [JsonPropertyOrder(40)]
+    public Guid[]? SubmissionIds { get; set; }
 }
 
 public class DiscoverySubmissionItemCommentDto
@@ -252,8 +374,18 @@ public class DiscoverySubmissionCommandResponse
     [JsonPropertyOrder(60)]
     public string? Message { get; set; }
 
-    /// <summary>Apply only: per-result ingest outcome (same shape as POST DiscoveryCuration response).</summary>
+    /// <summary>Ids the command could not act on (invalid result ids, unheld reports, …). <c>null</c> when none.</summary>
+    [JsonPropertyName("ids")]
+    [JsonPropertyOrder(65)]
+    public Guid[]? Ids { get; set; }
+
+    /// <summary>Apply/retry: this run's per-result ingest outcome (same shape as POST DiscoveryCuration response).</summary>
     [JsonPropertyName("outcome")]
     [JsonPropertyOrder(70)]
     public DiscoverySubmitResponse? Outcome { get; set; }
+
+    /// <summary>Apply/retry: cumulative per-result outcomes with failure reasons. <c>null</c> otherwise.</summary>
+    [JsonPropertyName("itemOutcomes")]
+    [JsonPropertyOrder(80)]
+    public DiscoverySubmissionItemOutcomeDto[]? ItemOutcomes { get; set; }
 }

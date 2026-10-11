@@ -24,7 +24,37 @@ public static class DiscoverySubmissionExtensions
         AppliedAt = s.AppliedAt,
         ReportComment = s.ReportComment,
         ItemCommentCount = s.ItemComments?.Length ?? 0,
-        ApplyError = s.ApplyError
+        ApplyError = s.ApplyError,
+        FailedCount = s.ItemOutcomes?.Count(x => x.State == DiscoverySubmissionItemState.Failed),
+        SucceededCount = s.ItemOutcomes?.Count(x => x.State == DiscoverySubmissionItemState.Succeeded),
+        AbandonedCount = s.ItemOutcomes?.Count(x => x.State == DiscoverySubmissionItemState.Abandoned),
+        ReleasedAt = s.ReleasedAt,
+        ReleaseReason = s.ReleaseReason
+    };
+
+    public static DiscoverySubmissionReleaseRequest ToModel(this DiscoverySubmissionReleaseRequestDto dto) =>
+        new() { ETag = dto.ETag, Reason = dto.Reason };
+
+    public static DiscoveryReportReleaseRequest ToModel(this DiscoveryReportReleaseRequestDto dto) =>
+        new() { Reason = dto.Reason };
+
+    public static DiscoverySubmissionItemOutcomeDto[]? ToDtos(this IEnumerable<DiscoverySubmissionItemOutcome>? outcomes) =>
+        outcomes?.Select(x => new DiscoverySubmissionItemOutcomeDto
+        {
+            ResultId = x.ResultId,
+            State = x.State.ToString(),
+            EpisodeId = x.EpisodeId,
+            PodcastId = x.PodcastId,
+            Message = x.Message,
+            Error = x.Error,
+            Attempts = x.Attempts,
+            LastAttemptAt = x.LastAttemptAt
+        }).ToArray();
+
+    public static DiscoverySubmissionRetryRequest ToModel(this DiscoverySubmissionRetryRequestDto dto) => new()
+    {
+        ETag = dto.ETag,
+        AbandonResultIds = dto.AbandonResultIds
     };
 
     public static DiscoverySubmissionDetailResponse ToDto(this DiscoverySubmissionDetail detail)
@@ -58,6 +88,9 @@ public static class DiscoverySubmissionExtensions
             AppliedAt = s.AppliedAt,
             ApplyError = s.ApplyError,
             ErroredResultIds = s.ErroredResultIds,
+            ItemOutcomes = s.ItemOutcomes.ToDtos(),
+            ReleasedAt = s.ReleasedAt,
+            ReleaseReason = s.ReleaseReason,
             Reports = detail.Reports.Select(r => new DiscoverySubmissionReportDto
             {
                 Id = r.Id,
@@ -98,6 +131,8 @@ public static class DiscoverySubmissionExtensions
         AddedBySupervisorResultIds = result.Diff?.Added,
         RemovedBySupervisorResultIds = result.Diff?.Removed,
         Message = result.Message,
-        Outcome = result.Outcome?.ToDto()
+        Ids = result.InvalidIds?.ToArray(),
+        Outcome = result.Outcome?.ToDto(),
+        ItemOutcomes = result.ItemOutcomes.ToDtos()
     };
 }

@@ -94,6 +94,22 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(160)]
     public Guid[]? ErroredResultIds { get; set; }
 
+    /// <summary>
+    /// Per-result outcome of apply/retry for every result in the applied final set. <c>null</c> until an apply
+    /// attempted ingestion.
+    /// </summary>
+    [JsonPropertyName("itemOutcomes")]
+    [JsonPropertyOrder(170)]
+    public DiscoverySubmissionItemOutcome[]? ItemOutcomes { get; set; }
+
+    [JsonPropertyName("releasedAt")]
+    [JsonPropertyOrder(180)]
+    public DateTime? ReleasedAt { get; set; }
+
+    [JsonPropertyName("releaseReason")]
+    [JsonPropertyOrder(190)]
+    public string? ReleaseReason { get; set; }
+
     [JsonPropertyName("history")]
     [JsonPropertyOrder(200)]
     public DiscoverySubmissionHistoryEntry[] History { get; set; } = [];
@@ -108,7 +124,61 @@ public enum DiscoverySubmissionStatus
     None = 0,
     Pending,
     Applied,
-    ApplyFailed
+    ApplyFailed,
+
+    /// <summary>Apply ingested some results but others failed; failed items await retry or abandonment.</summary>
+    PartiallyApplied,
+
+    /// <summary>Terminal: a supervisor released the held reports back to Unprocessed; nothing was ingested.</summary>
+    Released
+}
+
+public enum DiscoverySubmissionItemState
+{
+    None = 0,
+    Succeeded,
+    Failed,
+
+    /// <summary>A failed item the supervisor chose not to retry.</summary>
+    Abandoned
+}
+
+public sealed class DiscoverySubmissionItemOutcome
+{
+    [JsonPropertyName("resultId")]
+    [JsonPropertyOrder(10)]
+    public Guid ResultId { get; set; }
+
+    [JsonPropertyName("state")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    [JsonPropertyOrder(20)]
+    public DiscoverySubmissionItemState State { get; set; }
+
+    [JsonPropertyName("episodeId")]
+    [JsonPropertyOrder(30)]
+    public Guid? EpisodeId { get; set; }
+
+    [JsonPropertyName("podcastId")]
+    [JsonPropertyOrder(40)]
+    public Guid? PodcastId { get; set; }
+
+    /// <summary>Submit outcome (e.g. Created/Enriched/Error) from the URL submitter.</summary>
+    [JsonPropertyName("message")]
+    [JsonPropertyOrder(50)]
+    public string? Message { get; set; }
+
+    /// <summary>Why it failed. <c>null</c> on success.</summary>
+    [JsonPropertyName("error")]
+    [JsonPropertyOrder(60)]
+    public string? Error { get; set; }
+
+    [JsonPropertyName("attempts")]
+    [JsonPropertyOrder(70)]
+    public int Attempts { get; set; }
+
+    [JsonPropertyName("lastAttemptAt")]
+    [JsonPropertyOrder(80)]
+    public DateTime? LastAttemptAt { get; set; }
 }
 
 public sealed class DiscoverySubmissionItemComment

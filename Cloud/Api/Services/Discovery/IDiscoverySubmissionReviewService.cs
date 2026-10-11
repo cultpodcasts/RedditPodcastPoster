@@ -16,4 +16,21 @@ public interface IDiscoverySubmissionReviewService
 
     Task<DiscoverySubmissionCommandResult> Apply(Guid submissionId, DiscoverySubmissionApplyRequest request,
         SupervisionCaller caller, CancellationToken c);
+
+    /// <summary>Resubmits only Failed items of a partially/failed applied submission; optionally abandons some.</summary>
+    Task<DiscoverySubmissionCommandResult> Retry(Guid submissionId, DiscoverySubmissionRetryRequest request,
+        SupervisionCaller caller, CancellationToken c);
+
+    /// <summary>
+    /// Releases a not-yet-ingested submission: its held reports go back to Unprocessed (guarded) and the submission
+    /// becomes Released. Ingests nothing.
+    /// </summary>
+    Task<DiscoverySubmissionCommandResult> Release(Guid submissionId, DiscoverySubmissionReleaseRequest request,
+        SupervisionCaller caller, CancellationToken c);
+
+    /// <summary>
+    /// Admin only: returns a report stuck in PendingSupervisor with no live (unapplied) submission to Unprocessed.
+    /// </summary>
+    Task<DiscoverySubmissionCommandResult> ReleaseStuckReport(Guid documentId, DiscoveryReportReleaseRequest request,
+        SupervisionCaller caller, CancellationToken c);
 }

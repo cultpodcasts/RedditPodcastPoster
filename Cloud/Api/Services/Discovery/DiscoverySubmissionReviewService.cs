@@ -8,6 +8,7 @@ namespace Api.Services.Discovery;
 public class DiscoverySubmissionReviewService(
     IDiscoverySubmissionsRepository discoverySubmissionsRepository,
     IDiscoveryResultsService discoveryResultsService,
+    IDiscoveryResultsRepository discoveryResultsRepository,
     IDiscoveryCurationSubmitService discoveryCurationSubmitService,
     TimeProvider timeProvider,
     ILogger<DiscoverySubmissionReviewService> logger) : IDiscoverySubmissionReviewService
@@ -17,6 +18,11 @@ public class DiscoverySubmissionReviewService(
     public const string AppliedAction = "Applied";
     public const string ApplyFailedAction = "ApplyFailed";
     public const string ApplyConflictAction = "ApplyConflict";
+    public const string PartiallyAppliedAction = "PartiallyApplied";
+    public const string RetryStartedAction = "RetryStarted";
+    public const string ItemsAbandonedAction = "ItemsAbandoned";
+    public const string ReleaseStartedAction = "ReleaseStarted";
+    public const string ReleasedAction = "Released";
     public const int MaxCommentLength = 4000;
 
     public async Task<DiscoverySubmissionQueryResult<DiscoverySubmissionList>> List(SupervisionCaller caller,
@@ -30,6 +36,8 @@ public class DiscoverySubmissionReviewService(
                         .ToListAsync(c))
                     .Concat(await discoverySubmissionsRepository.GetByStatus(DiscoverySubmissionStatus.ApplyFailed, c)
                         .ToListAsync(c))
+                    .Concat(await discoverySubmissionsRepository
+                        .GetByStatus(DiscoverySubmissionStatus.PartiallyApplied, c).ToListAsync(c))
                     .Where(x => DiscoverySubmissionRules.CanReview(caller, x))
                     .OrderBy(x => x.SubmittedAt)
                     .ToArray();
@@ -199,17 +207,7 @@ public class DiscoverySubmissionReviewService(
         }, c);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        if (result.Status == DiscoveryCurationSubmitStatus.Ok)
-        {
-            var errored = result.Outcome!.Results.Where(x => x.Message == "Error").Select(x => x.DiscoveryItemId)
-                .ToArray();
-            submission.Status = DiscoverySubmissionStatus.Applied;
-            submission.AppliedAt = now;
-            submission.ErroredResultIds = errored;
-            submission.AppliedResultCount = finalSet.Length - errored.Length;
-            AppendHistory(submission, caller.Subject, AppliedAction);
-        }
-        else if (result.Status == DiscoveryCurationSubmitStatus.Conflict)
+        if (result.Status == DiscoveryCurationSubmitStatus.Conflict)
         {
             // The guarded PendingSupervisor -> Processed claim failed before any ingest; nothing happened.
             AppendHistory(submission, caller.Subject, ApplyConflictAction);
@@ -218,29 +216,304 @@ public class DiscoverySubmissionReviewService(
                 "One or more reports are no longer held for this submission.",
                 InvalidIds: result.UnavailableDocumentIds);
         }
+
+        if (result.Outcome != null)
+        {
+            // Ingestion was attempted: from here the submission (not report state) tracks what is left to do.
+            MergeOutcomes(submission, finalSet, result.Outcome, now,
+                aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
+            submission.AppliedAt = now;
+            submission.Status = DiscoverySubmissionRules.DeriveStatus(submission.ItemOutcomes!);
+            submission.ApplyError = submission.Status == DiscoverySubmissionStatus.Applied
+                ? null
+                : "One or more results failed to ingest; retry or abandon them.";
+            AppendHistory(submission, caller.Subject, HistoryActionFor(submission.Status));
+        }
         else
         {
             submission.Status = DiscoverySubmissionStatus.ApplyFailed;
-            submission.ApplyError = "Ingest failed.";
+            submission.ApplyError =
+                "Apply failed before any result was submitted; reports were returned to PendingSupervisor.";
             AppendHistory(submission, caller.Subject, ApplyFailedAction);
         }
 
-        var finalETag = await discoverySubmissionsRepository.TryReplace(submission, claimedETag, c);
-        if (finalETag == null)
+        return await Finish(submission, claimedETag, caller, result.Outcome, c);
+    }
+
+    public async Task<DiscoverySubmissionCommandResult> Retry(Guid submissionId,
+        DiscoverySubmissionRetryRequest request, SupervisionCaller caller, CancellationToken c)
+    {
+        var submission = await discoverySubmissionsRepository.GetById(submissionId, c);
+        if (submission == null)
         {
-            logger.LogError("Submission '{SubmissionId}' changed during apply; outcome {Status} not recorded.",
-                submissionId, submission.Status);
+            return new(DiscoverySubmissionCommandStatus.NotFound);
         }
 
-        logger.LogInformation("Supervisor '{Supervisor}' applied submission '{SubmissionId}': {Status}.",
-            caller.Subject, submissionId, submission.Status);
+        if (!DiscoverySubmissionRules.CanReview(caller, submission))
+        {
+            return new(DiscoverySubmissionCommandStatus.Forbidden);
+        }
 
-        return submission.Status == DiscoverySubmissionStatus.Applied
-            ? new(DiscoverySubmissionCommandStatus.Ok, ETag: finalETag, SubmissionStatus: submission.Status,
-                Diff: CurrentDiff(submission), Outcome: result.Outcome)
-            : new(DiscoverySubmissionCommandStatus.ApplyFailed, submission.ApplyError, finalETag, submission.Status,
-                CurrentDiff(submission));
+        if (!DiscoverySubmissionRules.IsRetryable(submission))
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict,
+                $"Submission is {submission.Status} with no failed items to retry.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ETag) || request.ETag != submission.ETag)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
+        }
+
+        var failed = submission.ItemOutcomes!
+            .Where(x => x.State == DiscoverySubmissionItemState.Failed)
+            .Select(x => x.ResultId)
+            .ToHashSet();
+        var abandon = (request.AbandonResultIds ?? []).Distinct().ToArray();
+        var notFailed = abandon.Where(id => !failed.Contains(id)).ToArray();
+        if (notFailed.Length > 0)
+        {
+            return new(DiscoverySubmissionCommandStatus.Invalid, "Only failed items can be abandoned.",
+                InvalidIds: notFailed);
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        foreach (var item in submission.ItemOutcomes!.Where(x => abandon.Contains(x.ResultId)))
+        {
+            item.State = DiscoverySubmissionItemState.Abandoned;
+        }
+
+        if (abandon.Length > 0)
+        {
+            AppendHistory(submission, caller.Subject, ItemsAbandonedAction);
+        }
+
+        // Only items still Failed are resubmitted; Succeeded and Abandoned items are never re-ingested.
+        var toRetry = failed.Except(abandon).ToArray();
+        submission.SupervisorSubject = caller.Subject;
+        if (toRetry.Length == 0)
+        {
+            CloseOut(submission, caller.Subject);
+            return await Finish(submission, request.ETag, caller, null, c);
+        }
+
+        AppendHistory(submission, caller.Subject, RetryStartedAction);
+        var claimedETag = await discoverySubmissionsRepository.TryReplace(submission, request.ETag, c);
+        if (claimedETag == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
+        }
+
+        var result = await discoveryCurationSubmitService.RetryItemsAsync(new DiscoverySubmitRequest
+        {
+            DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
+            ResultIds = toRetry
+        }, c);
+
+        if (result.Outcome != null)
+        {
+            MergeOutcomes(submission, toRetry, result.Outcome, now,
+                aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
+        }
+        else
+        {
+            foreach (var item in submission.ItemOutcomes!.Where(x => toRetry.Contains(x.ResultId)))
+            {
+                item.Error = result.Status == DiscoveryCurationSubmitStatus.Conflict
+                    ? "Retry refused: a report is not Processed."
+                    : "Retry failed before this result was submitted.";
+                item.LastAttemptAt = now;
+            }
+        }
+
+        CloseOut(submission, caller.Subject);
+        return await Finish(submission, claimedETag, caller, result.Outcome, c);
     }
+
+    public async Task<DiscoverySubmissionCommandResult> Release(Guid submissionId,
+        DiscoverySubmissionReleaseRequest request, SupervisionCaller caller, CancellationToken c)
+    {
+        if (TooLong(request.Reason))
+        {
+            return new(DiscoverySubmissionCommandStatus.Invalid, $"Reason is limited to {MaxCommentLength} characters.");
+        }
+
+        // Only a submission with nothing ingested (reports still held) can be released.
+        var (submission, refusal) = await LoadReviewable(submissionId, request.ETag, caller, c);
+        if (refusal != null)
+        {
+            return refusal;
+        }
+
+        AppendHistory(submission!, caller.Subject, ReleaseStartedAction);
+        var claimedETag = await discoverySubmissionsRepository.TryReplace(submission!, request.ETag, c);
+        if (claimedETag == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
+        }
+
+        var notReleased = new List<Guid>();
+        foreach (var documentId in submission!.DiscoveryResultsDocumentIds)
+        {
+            if (!await discoveryResultsRepository.TryTransitionState(documentId,
+                    DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, c))
+            {
+                notReleased.Add(documentId);
+            }
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        submission.Status = DiscoverySubmissionStatus.Released;
+        submission.ReleasedAt = now;
+        submission.ReleaseReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        submission.SupervisorSubject = caller.Subject;
+        AppendHistory(submission, caller.Subject, ReleasedAction);
+        var finalETag = await discoverySubmissionsRepository.TryReplace(submission, claimedETag, c);
+        await discoveryResultsService.UpdateDiscoveryInfoContent();
+        if (notReleased.Count > 0)
+        {
+            logger.LogWarning("Released submission '{SubmissionId}' but reports were not held: {DocumentIds}.",
+                submissionId, string.Join(",", notReleased));
+        }
+
+        return new(DiscoverySubmissionCommandStatus.Ok,
+            notReleased.Count > 0 ? "Some reports were not held and were left unchanged." : null,
+            finalETag, submission.Status, InvalidIds: notReleased.Count > 0 ? notReleased : null);
+    }
+
+    public async Task<DiscoverySubmissionCommandResult> ReleaseStuckReport(Guid documentId,
+        DiscoveryReportReleaseRequest request, SupervisionCaller caller, CancellationToken c)
+    {
+        if (!caller.IsAdmin)
+        {
+            return new(DiscoverySubmissionCommandStatus.Forbidden);
+        }
+
+        var report = await discoveryResultsRepository.GetById(documentId);
+        if (report == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.NotFound);
+        }
+
+        if (report.State != DiscoveryResultsDocumentState.PendingSupervisor)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, $"Report is {report.State}, not PendingSupervisor.");
+        }
+
+        var live = (await discoverySubmissionsRepository.GetByStatus(DiscoverySubmissionStatus.Pending, c).ToListAsync(c))
+            .Concat(await discoverySubmissionsRepository.GetByStatus(DiscoverySubmissionStatus.ApplyFailed, c)
+                .ToListAsync(c))
+            .Where(x => DiscoverySubmissionRules.IsReviewable(x) && x.DiscoveryResultsDocumentIds.Contains(documentId))
+            .Select(x => x.Id)
+            .ToArray();
+        if (live.Length > 0)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict,
+                "Report is held by a live submission; release that submission instead.", InvalidIds: live);
+        }
+
+        if (!await discoveryResultsRepository.TryTransitionState(documentId,
+                DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, c))
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Report changed concurrently.");
+        }
+
+        logger.LogWarning("Admin '{Admin}' released stuck report '{DocumentId}' to Unprocessed. Reason: {Reason}.",
+            caller.Subject, documentId, request.Reason);
+        await discoveryResultsService.UpdateDiscoveryInfoContent();
+        return new(DiscoverySubmissionCommandStatus.Ok, "Report released to Unprocessed.");
+    }
+
+    private void CloseOut(DiscoverySubmission submission, string actor)
+    {
+        submission.Status = DiscoverySubmissionRules.DeriveStatus(submission.ItemOutcomes!);
+        submission.ApplyError = submission.Status == DiscoverySubmissionStatus.Applied
+            ? null
+            : "One or more results failed to ingest; retry or abandon them.";
+        RefreshCounts(submission);
+        AppendHistory(submission, actor, HistoryActionFor(submission.Status));
+    }
+
+    private async Task<DiscoverySubmissionCommandResult> Finish(DiscoverySubmission submission, string etag,
+        SupervisionCaller caller, DiscoverySubmitOutcome? outcome, CancellationToken c)
+    {
+        RefreshCounts(submission);
+        var finalETag = await discoverySubmissionsRepository.TryReplace(submission, etag, c);
+        if (finalETag == null)
+        {
+            logger.LogError("Submission '{SubmissionId}' changed concurrently; outcome {Status} not recorded.",
+                submission.Id, submission.Status);
+        }
+
+        logger.LogInformation("Supervisor '{Supervisor}' acted on submission '{SubmissionId}': {Status}.",
+            caller.Subject, submission.Id, submission.Status);
+
+        return new(
+            submission.Status == DiscoverySubmissionStatus.ApplyFailed
+                ? DiscoverySubmissionCommandStatus.ApplyFailed
+                : DiscoverySubmissionCommandStatus.Ok,
+            submission.ApplyError, finalETag, submission.Status, CurrentDiff(submission), outcome,
+            ItemOutcomes: submission.ItemOutcomes);
+    }
+
+    /// <summary>
+    /// Records per-result outcomes for <paramref name="targetIds"/>. Results the ingest never reached are Failed
+    /// with a reason, so they can be retried.
+    /// </summary>
+    private static void MergeOutcomes(DiscoverySubmission submission, IEnumerable<Guid> targetIds,
+        DiscoverySubmitOutcome outcome, DateTime now, bool aborted)
+    {
+        var byId = (submission.ItemOutcomes ?? []).ToDictionary(x => x.ResultId);
+        foreach (var id in targetIds)
+        {
+            if (!byId.TryGetValue(id, out var item))
+            {
+                item = new DiscoverySubmissionItemOutcome { ResultId = id };
+                byId[id] = item;
+            }
+
+            var attempt = outcome.Results.LastOrDefault(x => x.DiscoveryItemId == id);
+            item.LastAttemptAt = now;
+            if (attempt == null)
+            {
+                item.State = DiscoverySubmissionItemState.Failed;
+                item.Error = aborted
+                    ? "Not attempted: the run stopped before this result was submitted."
+                    : "Result not found in its report.";
+                continue;
+            }
+
+            item.Attempts++;
+            item.EpisodeId = attempt.EpisodeId;
+            item.PodcastId = attempt.PodcastId;
+            item.Message = attempt.Message;
+            var failedAttempt = attempt.Message == DiscoverySubmitItemOutcomeMessages.Error;
+            item.State = failedAttempt ? DiscoverySubmissionItemState.Failed : DiscoverySubmissionItemState.Succeeded;
+            item.Error = failedAttempt ? attempt.Error ?? "Submit failed." : null;
+        }
+
+        submission.ItemOutcomes = byId.Values.ToArray();
+    }
+
+    private static void RefreshCounts(DiscoverySubmission submission)
+    {
+        if (submission.ItemOutcomes == null)
+        {
+            return;
+        }
+
+        submission.ErroredResultIds = submission.ItemOutcomes
+            .Where(x => x.State == DiscoverySubmissionItemState.Failed).Select(x => x.ResultId).ToArray();
+        submission.AppliedResultCount =
+            submission.ItemOutcomes.Count(x => x.State == DiscoverySubmissionItemState.Succeeded);
+    }
+
+    private static string HistoryActionFor(DiscoverySubmissionStatus status) => status switch
+    {
+        DiscoverySubmissionStatus.Applied => AppliedAction,
+        DiscoverySubmissionStatus.PartiallyApplied => PartiallyAppliedAction,
+        _ => ApplyFailedAction
+    };
 
     private async Task<(DiscoverySubmission? Submission, DiscoverySubmissionCommandResult? Refusal)> LoadReviewable(
         Guid submissionId, string etag, SupervisionCaller caller, CancellationToken c,

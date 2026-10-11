@@ -132,6 +132,24 @@ public class DiscoverySubmissionRulesTests
         canReview.Should().BeFalse();
     }
 
+    [Theory(DisplayName =
+        "Submission status after ingest: Applied when nothing is Failed (abandoned items count as closed), PartiallyApplied when some succeeded and some failed, ApplyFailed when only failures remain.")]
+    [InlineData(new[] { DiscoverySubmissionItemState.Succeeded, DiscoverySubmissionItemState.Abandoned }, DiscoverySubmissionStatus.Applied)]
+    [InlineData(new[] { DiscoverySubmissionItemState.Succeeded, DiscoverySubmissionItemState.Failed }, DiscoverySubmissionStatus.PartiallyApplied)]
+    [InlineData(new[] { DiscoverySubmissionItemState.Failed, DiscoverySubmissionItemState.Abandoned }, DiscoverySubmissionStatus.ApplyFailed)]
+    public void derive_status(DiscoverySubmissionItemState[] states, DiscoverySubmissionStatus expected)
+    {
+        // Arrange
+        var outcomes = states.Select(s => new DiscoverySubmissionItemOutcome { ResultId = _fixture.Create<Guid>(), State = s })
+            .ToArray();
+
+        // Act
+        var status = DiscoverySubmissionRules.DeriveStatus(outcomes);
+
+        // Assert
+        status.Should().Be(expected);
+    }
+
     private static SupervisionCaller Supervisor(string subject) => new(subject, IsAdmin: false, IsSupervisor: true);
 
     private DiscoverySubmission Submission(params string[] supervisors) => new()

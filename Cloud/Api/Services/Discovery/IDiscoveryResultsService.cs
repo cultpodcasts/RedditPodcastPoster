@@ -31,6 +31,9 @@ public interface IDiscoveryResultsService
     /// <summary>Returns claimed reports Processed -> PendingSupervisor after a failed supervisor apply.</summary>
     Task ReleaseHeldClaim(Guid[] documentIds);
 
+    /// <summary>On Processed reports, sets only the given results to Accepted / AcceptError (retry outcome).</summary>
+    Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds);
+
     Task<IReadOnlyDictionary<Guid, DiscoveryPodcastInfo>> GetPodcastInfo(IEnumerable<DiscoveryResult> results,
         CancellationToken c);
 

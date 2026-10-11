@@ -202,7 +202,17 @@ submits are **held**, not applied, until a supervisor reviews and applies them.
 | Entity | States |
 |--------|--------|
 | Discovery report (`DiscoveryResultsDocument.state`) | `Unprocessed` → `PendingSupervisor` → `Processed` |
-| Submission (`DiscoverySubmission.status`) | `Pending` → `Applied` \| `ApplyFailed` (`ApplyFailed` may be retried; there is no reject/return) |
+| Submission (`DiscoverySubmission.status`) | `Pending` → `Applied` \| `PartiallyApplied` \| `ApplyFailed`, or `Pending` → `Released` (no reject/return) |
+
+Submission statuses:
+
+| Status | Meaning | In supervisor queue |
+|--------|---------|---------------------|
+| `Pending` | Held, nothing ingested | yes |
+| `ApplyFailed` | Apply failed. With no `itemOutcomes`: failed before any submit, reports back in `PendingSupervisor` (apply again or release). With `itemOutcomes`: every attempted item failed (retry/abandon) | yes |
+| `PartiallyApplied` | Some items ingested, some `Failed`; reports are `Processed` | yes |
+| `Applied` | Terminal; every item `Succeeded` or `Abandoned` | no |
+| `Released` | Terminal; supervisor released the held reports to `Unprocessed`, nothing ingested | no |
 
 - Only `Processed` reports are ingested as episodes.
 - **Only a supervisor apply can promote a `PendingSupervisor` report to `Processed`.** A `curate:supervised`
@@ -228,18 +238,20 @@ Unknown permission → **401** (controller gate). Permitted but not allowed for 
 
 ### GET `DiscoverySubmissions`
 
-Query. Supervisor/admin: reviewable queue (`Pending` + `ApplyFailed` the caller may review), oldest first.
+Query. Supervisor/admin: reviewable queue (`Pending` + `ApplyFailed` + `PartiallyApplied` the caller may review), oldest first.
 Supervised curator: their own submissions (any status), newest first.
 
 ```json
 {
   "view": "supervisor",            // or "submitter"
-  "pendingCount": 2,               // badge count (supervisor: queue length; submitter: own Pending)
+  "pendingCount": 2,               // badge count (supervisor: queue length incl. failures; submitter: own Pending)
   "submissions": [{
     "id": "guid", "status": "Pending", "submitterSubject": "auth0|…", "submittedAt": "…Z",
     "discoveryResultsDocumentIds": ["guid"], "submitterAcceptedCount": 3,
     "supervisorSubject": null, "appliedAt": null, "reportComment": null,
-    "itemCommentCount": 0, "applyError": null
+    "itemCommentCount": 0, "applyError": null,
+    "failedCount": null, "succeededCount": null, "abandonedCount": null,   // null until an apply ingested
+    "releasedAt": null, "releaseReason": null
   }]
 }
 ```
@@ -257,6 +269,14 @@ Query. Submitter or an allowed supervisor; otherwise 403; unknown id 404.
   "reportComment": null,
   "itemComments": [{ "resultId": "guid", "comment": "…" }],
   "supervisorSubject": null, "appliedAt": null, "applyError": null, "erroredResultIds": null,
+  "itemOutcomes": [{                // null until an apply attempted ingestion
+    "resultId": "guid", "state": "Failed",          // Succeeded | Failed | Abandoned
+    "episodeId": null, "podcastId": null,
+    "message": "Error",                              // ingester outcome (e.g. Created, Enriched, Error)
+    "error": "HttpRequestException: …",              // why it failed; null unless last attempt failed
+    "attempts": 1, "lastAttemptAt": "…Z"
+  }],
+  "releasedAt": null, "releaseReason": null,
   "reports": [{
     "id": "guid", "discoveryBegan": "…Z", "state": "PendingSupervisor",
     "results": [ /* every result, same item shape as GET DiscoveryCuration (incl. autoHidden) */ ]
@@ -265,7 +285,7 @@ Query. Submitter or an allowed supervisor; otherwise 403; unknown id 404.
 }
 ```
 
-History actions: `Submitted`, `ReviewSaved`, `ApplyStarted`, `Applied`, `ApplyFailed`, `ApplyConflict`.
+History actions: `Submitted`, `ReviewSaved`, `ApplyStarted`, `Applied`, `PartiallyApplied`, `ApplyFailed`, `ApplyConflict`, `RetryStarted`, `ItemsAbandoned`, `ReleaseStarted`, `Released`.
 
 ### PUT `DiscoverySubmissions/{submissionId}/review`
 
@@ -285,7 +305,7 @@ Command (`supervise`/`admin`). Saves a draft review; nothing is ingested. Omitte
 ```json
 { "submissionId": "guid", "status": "Pending", "etag": "\"…\"",
   "addedBySupervisorResultIds": ["guid"], "removedBySupervisorResultIds": ["guid"],
-  "message": null, "outcome": null }
+  "message": null, "ids": null, "outcome": null, "itemOutcomes": null }
 ```
 
 Errors: **400** ids outside the held reports (`message`) or comment over 4000 chars; **409** stale `etag` or the
@@ -303,14 +323,50 @@ Command (`supervise`/`admin`). Body `{ "etag": "…", "acceptedResultIds": ["gui
    (history `ApplyConflict`).
 4. Replays the normal discovery ingest with the final set, stamps result states (`Accepted`/`Rejected`/`AcceptError`),
    re-indexes search.
-5. Records `Applied`, `supervisorSubject`, `appliedAt`, `appliedResultCount`, `erroredResultIds`.
+5. Records per-item outcomes (`itemOutcomes`) and derives the status: `Applied` (all succeeded),
+   `PartiallyApplied` (some failed) or `ApplyFailed` (all failed). Items the run never reached (aborted
+   part-way) are `Failed` with a reason. Also records `supervisorSubject`, `appliedAt`.
 
-**200** command outcome: same shape as review, with `status: "Applied"` and `outcome` = the
-`POST DiscoveryCuration` response body (`message`, `errorsOccurred`, `results`, `searchIndexerState`).
-Re-applying an `Applied` submission is a no-op **200** with `message: "Already applied."`.
+**200** command outcome (`status` `Applied` or `PartiallyApplied`), same shape as review plus `outcome` (this run,
+same shape as the `POST DiscoveryCuration` response, each item now with a nullable `error` reason) and
+`itemOutcomes` (cumulative). Re-applying an `Applied` submission is a no-op **200** (`message: "Already applied."`).
+Apply on `PartiallyApplied`, or `ApplyFailed` with outcomes, is **409** (use retry; never re-ingests).
 
-On ingest failure: **500** with `status: "ApplyFailed"` and `message`; the submission stays in the queue
-and, if the failure happened before any episode submit, its reports are returned to `PendingSupervisor` for a retry (once an episode submit was attempted they stay `Processed` to avoid double ingestion) (with the new `etag` from a fresh GET).
+**500** with `status: "ApplyFailed"`: either every item failed (see `itemOutcomes`, use retry), or the run failed before
+any episode submit, in which case `itemOutcomes` is null and the reports were returned to `PendingSupervisor`
+(apply again or release). Once an episode submit was attempted reports stay `Processed` (no double ingestion).
+
+> Note: an ingester result that is not an exception (e.g. `NoUrls`, `DifferentPodcasts`) counts as `Succeeded`
+> with that `message`, matching the existing `Accepted` result state; only exceptions are `Failed`.
+
+### POST `DiscoverySubmissions/{submissionId}/retry`
+
+Command (`supervise`/`admin`). For `PartiallyApplied`, or `ApplyFailed` with `itemOutcomes`. Gated by submission
+state, not report state (reports are `Processed`). Body:
+
+```json
+{ "etag": "\"…\"", "abandonResultIds": ["guid"] }   // optional: failed items to drop instead of retrying
+```
+
+Resubmits **only** items still `Failed` (never `Succeeded` or `Abandoned`), restamps only those results on their
+reports, updates `itemOutcomes` (attempts, error), and re-derives status (`Applied` when nothing is `Failed`).
+Abandoning all failed items closes the submission as `Applied` without ingesting. **200** command outcome as apply.
+Errors: **400** abandoning an id that is not `Failed` (`ids`); **409** stale etag or nothing to retry; **403**/**404**.
+
+### POST `DiscoverySubmissions/{submissionId}/release`
+
+Command (`supervise`/`admin`; never `curate:supervised`). Releases the lock on a submission that has ingested
+nothing (`Pending`, or `ApplyFailed` without `itemOutcomes`). Body `{ "etag": "…", "reason": "…" | null }`.
+Moves each held report `PendingSupervisor` → `Unprocessed` (guarded), sets `status: "Released"`, `releasedAt`,
+`releaseReason`, history `ReleaseStarted`/`Released`. Ingests nothing. **200** command outcome; `ids` lists reports
+that were not held (left unchanged). **409** stale etag or submission already ingested/terminal.
+
+### POST `DiscoveryReports/{documentId}/release` (admin)
+
+Admin only (`admin`; not `supervise`, never `curate:supervised`). Returns a report stuck in `PendingSupervisor`
+with no live submission (no `Pending`/unapplied `ApplyFailed` submission listing it) to `Unprocessed` (guarded).
+Body `{ "reason": "…" | null }` (logged). **200** `{ "documentId", "status": "Released", "message" }`;
+**409** if not `PendingSupervisor` or still held by a live submission (`submissionIds` lists them); **404** unknown.
 
 ### AI-teaching data
 
@@ -512,6 +568,6 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 | `Cloud/Api/Dtos/DiscoveryResponse*.cs` | Response DTOs |
 | `Class-Libraries/RedditPodcastPoster.Models/DiscoveryResult.cs` | Persisted fields including scorer |
 | `Cloud/Api/Controllers/DiscoverySubmissionsController.cs` | Supervised-submission routes and permission gates |
-| `Cloud/Api/Services/Discovery/DiscoverySubmissionReviewService.cs` | List/get/review/apply |
+| `Cloud/Api/Services/Discovery/DiscoverySubmissionReviewService.cs` | List/get/review/apply/retry/release |
 | `Cloud/Api/Services/Discovery/DiscoverySubmissionRules.cs` | Who may review; supervisor diff |
 | `Class-Libraries/RedditPodcastPoster.Models/Discovery/DiscoverySubmission.cs` | Persisted submission |

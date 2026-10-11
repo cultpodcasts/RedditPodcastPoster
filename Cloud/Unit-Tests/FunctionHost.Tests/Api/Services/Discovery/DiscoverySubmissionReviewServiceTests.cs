@@ -19,11 +19,15 @@ public class DiscoverySubmissionReviewServiceTests
     private readonly List<DiscoverySubmitRequest> _applied = [];
     private DiscoverySubmission? _submission;
     private IReadOnlyList<DiscoveryResultsDocument> _documents = [];
-    private DiscoveryCurationSubmitResult _applyResult = new(DiscoveryCurationSubmitStatus.Failed);
+    private readonly List<DiscoverySubmitRequest> _retried = [];
+    private Func<DiscoverySubmitRequest, DiscoveryCurationSubmitResult> _ingest =
+        _ => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
     private bool _refuseReplace;
+    private readonly string _failureReason;
 
     public DiscoverySubmissionReviewServiceTests()
     {
+        _failureReason = _fixture.Create<string>();
         _mocker.Use(TimeProvider.System);
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.GetById(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -46,7 +50,18 @@ public class DiscoverySubmissionReviewServiceTests
         _mocker.GetMock<IDiscoveryCurationSubmitService>()
             .Setup(s => s.ApplyHeldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
             .Callback((DiscoverySubmitRequest r, CancellationToken _) => _applied.Add(r))
-            .ReturnsAsync(() => _applyResult);
+            .ReturnsAsync((DiscoverySubmitRequest r, CancellationToken _) => _ingest(r));
+        _mocker.GetMock<IDiscoveryCurationSubmitService>()
+            .Setup(s => s.RetryItemsAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((DiscoverySubmitRequest r, CancellationToken _) => _retried.Add(r))
+            .ReturnsAsync((DiscoverySubmitRequest r, CancellationToken _) => _ingest(r));
+        _mocker.GetMock<IDiscoverySubmissionsRepository>()
+            .Setup(r => r.GetByStatus(It.IsAny<DiscoverySubmissionStatus>(), It.IsAny<CancellationToken>()))
+            .Returns(AsyncEnumerable.Empty<DiscoverySubmission>());
+        _mocker.GetMock<IDiscoveryResultsRepository>()
+            .Setup(r => r.TryTransitionState(It.IsAny<Guid>(), It.IsAny<DiscoveryResultsDocumentState>(),
+                It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
     }
 
     [Fact(DisplayName =
@@ -55,7 +70,7 @@ public class DiscoverySubmissionReviewServiceTests
     {
         // Arrange
         var (report, kept, dropped, missed) = ArrangeHeldSubmission();
-        _applyResult = Ok();
+        _ingest = Ingest();
         var supervisor = Supervisor();
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
@@ -101,7 +116,7 @@ public class DiscoverySubmissionReviewServiceTests
     {
         // Arrange
         ArrangeHeldSubmission();
-        _applyResult = new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
+        _ingest = _ => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
@@ -213,7 +228,7 @@ public class DiscoverySubmissionReviewServiceTests
         // Arrange
         var (_, _, _, missed) = ArrangeHeldSubmission();
         _submission!.SupervisorAcceptedResultIds = [missed];
-        _applyResult = Ok();
+        _ingest = Ingest();
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
@@ -276,7 +291,7 @@ public class DiscoverySubmissionReviewServiceTests
     }
 
     [Fact(DisplayName =
-        "A supervisor's list is the queue of Pending and ApplyFailed submissions they may review, with a count, excluding submissions mapped to other supervisors.")]
+        "A supervisor's list is the queue of Pending, ApplyFailed and PartiallyApplied submissions they may review, with a count, excluding submissions mapped to other supervisors.")]
     public async Task supervisor_list_is_reviewable_queue_with_count()
     {
         // Arrange
@@ -340,6 +355,328 @@ public class DiscoverySubmissionReviewServiceTests
         result.Status.Should().Be(DiscoverySubmissionQueryStatus.Forbidden);
     }
 
+    [Fact(DisplayName =
+        "When some results fail during apply, the submission becomes PartiallyApplied and records each result's outcome, with the failure reason on failed items, because a supervisor must see and deal with what failed.")]
+    public async Task partial_failure_records_item_outcomes()
+    {
+        // Arrange
+        var (_, kept, dropped, _) = ArrangeHeldSubmission();
+        _ingest = Ingest(dropped);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.PartiallyApplied);
+        var final = _replaced.Last();
+        final.Status.Should().Be(DiscoverySubmissionStatus.PartiallyApplied);
+        final.ItemOutcomes.Should().ContainSingle(x => x.ResultId == kept).Which.State
+            .Should().Be(DiscoverySubmissionItemState.Succeeded);
+        var failed = final.ItemOutcomes!.Single(x => x.ResultId == dropped);
+        failed.State.Should().Be(DiscoverySubmissionItemState.Failed);
+        failed.Error.Should().Be(_failureReason);
+        final.ErroredResultIds.Should().Equal(dropped);
+    }
+
+    [Fact(DisplayName =
+        "When the apply run aborts part-way, results it never reached are recorded Failed with a reason, so they can be retried rather than silently lost.")]
+    public async Task aborted_apply_marks_unreached_items_failed()
+    {
+        // Arrange
+        var (_, kept, dropped, _) = ArrangeHeldSubmission();
+        _ingest = r => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed,
+            new DiscoverySubmitOutcome("Failure", true,
+                [new DiscoverySubmitItemOutcome(kept, _fixture.Create<Guid>(), _fixture.Create<Guid>(), "Created")],
+                new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        await sut.Apply(_submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
+
+        // Assert
+        var final = _replaced.Last();
+        final.Status.Should().Be(DiscoverySubmissionStatus.PartiallyApplied);
+        final.ItemOutcomes!.Single(x => x.ResultId == dropped).Should().Match<DiscoverySubmissionItemOutcome>(x =>
+            x.State == DiscoverySubmissionItemState.Failed && x.Error != null && x.Attempts == 0);
+    }
+
+    [Fact(DisplayName =
+        "INVARIANT: Retry resubmits only the Failed items and never re-ingests Succeeded ones; when they all succeed the submission becomes Applied.")]
+    public async Task retry_resubmits_only_failed()
+    {
+        // Arrange
+        var (succeeded, failed) = ArrangePartiallyApplied();
+        _ingest = Ingest();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Applied);
+        _retried.Should().ContainSingle().Which.ResultIds.Should().Equal(failed);
+        _retried.Single().ResultIds.Should().NotContain(succeeded);
+        _applied.Should().BeEmpty();
+        var final = _replaced.Last();
+        final.ItemOutcomes!.Single(x => x.ResultId == failed).Should().Match<DiscoverySubmissionItemOutcome>(x =>
+            x.State == DiscoverySubmissionItemState.Succeeded && x.Error == null && x.Attempts == 2);
+        final.History.Select(h => h.Action).Should().Contain(DiscoverySubmissionReviewService.RetryStartedAction);
+    }
+
+    [Fact(DisplayName =
+        "When a retried item fails again, the submission stays PartiallyApplied (still in the queue) with the new failure reason.")]
+    public async Task retry_failing_again_stays_partially_applied()
+    {
+        // Arrange
+        var (_, failed) = ArrangePartiallyApplied();
+        _ingest = Ingest(failed);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.PartiallyApplied);
+        _replaced.Last().ItemOutcomes!.Single(x => x.ResultId == failed).Error.Should().Be(_failureReason);
+    }
+
+    [Fact(DisplayName =
+        "When the supervisor abandons every failed item, nothing is resubmitted and the submission closes as Applied with those items Abandoned.")]
+    public async Task abandoning_failed_items_closes_submission()
+    {
+        // Arrange
+        var (_, failed) = ArrangePartiallyApplied();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(failed), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Applied);
+        _retried.Should().BeEmpty();
+        var final = _replaced.Last();
+        final.ItemOutcomes!.Single(x => x.ResultId == failed).State.Should().Be(DiscoverySubmissionItemState.Abandoned);
+        final.History.Select(h => h.Action).Should().Contain(DiscoverySubmissionReviewService.ItemsAbandonedAction);
+    }
+
+    [Fact(DisplayName =
+        "A succeeded item cannot be abandoned or retried: the request is rejected as invalid and nothing is resubmitted.")]
+    public async Task cannot_abandon_succeeded_item()
+    {
+        // Arrange
+        var (succeeded, _) = ArrangePartiallyApplied();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(succeeded), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
+        result.InvalidIds.Should().Equal(succeeded);
+        _retried.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Retrying a submission with no failed items (e.g. Applied) is refused as a conflict and nothing is resubmitted.")]
+    public async Task cannot_retry_without_failed_items()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        _submission!.Status = DiscoverySubmissionStatus.Applied;
+        foreach (var item in _submission.ItemOutcomes!)
+        {
+            item.State = DiscoverySubmissionItemState.Succeeded;
+        }
+
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
+        _retried.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A full apply is refused on a PartiallyApplied submission, because re-applying would re-ingest results that already succeeded.")]
+    public async Task apply_refused_after_partial_apply()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
+        _applied.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the submission names its supervisors, a non-mapped supervisor's retry is forbidden and nothing is resubmitted.")]
+    public async Task unmapped_supervisor_retry_forbidden()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        _submission!.SupervisorSubjects = [_fixture.Create<string>()];
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Forbidden);
+        _retried.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Releasing a Pending submission returns each held report PendingSupervisor to Unprocessed (guarded), marks the submission Released with the reason, and ingests nothing.")]
+    public async Task release_returns_reports_and_ingests_nothing()
+    {
+        // Arrange
+        var (report, _, _, _) = ArrangeHeldSubmission();
+        var reason = _fixture.Create<string>();
+        var supervisor = Supervisor();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Release(_submission!.Id,
+            new DiscoverySubmissionReleaseRequest { ETag = _submission.ETag!, Reason = reason }, supervisor,
+            CancellationToken.None);
+
+        // Assert
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Released);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(report.Id,
+            DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed,
+            It.IsAny<CancellationToken>()), Times.Once);
+        var final = _replaced.Last();
+        final.Status.Should().Be(DiscoverySubmissionStatus.Released);
+        final.ReleaseReason.Should().Be(reason);
+        final.ReleasedAt.Should().NotBeNull();
+        final.History.Select(h => h.Action).Should().EndWith(DiscoverySubmissionReviewService.ReleasedAction);
+        _applied.Should().BeEmpty();
+        _retried.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A submission whose apply already ingested results cannot be released, because its reports are Processed and episodes exist.")]
+    public async Task cannot_release_after_ingest()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Release(_submission!.Id,
+            new DiscoverySubmissionReleaseRequest { ETag = _submission.ETag! }, Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(It.IsAny<Guid>(),
+            It.IsAny<DiscoveryResultsDocumentState>(), DiscoveryResultsDocumentState.Unprocessed,
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Releasing with a stale ETag is refused as a conflict and no report is touched.")]
+    public async Task release_with_stale_etag_refused()
+    {
+        // Arrange
+        ArrangeHeldSubmission();
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Release(_submission!.Id,
+            new DiscoverySubmissionReleaseRequest { ETag = _fixture.Create<string>() }, Supervisor(),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
+        _replaced.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Only an admin may release a stuck report; a supervisor is forbidden and the report is untouched.")]
+    public async Task stuck_report_release_requires_admin()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.ReleaseStuckReport(_fixture.Create<Guid>(), new DiscoveryReportReleaseRequest(),
+            Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Forbidden);
+    }
+
+    [Fact(DisplayName =
+        "An admin cannot release a report still held by a live submission; the conflict names that submission, because releasing it must go through the submission.")]
+    public async Task stuck_report_release_refused_when_live_submission_holds_it()
+    {
+        // Arrange
+        var (report, _, _, _) = ArrangeHeldSubmission();
+        _mocker.GetMock<IDiscoveryResultsRepository>().Setup(r => r.GetById(report.Id)).ReturnsAsync(report);
+        _mocker.GetMock<IDiscoverySubmissionsRepository>()
+            .Setup(r => r.GetByStatus(DiscoverySubmissionStatus.Pending, It.IsAny<CancellationToken>()))
+            .Returns(new[] { _submission! }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.ReleaseStuckReport(report.Id, new DiscoveryReportReleaseRequest(), Admin(),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
+        result.InvalidIds.Should().Equal(_submission!.Id);
+    }
+
+    [Fact(DisplayName =
+        "An admin can release a PendingSupervisor report that no live submission holds back to Unprocessed (guarded).")]
+    public async Task stuck_report_released_by_admin()
+    {
+        // Arrange
+        var (report, _, _, _) = ArrangeHeldSubmission();
+        _mocker.GetMock<IDiscoveryResultsRepository>().Setup(r => r.GetById(report.Id)).ReturnsAsync(report);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.ReleaseStuckReport(report.Id, new DiscoveryReportReleaseRequest(), Admin(),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(report.Id,
+            DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private SupervisionCaller Admin() => new(_fixture.Create<string>(), IsAdmin: true, IsSupervisor: false);
+
+    private (Guid Succeeded, Guid Failed) ArrangePartiallyApplied()
+    {
+        var (report, kept, dropped, _) = ArrangeHeldSubmission();
+        report.State = DiscoveryResultsDocumentState.Processed;
+        _submission!.Status = DiscoverySubmissionStatus.PartiallyApplied;
+        _submission.ItemOutcomes =
+        [
+            new DiscoverySubmissionItemOutcome { ResultId = kept, State = DiscoverySubmissionItemState.Succeeded, Attempts = 1 },
+            new DiscoverySubmissionItemOutcome
+            {
+                ResultId = dropped, State = DiscoverySubmissionItemState.Failed, Attempts = 1,
+                Error = _fixture.Create<string>()
+            }
+        ];
+        return (kept, dropped);
+    }
+
+    private DiscoverySubmissionRetryRequest RetryRequest(params Guid[] abandon) =>
+        new() { ETag = _submission!.ETag!, AbandonResultIds = abandon.Length > 0 ? abandon : null };
+
     private (DiscoveryResultsDocument Report, Guid Kept, Guid Dropped, Guid Missed) ArrangeHeldSubmission()
     {
         var results = Enumerable.Range(0, 3).Select(_ => new DiscoveryResult { Id = _fixture.Create<Guid>() }).ToList();
@@ -369,9 +706,17 @@ public class DiscoverySubmissionReviewServiceTests
 
     private SupervisionCaller Supervisor() => new(_fixture.Create<string>(), IsAdmin: false, IsSupervisor: true);
 
-    private static DiscoveryCurationSubmitResult Ok() =>
-        new(DiscoveryCurationSubmitStatus.Ok,
-            new DiscoverySubmitOutcome("Success", false, [], new EntitySearchIndexerResponse()));
+    /// <summary>Ingest double: every requested result succeeds except <paramref name="failing"/>, which fail with a reason.</summary>
+    private Func<DiscoverySubmitRequest, DiscoveryCurationSubmitResult> Ingest(params Guid[] failing) => r =>
+        new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
+            new DiscoverySubmitOutcome("Success", failing.Length > 0,
+                r.ResultIds.Select(id => failing.Contains(id)
+                    ? new DiscoverySubmitItemOutcome(id, null, null, DiscoverySubmitItemOutcomeMessages.Error, _failureReason)
+                    : new DiscoverySubmitItemOutcome(id, _fixture.Create<Guid>(), _fixture.Create<Guid>(), "Created"))
+                    .ToArray(),
+                new EntitySearchIndexerResponse()));
+
+
 
     private static DiscoverySubmission Snapshot(DiscoverySubmission s) =>
         System.Text.Json.JsonSerializer.Deserialize<DiscoverySubmission>(System.Text.Json.JsonSerializer.Serialize(s))!;

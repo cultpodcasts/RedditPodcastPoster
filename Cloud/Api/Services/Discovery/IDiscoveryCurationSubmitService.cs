@@ -15,4 +15,12 @@ public interface IDiscoveryCurationSubmitService
     Task<DiscoveryCurationSubmitResult> ApplyHeldAsync(
         DiscoverySubmitRequest request,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Re-submits specific results from already-Processed reports (retry of failed items of an applied submission).
+    /// Never claims or changes report state; restamps only the given results.
+    /// </summary>
+    Task<DiscoveryCurationSubmitResult> RetryItemsAsync(
+        DiscoverySubmitRequest request,
+        CancellationToken cancellationToken);
 }
