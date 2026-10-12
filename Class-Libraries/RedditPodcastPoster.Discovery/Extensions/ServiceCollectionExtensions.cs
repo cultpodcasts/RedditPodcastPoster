@@ -61,5 +61,13 @@ public static class ServiceCollectionExtensions
                     return new DiscoveryResultsRepository(containerFactory.CreateDiscoveryContainer(), logger);
                 });
         }
+
+        public IServiceCollection AddDiscoverySubmissionsRepository()
+        {
+            return services
+                .AddSingleton<IDiscoverySubmissionsRepository>(s =>
+                    new DiscoverySubmissionsRepository(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateDiscoverySubmissionsContainer()));
+        }
     }
 }

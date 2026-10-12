@@ -61,6 +61,7 @@ public static class Ioc
             .AddPeopleServices()
             .AddUrlSubmission()
             .AddDiscoveryRepository()
+            .AddDiscoverySubmissionsRepository()
             .AddSingleton<IDiscoveryResultDeduplicator, DiscoveryResultDeduplicator>()
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
             .AddIndexer()

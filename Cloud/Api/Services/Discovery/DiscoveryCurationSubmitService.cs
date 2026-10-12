@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -19,6 +20,8 @@ public class DiscoveryCurationSubmitService(
         DiscoverySubmitRequest request,
         CancellationToken cancellationToken)
     {
+        var claimed = false;
+        var submitAttempted = false;
         try
         {
             var errorsOccured = false;
@@ -30,6 +33,20 @@ public class DiscoveryCurationSubmitService(
             };
             var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
 
+            // Claim every report before any ingestion so a concurrent hold (or another curator) cannot
+            // also act on it. All-or-nothing; nothing is submitted when any claim fails.
+            var unclaimed = await discoveryResultsService.TryClaimForProcessing(
+                request.DiscoveryResultsDocumentIds, cancellationToken);
+            if (unclaimed.Count > 0)
+            {
+                logger.LogWarning("Refusing discovery submit: reports not claimable (held, processed or changed): {DocumentIds}.",
+                    string.Join(",", unclaimed));
+                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Conflict,
+                    UnavailableDocumentIds: unclaimed);
+            }
+
+            claimed = true;
+
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var submitResults = new List<DiscoverySubmitItemOutcome>();
             var erroredResults = new List<Guid>();
@@ -39,6 +56,7 @@ public class DiscoveryCurationSubmitService(
                 logger.LogInformation(
                     "Submitting discovery-result '{discoveryResultId}' with indexing-context: {indexingContext}",
                     discoveryResult.Id, indexingContext);
+                submitAttempted = true;
                 try
                 {
                     var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
@@ -80,9 +98,28 @@ public class DiscoveryCurationSubmitService(
         }
         catch (Exception e)
         {
+            if (claimed && !submitAttempted)
+            {
+                // Nothing was ingested: hand the reports back so the submit can be retried.
+                // Once any episode submit was attempted they stay Processed to avoid double ingestion.
+                await ReleaseClaim(request.DiscoveryResultsDocumentIds);
+            }
+
             logger.LogError(e, "Failure handling post of {nameofDiscoverySubmitRequest}",
                 nameof(DiscoverySubmitRequest));
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
+        }
+    }
+
+    private async Task ReleaseClaim(Guid[] documentIds)
+    {
+        try
+        {
+            await discoveryResultsService.ReleaseClaim(documentIds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failure releasing claimed discovery reports: {DocumentIds}.", string.Join(",", documentIds));
         }
     }
 }

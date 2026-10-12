@@ -9,6 +9,7 @@ using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.Discovery;
+using Api.Services.Discovery;
 using Azure.Diagnostics;
 
 namespace Api.Controllers;
@@ -46,7 +47,7 @@ public class DiscoveryCurationController(
         CancellationToken ct) =>
         HandleRequest(
             req,
-            ["curate"],
+            [DiscoveryPermissions.Curate, DiscoveryPermissions.CurateSupervised],
             discoverySubmitRequest.ToModel(),
             postDiscoveryCurationHandler.Handle,
             Unauthorised,

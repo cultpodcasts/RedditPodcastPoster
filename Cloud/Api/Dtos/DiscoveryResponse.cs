@@ -14,6 +14,10 @@ public class DiscoveryResponse
     [JsonPropertyName("hiddenCount")]
     public int HiddenCount { get; set; }
 
+    /// <summary>Reports held for supervisor review. Their results are excluded from <see cref="Results"/>.</summary>
+    [JsonPropertyName("awaitingReview")]
+    public IEnumerable<DiscoveryAwaitingReviewDto> AwaitingReview { get; set; } = [];
+
     public class Item
     {
         [JsonPropertyName("id")]

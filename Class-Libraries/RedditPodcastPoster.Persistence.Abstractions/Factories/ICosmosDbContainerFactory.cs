@@ -15,6 +15,7 @@ public interface ICosmosDbContainerFactory
     Container CreatePeopleContainer();
     Container CreateActivitiesContainer();
     Container CreateDiscoveryContainer();
+    Container CreateDiscoverySubmissionsContainer();
     Container CreateLookUpsContainer();
     Container CreateTitleCasingRulesContainer();
     Container CreatePushSubscriptionsContainer();

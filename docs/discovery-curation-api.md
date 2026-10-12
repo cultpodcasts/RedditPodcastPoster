@@ -24,9 +24,22 @@ The ML scorer does **not** auto-accept or auto-reject in the API. It **ranks** a
 |------|--------|
 | Route prefix | `DiscoveryCuration` |
 | HTTP trigger | `AuthorizationLevel.Anonymous` (Azure Functions) |
-| **Required role** | `curate` (enforced in app via Auth0 `ClientPrincipal`) |
+| **GET permission** | `curate` |
+| **POST permission** | `curate` or `curate:supervised` |
 
-Requests without the `curate` role receive **401 Unauthorized**. Send the same Auth0 bearer token / Easy Auth headers used for other curation endpoints (`Episode`, `Podcast`, `Subject`, etc.).
+Permissions are Auth0 API permissions (JWT `permissions` / OAuth `scope`, checked via `ClientPrincipal.HasScope`). Requests without them receive **401 Unauthorized**.
+
+### Supervised curators
+
+| Permission | Meaning |
+|------------|---------|
+| `curate` | Normal curator. POST applies the submit immediately. |
+| `curate:supervised` | Discovery submits are **held for a supervisor** instead of applied (see [Supervised submit](#supervised-submit-curatesupervised)). Takes precedence over `curate` / `admin` on POST. |
+| `supervise` | May review and apply held submissions (endpoints arrive in a follow-up PR; `admin` may also supervise). |
+
+**Supervised users must hold both `curate` and `curate:supervised`.** Only discovery submit is supervised: `curate` is still needed to GET discovery reports and is what lets them edit episodes/podcasts/subjects directly. `curate:supervised` alone can POST but cannot GET.
+
+Optional supervisor mapping: Auth0 `app_metadata.supervisorIds` exposed by a Post-Login Action as the `https://api.cultpodcasts.com/supervisors` claim; when absent, any `supervise`/`admin` holder may supervise. Send the same Auth0 bearer token / Easy Auth headers used for other curation endpoints (`Episode`, `Podcast`, `Subject`, etc.).
 
 Base URL is your deployed API host (production: `api-infra` function app). Exact host depends on environment; path is `/api/DiscoveryCuration` unless your hosting adds a prefix.
 
@@ -36,7 +49,7 @@ Base URL is your deployed API host (production: `api-infra` function app). Exact
 
 ### GET `DiscoveryCuration`
 
-Returns all **unprocessed** discovery results, optionally including ML-auto-hidden items.
+Returns all **unprocessed** discovery results, optionally including ML-auto-hidden items. Reports held for supervisor review (`PendingSupervisor`) are listed in `awaitingReview` and their results are **not** in `results`.
 
 #### Query parameters
 
@@ -57,7 +70,10 @@ GET /api/DiscoveryCuration?includeHidden=true
 {
   "ids": ["<discovery-report-document-guid>", "..."],
   "results": [ /* DiscoveryResponseItem[] */ ],
-  "hiddenCount": 42
+  "hiddenCount": 42,
+  "awaitingReview": [
+    { "id": "<discovery-report-document-guid>", "discoveryBegan": "2026-10-11T06:00:00Z", "resultCount": 37 }
+  ]
 }
 ```
 
@@ -65,6 +81,7 @@ GET /api/DiscoveryCuration?includeHidden=true
 |-------|-------------|
 | `ids` | GUIDs of **discovery report documents** (`DiscoveryResultsDocument`). Required for POST — pass these back as `ids` in the submit body. |
 | `results` | Flat list of candidate episodes from all unprocessed reports (filtered/sorted — see below). |
+| `awaitingReview` | Reports held by a supervised curator's submit, awaiting a supervisor (`[]` when none). Not curatable: do not put these ids in POST `ids`. |
 | `hiddenCount` | Total count of results with `autoHidden: true` across all unprocessed reports, **regardless of** `includeHidden`. Use for a badge (“42 hidden”). |
 
 #### Sort order
@@ -151,6 +168,28 @@ Hidden items can still be accepted: load them with `includeHidden=true`, include
 
 HTTP **500** on catastrophic failure with `{ "message": "Failure" }`.
 
+HTTP **409** `{ "message": "...", "documentIds": [...] }` when any report cannot be claimed (held for supervisor review, already processed, or changed concurrently). Nothing is submitted.
+
+#### Claim before submit
+
+The API first claims **every** report in `ids` by moving it `Unprocessed → Processed` with an ETag-guarded write, **before** any episode is submitted. All-or-nothing: if any claim fails, reports already claimed are released and the request returns 409. This makes a normal submit and a supervised hold mutually exclusive. Resubmitting an already-processed report returns 409 (it used to re-ingest).
+
+#### Supervised submit (`curate:supervised`)
+
+The same request body is **held, not applied**:
+
+1. Every report in `ids` must be `Unprocessed`, else **409** `{ message, documentIds }`.
+2. Every id in `resultIds` must belong to those reports, else **400** `{ message, resultIds }` naming the unknown ids. Nothing is held.
+3. Reports move `Unprocessed → PendingSupervisor` (ETag-guarded; rolled back on conflict).
+4. A `DiscoverySubmission` (container `DiscoverySubmissions`) is saved as `Pending` with the submitter's `sub`, report ids and accepted ids exactly as sent. If the save fails, the submission is deleted and the reports released.
+5. Response **202**:
+
+```json
+{ "submissionId": "<guid>", "status": "Pending" }
+```
+
+**Nothing is ingested**: no episode/podcast creation, no search indexing, no result states. Only a supervisor applying the submission moves held reports to `Processed` and ingests.
+
 ---
 
 ## ML scorer semantics
@@ -172,9 +211,12 @@ Public **discovery-info** counts (site badge / notification) use **visible** res
 
 ### Document level (`DiscoveryResultsDocument`)
 
-| Before | After POST |
-|--------|------------|
-| `Unprocessed` | `Processed` |
+| Before | After POST (`curate`) | After POST (`curate:supervised`) |
+|--------|------------|------------|
+| `Unprocessed` | `Processed` | `PendingSupervisor` |
+| `PendingSupervisor` | 409, unchanged | 409, unchanged |
+
+`PendingSupervisor → Processed` happens only when a supervisor applies the held submission. `SetProcessed` (Discover CLI) and result stamping never promote held reports.
 
 ### Result level (`DiscoveryResult`)
 
@@ -333,7 +375,10 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 
 | File | Role |
 |------|------|
-| `Cloud/Api/DiscoveryCurationController.cs` | Routes, `curate` auth |
+| `Cloud/Api/Controllers/DiscoveryCurationController.cs` | Routes, `curate` / `curate:supervised` auth |
+| `Cloud/Api/Handlers/Discovery/PostDiscoveryCurationHandler.cs` | Supervised hold vs apply routing |
+| `Cloud/Api/Services/Discovery/DiscoverySubmissionHoldService.cs` | Supervised hold |
+| `Cloud/Api/Services/Discovery/DiscoveryCurationSubmitService.cs` | Claim, submit, stamp |
 | `Cloud/Api/Handlers/DiscoveryCurationHandler.cs` | GET query param, POST orchestration |
 | `Cloud/Api/Services/DiscoveryResultsService.cs` | Filter, sort, mark processed |
 | `Cloud/Api/Dtos/DiscoveryResponse*.cs` | Response DTOs |

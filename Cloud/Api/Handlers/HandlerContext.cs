@@ -11,6 +11,8 @@ public sealed class HandlerContext(
 {
     public string? Subject => principal?.Subject;
 
+    public bool HasScope(string scope) => principal?.HasScope(scope) ?? false;
+
     public string? Query(string name) => request.Query[name];
 
     public HttpResponseData Status(HttpStatusCode statusCode)
