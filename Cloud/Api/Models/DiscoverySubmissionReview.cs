@@ -41,9 +41,11 @@ public sealed class DiscoverySubmissionReleaseRequest
     public string? Reason { get; init; }
 }
 
-public sealed class DiscoverySubmissionRecoverRequest
+public sealed class DiscoverySubmissionSetStateRequest
 {
+    public required string Status { get; init; }
     public required string ETag { get; init; }
+    public string? Reason { get; init; }
 }
 
 public sealed class DiscoveryReportReleaseRequest

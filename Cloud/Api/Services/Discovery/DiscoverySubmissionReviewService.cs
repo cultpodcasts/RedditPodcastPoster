@@ -23,21 +23,7 @@ public class DiscoverySubmissionReviewService(
     public const string ItemsAbandonedAction = "ItemsAbandoned";
     public const string ReleaseStartedAction = "ReleaseStarted";
     public const string ReleasedAction = "Released";
-    public const string RecoveredAction = "Recovered";
-
-    /// <summary>
-    /// The Api host's <c>functionTimeout</c> (Cloud/Api/host.json). The host kills any invocation after this,
-    /// so an Applying claim older than <see cref="StaleInProgressAfter"/> cannot still be running.
-    /// </summary>
-    public static readonly TimeSpan FunctionTimeout = TimeSpan.FromMinutes(10);
-
-    /// <summary>
-    /// An Applying claim older than this may be recovered by an admin. Must stay well above
-    /// <see cref="FunctionTimeout"/> (asserted by unit test against host.json).
-    /// </summary>
-    public static readonly TimeSpan StaleInProgressAfter = TimeSpan.FromMinutes(30);
-
-    public const string InterruptedError = "Interrupted: the operation stopped without recording this result; verify the catalogue before retrying.";
+    public const string StateChangedAction = "StateChanged";
     public const int MaxCommentLength = 4000;
 
     public async Task<DiscoverySubmissionQueryResult<DiscoverySubmissionList>> List(SupervisionCaller caller,
@@ -469,12 +455,27 @@ public class DiscoverySubmissionReviewService(
         return new(DiscoverySubmissionCommandStatus.Ok, "Report released to Unprocessed.");
     }
 
-    public async Task<DiscoverySubmissionCommandResult> Recover(Guid submissionId,
-        DiscoverySubmissionRecoverRequest request, SupervisionCaller caller, CancellationToken c)
+    public async Task<DiscoverySubmissionCommandResult> SetState(Guid submissionId,
+        DiscoverySubmissionSetStateRequest request, SupervisionCaller caller, CancellationToken c)
     {
         if (!caller.IsAdmin)
         {
             return new(DiscoverySubmissionCommandStatus.Forbidden);
+        }
+
+        // Names only: Enum.TryParse would also accept numeric strings.
+        var to = Enum.GetValues<DiscoverySubmissionStatus>()
+            .Where(x => x != DiscoverySubmissionStatus.None)
+            .Select(x => (DiscoverySubmissionStatus?)x)
+            .FirstOrDefault(x => string.Equals(x.ToString(), request.Status?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (to == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.Invalid, $"Unknown status '{request.Status}'.");
+        }
+
+        if (TooLong(request.Reason))
+        {
+            return new(DiscoverySubmissionCommandStatus.Invalid, $"Reason exceeds {MaxCommentLength} characters.");
         }
 
         var submission = await discoverySubmissionsRepository.GetById(submissionId, c);
@@ -483,95 +484,37 @@ public class DiscoverySubmissionReviewService(
             return new(DiscoverySubmissionCommandStatus.NotFound);
         }
 
-        if (submission.Status != DiscoverySubmissionStatus.Applying)
-        {
-            return new(DiscoverySubmissionCommandStatus.Conflict, $"Submission is {submission.Status}, not Applying.");
-        }
-
         if (string.IsNullOrWhiteSpace(request.ETag) || request.ETag != submission.ETag)
         {
             return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
         }
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        if (submission.InProgressSince is { } since && now - since < StaleInProgressAfter)
-        {
-            return new(DiscoverySubmissionCommandStatus.Conflict,
-                $"Operation started {since:O}; it can be recovered after {StaleInProgressAfter.TotalMinutes} minutes.");
-        }
-
-        var reports = await discoveryResultsService.GetDocuments(submission.DiscoveryResultsDocumentIds);
-        switch (submission.InProgressOperation)
-        {
-            case DiscoverySubmissionOperation.Release:
-                // Complete the release: any report still held goes back to Unprocessed (guarded).
-                foreach (var report in reports.Where(r => r.State == DiscoveryResultsDocumentState.PendingSupervisor))
-                {
-                    await discoveryResultsRepository.TryTransitionState(report.Id,
-                        DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, c);
-                }
-
-                submission.Status = DiscoverySubmissionStatus.Released;
-                submission.ReleasedAt ??= now;
-                break;
-            case DiscoverySubmissionOperation.Apply
-                when reports.Any(r => r.State == DiscoveryResultsDocumentState.PendingSupervisor):
-                // Apply claims every report (PendingSupervisor -> Processed) before ingesting anything, so a report
-                // still held means the claim loop never finished and nothing was ingested. Undo any partial claim
-                // (guarded Processed -> PendingSupervisor) and return the submission to where it was, so it can be
-                // applied again or released.
-                foreach (var report in reports.Where(r => r.State == DiscoveryResultsDocumentState.Processed))
-                {
-                    if (!await discoveryResultsRepository.TryTransitionState(report.Id,
-                            DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.PendingSupervisor, c))
-                    {
-                        logger.LogWarning(
-                            "Recover of submission '{SubmissionId}': report '{ReportId}' changed; could not return it to PendingSupervisor.",
-                            submissionId, report.Id);
-                    }
-                }
-
-                submission.Status = submission.StatusBeforeInProgress ?? DiscoverySubmissionStatus.Pending;
-                break;
-            default:
-                // Every report was claimed, so ingestion may have happened: results without a recorded outcome become
-                // Failed (interrupted). Retrying one that was in fact ingested before the crash does not duplicate it:
-                // DiscoveryUrlSubmitter matches the existing episode (PodcastProcessor.AddEpisodeToExistingPodcast
-                // enriches it rather than creating; catalogue kinds report EpisodeAlreadyExists, see CatalogueKindSubmitRules).
-                var byId = (submission.ItemOutcomes ?? []).ToDictionary(x => x.ResultId);
-                foreach (var id in submission.InProgressResultIds ?? [])
-                {
-                    if (!byId.TryGetValue(id, out var item))
-                    {
-                        item = new DiscoverySubmissionItemOutcome { ResultId = id };
-                        byId[id] = item;
-                    }
-
-                    if (item.State != DiscoverySubmissionItemState.Succeeded)
-                    {
-                        item.State = DiscoverySubmissionItemState.Failed;
-                        item.Error = InterruptedError;
-                    }
-                }
-
-                submission.ItemOutcomes = byId.Values.ToArray();
-                submission.AppliedAt ??= now;
-                CloseOut(submission, caller.Subject);
-                break;
-        }
-
+        // Manual admin override: sets the status only. Report states and item outcomes are deliberately untouched.
+        var from = submission.Status;
+        submission.Status = to.Value;
         EndInProgress(submission);
-        RefreshCounts(submission);
-        AppendHistory(submission, caller.Subject, RecoveredAction);
+        submission.History =
+        [
+            .. submission.History,
+            new DiscoverySubmissionHistoryEntry
+            {
+                At = timeProvider.GetUtcNow().UtcDateTime,
+                ActorSubject = caller.Subject,
+                Action = StateChangedAction,
+                FromStatus = from,
+                ToStatus = to.Value,
+                Reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason
+            }
+        ];
         var etag = await discoverySubmissionsRepository.TryReplace(submission, request.ETag, c);
         if (etag == null)
         {
             return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
         }
 
-        logger.LogWarning("Admin '{Admin}' recovered stale Applying submission '{SubmissionId}' to {Status}.",
-            caller.Subject, submissionId, submission.Status);
-        return new(DiscoverySubmissionCommandStatus.Ok, ETag: etag, SubmissionStatus: submission.Status,
+        logger.LogWarning("Admin '{Admin}' set submission '{SubmissionId}' state {From} -> {To}.",
+            caller.Subject, submissionId, from, to);
+        return new(DiscoverySubmissionCommandStatus.Ok, ETag: etag, SubmissionStatus: to.Value,
             Diff: CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
     }
 

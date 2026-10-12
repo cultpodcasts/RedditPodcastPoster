@@ -35,9 +35,9 @@ public interface IDiscoverySubmissionReviewService
         SupervisionCaller caller, CancellationToken c);
 
     /// <summary>
-    /// Admin only: recovers a submission stuck in Applying (older than the stale threshold), reconciling from report
-    /// state and recorded outcomes.
+    /// Admin only: manually sets the submission status (any defined value except None), clears in-progress fields and
+    /// records a StateChanged history entry. Does not change report states or item outcomes.
     /// </summary>
-    Task<DiscoverySubmissionCommandResult> Recover(Guid submissionId, DiscoverySubmissionRecoverRequest request,
+    Task<DiscoverySubmissionCommandResult> SetState(Guid submissionId, DiscoverySubmissionSetStateRequest request,
         SupervisionCaller caller, CancellationToken c);
 }

@@ -41,10 +41,10 @@ public class DiscoverySubmissionsControllerAuthTests
                 It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest> _,
                 CancellationToken _) => ctx.Accepted());
-        _mocker.GetMock<IPostDiscoverySubmissionRecoverHandler>()
+        _mocker.GetMock<IPostDiscoverySubmissionStateHandler>()
             .Setup(h => h.Handle(It.IsAny<IHandlerContext>(),
-                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> _,
+                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest> _,
                 CancellationToken _) => ctx.Ok());
         _mocker.GetMock<IGetDiscoverySubmissionsHandler>()
             .Setup(h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<CancellationToken>()))
@@ -186,11 +186,11 @@ public class DiscoverySubmissionsControllerAuthTests
     }
 
     [Theory(DisplayName =
-        "Discovery submission recover rejects non-admin callers (supervise, curate:supervised, curate), because only an admin may recover a stuck Applying submission.")]
+        "Discovery submission state override rejects non-admin callers (supervise, curate:supervised, curate), because only an admin may set a submission status by hand.")]
     [InlineData("supervise")]
     [InlineData("curate:supervised")]
     [InlineData("curate")]
-    public async Task recover_rejects_non_admins(string permission)
+    public async Task set_state_rejects_non_admins(string permission)
     {
         // Arrange
         UsePermission(permission);
@@ -198,19 +198,19 @@ public class DiscoverySubmissionsControllerAuthTests
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
         // Act
-        var result = await sut.PostRecover(req.Object, _fixture.Create<Guid>(), null!,
-            new global::Api.Dtos.DiscoverySubmissionRecoverRequestDto(), CancellationToken.None);
+        var result = await sut.PostState(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionSetStateRequestDto(), CancellationToken.None);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        _mocker.GetMock<IPostDiscoverySubmissionRecoverHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
-            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>>(), It.IsAny<CancellationToken>()),
+        _mocker.GetMock<IPostDiscoverySubmissionStateHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
     [Fact(DisplayName =
-        "Discovery submission recover admits an admin caller through to the handler.")]
-    public async Task recover_admits_admin()
+        "Discovery submission state override admits an admin caller through to the handler.")]
+    public async Task set_state_admits_admin()
     {
         // Arrange
         UsePermission("admin");
@@ -218,8 +218,8 @@ public class DiscoverySubmissionsControllerAuthTests
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
         // Act
-        var result = await sut.PostRecover(req.Object, _fixture.Create<Guid>(), null!,
-            new global::Api.Dtos.DiscoverySubmissionRecoverRequestDto(), CancellationToken.None);
+        var result = await sut.PostState(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionSetStateRequestDto(), CancellationToken.None);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -811,109 +811,95 @@ public class DiscoverySubmissionReviewServiceTests
     }
 
     [Fact(DisplayName =
-        "An admin recovering a stale Applying apply whose reports are all still PendingSupervisor returns it to its previous status, because nothing was ingested.")]
-    public async Task recover_unclaimed_apply_returns_to_pending()
+        "An admin setting a stuck Applying submission's state records the new status, clears the in-progress fields and appends a StateChanged entry with from, to, actor and reason, because the override must be auditable.")]
+    public async Task set_state_changes_status_and_records_history()
     {
         // Arrange
-        ArrangeApplying(DiscoveryResultsDocumentState.PendingSupervisor);
+        ArrangeApplying(DiscoveryResultsDocumentState.Processed);
+        var admin = Admin();
+        var reason = _fixture.Create<string>();
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Recover(_submission!.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
-            Admin(), CancellationToken.None);
+        var result = await sut.SetState(_submission!.Id, SetState("pending", reason), admin, CancellationToken.None);
 
         // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
         result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Pending);
-        var final = _replaced.Last();
+        result.ETag.Should().NotBeNullOrWhiteSpace();
+        var final = _replaced.Single();
+        final.Status.Should().Be(DiscoverySubmissionStatus.Pending);
         final.InProgressOperation.Should().BeNull();
-        final.History.Select(h => h.Action).Should().EndWith(DiscoverySubmissionReviewService.RecoveredAction);
+        final.InProgressSince.Should().BeNull();
+        final.InProgressBy.Should().BeNull();
+        final.InProgressResultIds.Should().BeNull();
+        final.StatusBeforeInProgress.Should().BeNull();
+        var entry = final.History.Last();
+        entry.Action.Should().Be(DiscoverySubmissionReviewService.StateChangedAction);
+        entry.ActorSubject.Should().Be(admin.Subject);
+        entry.FromStatus.Should().Be(DiscoverySubmissionStatus.Applying);
+        entry.ToStatus.Should().Be(DiscoverySubmissionStatus.Pending);
+        entry.Reason.Should().Be(reason);
     }
 
     [Fact(DisplayName =
-        "An admin recovering a stale Applying apply whose reports are Processed marks every result without a recorded outcome Failed (interrupted), so the supervisor can verify and retry or abandon.")]
-    public async Task recover_crashed_apply_marks_items_failed()
+        "Setting the state never touches report states, item outcomes or ingestion, because the admin reconciles those separately.")]
+    public async Task set_state_changes_nothing_else()
+    {
+        // Arrange
+        ArrangeApplying(DiscoveryResultsDocumentState.Processed);
+        var outcomes = new[]
+        {
+            new DiscoverySubmissionItemOutcome { ResultId = _fixture.Create<Guid>(), State = DiscoverySubmissionItemState.Failed }
+        };
+        _submission!.ItemOutcomes = outcomes;
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        await sut.SetState(_submission.Id, SetState("ApplyFailed", null), Admin(), CancellationToken.None);
+
+        // Assert
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(It.IsAny<Guid>(),
+            It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<DiscoveryResultsDocumentState>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _applied.Should().BeEmpty();
+        _retried.Should().BeEmpty();
+        var final = _replaced.Single();
+        final.ItemOutcomes.Should().BeEquivalentTo(outcomes);
+        final.History.Last().Reason.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "Setting the state to an unknown name, None, a number or blank is invalid (400) and writes nothing.")]
+    [InlineData("Bogus")]
+    [InlineData("None")]
+    [InlineData("1")]
+    [InlineData("")]
+    public async Task set_state_rejects_invalid_status(string status)
     {
         // Arrange
         ArrangeApplying(DiscoveryResultsDocumentState.Processed);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Recover(_submission!.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
-            Admin(), CancellationToken.None);
+        var result = await sut.SetState(_submission!.Id, SetState(status, null), Admin(), CancellationToken.None);
 
         // Assert
-        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.ApplyFailed);
-        _replaced.Last().ItemOutcomes.Should().OnlyContain(x =>
-            x.State == DiscoverySubmissionItemState.Failed && x.Error == DiscoverySubmissionReviewService.InterruptedError);
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
+        _replaced.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "An admin recovering a stale Applying apply that crashed mid-claim (one report Processed, one still PendingSupervisor) returns the Processed report to PendingSupervisor and the submission to its previous status, because apply claims every report before ingesting so nothing was ingested, and leaving it half-claimed would make apply/retry conflict forever.")]
-    public async Task recover_half_claimed_apply_unclaims_and_returns_to_pending()
+        "Setting the state with a stale ETag is a conflict (409) and writes nothing.")]
+    public async Task set_state_rejects_stale_etag()
     {
         // Arrange
-        var claimed = ArrangeApplying(DiscoveryResultsDocumentState.Processed);
-        var held = new DiscoveryResultsDocument(DateTime.UtcNow.AddDays(-1),
-            [new DiscoveryResult { Id = _fixture.Create<Guid>() }])
-        {
-            SearchSince = _fixture.Create<string>(),
-            State = DiscoveryResultsDocumentState.PendingSupervisor
-        };
-        _documents = [claimed, held];
-        _submission!.DiscoveryResultsDocumentIds = [claimed.Id, held.Id];
+        ArrangeApplying(DiscoveryResultsDocumentState.Processed);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Recover(_submission.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
-            Admin(), CancellationToken.None);
-
-        // Assert
-        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
-        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Pending);
-        var repo = _mocker.GetMock<IDiscoveryResultsRepository>();
-        repo.Verify(r => r.TryTransitionState(claimed.Id, DiscoveryResultsDocumentState.Processed,
-            DiscoveryResultsDocumentState.PendingSupervisor, It.IsAny<CancellationToken>()), Times.Once);
-        repo.Verify(r => r.TryTransitionState(held.Id, It.IsAny<DiscoveryResultsDocumentState>(),
-            It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<CancellationToken>()), Times.Never);
-        var final = _replaced.Last();
-        final.InProgressOperation.Should().BeNull();
-        final.ItemOutcomes.Should().BeNullOrEmpty();
-        _applied.Should().BeEmpty();
-    }
-
-    [Fact(DisplayName =
-        "The recover threshold stays well above the Api host's functionTimeout (host.json), so an admin can never recover an operation the host may still be running.")]
-    public void recover_threshold_exceeds_function_timeout()
-    {
-        // Arrange
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Cloud", "Api", "host.json")))
-        {
-            dir = dir.Parent;
-        }
-
-        dir.Should().NotBeNull("the repo's Cloud/Api/host.json must be reachable from the test output");
-        var host = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(dir!.FullName, "Cloud", "Api", "host.json")));
-
-        // Act
-        var timeout = TimeSpan.Parse(host.RootElement.GetProperty("functionTimeout").GetString()!);
-
-        // Assert
-        timeout.Should().Be(DiscoverySubmissionReviewService.FunctionTimeout);
-        DiscoverySubmissionReviewService.StaleInProgressAfter.Should()
-            .BeGreaterThanOrEqualTo(timeout * 2, "recovery must not race an invocation the host has not yet killed");
-    }
-
-    [Fact(DisplayName =
-        "Recovery is refused for an Applying submission that is not yet stale, because the operation may still be running.")]
-    public async Task recover_refused_when_fresh()
-    {
-        // Arrange
-        ArrangeApplying(DiscoverySubmissionOperation.Apply, DateTime.UtcNow);
-        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
-
-        // Act
-        var result = await sut.Recover(_submission!.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
+        var result = await sut.SetState(_submission!.Id,
+            new DiscoverySubmissionSetStateRequest { Status = "Pending", ETag = _fixture.Create<string>() },
             Admin(), CancellationToken.None);
 
         // Assert
@@ -922,27 +908,30 @@ public class DiscoverySubmissionReviewServiceTests
     }
 
     [Fact(DisplayName =
-        "Recovery is admin-only: a supervisor is forbidden.")]
-    public async Task recover_requires_admin()
+        "Setting the state is admin-only: a supervisor is forbidden.")]
+    public async Task set_state_requires_admin()
     {
         // Arrange
-        ArrangeApplying(DiscoveryResultsDocumentState.PendingSupervisor);
+        ArrangeApplying(DiscoveryResultsDocumentState.Processed);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Recover(_submission!.Id, new DiscoverySubmissionRecoverRequest { ETag = _submission.ETag! },
-            Supervisor(), CancellationToken.None);
+        var result = await sut.SetState(_submission!.Id, SetState("Pending", null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Forbidden);
+        _replaced.Should().BeEmpty();
     }
+
+    private DiscoverySubmissionSetStateRequest SetState(string status, string? reason) =>
+        new() { Status = status, ETag = _submission!.ETag!, Reason = reason };
 
     private DiscoveryResultsDocument ArrangeApplying(DiscoveryResultsDocumentState reportState)
     {
         var (report, kept, dropped, _) = ArrangeHeldSubmission();
         report.State = reportState;
         ArrangeApplying(DiscoverySubmissionOperation.Apply,
-            DateTime.UtcNow - DiscoverySubmissionReviewService.StaleInProgressAfter - TimeSpan.FromMinutes(1));
+            DateTime.UtcNow.AddHours(-1));
         _submission!.InProgressResultIds = [kept, dropped];
         return report;
     }

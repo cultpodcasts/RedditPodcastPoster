@@ -278,11 +278,18 @@ public class DiscoverySubmissionReleaseRequestDto
     public string? Reason { get; set; }
 }
 
-/// <summary>POST DiscoverySubmissions/{id}/recover (admin).</summary>
-public class DiscoverySubmissionRecoverRequestDto
+/// <summary>POST DiscoverySubmissions/{id}/state (admin): manual status override.</summary>
+public class DiscoverySubmissionSetStateRequestDto
 {
+    /// <summary>A DiscoverySubmissionStatus name (case-insensitive), e.g. "Pending"; "None" and numbers are rejected.</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = "";
+
     [JsonPropertyName("etag")]
     public string ETag { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
 }
 
 /// <summary>POST DiscoveryReports/{documentId}/release (admin).</summary>
@@ -338,6 +345,20 @@ public class DiscoverySubmissionHistoryDto
     [JsonPropertyName("action")]
     [JsonPropertyOrder(30)]
     public required string Action { get; set; }
+
+    /// <summary>StateChanged only: previous status.</summary>
+    [JsonPropertyName("fromStatus")]
+    [JsonPropertyOrder(40)]
+    public string? FromStatus { get; set; }
+
+    /// <summary>StateChanged only: new status.</summary>
+    [JsonPropertyName("toStatus")]
+    [JsonPropertyOrder(50)]
+    public string? ToStatus { get; set; }
+
+    [JsonPropertyName("reason")]
+    [JsonPropertyOrder(60)]
+    public string? Reason { get; set; }
 }
 
 /// <summary>PUT DiscoverySubmissions/{id}/review — save a draft review. Omitted (null) members are unchanged.</summary>

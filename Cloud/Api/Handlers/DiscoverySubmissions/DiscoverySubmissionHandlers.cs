@@ -47,10 +47,10 @@ public interface IPostDiscoveryReportReleaseHandler
         DiscoverySubmissionReviewRoute<DiscoveryReportReleaseRequest> model, CancellationToken c);
 }
 
-public interface IPostDiscoverySubmissionRecoverHandler
+public interface IPostDiscoverySubmissionStateHandler
 {
     Task<HttpResponseData> Handle(IHandlerContext ctx,
-        DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> model, CancellationToken c);
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest> model, CancellationToken c);
 }
 
 internal static class SupervisionCallerFactory
@@ -255,12 +255,12 @@ public class PostDiscoveryReportReleaseHandler(IDiscoverySubmissionReviewService
     }
 }
 
-/// <summary>Admin-only recovery of a submission stuck in Applying.</summary>
-public class PostDiscoverySubmissionRecoverHandler(IDiscoverySubmissionReviewService service)
-    : IPostDiscoverySubmissionRecoverHandler
+/// <summary>Admin-only manual status override.</summary>
+public class PostDiscoverySubmissionStateHandler(IDiscoverySubmissionReviewService service)
+    : IPostDiscoverySubmissionStateHandler
 {
     public async Task<HttpResponseData> Handle(IHandlerContext ctx,
-        DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest> model, CancellationToken c)
+        DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest> model, CancellationToken c)
     {
         var caller = SupervisionCallerFactory.From(ctx);
         if (caller == null)
@@ -273,7 +273,7 @@ public class PostDiscoverySubmissionRecoverHandler(IDiscoverySubmissionReviewSer
             return await SupervisionCallerFactory.Forbidden(ctx, c);
         }
 
-        var result = await service.Recover(model.SubmissionId, model.Request, caller, c);
+        var result = await service.SetState(model.SubmissionId, model.Request, caller, c);
         return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
     }
 }

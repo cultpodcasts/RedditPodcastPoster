@@ -156,7 +156,7 @@ public enum DiscoverySubmissionStatus
 
     /// <summary>
     /// In progress: an apply, retry or release has claimed the submission (see <c>InProgressOperation</c>).
-    /// Not reviewable, retryable or releasable until it finishes or an admin recovers it.
+    /// Not reviewable, retryable or releasable until it finishes or an admin sets the state manually.
     /// </summary>
     Applying,
 
@@ -243,4 +243,20 @@ public sealed class DiscoverySubmissionHistoryEntry
     [JsonPropertyName("action")]
     [JsonPropertyOrder(30)]
     public required string Action { get; set; }
+
+    /// <summary>StateChanged only (nullable; absent on older entries).</summary>
+    [JsonPropertyName("fromStatus")]
+    [JsonPropertyOrder(40)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DiscoverySubmissionStatus? FromStatus { get; set; }
+
+    [JsonPropertyName("toStatus")]
+    [JsonPropertyOrder(50)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DiscoverySubmissionStatus? ToStatus { get; set; }
+
+    [JsonPropertyName("reason")]
+    [JsonPropertyOrder(60)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; set; }
 }

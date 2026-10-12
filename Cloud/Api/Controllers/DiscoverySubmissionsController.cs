@@ -21,7 +21,7 @@ public class DiscoverySubmissionsController(
     IPostDiscoverySubmissionRetryHandler postDiscoverySubmissionRetryHandler,
     IPostDiscoverySubmissionReleaseHandler postDiscoverySubmissionReleaseHandler,
     IPostDiscoveryReportReleaseHandler postDiscoveryReportReleaseHandler,
-    IPostDiscoverySubmissionRecoverHandler postDiscoverySubmissionRecoverHandler,
+    IPostDiscoverySubmissionStateHandler postDiscoverySubmissionStateHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoverySubmissionsController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -135,20 +135,20 @@ public class DiscoverySubmissionsController(
             Unauthorised,
             ct);
 
-    /// <summary>Admin only: recover a submission stuck in Applying.</summary>
-    [Function("DiscoverySubmissionRecoverPost")]
-    public Task<HttpResponseData> PostRecover(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/recover")]
+    /// <summary>Admin only: manually set a submission's status.</summary>
+    [Function("DiscoverySubmissionStatePost")]
+    public Task<HttpResponseData> PostState(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/state")]
         HttpRequestData req,
         Guid submissionId,
         FunctionContext _,
-        [FromBody] Dtos.DiscoverySubmissionRecoverRequestDto request,
+        [FromBody] Dtos.DiscoverySubmissionSetStateRequestDto request,
         CancellationToken ct) =>
         HandleRequest(
             req,
             [DiscoveryPermissions.Admin],
-            new DiscoverySubmissionReviewRoute<DiscoverySubmissionRecoverRequest>(submissionId, request.ToModel()),
-            postDiscoverySubmissionRecoverHandler.Handle,
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest>(submissionId, request.ToModel()),
+            postDiscoverySubmissionStateHandler.Handle,
             Unauthorised,
             ct);
 }

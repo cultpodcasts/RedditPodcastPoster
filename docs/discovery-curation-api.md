@@ -285,7 +285,7 @@ Query. Submitter or an allowed supervisor; otherwise 403; unknown id 404.
 }
 ```
 
-History actions: `Submitted`, `ReviewSaved`, `ApplyStarted`, `Applied`, `PartiallyApplied`, `ApplyFailed`, `ApplyConflict`, `RetryStarted`, `ItemsAbandoned`, `ReleaseStarted`, `Released`.
+History actions: `Submitted`, `ReviewSaved`, `ApplyStarted`, `Applied`, `PartiallyApplied`, `ApplyFailed`, `ApplyConflict`, `RetryStarted`, `ItemsAbandoned`, `ReleaseStarted`, `Released`, `StateChanged` (admin override; also carries `fromStatus`, `toStatus`, `reason`; those fields are `null`/absent on other entries).
 
 ### PUT `DiscoverySubmissions/{submissionId}/review`
 
@@ -573,7 +573,7 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 | `Class-Libraries/RedditPodcastPoster.Models/Discovery/DiscoverySubmission.cs` | Persisted submission |
 
 
-### In-progress state (`Applying`) and recovery
+### In-progress state (`Applying`) and manual state override
 
 Apply, retry and release first persist `status: "Applying"` in their ETag-guarded claim, with
 `inProgressOperation` (`Apply` | `Retry` | `Release`) and `inProgressSince` (both returned in list/detail, `null` otherwise).
@@ -584,13 +584,27 @@ The final write is merged and retried (up to 3 attempts) if it gets a 412 while 
 same operation; if the outcome still cannot be recorded the command returns **500** with
 `"Outcome could not be recorded…"` (never `200`).
 
-`POST /DiscoverySubmissions/{id}/recover` — **admin only**, body `{ "etag": "..." }`. Allowed only when `Applying`
-for more than 30 minutes (409 otherwise). Reconciles from report state:
-- Apply, all reports still `PendingSupervisor` → previous status (normally `Pending`); nothing was ingested.
-- Apply with reports `Processed`, or Retry → each in-flight result without a `Succeeded` outcome becomes `Failed`
-  with error `"Interrupted: …verify the catalogue before retrying."` → `ApplyFailed`/`PartiallyApplied`.
-- Release → remaining `PendingSupervisor` reports go to `Unprocessed`; submission `Released`.
-Records a `Recovered` history entry. Response is the standard command response.
+An `Applying` submission is never changed automatically. If an operation dies mid-way, an admin inspects the
+reports/catalogue and sets the status by hand:
+
+`POST /DiscoverySubmissions/{id}/state` — **admin only** (`admin` permission).
+
+Body:
+```json
+{ "status": "Pending", "etag": "\"…\"", "reason": "Apply crashed during claim; reports checked" }
+```
+- `status` (required): a `DiscoverySubmissionStatus` name, case-insensitive — `Pending`, `Applied`, `ApplyFailed`,
+  `PartiallyApplied`, `Applying`, `Released`. `None`, numbers and unknown names → **400**.
+- `etag` (required): the submission's current ETag. Missing or stale → **409**.
+- `reason` (optional, ≤ 4000 chars, longer → **400**).
+
+Effect: sets `status`, clears `inProgressOperation`, `inProgressSince` (and the internal in-progress fields), and appends
+a history entry `{ "action": "StateChanged", "actorSubject": "<admin>", "fromStatus": "Applying", "toStatus": "Pending",
+"reason": "…" }`. Report states and item outcomes are **not** changed — fix those separately (e.g.
+`POST /DiscoveryReports/{documentId}/release`) if needed.
+
+Responses: **200** standard command response (new `etag`, `submissionStatus`, `diff`, `itemOutcomes`); **400** invalid
+status/reason; **403** not admin; **404** unknown submission; **409** stale/missing ETag.
 
 ### Error bodies (camelCase DTOs)
 

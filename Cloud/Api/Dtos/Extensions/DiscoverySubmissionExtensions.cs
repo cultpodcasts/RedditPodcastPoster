@@ -34,8 +34,8 @@ public static class DiscoverySubmissionExtensions
         InProgressSince = s.InProgressSince
     };
 
-    public static DiscoverySubmissionRecoverRequest ToModel(this DiscoverySubmissionRecoverRequestDto dto) =>
-        new() { ETag = dto.ETag };
+    public static DiscoverySubmissionSetStateRequest ToModel(this DiscoverySubmissionSetStateRequestDto dto) =>
+        new() { Status = dto.Status ?? "", ETag = dto.ETag, Reason = dto.Reason };
 
     public static DiscoverySubmissionReleaseRequest ToModel(this DiscoverySubmissionReleaseRequestDto dto) =>
         new() { ETag = dto.ETag, Reason = dto.Reason };
@@ -109,7 +109,10 @@ public static class DiscoverySubmissionExtensions
             {
                 At = h.At,
                 ActorSubject = h.ActorSubject,
-                Action = h.Action
+                Action = h.Action,
+                FromStatus = h.FromStatus?.ToString(),
+                ToStatus = h.ToStatus?.ToString(),
+                Reason = h.Reason
             }).ToArray()
         };
     }
