@@ -35,7 +35,7 @@ public interface IDiscoverySubmissionReviewService
         SupervisionCaller caller, CancellationToken c);
 
     /// <summary>
-    /// Admin only: manually sets the submission status (any defined value except None), clears in-progress fields and
+    /// Admin only: manually sets the submission status (any defined value except None and Applying), clears in-progress fields and
     /// records a StateChanged history entry. Does not change report states or item outcomes.
     /// </summary>
     Task<DiscoverySubmissionCommandResult> SetState(Guid submissionId, DiscoverySubmissionSetStateRequest request,

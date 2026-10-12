@@ -463,9 +463,10 @@ public class DiscoverySubmissionReviewService(
             return new(DiscoverySubmissionCommandStatus.Forbidden);
         }
 
-        // Names only: Enum.TryParse would also accept numeric strings.
+        // Names only: Enum.TryParse would also accept numeric strings. Applying is refused: in-progress fields are
+        // cleared here, so an Applying submission with no running operation would be stuck.
         var to = Enum.GetValues<DiscoverySubmissionStatus>()
-            .Where(x => x != DiscoverySubmissionStatus.None)
+            .Where(x => x is not (DiscoverySubmissionStatus.None or DiscoverySubmissionStatus.Applying))
             .Select(x => (DiscoverySubmissionStatus?)x)
             .FirstOrDefault(x => string.Equals(x.ToString(), request.Status?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (to == null)

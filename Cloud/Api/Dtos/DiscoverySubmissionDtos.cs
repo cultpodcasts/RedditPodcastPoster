@@ -281,7 +281,7 @@ public class DiscoverySubmissionReleaseRequestDto
 /// <summary>POST DiscoverySubmissions/{id}/state (admin): manual status override.</summary>
 public class DiscoverySubmissionSetStateRequestDto
 {
-    /// <summary>A DiscoverySubmissionStatus name (case-insensitive), e.g. "Pending"; "None" and numbers are rejected.</summary>
+    /// <summary>A DiscoverySubmissionStatus name (case-insensitive), e.g. "Pending"; "None", "Applying" and numbers are rejected.</summary>
     [JsonPropertyName("status")]
     public string Status { get; set; } = "";
 

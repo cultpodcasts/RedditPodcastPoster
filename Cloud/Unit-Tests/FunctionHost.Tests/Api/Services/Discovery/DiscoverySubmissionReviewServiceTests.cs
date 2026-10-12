@@ -870,9 +870,11 @@ public class DiscoverySubmissionReviewServiceTests
     }
 
     [Theory(DisplayName =
-        "Setting the state to an unknown name, None, a number or blank is invalid (400) and writes nothing.")]
+        "Setting the state to an unknown name, None, Applying, a number or blank is invalid (400) and writes nothing, because Applying without a running operation would leave the submission stuck.")]
     [InlineData("Bogus")]
     [InlineData("None")]
+    [InlineData("Applying")]
+    [InlineData("applying")]
     [InlineData("1")]
     [InlineData("")]
     public async Task set_state_rejects_invalid_status(string status)

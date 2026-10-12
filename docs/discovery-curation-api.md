@@ -594,7 +594,8 @@ Body:
 { "status": "Pending", "etag": "\"…\"", "reason": "Apply crashed during claim; reports checked" }
 ```
 - `status` (required): a `DiscoverySubmissionStatus` name, case-insensitive — `Pending`, `Applied`, `ApplyFailed`,
-  `PartiallyApplied`, `Applying`, `Released`. `None`, numbers and unknown names → **400**.
+  `PartiallyApplied`, `Released`. `None`, `Applying` (would be stuck with no running operation), numbers and unknown
+  names → **400**.
 - `etag` (required): the submission's current ETag. Missing or stale → **409**.
 - `reason` (optional, ≤ 4000 chars, longer → **400**).
 
@@ -604,7 +605,7 @@ a history entry `{ "action": "StateChanged", "actorSubject": "<admin>", "fromSta
 `POST /DiscoveryReports/{documentId}/release`) if needed.
 
 Responses: **200** standard command response (new `etag`, `submissionStatus`, `diff`, `itemOutcomes`); **400** invalid
-status/reason; **403** not admin; **404** unknown submission; **409** stale/missing ETag.
+status (incl. `None`/`Applying`)/reason; **403** not admin; **404** unknown submission; **409** stale/missing ETag.
 
 ### Error bodies (camelCase DTOs)
 
