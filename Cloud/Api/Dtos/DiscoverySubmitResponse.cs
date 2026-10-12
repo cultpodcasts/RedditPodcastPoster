@@ -30,5 +30,9 @@ public class DiscoverySubmitResponse
 
         [JsonPropertyName("message")]
         public required string Message { get; set; }
+
+        /// <summary>Why the item failed (exception type and message). <c>null</c> on success.</summary>
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
     }
 }

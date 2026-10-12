@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
+using Api.Handlers.DiscoverySubmissions;
 using Api.Handlers.Episodes;
 using Api.Handlers.Films;
 using Api.Handlers.Homepage;
@@ -156,7 +157,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoverySubmissionHoldService, DiscoverySubmissionHoldService>()
             .AddTimeProviderIfMissing()
             .AddScoped<IGetDiscoveryCurationHandler, GetDiscoveryCurationHandler>()
-            .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>();
+            .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>()
+            .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
+            .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()
+            .AddScoped<IGetDiscoverySubmissionHandler, GetDiscoverySubmissionHandler>()
+            .AddScoped<IPutDiscoverySubmissionReviewHandler, PutDiscoverySubmissionReviewHandler>()
+            .AddScoped<IPostDiscoverySubmissionApplyHandler, PostDiscoverySubmissionApplyHandler>()
+            .AddScoped<IPostDiscoverySubmissionRetryHandler, PostDiscoverySubmissionRetryHandler>()
+            .AddScoped<IPostDiscoverySubmissionReleaseHandler, PostDiscoverySubmissionReleaseHandler>()
+            .AddScoped<IPostDiscoveryReportReleaseHandler, PostDiscoveryReportReleaseHandler>()
+            .AddScoped<IPostDiscoverySubmissionStateHandler, PostDiscoverySubmissionStateHandler>();
 
     public static IServiceCollection AddApiDiscoverySchedule(this IServiceCollection services) =>
         services

@@ -24,7 +24,7 @@ public class PostDiscoveryCurationHandlerTests
     public PostDiscoveryCurationHandlerTests()
     {
         _mocker.GetMock<IDiscoverySubmissionHoldService>()
-            .Setup(s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _holdResult);
         _mocker.GetMock<IDiscoveryCurationSubmitService>()
             .Setup(s => s.SubmitAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
@@ -51,7 +51,7 @@ public class PostDiscoveryCurationHandlerTests
         body.GetProperty("submissionId").GetGuid().Should().Be(submissionId);
         body.GetProperty("status").GetString().Should().Be("Pending");
         _mocker.GetMock<IDiscoverySubmissionHoldService>().Verify(
-            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), subject, It.IsAny<CancellationToken>()), Times.Once);
+            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), subject, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()), Times.Once);
         _mocker.GetMock<IDiscoveryCurationSubmitService>().Verify(
             s => s.SubmitAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -126,7 +126,7 @@ public class PostDiscoveryCurationHandlerTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IDiscoverySubmissionHoldService>().Verify(
-            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            s => s.HoldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -156,6 +156,53 @@ public class PostDiscoveryCurationHandlerTests
                 .ToArray()
         };
         return new HandlerContext(req.Object, principal);
+    }
+
+    [Fact(DisplayName =
+        "A supervised submit 409 writes a DiscoveryUnavailableReportsResponse DTO (camelCase documentIds), not an anonymous object.")]
+    public async Task supervised_conflict_body_is_dto()
+    {
+        // Arrange
+        var documentIds = _fixture.CreateMany<Guid>().ToArray();
+        _holdResult = new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.Conflict,
+            UnavailableDocumentIds: documentIds);
+        var ctx = BodyCapturingContext();
+        var sut = _mocker.CreateInstance<PostDiscoveryCurationHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new DiscoverySubmitRequest(), CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.Conflict(It.Is<global::Api.Dtos.DiscoveryUnavailableReportsResponse>(b =>
+            b.DocumentIds.SequenceEqual(documentIds)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A supervised submit 400 for unknown result ids writes a DiscoveryUnknownResultIdsResponse DTO (camelCase resultIds), not an anonymous object.")]
+    public async Task supervised_unknown_results_body_is_dto()
+    {
+        // Arrange
+        var resultIds = _fixture.CreateMany<Guid>().ToArray();
+        _holdResult = new DiscoverySubmissionHoldResult(DiscoverySubmissionHoldStatus.InvalidResultIds,
+            UnknownResultIds: resultIds);
+        var ctx = BodyCapturingContext();
+        var sut = _mocker.CreateInstance<PostDiscoveryCurationHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new DiscoverySubmitRequest(), CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.BadRequest(It.Is<global::Api.Dtos.DiscoveryUnknownResultIdsResponse>(b =>
+            b.ResultIds.SequenceEqual(resultIds)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private Mock<IHandlerContext> BodyCapturingContext()
+    {
+        var ctx = _mocker.GetMock<IHandlerContext>();
+        ctx.Setup(x => x.HasScope("curate:supervised")).Returns(true);
+        ctx.SetupGet(x => x.Subject).Returns(_fixture.Create<string>());
+        ctx.Setup(x => x.ClaimValues(It.IsAny<string>())).Returns([]);
+        return ctx;
     }
 
     private static async Task<JsonElement> ReadJson(Microsoft.Azure.Functions.Worker.Http.HttpResponseData response)

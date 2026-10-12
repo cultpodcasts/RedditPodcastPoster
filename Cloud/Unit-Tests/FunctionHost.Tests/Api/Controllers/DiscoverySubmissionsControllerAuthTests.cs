@@ -1,0 +1,235 @@
+using System.Net;
+using FluentAssertions;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Options;
+using Moq;
+using Moq.AutoMock;
+using AutoFixture;
+using Api.Configuration;
+using Api.Factories;
+using Api.Handlers;
+using Api.Handlers.DiscoverySubmissions;
+using Api.Models;
+using Azure.Diagnostics;
+using RedditPodcastPoster.Auth0.Models;
+using Xunit;
+
+namespace FunctionHost.Tests.Api.Controllers;
+
+public class DiscoverySubmissionsControllerAuthTests
+{
+    private readonly Fixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private ClientPrincipal? _principal;
+
+    public DiscoverySubmissionsControllerAuthTests()
+    {
+        _mocker.Use(Options.Create(new HostingOptions { TestMode = false, UserRoles = [] }));
+        _mocker.GetMock<IClientPrincipalFactory>()
+            .Setup(f => f.CreateAsync(It.IsAny<HttpRequestData>()))
+            .ReturnsAsync(() => _principal);
+        _mocker.GetMock<IMemoryProbeOrchestrator>()
+            .Setup(m => m.Start(It.IsAny<string>()))
+            .Returns(Mock.Of<IMemoryProbeScope>());
+        _mocker.GetMock<IPostDiscoverySubmissionApplyHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(),
+                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest> _,
+                CancellationToken _) => ctx.Ok());
+        _mocker.GetMock<IPutDiscoverySubmissionReviewHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(),
+                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionReviewRequest> _,
+                CancellationToken _) => ctx.Accepted());
+        _mocker.GetMock<IPostDiscoverySubmissionStateHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(),
+                It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest> _,
+                CancellationToken _) => ctx.Ok());
+        _mocker.GetMock<IGetDiscoverySubmissionsHandler>()
+            .Setup(h => h.Handle(It.IsAny<IHandlerContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IHandlerContext ctx, CancellationToken _) => ctx.Ok());
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission apply rejects callers without supervise or admin (including curate:supervised and curate), because only a supervisor may promote held reports to Processed.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task apply_rejects_non_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostApply(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionApplyRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _mocker.GetMock<IPostDiscoverySubmissionApplyHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Discovery submission review save rejects a curate:supervised-only caller, because reviewing is a supervisor action.")]
+    public async Task review_rejects_supervised_curator()
+    {
+        // Arrange
+        UsePermission("curate:supervised");
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("PUT");
+
+        // Act
+        var result = await sut.PutReview(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionReviewRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission apply admits supervise or admin callers to the handler.")]
+    [InlineData("supervise")]
+    [InlineData("admin")]
+    public async Task apply_admits_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostApply(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionApplyRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName =
+        "Discovery submissions list admits a curate:supervised caller, because supervised curators see their own submissions and supervisor comments.")]
+    public async Task list_admits_supervised_curator()
+    {
+        // Arrange
+        UsePermission("curate:supervised");
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await sut.List(req.Object, null!, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission retry rejects callers without supervise or admin (including curate:supervised), because retry ingests episodes.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task retry_rejects_non_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRetry(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionRetryRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _mocker.GetMock<IPostDiscoverySubmissionRetryHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionRetryRequest>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission release rejects callers without supervise or admin, including curate:supervised.")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task release_rejects_non_supervisors(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostRelease(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionReleaseRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory(DisplayName =
+        "Stuck-report release rejects non-admin callers (supervise, curate:supervised) at the controller.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised")]
+    public async Task report_release_rejects_non_admin(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostReportRelease(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoveryReportReleaseRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory(DisplayName =
+        "Discovery submission state override rejects non-admin callers (supervise, curate:supervised, curate), because only an admin may set a submission status by hand.")]
+    [InlineData("supervise")]
+    [InlineData("curate:supervised")]
+    [InlineData("curate")]
+    public async Task set_state_rejects_non_admins(string permission)
+    {
+        // Arrange
+        UsePermission(permission);
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostState(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionSetStateRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _mocker.GetMock<IPostDiscoverySubmissionStateHandler>().Verify(h => h.Handle(It.IsAny<IHandlerContext>(),
+            It.IsAny<DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Discovery submission state override admits an admin caller through to the handler.")]
+    public async Task set_state_admits_admin()
+    {
+        // Arrange
+        UsePermission("admin");
+        var sut = _mocker.CreateInstance<global::Api.Controllers.DiscoverySubmissionsController>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await sut.PostState(req.Object, _fixture.Create<Guid>(), null!,
+            new global::Api.Dtos.DiscoverySubmissionSetStateRequestDto(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private void UsePermission(string permission)
+    {
+        _principal = new ClientPrincipal
+        {
+            Claims = [new ClientPrincipalClaim { Type = "permissions", Value = permission }]
+        };
+    }
+}

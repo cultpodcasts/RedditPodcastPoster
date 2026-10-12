@@ -13,6 +13,9 @@ public sealed class HandlerContext(
 
     public bool HasScope(string scope) => principal?.HasScope(scope) ?? false;
 
+    public IReadOnlyList<string> ClaimValues(string type) => ClaimValueParser.Parse(
+        principal?.Claims.Where(x => x.Type == type).Select(x => x.Value) ?? []);
+
     public string? Query(string name) => request.Query[name];
 
     public HttpResponseData Status(HttpStatusCode statusCode)

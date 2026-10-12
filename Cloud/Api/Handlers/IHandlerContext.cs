@@ -10,6 +10,12 @@ public interface IHandlerContext
     /// <summary>True when the caller's token grants <paramref name="scope"/> (Auth0 permission or OAuth scope).</summary>
     bool HasScope(string scope);
 
+    /// <summary>
+    /// Values of claim <paramref name="type"/>. A claim holding a JSON array of strings is expanded.
+    /// Empty when the claim is absent.
+    /// </summary>
+    IReadOnlyList<string> ClaimValues(string type);
+
     string? Query(string name);
 
     HttpResponseData Status(HttpStatusCode statusCode);

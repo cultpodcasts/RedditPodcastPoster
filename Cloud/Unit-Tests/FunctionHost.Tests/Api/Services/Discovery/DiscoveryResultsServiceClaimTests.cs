@@ -102,4 +102,45 @@ public class DiscoveryResultsServiceClaimTests
             DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact(DisplayName =
+        "Claiming held reports for a supervisor apply moves each PendingSupervisor report to Processed with a guarded transition before any ingest, because only a supervisor apply may process a held report.")]
+    public async Task claims_held_reports_from_pending_supervisor()
+    {
+        // Arrange
+        var id = _fixture.Create<Guid>();
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        var unclaimed = await sut.TryClaimHeldForProcessing([id]);
+
+        // Assert
+        unclaimed.Should().BeEmpty();
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(id,
+            DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Processed,
+            It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(It.IsAny<Guid>(),
+            DiscoveryResultsDocumentState.Unprocessed, It.IsAny<DiscoveryResultsDocumentState>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When one held report cannot be claimed, the held reports already claimed go back to PendingSupervisor and the failed id is returned, because a partial apply would strand reports.")]
+    public async Task failed_held_claim_returns_claimed_to_pending_supervisor()
+    {
+        // Arrange
+        var first = _fixture.Create<Guid>();
+        var second = _fixture.Create<Guid>();
+        _refuse.Add(second);
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        var unclaimed = await sut.TryClaimHeldForProcessing([first, second]);
+
+        // Assert
+        unclaimed.Should().Equal(second);
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(first,
+            DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.PendingSupervisor,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

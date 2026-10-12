@@ -192,6 +192,190 @@ The same request body is **held, not applied**:
 
 ---
 
+## Supervised discovery (held submissions and supervisor review)
+
+Some curators (typically AI agents) carry the Auth0 permission **`curate:supervised`**. Their discovery
+submits are **held**, not applied, until a supervisor reviews and applies them.
+
+### Report and submission states
+
+| Entity | States |
+|--------|--------|
+| Discovery report (`DiscoveryResultsDocument.state`) | `Unprocessed` → `PendingSupervisor` → `Processed` |
+| Submission (`DiscoverySubmission.status`) | `Pending` → `Applied` \| `PartiallyApplied` \| `ApplyFailed`, or `Pending` → `Released` (no reject/return) |
+
+Submission statuses:
+
+| Status | Meaning | In supervisor queue |
+|--------|---------|---------------------|
+| `Pending` | Held, nothing ingested | yes |
+| `ApplyFailed` | Apply failed. With no `itemOutcomes`: failed before any submit, reports back in `PendingSupervisor` (apply again or release). With `itemOutcomes`: every attempted item failed (retry/abandon) | yes |
+| `PartiallyApplied` | Some items ingested, some `Failed`; reports are `Processed` | yes |
+| `Applied` | Terminal; every item `Succeeded` or `Abandoned` | no |
+| `Released` | Terminal; supervisor released the held reports to `Unprocessed`, nothing ingested | no |
+
+- Only `Processed` reports are ingested as episodes.
+- **Only a supervisor apply can promote a `PendingSupervisor` report to `Processed`.** A `curate:supervised`
+  caller can never reach `Processed` by any route, even if their token also has `supervise` or `admin`.
+- `POST DiscoveryCuration` by a `curate:supervised` caller returns **202** `{ "submissionId", "status": "Pending" }`,
+  moves the reports to `PendingSupervisor` and ingests nothing. Held reports are listed under `awaitingReview` on
+  `GET DiscoveryCuration`; anyone else submitting a held report gets **409**.
+
+### Permissions
+
+| Permission | May |
+|-----------|-----|
+| `supervise` | List the review queue, read, save a review, apply |
+| `admin` | Same as `supervise`, and overrides supervisor mapping |
+| `curate:supervised` | List **own** submissions and read them (status, comments, diff). Never review/apply |
+
+Optional supervisor mapping: the supervised curator's token may carry the custom claim
+`https://api.cultpodcasts.com/supervisors` (array of supervisor `sub` values, from Auth0 `app_metadata`).
+It is captured on the submission at submit time (`supervisorSubjects`). When present, only those supervisors
+(or an admin) may review/apply it; when absent, any supervisor may. Nobody but an admin may review their own submission.
+
+Unknown permission → **401** (controller gate). Permitted but not allowed for this submission → **403**.
+
+### GET `DiscoverySubmissions`
+
+Query. Supervisor/admin: reviewable queue (`Pending` + `ApplyFailed` + `PartiallyApplied` the caller may review), oldest first.
+Supervised curator: their own submissions (any status), newest first.
+
+```json
+{
+  "view": "supervisor",            // or "submitter"
+  "pendingCount": 2,               // badge count (supervisor: queue length incl. failures; submitter: own Pending)
+  "submissions": [{
+    "id": "guid", "status": "Pending", "submitterSubject": "auth0|…", "submittedAt": "…Z",
+    "discoveryResultsDocumentIds": ["guid"], "submitterAcceptedCount": 3,
+    "supervisorSubject": null, "appliedAt": null, "reportComment": null,
+    "itemCommentCount": 0, "applyError": null,
+    "failedCount": null, "succeededCount": null, "abandonedCount": null,   // null until an apply ingested
+    "releasedAt": null, "releaseReason": null
+  }]
+}
+```
+
+### GET `DiscoverySubmissions/{submissionId}`
+
+Query. Submitter or an allowed supervisor; otherwise 403; unknown id 404.
+
+```json
+{
+  "id": "guid", "status": "Pending", "etag": "\"…\"", "canReview": true,
+  "submitterSubject": "auth0|…", "submittedAt": "…Z",
+  "submitterAcceptedResultIds": ["guid"],
+  "supervisorAcceptedResultIds": null, "addedBySupervisorResultIds": null, "removedBySupervisorResultIds": null,
+  "reportComment": null,
+  "itemComments": [{ "resultId": "guid", "comment": "…" }],
+  "supervisorSubject": null, "appliedAt": null, "applyError": null, "erroredResultIds": null,
+  "itemOutcomes": [{                // null until an apply attempted ingestion
+    "resultId": "guid", "state": "Failed",          // Succeeded | Failed | Abandoned
+    "episodeId": null, "podcastId": null,
+    "message": "Error",                              // ingester outcome (e.g. Created, Enriched, Error)
+    "error": "HttpRequestException: …",              // why it failed; null unless last attempt failed
+    "attempts": 1, "lastAttemptAt": "…Z"
+  }],
+  "releasedAt": null, "releaseReason": null,
+  "reports": [{
+    "id": "guid", "discoveryBegan": "…Z", "state": "PendingSupervisor",
+    "results": [ /* every result, same item shape as GET DiscoveryCuration (incl. autoHidden) */ ]
+  }],
+  "history": [{ "at": "…Z", "actorSubject": "auth0|…", "action": "Submitted" }]
+}
+```
+
+History actions: `Submitted`, `ReviewSaved`, `ApplyStarted`, `Applied`, `PartiallyApplied`, `ApplyFailed`, `ApplyConflict`, `RetryStarted`, `ItemsAbandoned`, `ReleaseStarted`, `Released`, `StateChanged` (admin override; also carries `fromStatus`, `toStatus`, `reason`; those fields are `null`/absent on other entries).
+
+### PUT `DiscoverySubmissions/{submissionId}/review`
+
+Command (`supervise`/`admin`). Saves a draft review; nothing is ingested. Omitted (`null`) fields are unchanged.
+
+```json
+{
+  "etag": "\"…\"",                                 // required, from GET
+  "reportComment": "…",                            // "" clears
+  "itemComments": [{ "resultId": "guid", "comment": "…" }],  // replaces all; [] clears
+  "acceptedResultIds": ["guid"]                    // final set: any results within the held reports
+}
+```
+
+**202** command outcome (`DiscoverySubmissionCommandResponse`):
+
+```json
+{ "submissionId": "guid", "status": "Pending", "etag": "\"…\"",
+  "addedBySupervisorResultIds": ["guid"], "removedBySupervisorResultIds": ["guid"],
+  "message": null, "ids": null, "outcome": null, "itemOutcomes": null }
+```
+
+Errors: **400** ids outside the held reports (`message`) or comment over 4000 chars; **409** stale `etag` or the
+submission is `Applied`; **403**/**404** as above.
+
+### POST `DiscoverySubmissions/{submissionId}/apply`
+
+Command (`supervise`/`admin`). Body `{ "etag": "…", "acceptedResultIds": ["guid"] | null }`. When
+`acceptedResultIds` is omitted, the saved review set is used, else the submitter's set.
+
+1. Verifies every report is still `PendingSupervisor` and the ids are within those reports (else 409/400).
+2. Claims the submission (ETag-guarded; a concurrent apply gets 409 and ingests nothing), records final set + diff.
+3. **Before any ingestion**, moves every report `PendingSupervisor` → `Processed` with a guarded (ETag) write,
+   all-or-nothing. If any report cannot be claimed: **409**, nothing ingested, submission stays `Pending`
+   (history `ApplyConflict`).
+4. Replays the normal discovery ingest with the final set, stamps result states (`Accepted`/`Rejected`/`AcceptError`),
+   re-indexes search.
+5. Records per-item outcomes (`itemOutcomes`) and derives the status: `Applied` (all succeeded),
+   `PartiallyApplied` (some failed) or `ApplyFailed` (all failed). Items the run never reached (aborted
+   part-way) are `Failed` with a reason. Also records `supervisorSubject`, `appliedAt`.
+
+**200** command outcome (`status` `Applied` or `PartiallyApplied`), same shape as review plus `outcome` (this run,
+same shape as the `POST DiscoveryCuration` response, each item now with a nullable `error` reason) and
+`itemOutcomes` (cumulative). Re-applying an `Applied` submission is a no-op **200** (`message: "Already applied."`).
+Apply on `PartiallyApplied`, or `ApplyFailed` with outcomes, is **409** (use retry; never re-ingests).
+
+**500** with `status: "ApplyFailed"`: either every item failed (see `itemOutcomes`, use retry), or the run failed before
+any episode submit, in which case `itemOutcomes` is null and the reports were returned to `PendingSupervisor`
+(apply again or release). Once an episode submit was attempted reports stay `Processed` (no double ingestion).
+
+> Note: an ingester result that is not an exception (e.g. `NoUrls`, `DifferentPodcasts`) counts as `Succeeded`
+> with that `message`, matching the existing `Accepted` result state; only exceptions are `Failed`.
+
+### POST `DiscoverySubmissions/{submissionId}/retry`
+
+Command (`supervise`/`admin`). For `PartiallyApplied`, or `ApplyFailed` with `itemOutcomes`. Gated by submission
+state, not report state (reports are `Processed`). Body:
+
+```json
+{ "etag": "\"…\"", "abandonResultIds": ["guid"] }   // optional: failed items to drop instead of retrying
+```
+
+Resubmits **only** items still `Failed` (never `Succeeded` or `Abandoned`), restamps only those results on their
+reports, updates `itemOutcomes` (attempts, error), and re-derives status (`Applied` when nothing is `Failed`).
+Abandoning all failed items closes the submission as `Applied` without ingesting. **200** command outcome as apply.
+Errors: **400** abandoning an id that is not `Failed` (`ids`); **409** stale etag or nothing to retry; **403**/**404**.
+
+### POST `DiscoverySubmissions/{submissionId}/release`
+
+Command (`supervise`/`admin`; never `curate:supervised`). Releases the lock on a submission that has ingested
+nothing (`Pending`, or `ApplyFailed` without `itemOutcomes`). Body `{ "etag": "…", "reason": "…" | null }`.
+Moves each held report `PendingSupervisor` → `Unprocessed` (guarded), sets `status: "Released"`, `releasedAt`,
+`releaseReason`, history `ReleaseStarted`/`Released`. Ingests nothing. **200** command outcome; `ids` lists reports
+that were not held (left unchanged). **409** stale etag or submission already ingested/terminal.
+
+### POST `DiscoveryReports/{documentId}/release` (admin)
+
+Admin only (`admin`; not `supervise`, never `curate:supervised`). Returns a report stuck in `PendingSupervisor`
+with no live submission (no `Pending`/unapplied `ApplyFailed` submission listing it) to `Unprocessed` (guarded).
+Body `{ "reason": "…" | null }` (logged). **200** `{ "documentId", "status": "Released", "message" }`;
+**409** if not `PendingSupervisor` or still held by a live submission (`submissionIds` lists them); **404** unknown.
+
+### AI-teaching data
+
+Each submission persists `submitterAcceptedResultIds`, `supervisorAcceptedResultIds`,
+`addedBySupervisorResultIds` (the AI missed) and `removedBySupervisorResultIds` (the AI wrongly accepted),
+plus report and item comments. No notifications are sent; UIs use `pendingCount` for a badge.
+
+---
+
 ## ML scorer semantics
 
 | Concept | Behaviour |
@@ -383,3 +567,49 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 | `Cloud/Api/Services/DiscoveryResultsService.cs` | Filter, sort, mark processed |
 | `Cloud/Api/Dtos/DiscoveryResponse*.cs` | Response DTOs |
 | `Class-Libraries/RedditPodcastPoster.Models/DiscoveryResult.cs` | Persisted fields including scorer |
+| `Cloud/Api/Controllers/DiscoverySubmissionsController.cs` | Supervised-submission routes and permission gates |
+| `Cloud/Api/Services/Discovery/DiscoverySubmissionReviewService.cs` | List/get/review/apply/retry/release |
+| `Cloud/Api/Services/Discovery/DiscoverySubmissionRules.cs` | Who may review; supervisor diff |
+| `Class-Libraries/RedditPodcastPoster.Models/Discovery/DiscoverySubmission.cs` | Persisted submission |
+
+
+### In-progress state (`Applying`) and manual state override
+
+Apply, retry and release first persist `status: "Applying"` in their ETag-guarded claim, with
+`inProgressOperation` (`Apply` | `Retry` | `Release`) and `inProgressSince` (both returned in list/detail, `null` otherwise).
+While `Applying`, review, apply, retry, release and stuck-report release all return **409**; the submission is shown
+in the supervisor queue.
+
+The final write is merged and retried (up to 3 attempts) if it gets a 412 while the submission is still held by the
+same operation; if the outcome still cannot be recorded the command returns **500** with
+`"Outcome could not be recorded…"` (never `200`).
+
+An `Applying` submission is never changed automatically. If an operation dies mid-way, an admin inspects the
+reports/catalogue and sets the status by hand:
+
+`POST /DiscoverySubmissions/{id}/state` — **admin only** (`admin` permission).
+
+Body:
+```json
+{ "status": "Pending", "etag": "\"…\"", "reason": "Apply crashed during claim; reports checked" }
+```
+- `status` (required): a `DiscoverySubmissionStatus` name, case-insensitive — `Pending`, `Applied`, `ApplyFailed`,
+  `PartiallyApplied`, `Released`. `None`, `Applying` (would be stuck with no running operation), numbers and unknown
+  names → **400**.
+- `etag` (required): the submission's current ETag. Missing or stale → **409**.
+- `reason` (optional, ≤ 4000 chars, longer → **400**).
+
+Effect: sets `status`, clears `inProgressOperation`, `inProgressSince` (and the internal in-progress fields), and appends
+a history entry `{ "action": "StateChanged", "actorSubject": "<admin>", "fromStatus": "Applying", "toStatus": "Pending",
+"reason": "…" }`. Report states and item outcomes are **not** changed — fix those separately (e.g.
+`POST /DiscoveryReports/{documentId}/release`) if needed.
+
+Responses: **200** standard command response (new `etag`, `submissionStatus`, `diff`, `itemOutcomes`); **400** invalid
+status (incl. `None`/`Applying`)/reason; **403** not admin; **404** unknown submission; **409** stale/missing ETag.
+
+### Error bodies (camelCase DTOs)
+
+- `POST /DiscoveryCuration` 409: `{ "message": "One or more reports are not available for curation.", "documentIds": ["<guid>"] }`
+- Supervised `POST /DiscoveryCuration` 400: `{ "message": "Result ids are not in the submitted reports.", "resultIds": ["<guid>"] }`
+- Missing subject (400), forbidden (403), not found (404), failure (500): `{ "message": "..." }`
+- `DiscoverySubmissions/*` command errors (409/400/500) use the standard command response body.

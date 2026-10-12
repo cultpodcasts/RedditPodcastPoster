@@ -17,6 +17,7 @@ public class DiscoverySubmissionHoldService(
     public async Task<DiscoverySubmissionHoldResult> HoldAsync(
         DiscoverySubmitRequest request,
         string submitterSubject,
+        IReadOnlyList<string> supervisorSubjects,
         CancellationToken cancellationToken)
     {
         var documentIds = request.DiscoveryResultsDocumentIds.Distinct().ToArray();
@@ -58,6 +59,7 @@ public class DiscoverySubmissionHoldService(
                 SubmittedAt = now,
                 DiscoveryResultsDocumentIds = documentIds,
                 SubmitterAcceptedResultIds = acceptedResultIds,
+                SupervisorSubjects = supervisorSubjects.Count > 0 ? supervisorSubjects.ToArray() : null,
                 History = [new DiscoverySubmissionHistoryEntry { At = now, ActorSubject = submitterSubject, Action = SubmittedAction }]
             };
 

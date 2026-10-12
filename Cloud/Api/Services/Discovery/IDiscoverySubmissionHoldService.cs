@@ -11,5 +11,6 @@ public interface IDiscoverySubmissionHoldService
     Task<DiscoverySubmissionHoldResult> HoldAsync(
         DiscoverySubmitRequest request,
         string submitterSubject,
+        IReadOnlyList<string> supervisorSubjects,
         CancellationToken cancellationToken);
 }
