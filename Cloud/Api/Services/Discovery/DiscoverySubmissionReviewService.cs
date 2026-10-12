@@ -555,7 +555,7 @@ public class DiscoverySubmissionReviewService(
     public const int MaxFinalWriteAttempts = 3;
 
     public const string OutcomeNotRecorded =
-        "Outcome could not be recorded because the submission changed concurrently; reload it (an admin can recover a stuck Applying submission).";
+        "Outcome could not be recorded because the submission changed concurrently; reload it (if it stays Applying, an admin can set its status with POST DiscoverySubmissions/{id}/state).";
 
     /// <summary>
     /// Writes the operation's result. On a 412 it re-reads and, only while the stored submission is still held by
