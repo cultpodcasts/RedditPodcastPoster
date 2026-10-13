@@ -49,5 +49,10 @@ Options (`episodeLookup`): `FullShowReadMaxEpisodes` 200, `FullShowReadMaxPages`
 `SpotifyBoundedWalkPages` 4, `AppleBoundedWalkPages` 5, `RequestTimeout` 10 s.
 
 Use the App Insights `Catalogue episode lookup:` lines (group by `flow`, `stage`, `pages-read`) to tune with data.
+Function apps cap `RedditPodcastPoster` at Warning, so these Information lines need the
+`RedditPodcastPoster.EpisodeLookup` = Information override in `Cloud/Azure/ApplicationLogLevels.cs` and in every
+host's `host.json` (pinned by `FunctionHost.Tests` `EpisodeLookupLogLevelRules`). A new function app that calls
+`AddEpisodeLookup` needs the same `host.json` entry and a row in that test. CLIs log at Information by default.
+KQL: [`docs/indexing-app-insights-queries.md`](../../docs/indexing-app-insights-queries.md) §11.
 
 More background: [`docs/catalogue-pagination.md`](../../docs/catalogue-pagination.md) ("Episode lookup planner").
