@@ -491,7 +491,9 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | `Catalogue episode lookup:` | Info | `CatalogueLookupExecutor` (one line per single-episode lookup) |
 | `Catalogue request timeout guard fired:` | Warning | `CatalogueRequestGuard` (Spotify + Apple, 10 s) |
 
-KQL: [indexing-app-insights-queries.md](indexing-app-insights-queries.md).
+KQL: [indexing-app-insights-queries.md](indexing-app-insights-queries.md) (§11 for the episode lookup lines).
+
+Function apps cap `RedditPodcastPoster` at Warning. The Info `Catalogue episode lookup:` line reaches App Insights only through the `RedditPodcastPoster.EpisodeLookup` = Information override in `Cloud/Azure/ApplicationLogLevels.cs` and each function app's `host.json` (pinned by `FunctionHost.Tests` `EpisodeLookupLogLevelRules`). Keep it when changing log levels.
 
 ---
 

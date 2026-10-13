@@ -56,6 +56,25 @@ public class EpisodeLookupLogLevelRules
         logger.IsEnabled(LogLevel.Warning).Should().BeTrue();
     }
 
+    [Fact(DisplayName =
+        "The episode lookup log prefixes stay stable, because the App Insights KQL in " +
+        "docs/indexing-app-insights-queries.md §11 keys off them.")]
+    public void episode_lookup_log_prefixes_are_stable()
+    {
+        // Arrange
+        var prefixes = new[]
+        {
+            CatalogueLookupExecutor.LogMessagePrefix,
+            CatalogueRequestGuard.GuardFiredMessagePrefix
+        };
+
+        // Act
+        var documented = new[] { "Catalogue episode lookup:", "Catalogue request timeout guard fired:" };
+
+        // Assert
+        prefixes.Should().Equal(documented);
+    }
+
     [Theory(DisplayName =
         "Every function app that registers episode lookup sets the EpisodeLookup category to Information in host.json, " +
         "matching the worker filter, while RedditPodcastPoster stays at Warning.")]

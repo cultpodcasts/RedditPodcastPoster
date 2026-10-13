@@ -976,6 +976,47 @@ AppTraces
 
 ---
 
+## 11. Episode lookup planner — per-lookup outcome and request guard
+
+`CatalogueLookupExecutor` logs one Information line per Spotify/Apple single-episode lookup (`Catalogue episode lookup:`). `CatalogueRequestGuard` logs `Catalogue request timeout guard fired:` at Warning. The Information line reaches App Insights only because function apps raise `RedditPodcastPoster.EpisodeLookup` to Information: in `Cloud/Azure/ApplicationLogLevels.cs` (the worker filter) and in each app's `host.json`. `FunctionHost.Tests` `EpisodeLookupLogLevelRules` pins this. Design: [catalogue-pagination.md](catalogue-pagination.md), [EpisodeLookup README](../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md).
+
+### A. Outcomes by platform / flow / stage (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "Catalogue episode lookup:"
+| extend Platform = extract(@"platform='([^']*)'", 1, Message),
+         Flow = extract(@"flow='([^']*)'", 1, Message),
+         Stage = extract(@"stage='([^']*)'", 1, Message),
+         PagesRead = toint(extract(@"pages-read=(\d+)", 1, Message))
+| summarize Lookups = count(), AvgPages = avg(PagesRead), MaxPages = max(PagesRead) by AppRoleName, Platform, Flow, Stage
+| order by Lookups desc
+```
+
+### B. One podcast or episode (24h)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where Message startswith "Catalogue episode lookup:"
+| where Message has "<podcast name or episode title fragment>"
+| project TimeGenerated, AppRoleName, Message, OperationId
+| order by TimeGenerated desc
+```
+
+### C. Request guard timeouts (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "Catalogue request timeout guard fired:"
+| project TimeGenerated, AppRoleName, Message, OperationId
+| order by TimeGenerated desc
+```
+
+---
+
 ## PowerShell helper — run a query file
 
 ```powershell
