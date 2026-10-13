@@ -20,6 +20,12 @@ public class SpotifyEpisodeResolver(
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
+    /// <summary>One page of the show's newest episodes, used when the title search misses.</summary>
+    public const int RecentShowEpisodesLimit = 50;
+
+    /// <summary>Only episodes released this recently can be expected on the show's newest page.</summary>
+    public static readonly TimeSpan RecentShowEpisodesWindow = TimeSpan.FromDays(14);
+
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
@@ -54,6 +60,21 @@ public class SpotifyEpisodeResolver(
 
         var candidates = await episodeTitleSearch.FindCandidates(request, indexingContext, market);
         var matchingEpisode = await MatchCandidates(request, candidates, reducer);
+        if (matchingEpisode == null && IsRecentYouTubeEpisodeWithKnownShow(request))
+        {
+            // The title search queries the incoming (often YouTube) title. When the audio-feed title
+            // differs, the real episode is absent from the hits. Apple matches the same pair because it
+            // reads the show's episode list, so match against one page of the show's newest episodes too.
+            var recent = await spotifyClientWrapper.GetShowEpisodes(
+                request.PodcastSpotifyId,
+                new ShowEpisodesRequest { Market = market, Limit = RecentShowEpisodesLimit },
+                indexingContext);
+            var searchedIds = candidates.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+            var recentCandidates = recent?.Items?
+                .Where(x => x != null && !searchedIds.Contains(x.Id))
+                .ToList() ?? [];
+            matchingEpisode = await MatchCandidates(request, recentCandidates, reducer);
+        }
 
         if (matchingEpisode != null)
         {
@@ -115,6 +136,12 @@ public class SpotifyEpisodeResolver(
             request.Released,
             candidates);
     }
+
+    private static bool IsRecentYouTubeEpisodeWithKnownShow(FindSpotifyEpisodeRequest request) =>
+        (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode) &&
+        !string.IsNullOrWhiteSpace(request.PodcastSpotifyId) &&
+        request.Released is { } released &&
+        DateTime.UtcNow - released < RecentShowEpisodesWindow;
 
     private FullEpisode? TakeIfFree(FullEpisode? episode, string market)
     {

@@ -812,6 +812,124 @@ public class SpotifyEpisodeResolverRules
             Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When a YouTube-authority episode's YouTube title differs from the audio-feed title and the title search misses, " +
+        "FindEpisode matches against one page of the show's newest episodes " +
+        "because Apple matches the same catalogue pair from the show's episode list (Steve Hassan, 12 Oct 2026).")]
+    public async Task Divergent_youtube_title_falls_back_to_recent_show_episodes()
+    {
+        // Arrange — real case: cultpodcasts episode 67b9dfa6-bd09-46d1-9859-decbd7d1a90b
+        const string youTubeTitle =
+            "Why Is Everyone Lying to You for Money? The Great Crypto Scam EXPOSED (w/ Ben McKenzie)";
+        const string spotifyTitle =
+            "Everyone Is Lying to You for Money, Crypto and Cult Psychology with Ben McKenzie: My conversation with the author of Easy Money about financial manipulation, the need to belong, and protecting our freedom of mind.";
+        const string showId = "3fy5dEPagR2T8MPeS7ieAM";
+        const string spotifyEpisodeId = "3RtQ7heOajiCNdikDXUTlW";
+        var youTubeLength = new TimeSpan(0, 56, 49);
+        var spotifyLength = new TimeSpan(0, 59, 29);
+        var released = DateTime.UtcNow.Date.AddDays(-1).AddHours(8);
+        var catalogueEpisode = CreateSimpleEpisode(spotifyEpisodeId, spotifyTitle, released, spotifyLength);
+        var olderEpisode = CreateSimpleEpisode(_fixture.CreateSpotifyId(), _fixture.CreateTitle(), released.AddDays(-7), spotifyLength);
+        var hydrated = new FullEpisode { Id = spotifyEpisodeId, Name = spotifyTitle, IsPlayable = true };
+        _mocker.GetMock<ISpotifyEpisodeTitleSearch>()
+            .Setup(x => x.FindCandidates(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()))
+            .ReturnsAsync([]);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        wrapper
+            .Setup(x => x.GetShowEpisodes(
+                showId,
+                It.IsAny<ShowEpisodesRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Paging<SimpleEpisode> { Items = [catalogueEpisode, olderEpisode] });
+        wrapper
+            .Setup(x => x.GetFullEpisode(
+                spotifyEpisodeId,
+                It.IsAny<EpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hydrated);
+        _mocker.GetMock<ISpotifySearchResultFinder>()
+            .Setup(x => x.FindMatchingEpisodeByLength(
+                youTubeTitle,
+                youTubeLength,
+                It.Is<IEnumerable<SimpleEpisode>>(l => l.Any(e => e.Id == spotifyEpisodeId)),
+                It.IsAny<Func<SimpleEpisode, bool>?>(),
+                Service.YouTube,
+                released,
+                true,
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(catalogueEpisode);
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: showId,
+            PodcastName: "Cults, Culture & Coercion with Dr. Steve Hassan",
+            EpisodeSpotifyId: string.Empty,
+            EpisodeTitle: youTubeTitle,
+            Released: released,
+            HasExpensiveSpotifyEpisodesQuery: false,
+            ReleaseAuthority: Service.YouTube,
+            Length: youTubeLength,
+            EnrichingYouTubeDiscoveredEpisode: true);
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext(), _ => true);
+
+        // Assert
+        result.FullEpisode.Should().BeSameAs(hydrated);
+        wrapper.Verify(x => x.GetShowEpisodes(
+            showId,
+            It.Is<ShowEpisodesRequest>(r => r.Limit == SpotifyEpisodeResolver.RecentShowEpisodesLimit),
+            It.IsAny<IndexingContext>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        wrapper.Verify(x => x.PaginateAll(
+            It.IsAny<IPaginatable<SimpleEpisode>>(),
+            It.IsAny<IndexingContext>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the title search misses an episode released months ago, FindEpisode does not fetch the show's newest episodes " +
+        "because one recent page cannot contain it and the catalogue must not be paged.")]
+    public async Task Old_release_does_not_fall_back_to_recent_show_episodes()
+    {
+        // Arrange
+        _mocker.GetMock<ISpotifyEpisodeTitleSearch>()
+            .Setup(x => x.FindCandidates(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()))
+            .ReturnsAsync([]);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: _fixture.CreateSpotifyId(),
+            PodcastName: _fixture.CreateTitle(),
+            EpisodeSpotifyId: string.Empty,
+            EpisodeTitle: _fixture.CreateTitle(),
+            Released: DomainTestFixture.UtcDateDaysAgo(120),
+            HasExpensiveSpotifyEpisodesQuery: false,
+            ReleaseAuthority: Service.YouTube,
+            Length: TimeSpan.FromMinutes(50));
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        wrapper.Verify(x => x.GetShowEpisodes(
+            It.IsAny<string>(),
+            It.IsAny<ShowEpisodesRequest>(),
+            It.IsAny<IndexingContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private SimpleEpisode CreateSimpleEpisode(
         string id,
         string title,

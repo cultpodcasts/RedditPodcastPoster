@@ -4,6 +4,7 @@ using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
@@ -1535,5 +1536,60 @@ public class CatalogueMatchingRules
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "When enriching a YouTube-discovered episode whose YouTube title and cut differ from the audio feed " +
+        "(Steve Hassan, 12 Oct 2026: 56:49 YouTube vs 59:29 audio, same day), FindCatalogueMatchByLength " +
+        "selects the audio episode for Spotify and Apple alike once both are classified with the same subjects, because both use the same shared matcher.")]
+    [InlineData("spotify")]
+    [InlineData("apple")]
+    public void youtube_discovered_divergent_title_real_pair_matches(string platform)
+    {
+        // Arrange
+        var youTubeRelease = new DateTime(2026, 10, 12, 8, 0, 39, DateTimeKind.Utc);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Why Is Everyone Lying to You for Money? The Great Crypto Scam EXPOSED (w/ Ben McKenzie)";
+            e.Length = new TimeSpan(0, 56, 49);
+            e.ReleaseUtc = youTubeRelease;
+            e.Subjects = ["Cult Psychology", "Multi-Level Marketing"];
+        });
+        var audio = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Everyone Is Lying to You for Money, Crypto and Cult Psychology with Ben McKenzie: My conversation with the author of Easy Money about financial manipulation, the need to belong, and protecting our freedom of mind.";
+            e.Length = new TimeSpan(0, 59, 29);
+            e.ReleaseUtc = new DateTime(2026, 10, 12, 9, 0, 0, DateTimeKind.Utc);
+            e.Subjects = ["Cult Psychology", "Multi-Level Marketing"];
+        });
+        var previousWeek = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateShortTitle();
+            e.Length = new TimeSpan(0, 58, 10);
+            e.ReleaseUtc = youTubeRelease.AddDays(-7);
+        });
+        if (platform == "spotify")
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(audio, "3RtQ7heOajiCNdikDXUTlW");
+            EpisodeServicePresence.SetSpotifyIdentity(previousWeek, _fixture.CreateSpotifyId());
+        }
+        else
+        {
+            audio.AppleId = _fixture.CreateAppleId();
+            previousWeek.AppleId = _fixture.CreateAppleId();
+        }
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [previousWeek, audio],
+            _fixture.CreatePodcast(),
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(
+                ReleaseAuthority: Service.YouTube,
+                EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(audio);
     }
 }
