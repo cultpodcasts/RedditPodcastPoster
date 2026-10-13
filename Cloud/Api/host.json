@@ -9,6 +9,7 @@
       "Function": "Warning",
       "Azure": "Warning",
       "RedditPodcastPoster": "Warning",
+      "RedditPodcastPoster.EpisodeLookup": "Information",
       "Api": "Information"
     }
   }

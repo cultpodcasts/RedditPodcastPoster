@@ -21,7 +21,7 @@ public static class HostFactory
 
         builder.Services.AddLogging();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
-        ConfigureApplicationLogLevels(builder.Logging);
+        ApplicationLogLevels.Configure(builder.Logging);
 
         builder.Logging.ConsoleWriteConfig();
 
@@ -41,23 +41,6 @@ public static class HostFactory
 
         configureServices(builder.Services);
         return builder.Build();
-    }
-
-    /// <summary>
-    /// Host/framework at Warning. Function app namespaces at Information.
-    /// RedditPodcastPoster at Warning during cost review (high-volume pagination logs).
-    /// </summary>
-    private static void ConfigureApplicationLogLevels(ILoggingBuilder logging)
-    {
-        logging.AddFilter("Microsoft", LogLevel.Warning);
-        logging.AddFilter("System", LogLevel.Warning);
-        logging.AddFilter("Function", LogLevel.Warning);
-        logging.AddFilter("Host", LogLevel.Warning);
-        logging.AddFilter("Azure", LogLevel.Warning);
-        logging.AddFilter("RedditPodcastPoster", LogLevel.Warning);
-        logging.AddFilter("Indexer", LogLevel.Information);
-        logging.AddFilter("Api", LogLevel.Information);
-        logging.AddFilter("Discovery", LogLevel.Information);
     }
 
     private static void ConfigureAzureMonitorExporter(
