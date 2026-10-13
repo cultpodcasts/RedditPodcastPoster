@@ -12,7 +12,9 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// <list type="number">
 /// <item>No show known for the platform: Index plans nothing (a search cannot succeed and indexing never learns a
 /// show id from it); every other flow searches by title only.</item>
-/// <item>Small show (known count &lt;= <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/>): full read, any flow.</item>
+/// <item>Small show (known count &lt;= <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/>): full read, any flow;
+/// outside Index it is budgeted by <see cref="EpisodeLookupOptions.FullShowReadBudget"/> and followed by a title search
+/// (skipped when the full read completed).</item>
 /// <item>Otherwise the chain declared in <see cref="EpisodeLookupChains.LargeShow"/> for (flow, age).</item>
 /// </list>
 /// Unknown size counts as large. Every page read is bounded by a date, a page cap or both.
@@ -37,7 +39,16 @@ public sealed class EpisodeLookupPlanner(IOptions<EpisodeLookupOptions> options,
 
         if (showEpisodeCount is { } count && count <= _options.FullShowReadMaxEpisodes)
         {
-            return [new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages)];
+            // Index reads small shows in full, unbudgeted (it runs in the background). Every other flow serves a
+            // request, so the read is time-budgeted and falls back to one title search.
+            return lookup.Flow == EpisodeLookupFlow.Index
+                ? [new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages)]
+                :
+                [
+                    new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages,
+                        Budget: _options.FullShowReadBudget),
+                    new CatalogueLookupStep(CatalogueLookupStrategy.TitleSearch)
+                ];
         }
 
         var age = IsRecent(lookup.Released) ? EpisodeLookupAge.Recent : EpisodeLookupAge.OldOrUndated;

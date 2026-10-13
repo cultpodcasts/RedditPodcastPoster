@@ -11,11 +11,18 @@ namespace RedditPodcastPoster.Subjects.Matching;
 /// Shared subject classification for catalogue lookups (formerly duplicated in the Spotify finder and Apple
 /// resolver). Ignored subjects are the podcast list unioned with the language list; subjects are classified on the
 /// probe and every candidate only when enriching a YouTube-discovered episode, where the multi-criteria scorer uses them.
+/// Candidate subjects are memoised for the scope (one apply, submit or index pass): the same show page is often scored
+/// for several lookups (submission 4a7d8838 classified The Compendium's 185 + 159 episodes twice, ~45 s each time).
 /// </summary>
 public sealed class CatalogueSubjectClassifier(
     ISubjectMatcher subjectMatcher,
     IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider) : ICatalogueSubjectClassifier
 {
+    // Lives for one DI scope (one apply/submit request, one index activity): keep this classifier Scoped, never
+    // Singleton, or subjects edited in Cosmos would never be seen and the memo would grow without bound.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Options, string Title, string Description, DateTime Release), List<string>>
+        _candidateSubjects = new();
+
     public async Task<IReadOnlyList<string>?> ClassifyAsync(
         Episode probe,
         IReadOnlyList<Episode> candidates,
@@ -36,9 +43,18 @@ public sealed class CatalogueSubjectClassifier(
             DefaultSubject: lookup.DefaultSubject,
             DescriptionRegex: string.Empty);
         probe.Subjects = await MatchSubjectNamesAsync(probe, options, cancellationToken);
+        var optionsKey = string.Join("|", lookup.DefaultSubject ?? string.Empty,
+            string.Join(",", (ignored ?? []).Order(StringComparer.OrdinalIgnoreCase)));
         foreach (var candidate in candidates)
         {
-            candidate.Subjects = await MatchSubjectNamesAsync(candidate, options, cancellationToken);
+            var key = (optionsKey, candidate.Title ?? string.Empty, candidate.Description ?? string.Empty, candidate.ReleaseUtc);
+            if (!_candidateSubjects.TryGetValue(key, out var subjects))
+            {
+                subjects = await MatchSubjectNamesAsync(candidate, options, cancellationToken);
+                _candidateSubjects[key] = subjects;
+            }
+
+            candidate.Subjects = [.. subjects];
         }
 
         return ignored;

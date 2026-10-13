@@ -14,7 +14,7 @@ namespace RedditPodcastPoster.EpisodeLookup.Tests.Unit;
 /// <summary>Planner tunables are validated at startup, so a bad configuration fails fast instead of at the first lookup.</summary>
 public class EpisodeLookupOptionsTests
 {
-    [Fact(DisplayName = "Defaults are valid: full read <=200 episodes, 14-day recent window, Index cap 20 pages, walks Spotify 4 / Apple 5 pages, 10 s timeout.")]
+    [Fact(DisplayName = "Defaults are valid: full read <=200 episodes, 14-day recent window, Index cap 20 pages, walks Spotify 4 / Apple 5 pages, 10 s timeout, 20 s non-Index full-read budget.")]
     public void Defaults_are_valid()
     {
         // Arrange
@@ -28,6 +28,7 @@ public class EpisodeLookupOptionsTests
         options.SpotifyBoundedWalkPages.Should().Be(4);
         options.AppleBoundedWalkPages.Should().Be(5);
         options.RequestTimeout.Should().Be(TimeSpan.FromSeconds(10));
+        options.FullShowReadBudget.Should().Be(TimeSpan.FromSeconds(20));
     }
 
     [Theory(DisplayName = "Out-of-range values are invalid.")]
@@ -40,7 +41,9 @@ public class EpisodeLookupOptionsTests
     [InlineData(200, 14, 20, 4, 21)]
     [InlineData(200, 14, 20, 4, 5, 0)]
     [InlineData(200, 14, 20, 4, 5, 121)]
-    public void Out_of_range_is_invalid(int fullRead, int recentDays, int indexPages, int spotifyWalk = 4, int appleWalk = 5, int timeoutSeconds = 10)
+    [InlineData(200, 14, 20, 4, 5, 10, 0)]
+    [InlineData(200, 14, 20, 4, 5, 10, 301)]
+    public void Out_of_range_is_invalid(int fullRead, int recentDays, int indexPages, int spotifyWalk = 4, int appleWalk = 5, int timeoutSeconds = 10, int budgetSeconds = 20)
     {
         // Arrange
         var options = new EpisodeLookupOptions
@@ -50,7 +53,8 @@ public class EpisodeLookupOptionsTests
             IndexMaxPages = indexPages,
             SpotifyBoundedWalkPages = spotifyWalk,
             AppleBoundedWalkPages = appleWalk,
-            RequestTimeout = TimeSpan.FromSeconds(timeoutSeconds)
+            RequestTimeout = TimeSpan.FromSeconds(timeoutSeconds),
+            FullShowReadBudget = TimeSpan.FromSeconds(budgetSeconds)
         };
 
         // Assert

@@ -10,6 +10,7 @@ public class DiscoverySubmissionReviewService(
     IDiscoveryResultsService discoveryResultsService,
     IDiscoveryResultsRepository discoveryResultsRepository,
     IDiscoveryCurationSubmitService discoveryCurationSubmitService,
+    IDiscoverySubmissionIngestedEpisodes ingestedEpisodes,
     TimeProvider timeProvider,
     ILogger<DiscoverySubmissionReviewService> logger) : IDiscoverySubmissionReviewService
 {
@@ -79,6 +80,12 @@ public class DiscoverySubmissionReviewService(
 
             var reports = await discoveryResultsService.GetDocuments(submission.DiscoveryResultsDocumentIds);
             var podcasts = await discoveryResultsService.GetPodcastInfo(reports.SelectMany(x => x.DiscoveryResults), c);
+            // Applied by hand (Change state) records no outcomes: show what was ingested anyway. In memory only.
+            if (await ingestedEpisodes.ResolveMissingOutcomes(submission, reports, c) is { Length: > 0 } recovered)
+            {
+                submission.ItemOutcomes = recovered;
+            }
+
             return new(DiscoverySubmissionQueryStatus.Ok,
                 new DiscoverySubmissionDetail(submission, reports, podcasts,
                     DiscoverySubmissionRules.CanReview(caller, submission) &&
@@ -207,12 +214,14 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission.History.Length;
+        // Claimed: from here the client cannot cancel the ingest or the terminal write (submission 4a7d8838).
+        var terminal = AfterClaim;
 
         var result = await discoveryCurationSubmitService.ApplyHeldAsync(new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = finalSet
-        }, c);
+        }, terminal);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (result.Status == DiscoveryCurationSubmitStatus.Conflict)
@@ -221,7 +230,7 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, ApplyConflictAction);
-            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, c);
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
             return new(DiscoverySubmissionCommandStatus.Conflict,
                 "One or more reports are no longer held for this submission.",
                 InvalidIds: result.UnavailableDocumentIds);
@@ -249,7 +258,7 @@ public class DiscoverySubmissionReviewService(
 
         EndInProgress(submission);
         return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, caller,
-            result.Outcome, c);
+            result.Outcome, terminal);
     }
 
     public async Task<DiscoverySubmissionCommandResult> Retry(Guid submissionId,
@@ -319,12 +328,13 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission.History.Length;
+        var terminal = AfterClaim;
 
         var result = await discoveryCurationSubmitService.RetryItemsAsync(new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = toRetry
-        }, c);
+        }, terminal);
 
         if (result.Outcome != null)
         {
@@ -345,7 +355,7 @@ public class DiscoverySubmissionReviewService(
         EndInProgress(submission);
         CloseOut(submission, caller.Subject);
         return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-            result.Outcome, c);
+            result.Outcome, terminal);
     }
 
     public async Task<DiscoverySubmissionCommandResult> Release(Guid submissionId,
@@ -372,12 +382,13 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission!.History.Length;
+        var terminal = AfterClaim;
 
         var notReleased = new List<Guid>();
         foreach (var documentId in submission!.DiscoveryResultsDocumentIds)
         {
             if (!await discoveryResultsRepository.TryTransitionState(documentId,
-                    DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, c))
+                    DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, terminal))
             {
                 notReleased.Add(documentId);
             }
@@ -390,7 +401,7 @@ public class DiscoverySubmissionReviewService(
         submission.SupervisorSubject = caller.Subject;
         EndInProgress(submission);
         AppendHistory(submission, caller.Subject, ReleasedAction);
-        var finalETag = await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Release, c);
+        var finalETag = await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Release, terminal);
         await discoveryResultsService.UpdateDiscoveryInfoContent();
         if (finalETag == null)
         {
@@ -553,6 +564,13 @@ public class DiscoverySubmissionReviewService(
     }
 
     public const int MaxFinalWriteAttempts = 3;
+
+    /// <summary>
+    /// Token used once an operation has claimed the submission: the ingest and the terminal write (status, item
+    /// outcomes, lock release) must complete even if the client or the Cloudflare proxy hangs up, otherwise the
+    /// submission is stranded Applying with episodes already created (submission 4a7d8838, 13 Oct 2026).
+    /// </summary>
+    private static CancellationToken AfterClaim => CancellationToken.None;
 
     public const string OutcomeNotRecorded =
         "Outcome could not be recorded because the submission changed concurrently; reload it (if it stays Applying, an admin can set its status with POST DiscoverySubmissions/{id}/state).";

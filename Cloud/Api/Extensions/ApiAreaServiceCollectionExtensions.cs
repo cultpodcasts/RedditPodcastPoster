@@ -159,6 +159,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetDiscoveryCurationHandler, GetDiscoveryCurationHandler>()
             .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>()
             .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
+            .AddScoped<IDiscoverySubmissionIngestedEpisodes, DiscoverySubmissionIngestedEpisodes>()
             .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()
             .AddScoped<IGetDiscoverySubmissionHandler, GetDiscoverySubmissionHandler>()
             .AddScoped<IPutDiscoverySubmissionReviewHandler, PutDiscoverySubmissionReviewHandler>()

@@ -56,6 +56,33 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
     }
 
     [Fact(DisplayName =
+        "INVARIANT: Once the held reports are claimed, the ingest bookkeeping (search indexing) runs with a token the client cannot cancel, so a dropped request never turns a completed ingest into a failure.")]
+    public async Task apply_held_ignores_client_cancellation_after_claim()
+    {
+        // Arrange
+        var request = Request();
+        using var client = new CancellationTokenSource();
+        CancellationToken? indexToken = null;
+        _mocker.GetMock<IDiscoveryResultsService>()
+            .Setup(s => s.TryClaimHeldForProcessing(It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()))
+            .Callback(() => client.Cancel())
+            .ReturnsAsync(() => _unclaimed);
+        _mocker.GetMock<RedditPodcastPoster.EntitySearchIndexer.Services.IEpisodeSearchIndexerService>()
+            .Setup(s => s.IndexEpisodes(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .Callback((IEnumerable<Guid> _, CancellationToken ct) => indexToken = ct)
+            .ReturnsAsync(new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse());
+        var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
+
+        // Act
+        var result = await sut.ApplyHeldAsync(request, client.Token);
+
+        // Assert
+        result.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
+        indexToken.Should().NotBeNull();
+        indexToken!.Value.CanBeCanceled.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When a held report can no longer be claimed, the supervisor apply returns a conflict naming it and ingests nothing.")]
     public async Task apply_held_conflict_ingests_nothing()
     {

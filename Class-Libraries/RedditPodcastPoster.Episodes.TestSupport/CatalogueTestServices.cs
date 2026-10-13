@@ -26,6 +26,7 @@ public static class CatalogueTestServices
             new CatalogueEpisodeMatcher(platformMatcher ?? EpisodeDomainTestServices.CreatePlatformMatcher()),
             subjectClassifier ?? new NoCatalogueSubjectClassifier(),
             showEpisodeCounts ?? new CatalogueShowEpisodeCounts(),
+            timeProvider ?? TimeProvider.System,
             logger ?? NullLogger<CatalogueLookupExecutor>.Instance);
 
     /// <summary>Guard with the configured (default 10 s) timeout and a null logger.</summary>
