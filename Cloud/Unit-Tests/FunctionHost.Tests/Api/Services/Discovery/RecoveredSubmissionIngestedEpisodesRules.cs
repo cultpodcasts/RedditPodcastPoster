@@ -88,6 +88,26 @@ public class RecoveredSubmissionIngestedEpisodesRules
         _mocker.GetMock<IDiscoveryResultsRepository>().VerifyNoOtherCalls();
     }
 
+    [Fact(DisplayName =
+        "When the episode lookup for a recovered submission fails, the detail is still returned (without ingested episodes), because the lookup is a best-effort view and must not hide the submission.")]
+    public async Task recovered_lookup_failure_still_returns_detail()
+    {
+        // Arrange
+        Arrange(DiscoverySubmissionStatus.Applied);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Episode, bool>>>()))
+            .Throws(new InvalidOperationException("cosmos unavailable"));
+        _mocker.Use<IDiscoverySubmissionIngestedEpisodes>(_mocker.CreateInstance<DiscoverySubmissionIngestedEpisodes>());
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Get(_submission.Id, Curator(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionQueryStatus.Ok);
+        result.Value!.Submission.ItemOutcomes.Should().BeNull();
+    }
+
     [Theory(DisplayName =
         "Recorded outcomes are the source of truth and a submission that is not Applied has no ingested set to infer, so no episode lookup is made for them.")]
     [InlineData(DiscoverySubmissionStatus.Pending, false)]

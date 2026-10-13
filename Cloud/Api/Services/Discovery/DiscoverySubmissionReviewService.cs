@@ -215,13 +215,13 @@ public class DiscoverySubmissionReviewService(
 
         var historyAtClaim = submission.History.Length;
         // Claimed: from here the client cannot cancel the ingest or the terminal write (submission 4a7d8838).
-        c = AfterClaim;
+        var terminal = AfterClaim;
 
         var result = await discoveryCurationSubmitService.ApplyHeldAsync(new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = finalSet
-        }, c);
+        }, terminal);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (result.Status == DiscoveryCurationSubmitStatus.Conflict)
@@ -230,7 +230,7 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, ApplyConflictAction);
-            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, c);
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
             return new(DiscoverySubmissionCommandStatus.Conflict,
                 "One or more reports are no longer held for this submission.",
                 InvalidIds: result.UnavailableDocumentIds);
@@ -258,7 +258,7 @@ public class DiscoverySubmissionReviewService(
 
         EndInProgress(submission);
         return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, caller,
-            result.Outcome, c);
+            result.Outcome, terminal);
     }
 
     public async Task<DiscoverySubmissionCommandResult> Retry(Guid submissionId,
@@ -328,13 +328,13 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission.History.Length;
-        c = AfterClaim;
+        var terminal = AfterClaim;
 
         var result = await discoveryCurationSubmitService.RetryItemsAsync(new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = toRetry
-        }, c);
+        }, terminal);
 
         if (result.Outcome != null)
         {
@@ -355,7 +355,7 @@ public class DiscoverySubmissionReviewService(
         EndInProgress(submission);
         CloseOut(submission, caller.Subject);
         return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-            result.Outcome, c);
+            result.Outcome, terminal);
     }
 
     public async Task<DiscoverySubmissionCommandResult> Release(Guid submissionId,
@@ -382,13 +382,13 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission!.History.Length;
-        c = AfterClaim;
+        var terminal = AfterClaim;
 
         var notReleased = new List<Guid>();
         foreach (var documentId in submission!.DiscoveryResultsDocumentIds)
         {
             if (!await discoveryResultsRepository.TryTransitionState(documentId,
-                    DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, c))
+                    DiscoveryResultsDocumentState.PendingSupervisor, DiscoveryResultsDocumentState.Unprocessed, terminal))
             {
                 notReleased.Add(documentId);
             }
@@ -401,7 +401,7 @@ public class DiscoverySubmissionReviewService(
         submission.SupervisorSubject = caller.Subject;
         EndInProgress(submission);
         AppendHistory(submission, caller.Subject, ReleasedAction);
-        var finalETag = await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Release, c);
+        var finalETag = await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Release, terminal);
         await discoveryResultsService.UpdateDiscoveryInfoContent();
         if (finalETag == null)
         {

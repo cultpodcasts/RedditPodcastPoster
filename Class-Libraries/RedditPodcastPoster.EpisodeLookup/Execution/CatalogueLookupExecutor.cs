@@ -137,7 +137,8 @@ public sealed class CatalogueLookupExecutor(
     /// Full read under a time budget: page by page, each page's new candidates are classified as they arrive (that is
     /// where the time goes for YouTube-discovered episodes). If the budget is spent before the read completes the step
     /// matches only the candidates already classified and the plan moves on (title search); otherwise all candidates are
-    /// matched together as usual.
+    /// matched together as usual. The budget is checked between pages, so it can be exceeded by at most one page read
+    /// plus that page's classification; it is a soft cap.
     /// </summary>
     private async Task<(TItem? Match, bool BudgetSpent)> BudgetedFullRead<TItem>(
         CatalogueLookup lookup,

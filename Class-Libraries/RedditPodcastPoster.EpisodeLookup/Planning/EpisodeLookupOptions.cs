@@ -30,7 +30,8 @@ public sealed class EpisodeLookupOptions
 
     /// <summary>
     /// Time budget for a small-show full read outside the Index flow (default 20 s), covering page reads and subject
-    /// classification. When it is spent the lookup falls back to a title search. Index full reads are not budgeted.
+    /// classification, checked between pages (soft cap: may overshoot by one page). When it is spent the lookup falls
+    /// back to a title search. Index full reads are not budgeted.
     /// Real case: submission 4a7d8838 spent ~45 s per platform per item on The Compendium (185/159 episodes).
     /// </summary>
     public TimeSpan FullShowReadBudget { get; set; } = TimeSpan.FromSeconds(20);

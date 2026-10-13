@@ -18,6 +18,8 @@ public sealed class CatalogueSubjectClassifier(
     ISubjectMatcher subjectMatcher,
     IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider) : ICatalogueSubjectClassifier
 {
+    // Lives for one DI scope (one apply/submit request, one index activity): keep this classifier Scoped, never
+    // Singleton, or subjects edited in Cosmos would never be seen and the memo would grow without bound.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Options, string Title, string Description, DateTime Release), List<string>>
         _candidateSubjects = new();
 

@@ -97,7 +97,8 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
   Apple hits are hydrated through amp-api `GetEpisode` when possible.
 - Pages are read once per lookup and reused across steps, ids are tried once, and pages are pass-cached
   (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`; both `IPodcastPassApiCacheSource`). Failed pages are not cached.
-- **Full-read budget** (non-Index): checked after each page is read and its new candidates are classified. When it is
+- **Full-read budget** (non-Index): checked after each page is read and its new candidates are classified (a soft
+  cap: it can overshoot by one page, e.g. ~12 s for 50 YouTube-discovered Spotify candidates). When it is
   spent the candidates already classified are still matched, then the plan moves to `title-search`, else a clean
   `miss`. Logged at Information as `Catalogue episode lookup budget spent: platform=… flow=… stage='full-show-read'
   budget-seconds=20 pages-read=…`. Real case: submission `4a7d8838` (apply 13 Oct 2026 22:57 BST) spent ~45 s per

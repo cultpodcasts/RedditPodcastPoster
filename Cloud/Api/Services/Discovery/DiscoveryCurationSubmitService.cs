@@ -54,7 +54,7 @@ public class DiscoveryCurationSubmitService(
 
             claimed = true;
             // Claimed: the client can no longer cancel; ingest and bookkeeping run to completion.
-            cancellationToken = CancellationToken.None;
+            var terminal = CancellationToken.None;
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var erroredResults = await IngestResults(discoveryResults, submitResults);
@@ -65,7 +65,7 @@ public class DiscoveryCurationSubmitService(
             var episodeIds = submitResults
                 .Where(x => x.EpisodeId != null)
                 .Select(x => x.EpisodeId!.Value);
-            var indexed = await searchIndexerService.IndexEpisodes(episodeIds, cancellationToken);
+            var indexed = await searchIndexerService.IndexEpisodes(episodeIds, terminal);
 
             await discoveryResultsService.UpdateDiscoveryInfoContent();
 
@@ -111,7 +111,7 @@ public class DiscoveryCurationSubmitService(
             }
 
             // Ingest has started: the client can no longer cancel it or the bookkeeping that follows.
-            cancellationToken = CancellationToken.None;
+            var terminal = CancellationToken.None;
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var erroredResults = await IngestResults(discoveryResults, submitResults);
             var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults).ToArray();
@@ -119,7 +119,7 @@ public class DiscoveryCurationSubmitService(
                 erroredResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(
-                submitResults.Where(x => x.EpisodeId != null).Select(x => x.EpisodeId!.Value), cancellationToken);
+                submitResults.Where(x => x.EpisodeId != null).Select(x => x.EpisodeId!.Value), terminal);
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
                 new DiscoverySubmitOutcome("Success", erroredResults.Length > 0, submitResults, indexed));
         }

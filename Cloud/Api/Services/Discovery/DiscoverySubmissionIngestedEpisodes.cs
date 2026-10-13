@@ -16,7 +16,8 @@ public interface IDiscoverySubmissionIngestedEpisodes
     /// <summary>
     /// For an <see cref="DiscoverySubmissionStatus.Applied"/> submission with no recorded item outcomes (recovered via
     /// Change state), returns a Succeeded outcome for each accepted result whose episode exists, matched by the
-    /// result's Spotify, Apple or YouTube episode id. Returns <c>null</c> in every other case. Never writes.
+    /// result's Spotify, Apple or YouTube episode id. Returns <c>null</c> in every other case, or when the lookup fails
+    /// (logged). Never writes.
     /// </summary>
     Task<DiscoverySubmissionItemOutcome[]?> ResolveMissingOutcomes(
         DiscoverySubmission submission, IReadOnlyList<DiscoveryResultsDocument> reports, CancellationToken c);
@@ -30,6 +31,22 @@ public sealed class DiscoverySubmissionIngestedEpisodes(
     public const string RecoveredMessage = "Recovered";
 
     public async Task<DiscoverySubmissionItemOutcome[]?> ResolveMissingOutcomes(
+        DiscoverySubmission submission, IReadOnlyList<DiscoveryResultsDocument> reports, CancellationToken c)
+    {
+        try
+        {
+            return await Resolve(submission, reports, c);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Best-effort view: never hide the submission because the lookup failed.
+            logger.LogError(ex, "Failure resolving ingested episodes for recovered submission '{SubmissionId}'.",
+                submission.Id);
+            return null;
+        }
+    }
+
+    private async Task<DiscoverySubmissionItemOutcome[]?> Resolve(
         DiscoverySubmission submission, IReadOnlyList<DiscoveryResultsDocument> reports, CancellationToken c)
     {
         if (submission.Status != DiscoverySubmissionStatus.Applied || submission.ItemOutcomes is { Length: > 0 })
