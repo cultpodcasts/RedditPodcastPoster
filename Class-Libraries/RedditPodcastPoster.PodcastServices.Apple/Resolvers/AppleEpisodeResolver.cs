@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -11,16 +12,21 @@ using RedditPodcastPoster.PodcastServices.Apple.Providers;
 namespace RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 
 /// <summary>
-/// Apple adapter over the shared <see cref="ICatalogueCandidatePolicy"/>: a known episode id is looked up directly;
-/// otherwise the policy sources candidates from the show feed and matches them exactly as for Spotify.
-/// This class only maps Apple types.
+/// Apple adapter: a known episode id is looked up directly (step 0); otherwise the shared
+/// <see cref="ICatalogueLookupExecutor"/> plans and runs the strategy chain over <see cref="AppleCandidateSource"/>,
+/// exactly as for Spotify. A title-search match is hydrated from amp-api so its fields match feed episodes.
 /// </summary>
 public class AppleEpisodeResolver(
     ICachedApplePodcastService applePodcastService,
-    ICatalogueCandidatePolicy candidatePolicy,
+    IAppleShowEpisodePages showEpisodePages,
+    IAppleCatalogueLookup catalogueLookup,
+    ICatalogueLookupExecutor lookupExecutor,
     ILogger<AppleEpisodeResolver> logger)
     : IAppleEpisodeResolver
 {
+    public const string Platform = ApplePodcastService.Platform;
+
+
     public async Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
         IndexingContext indexingContext,
@@ -46,11 +52,19 @@ public class AppleEpisodeResolver(
             // A stale or invalid stored id must not block matching (same rule as Spotify).
         }
 
-        var source = new AppleCandidateSource(new ApplePodcastId(podcastAppleId), indexingContext, applePodcastService);
-        return await candidatePolicy.FindMatch(ToLookup(request), source, reducer, cancellationToken);
+        var source = new AppleCandidateSource(request, podcastAppleId, showEpisodePages, catalogueLookup);
+        var result = await lookupExecutor.FindMatch(ToLookup(request, indexingContext), source, reducer, cancellationToken);
+        if (result.Match == null || !result.FromSearch)
+        {
+            return result.Match;
+        }
+
+        var hydrated = await applePodcastService.GetEpisode(
+            new ApplePodcastId(podcastAppleId), result.Match.Id, indexingContext, cancellationToken);
+        return hydrated ?? result.Match;
     }
 
-    private static CatalogueLookup ToLookup(FindAppleEpisodeRequest request) =>
+    public static CatalogueLookup ToLookup(FindAppleEpisodeRequest request, IndexingContext indexingContext) =>
         new(
             request.PodcastName,
             request.EpisodeTitle,
@@ -62,28 +76,36 @@ public class AppleEpisodeResolver(
             request.DefaultSubject,
             request.IgnoredSubjects,
             request.Language,
-            request.YouTubePublishingDelay);
+            request.YouTubePublishingDelay)
+        {
+            Flow = indexingContext.LookupFlow,
+            WindowStart = indexingContext.ReleasedSince,
+            ShowEpisodeCount = request.ShowEpisodeCount
+        };
 
     /// <summary>
-    /// Apple fetch/map adapter. The show feed is the pass-cached podcast episode list, already one fetch, so the
-    /// recent stage returns the whole list and matching runs in a single pass (no ranking split between the
-    /// newest page and older episodes). Apple has no episode title search, so the search fallback is the same
-    /// list; the policy skips candidates already tried, so it only adds anything for releases outside the
-    /// recent window, where the feed stage is skipped.
+    /// Apple fetch/map adapter: pass-cached amp-api pages, iTunes <c>trackCount</c> as the quick size probe, and
+    /// iTunes episode search filtered to the show's Apple id.
     /// </summary>
     private sealed class AppleCandidateSource(
-        ApplePodcastId podcastId,
-        IndexingContext indexingContext,
-        ICachedApplePodcastService service) : ICatalogueCandidateSource<AppleEpisode>
+        FindAppleEpisodeRequest request,
+        long podcastAppleId,
+        IAppleShowEpisodePages showEpisodePages,
+        IAppleCatalogueLookup catalogueLookup) : ICatalogueCandidateSource<AppleEpisode>
     {
-        public string Platform => "Apple";
+        public string Platform => AppleEpisodeResolver.Platform;
 
-        public bool HasShow => true;
+        public string? ShowId => podcastAppleId.ToString(CultureInfo.InvariantCulture);
 
-        public Task<IReadOnlyList<AppleEpisode>> GetRecentShowEpisodes(int pageSize, CancellationToken cancellationToken) =>
-            GetAll(cancellationToken);
 
-        public Task<IReadOnlyList<AppleEpisode>> SearchEpisodes(CancellationToken cancellationToken) => GetAll(cancellationToken);
+        public Task<int?> ProbeShowEpisodeCount(CancellationToken cancellationToken) =>
+            catalogueLookup.GetEpisodeCount(podcastAppleId, cancellationToken);
+
+        public Task<CatalogueShowPage<AppleEpisode>?> GetNewestPage(int pageIndex, CancellationToken cancellationToken) =>
+            showEpisodePages.GetNewestPage(podcastAppleId, pageIndex, cancellationToken);
+
+        public Task<IReadOnlyList<AppleEpisode>> SearchByTitle(CancellationToken cancellationToken) =>
+            catalogueLookup.SearchShowEpisodes(podcastAppleId, request.EpisodeTitle, cancellationToken);
 
         public string GetId(AppleEpisode item) => item.Id.ToString(CultureInfo.InvariantCulture);
 
@@ -92,18 +114,12 @@ public class AppleEpisodeResolver(
             var mapped = new Episode
             {
                 Title = WebUtility.HtmlDecode(item.Title.Trim()),
-                Description = item.Description ?? string.Empty,
+                Description = item.Description,
                 Length = item.Duration,
                 ReleaseUtc = item.Release
             };
             EpisodeServicePresence.SetAppleIdentity(mapped, item.Id);
             return mapped;
-        }
-
-        private async Task<IReadOnlyList<AppleEpisode>> GetAll(CancellationToken cancellationToken)
-        {
-            var episodes = await service.GetEpisodes(podcastId, indexingContext, cancellationToken);
-            return episodes?.OrderByDescending(x => x.Release).ToList() ?? [];
         }
     }
 }

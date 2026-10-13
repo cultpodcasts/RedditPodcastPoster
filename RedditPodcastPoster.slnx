@@ -65,6 +65,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup/RedditPodcastPoster.EpisodeLookup.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/RedditPodcastPoster.Episodes.TestSupport.csproj" />
 
@@ -154,6 +155,8 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.TheTvdb.Tests/RedditPodcastPoster.TheTvdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/RedditPodcastPoster.EpisodeLookup.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.InternetArchive.Tests/RedditPodcastPoster.InternetArchive.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj" />

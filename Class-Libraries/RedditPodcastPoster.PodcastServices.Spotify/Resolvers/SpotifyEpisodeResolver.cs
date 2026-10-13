@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -16,19 +17,23 @@ using SpotifyAPI.Web;
 namespace RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 
 /// <summary>
-/// Spotify adapter over the shared <see cref="ICatalogueCandidatePolicy"/>: a known episode id is fetched directly;
-/// otherwise the policy sources candidates (recent show feed, then one title-search page) and matches them exactly
-/// as for Apple. This class only maps Spotify types and hydrates the match.
+/// Spotify adapter: a known episode id is fetched directly (step 0); otherwise the shared
+/// <see cref="ICatalogueLookupExecutor"/> plans and runs the strategy chain over <see cref="SpotifyCandidateSource"/>,
+/// exactly as for Apple. This class only maps Spotify types and hydrates the match with <c>GetFullEpisode</c>.
 /// </summary>
 public class SpotifyEpisodeResolver(
     ISpotifyEpisodeTitleSearch episodeTitleSearch,
     ISpotifyClientWrapper spotifyClientWrapper,
-    ISpotifyRecentShowEpisodesCache recentShowEpisodesCache,
-    ICatalogueCandidatePolicy candidatePolicy,
+    ISpotifyShowEpisodePages showEpisodePages,
+    ICatalogueLookupExecutor lookupExecutor,
+    ICatalogueRequestGuard guard,
     IHtmlSanitiser htmlSanitiser,
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
+    public const string Platform = CataloguePlatforms.Spotify;
+
+
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
@@ -45,37 +50,36 @@ public class SpotifyEpisodeResolver(
             return new FindEpisodeResponse(null);
         }
 
-        FullEpisode? fullEpisode = null;
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
-            var episodeRequest = new EpisodeRequest { Market = market };
-            fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext, cancellationToken);
-            if (fullEpisode != null)
+            var direct = await GetFullEpisode(request.EpisodeSpotifyId, market, indexingContext, cancellationToken);
+            if (direct != null)
             {
-                if (!fullEpisode.IsSpotifyFree() &&
-                    SpotifyNonPlayableSkipLogger.IsMarketUnavailable(fullEpisode.GetSpotifyRestrictionReason()))
+                if (!direct.IsSpotifyFree() &&
+                    SpotifyNonPlayableSkipLogger.IsMarketUnavailable(direct.GetSpotifyRestrictionReason()))
                 {
-                    SpotifyNonPlayableSkipLogger.LogReturnedDespiteMarket(logger, fullEpisode, market);
+                    SpotifyNonPlayableSkipLogger.LogReturnedDespiteMarket(logger, direct, market);
                 }
 
-                return new FindEpisodeResponse(fullEpisode);
+                return new FindEpisodeResponse(direct);
             }
+
+            // A stale or invalid stored id must not block matching (same rule as Apple).
         }
 
         var source = new SpotifyCandidateSource(
-            request, indexingContext, market, episodeTitleSearch, recentShowEpisodesCache, htmlSanitiser);
-        var matchingEpisode = await candidatePolicy.FindMatch(ToLookup(request), source, reducer, cancellationToken);
-
-        if (matchingEpisode != null)
+            request, indexingContext, market, episodeTitleSearch, showEpisodePages, htmlSanitiser);
+        var result = await lookupExecutor.FindMatch(ToLookup(request, indexingContext), source, reducer, cancellationToken);
+        if (result.Match == null)
         {
-            var showRequest = new EpisodeRequest { Market = market };
-            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext, cancellationToken);
+            return new FindEpisodeResponse(null);
         }
 
-        return new FindEpisodeResponse(TakeIfFree(fullEpisode, market));
+        var full = await GetFullEpisode(result.Match.Id, market, indexingContext, cancellationToken);
+        return new FindEpisodeResponse(TakeIfFree(full, market));
     }
 
-    private static CatalogueLookup ToLookup(FindSpotifyEpisodeRequest request) =>
+    public static CatalogueLookup ToLookup(FindSpotifyEpisodeRequest request, IndexingContext indexingContext) =>
         new(
             request.PodcastName,
             request.EpisodeTitle,
@@ -87,7 +91,20 @@ public class SpotifyEpisodeResolver(
             request.DefaultSubject,
             request.IgnoredSubjects,
             request.Language,
-            request.YouTubePublishingDelay);
+            request.YouTubePublishingDelay)
+        {
+            Flow = indexingContext.LookupFlow,
+            WindowStart = indexingContext.ReleasedSince,
+            ShowEpisodeCount = request.ShowEpisodeCount
+        };
+
+    private Task<FullEpisode?> GetFullEpisode(
+        string episodeId, string market, IndexingContext indexingContext, CancellationToken cancellationToken) =>
+        guard.Run(
+            Platform,
+            $"GetFullEpisode episode='{episodeId}'",
+            ct => spotifyClientWrapper.GetFullEpisode(episodeId, new EpisodeRequest { Market = market }, indexingContext, ct),
+            cancellationToken);
 
     private FullEpisode? TakeIfFree(FullEpisode? episode, string market)
     {
@@ -100,23 +117,44 @@ public class SpotifyEpisodeResolver(
         return null;
     }
 
-    /// <summary>Spotify fetch/map adapter: show feed via the pass-cached recent page, search via one title-search page.</summary>
+    /// <summary>Spotify fetch/map adapter: pass-cached newest-first show pages and one title-search page.</summary>
     private sealed class SpotifyCandidateSource(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
         string market,
         ISpotifyEpisodeTitleSearch titleSearch,
-        ISpotifyRecentShowEpisodesCache recentShowEpisodes,
+        ISpotifyShowEpisodePages showEpisodePages,
         IHtmlSanitiser htmlSanitiser) : ICatalogueCandidateSource<SimpleEpisode>
     {
-        public string Platform => "Spotify";
+        public string Platform => SpotifyEpisodeResolver.Platform;
 
-        public bool HasShow => !string.IsNullOrWhiteSpace(request.PodcastSpotifyId);
+        public string? ShowId =>
+            string.IsNullOrWhiteSpace(request.PodcastSpotifyId) ? null : request.PodcastSpotifyId;
 
-        public Task<IReadOnlyList<SimpleEpisode>> GetRecentShowEpisodes(int pageSize, CancellationToken cancellationToken) =>
-            recentShowEpisodes.GetRecentShowEpisodes(request.PodcastSpotifyId, market, pageSize, indexingContext, cancellationToken);
 
-        public Task<IReadOnlyList<SimpleEpisode>> SearchEpisodes(CancellationToken cancellationToken) =>
+        /// <summary>Free: page 0 is needed by most plans anyway and carries <c>Paging.Total</c>.</summary>
+        public async Task<int?> ProbeShowEpisodeCount(CancellationToken cancellationToken) =>
+            (await GetNewestPage(0, cancellationToken))?.TotalEpisodes;
+
+        private Task<CatalogueShowPage<SimpleEpisode>?>? _newestPage;
+
+        /// <remarks>
+        /// Page 0 is memoised for this lookup, including a failed (null) read, so the size probe and the first strategy
+        /// never repeat a request that has just timed out.
+        /// </remarks>
+        public Task<CatalogueShowPage<SimpleEpisode>?> GetNewestPage(int pageIndex, CancellationToken cancellationToken)
+        {
+            if (ShowId is not { } showId)
+            {
+                return Task.FromResult<CatalogueShowPage<SimpleEpisode>?>(null);
+            }
+
+            return pageIndex == 0
+                ? _newestPage ??= showEpisodePages.GetNewestPage(showId, market, 0, indexingContext, cancellationToken)
+                : showEpisodePages.GetNewestPage(showId, market, pageIndex, indexingContext, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<SimpleEpisode>> SearchByTitle(CancellationToken cancellationToken) =>
             titleSearch.FindCandidates(request, indexingContext, market, cancellationToken);
 
         public string GetId(SimpleEpisode item) => item.Id;

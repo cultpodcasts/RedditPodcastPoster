@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,7 +58,7 @@ async Task<int> Run(SubmitUrlRequest request, string[] hostArgs)
 
     builder.Services
         .AddLogging()
-        .AddEpisodesDomain()
+        .AddEpisodesDomain().AddEpisodeLookup()
         .AddRepositories()
         .AddCatalogueServices()
         .AddPodcastServices()

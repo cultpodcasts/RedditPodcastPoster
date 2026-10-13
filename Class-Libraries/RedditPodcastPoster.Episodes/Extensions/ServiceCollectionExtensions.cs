@@ -34,17 +34,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
             services.AddSingleton<ICatalogueEpisodeMatcher, CatalogueEpisodeMatcher>();
-            // Scoped: the subject classifier (RedditPodcastPoster.Subjects) is scoped.
-            services.AddScoped<ICatalogueCandidatePolicy, CatalogueCandidatePolicy>();
             services.TryAddScoped<ICatalogueSubjectClassifier, NoCatalogueSubjectClassifier>();
-            services.TryAddSingleton(TimeProvider.System);
-            services.AddOptions<CatalogueCandidatePolicyOptions>()
-                .Configure<IServiceProvider>((options, provider) =>
-                    provider.GetService<IConfiguration>()?
-                        .GetSection(CatalogueCandidatePolicyOptions.SectionName)
-                        .Bind(options))
-                .Validate(CatalogueCandidatePolicyOptions.IsValid, CatalogueCandidatePolicyOptions.ValidationMessage)
-                .ValidateOnStart();
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();

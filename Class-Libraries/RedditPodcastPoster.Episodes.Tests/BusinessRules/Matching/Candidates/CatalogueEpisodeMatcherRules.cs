@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -148,9 +149,10 @@ public class CatalogueEpisodeMatcherRules
     public void Real_divergent_pair_matches_with_shared_subjects()
     {
         // Arrange
+        var day = DomainTestFixture.UtcDateDaysAgo(1);
         var lookup = Lookup(
             "Why Is Everyone Lying to You for Money? The Great Crypto Scam EXPOSED (w/ Ben McKenzie)",
-            new DateTime(2026, 10, 12, 8, 0, 39, DateTimeKind.Utc),
+            day.Add(new TimeSpan(8, 0, 39)),
             new TimeSpan(0, 56, 49),
             Service.YouTube,
             enriching: true);
@@ -158,10 +160,10 @@ public class CatalogueEpisodeMatcherRules
         probe.Subjects = ["Cult Psychology", "Multi-Level Marketing"];
         var audio = Audio(
             "Everyone Is Lying to You for Money, Crypto and Cult Psychology with Ben McKenzie: My conversation with the author of Easy Money about financial manipulation, the need to belong, and protecting our freedom of mind.",
-            new DateTime(2026, 10, 12, 9, 0, 0, DateTimeKind.Utc),
+            day.AddHours(9),
             new TimeSpan(0, 59, 29));
         audio.Subjects = ["Cult Psychology", "Multi-Level Marketing"];
-        var previousWeek = Audio("Volcanic Origami Workshop", new DateTime(2026, 10, 5, 9, 0, 0, DateTimeKind.Utc), new TimeSpan(0, 58, 10));
+        var previousWeek = Audio("Volcanic Origami Workshop", day.AddDays(-7).AddHours(9), new TimeSpan(0, 58, 10));
 
         // Act
         var result = _sut.Match(lookup, probe, [previousWeek, audio], null);

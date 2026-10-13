@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -21,9 +22,10 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Resolv
 
 /// <summary>
 /// SpotifyEpisodeResolver is a thin adapter: SkipSpotifyUrlResolving short-circuits, a known episode id is fetched
-/// directly, otherwise the real shared <see cref="CatalogueCandidatePolicy"/> sources candidates (pass-cached recent
-/// show page first for recent releases, then one title-search page) and matches them; the match is hydrated with
-/// GetFullEpisode and dropped when not free. Platform-identical outcomes are covered by the catalogue contract tests.
+/// directly, otherwise the real shared <see cref="CatalogueLookupExecutor"/> runs the planned strategy chain
+/// (full read for small shows, newest pages, title search, bounded walk of <see cref="EpisodeLookupOptions.SpotifyBoundedWalkPages"/>
+/// pages) over pass-cached show pages; the match is hydrated with GetFullEpisode and dropped when not free.
+/// Platform-identical outcomes are covered by the catalogue contract tests.
 /// </summary>
 public class SpotifyEpisodeResolverRules
 {
@@ -32,9 +34,11 @@ public class SpotifyEpisodeResolverRules
 
     public SpotifyEpisodeResolverRules()
     {
-        _mocker.Use<ICatalogueCandidatePolicy>(CatalogueTestServices.CreatePolicy());
-        _mocker.Use<ISpotifyRecentShowEpisodesCache>(
-            new SpotifyRecentShowEpisodesCache(_mocker.GetMock<ISpotifyClientWrapper>().Object));
+        var guard = CatalogueTestServices.CreateGuard();
+        _mocker.Use<ICatalogueRequestGuard>(guard);
+        _mocker.Use<ICatalogueLookupExecutor>(CatalogueTestServices.CreateExecutor());
+        _mocker.Use<ISpotifyShowEpisodePages>(
+            new SpotifyShowEpisodePages(_mocker.GetMock<ISpotifyClientWrapper>().Object, guard));
         _mocker.Use<IHtmlSanitiser>(new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
     }
 
@@ -110,7 +114,7 @@ public class SpotifyEpisodeResolverRules
         var previousWeek = Simple(_fixture.CreateSpotifyId(), "Volcanic Origami Workshop", released.AddDays(-7), new TimeSpan(0, 58, 10));
         StubShowPage([audio, previousWeek]);
         var full = StubFullEpisode(new FullEpisode { Id = audio.Id, Name = audio.Name, IsPlayable = true });
-        _mocker.Use<ICatalogueCandidatePolicy>(CatalogueTestServices.CreatePolicy(BenMcKenzieSubjects()));
+        _mocker.Use<ICatalogueLookupExecutor>(CatalogueTestServices.CreateExecutor(BenMcKenzieSubjects()));
         var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
         var request = Request(
             "Why Is Everyone Lying to You for Money? The Great Crypto Scam EXPOSED (w/ Ben McKenzie)",
@@ -130,8 +134,8 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
-        "When the episode was released outside the recent window, FindEpisode makes one title search and does not read the show feed " +
-        "because one recent page cannot contain it and the catalogue must not be paged.")]
+        "When an old episode of a show of unknown size is looked up outside the Index flow, FindEpisode reads only the newest page " +
+        "(the free Paging.Total size probe) and matches from one title search, because search comes before any bounded walk.")]
     public async Task Old_release_uses_title_search_only()
     {
         // Arrange
@@ -147,7 +151,7 @@ public class SpotifyEpisodeResolverRules
 
         // Assert
         result.FullEpisode.Should().BeSameAs(full);
-        VerifyShowPage(Times.Never());
+        VerifyShowPage(Times.Once());
         VerifyTitleSearch(Times.Once());
     }
 
@@ -399,6 +403,106 @@ public class SpotifyEpisodeResolverRules
     }
 
 
+    [Fact(DisplayName =
+        "When the podcast's stored Spotify count says the show is small (<=200), FindEpisode reads every page of the show and makes no " +
+        "title search, because a full read of a small show is cheap and finds old episodes whose titles differ.")]
+    public async Task Small_show_is_read_in_full_without_search()
+    {
+        // Arrange
+        var title = "Lantern Harbour Night Stories With A Guest From The Archive";
+        var released = DomainTestFixture.UtcDateDaysAgo(900);
+        var catalogue = Catalogue(120, released.AddDays(1000));
+        var oldest = Simple(_fixture.CreateSpotifyId(), title, released);
+        catalogue[^1] = oldest;
+        StubCatalogue(catalogue);
+        var full = StubFullEpisode(new FullEpisode { Id = oldest.Id, Name = title, IsPlayable = true });
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+
+        // Act
+        var result = await sut.FindEpisode(Request(title, released, showEpisodeCount: 120), new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeSameAs(full);
+        VerifyShowPage(Times.Exactly(3));
+        VerifyTitleSearch(Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "When an old episode of a large show misses the title search, FindEpisode walks at most 4 newest pages and then misses cleanly, " +
+        "because the bounded walk is the last resort and must stay bounded (pagination HARD rule).")]
+    public async Task Large_show_old_episode_search_miss_walks_four_pages_then_misses()
+    {
+        // Arrange
+        var released = DomainTestFixture.UtcDateDaysAgo(2000);
+        StubCatalogue(Catalogue(600, DateTime.UtcNow.Date));
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+
+        // Act
+        var result = await sut.FindEpisode(Request(released: released, showEpisodeCount: 600), new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        VerifyTitleSearch(Times.Once());
+        VerifyShowPage(Times.Exactly(new EpisodeLookupOptions().SpotifyBoundedWalkPages));
+    }
+
+    [Fact(DisplayName =
+        "When the Index flow looks up an episode of a large show, FindEpisode reads newest pages until a page is older than the window " +
+        "start and never searches, because the indexer's episodes are always near the top of the feed.")]
+    public async Task Index_flow_reads_newest_pages_until_past_window_without_search()
+    {
+        // Arrange
+        var released = DomainTestFixture.UtcDateDaysAgo(1);
+        StubCatalogue(Catalogue(600, DateTime.UtcNow.Date)); // one episode a day: page 0 covers 50 days
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var context = new IndexingContext(DateTime.UtcNow.AddDays(-60)) { LookupFlow = EpisodeLookupFlow.Index };
+
+        // Act
+        var result = await sut.FindEpisode(Request(released: released, showEpisodeCount: 600), context);
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        VerifyTitleSearch(Times.Never());
+        VerifyShowPage(Times.Exactly(2));
+    }
+
+    [Fact(DisplayName =
+        "When every Spotify call times out (guard returns null), FindEpisode returns a clean miss instead of throwing, " +
+        "because a slow catalogue must not fail the submit or index pass.")]
+    public async Task Guarded_failures_return_clean_miss()
+    {
+        // Arrange
+        _mocker.GetMock<ISpotifyClientWrapper>()
+            .Setup(x => x.GetShowEpisodes(
+                It.IsAny<string>(), It.IsAny<ShowEpisodesRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TaskCanceledException());
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+
+        // Act
+        var result = await sut.FindEpisode(Request(released: DomainTestFixture.UtcDateDaysAgo(1)), new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        VerifyTitleSearch(Times.Once());
+    }
+
+    private List<SimpleEpisode> Catalogue(int count, DateTime newest) =>
+        Enumerable.Range(0, count)
+            .Select(i => Simple(_fixture.CreateSpotifyId(), $"Unrelated Episode Number {i} About Volcanic Origami", newest.AddDays(-i),
+                TimeSpan.FromMinutes(20)))
+            .ToList();
+
+    private void StubCatalogue(IReadOnlyList<SimpleEpisode> newestFirst) =>
+        _mocker.GetMock<ISpotifyClientWrapper>()
+            .Setup(x => x.GetShowEpisodes(
+                It.IsAny<string>(), It.IsAny<ShowEpisodesRequest>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, ShowEpisodesRequest r, IndexingContext _, CancellationToken _) =>
+                new Paging<SimpleEpisode>
+                {
+                    Items = newestFirst.Skip(r.Offset ?? 0).Take(r.Limit ?? 20).ToList(),
+                    Total = newestFirst.Count
+                });
+
     private static TitleSubstringSubjectClassifier BenMcKenzieSubjects() =>
         new(new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -413,7 +517,8 @@ public class SpotifyEpisodeResolverRules
         Service? releaseAuthority = null,
         TimeSpan? length = null,
         bool enrichingYouTubeDiscoveredEpisode = false,
-        string? market = null) =>
+        string? market = null,
+        int? showEpisodeCount = null) =>
         new(
             PodcastSpotifyId: podcastSpotifyId ?? _fixture.CreateSpotifyId(),
             PodcastName: _fixture.CreateTitle(),
@@ -424,7 +529,8 @@ public class SpotifyEpisodeResolverRules
             ReleaseAuthority: releaseAuthority,
             Length: length,
             Market: market,
-            EnrichingYouTubeDiscoveredEpisode: enrichingYouTubeDiscoveredEpisode);
+            EnrichingYouTubeDiscoveredEpisode: enrichingYouTubeDiscoveredEpisode,
+            ShowEpisodeCount: showEpisodeCount);
 
     private SimpleEpisode Simple(string id, string title, DateTime release, TimeSpan? length = null) =>
         new()
@@ -445,7 +551,7 @@ public class SpotifyEpisodeResolverRules
 
     private void StubTitleSearch(IReadOnlyList<SimpleEpisode> episodes) =>
         _mocker.GetMock<ISpotifyEpisodeTitleSearch>()
-            .Setup(x => x.FindCandidates(It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>()))
+            .Setup(x => x.FindCandidates(It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(episodes);
 
     private FullEpisode StubFullEpisode(FullEpisode episode)
@@ -460,13 +566,13 @@ public class SpotifyEpisodeResolverRules
     private void VerifyShowPage(Times times) =>
         _mocker.GetMock<ISpotifyClientWrapper>().Verify(x => x.GetShowEpisodes(
             It.IsAny<string>(),
-            It.Is<ShowEpisodesRequest>(r => r.Limit == new CatalogueCandidatePolicyOptions().RecentShowEpisodesPageSize),
+            It.Is<ShowEpisodesRequest>(r => r.Limit == SpotifyShowEpisodePages.PageSize),
             It.IsAny<IndexingContext>(),
             It.IsAny<CancellationToken>()), times);
 
     private void VerifyTitleSearch(Times times) =>
         _mocker.GetMock<ISpotifyEpisodeTitleSearch>().Verify(x => x.FindCandidates(
-            It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>()), times);
+            It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), times);
 
     private void VerifyNoCatalogueLookup()
     {

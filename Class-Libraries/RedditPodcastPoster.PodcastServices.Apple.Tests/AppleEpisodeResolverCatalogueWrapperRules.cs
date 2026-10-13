@@ -13,6 +13,8 @@ using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
 
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Support;
+
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
 /// <summary>
@@ -63,12 +65,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
             null,
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            CatalogueTestServices.CreatePolicy(
-                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
-                platformMatcher: EpisodeDomainTestServices.CreatePlatformMatcher()),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
@@ -111,12 +108,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
             null,
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            CatalogueTestServices.CreatePolicy(
-                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
-                platformMatcher: EpisodeDomainTestServices.CreatePlatformMatcher()),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
@@ -127,20 +119,6 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         result.Duration.Should().Be(TimeSpan.Zero);
     }
 
-    private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
-    {
-        public Task<AppleEpisode?> SingleUseGetEpisode(
-            ApplePodcastId podcastId,
-            long episodeId,
-            IndexingContext indexingContext) =>
-            GetEpisode(podcastId, episodeId, indexingContext);
-
-        public Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
-            Task.FromResult(episodes.FirstOrDefault(x => x.Id == episodeId));
-
-        public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IEnumerable<AppleEpisode>?>(episodes);
-    }
     private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>
         new StubAsyncInstance<ITitleCasingRulesProvider>(
             new TitleCasingRulesProvider(

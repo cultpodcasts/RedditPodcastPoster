@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -29,7 +30,7 @@ public static class Ioc
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection
-            .AddEpisodesDomain()
+            .AddEpisodesDomain().AddEpisodeLookup()
             .AddRepositories()
             .AddSubjectServices()
             .AddCachedSubjectProvider()

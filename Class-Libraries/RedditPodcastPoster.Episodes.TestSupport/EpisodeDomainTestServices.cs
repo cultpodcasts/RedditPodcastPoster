@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.Applying;
@@ -42,7 +43,7 @@ public static class EpisodeDomainTestServices
     private static ServiceProvider CreateServiceProvider()
     {
         var services = new ServiceCollection();
-        services.AddEpisodesDomain();
+        services.AddEpisodesDomain().AddEpisodeLookup();
         return services.BuildServiceProvider();
     }
 }

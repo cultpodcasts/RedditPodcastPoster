@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -57,6 +59,7 @@ internal sealed class PodcastUpdaterTestHarness
             Options.Create(DefaultPostingCriteria),
             YouTubeQuotaUsageTracker.Object,
             HeroEpisodePromoter.Object,
+            ShowEpisodeCounts,
             NullLogger<PodcastUpdater>.Instance);
 
         EpisodeEnricher
@@ -83,6 +86,8 @@ internal sealed class PodcastUpdaterTestHarness
         BlueSkyDays = 7,
         CategoriserDays = 7
     };
+
+    public CatalogueShowEpisodeCounts ShowEpisodeCounts { get; } = new();
 
     public SaveCallRecorder SaveCallRecorder { get; }
 

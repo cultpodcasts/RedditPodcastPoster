@@ -15,4 +15,5 @@ public record FindAppleEpisodeRequest(
     string? EpisodeDescription = null,
     string? DefaultSubject = null,
     IReadOnlyList<string>? IgnoredSubjects = null,
-    string? Language = null);
+    string? Language = null,
+    int? ShowEpisodeCount = null);

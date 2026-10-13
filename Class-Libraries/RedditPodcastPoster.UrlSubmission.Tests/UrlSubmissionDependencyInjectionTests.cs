@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,7 +26,7 @@ public class UrlSubmissionDependencyInjectionTests
         // Arrange
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddEpisodesDomain();
+        services.AddEpisodesDomain().AddEpisodeLookup();
         services.AddUrlSubmission();
 
         // Act

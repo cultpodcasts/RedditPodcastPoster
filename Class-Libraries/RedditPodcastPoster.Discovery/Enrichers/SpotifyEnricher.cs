@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -15,6 +17,8 @@ public class SpotifyEnricher(
 {
     public async Task Enrich(IEnumerable<EpisodeResult> results, IndexingContext indexingContext)
     {
+        // Discovery lookups use the Discovery strategy chain (docs/catalogue-pagination.md).
+        EpisodeLookupUseCases.ForDiscovery(indexingContext);
         logger.LogInformation("{nameofSpotifyEnricher}.{nameofEnrich} initiated",
             nameof(SpotifyEnricher), nameof(Enrich));
         var enrichedCtr = 0;

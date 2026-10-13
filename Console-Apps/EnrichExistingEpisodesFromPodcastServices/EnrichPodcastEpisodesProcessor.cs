@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -52,6 +54,7 @@ public class EnrichPodcastEpisodesProcessor(
             SkipExpensiveYouTubeQueries = !request.AllowExpensiveQueries,
             SkipYouTubeUrlResolving = request.SkipYouTubeUrlResolving
         };
+        EpisodeLookupUseCases.ForEnrich(indexingContext);
 
         Guid podcastId;
         if (request.PodcastId.HasValue)

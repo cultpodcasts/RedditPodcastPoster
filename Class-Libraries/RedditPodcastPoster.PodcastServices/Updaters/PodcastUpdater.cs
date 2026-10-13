@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Catalogue.Episodes;
@@ -35,6 +37,7 @@ public class PodcastUpdater(
     IOptions<PostingCriteria> postingCriteria,
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     IHeroEpisodePromoter heroEpisodePromoter,
+    ICatalogueShowEpisodeCounts showEpisodeCounts,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
@@ -42,6 +45,8 @@ public class PodcastUpdater(
 
     public async Task<IndexPodcastResult> Update(Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
     {
+        // Every PodcastUpdater caller (hourly indexer, Api single-podcast index, Index CLI) is the Index flow.
+        EpisodeLookupUseCases.ForIndex(indexingContext);
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
@@ -268,6 +273,8 @@ public class PodcastUpdater(
                 podcast.Name, podcast.Id, podcast.SpotifyId);
         }
 
+        var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
+
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;
         var youTubeBypassed = initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving;
         var youTubeDiscoveryBypassed = podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
@@ -285,7 +292,8 @@ public class PodcastUpdater(
                              filterResult.FilteredEpisodes.Any() || enrichmentResult.UpdatedEpisodes.Any() ||
                              discoveredYouTubeExpensiveQuery || clearedYouTubeExpensiveQuery ||
                              discoveredYouTubeChannelSearchForbidden ||
-                             discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery;
+                             discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery ||
+                             showEpisodeCountsChanged;
 
         if (indexSucceeded)
         {
@@ -455,5 +463,31 @@ public class PodcastUpdater(
             logger.LogInformation("Removing short-episode '{episodeTitle}'.", shortEpisode.Title);
             episodes.Remove(shortEpisode);
         }
+    }
+
+    /// <summary>
+    /// Refreshes <see cref="Podcast.SpotifyEpisodeCount"/> and <see cref="Podcast.AppleEpisodeCount"/> from sizes the
+    /// lookups observed this pass (each platform only from its own show id; never cross-used).
+    /// </summary>
+    private bool ApplyObservedShowEpisodeCounts(Podcast podcast)
+    {
+        var changed = false;
+        if (!string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
+            showEpisodeCounts.TryGet(CataloguePlatforms.Spotify, podcast.SpotifyId, out var spotifyCount) &&
+            podcast.SpotifyEpisodeCount != spotifyCount)
+        {
+            podcast.SpotifyEpisodeCount = spotifyCount;
+            changed = true;
+        }
+
+        if (podcast.AppleId is { } appleId &&
+            showEpisodeCounts.TryGet(CataloguePlatforms.Apple, appleId.ToString(System.Globalization.CultureInfo.InvariantCulture), out var appleCount) &&
+            podcast.AppleEpisodeCount != appleCount)
+        {
+            podcast.AppleEpisodeCount = appleCount;
+            changed = true;
+        }
+
+        return changed;
     }
 }

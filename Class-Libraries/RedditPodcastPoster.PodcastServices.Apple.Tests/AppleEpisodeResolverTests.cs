@@ -17,6 +17,8 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
 
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Support;
+
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
 public class AppleEpisodeResolverTests
@@ -66,12 +68,7 @@ public class AppleEpisodeResolverTests
             TimeSpan.FromHours(1),
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            CatalogueTestServices.CreatePolicy(
-                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
-                platformMatcher: EpisodeDomainTestServices.CreatePlatformMatcher()),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(
@@ -133,12 +130,7 @@ public class AppleEpisodeResolverTests
             ReleaseUtc = lookupRelease
         };
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            CatalogueTestServices.CreatePolicy(
-                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
-                platformMatcher: matcher),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), matcher).Resolver;
 
         // Act
         var result = await sut.FindEpisode(
@@ -189,58 +181,9 @@ public class AppleEpisodeResolverTests
         result!.Id.Should().Be(matchId);
     }
 
-    [Fact(DisplayName =
-        "When a recent Apple lookup has a weaker same-length candidate among the newest 50 and an exact-title candidate " +
-        "further down the feed, FindEpisode returns the exact-title one, because Apple's cached feed is matched in a single pass.")]
-    public async Task FindEpisode_RecentLookup_MatchesWholeFeedInOnePass()
-    {
-        // Arrange
-        const string title = "Lantern Harbour Night Stories With A Guest From The Archive";
-        var probeRelease = DateTime.UtcNow.AddHours(-56);
-        var length = TimeSpan.FromMinutes(44);
-        var exactId = _fixture.CreateAppleId();
-        var weakerId = _fixture.CreateAppleId();
-        var episodes = Enumerable.Range(1, 54).Select(i => new AppleEpisode(
-                _fixture.CreateAppleId(), $"Unrelated Episode Number {i} About Volcanic Origami", DateTime.UtcNow.AddHours(-i),
-                TimeSpan.FromMinutes(20), new Uri("https://podcasts.apple.com/us/podcast/episode/id1"), string.Empty, false))
-            .Append(new AppleEpisode(weakerId, "Lantern Harbour Night Stories With A Guest", DateTime.UtcNow.AddHours(-1).AddMinutes(-30),
-                length, new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={weakerId}"), string.Empty, false))
-            .Append(new AppleEpisode(exactId, title, probeRelease,
-                length, new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={exactId}"), string.Empty, false))
-            .ToArray();
-        var request = new FindAppleEpisodeRequest(
-            _fixture.CreateAppleId(), _fixture.CreateTitle(), null, title,
-            probeRelease, Service.YouTube, length, null);
-        var sut = CreateSut(episodes);
-
-        // Act
-        var result = await sut.FindEpisode(request, new IndexingContext());
-
-        // Assert
-        result.Should().NotBeNull();
-        result!.Id.Should().Be(exactId);
-    }
-
     private static AppleEpisodeResolver CreateSut(IEnumerable<AppleEpisode> appleEpisodes) =>
-        new(
-            new StubApplePodcastService(appleEpisodes),
-            CatalogueTestServices.CreatePolicy(),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        AppleResolverHarness.Create(appleEpisodes).Resolver;
 
-    private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
-    {
-        public Task<AppleEpisode?> SingleUseGetEpisode(
-            ApplePodcastId podcastId,
-            long episodeId,
-            IndexingContext indexingContext) =>
-            GetEpisode(podcastId, episodeId, indexingContext);
-
-        public Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
-            Task.FromResult(episodes.FirstOrDefault(x => x.Id == episodeId));
-
-        public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IEnumerable<AppleEpisode>?>(episodes);
-    }
     private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>
         new StubAsyncInstance<ITitleCasingRulesProvider>(
             new TitleCasingRulesProvider(

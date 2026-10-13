@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Episodes.Matching.Candidates;
+
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 public record IndexingContext(
@@ -16,6 +18,12 @@ public record IndexingContext(
     public bool IndexSpotify { get; set; } = IndexSpotify;
     public bool YouTubeQuotaExhausted { get; set; } = YouTubeQuotaExhausted;
 
+    /// <summary>
+    /// Use-case for episode lookups (docs/catalogue-pagination.md "Episode lookup planner"). Defaults to Submit;
+    /// PodcastUpdater sets Index, the Enrich CLI sets Enrich, discovery enrichers set Discovery.
+    /// </summary>
+    public EpisodeLookupFlow LookupFlow { get; set; } = EpisodeLookupFlow.Submit;
+
     public override string ToString()
     {
         var releasedSince = ReleasedSince.HasValue
@@ -28,7 +36,8 @@ public record IndexingContext(
         var bypassExpensiveYouTube = $"bypass-expensive-youtube-queries: '{SkipExpensiveYouTubeQueries}'";
         var skipPodcastDiscovery = $"skip-podcast-discovery: '{SkipPodcastDiscovery}'";
         var skipShortEpisodes = $"skip-short-episodes: '{SkipShortEpisodes}'";
+        var lookupFlow = $"lookup-flow: '{LookupFlow}'";
         return
-            $"{nameof(IndexingContext)} Indexing with options {string.Join(", ", releasedSince, indexSpotify, bypassSpotify, bypassYouTube, bypassExpensiveSpotify, bypassExpensiveYouTube, skipPodcastDiscovery, skipShortEpisodes)}.";
+            $"{nameof(IndexingContext)} Indexing with options {string.Join(", ", releasedSince, indexSpotify, bypassSpotify, bypassYouTube, bypassExpensiveSpotify, bypassExpensiveYouTube, skipPodcastDiscovery, skipShortEpisodes, lookupFlow)}.";
     }
 }

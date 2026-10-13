@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
 /// <summary>
 /// Spotify podcast-name matching and release-date episode matching for podcast resolution.
-/// Episode lookups for enrichment go through the shared <c>ICatalogueCandidatePolicy</c> instead.
+/// Episode lookups for enrichment go through the shared episode lookup planner (<c>ICatalogueLookupExecutor</c>) instead.
 /// </summary>
 public class SpotifySearchResultFinder(
     IEpisodePlatformMatcher platformMatcher,

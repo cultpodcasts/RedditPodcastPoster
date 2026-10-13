@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using iTunesSearch.Library.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -15,6 +17,8 @@ public class AppleEnricher(
 {
     public async Task Enrich(IList<EpisodeResult> results, IndexingContext indexingContext)
     {
+        // Discovery lookups use the Discovery strategy chain (docs/catalogue-pagination.md).
+        EpisodeLookupUseCases.ForDiscovery(indexingContext);
         logger.LogInformation($"{nameof(AppleEnricher)}.{nameof(Enrich)} initiated");
         var enrichedCtr = 0;
 
