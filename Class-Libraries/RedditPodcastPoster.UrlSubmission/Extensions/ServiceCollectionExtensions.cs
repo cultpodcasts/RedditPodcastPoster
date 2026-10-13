@@ -1,4 +1,3 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
