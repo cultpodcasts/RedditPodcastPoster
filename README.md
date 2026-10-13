@@ -14,6 +14,7 @@ Licensed under the MIT license.
 |------|---------|
 | `Cloud/` | Azure Functions apps — **Api**, **Discovery**, **Indexer** |
 | `Class-Libraries/` | Shared domain, persistence, podcast-service integrations, posting |
+| `Class-Libraries/RedditPodcastPoster.EpisodeLookup/` | **Episode lookup clearing-house**: plans and runs every Spotify/Apple single-episode lookup for all use cases (index, submit, discovery, enrich). Read its [README](Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md) before changing it |
 | `Console-Apps/` | Local CLI tools for indexing, enrichment, and ops — see [`Console-Apps/README.md`](Console-Apps/README.md) |
 | `Infrastructure/` | Bicep templates for Azure resources and function app settings |
 | `docs/` | Cost analysis and operational runbooks |

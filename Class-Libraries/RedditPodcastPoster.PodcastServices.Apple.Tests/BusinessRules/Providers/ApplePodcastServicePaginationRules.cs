@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Episodes.TestSupport;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -245,6 +246,7 @@ public class ApplePodcastServicePaginationRules
         };
         return new ApplePodcastService(
             new StubHttpClientProvider(client),
+            CatalogueTestServices.CreateGuard(),
             NullLogger<ApplePodcastService>.Instance);
     }
 

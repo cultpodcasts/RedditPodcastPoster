@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
@@ -33,7 +34,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddHttpClient();

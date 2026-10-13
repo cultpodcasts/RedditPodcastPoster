@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes\RedditPodcastPoster.Episodes.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Models\RedditPodcastPoster.Models.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj" />

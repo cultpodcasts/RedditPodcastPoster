@@ -1,3 +1,6 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
+using RedditPodcastPoster.Episodes.TestSupport;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -23,6 +26,7 @@ public class SpotifyEpisodeTitleSearchRules
 
     public SpotifyEpisodeTitleSearchRules()
     {
+        _mocker.Use<ICatalogueRequestGuard>(CatalogueTestServices.CreateGuard());
         _mocker.Use(NullLogger<SpotifyEpisodeTitleSearch>.Instance);
     }
 

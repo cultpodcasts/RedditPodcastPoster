@@ -49,6 +49,7 @@ Every production code change **MUST** ship with tests in the same PR:
 | Production location | Business-rule test | Unit test |
 |---------------------|-------------------|-----------|
 | `RedditPodcastPoster.Episodes/**` | `Episodes.Tests/BusinessRules/**` | Same file (characterization) or sibling `*Tests.cs` when mocking boundaries |
+| `RedditPodcastPoster.EpisodeLookup/**` | `EpisodeLookup.BusinessRules.Tests/BusinessRules/**` (rule first — see [EpisodeLookup README](../../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md)) | `EpisodeLookup.Tests/Unit/**` |
 | `RedditPodcastPoster.Common/Episodes/EpisodeProvider.cs` | `PodcastServices.Tests/BusinessRules/Indexing/EpisodeProviderRules.cs` | `PodcastServices.Tests/EpisodeProviderTests.cs` |
 | Other `*Tests` projects | `BusinessRules/**` with `DisplayName` where domain rules apply | Focused `*Tests.cs` for gates, DI, or handler wiring |
 

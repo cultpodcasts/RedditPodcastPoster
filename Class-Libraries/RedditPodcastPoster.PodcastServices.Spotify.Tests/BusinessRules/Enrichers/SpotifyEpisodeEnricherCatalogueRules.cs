@@ -414,7 +414,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null)
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             var candidates = episodes.Select(ToSimpleEpisode).AsEnumerable();
             if (reducer != null)
@@ -449,7 +450,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null) =>
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult(new FindEpisodeResponse(null, IsExpensiveQuery: true));
     }
 
@@ -460,7 +462,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null)
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             FindEpisodeInvoked = true;
             return Task.FromResult(new FindEpisodeResponse(null));
@@ -472,7 +475,8 @@ public class SpotifyEpisodeEnricherCatalogueRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null) =>
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult(new FindEpisodeResponse(episode));
     }
 

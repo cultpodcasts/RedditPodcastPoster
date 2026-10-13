@@ -28,6 +28,12 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICachedApplePodcastService, CachedApplePodcastService>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>
                 (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedApplePodcastService>())
+            .AddScoped<IAppleShowEpisodePages, AppleShowEpisodePages>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<IAppleShowEpisodePages>())
+            .AddScoped<IAppleCatalogueLookup, AppleCatalogueLookup>()
+            .AddScoped<IPodcastPassApiCacheSource>(sp =>
+                (IPodcastPassApiCacheSource)sp.GetRequiredService<IAppleCatalogueLookup>())
             .AddSingleton<IAppleBearerTokenProvider, AppleBearerTokenProvider>()
             .AddSingleton<IApplePodcastHttpClientFactory, ApplePodcastHttpClientFactory>()
             .AddSingleton<IAsyncInstance<HttpClient>>(x => 

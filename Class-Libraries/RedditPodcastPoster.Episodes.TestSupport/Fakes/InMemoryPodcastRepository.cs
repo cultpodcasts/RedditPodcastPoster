@@ -105,6 +105,8 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
             MinimumDuration = podcast.MinimumDuration,
             SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube,
             SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
+            SpotifyEpisodeCount = podcast.SpotifyEpisodeCount,
+            AppleEpisodeCount = podcast.AppleEpisodeCount,
             YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
             YouTubeChannelSearchForbidden = podcast.YouTubeChannelSearchForbidden,
             LastIndexed = podcast.LastIndexed,

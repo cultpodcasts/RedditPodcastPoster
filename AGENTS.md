@@ -61,6 +61,7 @@ Before changing Spotify paginators, YouTube playlist walks, expensive-query flag
 `PlaylistOrder`, or `SkipExpensive*` gates, read:
 
 - [docs/catalogue-pagination.md](docs/catalogue-pagination.md) — Spotify + YouTube + Apple cold-start design, caps, flag lifecycle, test matrix
+- [Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md](Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md) — **clearing-house for every Spotify/Apple single-episode lookup** (index, submit, discovery, enrich). Any change must consider every use case and start with a business-rules test.
 - [docs/youtube-playlist-order.md](docs/youtube-playlist-order.md) — YouTube Arbitrary / curated depth
 
 Keep circuit-breaker and flag-flip **log message prefixes** stable (App Insights keys off them).

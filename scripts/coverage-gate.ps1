@@ -60,7 +60,8 @@ function Merge-CoberturaReports {
 
             $entry = $byFile[$key]
 
-            foreach ($line in @($class.lines.line)) {
+            # SelectNodes: a class with no executable lines (e.g. constants only) has an empty <lines/>, which StrictMode rejects as a property.
+            foreach ($line in @($class.SelectNodes('lines/line'))) {
                 $num = [int]$line.number
                 if (-not $entry.lineHits.ContainsKey($num)) {
                     $entry.lineHits[$num] = 0
@@ -81,8 +82,8 @@ function Merge-CoberturaReports {
                 }
             }
 
-            foreach ($method in @($class.methods.method)) {
-                foreach ($line in @($method.lines.line)) {
+            foreach ($method in @($class.SelectNodes('methods/method'))) {
+                foreach ($line in @($method.SelectNodes('lines/line'))) {
                     $num = [int]$line.number
                     if (-not $entry.lineHits.ContainsKey($num)) {
                         $entry.lineHits[$num] = 0

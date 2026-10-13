@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
@@ -47,6 +49,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<ISubjectEnricher, SubjectEnricher>()
                 .AddScoped<ISubjectEnrichmentOptionsFactory, SubjectEnrichmentOptionsFactory>()
                 .AddScoped<ISubjectMatcher, SubjectMatcher>()
+                .Replace(ServiceDescriptor.Scoped<ICatalogueSubjectClassifier, CatalogueSubjectClassifier>())
                 .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
                 .AddScoped<ICategoriser, Categoriser>()
                 .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()

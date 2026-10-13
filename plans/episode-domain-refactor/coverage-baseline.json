@@ -1,0 +1,331 @@
+{
+  "generatedAt": "2026-07-08",
+  "generatedFromBranch": "feature/episode-domain-phase-f-cleanup",
+  "note": "Phase F \u2014 matcher/finder characterization expanded; EpisodePlatformMatcher 85% branch; PlaylistItemFinder fuzzy/duration/episode-number Theory",
+  "testProjects": [
+    "Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/RedditPodcastPoster.PodcastServices.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/RedditPodcastPoster.EpisodeLookup.Tests.csproj",
+    "Class-Libraries/RedditPodcastPoster.PodcastServices.CatalogueContract.Tests/RedditPodcastPoster.PodcastServices.CatalogueContract.Tests.csproj"
+  ],
+  "aspirationTargets": {
+    "episodesDomainBranch": 90,
+    "orchestrationBranch": 85,
+    "adaptersLine": 100,
+    "platformEnrichmentBranch": 85,
+    "platformEnrichmentLine": 95
+  },
+  "groups": [
+    {
+      "name": "episodes-domain",
+      "minBranchCoverage": 77,
+      "minLineCoverage": 92,
+      "aspirationBranchCoverage": 90
+    },
+    {
+      "name": "episodes-adapters",
+      "minBranchCoverage": 80,
+      "minLineCoverage": 98,
+      "aspirationLineCoverage": 100
+    },
+    {
+      "name": "platform-enrichment",
+      "minBranchCoverage": 66,
+      "minLineCoverage": 86,
+      "aspirationBranchCoverage": 85,
+      "aspirationLineCoverage": 95
+    },
+    {
+      "name": "orchestration",
+      "minBranchCoverage": 62,
+      "minLineCoverage": 82,
+      "aspirationBranchCoverage": 85
+    },
+    {
+      "name": "episode-lookup",
+      "minBranchCoverage": 90,
+      "minLineCoverage": 97
+    }
+  ],
+  "gapsToClose": [
+    "Episodes domain branch 87.9% (aspiration 90%) \u2014 EpisodeReleaseTolerance + YouTubePublishDelay strategy stretch",
+    "Platform enrichment branch 78.4% (75% met; 85% stretch \u2014 PlaylistItemFinder 69%)",
+    "Orchestration branch 86.5% (aspiration 82% met)"
+  ],
+  "files": [
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodePlatformMatcher.cs",
+      "branchCoverage": 85,
+      "lineCoverage": 95,
+      "note": "EpisodePlatformMatcher.cs + Catalogue.cs partial (~86% branch combined); CatalogueMatchingRules + TitleDurationMatchingRules"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/ExactReleaseMatchStrategy.cs",
+      "branchCoverage": 75,
+      "lineCoverage": 90,
+      "note": "Phase F P1 \u2014 dedicated strategy rule file"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/SpotifyCatalogueReleaseMatchStrategy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch \u2014 SpotifyCatalogueReleaseMatchStrategyRules complete matrix"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/Strategies/YouTubePublishDelayMatchStrategy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Step 8 stretch \u2014 YouTubePublishDelayMatchStrategyRules (zero delay, same-platform, audio\u2192YT only)"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/EpisodePlatformMerger.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/AppleTimeBackfillMergePolicy.cs",
+      "branchCoverage": 83,
+      "lineCoverage": 100,
+      "note": "Phase E \u2014 no backfill when incoming candidate has no Apple identity"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/SpotifyNoTimeBackfillMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/YouTubeAuthoritativePreserveMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Merging/Policies/YouTubeTimeBackfillMergePolicy.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Applying/EpisodePlatformApplier.cs",
+      "branchCoverage": 81,
+      "lineCoverage": 96,
+      "note": "Phase E applicator branch tests \u2014 raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Applying/PlatformEnrichmentApplicator.cs",
+      "branchCoverage": 94,
+      "lineCoverage": 97,
+      "note": "Phase E shared enrichment applicator \u2014 fill-missing, truncated description, release backfill"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeIdentityExtensions.cs",
+      "branchCoverage": 81,
+      "lineCoverage": 93,
+      "note": "Phase F P2 \u2014 Spotify URL ID extraction, Apple URL-only identity"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Extensions/EpisodeMappingExtensions.cs",
+      "branchCoverage": 78,
+      "lineCoverage": 98,
+      "note": "EpisodeMappingExtensionsRules added Phase D \u2014 raise toward 90% branch aspiration"
+    },
+    {
+      "group": "episodes-domain",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Matching/EpisodeReleaseTolerance.cs",
+      "branchCoverage": 83,
+      "lineCoverage": 95,
+      "note": "Step 8 stretch \u2014 EpisodeReleaseToleranceRules (zero length tolerance, Apple-only enrich window)"
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/SpotifyEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/AppleEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/YouTubeEpisodeAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedSpotifyItemAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedAppleItemAdapter.cs",
+      "branchCoverage": 50,
+      "lineCoverage": 100,
+      "note": "URL-only branch characterized; branch % still low \u2014 Phase F P2 optional negative branch"
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ResolvedYouTubeItemAdapter.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/PlatformLinkFactory.cs",
+      "branchCoverage": 50,
+      "lineCoverage": 85,
+      "note": "Phase F P2 \u2014 null-all-inputs rule"
+    },
+    {
+      "group": "episodes-adapters",
+      "path": "Class-Libraries/RedditPodcastPoster.Episodes/Adapters/ReleaseInfoFactory.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/Enriching/PlatformEpisodeEnricherTemplate.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Phase E \u2014 PlatformEpisodeEnricherTemplateRules (bypass + ApplyResolvedCandidate); measured via PodcastServices.Tests"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Abstractions/Extensions/PlatformEnrichmentResultExtensions.cs",
+      "branchCoverage": 92,
+      "lineCoverage": 100,
+      "note": "Step 8F \u2014 PlatformEnrichmentResultExtensionsRules (partial/null ApplyTo guards)"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Enrichers/SpotifyExpensiveQuerySideEffect.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "Phase E \u2014 SpotifyExpensiveQuerySideEffectRules"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/Enrichers/SpotifyEpisodeEnricher.cs",
+      "branchCoverage": 91,
+      "lineCoverage": 100,
+      "note": "Phase F P1 \u2014 SpotifyEpisodeEnricherCatalogueRules (match / no match / expensive / bypass / owned id)"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Enrichment/YouTubeEpisodeEnricher.cs",
+      "branchCoverage": 82,
+      "lineCoverage": 94,
+      "note": "Step 8 stretch \u2014 YouTubeEpisodeEnricherCatalogueRules (URL/id edge cases, skip video details)"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.Apple/Enrichers/AppleEpisodeEnricher.cs",
+      "branchCoverage": 92,
+      "lineCoverage": 100,
+      "note": "Step 8F \u2014 AppleEpisodeEnricherCatalogueRules (podcast show-id resolution + catalogue E2E)"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Services/PlaylistItemFinder.cs",
+      "branchCoverage": 69,
+      "lineCoverage": 86,
+      "note": "Step 8 stretch \u2014 PlaylistItemFinderCatalogueWrapperRules: publish-delay guards, substring exact title, live-filter null"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/Merging/EpisodeMerger.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/Matching/EpisodeMatcher.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/Updaters/PodcastUpdater.cs",
+      "branchCoverage": 68,
+      "lineCoverage": 89,
+      "note": "Phase F P1 \u2014 ShouldEnrichDespiteReleaseWindow, bypass flags"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/Processors/CategorisedItemProcessor.cs",
+      "branchCoverage": 82,
+      "lineCoverage": 80,
+      "note": "Close to 85% branch aspiration"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.UrlSubmission/Enrichers/EpisodeEnricher.cs",
+      "branchCoverage": 74,
+      "lineCoverage": 97,
+      "note": "F3 applicator unification \u2014 remaining BBC/IA branches; F6 optional extension"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/Planning/EpisodeLookupPlanner.cs",
+      "branchCoverage": 83,
+      "lineCoverage": 98,
+      "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/Planning/EpisodeLookupOptions.cs",
+      "branchCoverage": 97,
+      "lineCoverage": 93,
+      "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/Execution/CatalogueLookupExecutor.cs",
+      "branchCoverage": 91,
+      "lineCoverage": 98,
+      "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/Execution/ICatalogueShowEpisodeCounts.cs",
+      "branchCoverage": 97,
+      "lineCoverage": 98,
+      "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/Guards/CatalogueRequestGuard.cs",
+      "branchCoverage": 97,
+      "lineCoverage": 98,
+      "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "episode-lookup",
+      "path": "Class-Libraries/RedditPodcastPoster.EpisodeLookup/EpisodeLookupUseCases.cs",
+      "branchCoverage": 97,
+      "lineCoverage": 98,
+      "note": "Episode lookup planner (PR #1024)"
+    }
+  ]
+}

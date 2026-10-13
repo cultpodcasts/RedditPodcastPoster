@@ -52,6 +52,15 @@ PodcastServices.Abstractions/
 ├── IEpisodeMatcher.cs · IEpisodeMerger.cs · EpisodeMergeResult
 └── IndexPodcastResult.cs
 
+EpisodeLookup/            Central clearing-house for Spotify/Apple catalogue lookups (see its README.md)
+├── Planning/            EpisodeLookupChains (per-use-case chains) · EpisodeLookupPlanner · EpisodeLookupOptions
+├── Execution/           CatalogueLookupExecutor · ICatalogueCandidateSource · ICatalogueShowEpisodeCounts
+├── Guards/              CatalogueRequestGuard (fixed request timeout + logging)
+└── EpisodeLookupUseCases.cs   ForIndex · ForSubmit · ForDiscovery · ForEnrich entry points
+   Depends on: Episodes (EpisodeLookupFlow, CatalogueLookup) + PodcastServices.Abstractions
+   Used by:    PodcastServices.Spotify · PodcastServices.Apple · PodcastServices (thin adapters)
+   Tests:      EpisodeLookup.BusinessRules.Tests (rules first) · EpisodeLookup.Tests (unit)
+
 PodcastServices.{Spotify,Apple,YouTube}/
 └── Finders / resolvers / categorisers   Platform API boundary (map API types → domain or UrlSubmission DTOs)
 
@@ -224,6 +233,12 @@ flowchart TB
         PP[PodcastProcessor]
     end
 
+    subgraph Lookup["EpisodeLookup (catalogue lookup planner)"]
+        ELU[EpisodeLookupUseCases]
+        ELP[EpisodeLookupPlanner + Chains]
+        ELX[CatalogueLookupExecutor + RequestGuard]
+    end
+
     subgraph PlatCat["Platform categorisers (boundary only)"]
         SP_CAT[SpotifyUrlCategoriser]
         AP_CAT[AppleUrlCategoriser]
@@ -256,6 +271,10 @@ flowchart TB
 
     EA --> AP
     MG --> AP
+
+    SP_P & AP_P --> ELU
+    ELU --> ELP --> ELX
+    ELP --> Domain
 ```
 
 

@@ -1,3 +1,5 @@
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
@@ -8,6 +10,7 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Search;
 
 public class SpotifyEpisodeTitleSearch(
     ISpotifyClientWrapper spotifyClient,
+    ICatalogueRequestGuard guard,
     ILogger<SpotifyEpisodeTitleSearch> logger) : ISpotifyEpisodeTitleSearch
 {
     public const int MaxResults = 10;
@@ -15,7 +18,8 @@ public class SpotifyEpisodeTitleSearch(
     public async Task<IReadOnlyList<SimpleEpisode>> FindCandidates(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
-        string market)
+        string market,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.EpisodeTitle))
         {
@@ -25,22 +29,32 @@ public class SpotifyEpisodeTitleSearch(
         var query = string.IsNullOrWhiteSpace(request.PodcastName)
             ? request.EpisodeTitle
             : $"{request.EpisodeTitle} {request.PodcastName.Trim()}";
-        var page = await spotifyClient.FindEpisodes(
-            new SearchRequest(SearchRequest.Types.Episode, query)
-            {
-                Market = market,
-                Limit = MaxResults
-            },
-            indexingContext);
+        var page = await guard.Run(
+            CataloguePlatforms.Spotify,
+            "SearchEpisodes",
+            ct => spotifyClient.FindEpisodes(
+                new SearchRequest(SearchRequest.Types.Episode, query)
+                {
+                    Market = market,
+                    Limit = MaxResults
+                },
+                indexingContext,
+                ct),
+            cancellationToken);
         var hits = page?.Items?.Where(x => x != null).Take(MaxResults).ToList() ?? [];
         if (hits.Count == 0)
         {
             return [];
         }
 
-        var hydrated = await spotifyClient.GetSeveral(
-            new EpisodesRequest(hits.Select(x => x.Id).ToArray()) { Market = market },
-            indexingContext);
+        var hydrated = await guard.Run(
+            CataloguePlatforms.Spotify,
+            "GetSeveralEpisodes",
+            ct => spotifyClient.GetSeveral(
+                new EpisodesRequest(hits.Select(x => x.Id).ToArray()) { Market = market },
+                indexingContext,
+                ct),
+            cancellationToken);
         if (hydrated?.Episodes == null)
         {
             logger.LogWarning(

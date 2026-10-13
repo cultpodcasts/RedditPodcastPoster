@@ -171,8 +171,8 @@ public class SpotifyUrlCategoriserRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
-            .Returns<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?>(
-                (request, _, _) =>
+            .Returns<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?, CancellationToken>(
+                (request, _, _, _) =>
                 {
                     requestedTitles.Add(request.EpisodeTitle);
                     return Task.FromResult(
@@ -255,8 +255,8 @@ public class SpotifyUrlCategoriserRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
-            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?>(
-                (request, _, reducer) =>
+            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?, CancellationToken>(
+                (request, _, reducer, _) =>
                 {
                     capturedReducer = reducer;
                     capturedReleased = request.Released;

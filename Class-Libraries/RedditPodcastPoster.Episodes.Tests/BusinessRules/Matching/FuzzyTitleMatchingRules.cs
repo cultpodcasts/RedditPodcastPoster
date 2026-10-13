@@ -184,7 +184,8 @@ public class FuzzyTitleMatchingRules
     public void Fuzzy_match_with_duration_exactly_at_standard_tolerance_does_not_merge()
     {
         // Arrange
-        var storedTitle = _fixture.CreateShortTitle();
+        // Deterministic multi-word title: a random one-word title swaps to itself and exact-matches regardless of duration.
+        const string storedTitle = "Lantern Harbour Night Stories";
         var incomingTitle = DomainTestFixture.CreateFuzzyTitleVariant(
             storedTitle, FuzzyTitleVariantStrategy.SwapAdjacentWords);
         var storedLength = TimeSpan.FromMinutes(30);

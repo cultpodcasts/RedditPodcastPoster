@@ -59,12 +59,14 @@ public class CatalogueMatchScorerRules
     public void duration_same_day_and_one_shared_subject_meets_threshold()
     {
         // Arrange
-        var length = _fixture.CreateDuration();
+        // Deterministic, lexically disjoint titles and subject: random fixtures could overlap and add title points.
+        var length = TimeSpan.FromMinutes(47);
         var release = DomainTestFixture.UtcDateDaysAgo(1);
-        var sharedSubject = _fixture.CreateTitle(3);
+        const string sharedSubject = "Zanzibar Lighthouse";
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Quarterly Harvest Ledger";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
@@ -72,7 +74,8 @@ public class CatalogueMatchScorerRules
         });
         var catalogue = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Volcanic Origami Workshop";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
@@ -95,20 +98,23 @@ public class CatalogueMatchScorerRules
     public void two_shared_subjects_score_higher_than_one()
     {
         // Arrange
-        var length = _fixture.CreateDuration();
+        // Deterministic distinct subjects and disjoint titles: random subjects could normalise to one value.
+        var length = TimeSpan.FromMinutes(52);
         var release = DomainTestFixture.UtcDateDaysAgo(2);
-        var subjectA = _fixture.CreateTitle(3);
-        var subjectB = _fixture.CreateTitle(3);
+        const string subjectA = "Arctic Beekeeping";
+        const string subjectB = "Medieval Cartography";
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Quarterly Harvest Ledger";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.Subjects = [subjectA, subjectB];
         });
         var oneShared = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Volcanic Origami Workshop";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
@@ -116,7 +122,8 @@ public class CatalogueMatchScorerRules
         });
         var twoShared = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Saturn Fencing Almanac";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
@@ -138,20 +145,23 @@ public class CatalogueMatchScorerRules
     public void default_subject_overlap_is_ignored()
     {
         // Arrange
-        var length = _fixture.CreateDuration();
+        // Deterministic disjoint titles so only duration + release can score.
+        var length = TimeSpan.FromMinutes(39);
         var release = DomainTestFixture.UtcDateDaysAgo(1);
-        var defaultSubject = _fixture.CreateTitle(2);
+        const string defaultSubject = "Glacier Pottery";
         var filters = new CatalogueSubjectScoreFilters(DefaultSubject: defaultSubject);
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Quarterly Harvest Ledger";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.Subjects = [defaultSubject];
         });
         var catalogue = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = "Volcanic Origami Workshop";
+            e.Description = string.Empty;
             e.Length = length;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();

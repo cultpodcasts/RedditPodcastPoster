@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="Moq.AutoMock" Version="4.0.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="SpotifyAPI.Web" Version="7.4.2" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\RedditPodcastPoster.PodcastServices.Apple.Tests\Support\AppleCatalogueFakes.cs" Link="Support\AppleCatalogueFakes.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Spotify\RedditPodcastPoster.PodcastServices.Spotify.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.Apple\RedditPodcastPoster.PodcastServices.Apple.csproj" />
+  </ItemGroup>
+
+</Project>

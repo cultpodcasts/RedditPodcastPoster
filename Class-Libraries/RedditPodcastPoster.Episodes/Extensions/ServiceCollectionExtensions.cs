@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
@@ -30,6 +33,8 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
+            services.AddSingleton<ICatalogueEpisodeMatcher, CatalogueEpisodeMatcher>();
+            services.TryAddScoped<ICatalogueSubjectClassifier, NoCatalogueSubjectClassifier>();
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();

@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,7 @@ builder.Configuration
     .AddSecrets(Assembly.GetExecutingAssembly());
 
 builder.Services
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddScoped<AddYouTubeChannelProcessor>()
