@@ -978,7 +978,7 @@ AppTraces
 
 ## 11. Episode lookup planner — per-lookup outcome and request guard
 
-`CatalogueLookupExecutor` logs one Information line per Spotify/Apple single-episode lookup (`Catalogue episode lookup:`). `CatalogueRequestGuard` logs `Catalogue request timeout guard fired:` at Warning. The Information line reaches App Insights only because function apps raise `RedditPodcastPoster.EpisodeLookup` to Information: in `Cloud/Azure/ApplicationLogLevels.cs` (the worker filter) and in each app's `host.json`. `FunctionHost.Tests` `EpisodeLookupLogLevelRules` pins this. Design: [catalogue-pagination.md](catalogue-pagination.md), [EpisodeLookup README](../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md).
+`CatalogueLookupExecutor` logs one Information line per Spotify/Apple single-episode lookup (`Catalogue episode lookup:`). `CatalogueRequestGuard` logs `Catalogue request timeout guard fired:` at Warning. The Information line reaches App Insights only because function apps raise `RedditPodcastPoster.EpisodeLookup` to Information: in `Cloud/Azure/ApplicationLogLevels.cs` (the worker filter) and in each app's `host.json`. `FunctionHost.Tests` `EpisodeLookupLogLevelRules` pins this. `stage` is the strategy that matched, `miss`, or `skipped-no-show` (Index lookup for a podcast with no show id on that platform: `plan='none'`, `pages-read=0`, no API call). Design: [catalogue-pagination.md](catalogue-pagination.md), [EpisodeLookup README](../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md).
 
 ### A. Outcomes by platform / flow / stage (7d)
 

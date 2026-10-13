@@ -60,15 +60,48 @@ public class EpisodeLookupPlannerRules
             .Should().OnlyContain(x => x.PageCap == new EpisodeLookupOptions().FullShowReadMaxPages);
     }
 
-    [Theory(DisplayName = "When no show id is known, Plan is title search only in every flow, because there is no feed to read.")]
-    [InlineData(EpisodeLookupFlow.Index)]
-    [InlineData(EpisodeLookupFlow.Submit)]
-    [InlineData(EpisodeLookupFlow.Discovery)]
-    [InlineData(EpisodeLookupFlow.Enrich)]
-    public void No_show_is_search_only(EpisodeLookupFlow flow)
+    [Theory(DisplayName =
+        "When no show id is known for the platform, the Index flow plans nothing, because a title search cannot succeed " +
+        "(hits must match the show name exactly) and indexing never learns a show id from it " +
+        "(2026-10-13: 19 hourly Spotify searches for YouTube-only podcasts such as Narcissists Playbook).")]
+    [InlineData(CataloguePlatforms.Spotify)]
+    [InlineData(CataloguePlatforms.Apple)]
+    public void Index_without_show_plans_nothing(string platform)
     {
+        // Arrange
+        var lookup = new CatalogueLookup(
+            "Narcissists Playbook",
+            "Narcissist's Playbook: People Need to Know They're Not Crazy",
+            Now.AddDays(-2),
+            TimeSpan.FromMinutes(12))
+        {
+            Flow = EpisodeLookupFlow.Index,
+            WindowStart = Now.AddDays(-3)
+        };
+
         // Act
-        var plan = _sut.Plan(Lookup(flow, Now.AddDays(-1), null), hasShow: false, 50, Platform);
+        var plan = _sut.Plan(lookup, hasShow: false, showEpisodeCount: null, platform);
+
+        // Assert
+        plan.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "When no show id is known, Submit, Discovery and Enrich still plan a title search only, because there is no feed " +
+        "to read and a submitted, discovered or operator-chosen episode may be the way its show is first found.")]
+    [InlineData(EpisodeLookupFlow.Submit, CataloguePlatforms.Spotify)]
+    [InlineData(EpisodeLookupFlow.Discovery, CataloguePlatforms.Spotify)]
+    [InlineData(EpisodeLookupFlow.Enrich, CataloguePlatforms.Spotify)]
+    [InlineData(EpisodeLookupFlow.Submit, CataloguePlatforms.Apple)]
+    [InlineData(EpisodeLookupFlow.Discovery, CataloguePlatforms.Apple)]
+    [InlineData(EpisodeLookupFlow.Enrich, CataloguePlatforms.Apple)]
+    public void No_show_is_search_only_outside_index(EpisodeLookupFlow flow, string platform)
+    {
+        // Arrange
+        var lookup = Lookup(flow, Now.AddDays(-1), null);
+
+        // Act
+        var plan = _sut.Plan(lookup, hasShow: false, 50, platform);
 
         // Assert
         plan.Should().ContainSingle().Which.Strategy.Should().Be(CatalogueLookupStrategy.TitleSearch);

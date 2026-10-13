@@ -277,4 +277,50 @@ public class CatalogueLookupExecutorRules
             x.Message.Contains("show-episodes=600") &&
             x.Message.Contains("pages-read=1"));
     }
+
+    [Theory(DisplayName =
+        "An Index lookup with no show id makes no catalogue calls and logs plan 'none', stage 'skipped-no-show' and " +
+        "pages-read=0, so YouTube-only podcasts cost nothing each hour and the skip is still visible in App Insights.")]
+    [InlineData(CataloguePlatforms.Spotify)]
+    [InlineData(CataloguePlatforms.Apple)]
+    public async Task Index_without_show_is_skipped(string platform)
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var source = new FakeSource(Show(10, targetIndex: 2), searchHits: Show(10, targetIndex: 2), probeCount: 10,
+            showId: null, platform: platform);
+
+        // Act
+        var result = await Sut(logger: logger).FindMatch(Lookup(EpisodeLookupFlow.Index, 2), source);
+
+        // Assert
+        result.Match.Should().BeNull();
+        result.Stage.Should().Be(CatalogueLookupExecutor.StageSkippedNoShow);
+        source.SearchCalls.Should().Be(0);
+        source.PageCalls.Should().Be(0);
+        source.ProbeCalls.Should().Be(0);
+        logger.Entries.Should().ContainSingle(x =>
+            x.Level == LogLevel.Information &&
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.Contains($"platform='{platform}'") &&
+            x.Message.Contains("flow='Index'") &&
+            x.Message.Contains("plan='none'") &&
+            x.Message.Contains("stage='skipped-no-show'") &&
+            x.Message.Contains("pages-read=0"));
+    }
+
+    [Fact(DisplayName = "A Submit lookup with no show id still searches by title and can match, because submission can discover a show.")]
+    public async Task Submit_without_show_still_searches()
+    {
+        // Arrange
+        var source = new FakeSource([], searchHits: Show(5, targetIndex: 1), showId: null);
+
+        // Act
+        var result = await Sut().FindMatch(Lookup(EpisodeLookupFlow.Submit, 1), source);
+
+        // Assert
+        source.SearchCalls.Should().Be(1);
+        result.Match.Should().NotBeNull();
+        result.FromSearch.Should().BeTrue();
+    }
 }

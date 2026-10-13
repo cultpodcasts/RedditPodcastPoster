@@ -10,7 +10,10 @@ public enum EpisodeLookupFlow
     /// <summary>Submit-url (episode URL and matching other services) and any caller that does not say otherwise.</summary>
     Submit = 0,
 
-    /// <summary>Indexer passes (hourly Cloud indexer, Api single-podcast index, Index CLI) via <c>PodcastUpdater</c>.</summary>
+    /// <summary>
+    /// Indexer passes (hourly Cloud indexer, Api single-podcast index, Index CLI) via <c>PodcastUpdater</c>.
+    /// A platform with no show id on the podcast is skipped (no title search).
+    /// </summary>
     Index = 1,
 
     /// <summary>Discovery enrichment of search results.</summary>

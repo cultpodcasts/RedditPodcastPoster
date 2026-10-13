@@ -80,7 +80,8 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
 
 | Show size | Flow | Release | Plan |
 |-----------|------|---------|------|
-| no show id | any | any | `title-search` |
+| no show id (for that platform) | `Index` | any | nothing: no API call; logged `plan='none' stage='skipped-no-show'` (a search can't succeed and indexing never learns a show id from it) |
+| no show id | Submit / Discovery / Enrich | any | `title-search` |
 | known ≤ 200 (`FullShowReadMaxEpisodes`) | any | any | `full-show-read` |
 | > 200 or unknown | `Index` | any | `newest-pages` until a page is older than min(window start, release − 14 d), cap `IndexMaxPages` (20); **no search** (1 page when neither date is known) |
 | > 200 or unknown | Submit / Discovery / Enrich | within `RecentWindow` (14 d) | `newest-pages` (1 page) → `title-search` → `bounded-walk` |

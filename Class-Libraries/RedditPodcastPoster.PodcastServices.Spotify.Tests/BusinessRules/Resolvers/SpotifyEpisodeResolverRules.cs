@@ -467,6 +467,51 @@ public class SpotifyEpisodeResolverRules
     }
 
     [Fact(DisplayName =
+        "When the indexer looks up an episode of a YouTube-only podcast with no Spotify show id (Narcissists Playbook, 13 Oct 2026), " +
+        "FindEpisode makes no Spotify search or page call and returns no episode, because a show-name-only search cannot succeed " +
+        "and was repeated every hour.")]
+    public async Task Index_flow_without_show_id_makes_no_spotify_calls()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var context = new IndexingContext(DateTime.UtcNow.AddDays(-3)) { LookupFlow = EpisodeLookupFlow.Index };
+        var request = Request(
+            "Narcissist's Playbook: People Need to Know They're Not Crazy",
+            DomainTestFixture.UtcDateDaysAgo(2),
+            podcastSpotifyId: string.Empty);
+
+        // Act
+        var result = await sut.FindEpisode(request, context);
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        VerifyNoCatalogueLookup();
+    }
+
+    [Fact(DisplayName =
+        "When a URL submission looks up a YouTube episode of a podcast with no Spotify show id, FindEpisode still runs one title " +
+        "search and returns the match, because submission is how a podcast's Spotify show can first be found.")]
+    public async Task Submit_flow_without_show_id_still_title_searches()
+    {
+        // Arrange
+        var title = "Narcissist's Playbook: People Need to Know They're Not Crazy";
+        var released = DomainTestFixture.UtcDateDaysAgo(2);
+        var match = Simple(_fixture.CreateSpotifyId(), title, released);
+        StubTitleSearch([match]);
+        var full = StubFullEpisode(new FullEpisode { Id = match.Id, Name = title, IsPlayable = true });
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var context = new IndexingContext { LookupFlow = EpisodeLookupFlow.Submit };
+
+        // Act
+        var result = await sut.FindEpisode(Request(title, released, podcastSpotifyId: string.Empty), context);
+
+        // Assert
+        result.FullEpisode.Should().BeSameAs(full);
+        VerifyTitleSearch(Times.Once());
+        VerifyShowPage(Times.Never());
+    }
+
+    [Fact(DisplayName =
         "When every Spotify call times out (guard returns null), FindEpisode returns a clean miss instead of throwing, " +
         "because a slow catalogue must not fail the submit or index pass.")]
     public async Task Guarded_failures_return_clean_miss()

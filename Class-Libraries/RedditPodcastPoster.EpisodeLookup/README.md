@@ -9,7 +9,7 @@ business-rules test first** (in `RedditPodcastPoster.EpisodeLookup.BusinessRules
 
 | Use case (`EpisodeLookupFlow`) | Entry point | Callers |
 |---|---|---|
-| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI |
+| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI. No title search; a platform with no show id is skipped (`stage='skipped-no-show'`) |
 | `Submit` (default) | `EpisodeLookupUseCases.ForSubmit` / unmarked context | URL submission (`UrlSubmission` `PodcastService`), `SpotifyUrlCategoriser`, `AppleUrlCategoriser`, ImageUpdater |
 | `Discovery` | `EpisodeLookupUseCases.ForDiscovery` | Discovery `SpotifyEnricher`, `AppleEnricher` |
 | `Enrich` | `EpisodeLookupUseCases.ForEnrich` | `EnrichExistingEpisodesFromPodcastServices` CLI |
@@ -26,12 +26,13 @@ They contain no strategy logic.
 1. Known episode id → fetched directly by the resolver (a stale id falls through).
 2. `CatalogueLookupExecutor` gets the show size: the podcast's `spotifyEpisodeCount` / `appleEpisodeCount`,
    or one cheap probe (Spotify `Paging.Total` on page 0; Apple iTunes `trackCount`).
-3. `EpisodeLookupPlanner` picks the chain: no show id → title search; known small show (≤ `FullShowReadMaxEpisodes`)
+3. `EpisodeLookupPlanner` picks the chain: no show id → nothing in `Index` (logged `plan='none'`,
+   `stage='skipped-no-show'`, no API call), title search in every other use case; known small show (≤ `FullShowReadMaxEpisodes`)
    → full read; otherwise the chain declared in **`Planning/EpisodeLookupChains.cs`** for (use case, release age).
 4. The executor runs the steps (pages read once and reused, ids tried once, each read bounded by date and/or cap)
    and logs one line per lookup:
    `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=…`
-   (`stage` is the strategy that found the episode, or `miss`).
+   (`stage` is the strategy that found the episode, `miss`, or `skipped-no-show`).
 5. Every HTTP call is wrapped by `CatalogueRequestGuard` (`RequestTimeout`, default 10 s); when it fires it logs
    `Catalogue request timeout guard fired:` and the lookup moves on (clean miss, never an exception).
 

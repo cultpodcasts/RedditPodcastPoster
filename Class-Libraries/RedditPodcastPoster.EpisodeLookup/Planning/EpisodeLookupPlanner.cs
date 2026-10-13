@@ -10,7 +10,8 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// discovery, enrich CLI, image updater) is planned here. Any change or bug fix must consider every use case and
 /// starts with a business-rules test (see <c>RedditPodcastPoster.EpisodeLookup/README.md</c>).
 /// <list type="number">
-/// <item>No show known: title search only.</item>
+/// <item>No show known for the platform: Index plans nothing (a search cannot succeed and indexing never learns a
+/// show id from it); every other flow searches by title only.</item>
 /// <item>Small show (known count &lt;= <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/>): full read, any flow.</item>
 /// <item>Otherwise the chain declared in <see cref="EpisodeLookupChains.LargeShow"/> for (flow, age).</item>
 /// </list>
@@ -29,7 +30,9 @@ public sealed class EpisodeLookupPlanner(IOptions<EpisodeLookupOptions> options,
     {
         if (!hasShow)
         {
-            return [new CatalogueLookupStep(CatalogueLookupStrategy.TitleSearch)];
+            return lookup.Flow == EpisodeLookupFlow.Index
+                ? []
+                : [new CatalogueLookupStep(CatalogueLookupStrategy.TitleSearch)];
         }
 
         if (showEpisodeCount is { } count && count <= _options.FullShowReadMaxEpisodes)
