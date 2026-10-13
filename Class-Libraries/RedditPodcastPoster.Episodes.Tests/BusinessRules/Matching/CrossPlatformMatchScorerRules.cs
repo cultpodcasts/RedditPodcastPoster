@@ -298,12 +298,17 @@ public class CrossPlatformMatchScorerRules
     public void Default_subject_overlap_does_not_contribute_points()
     {
         // Arrange
-        var defaultSubject = _fixture.CreateTitle(2);
+        const string defaultSubject = "Glacier Pottery";
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
         podcast.DefaultSubject = defaultSubject;
         var (youTube, audio) = _fixture.CreateNegativeDelayNonMatchingPair(podcast);
         youTube.Subjects = [defaultSubject];
         audio.Subjects = [defaultSubject];
+        // Deterministic disjoint titles/descriptions so no title or description points can leak in.
+        youTube.Title = "Quarterly Harvest Ledger";
+        audio.Title = "Volcanic Origami Workshop";
+        youTube.Description = string.Empty;
+        audio.Description = string.Empty;
 
         // Act
         var score = CrossPlatformMatchScorer.Score(youTube, audio, podcast);

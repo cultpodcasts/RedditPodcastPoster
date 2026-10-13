@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Adapters.Inputs;
@@ -30,7 +33,16 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
-            services.AddSingleton<RedditPodcastPoster.Episodes.Matching.Candidates.ICatalogueCandidatePolicy, RedditPodcastPoster.Episodes.Matching.Candidates.CatalogueCandidatePolicy>();
+            services.AddSingleton<ICatalogueEpisodeMatcher, CatalogueEpisodeMatcher>();
+            // Scoped: the subject classifier (RedditPodcastPoster.Subjects) is scoped.
+            services.AddScoped<ICatalogueCandidatePolicy, CatalogueCandidatePolicy>();
+            services.TryAddScoped<ICatalogueSubjectClassifier, NoCatalogueSubjectClassifier>();
+            services.TryAddSingleton(TimeProvider.System);
+            services.AddOptions<CatalogueCandidatePolicyOptions>()
+                .Configure<IServiceProvider>((options, provider) =>
+                    provider.GetService<IConfiguration>()?
+                        .GetSection(CatalogueCandidatePolicyOptions.SectionName)
+                        .Bind(options));
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();

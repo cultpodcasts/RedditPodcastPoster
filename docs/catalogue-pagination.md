@@ -55,14 +55,34 @@ delay. Spotify episode matching does not read the floor. Name-search with no `Re
 does not paginate the show, even when the request carries an episode release: a single-episode
 match must not download the catalogue. An Apple published-before ceiling is a separate change.
 
-A single-episode FindEpisode does not paginate show catalogues at all. It runs one Spotify
-episode-title search (`Limit` 10). When the show name is known it is included in the query.
-The page is then filtered to the known Spotify show id or else an exact show name, and matched
-inside `EpisodeReleaseTolerance.GetSubmitMatchBand` (expected release date minus 14 days through
-that date plus 14 days). In-band hits are tried first; other hits on the same page are the weaker
-second pass. If that page has no show hit, the lookup stops. There is no catalogue fallback.
-The same band is used for a recent episode and a years-old episode. Indexer catalogue walks
-are unchanged.
+A single-episode FindEpisode does not paginate show catalogues. Spotify and Apple both go through
+the shared `ICatalogueCandidatePolicy` (`Episodes/Matching/Candidates`); the platform resolvers are
+thin `ICatalogueCandidateSource` fetch/map adapters, and only the platform calls differ:
+
+1. **Known episode id**: fetched directly. A miss (stale/invalid id) falls through to stage 2.
+2. **Recent show feed** (`stage=recent-show-feed`): when the show is known and the release is within
+   `catalogueCandidatePolicy:RecentWindow` (default 14 days, the YouTube→audio consideration
+   threshold) or unknown, match against ONE page of the newest
+   `catalogueCandidatePolicy:RecentShowEpisodesPageSize` (default 50) episodes. This stage does not use
+   the incoming title, so a YouTube title that differs from the audio title still matches (Steve Hassan /
+   Ben McKenzie, 12 Oct 2026). Spotify: one `GetShowEpisodes` call, cached per show/market/page size per
+   podcast pass by `SpotifyRecentShowEpisodesCache` (an `IPodcastPassApiCacheSource`; failed calls are
+   not cached; nothing is fetched while `SkipSpotifyUrlResolving` is set). Apple: the pass-cached
+   `CachedApplePodcastService` episode list, already a single fetch, matched in one pass.
+3. **Search fallback** (`stage=search-fallback`, or `miss`): otherwise, or when stage 2 has no match,
+   minus candidates already tried. Spotify: one episode-title search (`Limit` 10, show name in the query
+   when known), filtered to the known show id or exact show name. Apple: the same cached list.
+   There is no catalogue walk.
+
+Each stage classifies subjects (`ICatalogueSubjectClassifier`, real implementation in Subjects) and
+matches through `ICatalogueEpisodeMatcher`: candidates inside `EpisodeReleaseTolerance.GetSubmitMatchBand`
+(release ±14 days) are tried first, others are the weaker second pass. Duration-aware matching is used
+when the lookup has a length and YouTube authority or YouTube enrichment; otherwise release-date
+matching. Each lookup logs `Catalogue candidate lookup: platform=… stage=…`.
+Rules: `Episodes.Tests/BusinessRules/Matching/Candidates/*`,
+`PodcastServices.CatalogueContract.Tests` (same cases through the real Spotify and Apple resolvers),
+`Spotify.Tests/BusinessRules/Providers/SpotifyRecentShowEpisodesCacheRules.cs`.
+Indexer catalogue walks are unchanged.
 
 The other direction uses the same band. When a Spotify or Apple submit already knows a
 YouTube channel and Search.List is allowed, `YouTubeUrlCategoriser` searches that channel

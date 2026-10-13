@@ -1,23 +1,20 @@
 using System.Net;
-using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.Subjects.Factories;
-using RedditPodcastPoster.Subjects.Matching;
-using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.Text.Sanitisers;
-using RedditPodcastPoster.Text.TitleCasing;
 using SpotifyAPI.Web;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Finders;
 
+/// <summary>
+/// Spotify podcast-name matching and release-date episode matching for podcast resolution.
+/// Episode lookups for enrichment go through the shared <c>ICatalogueCandidatePolicy</c> instead.
+/// </summary>
 public class SpotifySearchResultFinder(
     IEpisodePlatformMatcher platformMatcher,
-    ISubjectMatcher subjectMatcher,
-    IHtmlSanitiser htmlSanitiser,
-    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider) : ISpotifySearchResultFinder
+    IHtmlSanitiser htmlSanitiser) : ISpotifySearchResultFinder
 {
     public IEnumerable<SimpleShow> FindMatchingPodcasts(string podcastName, List<SimpleShow>? podcasts)
     {
@@ -27,54 +24,6 @@ public class SpotifySearchResultFinder(
         }
 
         return podcasts.Where(x => x.Name.ToLower().Trim() == podcastName.ToLower());
-    }
-
-    public async Task<SimpleEpisode?> FindMatchingEpisodeByLength(
-        string episodeTitle,
-        TimeSpan episodeLength,
-        IEnumerable<SimpleEpisode> episodes,
-        Func<SimpleEpisode, bool>? reducer = null,
-        Service? releaseAuthority = null,
-        DateTime? released = null,
-        bool enrichingYouTubeDiscoveredEpisode = false,
-        string? episodeDescription = null,
-        string? defaultSubject = null,
-        IReadOnlyList<string>? ignoredSubjects = null,
-        string? language = null,
-        CancellationToken cancellationToken = default)
-    {
-        var probe = CreateProbeEpisode(episodeTitle, episodeLength, released, episodeDescription);
-        var candidates = episodes.Select(e => ToCatalogueEpisode(e, htmlSanitiser)).ToList();
-        Func<Episode, bool>? episodeReducer = reducer == null
-            ? null
-            : e =>
-            {
-                var source = episodes.FirstOrDefault(x =>
-                    x.Id == EpisodeServicePresence.SpotifyEpisodeId(e));
-                return source != null && reducer(source);
-            };
-
-        var mergedIgnored = await MergeIgnoredSubjectsAsync(ignoredSubjects, language, cancellationToken);
-
-        if (enrichingYouTubeDiscoveredEpisode)
-        {
-            await ClassifySubjectsAsync(probe, candidates, defaultSubject, mergedIgnored, cancellationToken);
-        }
-
-        var match = platformMatcher.FindCatalogueMatchByLength(
-            probe,
-            candidates,
-            CreateLookupPodcast(releaseAuthority),
-            episodeMatchRegex: null,
-            new CatalogueMatchByLengthOptions(
-                ReleaseAuthority: releaseAuthority,
-                AcceptUniqueDurationWithoutTitleMatch: false,
-                EnrichingYouTubeDiscoveredEpisode: enrichingYouTubeDiscoveredEpisode,
-                DefaultSubject: defaultSubject,
-                IgnoredSubjects: mergedIgnored),
-            episodeReducer);
-
-        return match == null ? null : FindSourceEpisode(episodes, match);
     }
 
     public SimpleEpisode? FindMatchingEpisodeByDate(
@@ -88,55 +37,10 @@ public class SpotifySearchResultFinder(
         var match = platformMatcher.FindCatalogueMatchByDate(
             probe,
             candidates,
-            CreateLookupPodcast(releaseAuthority: null),
+            CreateLookupPodcast(),
             episodeMatchRegex: null);
 
         return match == null ? null : FindSourceEpisode(episodes, match);
-    }
-
-    private async Task ClassifySubjectsAsync(
-        Episode probe,
-        IList<Episode> candidates,
-        string? defaultSubject,
-        IReadOnlyList<string>? ignoredSubjects,
-        CancellationToken cancellationToken)
-    {
-        var options = new SubjectEnrichmentOptions(
-            IgnoredAssociatedSubjects: null,
-            IgnoredSubjects: ignoredSubjects?.ToArray(),
-            DefaultSubject: defaultSubject,
-            DescriptionRegex: string.Empty);
-
-        probe.Subjects = await MatchSubjectNamesAsync(probe, options, cancellationToken);
-        foreach (var candidate in candidates)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            candidate.Subjects = await MatchSubjectNamesAsync(candidate, options, cancellationToken);
-        }
-    }
-
-    private async Task<IReadOnlyList<string>?> MergeIgnoredSubjectsAsync(
-        IReadOnlyList<string>? podcastIgnored,
-        string? language,
-        CancellationToken cancellationToken)
-    {
-        var provider = await titleCasingRulesProvider.GetAsync(cancellationToken);
-        var languageIgnored = await provider.GetIgnoredSubjectsAsync(language, cancellationToken);
-        return SubjectEnrichmentOptionsFactory.UnionIgnoreLists(podcastIgnored, languageIgnored);
-    }
-
-    private async Task<List<string>> MatchSubjectNamesAsync(
-        Episode episode,
-        SubjectEnrichmentOptions options,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var matches = await subjectMatcher.MatchSubjects(episode, options);
-        return matches
-            .Select(x => x.Subject.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private static Episode CreateProbeEpisode(
@@ -168,9 +72,9 @@ public class SpotifySearchResultFinder(
     private static SimpleEpisode? FindSourceEpisode(IEnumerable<SimpleEpisode> episodes, Episode match) =>
         episodes.FirstOrDefault(x => x.Id == EpisodeServicePresence.SpotifyEpisodeId(match));
 
-    private static Podcast CreateLookupPodcast(Service? releaseAuthority) =>
+    private static Podcast CreateLookupPodcast() =>
         new()
         {
-            ReleaseAuthority = releaseAuthority ?? Service.Spotify
+            ReleaseAuthority = Service.Spotify
         };
 }

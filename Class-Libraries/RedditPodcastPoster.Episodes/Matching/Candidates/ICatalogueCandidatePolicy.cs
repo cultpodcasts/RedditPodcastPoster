@@ -1,17 +1,15 @@
 namespace RedditPodcastPoster.Episodes.Matching.Candidates;
 
 /// <summary>
-/// Shared, platform-agnostic order in which catalogue candidates are sourced before matching.
+/// Shared, platform-agnostic catalogue lookup: candidate sourcing order, subject classification and
+/// matching strategy are the same for every audio platform.
 /// </summary>
 public interface ICatalogueCandidatePolicy
 {
-    /// <summary>
-    /// Sources candidates from <paramref name="source"/> and returns the first non-null result of
-    /// <paramref name="match"/> (normally the shared <see cref="IEpisodePlatformMatcher"/>).
-    /// </summary>
     Task<TItem?> FindMatch<TItem>(
-        DateTime? released,
+        CatalogueLookup lookup,
         ICatalogueCandidateSource<TItem> source,
-        Func<IReadOnlyList<TItem>, Task<TItem?>> match)
+        Func<TItem, bool>? reducer = null,
+        CancellationToken cancellationToken = default)
         where TItem : class;
 }

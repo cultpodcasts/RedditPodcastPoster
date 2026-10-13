@@ -21,9 +21,7 @@ public class SpotifySearchResultFinderPodcastMatchRules
     private readonly DomainTestFixture _fixture = new();
     private readonly SpotifySearchResultFinder _sut = new(
         EpisodeDomainTestServices.CreatePlatformMatcher(),
-        new StubSubjectMatcher(),
-        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance),
-        EmptyTitleCasingProvider());
+        new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
 
     [Fact(DisplayName =
         "When the podcasts list is null, FindMatchingPodcasts returns an empty sequence " +

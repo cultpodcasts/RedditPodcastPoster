@@ -1,4 +1,4 @@
-using RedditPodcastPoster.Episodes.Matching.Candidates;
+using RedditPodcastPoster.Subjects.Matching;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.DependencyInjection;
@@ -68,10 +68,9 @@ public class AppleEpisodeResolverTests
 
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            new CatalogueCandidatePolicy(),
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
+            CatalogueTestServices.CreatePolicy(
+                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
+                platformMatcher: EpisodeDomainTestServices.CreatePlatformMatcher()),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -136,10 +135,9 @@ public class AppleEpisodeResolverTests
 
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
-            matcher,
-            new CatalogueCandidatePolicy(),
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
+            CatalogueTestServices.CreatePolicy(
+                new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()),
+                platformMatcher: matcher),
             NullLogger<AppleEpisodeResolver>.Instance);
 
         // Act
@@ -165,118 +163,69 @@ public class AppleEpisodeResolverTests
     }
 
     [Fact(DisplayName =
-        "When a recent YouTube episode's title differs from the Apple audio title (Steve Hassan / Ben McKenzie, 12 Oct 2026), " +
-        "FindEpisode matches it from the show feed through the shared candidate policy, as Spotify does.")]
-    public async Task FindEpisode_RealDivergentTitlePair_MatchesFromShowFeed()
+        "When a stored Apple episode id is not in the show feed, FindEpisode falls through to the shared catalogue match " +
+        "instead of returning null, because a stale or invalid stored id must not block matching (same rule as Spotify).")]
+    public async Task FindEpisode_KnownEpisodeIdMissing_FallsThroughToCatalogueMatch()
     {
-        // Arrange — release one day ago keeps the case inside the recent window whenever the suite runs
-        var youTubeRelease = DateTime.UtcNow.Date.AddDays(-1).AddHours(8);
-        var audioId = _fixture.CreateAppleId();
+        // Arrange
+        const string title = "Lantern Harbour Night Stories With A Guest From The Archive";
+        var release = DomainTestFixture.UtcDateDaysAgo(2);
+        var matchId = _fixture.CreateAppleId();
         var appleEpisodes = new[]
         {
-            new AppleEpisode(
-                audioId,
-                "Everyone Is Lying to You for Money, Crypto and Cult Psychology with Ben McKenzie: My conversation with the author of Easy Money about financial manipulation, the need to belong, and protecting our freedom of mind.",
-                youTubeRelease.AddHours(1),
-                new TimeSpan(0, 59, 29),
-                new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={audioId}"),
-                string.Empty,
-                false),
-            new AppleEpisode(
-                _fixture.CreateAppleId(),
-                _fixture.CreateTitle(),
-                youTubeRelease.AddDays(-7),
-                new TimeSpan(0, 58, 10),
-                new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={_fixture.CreateAppleId()}"),
-                string.Empty,
-                false)
+            new AppleEpisode(matchId, title, release, TimeSpan.FromMinutes(44),
+                new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={matchId}"), string.Empty, false)
         };
         var request = new FindAppleEpisodeRequest(
-            _fixture.CreateAppleId(),
-            "Cults, Culture & Coercion with Dr. Steve Hassan",
-            null,
-            "Why Is Everyone Lying to You for Money? The Great Crypto Scam EXPOSED (w/ Ben McKenzie)",
-            youTubeRelease,
-            Service.YouTube,
-            new TimeSpan(0, 56, 49),
-            null,
-            EnrichingYouTubeDiscoveredEpisode: true);
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            new CatalogueCandidatePolicy(),
-            new StubSubjectMatcher(new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Ben McKenzie"] = ["Cult Psychology", "Multi-Level Marketing"]
-            }),
-            EmptyTitleCasingProvider(),
-            NullLogger<AppleEpisodeResolver>.Instance);
+            _fixture.CreateAppleId(), _fixture.CreateTitle(), _fixture.CreateAppleId(), title,
+            release, null, TimeSpan.FromMinutes(44), null);
+        var sut = CreateSut(appleEpisodes);
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
 
         // Assert
         result.Should().NotBeNull();
-        result!.Id.Should().Be(audioId);
+        result!.Id.Should().Be(matchId);
     }
 
     [Fact(DisplayName =
-        "When no Apple podcast id is known, FindEpisode returns no episode " +
-        "because the shared policy has no show feed to read and Apple has no title search.")]
-    public async Task FindEpisode_NoShowId_ReturnsNull()
+        "When a recent Apple lookup has a weaker same-length candidate among the newest 50 and an exact-title candidate " +
+        "further down the feed, FindEpisode returns the exact-title one, because Apple's cached feed is matched in a single pass.")]
+    public async Task FindEpisode_RecentLookup_MatchesWholeFeedInOnePass()
     {
         // Arrange
-        var request = new FindAppleEpisodeRequest(
-            null, _fixture.CreateTitle(), null, _fixture.CreateTitle(),
-            DomainTestFixture.UtcDateDaysAgo(1), Service.YouTube, TimeSpan.FromMinutes(40), null);
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService([]),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            new CatalogueCandidatePolicy(),
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
-            NullLogger<AppleEpisodeResolver>.Instance);
-
-        // Act
-        var result = await sut.FindEpisode(request, new IndexingContext());
-
-        // Assert
-        result.Should().BeNull();
-    }
-
-    [Fact(DisplayName =
-        "When the Apple episode is older than the recent window, FindEpisode still matches it through the search fallback " +
-        "(the full show list) because Apple has no title search.")]
-    public async Task FindEpisode_OlderEpisode_MatchesViaSearchFallback()
-    {
-        // Arrange
-        var title = _fixture.CreateTitle();
-        var release = DomainTestFixture.UtcDateDaysAgo(200);
-        var olderId = _fixture.CreateAppleId();
-        var newest = Enumerable.Range(1, 60).Select(i => new AppleEpisode(
-            _fixture.CreateAppleId(), _fixture.CreateTitle(), DomainTestFixture.UtcDateDaysAgo(i),
-            TimeSpan.FromMinutes(30), new Uri("https://podcasts.apple.com/us/podcast/episode/id1"), string.Empty, false));
-        var appleEpisodes = newest.Append(new AppleEpisode(
-            olderId, title, release, TimeSpan.FromMinutes(45),
-            new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={olderId}"), string.Empty, false)).ToArray();
+        const string title = "Lantern Harbour Night Stories With A Guest From The Archive";
+        var probeRelease = DateTime.UtcNow.AddHours(-56);
+        var length = TimeSpan.FromMinutes(44);
+        var exactId = _fixture.CreateAppleId();
+        var weakerId = _fixture.CreateAppleId();
+        var episodes = Enumerable.Range(1, 54).Select(i => new AppleEpisode(
+                _fixture.CreateAppleId(), $"Unrelated Episode Number {i} About Volcanic Origami", DateTime.UtcNow.AddHours(-i),
+                TimeSpan.FromMinutes(20), new Uri("https://podcasts.apple.com/us/podcast/episode/id1"), string.Empty, false))
+            .Append(new AppleEpisode(weakerId, "Lantern Harbour Night Stories With A Guest", DateTime.UtcNow.AddHours(-1).AddMinutes(-30),
+                length, new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={weakerId}"), string.Empty, false))
+            .Append(new AppleEpisode(exactId, title, probeRelease,
+                length, new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={exactId}"), string.Empty, false))
+            .ToArray();
         var request = new FindAppleEpisodeRequest(
             _fixture.CreateAppleId(), _fixture.CreateTitle(), null, title,
-            release, Service.Apple, TimeSpan.FromMinutes(45), null);
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            new CatalogueCandidatePolicy(),
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
-            NullLogger<AppleEpisodeResolver>.Instance);
+            probeRelease, Service.YouTube, length, null);
+        var sut = CreateSut(episodes);
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
 
         // Assert
         result.Should().NotBeNull();
-        result!.Id.Should().Be(olderId);
+        result!.Id.Should().Be(exactId);
     }
+
+    private static AppleEpisodeResolver CreateSut(IEnumerable<AppleEpisode> appleEpisodes) =>
+        new(
+            new StubApplePodcastService(appleEpisodes),
+            CatalogueTestServices.CreatePolicy(),
+            NullLogger<AppleEpisodeResolver>.Instance);
 
     private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
     {
