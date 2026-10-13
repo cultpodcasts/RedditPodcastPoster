@@ -11,7 +11,10 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// </summary>
 public static class EpisodeLookupUseCases
 {
-    /// <summary>Indexer (<c>PodcastUpdater</c>: Cloud indexer, Api index, Index CLI).</summary>
+    /// <summary>
+    /// Indexer (<c>PodcastUpdater</c>: Cloud indexer, Api index, Index CLI). Newest pages only, never a title search;
+    /// a platform with no show id on the podcast is skipped.
+    /// </summary>
     public static IndexingContext ForIndex(IndexingContext context) => Mark(context, EpisodeLookupFlow.Index);
 
     /// <summary>URL submission and the Spotify/Apple URL categorisers (also the default for an unmarked context).</summary>

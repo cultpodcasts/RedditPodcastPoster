@@ -9,7 +9,7 @@ business-rules test first** (in `RedditPodcastPoster.EpisodeLookup.BusinessRules
 
 | Use case (`EpisodeLookupFlow`) | Entry point | Callers |
 |---|---|---|
-| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI |
+| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI. No title search; a platform with no show id is skipped (`stage='skipped-no-show'`) |
 | `Submit` (default) | `EpisodeLookupUseCases.ForSubmit` / unmarked context | URL submission (`UrlSubmission` `PodcastService`), `SpotifyUrlCategoriser`, `AppleUrlCategoriser`, ImageUpdater |
 | `Discovery` | `EpisodeLookupUseCases.ForDiscovery` | Discovery `SpotifyEnricher`, `AppleEnricher` |
 | `Enrich` | `EpisodeLookupUseCases.ForEnrich` | `EnrichExistingEpisodesFromPodcastServices` CLI |

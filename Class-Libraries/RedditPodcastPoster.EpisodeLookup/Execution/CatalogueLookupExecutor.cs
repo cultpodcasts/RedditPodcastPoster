@@ -27,6 +27,10 @@ public sealed class CatalogueLookupExecutor(
     ILogger<CatalogueLookupExecutor> logger) : ICatalogueLookupExecutor
 {
     public const string StageMiss = "miss";
+    /// <summary>
+    /// Logged when the planner returns an empty plan. Today only the Index no-show-id rule does that; a future rule that
+    /// plans nothing for another reason needs its own stage value.
+    /// </summary>
     public const string StageSkippedNoShow = "skipped-no-show";
     public const string PlanNone = "none";
     public const string LogMessagePrefix = "Catalogue episode lookup:";
