@@ -13,15 +13,15 @@ public class ApplePodcastService(
     ILogger<ApplePodcastService> logger)
     : IApplePodcastService
 {
-    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
+    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("{nameofGetEpisodes} podcast-id: '{podcastId}'.", nameof(GetEpisodes), podcastId);
-        var appleEpisodes = await GetEpisodes(podcastId, indexingContext, null);
+        var appleEpisodes = await GetEpisodes(podcastId, indexingContext, null, cancellationToken);
 
         return appleEpisodes;
     }
 
-    public async Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext)
+    public async Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext, CancellationToken cancellationToken = default)
     {
         var httpClient = await httpClientProvider.GetAsync();
         var requestUri =
@@ -29,7 +29,7 @@ public class ApplePodcastService(
         HttpResponseMessage response;
         try
         {
-            response = await httpClient.GetAsync(requestUri);
+            response = await httpClient.GetAsync(requestUri, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
@@ -48,7 +48,7 @@ public class ApplePodcastService(
 
         if (response.IsSuccessStatusCode)
         {
-            var appleJson = await response.Content.ReadAsStringAsync();
+            var appleJson = await response.Content.ReadAsStringAsync(cancellationToken);
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             if (appleObject != null && appleObject.Records.Any())
             {
@@ -77,21 +77,21 @@ public class ApplePodcastService(
         {
             logger.LogError(
                 "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
-                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
+                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
         }
 
         return appleEpisode;
     }
 
     private async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId,
-        IndexingContext indexingContext, Func<Record, bool>? breakEvaluator)
+        IndexingContext indexingContext, Func<Record, bool>? breakEvaluator, CancellationToken cancellationToken)
     {
         var httpClient = await httpClientProvider.GetAsync();
         var requestUri = $"/v1/catalog/us/podcasts/{podcastId.PodcastId}/episodes";
         HttpResponseMessage response;
         try
         {
-            response = await httpClient.GetAsync(requestUri);
+            response = await httpClient.GetAsync(requestUri, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
@@ -111,7 +111,7 @@ public class ApplePodcastService(
         var podcastRecords = new List<Record>();
         if (response.IsSuccessStatusCode)
         {
-            var appleJson = await response.Content.ReadAsStringAsync();
+            var appleJson = await response.Content.ReadAsStringAsync(cancellationToken);
             collectedAppleJson.Add(appleJson);
             var appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
             if (appleObject != null && appleObject.Records.Any())
@@ -135,10 +135,10 @@ public class ApplePodcastService(
                 {
                     var next = appleObject.Next;
                     var client = await httpClientProvider.GetAsync();
-                    response = await client.GetAsync(next);
+                    response = await client.GetAsync(next, cancellationToken);
                     if (response.IsSuccessStatusCode)
                     {
-                        appleJson = await response.Content.ReadAsStringAsync();
+                        appleJson = await response.Content.ReadAsStringAsync(cancellationToken);
                         collectedAppleJson.Add(appleJson);
                         appleObject = JsonSerializer.Deserialize<PodcastResponse>(appleJson);
                         podcastRecords.AddRange(appleObject!.Records);
@@ -164,7 +164,7 @@ public class ApplePodcastService(
         {
             logger.LogError(
                 "Failure calling apple-api with url '{requestUri}'. Response-code: '{responseStatusCode}', response-content: '{content}'.",
-                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync());
+                requestUri, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
         }
 
         // Keep episodes even when Apple omits durationInMilliseconds. Matching uses title /

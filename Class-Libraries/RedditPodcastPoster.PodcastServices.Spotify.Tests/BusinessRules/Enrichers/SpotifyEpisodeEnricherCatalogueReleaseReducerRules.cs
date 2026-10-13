@@ -110,7 +110,8 @@ public class SpotifyEpisodeEnricherCatalogueReleaseReducerRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null)
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             var candidates = episodes.Select(ToSimpleEpisode).AsEnumerable();
             if (reducer != null)

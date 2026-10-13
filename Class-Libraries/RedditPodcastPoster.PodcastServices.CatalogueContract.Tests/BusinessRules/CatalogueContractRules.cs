@@ -127,6 +127,38 @@ public class CatalogueContractRules
         result.Should().Be(c.ExpectedId, c.Name);
     }
 
+    [Fact(DisplayName =
+        "The caller's CancellationToken reaches the platform calls on both resolvers (Spotify title search and show page, " +
+        "Apple GetEpisodes), so a cancelled lookup stops instead of finishing its HTTP calls.")]
+    public async Task Cancellation_token_is_threaded_to_platform_calls()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var token = cts.Token;
+        var policy = CatalogueTestServices.CreatePolicy(timeProvider: new FixedTimeProvider(Now), options: Options);
+        var client = new Mock<ISpotifyClientWrapper>();
+        var titleSearch = new Mock<ISpotifyEpisodeTitleSearch>();
+        titleSearch.Setup(x => x.FindCandidates(It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var spotify = new SpotifyEpisodeResolver(titleSearch.Object, client.Object, new SpotifyRecentShowEpisodesCache(client.Object),
+            policy, new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance), NullLogger<SpotifyEpisodeResolver>.Instance);
+        var apple = new Mock<ICachedApplePodcastService>();
+        apple.Setup(x => x.GetEpisodes(It.IsAny<ApplePodcastId>(), It.IsAny<IndexingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var appleSut = new AppleEpisodeResolver(apple.Object, policy, NullLogger<AppleEpisodeResolver>.Instance);
+
+        // Act
+        await spotify.FindEpisode(new FindSpotifyEpisodeRequest("show", "Podcast", string.Empty, Title, Now.AddDays(-1), false),
+            new IndexingContext(), cancellationToken: token);
+        await appleSut.FindEpisode(new FindAppleEpisodeRequest(42, "Podcast", null, Title, Now.AddDays(-1), null, null, null),
+            new IndexingContext(), cancellationToken: token);
+
+        // Assert
+        client.Verify(x => x.GetShowEpisodes("show", It.IsAny<ShowEpisodesRequest>(), It.IsAny<IndexingContext>(), token), Times.Once);
+        titleSearch.Verify(x => x.FindCandidates(It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>(), token), Times.Once);
+        apple.Verify(x => x.GetEpisodes(It.IsAny<ApplePodcastId>(), It.IsAny<IndexingContext>(), token), Times.AtLeastOnce);
+    }
+
     private static async Task<string?> RunSpotify(Case c, ICatalogueCandidatePolicy policy)
     {
         var client = new Mock<ISpotifyClientWrapper>();

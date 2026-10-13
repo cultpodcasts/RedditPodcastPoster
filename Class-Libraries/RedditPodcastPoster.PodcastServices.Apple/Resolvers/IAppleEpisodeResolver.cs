@@ -9,5 +9,6 @@ public interface IAppleEpisodeResolver
     Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
         IndexingContext indexingContext,
-        Func<AppleEpisode, bool>? reducer = null);
+        Func<AppleEpisode, bool>? reducer = null,
+        CancellationToken cancellationToken = default);
 }

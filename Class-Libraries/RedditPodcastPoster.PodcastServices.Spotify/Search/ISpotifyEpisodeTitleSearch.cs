@@ -12,5 +12,6 @@ public interface ISpotifyEpisodeTitleSearch
     Task<IReadOnlyList<SimpleEpisode>> FindCandidates(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
-        string market);
+        string market,
+        CancellationToken cancellationToken = default);
 }

@@ -6,7 +6,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Providers;
 
 public interface IApplePodcastService
 {
-    public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext);
+    public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default);
 
-    public Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext);
+    public Task<AppleEpisode?> GetEpisode(long episodeId, IndexingContext indexingContext, CancellationToken cancellationToken = default);
 }

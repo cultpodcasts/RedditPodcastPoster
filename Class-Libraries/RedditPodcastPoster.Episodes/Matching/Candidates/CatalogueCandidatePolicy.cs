@@ -28,6 +28,7 @@ public sealed class CatalogueCandidatePolicy(
 {
     public const string StageRecentShowFeed = "recent-show-feed";
     public const string StageSearchFallback = "search-fallback";
+    public const string StageMiss = "miss";
 
     private readonly CatalogueCandidatePolicyOptions _options = options.Value;
 
@@ -54,7 +55,7 @@ public sealed class CatalogueCandidatePolicy(
 
         var searched = Untried(await source.SearchEpisodes(cancellationToken), source, tried);
         var searchMatch = await MatchStage(lookup, source, searched, reducer, cancellationToken);
-        Log(lookup, source, searchMatch == null ? "miss" : StageSearchFallback, feedCount, searched.Count);
+        Log(lookup, source, searchMatch == null ? StageMiss : StageSearchFallback, feedCount, searched.Count);
         return searchMatch;
     }
 

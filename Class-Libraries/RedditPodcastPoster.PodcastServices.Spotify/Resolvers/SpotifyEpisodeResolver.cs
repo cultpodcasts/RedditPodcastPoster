@@ -32,7 +32,8 @@ public class SpotifyEpisodeResolver(
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
-        Func<SimpleEpisode, bool>? reducer = null)
+        Func<SimpleEpisode, bool>? reducer = null,
+        CancellationToken cancellationToken = default)
     {
         var market = request.Market ?? Market.CountryCode;
         if (indexingContext.SkipSpotifyUrlResolving)
@@ -48,7 +49,7 @@ public class SpotifyEpisodeResolver(
         if (!string.IsNullOrWhiteSpace(request.EpisodeSpotifyId))
         {
             var episodeRequest = new EpisodeRequest { Market = market };
-            fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext);
+            fullEpisode = await spotifyClientWrapper.GetFullEpisode(request.EpisodeSpotifyId, episodeRequest, indexingContext, cancellationToken);
             if (fullEpisode != null)
             {
                 if (!fullEpisode.IsSpotifyFree() &&
@@ -63,12 +64,12 @@ public class SpotifyEpisodeResolver(
 
         var source = new SpotifyCandidateSource(
             request, indexingContext, market, episodeTitleSearch, recentShowEpisodesCache, htmlSanitiser);
-        var matchingEpisode = await candidatePolicy.FindMatch(ToLookup(request), source, reducer);
+        var matchingEpisode = await candidatePolicy.FindMatch(ToLookup(request), source, reducer, cancellationToken);
 
         if (matchingEpisode != null)
         {
             var showRequest = new EpisodeRequest { Market = market };
-            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext);
+            fullEpisode = await spotifyClientWrapper.GetFullEpisode(matchingEpisode.Id, showRequest, indexingContext, cancellationToken);
         }
 
         return new FindEpisodeResponse(TakeIfFree(fullEpisode, market));
@@ -116,7 +117,7 @@ public class SpotifyEpisodeResolver(
             recentShowEpisodes.GetRecentShowEpisodes(request.PodcastSpotifyId, market, pageSize, indexingContext, cancellationToken);
 
         public Task<IReadOnlyList<SimpleEpisode>> SearchEpisodes(CancellationToken cancellationToken) =>
-            titleSearch.FindCandidates(request, indexingContext, market);
+            titleSearch.FindCandidates(request, indexingContext, market, cancellationToken);
 
         public string GetId(SimpleEpisode item) => item.Id;
 

@@ -188,7 +188,8 @@ public class AppleEpisodeEnricherTests
         public Task<AppleEpisode?> FindEpisode(
             FindAppleEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<AppleEpisode, bool>? reducer = null)
+            Func<AppleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             var matches = episodes.AsEnumerable();
             if (reducer != null)

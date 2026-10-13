@@ -15,20 +15,20 @@ public class CachedApplePodcastService(
 {
     private readonly ConcurrentDictionary<string, IEnumerable<AppleEpisode>?> _episodesCache = new();
 
-    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
+    public async Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default)
     {
         var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
         if (!_episodesCache.TryGetValue(cacheKey, out var podcastEpisodes))
         {
             podcastEpisodes = _episodesCache[cacheKey] =
-                await applePodcastService.GetEpisodes(podcastId, indexingContext);
+                await applePodcastService.GetEpisodes(podcastId, indexingContext, cancellationToken);
         }
 
         return podcastEpisodes;
     }
 
     public async Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId,
-        IndexingContext indexingContext)
+        IndexingContext indexingContext, CancellationToken cancellationToken = default)
     {
         var cacheKey = GetCacheKey(podcastId.PodcastId, indexingContext.ReleasedSince);
         if (_episodesCache.TryGetValue(cacheKey, out var podcastEpisodes))
@@ -36,7 +36,7 @@ public class CachedApplePodcastService(
             return podcastEpisodes?.SingleOrDefault(x => x.Id == episodeId);
         }
 
-        return await applePodcastService.GetEpisode(episodeId, indexingContext);
+        return await applePodcastService.GetEpisode(episodeId, indexingContext, cancellationToken);
     }
 
     public async Task<AppleEpisode?> SingleUseGetEpisode(ApplePodcastId podcastId, long episodeId,

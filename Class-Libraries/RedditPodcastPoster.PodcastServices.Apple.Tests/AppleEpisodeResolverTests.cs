@@ -235,10 +235,10 @@ public class AppleEpisodeResolverTests
             IndexingContext indexingContext) =>
             GetEpisode(podcastId, episodeId, indexingContext);
 
-        public Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId, IndexingContext indexingContext) =>
+        public Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
             Task.FromResult(episodes.FirstOrDefault(x => x.Id == episodeId));
 
-        public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext) =>
+        public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext, CancellationToken cancellationToken = default) =>
             Task.FromResult<IEnumerable<AppleEpisode>?>(episodes);
     }
     private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>

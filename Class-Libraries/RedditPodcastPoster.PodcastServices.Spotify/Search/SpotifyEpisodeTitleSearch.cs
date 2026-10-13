@@ -15,7 +15,8 @@ public class SpotifyEpisodeTitleSearch(
     public async Task<IReadOnlyList<SimpleEpisode>> FindCandidates(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
-        string market)
+        string market,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.EpisodeTitle))
         {
@@ -31,7 +32,8 @@ public class SpotifyEpisodeTitleSearch(
                 Market = market,
                 Limit = MaxResults
             },
-            indexingContext);
+            indexingContext,
+            cancellationToken);
         var hits = page?.Items?.Where(x => x != null).Take(MaxResults).ToList() ?? [];
         if (hits.Count == 0)
         {
@@ -40,7 +42,8 @@ public class SpotifyEpisodeTitleSearch(
 
         var hydrated = await spotifyClient.GetSeveral(
             new EpisodesRequest(hits.Select(x => x.Id).ToArray()) { Market = market },
-            indexingContext);
+            indexingContext,
+            cancellationToken);
         if (hydrated?.Episodes == null)
         {
             logger.LogWarning(

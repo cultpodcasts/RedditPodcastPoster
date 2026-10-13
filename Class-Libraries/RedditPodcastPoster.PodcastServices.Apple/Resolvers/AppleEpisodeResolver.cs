@@ -24,7 +24,8 @@ public class AppleEpisodeResolver(
     public async Task<AppleEpisode?> FindEpisode(
         FindAppleEpisodeRequest request,
         IndexingContext indexingContext,
-        Func<AppleEpisode, bool>? reducer = null)
+        Func<AppleEpisode, bool>? reducer = null,
+        CancellationToken cancellationToken = default)
     {
         if (request.PodcastAppleId is not { } podcastAppleId)
         {
@@ -36,7 +37,7 @@ public class AppleEpisodeResolver(
         if (request.EpisodeAppleId is { } episodeAppleId)
         {
             var direct = await applePodcastService.GetEpisode(
-                new ApplePodcastId(podcastAppleId), episodeAppleId, indexingContext);
+                new ApplePodcastId(podcastAppleId), episodeAppleId, indexingContext, cancellationToken);
             if (direct != null && direct.Id == episodeAppleId)
             {
                 return direct;
@@ -46,7 +47,7 @@ public class AppleEpisodeResolver(
         }
 
         var source = new AppleCandidateSource(new ApplePodcastId(podcastAppleId), indexingContext, applePodcastService);
-        return await candidatePolicy.FindMatch(ToLookup(request), source, reducer);
+        return await candidatePolicy.FindMatch(ToLookup(request), source, reducer, cancellationToken);
     }
 
     private static CatalogueLookup ToLookup(FindAppleEpisodeRequest request) =>
@@ -80,9 +81,9 @@ public class AppleEpisodeResolver(
         public bool HasShow => true;
 
         public Task<IReadOnlyList<AppleEpisode>> GetRecentShowEpisodes(int pageSize, CancellationToken cancellationToken) =>
-            GetAll();
+            GetAll(cancellationToken);
 
-        public Task<IReadOnlyList<AppleEpisode>> SearchEpisodes(CancellationToken cancellationToken) => GetAll();
+        public Task<IReadOnlyList<AppleEpisode>> SearchEpisodes(CancellationToken cancellationToken) => GetAll(cancellationToken);
 
         public string GetId(AppleEpisode item) => item.Id.ToString(CultureInfo.InvariantCulture);
 
@@ -99,9 +100,9 @@ public class AppleEpisodeResolver(
             return mapped;
         }
 
-        private async Task<IReadOnlyList<AppleEpisode>> GetAll()
+        private async Task<IReadOnlyList<AppleEpisode>> GetAll(CancellationToken cancellationToken)
         {
-            var episodes = await service.GetEpisodes(podcastId, indexingContext);
+            var episodes = await service.GetEpisodes(podcastId, indexingContext, cancellationToken);
             return episodes?.OrderByDescending(x => x.Release).ToList() ?? [];
         }
     }

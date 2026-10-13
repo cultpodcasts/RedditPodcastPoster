@@ -69,7 +69,7 @@ thin `ICatalogueCandidateSource` fetch/map adapters, and only the platform calls
    podcast pass by `SpotifyRecentShowEpisodesCache` (an `IPodcastPassApiCacheSource`; failed calls are
    not cached; nothing is fetched while `SkipSpotifyUrlResolving` is set). Apple: the pass-cached
    `CachedApplePodcastService` episode list, already a single fetch, matched in one pass.
-3. **Search fallback** (`stage=search-fallback`, or `miss`): otherwise, or when stage 2 has no match,
+3. **Search fallback** (`stage=search-fallback`; `stage=miss` when neither stage matched): otherwise, or when stage 2 has no match,
    minus candidates already tried. Spotify: one episode-title search (`Limit` 10, show name in the query
    when known), filtered to the known show id or exact show name. Apple: the same cached list.
    There is no catalogue walk.
@@ -78,7 +78,11 @@ Each stage classifies subjects (`ICatalogueSubjectClassifier`, real implementati
 matches through `ICatalogueEpisodeMatcher`: candidates inside `EpisodeReleaseTolerance.GetSubmitMatchBand`
 (release ±14 days) are tried first, others are the weaker second pass. Duration-aware matching is used
 when the lookup has a length and YouTube authority or YouTube enrichment; otherwise release-date
-matching. Each lookup logs `Catalogue candidate lookup: platform=… stage=…`.
+matching. Each lookup logs `Catalogue candidate lookup: platform=… stage=…`; the stage values are the stable
+constants `CatalogueCandidatePolicy.StageRecentShowFeed` (`recent-show-feed`), `StageSearchFallback`
+(`search-fallback`) and `StageMiss` (`miss`), which App Insights queries filter on. Options are validated at
+startup (`ValidateOnStart`): `RecentShowEpisodesPageSize` must be 1..50 (Spotify's maximum) and `RecentWindow`
+must be greater than zero.
 Rules: `Episodes.Tests/BusinessRules/Matching/Candidates/*`,
 `PodcastServices.CatalogueContract.Tests` (same cases through the real Spotify and Apple resolvers),
 `Spotify.Tests/BusinessRules/Providers/SpotifyRecentShowEpisodesCacheRules.cs`.

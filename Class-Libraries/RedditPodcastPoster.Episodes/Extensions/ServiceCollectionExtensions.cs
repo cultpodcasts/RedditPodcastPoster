@@ -42,7 +42,9 @@ public static class ServiceCollectionExtensions
                 .Configure<IServiceProvider>((options, provider) =>
                     provider.GetService<IConfiguration>()?
                         .GetSection(CatalogueCandidatePolicyOptions.SectionName)
-                        .Bind(options));
+                        .Bind(options))
+                .Validate(CatalogueCandidatePolicyOptions.IsValid, CatalogueCandidatePolicyOptions.ValidationMessage)
+                .ValidateOnStart();
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();
