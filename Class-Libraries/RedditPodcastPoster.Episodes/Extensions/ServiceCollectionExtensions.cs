@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
+            services.AddSingleton<RedditPodcastPoster.Episodes.Matching.Candidates.ICatalogueCandidatePolicy, RedditPodcastPoster.Episodes.Matching.Candidates.CatalogueCandidatePolicy>();
 
             services.AddSingleton<IReleaseMatchStrategy, ExactReleaseMatchStrategy>();
             services.AddSingleton<IReleaseMatchStrategy, SpotifyCatalogueReleaseMatchStrategy>();

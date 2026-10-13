@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -26,6 +27,11 @@ public class SpotifyEpisodeResolverRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+
+    public SpotifyEpisodeResolverRules()
+    {
+        _mocker.Use<ICatalogueCandidatePolicy>(new CatalogueCandidatePolicy());
+    }
 
     [Fact(DisplayName =
         "When SkipSpotifyUrlResolving is set, FindEpisode returns no episode without calling Spotify clients " +
@@ -490,6 +496,14 @@ public class SpotifyEpisodeResolverRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<string>()),
             Times.Never);
+        // Shared candidate policy: a recent episode with a known show reads one page of the show feed first.
+        wrapper.Verify(
+            x => x.GetShowEpisodes(
+                request.PodcastSpotifyId,
+                It.Is<ShowEpisodesRequest>(r => r.Limit == CatalogueCandidatePolicy.RecentShowEpisodesLimit),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         wrapper.VerifyNoOtherCalls();
     }
 
@@ -886,7 +900,7 @@ public class SpotifyEpisodeResolverRules
         result.FullEpisode.Should().BeSameAs(hydrated);
         wrapper.Verify(x => x.GetShowEpisodes(
             showId,
-            It.Is<ShowEpisodesRequest>(r => r.Limit == SpotifyEpisodeResolver.RecentShowEpisodesLimit),
+            It.Is<ShowEpisodesRequest>(r => r.Limit == CatalogueCandidatePolicy.RecentShowEpisodesLimit),
             It.IsAny<IndexingContext>(),
             It.IsAny<CancellationToken>()), Times.Once);
         wrapper.Verify(x => x.PaginateAll(
@@ -927,6 +941,42 @@ public class SpotifyEpisodeResolverRules
             It.IsAny<string>(),
             It.IsAny<ShowEpisodesRequest>(),
             It.IsAny<IndexingContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When no Spotify show id is known, FindEpisode does not read a show feed and uses the title search only " +
+        "because the shared candidate policy has no feed to read.")]
+    public async Task No_show_id_uses_title_search_only()
+    {
+        // Arrange
+        _mocker.GetMock<ISpotifyEpisodeTitleSearch>()
+            .Setup(x => x.FindCandidates(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<string>()))
+            .ReturnsAsync([]);
+        var wrapper = _mocker.GetMock<ISpotifyClientWrapper>();
+        var sut = _mocker.CreateInstance<SpotifyEpisodeResolver>();
+        var request = new FindSpotifyEpisodeRequest(
+            PodcastSpotifyId: string.Empty,
+            PodcastName: _fixture.CreateTitle(),
+            EpisodeSpotifyId: string.Empty,
+            EpisodeTitle: _fixture.CreateTitle(),
+            Released: DomainTestFixture.UtcDateDaysAgo(1),
+            HasExpensiveSpotifyEpisodesQuery: false,
+            ReleaseAuthority: Service.YouTube,
+            Length: TimeSpan.FromMinutes(50));
+
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
+
+        // Assert
+        result.FullEpisode.Should().BeNull();
+        _mocker.GetMock<ISpotifyEpisodeTitleSearch>().Verify(x => x.FindCandidates(
+            It.IsAny<FindSpotifyEpisodeRequest>(), It.IsAny<IndexingContext>(), It.IsAny<string>()), Times.Once);
+        wrapper.Verify(x => x.GetShowEpisodes(
+            It.IsAny<string>(), It.IsAny<ShowEpisodesRequest>(), It.IsAny<IndexingContext>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 

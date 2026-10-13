@@ -6,6 +6,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Finders;
 using RedditPodcastPoster.PodcastServices.Spotify.Logging;
 using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Search;
 using SpotifyAPI.Web;
@@ -17,15 +18,10 @@ public class SpotifyEpisodeResolver(
     ISpotifyEpisodeTitleSearch episodeTitleSearch,
     ISpotifyClientWrapper spotifyClientWrapper,
     ISpotifySearchResultFinder searchResultFinder,
+    ICatalogueCandidatePolicy candidatePolicy,
     ILogger<SpotifyEpisodeResolver> logger)
     : ISpotifyEpisodeResolver
 {
-    /// <summary>One page of the show's newest episodes, used when the title search misses.</summary>
-    public const int RecentShowEpisodesLimit = 50;
-
-    /// <summary>Only episodes released this recently can be expected on the show's newest page.</summary>
-    public static readonly TimeSpan RecentShowEpisodesWindow = TimeSpan.FromDays(14);
-
     public async Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
@@ -58,23 +54,12 @@ public class SpotifyEpisodeResolver(
             }
         }
 
-        var candidates = await episodeTitleSearch.FindCandidates(request, indexingContext, market);
-        var matchingEpisode = await MatchCandidates(request, candidates, reducer);
-        if (matchingEpisode == null && IsRecentYouTubeEpisodeWithKnownShow(request))
-        {
-            // The title search queries the incoming (often YouTube) title. When the audio-feed title
-            // differs, the real episode is absent from the hits. Apple matches the same pair because it
-            // reads the show's episode list, so match against one page of the show's newest episodes too.
-            var recent = await spotifyClientWrapper.GetShowEpisodes(
-                request.PodcastSpotifyId,
-                new ShowEpisodesRequest { Market = market, Limit = RecentShowEpisodesLimit },
-                indexingContext);
-            var searchedIds = candidates.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
-            var recentCandidates = recent?.Items?
-                .Where(x => x != null && !searchedIds.Contains(x.Id))
-                .ToList() ?? [];
-            matchingEpisode = await MatchCandidates(request, recentCandidates, reducer);
-        }
+        var source = new SpotifyCandidateSource(
+            request, indexingContext, market, episodeTitleSearch, spotifyClientWrapper);
+        var matchingEpisode = await candidatePolicy.FindMatch(
+            request.Released,
+            source,
+            candidates => MatchCandidates(request, candidates, reducer));
 
         if (matchingEpisode != null)
         {
@@ -137,12 +122,6 @@ public class SpotifyEpisodeResolver(
             candidates);
     }
 
-    private static bool IsRecentYouTubeEpisodeWithKnownShow(FindSpotifyEpisodeRequest request) =>
-        (request.ReleaseAuthority == Service.YouTube || request.EnrichingYouTubeDiscoveredEpisode) &&
-        !string.IsNullOrWhiteSpace(request.PodcastSpotifyId) &&
-        request.Released is { } released &&
-        DateTime.UtcNow - released < RecentShowEpisodesWindow;
-
     private FullEpisode? TakeIfFree(FullEpisode? episode, string market)
     {
         if (episode == null || episode.IsSpotifyFree())
@@ -152,5 +131,30 @@ public class SpotifyEpisodeResolver(
 
         SpotifyNonPlayableSkipLogger.Log(logger, episode, market);
         return null;
+    }
+
+    /// <summary>Spotify adapter: show feed via GetShowEpisodes, search via one title-search page.</summary>
+    private sealed class SpotifyCandidateSource(
+        FindSpotifyEpisodeRequest request,
+        IndexingContext indexingContext,
+        string market,
+        ISpotifyEpisodeTitleSearch titleSearch,
+        ISpotifyClientWrapper client) : ICatalogueCandidateSource<SimpleEpisode>
+    {
+        public bool HasShow => !string.IsNullOrWhiteSpace(request.PodcastSpotifyId);
+
+        public async Task<IReadOnlyList<SimpleEpisode>> GetRecentShowEpisodes(int limit)
+        {
+            var page = await client.GetShowEpisodes(
+                request.PodcastSpotifyId,
+                new ShowEpisodesRequest { Market = market, Limit = limit },
+                indexingContext);
+            return page?.Items?.Where(x => x != null).Take(limit).ToList() ?? [];
+        }
+
+        public Task<IReadOnlyList<SimpleEpisode>> SearchEpisodes() =>
+            titleSearch.FindCandidates(request, indexingContext, market);
+
+        public string GetId(SimpleEpisode item) => item.Id;
     }
 }

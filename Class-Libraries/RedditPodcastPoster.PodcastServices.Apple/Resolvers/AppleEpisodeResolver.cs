@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Matching;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -18,6 +19,7 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 public class AppleEpisodeResolver(
     ICachedApplePodcastService applePodcastService,
     IEpisodePlatformMatcher platformMatcher,
+    ICatalogueCandidatePolicy candidatePolicy,
     ISubjectMatcher subjectMatcher,
     IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider,
     ILogger<AppleEpisodeResolver> logger)
@@ -28,80 +30,102 @@ public class AppleEpisodeResolver(
         IndexingContext indexingContext,
         Func<AppleEpisode, bool>? reducer = null)
     {
-        AppleEpisode? matchingEpisode = null;
-        IEnumerable<AppleEpisode>? podcastEpisodes = null;
-        if (request.PodcastAppleId.HasValue)
+        if (request is { PodcastAppleId: { } podcastAppleId, EpisodeAppleId: { } episodeAppleId })
         {
-            var applePodcastId = new ApplePodcastId(request.PodcastAppleId.Value);
-            if (request.EpisodeAppleId.HasValue)
+            var direct = await applePodcastService.GetEpisode(
+                new ApplePodcastId(podcastAppleId), episodeAppleId, indexingContext);
+            if (direct != null && direct.Id == episodeAppleId)
             {
-                var episode =
-                    await applePodcastService.GetEpisode(applePodcastId, request.EpisodeAppleId.Value, indexingContext);
-                if (episode != null)
-                {
-                    podcastEpisodes = [episode];
-                }
-            }
-            else
-            {
-                podcastEpisodes = await applePodcastService.GetEpisodes(applePodcastId, indexingContext);
+                return direct;
             }
         }
 
-        if (request.EpisodeAppleId != null && podcastEpisodes != null)
-        {
-            matchingEpisode = podcastEpisodes.FirstOrDefault(x => x.Id == request.EpisodeAppleId);
-        }
-
-        if (matchingEpisode == null && podcastEpisodes != null && request.PodcastAppleId.HasValue)
-        {
-            var probe = CreateProbeEpisode(request);
-            var candidates = podcastEpisodes.Select(ToCatalogueEpisode).ToList();
-            Func<Episode, bool>? episodeReducer = reducer == null
-                ? null
-                : e =>
-                {
-                    var source = podcastEpisodes.FirstOrDefault(x =>
-                        x.Id == EpisodeServicePresence.AppleEpisodeId(e));
-                    return source != null && reducer(source);
-                };
-
-            var mergedIgnored = await MergeIgnoredSubjectsAsync(request.IgnoredSubjects, request.Language);
-
-            if (request.EnrichingYouTubeDiscoveredEpisode)
-            {
-                await ClassifySubjectsAsync(
-                    probe,
-                    candidates,
-                    request.DefaultSubject,
-                    mergedIgnored);
-            }
-
-            var match = platformMatcher.FindCatalogueMatchByLength(
-                probe,
-                candidates,
-                CreateLookupPodcast(request),
-                episodeMatchRegex: null,
-                new CatalogueMatchByLengthOptions(
-                    request.ReleaseAuthority,
-                    AcceptUniqueDurationWithoutTitleMatch: false,
-                    request.EnrichingYouTubeDiscoveredEpisode,
-                    request.DefaultSubject,
-                    mergedIgnored),
-                episodeReducer);
-
-            matchingEpisode = match == null
-                ? null
-                : podcastEpisodes.FirstOrDefault(x =>
-                    x.Id == EpisodeServicePresence.AppleEpisodeId(match));
-        }
-        else if (matchingEpisode == null && podcastEpisodes != null && !request.PodcastAppleId.HasValue)
+        if (!request.PodcastAppleId.HasValue)
         {
             logger.LogInformation(
                 "Podcast '{RequestPodcastName}' cannot be found on Apple Podcasts.", request.PodcastName);
         }
 
-        return matchingEpisode;
+        var source = new AppleCandidateSource(request, indexingContext, applePodcastService);
+        return await candidatePolicy.FindMatch(
+            request.Released,
+            source,
+            candidates => MatchCandidates(request, candidates, reducer));
+    }
+
+    private async Task<AppleEpisode?> MatchCandidates(
+        FindAppleEpisodeRequest request,
+        IReadOnlyList<AppleEpisode> podcastEpisodes,
+        Func<AppleEpisode, bool>? reducer)
+    {
+        var probe = CreateProbeEpisode(request);
+        var candidates = podcastEpisodes.Select(ToCatalogueEpisode).ToList();
+        Func<Episode, bool>? episodeReducer = reducer == null
+            ? null
+            : e =>
+            {
+                var source = podcastEpisodes.FirstOrDefault(x =>
+                    x.Id == EpisodeServicePresence.AppleEpisodeId(e));
+                return source != null && reducer(source);
+            };
+
+        var mergedIgnored = await MergeIgnoredSubjectsAsync(request.IgnoredSubjects, request.Language);
+
+        if (request.EnrichingYouTubeDiscoveredEpisode)
+        {
+            await ClassifySubjectsAsync(
+                probe,
+                candidates,
+                request.DefaultSubject,
+                mergedIgnored);
+        }
+
+        var match = platformMatcher.FindCatalogueMatchByLength(
+            probe,
+            candidates,
+            CreateLookupPodcast(request),
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(
+                request.ReleaseAuthority,
+                AcceptUniqueDurationWithoutTitleMatch: false,
+                request.EnrichingYouTubeDiscoveredEpisode,
+                request.DefaultSubject,
+                mergedIgnored),
+            episodeReducer);
+
+        return match == null
+            ? null
+            : podcastEpisodes.FirstOrDefault(x => x.Id == EpisodeServicePresence.AppleEpisodeId(match));
+    }
+
+    /// <summary>
+    /// Apple adapter: the show feed is the (cached) podcast episode list. Apple has no episode title
+    /// search, so the search fallback is the same full list (episodes older than the recent page).
+    /// </summary>
+    private sealed class AppleCandidateSource(
+        FindAppleEpisodeRequest request,
+        IndexingContext indexingContext,
+        ICachedApplePodcastService service) : ICatalogueCandidateSource<AppleEpisode>
+    {
+        public bool HasShow => request.PodcastAppleId.HasValue;
+
+        public async Task<IReadOnlyList<AppleEpisode>> GetRecentShowEpisodes(int limit) =>
+            (await GetAll()).OrderByDescending(x => x.Release).Take(limit).ToList();
+
+        public async Task<IReadOnlyList<AppleEpisode>> SearchEpisodes() => await GetAll();
+
+        public string GetId(AppleEpisode item) => item.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        private async Task<IReadOnlyList<AppleEpisode>> GetAll()
+        {
+            if (request.PodcastAppleId is not { } podcastAppleId)
+            {
+                return [];
+            }
+
+            var episodes = await service.GetEpisodes(new ApplePodcastId(podcastAppleId), indexingContext);
+            return episodes?.ToList() ?? [];
+        }
     }
 
     private async Task ClassifySubjectsAsync(

@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.DependencyInjection;
@@ -65,6 +66,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new CatalogueCandidatePolicy(),
             new StubSubjectMatcher(),
             EmptyTitleCasingProvider(),
             NullLogger<AppleEpisodeResolver>.Instance);
@@ -113,6 +115,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         var sut = new AppleEpisodeResolver(
             new StubApplePodcastService(appleEpisodes),
             EpisodeDomainTestServices.CreatePlatformMatcher(),
+            new CatalogueCandidatePolicy(),
             new StubSubjectMatcher(),
             EmptyTitleCasingProvider(),
             NullLogger<AppleEpisodeResolver>.Instance);
