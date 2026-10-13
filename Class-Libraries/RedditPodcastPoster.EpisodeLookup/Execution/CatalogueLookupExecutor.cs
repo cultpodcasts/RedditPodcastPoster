@@ -16,7 +16,8 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// <item>Run: each step's new candidates (ids already tried are skipped; pages already read are reused) are
 /// subject-classified and matched with <see cref="ICatalogueEpisodeMatcher"/>; the first match wins.</item>
 /// </list>
-/// Logs one line per lookup with the stage that matched (or <see cref="StageMiss"/>).
+/// Logs one line per lookup with the stage that matched (or <see cref="StageMiss"/>, or
+/// <see cref="StageSkippedNoShow"/> with plan <see cref="PlanNone"/> when the planner plans nothing).
 /// </summary>
 public sealed class CatalogueLookupExecutor(
     IEpisodeLookupPlanner planner,
@@ -26,6 +27,8 @@ public sealed class CatalogueLookupExecutor(
     ILogger<CatalogueLookupExecutor> logger) : ICatalogueLookupExecutor
 {
     public const string StageMiss = "miss";
+    public const string StageSkippedNoShow = "skipped-no-show";
+    public const string PlanNone = "none";
     public const string LogMessagePrefix = "Catalogue episode lookup:";
 
     public async Task<CatalogueLookupResult<TItem>> FindMatch<TItem>(
@@ -44,6 +47,12 @@ public sealed class CatalogueLookupExecutor(
         }
 
         var steps = planner.Plan(lookup, hasShow, count, source.Platform);
+        if (steps.Count == 0)
+        {
+            Log(lookup, source, steps, StageSkippedNoShow, count, 0);
+            return new CatalogueLookupResult<TItem>(null, StageSkippedNoShow);
+        }
+
         var run = new LookupRun<TItem>(source);
         foreach (var step in steps)
         {
@@ -125,7 +134,7 @@ public sealed class CatalogueLookupExecutor(
             LogMessagePrefix +
             " platform='{Platform}' flow='{Flow}' podcast='{PodcastName}' episode='{EpisodeTitle}' plan='{Plan}' stage='{Stage}' show-episodes={ShowEpisodeCount} pages-read={PagesRead}.",
             source.Platform, lookup.Flow, lookup.PodcastName, lookup.Title,
-            string.Join(">", steps.Select(x => x.Stage)), stage, showEpisodeCount, pagesRead);
+            steps.Count == 0 ? PlanNone : string.Join(">", steps.Select(x => x.Stage)), stage, showEpisodeCount, pagesRead);
 
     /// <summary>Per-lookup page reader: pages are read newest-first once and reused across steps.</summary>
     private sealed class LookupRun<TItem>(ICatalogueCandidateSource<TItem> source)
