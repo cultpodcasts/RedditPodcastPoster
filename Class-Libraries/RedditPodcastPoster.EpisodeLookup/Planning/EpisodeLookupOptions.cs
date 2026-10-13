@@ -22,6 +22,12 @@ public sealed class EpisodeLookupOptions
     public TimeSpan RecentWindow { get; set; } =
         EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
 
+    /// <summary>
+    /// Safety cap on pages for a full read of a small show (default 20). Apple pages can be smaller than Spotify's 50,
+    /// so this is a page budget, separate from <see cref="FullShowReadMaxEpisodes"/>.
+    /// </summary>
+    public int FullShowReadMaxPages { get; set; } = 20;
+
     /// <summary>Safety cap for the Index flow's newest-pages read, otherwise bounded only by date (default 20).</summary>
     public int IndexMaxPages { get; set; } = 20;
 
@@ -35,11 +41,12 @@ public sealed class EpisodeLookupOptions
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     public const string ValidationMessage =
-        "episodeLookup: FullShowReadMaxEpisodes must be 0..1000, RecentWindow > 0, IndexMaxPages 1..100, " +
+        "episodeLookup: FullShowReadMaxEpisodes must be 0..1000, FullShowReadMaxPages 1..100, RecentWindow > 0, IndexMaxPages 1..100, " +
         "SpotifyBoundedWalkPages and AppleBoundedWalkPages 1..20, RequestTimeout 1..120 seconds.";
 
     public static bool IsValid(EpisodeLookupOptions options) =>
         options.FullShowReadMaxEpisodes is >= 0 and <= 1000 &&
+        options.FullShowReadMaxPages is >= 1 and <= 100 &&
         options.RecentWindow > TimeSpan.Zero &&
         options.IndexMaxPages is >= 1 and <= 100 &&
         options.SpotifyBoundedWalkPages is >= 1 and <= 20 &&

@@ -19,6 +19,7 @@ public sealed class CatalogueRequestGuard(
     public TimeSpan Timeout { get; } = options.Value.RequestTimeout;
 
     public const string GuardFiredMessagePrefix = "Catalogue request timeout guard fired:";
+    public const string OtherCancellationMessagePrefix = "Catalogue request cancelled (not by the guard):";
 
     public async Task<T?> Run<T>(
         string platform,
@@ -34,10 +35,21 @@ public sealed class CatalogueRequestGuard(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(
-                GuardFiredMessagePrefix +
-                " platform='{Platform}' operation='{Operation}' timeout-seconds={TimeoutSeconds}.",
-                platform, operation, Timeout.TotalSeconds);
+            if (timeout.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    GuardFiredMessagePrefix +
+                    " platform='{Platform}' operation='{Operation}' timeout-seconds={TimeoutSeconds}.",
+                    platform, operation, Timeout.TotalSeconds);
+            }
+            else
+            {
+                // Not the guard: e.g. HttpClient's own timeout. Logged separately so tuning data stays accurate.
+                logger.LogWarning(
+                    OtherCancellationMessagePrefix + " platform='{Platform}' operation='{Operation}'.",
+                    platform, operation);
+            }
+
             return default;
         }
     }

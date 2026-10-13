@@ -54,8 +54,10 @@ public class EpisodeLookupPlannerRules
 
         // Assert
         string.Join(">", plan.Select(x => x.Stage)).Should().Be(expected);
-        plan.Where(x => x.Strategy != CatalogueLookupStrategy.TitleSearch && x.Strategy != CatalogueLookupStrategy.FullShowRead)
+        plan.Where(x => x.Strategy != CatalogueLookupStrategy.TitleSearch)
             .Should().OnlyContain(x => x.PageCap != null, "every page read is bounded (pagination HARD rule)");
+        plan.Where(x => x.Strategy == CatalogueLookupStrategy.FullShowRead)
+            .Should().OnlyContain(x => x.PageCap == new EpisodeLookupOptions().FullShowReadMaxPages);
     }
 
     [Theory(DisplayName = "When no show id is known, Plan is title search only in every flow, because there is no feed to read.")]

@@ -23,7 +23,6 @@ public sealed class CatalogueLookupExecutor(
     ICatalogueEpisodeMatcher matcher,
     ICatalogueSubjectClassifier subjectClassifier,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
-    Microsoft.Extensions.Options.IOptions<EpisodeLookupOptions> options,
     ILogger<CatalogueLookupExecutor> logger) : ICatalogueLookupExecutor
 {
     public const string StageMiss = "miss";
@@ -45,7 +44,7 @@ public sealed class CatalogueLookupExecutor(
         }
 
         var steps = planner.Plan(lookup, hasShow, count, source.Platform);
-        var run = new LookupRun<TItem>(source, options.Value.IndexMaxPages);
+        var run = new LookupRun<TItem>(source);
         foreach (var step in steps)
         {
             var items = step.Strategy == CatalogueLookupStrategy.TitleSearch
@@ -129,7 +128,7 @@ public sealed class CatalogueLookupExecutor(
             string.Join(">", steps.Select(x => x.Stage)), stage, showEpisodeCount, pagesRead);
 
     /// <summary>Per-lookup page reader: pages are read newest-first once and reused across steps.</summary>
-    private sealed class LookupRun<TItem>(ICatalogueCandidateSource<TItem> source, int fullReadMaxPages)
+    private sealed class LookupRun<TItem>(ICatalogueCandidateSource<TItem> source)
     {
         private readonly List<CatalogueShowPage<TItem>> _pages = [];
         private readonly HashSet<string> _tried = new(StringComparer.Ordinal);
@@ -142,7 +141,7 @@ public sealed class CatalogueLookupExecutor(
 
         public async Task<IReadOnlyList<TItem>> ReadPages(CatalogueLookupStep step, CancellationToken cancellationToken)
         {
-            var cap = step.Strategy == CatalogueLookupStrategy.FullShowRead ? fullReadMaxPages : step.PageCap ?? 1;
+            var cap = step.PageCap ?? 1;
             var index = 0;
             while (index < cap)
             {

@@ -95,4 +95,19 @@ public class CatalogueRequestGuardTests
         await act.Should().ThrowAsync<OperationCanceledException>();
         _logger.Entries.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "A cancellation that is not the guard's (e.g. HttpClient's own timeout) returns null and logs a separate warning, not the guard prefix.")]
+    public async Task Other_cancellation_is_logged_separately()
+    {
+        // Arrange
+        var sut = Sut();
+
+        // Act
+        var result = await sut.Run<string>("Spotify", "op", _ => throw new TaskCanceledException(), CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+        _logger.Entries.Should().ContainSingle(x => x.Message.StartsWith(CatalogueRequestGuard.OtherCancellationMessagePrefix));
+    }
 }

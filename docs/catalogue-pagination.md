@@ -114,7 +114,7 @@ Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk
 (`CatalogueLookupExecutor.StageMiss`).
 
 **Options** (`episodeLookup` section, validated at startup with `ValidateOnStart`): `FullShowReadMaxEpisodes`
-(default 200, 0..1000), `RecentWindow` (default 14 days, > 0), `IndexMaxPages` (default 20, 1..100),
+(default 200, 0..1000), `FullShowReadMaxPages` (default 20, 1..100), `RecentWindow` (default 14 days, > 0), `IndexMaxPages` (default 20, 1..100),
 `SpotifyBoundedWalkPages` (4) and `AppleBoundedWalkPages` (5) (1..20), `RequestTimeout` (10 s, 1..120 s).
 
 **History.** PR #1017 (7 Oct 2026) replaced the Spotify show walk in `SpotifyEpisodeResolver` with a title search

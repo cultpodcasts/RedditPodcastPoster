@@ -34,7 +34,7 @@ public sealed class EpisodeLookupPlanner(IOptions<EpisodeLookupOptions> options,
 
         if (showEpisodeCount is { } count && count <= _options.FullShowReadMaxEpisodes)
         {
-            return [new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead)];
+            return [new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages)];
         }
 
         var age = IsRecent(lookup.Released) ? EpisodeLookupAge.Recent : EpisodeLookupAge.OldOrUndated;

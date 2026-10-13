@@ -273,6 +273,8 @@ public class PodcastUpdater(
                 podcast.Name, podcast.Id, podcast.SpotifyId);
         }
 
+        // A changed show size marks the podcast changed, so spotifyEpisodeCount / appleEpisodeCount stay fresh for the
+        // episode lookup planner. A successful index pass saves the podcast anyway (LastIndexed), so this rarely adds a write.
         var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
 
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;

@@ -14,6 +14,9 @@ business-rules test first** (in `RedditPodcastPoster.EpisodeLookup.BusinessRules
 | `Discovery` | `EpisodeLookupUseCases.ForDiscovery` | Discovery `SpotifyEnricher`, `AppleEnricher` |
 | `Enrich` | `EpisodeLookupUseCases.ForEnrich` | `EnrichExistingEpisodesFromPodcastServices` CLI |
 
+`EpisodeLookupFlow` and `CatalogueLookup` (the lookup input) live in `RedditPodcastPoster.Episodes`
+(`Matching/Candidates`), next to the shared matcher, because `IndexingContext` and the matcher need them.
+
 Platform adapters stay thin: `SpotifyEpisodeResolver` and `AppleEpisodeResolver` only implement
 `ICatalogueCandidateSource<T>` (fetch a newest-first page, search by title, probe the show size, map to `Episode`).
 They contain no strategy logic.
@@ -42,7 +45,7 @@ They contain no strategy logic.
 | A new use case | `EpisodeLookupFlow` value, `EpisodeLookupUseCases.ForX`, rows in `EpisodeLookupChains`, call it from the caller | `Every_flow_declares_its_chains` (fails until rows exist) + matrix rows + caller rule |
 | A new platform | `CataloguePlatforms`, a walk cap in options, an `ICatalogueCandidateSource` adapter | contract tests for the new platform |
 
-Options (`episodeLookup`): `FullShowReadMaxEpisodes` 200, `RecentWindow` 14 d, `IndexMaxPages` 20,
+Options (`episodeLookup`): `FullShowReadMaxEpisodes` 200, `FullShowReadMaxPages` 20, `RecentWindow` 14 d, `IndexMaxPages` 20,
 `SpotifyBoundedWalkPages` 4, `AppleBoundedWalkPages` 5, `RequestTimeout` 10 s.
 
 Use the App Insights `Catalogue episode lookup:` lines (group by `flow`, `stage`, `pages-read`) to tune with data.

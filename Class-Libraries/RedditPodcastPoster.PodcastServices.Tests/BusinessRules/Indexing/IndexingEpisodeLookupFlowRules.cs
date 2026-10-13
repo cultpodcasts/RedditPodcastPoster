@@ -88,4 +88,27 @@ public class IndexingEpisodeLookupFlowRules
         podcast.SpotifyEpisodeCount.Should().BeNull();
         podcast.AppleEpisodeCount.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "When the observed Spotify count equals the stored one, Update leaves the stored count as it is and the Apple count null, " +
+        "because counts change only from an observation for that platform's own show id.")]
+    public async Task Unchanged_count_is_kept()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness(new SaveCallRecorder());
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.SpotifyEpisodeCount = 412;
+        harness.PodcastRepository.Seed(podcast);
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([]);
+        harness.ShowEpisodeCounts.Record(CataloguePlatforms.Spotify, podcast.SpotifyId, 412);
+
+        // Act
+        await harness.Updater.Update(podcast, enrichOnly: false, PodcastUpdaterTestHarness.DefaultIndexingContext());
+
+        // Assert
+        podcast.SpotifyEpisodeCount.Should().Be(412);
+        podcast.AppleEpisodeCount.Should().BeNull();
+    }
 }
