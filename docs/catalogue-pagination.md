@@ -82,7 +82,8 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
 |-----------|------|---------|------|
 | no show id (for that platform) | `Index` | any | nothing: no API call; logged `plan='none' stage='skipped-no-show'` (a search can't succeed and indexing never learns a show id from it) |
 | no show id | Submit / Discovery / Enrich | any | `title-search` |
-| known ≤ 200 (`FullShowReadMaxEpisodes`) | any | any | `full-show-read` |
+| known ≤ 200 (`FullShowReadMaxEpisodes`) | `Index` | any | `full-show-read` (unbudgeted) |
+| known ≤ 200 | Submit / Discovery / Enrich | any | `full-show-read` within `FullShowReadBudget` (20 s, reading + subject classification) → `title-search` (skipped when the full read completed) |
 | > 200 or unknown | `Index` | any | `newest-pages` until a page is older than min(window start, release − 14 d), cap `IndexMaxPages` (20); **no search** (1 page when neither date is known) |
 | > 200 or unknown | Submit / Discovery / Enrich | within `RecentWindow` (14 d) | `newest-pages` (1 page) → `title-search` → `bounded-walk` |
 | > 200 or unknown | Submit / Discovery / Enrich | older or undated | `title-search` → `bounded-walk` |
@@ -96,6 +97,21 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
   Apple hits are hydrated through amp-api `GetEpisode` when possible.
 - Pages are read once per lookup and reused across steps, ids are tried once, and pages are pass-cached
   (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`; both `IPodcastPassApiCacheSource`). Failed pages are not cached.
+- **Full-read budget** (non-Index): checked after each page is read and its new candidates are classified. When it is
+  spent the candidates already classified are still matched, then the plan moves to `title-search`, else a clean
+  `miss`. Logged at Information as `Catalogue episode lookup budget spent: platform=… flow=… stage='full-show-read'
+  budget-seconds=20 pages-read=…`. Real case: submission `4a7d8838` (apply 13 Oct 2026 22:57 BST) spent ~45 s per
+  platform per item on The Compendium (Spotify 185 / 4 pages, Apple 159 / 16 pages), twice, and the apply outlived
+  its client.
+- **Shared within one operation.** Show pages (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`) and candidate
+  subjects (`CatalogueSubjectClassifier`, keyed by candidate title/description/release and the subject options) are
+  scoped, so every lookup in one apply/submit batch or index pass reuses them. Subject classification (every subject's
+  terms over each candidate, only for YouTube-discovered episodes) was the dominant cost, not the page reads.
+- **Apple page size.** amp-api `/v1/catalog/us/podcasts/{id}/episodes` is called without `limit`, so Apple returns its
+  default of 10 episodes per page (159 episodes = 16 pages; RE3's 38 = 4). The endpoint accepts `limit` (third-party
+  reports: honoured up to 200, larger values silently capped at 200; `next` links carry the offset). Not changed here:
+  a larger page changes what `AppleBoundedWalkPages` (5 pages = 50 episodes) and `IndexMaxPages` mean and must be
+  verified live against amp-api first; tracked as a follow-up.
 - The `newest-pages` stage does not use the incoming title, so a YouTube title that differs from the audio title
   still matches (Steve Hassan / Ben McKenzie, 12 Oct 2026: podcast `186529ba-…`, Spotify show `3fy5dEPagR2T8MPeS7ieAM`,
   Apple `1603773245`, 255 episodes).

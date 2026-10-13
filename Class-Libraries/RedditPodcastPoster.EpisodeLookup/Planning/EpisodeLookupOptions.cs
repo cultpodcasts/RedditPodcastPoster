@@ -28,6 +28,13 @@ public sealed class EpisodeLookupOptions
     /// </summary>
     public int FullShowReadMaxPages { get; set; } = 20;
 
+    /// <summary>
+    /// Time budget for a small-show full read outside the Index flow (default 20 s), covering page reads and subject
+    /// classification. When it is spent the lookup falls back to a title search. Index full reads are not budgeted.
+    /// Real case: submission 4a7d8838 spent ~45 s per platform per item on The Compendium (185/159 episodes).
+    /// </summary>
+    public TimeSpan FullShowReadBudget { get; set; } = TimeSpan.FromSeconds(20);
+
     /// <summary>Safety cap for the Index flow's newest-pages read, otherwise bounded only by date (default 20).</summary>
     public int IndexMaxPages { get; set; } = 20;
 
@@ -42,7 +49,7 @@ public sealed class EpisodeLookupOptions
 
     public const string ValidationMessage =
         "episodeLookup: FullShowReadMaxEpisodes must be 0..1000, FullShowReadMaxPages 1..100, RecentWindow > 0, IndexMaxPages 1..100, " +
-        "SpotifyBoundedWalkPages and AppleBoundedWalkPages 1..20, RequestTimeout 1..120 seconds.";
+        "SpotifyBoundedWalkPages and AppleBoundedWalkPages 1..20, RequestTimeout 1..120 seconds, FullShowReadBudget 1..300 seconds.";
 
     public static bool IsValid(EpisodeLookupOptions options) =>
         options.FullShowReadMaxEpisodes is >= 0 and <= 1000 &&
@@ -51,7 +58,8 @@ public sealed class EpisodeLookupOptions
         options.IndexMaxPages is >= 1 and <= 100 &&
         options.SpotifyBoundedWalkPages is >= 1 and <= 20 &&
         options.AppleBoundedWalkPages is >= 1 and <= 20 &&
-        options.RequestTimeout >= TimeSpan.FromSeconds(1) && options.RequestTimeout <= TimeSpan.FromSeconds(120);
+        options.RequestTimeout >= TimeSpan.FromSeconds(1) && options.RequestTimeout <= TimeSpan.FromSeconds(120) &&
+        options.FullShowReadBudget >= TimeSpan.FromSeconds(1) && options.FullShowReadBudget <= TimeSpan.FromSeconds(300);
 
     /// <summary>Bounded-walk cap for <paramref name="platform"/> (<see cref="CataloguePlatforms"/>); 1 for an unknown platform.</summary>
     public int BoundedWalkPagesFor(string platform) => platform switch

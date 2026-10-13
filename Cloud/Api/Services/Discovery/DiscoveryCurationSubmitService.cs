@@ -53,6 +53,8 @@ public class DiscoveryCurationSubmitService(
             }
 
             claimed = true;
+            // Claimed: the client can no longer cancel; ingest and bookkeeping run to completion.
+            cancellationToken = CancellationToken.None;
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var erroredResults = await IngestResults(discoveryResults, submitResults);
@@ -108,6 +110,8 @@ public class DiscoveryCurationSubmitService(
                     UnavailableDocumentIds: notProcessed);
             }
 
+            // Ingest has started: the client can no longer cancel it or the bookkeeping that follows.
+            cancellationToken = CancellationToken.None;
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var erroredResults = await IngestResults(discoveryResults, submitResults);
             var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults).ToArray();

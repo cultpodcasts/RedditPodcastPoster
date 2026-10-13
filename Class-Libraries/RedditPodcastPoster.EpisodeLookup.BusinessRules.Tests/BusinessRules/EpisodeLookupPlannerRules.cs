@@ -26,22 +26,22 @@ public class EpisodeLookupPlannerRules
         { EpisodeLookupFlow.Index, 201, 1, "newest-pages" },
         { EpisodeLookupFlow.Index, null, 1, "newest-pages" },
         { EpisodeLookupFlow.Index, null, 400, "newest-pages" },
-        { EpisodeLookupFlow.Submit, 120, 400, "full-show-read" },
+        { EpisodeLookupFlow.Submit, 120, 400, "full-show-read>title-search" },
         { EpisodeLookupFlow.Submit, null, 1, "newest-pages>title-search>bounded-walk" },
         { EpisodeLookupFlow.Submit, 600, 13, "newest-pages>title-search>bounded-walk" },
         { EpisodeLookupFlow.Submit, 600, 15, "title-search>bounded-walk" },
         { EpisodeLookupFlow.Submit, null, 400, "title-search>bounded-walk" },
         { EpisodeLookupFlow.Submit, null, null, "title-search>bounded-walk" },
-        { EpisodeLookupFlow.Discovery, 199, 30, "full-show-read" },
+        { EpisodeLookupFlow.Discovery, 199, 30, "full-show-read>title-search" },
         { EpisodeLookupFlow.Discovery, 600, 1, "newest-pages>title-search>bounded-walk" },
         { EpisodeLookupFlow.Discovery, 600, 90, "title-search>bounded-walk" },
-        { EpisodeLookupFlow.Enrich, 0, 90, "full-show-read" },
+        { EpisodeLookupFlow.Enrich, 0, 90, "full-show-read>title-search" },
         { EpisodeLookupFlow.Enrich, null, 90, "title-search>bounded-walk" },
         { EpisodeLookupFlow.Enrich, 600, 2, "newest-pages>title-search>bounded-walk" },
     };
 
     [Theory(DisplayName =
-        "Plan picks: full read for known shows of <=200 episodes in any flow; Index newest pages (no search) for larger/unknown shows; " +
+        "Plan picks: full read for known shows of <=200 episodes in any flow (outside Index, time-budgeted with a title-search fallback); Index newest pages (no search) for larger/unknown shows; " +
         "other flows newest page then search then bounded walk for releases inside 14 days, else search then bounded walk.")]
     [MemberData(nameof(Matrix))]
     public void Plan_matrix(EpisodeLookupFlow flow, int? showSize, int? releasedDaysAgo, string expected)
@@ -58,6 +58,32 @@ public class EpisodeLookupPlannerRules
             .Should().OnlyContain(x => x.PageCap != null, "every page read is bounded (pagination HARD rule)");
         plan.Where(x => x.Strategy == CatalogueLookupStrategy.FullShowRead)
             .Should().OnlyContain(x => x.PageCap == new EpisodeLookupOptions().FullShowReadMaxPages);
+    }
+
+    [Theory(DisplayName =
+        "Outside Index, a small-show full read carries the FullShowReadBudget so it cannot hold a request for minutes " +
+        "(submission 4a7d8838: The Compendium, Spotify 185 and Apple 159 episodes, ~45 s per platform per item, twice); " +
+        "Index keeps its unbudgeted full read with no fallback.")]
+    [InlineData(EpisodeLookupFlow.Submit, true)]
+    [InlineData(EpisodeLookupFlow.Discovery, true)]
+    [InlineData(EpisodeLookupFlow.Enrich, true)]
+    [InlineData(EpisodeLookupFlow.Index, false)]
+    public void Full_read_budget_per_flow(EpisodeLookupFlow flow, bool budgeted)
+    {
+        // Arrange
+        var options = new EpisodeLookupOptions { FullShowReadBudget = TimeSpan.FromSeconds(7) };
+        var sut = CatalogueTestServices.CreatePlanner(new FixedTimeProvider(Now), options);
+        var lookup = Lookup(flow, Now.AddDays(-400), Now.AddDays(-7));
+
+        // Act
+        var plan = sut.Plan(lookup, hasShow: true, 185, CataloguePlatforms.Apple);
+
+        // Assert
+        var fullRead = plan.Should().ContainSingle(x => x.Strategy == CatalogueLookupStrategy.FullShowRead).Subject;
+        fullRead.Budget.Should().Be(budgeted ? TimeSpan.FromSeconds(7) : null);
+        plan.Select(x => x.Strategy).Should().Equal(budgeted
+            ? [CatalogueLookupStrategy.FullShowRead, CatalogueLookupStrategy.TitleSearch]
+            : [CatalogueLookupStrategy.FullShowRead]);
     }
 
     [Theory(DisplayName =

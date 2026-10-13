@@ -24,6 +24,7 @@ public sealed class CatalogueLookupExecutor(
     ICatalogueEpisodeMatcher matcher,
     ICatalogueSubjectClassifier subjectClassifier,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    TimeProvider timeProvider,
     ILogger<CatalogueLookupExecutor> logger) : ICatalogueLookupExecutor
 {
     public const string StageMiss = "miss";
@@ -34,6 +35,7 @@ public sealed class CatalogueLookupExecutor(
     public const string StageSkippedNoShow = "skipped-no-show";
     public const string PlanNone = "none";
     public const string LogMessagePrefix = "Catalogue episode lookup:";
+    public const string BudgetLogMessagePrefix = "Catalogue episode lookup budget spent:";
 
     public async Task<CatalogueLookupResult<TItem>> FindMatch<TItem>(
         CatalogueLookup lookup,
@@ -58,19 +60,40 @@ public sealed class CatalogueLookupExecutor(
         }
 
         var run = new LookupRun<TItem>(source);
+        var fullReadCompleted = false;
         foreach (var step in steps)
         {
-            var items = step.Strategy == CatalogueLookupStrategy.TitleSearch
-                ? await source.SearchByTitle(cancellationToken) ?? []
-                : await run.ReadPages(step, cancellationToken);
+            if (step.Strategy == CatalogueLookupStrategy.TitleSearch && fullReadCompleted)
+            {
+                // Every episode of the show was already tried; a search cannot find anything new.
+                continue;
+            }
+
+            TItem? match;
+            if (step.Budget is { } budget)
+            {
+                (match, var spent) = await BudgetedFullRead(lookup, source, run, step, budget, reducer, cancellationToken);
+                if (spent)
+                {
+                    LogBudget(lookup, source, step, budget, run.PagesRead);
+                }
+            }
+            else
+            {
+                var items = step.Strategy == CatalogueLookupStrategy.TitleSearch
+                    ? await source.SearchByTitle(cancellationToken) ?? []
+                    : await run.ReadPages(step, cancellationToken);
+                match = await MatchStage(lookup, source, run.Untried(items), reducer, cancellationToken);
+            }
+
             if (step.Strategy == CatalogueLookupStrategy.FullShowRead && run.ReadToEnd)
             {
                 // A completed full read is an exact count (Apple refreshes only this way or from its quick lookup).
                 Record(source, run.TotalItemsRead);
+                fullReadCompleted = true;
             }
 
             Record(source, run.ReportedTotal);
-            var match = await MatchStage(lookup, source, run.Untried(items), reducer, cancellationToken);
             if (match != null)
             {
                 Log(lookup, source, steps, step.Stage, count, run.PagesRead);
@@ -104,19 +127,101 @@ public sealed class CatalogueLookupExecutor(
             return null;
         }
 
+        var byEpisode = Map(source, items);
+        var probe = CreateProbe(lookup);
+        var ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, byEpisode.Keys.ToList(), lookup, cancellationToken);
+        return Match(lookup, probe, byEpisode, ignoredSubjects, reducer);
+    }
+
+    /// <summary>
+    /// Full read under a time budget: page by page, each page's new candidates are classified as they arrive (that is
+    /// where the time goes for YouTube-discovered episodes). If the budget is spent before the read completes the step
+    /// matches only the candidates already classified and the plan moves on (title search); otherwise all candidates are
+    /// matched together as usual.
+    /// </summary>
+    private async Task<(TItem? Match, bool BudgetSpent)> BudgetedFullRead<TItem>(
+        CatalogueLookup lookup,
+        ICatalogueCandidateSource<TItem> source,
+        LookupRun<TItem> run,
+        CatalogueLookupStep step,
+        TimeSpan budget,
+        Func<TItem, bool>? reducer,
+        CancellationToken cancellationToken)
+        where TItem : class
+    {
+        var deadline = timeProvider.GetUtcNow() + budget;
+        var probe = CreateProbe(lookup);
+        var byEpisode = new Dictionary<Episode, TItem>(ReferenceEqualityComparer.Instance);
+        IReadOnlyList<string>? ignoredSubjects = lookup.IgnoredSubjects;
+        var cap = step.PageCap ?? 1;
+        for (var pages = 1; pages <= cap; pages++)
+        {
+            var before = run.PagesRead;
+            var items = await run.ReadPages(step with { PageCap = pages }, cancellationToken);
+            var fresh = Map(source, run.Untried(items));
+            if (fresh.Count > 0)
+            {
+                ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, fresh.Keys.ToList(), lookup, cancellationToken);
+                foreach (var (episode, item) in fresh)
+                {
+                    byEpisode[episode] = item;
+                }
+            }
+
+            if (run.ReadToEnd || run.PagesRead == before)
+            {
+                break;
+            }
+
+            if (timeProvider.GetUtcNow() >= deadline)
+            {
+                // Spent: match what was already classified (no extra cost), then let the plan move on.
+                return (MatchAll(lookup, probe, byEpisode, ignoredSubjects, reducer), true);
+            }
+        }
+
+        return (MatchAll(lookup, probe, byEpisode, ignoredSubjects, reducer), false);
+    }
+
+    private TItem? MatchAll<TItem>(CatalogueLookup lookup, Episode probe, Dictionary<Episode, TItem> byEpisode,
+        IReadOnlyList<string>? ignoredSubjects, Func<TItem, bool>? reducer)
+        where TItem : class =>
+        byEpisode.Count == 0 ? null : Match(lookup, probe, byEpisode, ignoredSubjects, reducer);
+
+    private static Dictionary<Episode, TItem> Map<TItem>(ICatalogueCandidateSource<TItem> source, IEnumerable<TItem> items)
+    {
         var byEpisode = new Dictionary<Episode, TItem>(ReferenceEqualityComparer.Instance);
         foreach (var item in items)
         {
             byEpisode[source.ToCatalogueEpisode(item)] = item;
         }
 
-        var candidates = byEpisode.Keys.ToList();
-        var probe = CreateProbe(lookup);
-        var ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, candidates, lookup, cancellationToken);
+        return byEpisode;
+    }
+
+    private TItem? Match<TItem>(
+        CatalogueLookup lookup,
+        Episode probe,
+        Dictionary<Episode, TItem> byEpisode,
+        IReadOnlyList<string>? ignoredSubjects,
+        Func<TItem, bool>? reducer)
+        where TItem : class
+    {
         Func<Episode, bool>? episodeReducer = reducer == null ? null : e => reducer(byEpisode[e]);
-        var match = matcher.Match(lookup, probe, candidates, ignoredSubjects, episodeReducer);
+        var match = matcher.Match(lookup, probe, byEpisode.Keys.ToList(), ignoredSubjects, episodeReducer);
         return match == null ? null : byEpisode[match];
     }
+
+    private void LogBudget<TItem>(
+        CatalogueLookup lookup,
+        ICatalogueCandidateSource<TItem> source,
+        CatalogueLookupStep step,
+        TimeSpan budget,
+        int pagesRead) =>
+        logger.LogInformation(
+            BudgetLogMessagePrefix +
+            " platform='{Platform}' flow='{Flow}' podcast='{PodcastName}' episode='{EpisodeTitle}' stage='{Stage}' budget-seconds={BudgetSeconds} pages-read={PagesRead}; falling back to the next step.",
+            source.Platform, lookup.Flow, lookup.PodcastName, lookup.Title, step.Stage, (int)budget.TotalSeconds, pagesRead);
 
     private static Episode CreateProbe(CatalogueLookup lookup) =>
         new()
