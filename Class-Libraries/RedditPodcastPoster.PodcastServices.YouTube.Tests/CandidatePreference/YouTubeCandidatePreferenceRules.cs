@@ -50,7 +50,7 @@ public class YouTubeCandidatePreferenceRules
                 It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ReturnsAsync((IYouTubeServiceWrapper _, IEnumerable<string> ids, IndexingContext _, bool _, bool _, bool _) =>
-                ids.Where(_durations.ContainsKey).Select(id => Video(id, _durations[id])).ToList());
+                ids.Where(id => id != null && _durations.ContainsKey(id)).Select(id => Video(id, _durations[id])).ToList());
         _motion.Setup(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ThumbnailMotion.Moving);
     }
@@ -258,6 +258,70 @@ public class YouTubeCandidatePreferenceRules
 
         // Assert
         result!.PlaylistItem!.GetVideoId().Should().Be(PhoneUploadId);
+        _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a generic channel-titled upload shares the pick's words but not its duration, it cannot replace the pick.")]
+    public async Task generic_subset_title_cannot_replace_pick()
+    {
+        // Arrange: real IndoctriNation channel trailer "IndoctriNation Podcast" (DJg4gR1j4n0).
+        const string title = "The Oracle's Daughter with Sarah Green";
+        _durations[StaticUploadId] = EpisodeLength;
+        _durations["DJg4gR1j4n0"] = TimeSpan.FromMinutes(2);
+        _motion.Setup(x => x.DetectAsync(StaticUploadId, It.IsAny<CancellationToken>())).ReturnsAsync(ThumbnailMotion.Static);
+        var items = new List<PlaylistItem>
+        {
+            Item(StaticUploadId, StaticTitle(title)),
+            Item("DJg4gR1j4n0", "IndoctriNation Podcast")
+        };
+
+        // Act
+        var result = await PlaylistSut().FindMatchingYouTubeVideo(Episode(title), items, null, new IndexingContext());
+
+        // Assert
+        result!.PlaylistItem!.GetVideoId().Should().Be(StaticUploadId);
+        _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When video details for the contenders are unavailable, the pick stands and no thumbnails are fetched.")]
+    public async Task missing_contender_details_keep_pick()
+    {
+        // Arrange: no details for the video upload, so YouTube returns nothing for it.
+        const string title = "The Oracle's Daughter with Sarah Green";
+        _durations[StaticUploadId] = EpisodeLength;
+        var items = new List<PlaylistItem> { Item(StaticUploadId, StaticTitle(title)), Item(VideoUploadId, title) };
+
+        // Act
+        var result = await PlaylistSut().FindMatchingYouTubeVideo(Episode(title), items, null, new IndexingContext());
+
+        // Assert
+        result!.PlaylistItem!.GetVideoId().Should().Be(StaticUploadId);
+        _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Non-video search results (channels, playlists) are never contenders.")]
+    public async Task non_video_search_results_are_ignored()
+    {
+        // Arrange
+        const string plainTitle = "EL-ROI CANNOT SAVE ANYONE";
+        _durations[PlainUploadId] = EpisodeLength;
+        var results = new List<SearchResult>
+        {
+            Search(PlainUploadId, plainTitle),
+            new()
+            {
+                Id = new ResourceId { Kind = "youtube#channel", ChannelId = "UC-Vn8JbQ4sbMKYzz7HFMtFg" },
+                Snippet = new SearchResultSnippet { Title = plainTitle, PublishedAtDateTimeOffset = Release }
+            }
+        };
+
+        // Act
+        var result = await SearchSut().FindMatchingYouTubeVideo(Episode(plainTitle), results, null, new IndexingContext());
+
+        // Assert
+        result!.SearchResult!.Id.VideoId.Should().Be(PlainUploadId);
         _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

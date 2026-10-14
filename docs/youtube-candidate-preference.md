@@ -26,6 +26,10 @@ Some channels upload the same episode twice:
 3. Contenders are fetched in one `videos.list` call and must be completed public videos, pass
    `YouTubeVideoDurationMatcher`, be within `ContenderMaxDurationDifferenceSeconds` of the pick and pass
    `YouTubeEnrichmentCandidate.MeetsStrongMatch`, the same checks as the finder's own match.
+   Token-set similarity scores a title whose words are a subset of another's (e.g. the channel trailer
+   "IndoctriNation Podcast") highly; the duration and strong-match checks are what stop such an upload replacing
+   the pick. When the finder's pick has no video details, the duration band against the pick is skipped and only
+   the episode-duration check applies.
 4. The pick and validated contenders are scored: `-PenalisedTitlePenalty` for a title containing any
    `PenalisedTitleTokens` (default 📱), `-StaticImagePenalty` for a still image. Highest score wins; ties keep the pick.
 
@@ -64,7 +68,8 @@ JPEG noise puts still images slightly above zero, hence the default threshold of
 
 Category `RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference` is at Information in every function
 app (`ApplicationLogLevels`, each `host.json`). Each multi-candidate choice logs the scores, and replacing the finder's pick logs
-"YouTube candidate preference replaced ...". Per-video motion results are at Debug.
+"YouTube candidate preference replaced ...". A replacement therefore logs two Information lines (scores, then replacement); this is intentional.
+Per-video motion results are at Debug.
 
 ```kusto
 traces
