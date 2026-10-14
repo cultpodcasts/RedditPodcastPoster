@@ -33,6 +33,14 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IPlatformEnrichmentApplicator, PlatformEnrichmentApplicator>();
             services.AddSingleton<IEpisodePlatformMerger, EpisodePlatformMerger>();
             services.AddSingleton<IEpisodePlatformMatcher, EpisodePlatformMatcher>();
+            services.AddSingleton<IEpisodeMergeCandidateScorer, EpisodeMergeCandidateScorer>();
+            services.AddOptions<EpisodeMergeTieBreakOptions>()
+                .Configure<IServiceProvider>((options, provider) =>
+                    provider.GetService<IConfiguration>()?
+                        .GetSection(EpisodeMergeTieBreakOptions.SectionName)
+                        .Bind(options))
+                .Validate(EpisodeMergeTieBreakOptions.IsValid, EpisodeMergeTieBreakOptions.ValidationMessage)
+                .ValidateOnStart();
             services.AddSingleton<ICatalogueEpisodeMatcher, CatalogueEpisodeMatcher>();
             services.TryAddScoped<ICatalogueSubjectClassifier, NoCatalogueSubjectClassifier>();
 

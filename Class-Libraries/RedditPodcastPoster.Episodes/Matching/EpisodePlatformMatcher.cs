@@ -22,11 +22,20 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         Episode incomingEpisode,
         Regex? episodeMatchRegex,
         Podcast podcast,
+        IReadOnlyList<Episode> existingEpisodes) =>
+        Classify(existingEpisode, incomingEpisode, episodeMatchRegex, podcast, existingEpisodes) !=
+        EpisodeMatchKind.None;
+
+    public EpisodeMatchKind Classify(
+        Episode existingEpisode,
+        Episode incomingEpisode,
+        Regex? episodeMatchRegex,
+        Podcast podcast,
         IReadOnlyList<Episode> existingEpisodes)
     {
         if (EpisodeIdentityExtensions.SpotifyEpisodesMatch(existingEpisode, incomingEpisode))
         {
-            return true;
+            return EpisodeMatchKind.Certain;
         }
 
         if (EpisodeIdentityExtensions.IncomingPlatformIdOwnedByAnotherEpisode(
@@ -34,32 +43,35 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
                 incomingEpisode,
                 existingEpisodes))
         {
-            return false;
+            return EpisodeMatchKind.None;
         }
 
         if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(existingEpisode)) &&
             !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(incomingEpisode)))
         {
-            return false;
+            return EpisodeMatchKind.None;
         }
 
         if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(existingEpisode)) &&
             !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(incomingEpisode)))
         {
-            return EpisodeServicePresence.YouTubeEpisodeId(existingEpisode) ==
-                   EpisodeServicePresence.YouTubeEpisodeId(incomingEpisode);
+            return Certain(EpisodeServicePresence.YouTubeEpisodeId(existingEpisode) ==
+                           EpisodeServicePresence.YouTubeEpisodeId(incomingEpisode));
         }
 
         if (EpisodeServicePresence.AppleEpisodeId(existingEpisode) is { } existingApple &&
             EpisodeServicePresence.AppleEpisodeId(incomingEpisode) is { } incomingApple)
         {
-            return existingApple == incomingApple;
+            return Certain(existingApple == incomingApple);
         }
 
-        return MatchesByTitleHeuristics(existingEpisode, incomingEpisode, episodeMatchRegex, podcast);
+        return ClassifyByTitleHeuristics(existingEpisode, incomingEpisode, episodeMatchRegex, podcast);
     }
 
-    private bool MatchesByTitleHeuristics(
+    private static EpisodeMatchKind Certain(bool matched) =>
+        matched ? EpisodeMatchKind.Certain : EpisodeMatchKind.None;
+
+    private EpisodeMatchKind ClassifyByTitleHeuristics(
         Episode existingEpisode,
         Episode incomingEpisode,
         Regex? episodeMatchRegex,
@@ -69,10 +81,10 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         {
             if (incomingEpisode.Title == existingEpisode.Title)
             {
-                return true;
+                return EpisodeMatchKind.Certain;
             }
 
-            return MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast);
+            return Heuristic(MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast));
         }
 
         var incomingMatch = episodeMatchRegex.Match(incomingEpisode.Title);
@@ -81,28 +93,26 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         if (incomingMatch.Groups["episodematch"].Success &&
             existingMatch.Groups["episodematch"].Success)
         {
-            return incomingMatch.Groups["episodematch"].Value ==
-                   existingMatch.Groups["episodematch"].Value;
+            return Certain(incomingMatch.Groups["episodematch"].Value ==
+                           existingMatch.Groups["episodematch"].Value);
         }
 
         if (incomingMatch.Groups["title"].Success && existingMatch.Groups["title"].Success)
         {
             var incomingTitle = incomingMatch.Groups["title"].Value;
             var existingTitle = existingMatch.Groups["title"].Value;
-            if (incomingTitle == existingTitle)
+            if (incomingTitle == existingTitle ||
+                _compareInfo.Compare(incomingTitle, existingTitle, CompareOptions.IgnoreSymbols) == 0)
             {
-                return true;
-            }
-
-            if (_compareInfo.Compare(incomingTitle, existingTitle, CompareOptions.IgnoreSymbols) == 0)
-            {
-                return true;
+                return EpisodeMatchKind.Certain;
             }
         }
 
-        return MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast);
+        return Heuristic(MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast));
     }
 
+    private static EpisodeMatchKind Heuristic(bool matched) =>
+        matched ? EpisodeMatchKind.Heuristic : EpisodeMatchKind.None;
     private bool MatchesByDefaultHeuristics(
         Episode existingEpisode,
         Episode incomingEpisode,
