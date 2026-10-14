@@ -12,7 +12,8 @@ public record YouTubeThumbnailRecheckResult(
     int StillUsable = 0,
     int Replaced = 0,
     int Unresolved = 0,
-    int DeferredOverBudget = 0)
+    int DeferredOverBudget = 0,
+    int Failed = 0)
 {
     public static YouTubeThumbnailRecheckResult None { get; } = new();
 }
