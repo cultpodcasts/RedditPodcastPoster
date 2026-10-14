@@ -326,6 +326,34 @@
       "branchCoverage": 97,
       "lineCoverage": 98,
       "note": "Episode lookup planner (PR #1024)"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Thumbnails/YouTubeThumbnailResolver.cs",
+      "branchCoverage": 80,
+      "lineCoverage": 85,
+      "note": "YouTubeThumbnailProbeRules — success status + placeholder height; real withdrawn-maxres case"
+    },
+    {
+      "group": "platform-enrichment",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube/Thumbnails/YouTubeThumbnailUrls.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "YouTubeThumbnailUrlsTests — withdrawable / default tier names"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/Thumbnails/RecentYouTubeThumbnailRechecker.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "RecentYouTubeThumbnailRecheckRules — window, tiers, probe/re-resolve budgets, never clears"
+    },
+    {
+      "group": "orchestration",
+      "path": "Class-Libraries/RedditPodcastPoster.PodcastServices/Thumbnails/YouTubeThumbnailRecheckOptionsValidator.cs",
+      "branchCoverage": 100,
+      "lineCoverage": 100,
+      "note": "YouTubeThumbnailRecheckOptionsValidatorTests"
     }
   ]
 }

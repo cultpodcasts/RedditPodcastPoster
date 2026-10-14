@@ -145,6 +145,10 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
 | `YouTube playlist id changed:` | `YouTubePlaylistIdChange` | Warning — stored `youTubePlaylistId` changed (API curator / URL submit); re-check Arbitrary / expensive order |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | `ArbitraryYouTubePlaylistWalk` / `YouTubePlaylistService` | **Error** — Arbitrary playlist walk hit `MaxPages`; in-window episodes may be missing — reclassify or shrink the playlist |
+| `YouTubeThumbnailRecheck complete.` | `RecentYouTubeThumbnailRechecker` | Warning — per hourly run: `eligible`, `probed`, `still-usable`, `replaced`, `unresolved`, `deferred` ([youtube-thumbnails.md](youtube-thumbnails.md)) |
+| `YouTubeThumbnailRecheck replaced withdrawn image.` | `RecentYouTubeThumbnailRechecker` | Warning — stored `maxresdefault`/`hq720` withdrawn by YouTube; `old-image` → `new-image` saved |
+| `YouTubeThumbnailRecheck kept withdrawn image` | `RecentYouTubeThumbnailRechecker` | Warning — withdrawn but no usable replacement; stored image kept (never cleared) |
+| `YouTubeThumbnailRecheck skipped` | `RecentYouTubeThumbnailRechecker` | Warning — YouTube resolving unavailable this run (non-YouTube hour, quota, or error) |
 
 Design reference for order modes, caps, and flag lifecycle: [catalogue-pagination.md](catalogue-pagination.md).
 

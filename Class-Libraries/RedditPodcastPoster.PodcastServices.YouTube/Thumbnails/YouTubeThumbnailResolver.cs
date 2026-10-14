@@ -2,12 +2,13 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 
-public class YouTubeThumbnailResolver : IYouTubeThumbnailResolver
+public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IYouTubeThumbnailResolver
 {
-    private static readonly HttpClient HttpClient = new()
-    {
-        Timeout = TimeSpan.FromSeconds(15)
-    };
+    /// <summary>Named HttpClient used to probe thumbnail URLs. Registered with <see cref="ProbeTimeout"/>.</summary>
+    public const string HttpClientName = nameof(YouTubeThumbnailResolver);
+
+    /// <summary>Per-request timeout for a thumbnail probe.</summary>
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(15);
 
     public async Task<Uri?> GetImageUrlAsync(
         Google.Apis.YouTube.v3.Data.Video? video,
@@ -15,7 +16,7 @@ public class YouTubeThumbnailResolver : IYouTubeThumbnailResolver
     {
         foreach (var candidate in video.GetThumbnailCandidates())
         {
-            if (await IsUsableThumbnailAsync(candidate, cancellationToken))
+            if (await IsUsableThumbnailAsync(candidate.Url, candidate.IsDefaultTier, cancellationToken))
             {
                 return candidate.Url;
             }
@@ -34,23 +35,39 @@ public class YouTubeThumbnailResolver : IYouTubeThumbnailResolver
             .ToArray();
     }
 
-    private static async Task<bool> IsUsableThumbnailAsync(
-        ThumbnailCandidate candidate,
+    public Task<bool> IsStoredImageUsableAsync(Uri imageUrl, CancellationToken cancellationToken = default)
+    {
+        return IsUsableThumbnailAsync(
+            imageUrl,
+            YouTubeThumbnailUrls.IsDefaultTier(imageUrl),
+            cancellationToken);
+    }
+
+    private async Task<bool> IsUsableThumbnailAsync(
+        Uri url,
+        bool isDefaultTier,
         CancellationToken cancellationToken)
     {
         try
         {
-            using var response = await HttpClient.GetAsync(
-                candidate.Url,
+            using var httpClient = httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.GetAsync(
+                url,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                // A withdrawn tier answers 404 with a decodable placeholder body; never trust it.
+                return false;
+            }
+
             var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             if (!JpegDimensionsReader.TryGetDimensions(bytes, out var width, out var height))
             {
                 return false;
             }
 
-            return YouTubeThumbnailValidation.IsUsableThumbnail(width, height, candidate.IsDefaultTier);
+            return YouTubeThumbnailValidation.IsUsableThumbnail(width, height, isDefaultTier);
         }
         catch (HttpRequestException)
         {
