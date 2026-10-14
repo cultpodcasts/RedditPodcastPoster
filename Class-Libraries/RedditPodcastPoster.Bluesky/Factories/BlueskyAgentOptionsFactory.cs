@@ -12,7 +12,7 @@ public class BlueskyAgentOptionsFactory(ILoggerFactory loggerFactory) : IBluesky
     {
         ArgumentNullException.ThrowIfNull(loggerFactory);
         ArgumentNullException.ThrowIfNull(resolveHandle);
-        IFacetExtractor facetExtractor = new DashedHandleFacetExtractor(resolveHandle);
+        IFacetExtractor facetExtractor = new BlueskyFacetExtractor(resolveHandle);
         return new BlueskyAgentOptions(loggerFactory, facetExtractor: facetExtractor);
     }
 }

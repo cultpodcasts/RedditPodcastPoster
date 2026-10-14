@@ -42,6 +42,24 @@ public class EpisodeLookupLogLevelRules
     }
 
     [Fact(DisplayName =
+        "Function apps keep the episode merger's Information lines (merge tie-broken with candidate scores), " +
+        "because they are the only record of why an incoming episode merged into one of several matches.")]
+    public void episode_merging_category_logs_at_information()
+    {
+        // Arrange
+        using var factory = CreateLoggerFactory();
+
+        // Act
+        var loggerType = typeof(RedditPodcastPoster.PodcastServices.Merging.EpisodeMerger);
+        var logger = factory.CreateLogger(loggerType.FullName!);
+
+        // Assert
+        loggerType.FullName.Should().StartWith(ApplicationLogLevels.EpisodeMergingCategory + ".");
+        logger.IsEnabled(LogLevel.Information).Should().BeTrue();
+        logger.IsEnabled(LogLevel.Debug).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "Other RedditPodcastPoster categories stay at Warning in function apps, because their pagination logs are high-volume.")]
     public void other_reddit_podcast_poster_categories_stay_at_warning()
     {
@@ -92,6 +110,7 @@ public class EpisodeLookupLogLevelRules
 
         // Assert
         logLevel.GetProperty(ApplicationLogLevels.EpisodeLookupCategory).GetString().Should().Be("Information");
+        logLevel.GetProperty(ApplicationLogLevels.EpisodeMergingCategory).GetString().Should().Be("Information");
         logLevel.GetProperty("RedditPodcastPoster").GetString().Should().Be("Warning");
     }
 

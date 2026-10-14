@@ -31,4 +31,15 @@ public static class FuzzyMatcher
         var weightedRatio = Fuzz.WeightedRatio(query, selector(item));
         return weightedRatio >= min;
     }
+
+    /// <summary>Weighted fuzzy ratio (0-100) between two strings; 0 when either is blank.</summary>
+    public static int Score(string? left, string? right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return 0;
+        }
+
+        return Fuzz.WeightedRatio(left, right);
+    }
 }
