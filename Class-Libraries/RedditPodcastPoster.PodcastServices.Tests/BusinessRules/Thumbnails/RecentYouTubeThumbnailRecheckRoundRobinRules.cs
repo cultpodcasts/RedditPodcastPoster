@@ -182,8 +182,8 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         // Assert
         first.Probed.Should().Be(3);
         first.DeferredOverBudget.Should().Be(0);
-        firstRequests.Should().Equal(episodes.Select(StoredImage));
-        _http.Requested.Skip(3).Should().Equal(episodes.Select(StoredImage));
+        firstRequests.Should().Equal(episodes.Select(e => StoredImage(e)!));
+        _http.Requested.Skip(3).Should().Equal(episodes.Select(e => StoredImage(e)!));
     }
 
     [Fact(DisplayName =

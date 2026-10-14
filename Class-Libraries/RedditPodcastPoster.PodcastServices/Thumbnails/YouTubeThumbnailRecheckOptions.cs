@@ -44,5 +44,7 @@ public class YouTubeThumbnailRecheckOptions
         $"{nameof(YouTubeThumbnailRecheckOptions)} {{{nameof(Enabled)}: '{Enabled}', " +
         $"{nameof(RecheckWindowHours)}: '{RecheckWindowHours}', " +
         $"{nameof(MaxStoredImageProbesPerRun)}: '{MaxStoredImageProbesPerRun}', " +
-        $"{nameof(MaxReResolvesPerRun)}: '{MaxReResolvesPerRun}'}}.";
+        $"{nameof(MaxReResolvesPerRun)}: '{MaxReResolvesPerRun}', " +
+        $"{nameof(ProbeTimeoutSeconds)}: '{ProbeTimeoutSeconds}', " +
+        $"{nameof(RunBudgetSeconds)}: '{RunBudgetSeconds}'}}.";
 }

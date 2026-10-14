@@ -155,7 +155,7 @@ public class RecentYouTubeThumbnailRecheckRules
             repository => repository.Save(It.Is<Episode>(saved => saved.Id == next.Id)),
             Times.Once);
         result.Replaced.Should().Be(1);
-        result.Unresolved.Should().Be(1);
+        result.Failed.Should().Be(1);
     }
 
     [Fact(DisplayName =
@@ -238,9 +238,9 @@ public class RecentYouTubeThumbnailRecheckRules
     }
 
     [Fact(DisplayName =
-        "Each run probes at most the configured number of stored images, newest release first, and leaves the " +
-        "rest for a later run, so HTTP calls per run stay bounded.")]
-    public async Task probes_are_bounded_newest_first()
+        "Each run probes at most the configured number of stored images, oldest release first (with no cursor), and " +
+        "leaves the rest for a later run, so HTTP calls per run stay bounded.")]
+    public async Task probes_are_bounded_oldest_first()
     {
         // Arrange
         _options.MaxStoredImageProbesPerRun = 2;
@@ -258,12 +258,13 @@ public class RecentYouTubeThumbnailRecheckRules
             new IndexingContext());
 
         // Assert
-        _http.Requested.Should().Equal(StoredImage(newest), StoredImage(middle));
+        _http.Requested.Should().Equal(StoredImage(oldest), StoredImage(middle));
         result.DeferredOverBudget.Should().Be(1);
     }
 
     [Fact(DisplayName =
-        "Each run re-resolves at most the configured number of withdrawn images, so YouTube API calls per run stay bounded.")]
+        "Each run re-resolves at most the configured number of withdrawn images, so YouTube API calls per run stay " +
+        "bounded; the run stops at the next withdrawn image so the cursor leaves it first in line for the next run.")]
     public async Task re_resolves_are_bounded()
     {
         // Arrange
@@ -279,8 +280,8 @@ public class RecentYouTubeThumbnailRecheckRules
             new IndexingContext());
 
         // Assert
-        StoredImage(newest).Should().Be(Url(YouTubeId(newest), StandardTier));
-        StoredImage(older).Should().Be(Url(YouTubeId(older), MaxresTier));
+        StoredImage(older).Should().Be(Url(YouTubeId(older), StandardTier));
+        StoredImage(newest).Should().Be(Url(YouTubeId(newest), MaxresTier));
         result.Replaced.Should().Be(1);
         result.DeferredOverBudget.Should().Be(1);
     }
