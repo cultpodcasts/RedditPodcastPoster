@@ -67,3 +67,5 @@ only to override. Each run logs one Information line from the Indexer activity,
 `YouTubeThumbnailRecheck summary.`, with `duration-ms`, `candidates`, `eligible`, `probed`, `still-usable`,
 `replaced`, `unresolved`, `failed`, `deferred`, `cursor-episode-id` and `cursor-release`. Log keys: see
 [indexing-app-insights-queries.md](indexing-app-insights-queries.md) (`YouTubeThumbnailRecheck …`).
+
+See also [YouTube candidate preference](youtube-candidate-preference.md), which uses the auto thumbnails (1.jpg-3.jpg) to prefer real video over still-image uploads.
