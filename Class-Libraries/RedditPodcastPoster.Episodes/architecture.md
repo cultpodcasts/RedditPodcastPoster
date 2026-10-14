@@ -411,6 +411,32 @@ flowchart BT
 
 ---
 
+## Merge tie-break (several stored episodes match one incoming episode)
+
+`EpisodeMerger` asks `IEpisodePlatformMatcher.IsMatch` of every stored episode. A single match merges exactly as
+before and is never scored. When **more than one** stored episode matches, `IEpisodeMergeCandidateScorer`
+(`Matching/EpisodeMergeCandidateScorer.cs`) decides:
+
+1. `Enabled = false` -> fail (previous behaviour).
+2. Candidates sharing a Spotify/Apple/YouTube id (e.g. two rows with YouTube id `Wm-fDWIIZr0`) -> fail: data problem.
+3. A candidate already carrying the incoming platform id -> fail: identity beats fuzzy evidence.
+4. Otherwise each candidate gets a graded score (0-100 by default):
+   duration closeness (`DurationWeight`, linear to 0 at `DurationWindow`),
+   release proximity after the podcast's YouTube publication offset for YouTube/audio pairs (`ReleaseWeight`, linear to 0 at `ReleaseWindow`),
+   weighted fuzzy title ratio (`TitleWeight`), fuzzy description intro (`DescriptionWeight`, first `DescriptionCompareMaxChars`),
+   shared subjects (`SubjectWeight`, half for one shared subject; same filters as `CatalogueMatchScorer`).
+5. The leader must reach `MinScore` (60) **and** lead the runner-up by `MinMargin` (15); otherwise fail.
+
+A tie-break logs Information `Episode merge tie-broken: ... Candidate scores: ...`. A failure adds a
+`FailedEpisodeMerge` (incoming episode, every candidate with its score or `n/a`, reason) to
+`EpisodeMergeResult.FailedMerges`, and `FailedEpisodesReport()` names the incoming episode and candidate scores.
+
+Options: `EpisodeMergeTieBreakOptions`, section `episodeMergeTieBreak` (all optional; defaults in the class,
+validated on start). Real case: Notes to Self 444 (2026-10-14), `BusinessRules/Merging/MergeTieBreakRules.cs`.
+
+Not included: requiring release proximity on the fuzzy-title + duration matcher path. That would change
+single-match behaviour (e.g. back-catalogue episodes first seen on a new platform months after release), so it
+stays a scoring signal only.
 ## DI registration
 
 Hosts that need episode processing must call `**AddEpisodesDomain()`** explicitly. It is **not** nested inside `AddRepositories()`, `AddPodcastServices()`, or `AddUrlSubmission()`.

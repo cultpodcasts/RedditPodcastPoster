@@ -17,7 +17,9 @@ public static class EpisodeDomainTestServices
         var provider = CreateServiceProvider();
         return new EpisodeMerger(
             provider.GetRequiredService<IEpisodePlatformMatcher>(),
-            provider.GetRequiredService<IEpisodePlatformMerger>());
+            provider.GetRequiredService<IEpisodePlatformMerger>(),
+            provider.GetRequiredService<IEpisodeMergeCandidateScorer>(),
+            NullLogger<EpisodeMerger>.Instance);
     }
 
     public static EpisodeMatcher CreateMatcher()
@@ -47,3 +49,4 @@ public static class EpisodeDomainTestServices
         return services.BuildServiceProvider();
     }
 }
+
