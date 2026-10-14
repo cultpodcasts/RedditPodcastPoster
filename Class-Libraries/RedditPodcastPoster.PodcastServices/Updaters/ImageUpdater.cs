@@ -95,12 +95,18 @@ public class ImageUpdater(
                     indexingContext, true);
                 if (video != null && video.Any())
                 {
-                    EpisodeServicePresence.Upsert(
-                        episode,
-                        ServiceKeys.YouTube,
-                        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
-                        await youTubeThumbnailResolver.GetImageUrlAsync(video.First()));
-                    updated = true;
+                    // Never clear a stored image, and only report an update when the image changed.
+                    var image = await youTubeThumbnailResolver.GetImageUrlAsync(video.First());
+                    if (image != null &&
+                        image != EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube))
+                    {
+                        EpisodeServicePresence.Upsert(
+                            episode,
+                            ServiceKeys.YouTube,
+                            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
+                            image);
+                        updated = true;
+                    }
                 }
             }
             catch (Exception ex)

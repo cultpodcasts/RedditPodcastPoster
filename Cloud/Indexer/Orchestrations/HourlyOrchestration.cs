@@ -75,6 +75,9 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
             await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});
         logger.LogInformation("{nameofCategoriser} complete.", nameof(Categoriser));
 
+        indexerContext = await context.CallYouTubeThumbnailRecheckAsync(indexerContext);
+        logger.LogInformation("{nameofYouTubeThumbnailRecheck} complete.", nameof(YouTubeThumbnailRecheck));
+
         indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
 

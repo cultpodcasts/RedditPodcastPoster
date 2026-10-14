@@ -70,6 +70,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 
 ## Domain conventions
 
+- YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
 - Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
 - Do not add Episode members for compact IDs. Use the existing Spotify, YouTube, and Apple IDs. Derive the Apple episode slug from the Apple URL.
 - Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.

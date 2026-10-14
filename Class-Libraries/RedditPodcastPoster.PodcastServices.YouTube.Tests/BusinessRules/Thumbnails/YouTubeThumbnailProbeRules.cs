@@ -81,6 +81,23 @@ public class YouTubeThumbnailProbeRules
     }
 
     [Fact(DisplayName =
+        "A thumbnail whose download fails at the network layer is skipped and the next largest real thumbnail wins, " +
+        "because one unreachable tier must not leave the episode without an image.")]
+    public async Task network_failure_falls_through_to_next_candidate()
+    {
+        // Arrange
+        ServeRealCaseAfterWithdrawal();
+        _http.FailNetwork(Url(_youTubeId, StandardTier));
+        var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
+
+        // Act
+        var image = await sut.GetImageUrlAsync(VideoWithApiThumbnails());
+
+        // Assert
+        image.Should().Be(Url(_youTubeId, HighTier));
+    }
+
+    [Fact(DisplayName =
         "A stored maxresdefault image that now answers 404 with the 120x90 placeholder is no longer usable, " +
         "so the delayed re-check knows to replace it.")]
     public async Task stored_withdrawn_maxres_is_not_usable()

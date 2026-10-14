@@ -388,6 +388,14 @@ var indexerActivities= {
     activities__RunBluesky: 'true'
 }
 
+// Defaults match YouTubeThumbnailRecheckOptions; set here so the values are visible and tunable.
+var indexerYouTubeThumbnailRecheck= {
+    youtubeThumbnailRecheck__Enabled: 'true'
+    youtubeThumbnailRecheck__RecheckWindowHours: '48'
+    youtubeThumbnailRecheck__MaxStoredImageProbesPerRun: '25'
+    youtubeThumbnailRecheck__MaxReResolvesPerRun: '10'
+}
+
 var indexerTriggers = {
     AzureWebJobs_HalfHourly_Disabled: 'true'
 }
@@ -531,6 +539,7 @@ var indexerSettings= union(
     poster,
     postingCriteria,
     indexerActivities,
+    indexerYouTubeThumbnailRecheck,
     indexerTriggers,
     youtubeChannel
  )

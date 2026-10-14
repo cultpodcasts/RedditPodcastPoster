@@ -22,6 +22,7 @@ public static class YouTubeThumbnailUrls
             FileNameWithoutExtension(imageUrl),
             StringComparer.OrdinalIgnoreCase);
 
+    /// <remarks>Stored episode images are absolute URLs.</remarks>
     private static string FileNameWithoutExtension(Uri imageUrl) =>
-        Path.GetFileNameWithoutExtension(imageUrl.IsAbsoluteUri ? imageUrl.AbsolutePath : imageUrl.OriginalString);
+        Path.GetFileNameWithoutExtension(imageUrl.AbsolutePath);
 }

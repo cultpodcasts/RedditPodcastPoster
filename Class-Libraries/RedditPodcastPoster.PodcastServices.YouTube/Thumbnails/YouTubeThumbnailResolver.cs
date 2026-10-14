@@ -55,6 +55,12 @@ public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IY
                 url,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                // A withdrawn tier answers 404 with a decodable placeholder body; never trust it.
+                return false;
+            }
+
             var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             if (!JpegDimensionsReader.TryGetDimensions(bytes, out var width, out var height))
             {
