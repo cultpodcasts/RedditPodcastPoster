@@ -26,6 +26,11 @@ public sealed class EpisodeMergeCandidateScorer(IOptions<EpisodeMergeTieBreakOpt
 
     public EpisodeMergeTieBreakDecision Decide(Podcast podcast, Episode incoming, IReadOnlyList<Episode> candidates)
     {
+        if (candidates.Count < 2)
+        {
+            throw new ArgumentException("The merge tie-break needs at least two candidates.", nameof(candidates));
+        }
+
         if (!_options.Enabled)
         {
             return new EpisodeMergeTieBreakDecision(null, [], DisabledReason);

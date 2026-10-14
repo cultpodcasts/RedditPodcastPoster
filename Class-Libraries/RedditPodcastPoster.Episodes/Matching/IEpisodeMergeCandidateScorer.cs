@@ -8,6 +8,10 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// </summary>
 public interface IEpisodeMergeCandidateScorer
 {
+    /// <summary>Picks a clear winner among <paramref name="candidates"/>, or none.</summary>
+    /// <param name="candidates">Two or more stored episodes that each passed the platform matcher.</param>
+    /// <returns>A decision whose <c>Scores</c> are highest first (empty when the candidates were not scored).</returns>
+    /// <exception cref="ArgumentException">Fewer than two candidates.</exception>
     EpisodeMergeTieBreakDecision Decide(Podcast podcast, Episode incoming, IReadOnlyList<Episode> candidates);
 }
 

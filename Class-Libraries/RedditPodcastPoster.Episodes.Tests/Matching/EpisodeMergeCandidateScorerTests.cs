@@ -52,6 +52,38 @@ public class EpisodeMergeCandidateScorerTests
             EpisodeServicePresence.SetSpotifyIdentity(e, _fixture.CreateSpotifyId());
         });
 
+    [Fact(DisplayName = "Notes to Self 444 real case pinned at scorer level: RY7nt6KFpdA reaches MinScore and leads BndpMN1m7oQ by at least MinMargin.")]
+    public void Notes_to_Self_444_scores_clear_winner()
+    {
+        var options = new EpisodeMergeTieBreakOptions();
+        const string tikTok = "TikTok Live chat about Sister Wives. Join me live as we chat about the new season, the family and the latest news.";
+        var ry7 = YouTube("TikTok Live chat about Sister Wives", new TimeSpan(1, 35, 34), Release, tikTok, "RY7nt6KFpdA");
+        var recap = YouTube("Sister Wives Season 20 E 4 Recap", new TimeSpan(1, 38, 12),
+            new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc),
+            "Holding Out Help supports people leaving polygamy. This week we recap Sister Wives Season 20 Episode 4.",
+            "BndpMN1m7oQ");
+        var incoming = Spotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 34),
+            new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), tikTok);
+
+        var decision = CreateScorer().Decide(_podcast, incoming, [recap, ry7]);
+
+        decision.Winner.Should().BeSameAs(ry7);
+        decision.Reason.Should().Be(EpisodeMergeCandidateScorer.TieBrokenReason);
+        decision.Scores[0].Score.Should().BeGreaterThanOrEqualTo(options.MinScore);
+        (decision.Scores[0].Score - decision.Scores[1].Score).Should().BeGreaterThanOrEqualTo(options.MinMargin);
+    }
+
+    [Fact(DisplayName = "Fewer than two candidates is a caller error.")]
+    public void Fewer_than_two_candidates_throws()
+    {
+        var a = YouTube("Live chat", TimeSpan.FromHours(1), Release);
+        var incoming = Spotify("Live chat", TimeSpan.FromHours(1), Release);
+
+        var act = () => CreateScorer().Decide(_podcast, incoming, [a]);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
     [Fact(DisplayName = "Disabled: never picks a winner and does not score.")]
     public void Disabled_returns_no_winner()
     {

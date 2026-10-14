@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
@@ -104,7 +105,11 @@ public class MergeTieBreakRules
         result.FailedEpisodes.Single().Select(x => x.Id).Should().BeEquivalentTo([first.Id, second.Id]);
         var report = result.FailedEpisodesReport();
         report.Should().Contain("Incoming: 'Weekly Live Chat'");
-        report.Should().Contain("score");
+        report.Should().Contain($"Reason: '{EpisodeMergeCandidateScorer.BelowMinMarginReason}'");
+        report.Should().Contain($"Episode-Id: '{first.Id}'");
+        report.Should().Contain($"Episode-Id: '{second.Id}'");
+        report.Split('\n').Where(l => l.Contains("Candidate:")).Should().HaveCount(2)
+            .And.OnlyContain(l => l.Contains("score: ") && !l.Contains("score: n/a"));
     }
 
     [Fact(DisplayName =
@@ -136,6 +141,8 @@ public class MergeTieBreakRules
         result.MergedEpisodes.Should().BeEmpty();
         result.FailedEpisodes.Should().ContainSingle();
         result.FailedEpisodes.Single().Should().HaveCount(2);
+        result.FailedMerges.Should().ContainSingle()
+            .Which.Reason.Should().Be(EpisodeMergeCandidateScorer.DuplicatePlatformIdReason);
     }
 
     [Fact(DisplayName =
