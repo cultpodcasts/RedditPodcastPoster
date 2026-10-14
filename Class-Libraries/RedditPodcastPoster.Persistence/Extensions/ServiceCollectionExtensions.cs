@@ -109,6 +109,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
+                .AddSingleton<IYouTubeThumbnailRecheckCursorStore, YouTubeThumbnailRecheckCursorStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();

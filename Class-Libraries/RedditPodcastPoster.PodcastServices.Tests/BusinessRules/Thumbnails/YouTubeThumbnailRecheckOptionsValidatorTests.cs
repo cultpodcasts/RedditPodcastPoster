@@ -24,6 +24,8 @@ public class YouTubeThumbnailRecheckOptionsValidatorTests
     [InlineData(nameof(YouTubeThumbnailRecheckOptions.RecheckWindowHours))]
     [InlineData(nameof(YouTubeThumbnailRecheckOptions.MaxStoredImageProbesPerRun))]
     [InlineData(nameof(YouTubeThumbnailRecheckOptions.MaxReResolvesPerRun))]
+    [InlineData(nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds))]
+    [InlineData(nameof(YouTubeThumbnailRecheckOptions.RunBudgetSeconds))]
     public void non_positive_values_fail(string property)
     {
         // Arrange
@@ -36,5 +38,26 @@ public class YouTubeThumbnailRecheckOptionsValidatorTests
         // Assert
         result.Failed.Should().BeTrue();
         result.FailureMessage.Should().Contain($"{YouTubeThumbnailRecheckOptions.SectionName}__{property}");
+    }
+
+    [Fact(DisplayName =
+        "A per-probe timeout longer than the probe HTTP client's own 15s timeout fails validation, because it " +
+        "could never fire.")]
+    public void probe_timeout_above_client_timeout_fails()
+    {
+        // Arrange
+        var options = new YouTubeThumbnailRecheckOptions
+        {
+            ProbeTimeoutSeconds = (int)RedditPodcastPoster.PodcastServices.YouTube.Thumbnails.YouTubeThumbnailResolver
+                .ProbeTimeout.TotalSeconds + 1
+        };
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain(
+            $"{YouTubeThumbnailRecheckOptions.SectionName}__{nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds)}");
     }
 }

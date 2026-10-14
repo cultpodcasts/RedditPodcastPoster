@@ -11,6 +11,10 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
     private readonly Dictionary<Uri, (HttpStatusCode Status, byte[] Body)> _responses = new();
     private readonly List<Uri> _requested = [];
     private readonly HashSet<Uri> _failing = [];
+    private readonly HashSet<Uri> _hanging = [];
+
+    /// <summary>Invoked before each request is answered (e.g. to advance a fake clock).</summary>
+    public Action<Uri>? OnRequest { get; set; }
 
     public IReadOnlyList<Uri> Requested => _requested;
 
@@ -27,12 +31,25 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
         return this;
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    /// <summary>Requests to <paramref name="url"/> never answer until cancelled.</summary>
+    public YouTubeThumbnailHttpStub Hang(Uri url)
+    {
+        _hanging.Add(url);
+        return this;
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         var url = request.RequestUri!;
         _requested.Add(url);
+        OnRequest?.Invoke(url);
+        if (_hanging.Contains(url))
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
         if (_failing.Contains(url))
         {
             throw new HttpRequestException($"Network failure for '{url}'.");
@@ -41,6 +58,6 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
         var (status, body) = _responses.TryGetValue(url, out var response)
             ? response
             : (HttpStatusCode.NotFound, []);
-        return Task.FromResult(new HttpResponseMessage(status) { Content = new ByteArrayContent(body) });
+        return new HttpResponseMessage(status) { Content = new ByteArrayContent(body) };
     }
 }

@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Models.HomePage;
+using RedditPodcastPoster.Models.Thumbnails;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -26,4 +27,6 @@ public interface ILookupRepository
     Task SaveYouTubeIndexerKeyState(YouTubeIndexerKeyState state);
     Task<YouTubeQuotaUsageState?> GetYouTubeQuotaUsageState();
     Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state);
+    Task<YouTubeThumbnailRecheckCursor?> GetYouTubeThumbnailRecheckCursor();
+    Task SaveYouTubeThumbnailRecheckCursor(YouTubeThumbnailRecheckCursor cursor);
 }

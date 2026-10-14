@@ -35,7 +35,12 @@ public class YouTubeThumbnailRecheck(
 
         try
         {
-            await rechecker.Recheck(candidates, ToIndexingContext(indexerContext));
+            var result = await rechecker.Recheck(candidates, ToIndexingContext(indexerContext));
+            logger.LogInformation(
+                "{YouTubeThumbnailRecheckName} summary. duration-ms='{DurationMs}' candidates='{Candidates}' eligible='{Eligible}' probed='{Probed}' still-usable='{StillUsable}' replaced='{Replaced}' unresolved='{Unresolved}' failed='{Failed}' deferred='{Deferred}' cursor-episode-id='{CursorEpisodeId}' cursor-release='{CursorRelease:O}'.",
+                nameof(YouTubeThumbnailRecheck), (long)result.Duration.TotalMilliseconds, candidates.Length,
+                result.Eligible, result.Probed, result.StillUsable, result.Replaced, result.Unresolved, result.Failed,
+                result.DeferredOverBudget, result.CursorEpisodeId, result.CursorReleaseUtc);
         }
         catch (Exception ex)
         {

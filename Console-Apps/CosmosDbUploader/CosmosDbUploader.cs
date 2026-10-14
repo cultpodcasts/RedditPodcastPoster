@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.Notifications;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TitleCasing;
+using RedditPodcastPoster.Models.Thumbnails;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -128,6 +129,10 @@ public class CosmosDbUploader(
                 case nameof(ModelType.YouTubeQuotaUsageState):
                     await lookupRepository.SaveYouTubeQuotaUsageState(
                         DeserializeRequired<YouTubeQuotaUsageState>(json, file));
+                    break;
+                case nameof(ModelType.YouTubeThumbnailRecheckCursor):
+                    await lookupRepository.SaveYouTubeThumbnailRecheckCursor(
+                        DeserializeRequired<YouTubeThumbnailRecheckCursor>(json, file));
                     break;
                 default:
                     throw new InvalidOperationException(

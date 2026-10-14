@@ -469,7 +469,7 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 | `AddSpotifyServices()` | Spotify provider, enricher, resolver, finder, side effect                                                                                                  |
 | `AddAppleServices()`   | Apple provider, enricher, resolver                                                                                                                        |
 | `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders (does **not** register persistence stores — those come from `AddRepositories()`)                              |
-| `AddRepositories()`    | Cosmos repos (`IPodcastRepository`, `IEpisodeRepository`, `ILookupRepository`, `IActivityRepository`), known-terms / elimination-terms repos and provider factories (`Persistence/Lookups`), `IYouTubeQuotaUsageStateStore` / `IYouTubeIndexerKeyStateStore` adapters; no episode domain or merge orchestration |
+| `AddRepositories()`    | Cosmos repos (`IPodcastRepository`, `IEpisodeRepository`, `ILookupRepository`, `IActivityRepository`), known-terms / elimination-terms repos and provider factories (`Persistence/Lookups`), `IYouTubeQuotaUsageStateStore` / `IYouTubeIndexerKeyStateStore` / `IYouTubeThumbnailRecheckCursorStore` adapters; no episode domain or merge orchestration |
 | `AddEliminationTerms()`| Elimination-terms provider factory + async instance (call after `AddRepositories()` when hosts need elimination terms)                                     |
 | `AddUrlSubmission()`   | `IUrlCategoriser`, `ISpotifyUrlCategoriser` / `IAppleUrlCategoriser` / `IYouTubeUrlCategoriser` (implementations in platform assemblies), `IEpisodeEnricher`, `IPodcastProcessor`, submit/discovery pipeline (does **not** register Episodes domain) |
 
@@ -503,8 +503,8 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 | DI (orchestration)          | `../RedditPodcastPoster.PodcastServices/Extensions/ServiceCollectionExtensions.cs`                 |
 | DI (UrlSubmission)          | `../RedditPodcastPoster.UrlSubmission/Extensions/ServiceCollectionExtensions.cs`                   |
 | DI (persistence)            | `../RedditPodcastPoster.Persistence/Extensions/ServiceCollectionExtensions.cs`                     |
-| YouTube state-store ports   | `../RedditPodcastPoster.PodcastServices.Abstractions/IYouTubeQuotaUsageStateStore.cs`, `IYouTubeIndexerKeyStateStore.cs` |
-| YouTube state-store adapters| `../RedditPodcastPoster.Persistence/Lookups/YouTubeQuotaUsageStateStore.cs`, `YouTubeIndexerKeyStateStore.cs` |
+| YouTube state-store ports   | `../RedditPodcastPoster.PodcastServices.Abstractions/IYouTubeQuotaUsageStateStore.cs`, `IYouTubeIndexerKeyStateStore.cs`, `Stores/IYouTubeThumbnailRecheckCursorStore.cs` |
+| YouTube state-store adapters| `../RedditPodcastPoster.Persistence/Lookups/YouTubeQuotaUsageStateStore.cs`, `YouTubeIndexerKeyStateStore.cs`, `YouTubeThumbnailRecheckCursorStore.cs` |
 
 
 ---
