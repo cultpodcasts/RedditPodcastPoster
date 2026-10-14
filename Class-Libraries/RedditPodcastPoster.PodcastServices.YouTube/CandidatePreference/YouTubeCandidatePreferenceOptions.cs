@@ -38,6 +38,7 @@ public class YouTubeCandidatePreferenceOptions
     /// A video is static when the largest mean absolute RGB difference between its three auto thumbnails
     /// (i.ytimg.com/vi/&lt;id&gt;/1.jpg, 2.jpg, 3.jpg) is below this value (0-255 scale).
     /// Calibrated on 69 real videos: still-image uploads 0.07-3.10 (JPEG noise), lowest real video 6.93.
+    /// SkiaSharp remeasurement of the named pairs (stills 2.30 and 3.10, lowest video 6.93) left this gap unchanged.
     /// </summary>
     [Range(0.0, 255.0)]
     public double StaticImageThreshold { get; set; } = 5.0;

@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference;
 
 /// <summary>
 /// Compares the three small (120x90) auto thumbnails YouTube generates from points through a video.
-/// A still-image upload yields near-identical frames. Never downloads video. Reads at most
+/// A still-image upload yields near-identical frames. Decoded with SkiaSharp. Never downloads video. Reads at most
 /// <see cref="YouTubeCandidatePreferenceOptions.MaxThumbnailBytes"/> and follows at most
 /// <see cref="YouTubeCandidatePreferenceOptions.MaxThumbnailRedirects"/> redirects. Any failure,
 /// missing thumbnail, over-cap body or blank/placeholder frame yields <see cref="ThumbnailMotion.Unknown"/>
@@ -117,8 +116,27 @@ public class YouTubeThumbnailMotionDetector(
             return null;
         }
 
-        var info = Image.Identify(bytes);
-        if (info == null || !TryDecodedByteCount(info.Width, info.Height, out var decodedBytes) || decodedBytes > maxBytes)
+        return DecodeFrame(bytes, maxBytes, url);
+    }
+
+    /// <summary>
+    /// Reads image dimensions before allocating a bitmap. A frame whose decoded RGB buffer would exceed
+    /// <paramref name="maxBytes"/> is rejected. Channel order is RGBA so Linux and Windows agree.
+    /// </summary>
+    private ThumbnailFrame? DecodeFrame(byte[] bytes, int maxBytes, Uri url)
+    {
+        using var data = SKData.CreateCopy(bytes);
+        using var codec = SKCodec.Create(data);
+        if (codec == null)
+        {
+            return null;
+        }
+
+        var width = codec.Info.Width;
+        var height = codec.Info.Height;
+        if (width <= 0 || height <= 0 ||
+            !TryDecodedByteCount(width, height, out var decodedBytes) ||
+            decodedBytes > maxBytes)
         {
             logger.LogDebug(
                 "Thumbnail '{url}' decoded above the {maxBytes} byte ceiling.",
@@ -126,10 +144,35 @@ public class YouTubeThumbnailMotionDetector(
             return null;
         }
 
-        using var image = Image.Load<Rgb24>(bytes);
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        using var bitmap = new SKBitmap(info);
+        if (codec.GetPixels(info, bitmap.GetPixels()) != SKCodecResult.Success)
+        {
+            return null;
+        }
+
         var rgb = new byte[decodedBytes];
-        image.CopyPixelDataTo(rgb);
-        return new ThumbnailFrame(image.Width, image.Height, rgb);
+        CopyRgb(bitmap, rgb);
+        return new ThumbnailFrame(width, height, rgb);
+    }
+
+    private static void CopyRgb(SKBitmap bitmap, byte[] rgb)
+    {
+        var pixels = bitmap.GetPixelSpan();
+        var width = bitmap.Width;
+        var rowBytes = bitmap.RowBytes;
+        for (var y = 0; y < bitmap.Height; y++)
+        {
+            var rowStart = y * rowBytes;
+            for (var x = 0; x < width; x++)
+            {
+                var src = rowStart + (x * 4);
+                var dst = ((y * width) + x) * 3;
+                rgb[dst] = pixels[src];
+                rgb[dst + 1] = pixels[src + 1];
+                rgb[dst + 2] = pixels[src + 2];
+            }
+        }
     }
 
     private static bool TryDecodedByteCount(int width, int height, out int decodedBytes)

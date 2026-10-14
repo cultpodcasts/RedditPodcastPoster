@@ -38,13 +38,17 @@ Some channels upload the same episode twice:
 Still images are detected by `YouTubeThumbnailMotionDetector` from the three 120x90 auto thumbnails
 `https://i.ytimg.com/vi/<id>/1.jpg`, `2.jpg`, `3.jpg`. **Video is never downloaded.** The client follows at most
 `MaxThumbnailRedirects` redirects and reads at most `MaxThumbnailBytes` (also the `HttpClient` response-buffer
-ceiling and the decoded RGB ceiling). The largest mean absolute RGB difference between the frames (every 2nd
+ceiling and the decoded RGB ceiling). Frames are decoded with SkiaSharp 4.153.1 (MIT). The YouTube library also
+references `SkiaSharp.NativeAssets.Linux.NoDependencies` 4.153.1 so Linux Azure Functions and Linux CLIs load
+`libSkiaSharp` without fontconfig; Windows uses the Win32 native assets that ship with SkiaSharp. Dimensions
+are read from the image header before a bitmap is allocated, and a frame whose decoded RGB buffer would exceed
+`MaxThumbnailBytes` is rejected. The largest mean absolute RGB difference between the frames (every 2nd
 pixel) below `StaticImageThreshold` means static. A missing thumbnail, timeout (`ThumbnailFetchTimeoutSeconds`),
 body over the byte ceiling, redirect failure, decode failure, size mismatch, blank/placeholder frame
 (pixel std-dev below `PlaceholderMaxPixelStdDev`), or any other read failure is `Unknown`, which gets no penalty
 (fail-open). Caller cancellation is not treated as Unknown.
 
-## Calibration (October 2026, 69 videos)
+## Calibration (October 2026, 69 videos; SkiaSharp remeasurement of the named pairs)
 
 | Group | Max frame difference |
 | --- | --- |
@@ -53,6 +57,19 @@ body over the byte ceiling, redirect failure, decode failure, size mismatch, bla
 | Real videos, other (lowest 10.41, median ~25) | 10.41 - 98.9 |
 
 JPEG noise puts still images slightly above zero, hence the default threshold of 5.0.
+
+The same metric was remeasured with SkiaSharp, fetching only `1.jpg` / `2.jpg` / `3.jpg`. At two decimal places
+the named pairs sit on the original band, so the threshold stays 5.0 (above the highest remeasured still, 3.10,
+and below the lowest remeasured video, 6.93).
+
+| Upload | Id | Max frame difference | Class |
+| --- | --- | --- | --- |
+| IndoctriNation video | `4AcC36Aw2nY` | 32.54 | video |
+| IndoctriNation still | `S03n89L5YLA` | 3.10 | still |
+| Second pair, video | `2trVqjllYjo` | 28.20 | video |
+| Second pair, still | `UXwFIqL21Mk` | 2.30 | still |
+| 📱 video (lowest remeasured video) | `HIuO5jaDWFs` | 6.93 | video |
+| Plain video | `ExbrJpfl4Cg` | 21.65 | video |
 
 ## Options (`youTubeCandidatePreference`)
 

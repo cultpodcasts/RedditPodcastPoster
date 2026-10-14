@@ -6,8 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.CandidatePreference;
 
@@ -15,7 +14,10 @@ public class YouTubeThumbnailMotionDetectorTests
 {
     private const string VideoId = "S03n89L5YLA";
 
-    /// <summary>October 2026 calibration: still-image uploads, then the gap, then the lowest real video.</summary>
+    /// <summary>
+    /// October 2026 calibration: still-image uploads, then the gap, then the lowest real video.
+    /// SkiaSharp remeasurement left 3.10 / 6.93 / threshold 5.0 in place.
+    /// </summary>
     private const double StillImageDifferenceFloor = 0.07;
 
     private const double StillImageDifferenceCeiling = 3.10;
@@ -306,25 +308,28 @@ public class YouTubeThumbnailMotionDetectorTests
     /// <summary>120x90 JPEG: a seeded random block pattern, or uniform grey when seed is null.</summary>
     private static byte[] Jpeg(int? seed, int width = 120)
     {
-        using var image = new Image<Rgb24>(width, 90, new Rgb24(128, 128, 128));
+        const int height = 90;
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Opaque);
+        using var bitmap = new SKBitmap(info);
+        bitmap.Erase(new SKColor(128, 128, 128));
         if (seed.HasValue)
         {
             var random = new Random(seed.Value);
-            for (var by = 0; by < 90; by += 10)
+            for (var by = 0; by < height; by += 10)
             for (var bx = 0; bx < width; bx += 10)
             {
-                var colour = new Rgb24((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256));
-                for (var y = by; y < by + 10 && y < 90; y++)
+                var colour = new SKColor((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256));
+                for (var y = by; y < by + 10 && y < height; y++)
                 for (var x = bx; x < bx + 10 && x < width; x++)
                 {
-                    image[x, y] = colour;
+                    bitmap.SetPixel(x, y, colour);
                 }
             }
         }
 
-        using var stream = new MemoryStream();
-        image.SaveAsJpeg(stream);
-        return stream.ToArray();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 100);
+        return data.ToArray();
     }
 
     /// <summary>120x90 RGB with variation, and red values low enough that a small sampled offset cannot wrap.</summary>
@@ -360,17 +365,18 @@ public class YouTubeThumbnailMotionDetectorTests
 
     private static byte[] Png(ThumbnailFrame frame)
     {
-        using var image = new Image<Rgb24>(frame.Width, frame.Height);
+        var info = new SKImageInfo(frame.Width, frame.Height, SKColorType.Rgba8888, SKAlphaType.Opaque);
+        using var bitmap = new SKBitmap(info);
         for (var y = 0; y < frame.Height; y++)
         for (var x = 0; x < frame.Width; x++)
         {
             var i = (y * frame.Width + x) * 3;
-            image[x, y] = new Rgb24(frame.Rgb[i], frame.Rgb[i + 1], frame.Rgb[i + 2]);
+            bitmap.SetPixel(x, y, new SKColor(frame.Rgb[i], frame.Rgb[i + 1], frame.Rgb[i + 2]));
         }
 
-        using var stream = new MemoryStream();
-        image.SaveAsPng(stream);
-        return stream.ToArray();
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
     }
 
     private sealed class StubHandler : HttpMessageHandler

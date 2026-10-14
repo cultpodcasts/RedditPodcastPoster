@@ -25,6 +25,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Candid
 /// IndoctriNation (channel UC67JLTD22dSnVadqXKcYPcA) uploads each episode twice: a real video
 /// ("The Oracle's Daughter with Sarah Green", 4AcC36Aw2nY, auto-thumbnail diff 32.54) and a still image
 /// ("IndoctriNation - The Oracle's Daughter with Sarah Green", S03n89L5YLA, diff 3.10).
+/// SkiaSharp decoding reproduces those two diffs, and the 📱 upload HIuO5jaDWFs at 6.93.
 /// The Afro Atheist (UC-Vn8JbQ4sbMKYzz7HFMtFg) uploads duplicates with a trailing 📱 in snippet.title
 /// ("EL-ROI CANNOT SAVE ANYONE 📱", HIuO5jaDWFs, vs "EL-ROI CANNOT SAVE ANYONE", ExbrJpfl4Cg).
 /// </summary>
