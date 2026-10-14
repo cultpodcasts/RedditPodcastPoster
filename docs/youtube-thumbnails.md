@@ -42,7 +42,8 @@ Cosmos read). `RecentYouTubeThumbnailRechecker`:
   covered within 4 runs (`RecentYouTubeThumbnailRecheckRoundRobinRules`);
 - downloads each stored image (one GET, no YouTube quota), up to `MaxStoredImageProbesPerRun`, each
   bounded by `ProbeTimeoutSeconds`; a timed-out or failed probe counts as **failed** and is never treated
-  as withdrawn. The run stops probing after `RunBudgetSeconds` and defers the rest to the next run;
+  as withdrawn. The run stops probing after `RunBudgetSeconds` and defers the rest to the next run (a soft
+  limit checked between episodes, so an in-flight re-resolve and save may finish past it);
 - for an image that now fails the probe, re-resolves via `ImageUpdater` (one `videos.list` call plus
   at most one probe per candidate), up to `MaxReResolvesPerRun`, and saves only when the image changed.
   When that budget is spent the run stops at the next withdrawn image, so it is first in line next run;

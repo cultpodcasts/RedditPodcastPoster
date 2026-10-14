@@ -253,6 +253,37 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         _cursorStore.Cursor!.LastProbedEpisodeId.Should().Be(episodes[19].Id);
     }
 
+    [Fact(DisplayName = "A cursor at or after the newest eligible episode wraps the next run to the oldest.")]
+    public void cursor_at_newest_wraps_to_start()
+    {
+        var episodes = LiveEpisodes(3);
+        var cursor = new YouTubeThumbnailRecheckCursor
+        {
+            LastProbedReleaseUtc = episodes[2].ReleaseUtc,
+            LastProbedEpisodeId = episodes[2].Id
+        };
+
+        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor).Should().Be(0);
+    }
+
+    [Fact(DisplayName = "A cursor with a release time but no episode id resumes at the first episode with that release time.")]
+    public void cursor_with_null_episode_id_positions_by_release()
+    {
+        var episodes = LiveEpisodes(3);
+        var cursor = new YouTubeThumbnailRecheckCursor { LastProbedReleaseUtc = episodes[1].ReleaseUtc };
+
+        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor).Should().Be(1);
+    }
+
+    [Fact(DisplayName = "No cursor, or a cursor with null fields, starts at the oldest.")]
+    public void null_cursor_starts_at_zero()
+    {
+        var episodes = LiveEpisodes(2);
+
+        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, null).Should().Be(0);
+        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, new YouTubeThumbnailRecheckCursor()).Should().Be(0);
+    }
+
     private async Task<YouTubeThumbnailRecheckResult> Run(IReadOnlyList<Episode> episodes) =>
         await _mocker.CreateInstance<RecentYouTubeThumbnailRechecker>().Recheck(
             episodes.Select(e => new PodcastEpisode(_podcast, e)).Reverse().ToList(),

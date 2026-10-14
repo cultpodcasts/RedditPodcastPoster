@@ -96,7 +96,7 @@ public class RecentYouTubeThumbnailRechecker(
                 // A timed-out or failed probe says nothing about withdrawal: count it failed, never re-resolve.
                 failed++;
                 lastProbed = episode;
-                logger.LogError(ex,
+                logger.LogWarning(ex,
                     "YouTubeThumbnailRecheck probe failed. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}' timeout-seconds='{TimeoutSeconds}'.",
                     episode.Id, episode.PodcastId, storedImage, _options.ProbeTimeoutSeconds);
                 continue;
@@ -112,8 +112,7 @@ public class RecentYouTubeThumbnailRechecker(
             if (reResolves >= _options.MaxReResolvesPerRun)
             {
                 // Withdrawn but the re-resolve budget is spent: stop here so the cursor stays before this
-                // episode and the next run re-probes it first.
-                probed--;
+                // episode and the next run re-probes it first. The probe itself still counts.
                 deferred += ordered.Count - index;
                 break;
             }
@@ -175,7 +174,7 @@ public class RecentYouTubeThumbnailRechecker(
     /// list; 0 when there is no cursor or the cursor is at or past the end (wrap). A cursor whose episode has
     /// left the window still positions by its release time.
     /// </summary>
-    internal static int RoundRobinStartIndex(IReadOnlyList<Episode> ordered, YouTubeThumbnailRecheckCursor? cursor)
+    public static int RoundRobinStartIndex(IReadOnlyList<Episode> ordered, YouTubeThumbnailRecheckCursor? cursor)
     {
         if (cursor?.LastProbedReleaseUtc is not { } cursorRelease)
         {
