@@ -52,3 +52,5 @@ Search documents re-derive their compact image code from Cosmos on the next inde
 Defaults live only in `YouTubeThumbnailRecheckOptions` (single source of truth); set an app setting
 only to override. Log keys: see
 [indexing-app-insights-queries.md](indexing-app-insights-queries.md) (`YouTubeThumbnailRecheck …`).
+
+See also [YouTube candidate preference](youtube-candidate-preference.md), which uses the auto thumbnails (1.jpg-3.jpg) to prefer real video over still-image uploads.

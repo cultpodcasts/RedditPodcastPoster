@@ -24,6 +24,7 @@
       "RedditPodcastPoster": "Warning",
       "RedditPodcastPoster.EpisodeLookup": "Information",
       "RedditPodcastPoster.PodcastServices.YouTube": "Information",
+      "RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference": "Information",
       "Indexer": "Information"
     }
   },
