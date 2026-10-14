@@ -12,6 +12,16 @@ public sealed class EpisodeMergeTieBreakOptions
     /// <summary>When false, multiple matches fail as before without scoring.</summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>
+    /// When true, a single match reached by a heuristic path (fuzzy title + duration, or release + duration) is
+    /// scored too and rejected below <see cref="SingleHeuristicMinScore"/>; the incoming episode is then added as new.
+    /// Certain matches (platform id, exact title, EpisodeMatchRegex) are never scored.
+    /// </summary>
+    public bool ScoreSingleHeuristicMatches { get; set; } = true;
+
+    /// <summary>Minimum score for a single heuristic match to be accepted.</summary>
+    public int SingleHeuristicMinScore { get; set; } = 60;
+
     /// <summary>Points for identical duration, falling linearly to zero at <see cref="DurationWindow"/>.</summary>
     public int DurationWeight { get; set; } = 30;
 
