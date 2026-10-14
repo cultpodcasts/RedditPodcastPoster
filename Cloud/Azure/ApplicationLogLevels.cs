@@ -7,8 +7,9 @@ namespace Azure;
 /// Host/framework at Warning. Function app namespaces at Information.
 /// RedditPodcastPoster at Warning during cost review (high-volume pagination logs),
 /// except the episode lookup clearing-house, whose one-line-per-lookup outcome
-/// ("Catalogue episode lookup: ...") and request-guard timeouts must reach App Insights,
-/// and the YouTube candidate preference, whose choices between duplicate uploads must be auditable.
+/// ("Catalogue episode lookup: ...") and request-guard timeouts must reach App Insights, the episode
+/// merger, whose tie-break and single-match decisions must too, and the YouTube candidate preference,
+/// whose choices between duplicate uploads must be auditable.
 /// Keep each function app's host.json logLevel section in step with these categories.
 /// </summary>
 public static class ApplicationLogLevels
@@ -18,6 +19,13 @@ public static class ApplicationLogLevels
     /// (RedditPodcastPoster.EpisodeLookup project).
     /// </summary>
     public const string EpisodeLookupCategory = "RedditPodcastPoster.EpisodeLookup";
+
+    /// <summary>
+    /// Namespace of EpisodeMerger (RedditPodcastPoster.PodcastServices project). Its Information
+    /// "Episode merge tie-broken" line and Warning single-match rejections are low-volume and record why an
+    /// incoming episode merged into one stored episode or was added as new.
+    /// </summary>
+    public const string EpisodeMergingCategory = "RedditPodcastPoster.PodcastServices.Merging";
 
     /// <summary>
     /// Namespace of the YouTube candidate preference (📱 / still-image penalties). Logs one line per
@@ -34,6 +42,7 @@ public static class ApplicationLogLevels
         logging.AddFilter("Azure", LogLevel.Warning);
         logging.AddFilter("RedditPodcastPoster", LogLevel.Warning);
         logging.AddFilter(EpisodeLookupCategory, LogLevel.Information);
+        logging.AddFilter(EpisodeMergingCategory, LogLevel.Information);
         logging.AddFilter(YouTubeCandidatePreferenceCategory, LogLevel.Information);
         logging.AddFilter("Indexer", LogLevel.Information);
         logging.AddFilter("Api", LogLevel.Information);

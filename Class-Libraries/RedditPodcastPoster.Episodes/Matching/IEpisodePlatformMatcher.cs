@@ -13,6 +13,18 @@ public interface IEpisodePlatformMatcher
         Podcast podcast,
         IReadOnlyList<Episode> existingEpisodes);
 
+    /// <summary>
+    /// Same decision as <see cref="IsMatch"/>, plus how it was reached: <see cref="EpisodeMatchKind.Certain"/>
+    /// (same platform id, exact title, or the podcast's EpisodeMatchRegex) or <see cref="EpisodeMatchKind.Heuristic"/>
+    /// (fuzzy title + duration, or release + duration).
+    /// </summary>
+    EpisodeMatchKind Classify(
+        Episode existingEpisode,
+        Episode incomingEpisode,
+        Regex? episodeMatchRegex,
+        Podcast podcast,
+        IReadOnlyList<Episode> existingEpisodes);
+
     Episode? FindCatalogueMatchByLength(
         Episode probe,
         IEnumerable<Episode> candidates,
