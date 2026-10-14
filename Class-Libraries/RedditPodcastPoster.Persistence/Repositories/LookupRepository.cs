@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.YouTubeQuota;
 using RedditPodcastPoster.Models.HomePage;
+using RedditPodcastPoster.Models.Thumbnails;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
@@ -94,6 +95,16 @@ public class LookupRepository(
     public async Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state)
     {
         await lookupContainer.UpsertItemAsync(state, new PartitionKey(state.Id.ToString()));
+    }
+
+    public Task<YouTubeThumbnailRecheckCursor?> GetYouTubeThumbnailRecheckCursor()
+    {
+        return GetById<YouTubeThumbnailRecheckCursor>(YouTubeThumbnailRecheckCursor._Id);
+    }
+
+    public async Task SaveYouTubeThumbnailRecheckCursor(YouTubeThumbnailRecheckCursor cursor)
+    {
+        await lookupContainer.UpsertItemAsync(cursor, new PartitionKey(cursor.Id.ToString()));
     }
 
     public async Task IncrementHomePageActiveEpisodeCount(int delta)

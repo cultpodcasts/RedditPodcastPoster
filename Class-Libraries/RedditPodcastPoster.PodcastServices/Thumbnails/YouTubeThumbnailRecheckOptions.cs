@@ -22,7 +22,17 @@ public class YouTubeThumbnailRecheckOptions
     /// </summary>
     public const int DefaultMaxReResolvesPerRun = 10;
 
+    /// <summary>Per-probe timeout for one stored-image download. Must not exceed the HTTP client's own timeout.</summary>
+    public const int DefaultProbeTimeoutSeconds = 5;
+
+    /// <summary>Wall-clock budget for one run; episodes not reached are deferred to the next run.</summary>
+    public const int DefaultRunBudgetSeconds = 60;
+
     public bool Enabled { get; set; } = true;
+
+    public int ProbeTimeoutSeconds { get; set; } = DefaultProbeTimeoutSeconds;
+
+    public int RunBudgetSeconds { get; set; } = DefaultRunBudgetSeconds;
 
     public int RecheckWindowHours { get; set; } = DefaultRecheckWindowHours;
 
@@ -34,5 +44,7 @@ public class YouTubeThumbnailRecheckOptions
         $"{nameof(YouTubeThumbnailRecheckOptions)} {{{nameof(Enabled)}: '{Enabled}', " +
         $"{nameof(RecheckWindowHours)}: '{RecheckWindowHours}', " +
         $"{nameof(MaxStoredImageProbesPerRun)}: '{MaxStoredImageProbesPerRun}', " +
-        $"{nameof(MaxReResolvesPerRun)}: '{MaxReResolvesPerRun}'}}.";
+        $"{nameof(MaxReResolvesPerRun)}: '{MaxReResolvesPerRun}', " +
+        $"{nameof(ProbeTimeoutSeconds)}: '{ProbeTimeoutSeconds}', " +
+        $"{nameof(RunBudgetSeconds)}: '{RunBudgetSeconds}'}}.";
 }

@@ -2,8 +2,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Thumbnails;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Stores;
 using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
@@ -14,6 +16,7 @@ public class RecentYouTubeThumbnailRechecker(
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
     IImageUpdater imageUpdater,
     IEpisodeRepository episodeRepository,
+    IYouTubeThumbnailRecheckCursorStore cursorStore,
     TimeProvider timeProvider,
     IOptions<YouTubeThumbnailRecheckOptions> options,
     ILogger<RecentYouTubeThumbnailRechecker> logger) : IRecentYouTubeThumbnailRechecker
@@ -41,6 +44,7 @@ public class RecentYouTubeThumbnailRechecker(
             return YouTubeThumbnailRecheckResult.None;
         }
 
+        var runStarted = timeProvider.GetTimestamp();
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var releasedSince = now.AddHours(-_options.RecheckWindowHours);
         var eligible = recentEpisodes
@@ -50,35 +54,73 @@ public class RecentYouTubeThumbnailRechecker(
                         YouTubeThumbnailUrls.IsWithdrawableHighResolution(x.Image) &&
                         x.PodcastEpisode.Episode.ReleaseUtc >= releasedSince &&
                         x.PodcastEpisode.Episode.ReleaseUtc <= now)
-            .OrderByDescending(x => x.PodcastEpisode.Episode.ReleaseUtc)
+            .OrderBy(x => x.PodcastEpisode.Episode.ReleaseUtc)
+            .ThenBy(x => x.PodcastEpisode.Episode.Id)
             .ToList();
 
-        int probed = 0, stillUsable = 0, replaced = 0, unresolved = 0, deferred = 0, reResolves = 0;
-        foreach (var (podcastEpisode, storedImage) in eligible)
+        if (eligible.Count == 0)
         {
-            if (probed >= _options.MaxStoredImageProbesPerRun)
+            return YouTubeThumbnailRecheckResult.None with { Duration = timeProvider.GetElapsedTime(runStarted) };
+        }
+
+        var cursor = await cursorStore.GetAsync(cancellationToken);
+        var startIndex = RoundRobinStartIndex(eligible.Select(x => x.PodcastEpisode.Episode).ToList(), cursor);
+        var ordered = eligible.Skip(startIndex).Concat(eligible.Take(startIndex)).ToList();
+
+        int probed = 0, stillUsable = 0, replaced = 0, unresolved = 0, deferred = 0, reResolves = 0, failed = 0;
+        Episode? lastProbed = null;
+        var probeTimeout = TimeSpan.FromSeconds(_options.ProbeTimeoutSeconds);
+        var runBudget = TimeSpan.FromSeconds(_options.RunBudgetSeconds);
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            if (probed >= _options.MaxStoredImageProbesPerRun ||
+                timeProvider.GetElapsedTime(runStarted) >= runBudget)
             {
-                deferred++;
+                deferred += ordered.Count - index;
+                break;
+            }
+
+            var (podcastEpisode, storedImage) = ordered[index];
+            var episode = podcastEpisode.Episode;
+            bool usable;
+            probed++;
+            try
+            {
+                using var probeCancellation = new CancellationTokenSource(probeTimeout, timeProvider);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, probeCancellation.Token);
+                usable = await youTubeThumbnailResolver.IsStoredImageUsableAsync(storedImage!, linked.Token);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // A timed-out or failed probe says nothing about withdrawal: count it failed, never re-resolve.
+                failed++;
+                lastProbed = episode;
+                logger.LogWarning(ex,
+                    "YouTubeThumbnailRecheck probe failed. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}' timeout-seconds='{TimeoutSeconds}'.",
+                    episode.Id, episode.PodcastId, storedImage, _options.ProbeTimeoutSeconds);
                 continue;
             }
 
-            probed++;
-            var episode = podcastEpisode.Episode;
+            if (usable)
+            {
+                stillUsable++;
+                lastProbed = episode;
+                continue;
+            }
+
+            if (reResolves >= _options.MaxReResolvesPerRun)
+            {
+                // Withdrawn but the re-resolve budget is spent: stop here so the cursor stays before this
+                // episode and the next run re-probes it first. The probe itself still counts.
+                deferred += ordered.Count - index;
+                break;
+            }
+
+            reResolves++;
+            lastProbed = episode;
             try
             {
-                if (await youTubeThumbnailResolver.IsStoredImageUsableAsync(storedImage!, cancellationToken))
-                {
-                    stillUsable++;
-                    continue;
-                }
-
-                if (reResolves >= _options.MaxReResolvesPerRun)
-                {
-                    deferred++;
-                    continue;
-                }
-
-                reResolves++;
                 if (await TryReplace(podcastEpisode, storedImage!, indexingContext))
                 {
                     replaced++;
@@ -90,23 +132,67 @@ public class RecentYouTubeThumbnailRechecker(
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
-                // One episode's probe timeout or save failure must not stop the rest of the run.
-                unresolved++;
+                // One episode's re-resolve or save failure must not stop the rest of the run.
+                failed++;
                 logger.LogError(ex,
                     "YouTubeThumbnailRecheck failed for episode. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}'.",
                     episode.Id, episode.PodcastId, storedImage);
             }
         }
 
-        var result = new YouTubeThumbnailRecheckResult(
-            eligible.Count, probed, stillUsable, replaced, unresolved, deferred);
-        logger.LogWarning(
-            "YouTubeThumbnailRecheck complete. eligible='{Eligible}' probed='{Probed}' still-usable='{StillUsable}' replaced='{Replaced}' unresolved='{Unresolved}' deferred='{Deferred}' window-hours='{WindowHours}'.",
-            result.Eligible, result.Probed, result.StillUsable, result.Replaced, result.Unresolved,
-            result.DeferredOverBudget, _options.RecheckWindowHours);
-        return result;
+        YouTubeThumbnailRecheckCursor? savedCursor = null;
+        if (lastProbed != null)
+        {
+            savedCursor = new YouTubeThumbnailRecheckCursor
+            {
+                LastProbedReleaseUtc = lastProbed.ReleaseUtc,
+                LastProbedEpisodeId = lastProbed.Id,
+                UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime
+            };
+            try
+            {
+                await cursorStore.SaveAsync(savedCursor, cancellationToken);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Losing the cursor only means the next run restarts from the oldest; never fail the run.
+                logger.LogError(ex, "YouTubeThumbnailRecheck failed to save the round-robin cursor.");
+            }
+        }
+
+        return new YouTubeThumbnailRecheckResult(
+            eligible.Count, probed, stillUsable, replaced, unresolved, deferred, failed)
+        {
+            Duration = timeProvider.GetElapsedTime(runStarted),
+            CursorEpisodeId = savedCursor?.LastProbedEpisodeId ?? cursor?.LastProbedEpisodeId,
+            CursorReleaseUtc = savedCursor?.LastProbedReleaseUtc ?? cursor?.LastProbedReleaseUtc
+        };
     }
 
+    /// <summary>
+    /// Index of the first episode strictly after the cursor (release time, then id) in the ordered eligible
+    /// list; 0 when there is no cursor or the cursor is at or past the end (wrap). A cursor whose episode has
+    /// left the window still positions by its release time.
+    /// </summary>
+    public static int RoundRobinStartIndex(IReadOnlyList<Episode> ordered, YouTubeThumbnailRecheckCursor? cursor)
+    {
+        if (cursor?.LastProbedReleaseUtc is not { } cursorRelease)
+        {
+            return 0;
+        }
+
+        var cursorId = cursor.LastProbedEpisodeId ?? Guid.Empty;
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var release = ordered[i].ReleaseUtc;
+            if (release > cursorRelease || (release == cursorRelease && ordered[i].Id.CompareTo(cursorId) > 0))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
     /// <summary>
     /// Re-resolves on the run's snapshot (so posting later in the run uses the new image), then applies
     /// only the YouTube image to a fresh read of the stored episode before saving, so edits made since
