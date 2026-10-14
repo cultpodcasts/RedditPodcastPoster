@@ -1,4 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.PodcastServices.Thumbnails;
 using RedditPodcastPoster.AmazonPrime.Extensions;
 using RedditPodcastPoster.AppleTvPlus.Extensions;
 using RedditPodcastPoster.Ard.Extensions;
@@ -63,7 +67,23 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
                 .AddScoped<IImageUpdater, ImageUpdater>()
-                .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>();
+                .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>()
+                .AddYouTubeThumbnailRecheck();
+        }
+
+        /// <summary>
+        /// Delayed re-check of recent YouTube images on withdrawable high-resolution tiers.
+        /// Options bind from <see cref="YouTubeThumbnailRecheckOptions.SectionName"/> and are validated on start.
+        /// </summary>
+        public IServiceCollection AddYouTubeThumbnailRecheck()
+        {
+            services.TryAddSingleton(TimeProvider.System);
+            services
+                .AddScoped<IRecentYouTubeThumbnailRechecker, RecentYouTubeThumbnailRechecker>()
+                .BindConfiguration<YouTubeThumbnailRecheckOptions>(YouTubeThumbnailRecheckOptions.SectionName)
+                .AddSingleton<IValidateOptions<YouTubeThumbnailRecheckOptions>, YouTubeThumbnailRecheckOptionsValidator>()
+                .AddOptions<YouTubeThumbnailRecheckOptions>().ValidateOnStart();
+            return services;
         }
 
         public IServiceCollection AddNonPodcastScrapers()

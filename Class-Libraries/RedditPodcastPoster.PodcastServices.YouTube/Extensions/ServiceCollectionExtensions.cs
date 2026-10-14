@@ -69,6 +69,10 @@ public static class ServiceCollectionExtensions
             .BindConfiguration<YouTubeSettings>("youtube")
             .BindConfiguration<YouTubeChannelOptions>("youtubeChannel");
 
+        serviceCollection.AddHttpClient(
+            YouTubeThumbnailResolver.HttpClientName,
+            client => client.Timeout = YouTubeThumbnailResolver.ProbeTimeout);
+
         if (usage == ApplicationUsage.Indexer)
         {
             serviceCollection
