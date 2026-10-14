@@ -5,18 +5,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
-using RedditPodcastPoster.Episodes.TestSupport;
-using RedditPodcastPoster.Episodes.Matching;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference;
-using RedditPodcastPoster.PodcastServices.YouTube.Clients;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Services;
-using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
+using RedditPodcastPoster.Episodes.TestSupport; // pragma: allowlist secret
+using RedditPodcastPoster.Episodes.Matching; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.Abstractions.Models; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Clients; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Services; // pragma: allowlist secret
+using RedditPodcastPoster.PodcastServices.YouTube.Video; // pragma: allowlist secret
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode; // pragma: allowlist secret
 
-namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.CandidatePreference;
+namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.CandidatePreference; // pragma: allowlist secret
 
 /// <summary>
 /// Business rules for choosing between YouTube candidates of the same episode
@@ -164,7 +164,7 @@ public class YouTubeCandidatePreferenceRules
     }
 
     [Fact(DisplayName =
-        "When other candidates are different episodes (dissimilar titles), no thumbnails are fetched.")]
+        "When other candidates are different episodes (dissimilar titles), no thumbnails are fetched.")] // pragma: allowlist secret
     public async Task unrelated_candidates_fetch_no_thumbnails()
     {
         // Arrange
@@ -262,18 +262,18 @@ public class YouTubeCandidatePreferenceRules
     }
 
     [Fact(DisplayName =
-        "When a generic channel-titled upload shares the pick's words but not its duration, it cannot replace the pick.")]
-    public async Task generic_subset_title_cannot_replace_pick()
+        "When the channel trailer title is below the similarity gate, preference does not fetch that video on its own.")]
+    public async Task channel_trailer_below_similarity_gate_is_not_fetched()
     {
-        // Arrange: real IndoctriNation channel trailer "IndoctriNation Podcast" (DJg4gR1j4n0).
+        // Arrange: real channel trailer "IndoctriNation Podcast" (DJg4gR1j4n0). Its tokens are not a subset of the pick.
         const string title = "The Oracle's Daughter with Sarah Green";
+        const string channelTrailerId = "DJg4gR1j4n0";
         _durations[StaticUploadId] = EpisodeLength;
-        _durations["DJg4gR1j4n0"] = TimeSpan.FromMinutes(2);
-        _motion.Setup(x => x.DetectAsync(StaticUploadId, It.IsAny<CancellationToken>())).ReturnsAsync(ThumbnailMotion.Static);
+        _durations[channelTrailerId] = TimeSpan.FromMinutes(2);
         var items = new List<PlaylistItem>
         {
             Item(StaticUploadId, StaticTitle(title)),
-            Item("DJg4gR1j4n0", "IndoctriNation Podcast")
+            Item(channelTrailerId, "IndoctriNation Podcast")
         };
 
         // Act
@@ -281,6 +281,33 @@ public class YouTubeCandidatePreferenceRules
 
         // Assert
         result!.PlaylistItem!.GetVideoId().Should().Be(StaticUploadId);
+        VerifyPreferenceFetched(channelTrailerId, Times.Never());
+        _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a contender title is a true subset of the pick and its duration fails the duration guard, " +
+        "the video is fetched and cannot replace the pick, and no thumbnails are fetched.")]
+    public async Task subset_title_failing_duration_cannot_replace_pick()
+    {
+        // Arrange: "IndoctriNation" is a token subset of "IndoctriNation - <episode title>". Two minutes fails the duration guard.
+        const string title = "The Oracle's Daughter with Sarah Green";
+        const string subsetUploadId = "subsetTitl1";
+        _durations[StaticUploadId] = EpisodeLength;
+        _durations[subsetUploadId] = TimeSpan.FromMinutes(2);
+        _motion.Setup(x => x.DetectAsync(StaticUploadId, It.IsAny<CancellationToken>())).ReturnsAsync(ThumbnailMotion.Static);
+        var items = new List<PlaylistItem>
+        {
+            Item(StaticUploadId, StaticTitle(title)),
+            Item(subsetUploadId, "IndoctriNation")
+        };
+
+        // Act
+        var result = await PlaylistSut().FindMatchingYouTubeVideo(Episode(title), items, null, new IndexingContext());
+
+        // Assert
+        result!.PlaylistItem!.GetVideoId().Should().Be(StaticUploadId);
+        VerifyPreferenceFetched(subsetUploadId, Times.Once());
         _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -301,7 +328,8 @@ public class YouTubeCandidatePreferenceRules
         _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact(DisplayName = "Non-video search results (channels, playlists) are never contenders.")]
+    [Fact(DisplayName =
+        "Non-video search results (channels, playlists) are never contenders, so preference does not fetch videos with snippets.")]
     public async Task non_video_search_results_are_ignored()
     {
         // Arrange
@@ -322,8 +350,31 @@ public class YouTubeCandidatePreferenceRules
 
         // Assert
         result!.SearchResult!.Id.VideoId.Should().Be(PlainUploadId);
+        _mocker.GetMock<ITolerantYouTubeVideoService>().Verify(
+            x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                true,
+                It.IsAny<bool>(),
+                It.IsAny<bool>()),
+            Times.Never);
         _motion.Verify(x => x.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    /// <summary>
+    /// Preference asks for contenders alone, with snippets. The finder may still load every playlist id together.
+    /// </summary>
+    private void VerifyPreferenceFetched(string videoId, Times times) =>
+        _mocker.GetMock<ITolerantYouTubeVideoService>().Verify(
+            x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.Is<IEnumerable<string>>(ids => ids.Contains(videoId) && !ids.Contains(StaticUploadId)),
+                It.IsAny<IndexingContext>(),
+                true,
+                It.IsAny<bool>(),
+                It.IsAny<bool>()),
+            times);
 
     /// <summary>IndoctriNation publishes its still-image upload as "IndoctriNation - &lt;episode title&gt;".</summary>
     private static string StaticTitle(string title) => "IndoctriNation - " + title;

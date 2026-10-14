@@ -12,6 +12,14 @@ public class YouTubeCandidatePreferenceOptions
 {
     public const string SectionName = "youTubeCandidatePreference";
 
+    public const int MinimumMaxThumbnailBytes = 64 * 1024;
+    public const int DefaultMaxThumbnailBytes = 256 * 1024;
+    public const int MaximumMaxThumbnailBytes = 1024 * 1024;
+
+    public const int MinimumMaxThumbnailRedirects = 1;
+    public const int DefaultMaxThumbnailRedirects = 3;
+    public const int MaximumMaxThumbnailRedirects = 5;
+
     /// <summary>Turns candidate preference on. When false the finders' choice is returned unchanged.</summary>
     public bool Enabled { get; set; } = true;
 
@@ -44,6 +52,21 @@ public class YouTubeCandidatePreferenceOptions
     /// <summary>Timeout for fetching one candidate's three thumbnails.</summary>
     [Range(1, 60)]
     public int ThumbnailFetchTimeoutSeconds { get; set; } = 5;
+
+    /// <summary>
+    /// Ceiling for one auto-thumbnail response and for its decoded RGB buffer.
+    /// Default is well above a 120x90 JPEG (a few kilobytes; decoded 120x90 RGB is 32,400 bytes)
+    /// and far below a video. A larger body is not read and motion is Unknown (fail-open).
+    /// </summary>
+    [Range(MinimumMaxThumbnailBytes, MaximumMaxThumbnailBytes)]
+    public int MaxThumbnailBytes { get; set; } = DefaultMaxThumbnailBytes;
+
+    /// <summary>
+    /// How many HTTP redirects the thumbnail client follows. YouTube's image host sometimes
+    /// redirects once; this stays far below the platform default of 50.
+    /// </summary>
+    [Range(MinimumMaxThumbnailRedirects, MaximumMaxThumbnailRedirects)]
+    public int MaxThumbnailRedirects { get; set; } = DefaultMaxThumbnailRedirects;
 
     /// <summary>Maximum other candidates considered besides the finder's choice (bounds thumbnail fetches).</summary>
     [Range(1, 10)]

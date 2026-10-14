@@ -26,18 +26,23 @@ Some channels upload the same episode twice:
 3. Contenders are fetched in one `videos.list` call and must be completed public videos, pass
    `YouTubeVideoDurationMatcher`, be within `ContenderMaxDurationDifferenceSeconds` of the pick and pass
    `YouTubeEnrichmentCandidate.MeetsStrongMatch`, the same checks as the finder's own match.
-   Token-set similarity scores a title whose words are a subset of another's (e.g. the channel trailer
-   "IndoctriNation Podcast") highly; the duration and strong-match checks are what stop such an upload replacing
-   the pick. When the finder's pick has no video details, the duration band against the pick is skipped and only
+   The channel trailer "IndoctriNation Podcast" (`DJg4gR1j4n0`) is below `ContenderMinTitleSimilarity` against
+   a pick such as "IndoctriNation - The Oracle's Daughter with Sarah Green", so preference does not fetch it.
+   A true subset title (for example "IndoctriNation", whose tokens are contained in that pick) scores above the
+   gate. `YouTubeVideoDurationMatcher` and `MeetsStrongMatch` are what stop that upload replacing the pick.
+   When the finder's pick has no video details, the duration band against the pick is skipped and only
    the episode-duration check applies.
 4. The pick and validated contenders are scored: `-PenalisedTitlePenalty` for a title containing any
    `PenalisedTitleTokens` (default 📱), `-StaticImagePenalty` for a still image. Highest score wins; ties keep the pick.
 
 Still images are detected by `YouTubeThumbnailMotionDetector` from the three 120x90 auto thumbnails
-`https://i.ytimg.com/vi/<id>/1.jpg`, `2.jpg`, `3.jpg`. **Video is never downloaded.** The largest mean absolute RGB
-difference between the frames (every 2nd pixel) below `StaticImageThreshold` means static. A missing thumbnail,
-timeout (`ThumbnailFetchTimeoutSeconds`), decode failure, size mismatch or blank/placeholder frame
-(pixel std-dev below `PlaceholderMaxPixelStdDev`) is `Unknown`, which gets no penalty (fail-open).
+`https://i.ytimg.com/vi/<id>/1.jpg`, `2.jpg`, `3.jpg`. **Video is never downloaded.** The client follows at most
+`MaxThumbnailRedirects` redirects and reads at most `MaxThumbnailBytes` (also the `HttpClient` response-buffer
+ceiling and the decoded RGB ceiling). The largest mean absolute RGB difference between the frames (every 2nd
+pixel) below `StaticImageThreshold` means static. A missing thumbnail, timeout (`ThumbnailFetchTimeoutSeconds`),
+body over the byte ceiling, redirect failure, decode failure, size mismatch, blank/placeholder frame
+(pixel std-dev below `PlaceholderMaxPixelStdDev`), or any other read failure is `Unknown`, which gets no penalty
+(fail-open). Caller cancellation is not treated as Unknown.
 
 ## Calibration (October 2026, 69 videos)
 
@@ -60,6 +65,8 @@ JPEG noise puts still images slightly above zero, hence the default threshold of
 | `StaticImageThreshold` | `5.0` |
 | `PlaceholderMaxPixelStdDev` | `1.0` |
 | `ThumbnailFetchTimeoutSeconds` | `5` |
+| `MaxThumbnailBytes` | `262144` (256 KiB) |
+| `MaxThumbnailRedirects` | `3` |
 | `MaxContenders` | `3` |
 | `ContenderMinTitleSimilarity` | `85` |
 | `ContenderMaxDurationDifferenceSeconds` | `120` |

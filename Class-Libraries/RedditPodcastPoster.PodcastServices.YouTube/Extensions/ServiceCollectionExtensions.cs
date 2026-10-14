@@ -79,7 +79,13 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IValidateOptions<YouTubeCandidatePreferenceOptions>, YouTubeCandidatePreferenceOptionsValidator>();
 
         serviceCollection.AddOptions<YouTubeCandidatePreferenceOptions>().ValidateOnStart();
-        serviceCollection.AddHttpClient(YouTubeThumbnailMotionDetector.HttpClientName);
+        serviceCollection.AddHttpClient(
+                YouTubeThumbnailMotionDetector.HttpClientName,
+                (sp, client) => YouTubeThumbnailMotionDetector.ApplyClientLimits(
+                    client,
+                    sp.GetRequiredService<IOptions<YouTubeCandidatePreferenceOptions>>().Value))
+            .ConfigurePrimaryHttpMessageHandler(sp => YouTubeThumbnailMotionDetector.CreateThumbnailHandler(
+                sp.GetRequiredService<IOptions<YouTubeCandidatePreferenceOptions>>().Value));
 
         serviceCollection.AddHttpClient(
             YouTubeThumbnailResolver.HttpClientName,
