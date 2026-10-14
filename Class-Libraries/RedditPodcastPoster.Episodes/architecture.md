@@ -423,6 +423,11 @@ rejected ... score N` is logged. 36 is calibrated on the business rules: genuine
 40-59, the Notes to Self 444 year-old lookalike scored 33 (`SingleHeuristicMatchRules`). Using `MinScore` (60) here
 would have rejected six genuine cross-platform merges in the existing rules.
 
+The margin (33 vs 40) is thin, and a wrongly rejected genuine match creates a duplicate episode rather than a
+merge failure. Watch the Warning after deploy:
+`AppTraces | where Message startswith "Episode merge single heuristic match rejected" | project TimeGenerated, Message`.
+Rollback without a deploy: app setting `episodeMergeTieBreak__ScoreSingleHeuristicMatches=false`.
+
 **Several matches.** When **more than one** stored episode matches, `IEpisodeMergeCandidateScorer`
 (`Matching/EpisodeMergeCandidateScorer.cs`) decides:
 

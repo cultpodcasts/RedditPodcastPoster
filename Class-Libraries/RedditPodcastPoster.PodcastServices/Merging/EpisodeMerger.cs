@@ -68,13 +68,14 @@ public class EpisodeMerger(
                     if (!single.Accepted)
                     {
                         logger.LogWarning(
-                            "Episode merge single heuristic match rejected: podcast '{PodcastName}' ({PodcastId}) incoming '{IncomingTitle}' not merged into '{CandidateTitle}' ({CandidateId}); score {Score} below minimum. Added as a new episode.",
+                            "Episode merge single heuristic match rejected: podcast '{PodcastName}' ({PodcastId}) incoming '{IncomingTitle}' not merged into '{CandidateTitle}' ({CandidateId}); score {Score} below minimum {MinScore}. Added as a new episode.",
                             podcast.Name,
                             podcast.Id,
                             episodeToMerge.Title,
                             existingEpisode.Title,
                             existingEpisode.Id,
-                            single.Score);
+                            single.Score,
+                            single.MinScore);
                         existingEpisode = null;
                     }
                 }

@@ -23,7 +23,8 @@ public interface IEpisodeMergeCandidateScorer
 
 /// <param name="Accepted">False when the score is below <c>SingleHeuristicMinScore</c>; the incoming episode is then new.</param>
 /// <param name="Score">The candidate's score, or null when not scored.</param>
-public sealed record EpisodeMergeSingleMatchDecision(bool Accepted, int? Score, string Reason);
+/// <param name="MinScore">The threshold applied, or null when not scored.</param>
+public sealed record EpisodeMergeSingleMatchDecision(bool Accepted, int? Score, string Reason, int? MinScore = null);
 
 public sealed record EpisodeMergeCandidateScore(Episode Candidate, int Score);
 

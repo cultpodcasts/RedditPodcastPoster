@@ -77,8 +77,8 @@ public sealed class EpisodeMergeCandidateScorer(IOptions<EpisodeMergeTieBreakOpt
 
         var score = Score(podcast, candidate, incoming);
         return score >= _options.SingleHeuristicMinScore
-            ? new EpisodeMergeSingleMatchDecision(true, score, SingleAcceptedReason)
-            : new EpisodeMergeSingleMatchDecision(false, score, SingleRejectedReason);
+            ? new EpisodeMergeSingleMatchDecision(true, score, SingleAcceptedReason, _options.SingleHeuristicMinScore)
+            : new EpisodeMergeSingleMatchDecision(false, score, SingleRejectedReason, _options.SingleHeuristicMinScore);
     }
 
     internal int Score(Podcast podcast, Episode existing, Episode incoming)
