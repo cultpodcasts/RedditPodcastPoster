@@ -54,7 +54,7 @@ public class BlueskyHashtagFacetRules
             new HashTag("#Cult", null)
         ]);
         var post = await factory.Create(new PodcastEpisode(podcast, episode), null);
-        var sut = new DashedHandleFacetExtractor((_, _) => Task.FromResult<Did?>(null));
+        var sut = new BlueskyFacetExtractor((_, _) => Task.FromResult<Did?>(null));
 
         // Act
         var facets = await sut.ExtractFacets(post.Text);

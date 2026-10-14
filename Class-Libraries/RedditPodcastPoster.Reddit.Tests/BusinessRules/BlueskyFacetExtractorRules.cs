@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
 
-public class DashedHandleFacetExtractorRules
+public class BlueskyFacetExtractorRules
 {
     private const string TruncatedHandle = "alice.smith";
     private const string FullHandle = "alice.smith-jones.bsky.social";
@@ -25,7 +25,7 @@ public class DashedHandleFacetExtractorRules
         var byteStart = Encoding.UTF8.GetByteCount(text.AsSpan(0, charIndex));
         var byteEnd = byteStart + Encoding.UTF8.GetByteCount(FullToken);
         var resolved = new List<string>();
-        var sut = new DashedHandleFacetExtractor((handle, _) =>
+        var sut = new BlueskyFacetExtractor((handle, _) =>
         {
             resolved.Add(handle);
             Did account = handle == FullHandle ? FullAccountDid : TruncatedAccountDid;
@@ -50,7 +50,7 @@ public class DashedHandleFacetExtractorRules
     public async Task unresolved_full_handle_drops_the_truncated_mention()
     {
         // Arrange
-        var sut = new DashedHandleFacetExtractor((handle, _) =>
+        var sut = new BlueskyFacetExtractor((handle, _) =>
         {
             if (handle == FullHandle)
             {
@@ -73,7 +73,7 @@ public class DashedHandleFacetExtractorRules
     public async Task resolve_fault_propagates()
     {
         // Arrange
-        var sut = new DashedHandleFacetExtractor((handle, _) =>
+        var sut = new BlueskyFacetExtractor((handle, _) =>
         {
             if (handle == FullHandle)
             {
@@ -97,7 +97,7 @@ public class DashedHandleFacetExtractorRules
     {
         // Arrange
         using var cancellation = new CancellationTokenSource();
-        var sut = new DashedHandleFacetExtractor((handle, _) =>
+        var sut = new BlueskyFacetExtractor((handle, _) =>
         {
             if (handle == FullHandle)
             {
@@ -119,5 +119,36 @@ public class DashedHandleFacetExtractorRules
     private static Did MentionDid(Facet facet)
     {
         return facet.Features.OfType<MentionFacetFeature>().Single().Did;
+    }
+
+    [Fact(DisplayName =
+        "Each hashtag gets exactly one tag facet, whether or not the default extractor found it, so a tag after whitespace is not duplicated and one after a quote is not lost.")]
+    public async Task hashtags_get_one_facet_each()
+    {
+        // Arrange
+        var sut = new BlueskyFacetExtractor((_, _) => Task.FromResult<Did?>(null));
+
+        // Act
+        var facets = await sut.ExtractFacets("\"#OpusDei, x\" (#Sect) #Cult, #Cult");
+
+        // Assert
+        facets.SelectMany(f => f.Features).OfType<TagFacetFeature>().Select(t => t.Tag)
+            .Should().Equal("OpusDei", "Sect", "Cult", "Cult");
+        facets.Select(f => f.Index.ByteStart).Should().BeInAscendingOrder();
+    }
+
+    [Fact(DisplayName =
+        "A '#' fragment inside a link stays part of the link facet and gets no tag facet.")]
+    public async Task url_fragment_is_not_a_tag()
+    {
+        // Arrange
+        var sut = new BlueskyFacetExtractor((_, _) => Task.FromResult<Did?>(null));
+
+        // Act
+        var facets = await sut.ExtractFacets("see https://example.com/page#section now");
+
+        // Assert
+        facets.SelectMany(f => f.Features).OfType<TagFacetFeature>().Should().BeEmpty();
+        facets.SelectMany(f => f.Features).OfType<LinkFacetFeature>().Should().ContainSingle();
     }
 }

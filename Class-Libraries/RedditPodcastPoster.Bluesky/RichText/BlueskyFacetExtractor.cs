@@ -3,12 +3,17 @@ using idunno.Bluesky.RichText;
 
 namespace RedditPodcastPoster.Bluesky.RichText;
 
-public sealed class DashedHandleFacetExtractor : IFacetExtractor
+/// <summary>
+/// Wraps idunno's default extractor. Mentions with dashed handles get the full handle, and hashtags
+/// follow <see cref="HashtagScanner"/> (Bluesky's rule, plus tags after opening quotes or brackets)
+/// instead of the default tag pattern, which only accepts '#' after whitespace.
+/// </summary>
+public sealed class BlueskyFacetExtractor : IFacetExtractor
 {
     private readonly DefaultFacetExtractor _defaultExtractor;
     private readonly Func<string, CancellationToken, Task<Did?>> _resolveHandle;
 
-    public DashedHandleFacetExtractor(Func<string, CancellationToken, Task<Did?>> resolveHandle)
+    public BlueskyFacetExtractor(Func<string, CancellationToken, Task<Did?>> resolveHandle)
     {
         ArgumentNullException.ThrowIfNull(resolveHandle);
         _resolveHandle = resolveHandle;
@@ -51,8 +56,37 @@ public sealed class DashedHandleFacetExtractor : IFacetExtractor
             facets.Add(new Facet(new ByteSlice(mention.ByteStart, mention.ByteEnd), features));
         }
 
+        // One hashtag rule: replace the default tag facets with the scanner's.
+        facets.RemoveAll(HasTag);
+        foreach (var hashtag in HashtagScanner.Find(text))
+        {
+            if (Overlaps(facets, hashtag.ByteStart, hashtag.ByteEnd))
+            {
+                continue;
+            }
+
+            IList<FacetFeature> features = [new TagFacetFeature(hashtag.Tag)];
+            facets.Add(new Facet(new ByteSlice(hashtag.ByteStart, hashtag.ByteEnd), features));
+        }
+
+        facets.Sort((a, b) => (a.Index?.ByteStart ?? 0).CompareTo(b.Index?.ByteStart ?? 0));
         return facets;
     }
+
+    private static bool Overlaps(IReadOnlyList<Facet> facets, long byteStart, long byteEnd)
+    {
+        foreach (var facet in facets)
+        {
+            if (facet.Index is not null && facet.Index.ByteStart < byteEnd && byteStart < facet.Index.ByteEnd)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasTag(Facet facet) => facet.Features.Any(feature => feature is TagFacetFeature);
 
     private static bool IsFullyCovered(IReadOnlyList<Facet> facets, long byteStart, long byteEnd)
     {

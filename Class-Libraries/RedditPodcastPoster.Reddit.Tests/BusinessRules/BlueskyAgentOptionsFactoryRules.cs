@@ -54,7 +54,7 @@ public class BlueskyAgentOptionsFactoryRules
         var agentFactory = provider.GetRequiredService<IBlueskyAgentFactory>();
 
         // Assert
-        options.FacetExtractor.Should().BeOfType<DashedHandleFacetExtractor>();
+        options.FacetExtractor.Should().BeOfType<BlueskyFacetExtractor>();
         agentFactory.Should().BeOfType<BlueskyAgentFactory>();
     }
 }
