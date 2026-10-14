@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using AutoFixture;
 using FluentAssertions;
 using Moq;
@@ -270,5 +271,36 @@ public class SubjectEnricherTests
         episode.Matches.Should().NotContain(m =>
             m.Subject.Equals(removedSubject, StringComparison.OrdinalIgnoreCase));
         episode.Subjects.Should().NotContain(removedSubject);
+    }
+
+    [Fact(DisplayName =
+        "When enrich finds no subject matches and there is no default subject, the No-updates outcome is logged at Information, not Error.")]
+    public async Task EnrichSubjects_WithNoMatchesAndNoDefaultSubject_LogsNoUpdatesAtInformation()
+    {
+        // Arrange
+        var episode = _fixture.Create<Episode>();
+        _subjectMatches = new List<SubjectMatch>();
+        var logger = _mocker.GetMock<ILogger<ISubjectEnricher>>();
+        var sut = _mocker.CreateInstance<SubjectEnricher>();
+
+        // Act
+        var result = await sut.EnrichSubjects(episode);
+
+        // Assert
+        result.Additions.Should().BeEmpty();
+        logger.Verify(x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+        logger.Verify(x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("No updates")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
