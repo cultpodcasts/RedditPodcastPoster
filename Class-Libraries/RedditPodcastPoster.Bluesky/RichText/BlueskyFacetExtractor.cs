@@ -120,16 +120,6 @@ public sealed class BlueskyFacetExtractor : IFacetExtractor
         return overlaps && !coversFullToken;
     }
 
-    private static bool HasMention(Facet facet)
-    {
-        foreach (var feature in facet.Features)
-        {
-            if (feature is MentionFacetFeature)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private static bool HasMention(Facet facet) =>
+        facet.Features.Any(feature => feature is MentionFacetFeature);
 }
