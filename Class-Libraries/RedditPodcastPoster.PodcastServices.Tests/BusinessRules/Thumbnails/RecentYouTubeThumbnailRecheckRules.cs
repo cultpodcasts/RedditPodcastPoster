@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Options;
@@ -29,20 +30,6 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Thumbnails;
 /// </summary>
 public class RecentYouTubeThumbnailRecheckRules
 {
-    private const int PlaceholderWidth = 120;
-    private const int PlaceholderHeight = 90;
-    private const int PlaceholderBytes = 1097;
-    private const int StandardWidth = 640;
-    private const int StandardHeight = 480;
-    private const int StandardBytes = 60207;
-    private const int HighWidth = 480;
-    private const int HighHeight = 360;
-    private const int HighBytes = 39854;
-    private const int MediumWidth = 320;
-    private const int MediumHeight = 180;
-    private const int MediumBytes = 20678;
-    private const int MaxresWidth = 1280;
-    private const int MaxresHeight = 720;
 
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
@@ -51,6 +38,7 @@ public class RecentYouTubeThumbnailRecheckRules
     private readonly DateTime _now;
     private readonly Podcast _podcast;
     private readonly List<Google.Apis.YouTube.v3.Data.Video> _videos = [];
+    private readonly Dictionary<Guid, Episode> _stored = new();
 
     public RecentYouTubeThumbnailRecheckRules()
     {
@@ -71,6 +59,9 @@ public class RecentYouTubeThumbnailRecheckRules
                 It.IsAny<bool>()))
             .ReturnsAsync((IYouTubeServiceWrapper _, IEnumerable<string> ids, IndexingContext _, bool _, bool _,
                 bool _) => _videos.Where(video => ids.Contains(video.Id)).ToList());
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(repository => repository.GetEpisode(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync((Guid _, Guid episodeId) => _stored.GetValueOrDefault(episodeId));
         _mocker.Use<IYouTubeThumbnailResolver>(_mocker.CreateInstance<YouTubeThumbnailResolver>());
         _mocker.Use<IImageUpdater>(_mocker.CreateInstance<ImageUpdater>());
     }
@@ -99,6 +90,75 @@ public class RecentYouTubeThumbnailRecheckRules
     }
 
     [Fact(DisplayName =
+        "The replacement image is applied to a fresh read of the stored episode, so an edit made after the run " +
+        "loaded its recent episodes is not overwritten, and the run's snapshot carries the new image for posting.")]
+    public async Task replacement_is_applied_to_the_freshly_read_episode()
+    {
+        // Arrange
+        var episode = RecentYouTubeEpisode(_now.AddHours(-1), MaxresTier);
+        var youTubeId = YouTubeId(episode);
+        ServeWithdrawnMaxres(youTubeId);
+        var editedTitle = _fixture.CreateTitle();
+        _stored[episode.Id].Title = editedTitle;
+
+        // Act
+        await Sut().Recheck([new PodcastEpisode(_podcast, episode)], new IndexingContext());
+
+        // Assert
+        _mocker.GetMock<IEpisodeRepository>().Verify(
+            repository => repository.Save(It.Is<Episode>(saved =>
+                saved.Title == editedTitle && StoredImage(saved) == Url(youTubeId, StandardTier))),
+            Times.Once);
+        StoredImage(episode).Should().Be(Url(youTubeId, StandardTier));
+    }
+
+    [Fact(DisplayName =
+        "When the episode was deleted after the run loaded it, the re-check saves nothing, " +
+        "because it must not resurrect a removed document.")]
+    public async Task deleted_episode_is_not_saved()
+    {
+        // Arrange
+        var episode = RecentYouTubeEpisode(_now.AddHours(-1), MaxresTier);
+        ServeWithdrawnMaxres(YouTubeId(episode));
+        _stored.Remove(episode.Id);
+
+        // Act
+        var result = await Sut().Recheck([new PodcastEpisode(_podcast, episode)], new IndexingContext());
+
+        // Assert
+        _mocker.GetMock<IEpisodeRepository>().Verify(repository => repository.Save(It.IsAny<Episode>()),
+            Times.Never);
+        result.Unresolved.Should().Be(1);
+    }
+
+    [Fact(DisplayName =
+        "A failure re-checking one episode is logged and the run carries on with the next, " +
+        "so one bad episode does not leave the others on a withdrawn image.")]
+    public async Task one_failure_does_not_stop_the_run()
+    {
+        // Arrange
+        var failing = RecentYouTubeEpisode(_now.AddHours(-1), MaxresTier);
+        var next = RecentYouTubeEpisode(_now.AddHours(-2), MaxresTier);
+        ServeWithdrawnMaxres(YouTubeId(failing));
+        ServeWithdrawnMaxres(YouTubeId(next));
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(repository => repository.GetEpisode(failing.PodcastId, failing.Id))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Sut().Recheck(
+            [new PodcastEpisode(_podcast, failing), new PodcastEpisode(_podcast, next)],
+            new IndexingContext());
+
+        // Assert
+        _mocker.GetMock<IEpisodeRepository>().Verify(
+            repository => repository.Save(It.Is<Episode>(saved => saved.Id == next.Id)),
+            Times.Once);
+        result.Replaced.Should().Be(1);
+        result.Unresolved.Should().Be(1);
+    }
+
+    [Fact(DisplayName =
         "When the stored maxresdefault still answers 200 with a 1280x720 JPEG, the re-check keeps it and saves " +
         "nothing, because a live high-resolution image is the best one available.")]
     public async Task live_maxres_is_kept()
@@ -106,7 +166,7 @@ public class RecentYouTubeThumbnailRecheckRules
         // Arrange
         var episode = RecentYouTubeEpisode(_now.AddHours(-1), MaxresTier);
         var youTubeId = YouTubeId(episode);
-        _http.Serve(Url(youTubeId, MaxresTier), HttpStatusCode.OK, Jpeg(MaxresWidth, MaxresHeight));
+        _http.Serve(Url(youTubeId, MaxresTier), HttpStatusCode.OK, MaxresJpeg());
 
         // Act
         var result = await Sut().Recheck([new PodcastEpisode(_podcast, episode)], new IndexingContext());
@@ -126,7 +186,7 @@ public class RecentYouTubeThumbnailRecheckRules
         // Arrange
         var episode = RecentYouTubeEpisode(_now.AddHours(-1), MaxresTier);
         var youTubeId = YouTubeId(episode);
-        var placeholder = Jpeg(PlaceholderWidth, PlaceholderHeight, PlaceholderBytes);
+        var placeholder = WithdrawnPlaceholderJpeg();
         foreach (var tier in new[] { MaxresTier, StandardTier, HighTier, MediumTier, DefaultTier })
         {
             _http.Serve(Url(youTubeId, tier), HttpStatusCode.NotFound, placeholder);
@@ -189,7 +249,7 @@ public class RecentYouTubeThumbnailRecheckRules
         var oldest = RecentYouTubeEpisode(_now.AddHours(-3), MaxresTier);
         foreach (var episode in new[] { newest, middle, oldest })
         {
-            _http.Serve(StoredImage(episode)!, HttpStatusCode.OK, Jpeg(MaxresWidth, MaxresHeight));
+            _http.Serve(StoredImage(episode)!, HttpStatusCode.OK, MaxresJpeg());
         }
 
         // Act
@@ -294,18 +354,19 @@ public class RecentYouTubeThumbnailRecheckRules
             ServiceKeys.YouTube,
             EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube),
             Url(youTubeId, storedTier));
+        _stored[episode.Id] = JsonSerializer.Deserialize<Episode>(JsonSerializer.Serialize(episode))!;
         return episode;
     }
 
     private void ServeWithdrawnMaxres(string youTubeId)
     {
-        var placeholder = Jpeg(PlaceholderWidth, PlaceholderHeight, PlaceholderBytes);
+        var placeholder = WithdrawnPlaceholderJpeg();
         _http.Serve(Url(youTubeId, MaxresTier), HttpStatusCode.NotFound, placeholder)
             .Serve(Url(youTubeId, Hq720Tier), HttpStatusCode.NotFound, placeholder)
             .Serve(Url(youTubeId, StandardTier), HttpStatusCode.OK,
-                Jpeg(StandardWidth, StandardHeight, StandardBytes))
-            .Serve(Url(youTubeId, HighTier), HttpStatusCode.OK, Jpeg(HighWidth, HighHeight, HighBytes))
-            .Serve(Url(youTubeId, MediumTier), HttpStatusCode.OK, Jpeg(MediumWidth, MediumHeight, MediumBytes));
+                StandardJpeg())
+            .Serve(Url(youTubeId, HighTier), HttpStatusCode.OK, HighJpeg())
+            .Serve(Url(youTubeId, MediumTier), HttpStatusCode.OK, MediumJpeg());
         _videos.Add(VideoWithApiThumbnails(youTubeId));
     }
 
@@ -320,7 +381,7 @@ public class RecentYouTubeThumbnailRecheckRules
                 Standard = Thumbnail(youTubeId, StandardTier, StandardHeight),
                 High = Thumbnail(youTubeId, HighTier, HighHeight),
                 Medium = Thumbnail(youTubeId, MediumTier, MediumHeight),
-                Default__ = Thumbnail(youTubeId, DefaultTier, PlaceholderHeight)
+                Default__ = Thumbnail(youTubeId, DefaultTier, DefaultHeight)
             }
         }
     };

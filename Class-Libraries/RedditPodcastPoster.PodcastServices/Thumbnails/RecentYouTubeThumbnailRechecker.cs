@@ -63,34 +63,37 @@ public class RecentYouTubeThumbnailRechecker(
             }
 
             probed++;
-            if (await youTubeThumbnailResolver.IsStoredImageUsableAsync(storedImage!, cancellationToken))
-            {
-                stillUsable++;
-                continue;
-            }
-
-            if (reResolves >= _options.MaxReResolvesPerRun)
-            {
-                deferred++;
-                continue;
-            }
-
-            reResolves++;
             var episode = podcastEpisode.Episode;
-            if (await imageUpdater.UpdateImages(podcastEpisode.Podcast, episode, YouTubeImageOnly, indexingContext))
+            try
             {
-                await episodeRepository.Save(episode);
-                replaced++;
-                logger.LogWarning(
-                    "YouTubeThumbnailRecheck replaced withdrawn image. episode-id='{EpisodeId}' podcast-id='{PodcastId}' old-image='{OldImage}' new-image='{NewImage}'.",
-                    episode.Id, episode.PodcastId, storedImage,
-                    EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube));
+                if (await youTubeThumbnailResolver.IsStoredImageUsableAsync(storedImage!, cancellationToken))
+                {
+                    stillUsable++;
+                    continue;
+                }
+
+                if (reResolves >= _options.MaxReResolvesPerRun)
+                {
+                    deferred++;
+                    continue;
+                }
+
+                reResolves++;
+                if (await TryReplace(podcastEpisode, storedImage!, indexingContext))
+                {
+                    replaced++;
+                }
+                else
+                {
+                    unresolved++;
+                }
             }
-            else
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
+                // One episode's probe timeout or save failure must not stop the rest of the run.
                 unresolved++;
-                logger.LogWarning(
-                    "YouTubeThumbnailRecheck kept withdrawn image: no usable replacement. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}'.",
+                logger.LogError(ex,
+                    "YouTubeThumbnailRecheck failed for episode. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}'.",
                     episode.Id, episode.PodcastId, storedImage);
             }
         }
@@ -102,5 +105,43 @@ public class RecentYouTubeThumbnailRechecker(
             result.Eligible, result.Probed, result.StillUsable, result.Replaced, result.Unresolved,
             result.DeferredOverBudget, _options.RecheckWindowHours);
         return result;
+    }
+
+    /// <summary>
+    /// Re-resolves on the run's snapshot (so posting later in the run uses the new image), then applies
+    /// only the YouTube image to a fresh read of the stored episode before saving, so edits made since
+    /// the snapshot loaded are not overwritten.
+    /// </summary>
+    private async Task<bool> TryReplace(PodcastEpisode podcastEpisode, Uri storedImage, IndexingContext indexingContext)
+    {
+        var snapshot = podcastEpisode.Episode;
+        if (!await imageUpdater.UpdateImages(podcastEpisode.Podcast, snapshot, YouTubeImageOnly, indexingContext))
+        {
+            logger.LogWarning(
+                "YouTubeThumbnailRecheck kept withdrawn image: no usable replacement. episode-id='{EpisodeId}' podcast-id='{PodcastId}' image='{Image}'.",
+                snapshot.Id, snapshot.PodcastId, storedImage);
+            return false;
+        }
+
+        var newImage = EpisodeServicePresence.TryGetImage(snapshot, ServiceKeys.YouTube)!;
+        var stored = await episodeRepository.GetEpisode(snapshot.PodcastId, snapshot.Id);
+        if (stored == null)
+        {
+            logger.LogWarning(
+                "YouTubeThumbnailRecheck skipped save: episode no longer stored. episode-id='{EpisodeId}' podcast-id='{PodcastId}'.",
+                snapshot.Id, snapshot.PodcastId);
+            return false;
+        }
+
+        EpisodeServicePresence.Upsert(
+            stored,
+            ServiceKeys.YouTube,
+            EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.YouTube),
+            newImage);
+        await episodeRepository.Save(stored);
+        logger.LogWarning(
+            "YouTubeThumbnailRecheck replaced withdrawn image. episode-id='{EpisodeId}' podcast-id='{PodcastId}' old-image='{OldImage}' new-image='{NewImage}'.",
+            snapshot.Id, snapshot.PodcastId, storedImage, newImage);
+        return true;
     }
 }

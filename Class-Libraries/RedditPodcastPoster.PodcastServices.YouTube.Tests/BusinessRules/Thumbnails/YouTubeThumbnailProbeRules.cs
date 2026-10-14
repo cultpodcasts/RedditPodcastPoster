@@ -19,20 +19,6 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Thumbn
 /// </summary>
 public class YouTubeThumbnailProbeRules
 {
-    private const int PlaceholderWidth = 120;
-    private const int PlaceholderHeight = 90;
-    private const int PlaceholderBytes = 1097;
-    private const int StandardWidth = 640;
-    private const int StandardHeight = 480;
-    private const int StandardBytes = 60207;
-    private const int HighWidth = 480;
-    private const int HighHeight = 360;
-    private const int HighBytes = 39854;
-    private const int MediumWidth = 320;
-    private const int MediumHeight = 180;
-    private const int MediumBytes = 20678;
-    private const int MaxresWidth = 1280;
-    private const int MaxresHeight = 720;
 
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
@@ -70,7 +56,7 @@ public class YouTubeThumbnailProbeRules
     {
         // Arrange
         ServeRealCaseAfterWithdrawal();
-        _http.Serve(Url(_youTubeId, MaxresTier), HttpStatusCode.NotFound, Jpeg(MaxresWidth, MaxresHeight));
+        _http.Serve(Url(_youTubeId, MaxresTier), HttpStatusCode.NotFound, MaxresJpeg());
         var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
 
         // Act
@@ -119,7 +105,7 @@ public class YouTubeThumbnailProbeRules
     public async Task stored_live_maxres_is_usable()
     {
         // Arrange
-        _http.Serve(Url(_youTubeId, MaxresTier), HttpStatusCode.OK, Jpeg(MaxresWidth, MaxresHeight));
+        _http.Serve(Url(_youTubeId, MaxresTier), HttpStatusCode.OK, MaxresJpeg());
         var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
 
         // Act
@@ -134,7 +120,7 @@ public class YouTubeThumbnailProbeRules
     public async Task stored_default_tier_is_usable_at_placeholder_height()
     {
         // Arrange
-        _http.Serve(Url(_youTubeId, DefaultTier), HttpStatusCode.OK, Jpeg(PlaceholderWidth, PlaceholderHeight));
+        _http.Serve(Url(_youTubeId, DefaultTier), HttpStatusCode.OK, DefaultJpeg());
         var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
 
         // Act
@@ -146,13 +132,13 @@ public class YouTubeThumbnailProbeRules
 
     private void ServeRealCaseAfterWithdrawal()
     {
-        var placeholder = Jpeg(PlaceholderWidth, PlaceholderHeight, PlaceholderBytes);
+        var placeholder = WithdrawnPlaceholderJpeg();
         _http.Serve(Url(_youTubeId, MaxresTier), HttpStatusCode.NotFound, placeholder)
             .Serve(Url(_youTubeId, Hq720Tier), HttpStatusCode.NotFound, placeholder)
             .Serve(Url(_youTubeId, StandardTier), HttpStatusCode.OK,
-                Jpeg(StandardWidth, StandardHeight, StandardBytes))
-            .Serve(Url(_youTubeId, HighTier), HttpStatusCode.OK, Jpeg(HighWidth, HighHeight, HighBytes))
-            .Serve(Url(_youTubeId, MediumTier), HttpStatusCode.OK, Jpeg(MediumWidth, MediumHeight, MediumBytes));
+                StandardJpeg())
+            .Serve(Url(_youTubeId, HighTier), HttpStatusCode.OK, HighJpeg())
+            .Serve(Url(_youTubeId, MediumTier), HttpStatusCode.OK, MediumJpeg());
     }
 
     private Google.Apis.YouTube.v3.Data.Video VideoWithApiThumbnails() => new()
@@ -166,7 +152,7 @@ public class YouTubeThumbnailProbeRules
                 Standard = Thumbnail(StandardTier, StandardHeight),
                 High = Thumbnail(HighTier, HighHeight),
                 Medium = Thumbnail(MediumTier, MediumHeight),
-                Default__ = Thumbnail(DefaultTier, PlaceholderHeight)
+                Default__ = Thumbnail(DefaultTier, DefaultHeight)
             }
         }
     };

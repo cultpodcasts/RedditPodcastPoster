@@ -49,6 +49,6 @@ Search documents re-derive their compact image code from Cosmos on the next inde
 | `MaxStoredImageProbesPerRun` | `25` | > 0 |
 | `MaxReResolvesPerRun` | `10` | > 0 |
 
-Defaults live in `YouTubeThumbnailRecheckOptions`; app settings are optional
-(also listed in `Infrastructure/functions.bicep`). Log keys: see
+Defaults live only in `YouTubeThumbnailRecheckOptions` (single source of truth); set an app setting
+only to override. Log keys: see
 [indexing-app-insights-queries.md](indexing-app-insights-queries.md) (`YouTubeThumbnailRecheck …`).
