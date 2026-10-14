@@ -12,7 +12,8 @@ namespace RedditPodcastPoster.PodcastServices.Merging;
 /// <summary>
 /// Merges incoming catalogue episodes into stored episodes. When more than one stored episode passes
 /// <see cref="IEpisodePlatformMatcher"/>, <see cref="IEpisodeMergeCandidateScorer"/> may pick a clear winner;
-/// otherwise the incoming episode is recorded as failed. A single match is never scored.
+/// otherwise the incoming episode is recorded as failed. A single certain match (platform id, exact title,
+/// EpisodeMatchRegex) is never scored; a single heuristic match is scored and, below the minimum, treated as no match.
 /// </summary>
 public class EpisodeMerger(
     IEpisodePlatformMatcher platformMatcher,
@@ -42,19 +43,41 @@ public class EpisodeMerger(
 
         foreach (var episodeToMerge in episodesToMerge)
         {
-            var matchingExisting = existingList
-                .Where(x => platformMatcher.IsMatch(
+            var classified = existingList
+                .Select(x => (Episode: x, Kind: platformMatcher.Classify(
                     x,
                     episodeToMerge,
                     episodeMatchRegex,
                     podcast,
-                    existingList))
+                    existingList)))
+                .Where(x => x.Kind != EpisodeMatchKind.None)
                 .ToList();
+            var matchingExisting = classified.Select(x => x.Episode).ToList();
 
             Episode? existingEpisode;
-            if (matchingExisting.Count <= 1)
+            if (matchingExisting.Count == 0)
             {
-                existingEpisode = matchingExisting.SingleOrDefault();
+                existingEpisode = null;
+            }
+            else if (matchingExisting.Count == 1)
+            {
+                existingEpisode = matchingExisting[0];
+                if (classified[0].Kind == EpisodeMatchKind.Heuristic)
+                {
+                    var single = candidateScorer.DecideSingleHeuristic(podcast, episodeToMerge, existingEpisode);
+                    if (!single.Accepted)
+                    {
+                        logger.LogWarning(
+                            "Episode merge single heuristic match rejected: podcast '{PodcastName}' ({PodcastId}) incoming '{IncomingTitle}' not merged into '{CandidateTitle}' ({CandidateId}); score {Score} below minimum. Added as a new episode.",
+                            podcast.Name,
+                            podcast.Id,
+                            episodeToMerge.Title,
+                            existingEpisode.Title,
+                            existingEpisode.Id,
+                            single.Score);
+                        existingEpisode = null;
+                    }
+                }
             }
             else
             {

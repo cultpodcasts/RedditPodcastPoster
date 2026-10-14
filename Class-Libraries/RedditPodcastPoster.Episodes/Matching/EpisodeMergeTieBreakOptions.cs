@@ -19,8 +19,13 @@ public sealed class EpisodeMergeTieBreakOptions
     /// </summary>
     public bool ScoreSingleHeuristicMatches { get; set; } = true;
 
-    /// <summary>Minimum score for a single heuristic match to be accepted.</summary>
-    public int SingleHeuristicMinScore { get; set; } = 60;
+    /// <summary>
+    /// Minimum score for a single heuristic match to be accepted. Lower than <see cref="MinScore"/> on purpose:
+    /// calibrated on the business rules, genuine single heuristic merges scored 40-59 (cross-platform pairs with
+    /// 3-4 minute duration gaps, large publication offsets or diverging titles) while the Notes to Self 444
+    /// lookalike scored 33. A single match faces no competitor, so it only has to clear the lookalike band.
+    /// </summary>
+    public int SingleHeuristicMinScore { get; set; } = 36;
 
     /// <summary>Points for identical duration, falling linearly to zero at <see cref="DurationWindow"/>.</summary>
     public int DurationWeight { get; set; } = 30;
@@ -55,7 +60,7 @@ public sealed class EpisodeMergeTieBreakOptions
 
     public const string ValidationMessage =
         "episodeMergeTieBreak: weights and MinMargin must be >= 0, windows and DescriptionCompareMaxChars > 0, " +
-        "and MinScore between 0 and the sum of the weights.";
+        "and MinScore and SingleHeuristicMinScore between 0 and the sum of the weights.";
 
     public int MaxScore => DurationWeight + ReleaseWeight + TitleWeight + DescriptionWeight + SubjectWeight;
 
@@ -64,5 +69,6 @@ public sealed class EpisodeMergeTieBreakOptions
         o.DescriptionWeight >= 0 && o.SubjectWeight >= 0 && o.MinMargin >= 0 &&
         o.DurationWindow > TimeSpan.Zero && o.ReleaseWindow > TimeSpan.Zero &&
         o.DescriptionCompareMaxChars > 0 &&
-        o.MinScore >= 0 && o.MinScore <= o.MaxScore;
+        o.MinScore >= 0 && o.MinScore <= o.MaxScore &&
+        o.SingleHeuristicMinScore >= 0 && o.SingleHeuristicMinScore <= o.MaxScore;
 }

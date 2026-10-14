@@ -413,8 +413,17 @@ flowchart BT
 
 ## Merge tie-break (several stored episodes match one incoming episode)
 
-`EpisodeMerger` asks `IEpisodePlatformMatcher.IsMatch` of every stored episode. A single match merges exactly as
-before and is never scored. When **more than one** stored episode matches, `IEpisodeMergeCandidateScorer`
+`EpisodeMerger` asks `IEpisodePlatformMatcher.Classify` of every stored episode: `None`, `Certain` (same platform id,
+exact title, or the podcast's `EpisodeMatchRegex`) or `Heuristic` (fuzzy title + duration, or release + duration).
+
+**Single match.** A `Certain` match merges unscored, as before. A `Heuristic` match is scored (same model as below)
+and, when `ScoreSingleHeuristicMatches` is on (default), rejected below `SingleHeuristicMinScore` (36): it is then
+treated as no match, the incoming episode is added as new, and a Warning `Episode merge single heuristic match
+rejected ... score N` is logged. 36 is calibrated on the business rules: genuine single heuristic merges scored
+40-59, the Notes to Self 444 year-old lookalike scored 33 (`SingleHeuristicMatchRules`). Using `MinScore` (60) here
+would have rejected six genuine cross-platform merges in the existing rules.
+
+**Several matches.** When **more than one** stored episode matches, `IEpisodeMergeCandidateScorer`
 (`Matching/EpisodeMergeCandidateScorer.cs`) decides:
 
 1. `Enabled = false` -> fail (previous behaviour).
@@ -434,9 +443,11 @@ A tie-break logs Information `Episode merge tie-broken: ... Candidate scores: ..
 Options: `EpisodeMergeTieBreakOptions`, section `episodeMergeTieBreak` (all optional; defaults in the class,
 validated on start). Real case: Notes to Self 444 (2026-10-14), `BusinessRules/Merging/MergeTieBreakRules.cs`.
 
-Not included: requiring release proximity on the fuzzy-title + duration matcher path. That would change
-single-match behaviour (e.g. back-catalogue episodes first seen on a new platform months after release), so it
-stays a scoring signal only.
+Release proximity is a scoring signal, not a hard gate on the fuzzy-title path: a back-catalogue episode first
+seen on a new platform months later still merges when its other signals clear the single-match minimum.
+
+Logging: `RedditPodcastPoster.PodcastServices.Merging` is raised to Information in `Cloud/Azure/ApplicationLogLevels.cs`
+and each function app's `host.json` so these lines reach App Insights.
 ## DI registration
 
 Hosts that need episode processing must call `**AddEpisodesDomain()`** explicitly. It is **not** nested inside `AddRepositories()`, `AddPodcastServices()`, or `AddUrlSubmission()`.

@@ -207,6 +207,53 @@ public class EpisodeMergeCandidateScorerTests
         EpisodeMergeTieBreakOptions.IsValid(options).Should().BeFalse();
     }
 
+    [Fact(DisplayName = "Single heuristic match: below SingleHeuristicMinScore is rejected with its score; at or above is accepted.")]
+    public void Single_heuristic_threshold()
+    {
+        var youTube = YouTube("Live chat", TimeSpan.FromHours(1), Release);
+        var strong = Spotify("Live chat", TimeSpan.FromHours(1), Release.AddHours(-1));
+        var weak = Spotify("Zulu", TimeSpan.FromHours(1).Add(TimeSpan.FromMinutes(4)), Release.AddYears(-1));
+        var scorer = CreateScorer();
+
+        var accepted = scorer.DecideSingleHeuristic(_podcast, strong, youTube);
+        var rejected = scorer.DecideSingleHeuristic(_podcast, weak, youTube);
+
+        accepted.Accepted.Should().BeTrue();
+        accepted.Reason.Should().Be(EpisodeMergeCandidateScorer.SingleAcceptedReason);
+        rejected.Accepted.Should().BeFalse();
+        rejected.Score.Should().BeLessThan(new EpisodeMergeTieBreakOptions().SingleHeuristicMinScore);
+        rejected.Reason.Should().Be(EpisodeMergeCandidateScorer.SingleRejectedReason);
+    }
+
+    [Theory(DisplayName = "Single heuristic scoring is skipped (accepted, unscored) when the tie-break or the toggle is off.")]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void Single_heuristic_disabled_accepts_unscored(bool enabled, bool scoreSingles)
+    {
+        var youTube = YouTube("Live chat", TimeSpan.FromHours(1), Release);
+        var weak = Spotify("Zulu", TimeSpan.FromHours(2), Release.AddYears(-1));
+
+        var decision = CreateScorer(o =>
+        {
+            o.Enabled = enabled;
+            o.ScoreSingleHeuristicMatches = scoreSingles;
+        }).DecideSingleHeuristic(_podcast, weak, youTube);
+
+        decision.Accepted.Should().BeTrue();
+        decision.Score.Should().BeNull();
+        decision.Reason.Should().Be(EpisodeMergeCandidateScorer.SingleScoringDisabledReason);
+    }
+
+    [Fact(DisplayName = "SingleHeuristicMinScore outside 0..MaxScore fails validation.")]
+    public void Single_heuristic_min_score_validated()
+    {
+        var options = new EpisodeMergeTieBreakOptions();
+        options.SingleHeuristicMinScore = options.MaxScore + 1;
+        EpisodeMergeTieBreakOptions.IsValid(options).Should().BeFalse();
+        options.SingleHeuristicMinScore = -1;
+        EpisodeMergeTieBreakOptions.IsValid(options).Should().BeFalse();
+    }
+
     [Fact(DisplayName = "Default options are valid and weights total 100.")]
     public void Defaults_are_valid()
     {

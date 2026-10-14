@@ -21,6 +21,9 @@ public sealed class EpisodeMergeCandidateScorer(IOptions<EpisodeMergeTieBreakOpt
     public const string BelowMinScoreReason = "winner below MinScore";
     public const string BelowMinMarginReason = "winner lead below MinMargin";
     public const string TieBrokenReason = "tie broken";
+    public const string SingleScoringDisabledReason = "single heuristic scoring disabled";
+    public const string SingleAcceptedReason = "single heuristic match accepted";
+    public const string SingleRejectedReason = "single heuristic match below SingleHeuristicMinScore";
 
     private readonly EpisodeMergeTieBreakOptions _options = options.Value;
 
@@ -63,6 +66,19 @@ public sealed class EpisodeMergeCandidateScorer(IOptions<EpisodeMergeTieBreakOpt
         }
 
         return new EpisodeMergeTieBreakDecision(best.Candidate, scores, TieBrokenReason);
+    }
+
+    public EpisodeMergeSingleMatchDecision DecideSingleHeuristic(Podcast podcast, Episode incoming, Episode candidate)
+    {
+        if (!_options.Enabled || !_options.ScoreSingleHeuristicMatches)
+        {
+            return new EpisodeMergeSingleMatchDecision(true, null, SingleScoringDisabledReason);
+        }
+
+        var score = Score(podcast, candidate, incoming);
+        return score >= _options.SingleHeuristicMinScore
+            ? new EpisodeMergeSingleMatchDecision(true, score, SingleAcceptedReason)
+            : new EpisodeMergeSingleMatchDecision(false, score, SingleRejectedReason);
     }
 
     internal int Score(Podcast podcast, Episode existing, Episode incoming)

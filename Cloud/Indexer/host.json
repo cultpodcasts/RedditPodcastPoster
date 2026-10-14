@@ -23,6 +23,7 @@
       "Azure": "Warning",
       "RedditPodcastPoster": "Warning",
       "RedditPodcastPoster.EpisodeLookup": "Information",
+      "RedditPodcastPoster.PodcastServices.Merging": "Information",
       "RedditPodcastPoster.PodcastServices.YouTube": "Information",
       "Indexer": "Information"
     }

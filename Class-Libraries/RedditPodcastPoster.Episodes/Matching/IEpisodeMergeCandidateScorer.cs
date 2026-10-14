@@ -13,7 +13,17 @@ public interface IEpisodeMergeCandidateScorer
     /// <returns>A decision whose <c>Scores</c> are highest first (empty when the candidates were not scored).</returns>
     /// <exception cref="ArgumentException">Fewer than two candidates.</exception>
     EpisodeMergeTieBreakDecision Decide(Podcast podcast, Episode incoming, IReadOnlyList<Episode> candidates);
+
+    /// <summary>
+    /// Decides whether a single match reached by a heuristic path is strong enough to merge. Not scored (accepted)
+    /// when the tie-break or <c>ScoreSingleHeuristicMatches</c> is disabled.
+    /// </summary>
+    EpisodeMergeSingleMatchDecision DecideSingleHeuristic(Podcast podcast, Episode incoming, Episode candidate);
 }
+
+/// <param name="Accepted">False when the score is below <c>SingleHeuristicMinScore</c>; the incoming episode is then new.</param>
+/// <param name="Score">The candidate's score, or null when not scored.</param>
+public sealed record EpisodeMergeSingleMatchDecision(bool Accepted, int? Score, string Reason);
 
 public sealed record EpisodeMergeCandidateScore(Episode Candidate, int Score);
 
