@@ -144,18 +144,69 @@ public class TolerantYouTubeChannelServiceTests
         result.Channel.Should().BeNull();
     }
 
-    [Fact(DisplayName = "When YouTube is bypassed, GetChannelLookup reports Skipped without calling the API")]
+    [Fact(DisplayName = "When YouTube is bypassed and the channel is not cached, GetChannelLookup reports Skipped and records no API call")]
     public async Task GetChannelLookup_WhenBypassed_Reports_Skipped()
     {
         // Arrange
+        var channelId = _fixture.Create<YouTubeChannelId>();
+        var indexingContext = new IndexingContext(SkipYouTubeUrlResolving: true);
+        _mocker.GetMock<IYouTubeChannelService>()
+            .Setup(x => x.GetChannelLookup(channelId, indexingContext, false, false, false, false))
+            .ReturnsAsync(YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.Skipped));
         var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
 
         // Act
-        var result = await sut.GetChannelLookup(_fixture.Create<YouTubeChannelId>(),
-            new IndexingContext(SkipYouTubeUrlResolving: true));
+        var result = await sut.GetChannelLookup(channelId, indexingContext);
 
         // Assert
         result.Outcome.Should().Be(YouTubeChannelLookupOutcome.Skipped);
-        _mocker.GetMock<IYouTubeChannelService>().VerifyNoOtherCalls();
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(
+            x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Never);
+    }
+
+    [Fact(DisplayName = "When YouTube is bypassed but the channel is in the pass cache, GetChannelLookup reports Found and GetChannel returns it")]
+    public async Task GetChannelLookup_WhenBypassed_And_Cached_Reports_Found()
+    {
+        // Arrange
+        var channelId = _fixture.Create<YouTubeChannelId>();
+        var indexingContext = new IndexingContext(SkipYouTubeUrlResolving: true);
+        var channel = new Google.Apis.YouTube.v3.Data.Channel { Id = channelId.ChannelId };
+        _mocker.GetMock<IYouTubeChannelService>()
+            .Setup(x => x.GetChannelLookup(channelId, indexingContext, false, false, false, false))
+            .ReturnsAsync(YouTubeChannelLookupResult.Found(channel));
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
+
+        // Act
+        var lookup = await sut.GetChannelLookup(channelId, indexingContext);
+        var returned = await sut.GetChannel(channelId, indexingContext);
+
+        // Assert
+        lookup.Outcome.Should().Be(YouTubeChannelLookupOutcome.Found);
+        lookup.Channel.Should().BeSameAs(channel);
+        returned.Should().BeSameAs(channel);
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(
+            x => x.RecordCallAsync(It.IsAny<Application>(), It.IsAny<ApplicationUsage>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName = "When rotation is exhausted, GetChannelLookup marks YouTube quota exhausted and does not set the skip flag")]
+    public async Task GetChannelLookup_WhenRotationExhausted_Marks_Quota_Not_Skip()
+    {
+        // Arrange
+        var indexingContext = new IndexingContext();
+        _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new InvalidOperationException("Ring exhausted"));
+        _mocker.GetMock<IYouTubeChannelService>()
+            .Setup(x => x.GetChannelLookup(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .ThrowsAsync(new YouTubeQuotaException());
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
+
+        // Act
+        await sut.GetChannelLookup(_fixture.Create<YouTubeChannelId>(), indexingContext);
+
+        // Assert
+        indexingContext.YouTubeQuotaExhausted.Should().BeTrue();
+        indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
     }
 }
