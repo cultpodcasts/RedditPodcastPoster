@@ -4,6 +4,6 @@ public enum PodcastEpisodeResolveState
 {
     Unknown = 0,
     Resolved,
-    PodcastConflict,
     PodcastNotFound,
+    EpisodeNotFound,
 }

@@ -20,8 +20,6 @@ public class DeleteEpisodeHandler(
         {
             EpisodeDeleteStatus.Deleted =>
                 ctx.Ok(),
-            EpisodeDeleteStatus.PodcastConflict =>
-                ctx.Conflict(),
             EpisodeDeleteStatus.NotFound =>
                 ctx.NotFound(),
             EpisodeDeleteStatus.AlreadySocial =>

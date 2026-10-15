@@ -44,9 +44,7 @@ public class EpisodeController(
     {
         var podcastEpisodeGetRequest = Guid.TryParse(podcastIdentifier, out var podcastId)
             ? new PodcastEpisodeRequestWrapper(podcastId, episodeId)
-            : new PodcastEpisodeRequestWrapper(
-                PodcastRouteNameNormalizer.Normalize(podcastIdentifier),
-                episodeId);
+            : new PodcastEpisodeRequestWrapper(podcastIdentifier, episodeId);
         return HandleRequest(
             req,
             ["curate"],

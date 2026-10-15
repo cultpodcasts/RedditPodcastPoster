@@ -9,7 +9,7 @@ public static class PodcastEpisodeRequestExtensions
     {
         public PodcastEpisodeResolverRequest ToPodcastEpisodeResolverRequest()
         {
-            // Idempotent if EpisodeController already ran Normalize on the route name.
+            // The one place a route podcast name is normalised before it reaches the resolver.
             var podcastName = podcastEpisodeResolverRequest.PodcastName == null
                 ? null
                 : PodcastRouteNameNormalizer.Normalize(podcastEpisodeResolverRequest.PodcastName);

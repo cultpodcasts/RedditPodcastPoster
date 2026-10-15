@@ -72,6 +72,32 @@ PersonController.Post
 
 A command result carries status and command details. It does not carry the saved aggregate.
 
+## Podcast-episode resolver
+
+`PodcastEpisodeResolver` is the one place that turns an episode route into an episode and its podcast. Episode get, update, delete, publish and public get all use it. The route decides how the podcast is found.
+
+```mermaid
+flowchart TD
+    R[ResolvePodcast request] --> N{Route carries?}
+    N -- podcast name --> L[PodcastNameAttachLookup.FindByName<br/>case-insensitive, as in podcast get and name-only submit]
+    N -- podcast-id --> P[Point reads: episode and podcast by id]
+    N -- episode-id only --> I[Episode by id, then its podcast]
+    L -- 0 podcasts --> PNF[PodcastNotFound]
+    L -- 1 podcast --> U[Point read of the episode in that podcast<br/>missing = no episode, 404]
+    L -- several podcasts --> C[Get the episode by id<br/>log a warning with the podcast ids]
+    C -- no episode --> ENF[EpisodeNotFound, 404]
+    C -- episode podcast is one of them --> OK[Return the episode and that podcast]
+    C -- otherwise --> X[Throw PodcastEpisodeMismatchException]
+```
+
+- **Name first.** The podcast name narrows the search to one partition. A unique name never triggers a search across podcasts.
+- **Same name rule everywhere.** The name is matched case-insensitively with the shared `PodcastNameAttachLookup.FindByName`, the lookup podcast get and name-only submit use, so "which podcasts have this name" means the same on the episode, podcast and submit routes. Rename applies the same case-insensitive rule inline (`PodcastRenameService`).
+- **Conflict.** When several podcasts share the name, the episode-id (unique) decides. The episode's podcast must be one of the podcasts with the name; the resolver returns that podcast.
+- **Mismatch.** An episode whose podcast is not one of them, or whose podcast no longer exists, means the route and the data disagree. The resolver throws `PodcastEpisodeMismatchException`. The calling service's catch logs it with `LogError(ex, ...)` so it appears in App Insights exceptions, and the handler returns its failure status (500 for `GET episode/{podcast-name}/{episode-id}`), not 404.
+- **Unknown id** is a normal not-found (404).
+- **Podcast-id and episode-id-only routes** do not use the name lookup and never throw the mismatch exception.
+- Only `GET episode/{podcast-name}/{episode-id}` supplies a podcast name, so only it can reach the conflict path. The route name is normalised once, in `ToPodcastEpisodeResolverRequest`.
+
 ## CQRS
 
 Standing HTTP standard for every client of this API: Azure Functions (`api-infra`), the Cloudflare Worker, and the Angular app.

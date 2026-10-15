@@ -116,6 +116,28 @@ public class GetEpisodeHandlerTests
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
+    [Fact(DisplayName =
+        "Plain English rule: when episode get fails, then respond 500 and not 404, because a failure to retrieve is a server error, not a missing episode.")]
+    public async Task failed_returns_500()
+    {
+        // Arrange
+        var getService = new Mock<IEpisodeGetService>();
+        getService.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeGetResult(EpisodeGetStatus.Failed));
+
+        var handler = new GetEpisodeHandler(getService.Object, CreateEpisodeDtoMapper(), NullLogger<GetEpisodeHandler>.Instance);
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+    }
+
     private static EpisodeDtoMapper CreateEpisodeDtoMapper()
     {
         var sanitiser = new Mock<ITextSanitiser>();
