@@ -28,8 +28,8 @@ public class EpisodeDeleteService(
             if (resolved.Episode == null || resolved.Podcast == null)
             {
                 logger.LogWarning(
-                    "Delete: missing episode or podcast. Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.",
-                    request.PodcastName, request.EpisodeId);
+                    "Delete: missing episode or podcast. Podcast-Id: '{podcastId}', Episode-id: '{episodeId}'.",
+                    request.PodcastId, request.EpisodeId);
                 return new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound);
             }
 

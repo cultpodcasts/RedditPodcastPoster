@@ -286,6 +286,66 @@ public class PodcastEpisodeResolverRules
             Times.Never);
     }
 
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts have names that differ only by case and the episode belongs to one of them, then resolve that episode and its podcast, because podcast names are matched case-insensitively on every route.")]
+    public async Task resolve_by_name_with_case_variant_duplicates_returns_episode_and_owning_podcast()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        AddPodcast(name.ToLowerInvariant());
+        var owner = AddPodcast(name.ToUpperInvariant());
+        var episode = AddEpisode(owner);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var result = await sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, name), "test");
+
+        // Assert
+        result.Episode.Should().BeSameAs(episode);
+        result.Podcast.Should().BeSameAs(owner);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when the route name differs only by case from the one stored podcast name, then read the episode within that podcast and never search across podcasts by episode-id, because the name match is case-insensitive.")]
+    public async Task resolve_by_unique_name_in_different_case_is_name_first_without_cross_partition_search()
+    {
+        // Arrange
+        var owner = AddPodcast(_fixture.CreateTitle().ToLowerInvariant());
+        var episode = AddEpisode(owner);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var result = await sut.ResolvePodcast(
+            new PodcastEpisodeResolverRequest(episode.Id, null, owner.Name.ToUpperInvariant()), "test");
+
+        // Assert
+        result.Episode.Should().BeSameAs(episode);
+        result.Podcast.Should().BeSameAs(owner);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Verify(r => r.GetBy(It.IsAny<Expression<Func<Episode, bool>>>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts share the requested name and the episode belongs to a podcast whose name differs by more than case, then throw a mismatch exception, because only a case difference is tolerated.")]
+    public async Task resolve_by_duplicate_name_when_episode_owner_name_differs_beyond_case_throws_mismatch()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        AddPodcast(name);
+        AddPodcast(name.ToUpperInvariant());
+        var actualOwner = AddPodcast($"{name} Extra");
+        var episode = AddEpisode(actualOwner);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var act = () => sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, name), "test");
+
+        // Assert
+        var exception = (await act.Should().ThrowAsync<PodcastEpisodeMismatchException>()).Which;
+        exception.ActualPodcastId.Should().Be(actualOwner.Id);
+        exception.ActualPodcastName.Should().Be(actualOwner.Name);
+    }
+
     private void VerifyLogged(LogLevel level, params string[] fragments)
     {
         _mocker.GetMock<ILogger<PodcastEpisodeResolver>>().Verify(

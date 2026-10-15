@@ -3,6 +3,7 @@ using Api.Models;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Resolvers;
 
@@ -19,12 +20,12 @@ public class PodcastEpisodeResolver(
         Podcast? podcast = null;
         if (request.PodcastName != null)
         {
-            var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
-            if (podcasts.Length > 1)
+            var podcasts = await PodcastNameAttachLookup.FindByName(podcastRepository, request.PodcastName);
+            if (podcasts.Count > 1)
             {
                 return await ResolveAmbiguousPodcastName(request, request.PodcastName, podcasts, caller);
             }
-            else if (podcasts.Length == 0)
+            else if (podcasts.Count == 0)
             {
                 return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound);
             }
