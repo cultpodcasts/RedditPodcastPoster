@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging;
 using AutoFixture;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models.Episodes;
@@ -13,13 +13,12 @@ namespace RedditPodcastPoster.Subjects.Tests;
 
 public class SubjectEnricherTests
 {
-    private readonly Fixture _fixture;
+    private readonly Fixture _fixture = new();
     private readonly AutoMocker _mocker;
     private IList<SubjectMatch> _subjectMatches;
 
     public SubjectEnricherTests()
     {
-        _fixture = new Fixture();
         _mocker = new AutoMocker();
         _subjectMatches = _fixture.CreateMany<SubjectMatch>().ToList();
         _mocker.GetMock<ISubjectMatcher>()
