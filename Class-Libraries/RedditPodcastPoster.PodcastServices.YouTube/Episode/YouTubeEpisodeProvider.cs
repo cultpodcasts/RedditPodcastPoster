@@ -270,6 +270,12 @@ public class YouTubeEpisodeProvider(
             return;
         }
 
+        if (failure == YouTubePlaylistFetchFailure.Skipped)
+        {
+            // YouTube is bypassed this pass: nothing was looked up, so nothing is missing.
+            return;
+        }
+
         if (failure == YouTubePlaylistFetchFailure.NotFound)
         {
             logger.LogError(

@@ -13,4 +13,13 @@ public interface ITolerantYouTubeChannelService
         bool withContentOwnerDetails = false,
         bool withStatistics = false,
         bool withContentDetails = false);
+
+    /// <summary>As <see cref="GetChannel"/>, but says why no channel was returned (skipped, not found, API error, quota).</summary>
+    Task<YouTubeChannelLookupResult> GetChannelLookup(
+        YouTubeChannelId channelId,
+        IndexingContext indexingContext,
+        bool withSnippets = false,
+        bool withContentOwnerDetails = false,
+        bool withStatistics = false,
+        bool withContentDetails = false);
 }

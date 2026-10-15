@@ -22,7 +22,7 @@ public class YouTubeChannelServiceRules
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<YouTubeChannelService>>(NullLogger<YouTubeChannelService>.Instance);
     }
 
-    [Fact(DisplayName = "When YouTube API throws a non-quota exception, GetChannel returns null and does NOT set SkipYouTubeUrlResolving")]
+    [Fact(DisplayName = "When YouTube API throws a non-quota exception, GetChannelLookup reports ApiError and does NOT set SkipYouTubeUrlResolving")]
     public async Task When_YouTube_Api_Throws_NonQuota_Exception_Does_Not_Set_Skip_Flag()
     {
         // Arrange
@@ -34,10 +34,27 @@ public class YouTubeChannelServiceRules
         var sut = _mocker.CreateInstance<YouTubeChannelService>();
 
         // Act
-        var result = await sut.GetChannel(channelId, indexingContext);
+        var result = await sut.GetChannelLookup(channelId, indexingContext);
 
         // Assert
-        result.Should().BeNull();
+        result.Channel.Should().BeNull();
+        result.Outcome.Should().Be(YouTubeChannelLookupOutcome.ApiError);
         indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "When SkipYouTubeUrlResolving is set, GetChannelLookup reports Skipped without touching the API")]
+    public async Task When_Skip_Set_Reports_Skipped()
+    {
+        // Arrange
+        var mockWrapper = _mocker.GetMock<IYouTubeServiceWrapper>();
+        var sut = _mocker.CreateInstance<YouTubeChannelService>();
+
+        // Act
+        var result = await sut.GetChannelLookup(_fixture.Create<YouTubeChannelId>(),
+            new IndexingContext(SkipYouTubeUrlResolving: true));
+
+        // Assert
+        result.Outcome.Should().Be(YouTubeChannelLookupOutcome.Skipped);
+        mockWrapper.VerifyGet(x => x.YouTubeService, Times.Never);
     }
 }

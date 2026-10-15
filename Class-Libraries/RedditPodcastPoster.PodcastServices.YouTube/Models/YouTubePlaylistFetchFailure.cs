@@ -9,5 +9,8 @@ public enum YouTubePlaylistFetchFailure
     NotFound,
 
     /// <summary>Other Google API / unexpected error while fetching playlist items.</summary>
-    ApiError
+    ApiError,
+
+    /// <summary>No API call was made because SkipYouTubeUrlResolving is set for this pass; not an error.</summary>
+    Skipped
 }

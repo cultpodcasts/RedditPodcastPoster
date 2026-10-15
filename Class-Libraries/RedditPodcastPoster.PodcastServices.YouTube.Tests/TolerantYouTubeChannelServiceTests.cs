@@ -59,7 +59,7 @@ public class TolerantYouTubeChannelServiceTests
 
         var callCount = 0;
         _mocker.GetMock<IYouTubeChannelService>()
-            .Setup(x => x.GetChannel(channelId, indexingContext, true, false, false, false))
+            .Setup(x => x.GetChannelLookup(channelId, indexingContext, true, false, false, false))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -68,7 +68,7 @@ public class TolerantYouTubeChannelServiceTests
                     throw new YouTubeQuotaException();
                 }
 
-                return channel;
+                return YouTubeChannelLookupResult.Found(channel);
             });
 
         var seenRecordCallApps = new List<Application>();
@@ -86,7 +86,7 @@ public class TolerantYouTubeChannelServiceTests
         result.Should().Be(channel);
         _mocker.GetMock<IYouTubeServiceWrapper>().Verify(x => x.Rotate(), Times.Once);
         _mocker.GetMock<IYouTubeChannelService>().Verify(
-            x => x.GetChannel(channelId, indexingContext, true, false, false, false),
+            x => x.GetChannelLookup(channelId, indexingContext, true, false, false, false),
             Times.Exactly(2));
 
         seenRecordCallApps.Should().HaveCount(2);
@@ -112,7 +112,7 @@ public class TolerantYouTubeChannelServiceTests
         _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new InvalidOperationException("Ring exhausted"));
 
         _mocker.GetMock<IYouTubeChannelService>()
-            .Setup(x => x.GetChannel(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .Setup(x => x.GetChannelLookup(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
             .ThrowsAsync(new YouTubeQuotaException());
 
         var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
@@ -123,5 +123,39 @@ public class TolerantYouTubeChannelServiceTests
         // Assert
         result.Should().BeNull();
         indexingContext.SkipYouTubeUrlResolving.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "When rotation is exhausted, GetChannelLookup reports QuotaExhausted")]
+    public async Task GetChannelLookup_WhenRotationExhausted_Reports_QuotaExhausted()
+    {
+        // Arrange
+        var channelId = _fixture.Create<YouTubeChannelId>();
+        _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new InvalidOperationException("Ring exhausted"));
+        _mocker.GetMock<IYouTubeChannelService>()
+            .Setup(x => x.GetChannelLookup(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .ThrowsAsync(new YouTubeQuotaException());
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
+
+        // Act
+        var result = await sut.GetChannelLookup(channelId, new IndexingContext());
+
+        // Assert
+        result.Outcome.Should().Be(YouTubeChannelLookupOutcome.QuotaExhausted);
+        result.Channel.Should().BeNull();
+    }
+
+    [Fact(DisplayName = "When YouTube is bypassed, GetChannelLookup reports Skipped without calling the API")]
+    public async Task GetChannelLookup_WhenBypassed_Reports_Skipped()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<TolerantYouTubeChannelService>();
+
+        // Act
+        var result = await sut.GetChannelLookup(_fixture.Create<YouTubeChannelId>(),
+            new IndexingContext(SkipYouTubeUrlResolving: true));
+
+        // Assert
+        result.Outcome.Should().Be(YouTubeChannelLookupOutcome.Skipped);
+        _mocker.GetMock<IYouTubeChannelService>().VerifyNoOtherCalls();
     }
 }

@@ -1,6 +1,7 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
@@ -23,34 +24,36 @@ public class YouTubeChannelVideosSkippedRules
 {
     private const string CultOnTheCapeChannelId = "UC1hYXZi0_9KdI4z0qtSCIkQ";
 
-    private readonly Mock<IYouTubeServiceWrapper> _wrapper = new();
-    private readonly Mock<ITolerantYouTubePlaylistService> _playlistService = new();
+    private readonly AutoMocker _mocker = new();
     private readonly RecordingLogger<YouTubeChannelVideosService> _logger = new();
 
     private YouTubeChannelVideosService CreateSut()
     {
-        _wrapper.SetupGet(x => x.CanRotate).Returns(true);
-        var quota = new Mock<IYouTubeQuotaUsageTracker>();
-        var channelService = new YouTubeChannelService(
-            _wrapper.Object, quota.Object, new RecordingLogger<YouTubeChannelService>());
-        var tolerant = new TolerantYouTubeChannelService(
-            _wrapper.Object, channelService, quota.Object, new RecordingLogger<TolerantYouTubeChannelService>());
-        return new YouTubeChannelVideosService(tolerant, _playlistService.Object, _logger);
+        // Real channel services over a mocked API wrapper, so the bypass flows through the real code path.
+        _mocker.GetMock<IYouTubeServiceWrapper>().SetupGet(x => x.CanRotate).Returns(true);
+        _mocker.Use<IYouTubeChannelService>(_mocker.CreateInstance<YouTubeChannelService>());
+        _mocker.Use<ITolerantYouTubeChannelService>(_mocker.CreateInstance<TolerantYouTubeChannelService>());
+        _mocker.Use<ILogger<YouTubeChannelVideosService>>(_logger);
+        return _mocker.CreateInstance<YouTubeChannelVideosService>();
     }
 
     [Fact(DisplayName = "Cult on the Cape: bypassed YouTube pass does not report the channel as not found")]
     public async Task Bypassed_Pass_Does_Not_Report_NotFound()
     {
+        // Arrange
         var sut = CreateSut();
         var indexingContext = new IndexingContext(SkipYouTubeUrlResolving: true);
 
+        // Act
         var response = await sut.GetChannelVideos(new YouTubeChannelId(CultOnTheCapeChannelId), indexingContext);
 
+        // Assert
         response.PlaylistItems.Should().BeNull();
+        response.Failure.Should().Be(YouTubePlaylistFetchFailure.Skipped);
         response.Failure.Should().NotBe(YouTubePlaylistFetchFailure.NotFound);
         response.Failure.Should().NotBe(YouTubePlaylistFetchFailure.ApiError);
         _logger.Entries.Should().NotContain(e => e.Level >= LogLevel.Error);
-        _wrapper.VerifyGet(x => x.YouTubeService, Times.Never);
-        _playlistService.VerifyNoOtherCalls();
+        _mocker.GetMock<IYouTubeServiceWrapper>().VerifyGet(x => x.YouTubeService, Times.Never);
+        _mocker.GetMock<ITolerantYouTubePlaylistService>().VerifyNoOtherCalls();
     }
 }

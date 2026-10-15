@@ -23,7 +23,25 @@ public class TolerantYouTubeChannelService(
         bool withStatistics = false,
         bool withContentDetails = false)
     {
-        Google.Apis.YouTube.v3.Data.Channel? result = null;
+        var lookup = await GetChannelLookup(channelId, indexingContext, withSnippets, withContentOwnerDetails,
+            withStatistics, withContentDetails);
+        return lookup.Channel;
+    }
+
+    public async Task<YouTubeChannelLookupResult> GetChannelLookup(
+        YouTubeChannelId channelId,
+        IndexingContext indexingContext,
+        bool withSnippets = false,
+        bool withContentOwnerDetails = false,
+        bool withStatistics = false,
+        bool withContentDetails = false)
+    {
+        if (indexingContext.SkipYouTubeUrlResolving)
+        {
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.Skipped);
+        }
+
+        YouTubeChannelLookupResult? result = null;
         var success = false;
         var rotationExcepted = false;
         while (youTubeService.CanRotate && !success && !rotationExcepted)
@@ -31,7 +49,7 @@ public class TolerantYouTubeChannelService(
             try
             {
                 await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
-                result = await youTubeChannelService.GetChannel(
+                result = await youTubeChannelService.GetChannelLookup(
                     channelId,
                     indexingContext,
                     withSnippets,
@@ -64,8 +82,9 @@ public class TolerantYouTubeChannelService(
         {
             indexingContext.MarkYouTubeQuotaExhausted();
             logger.LogError("Unable to obtain channel for channel-id '{channelId}'.", channelId.ChannelId);
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.QuotaExhausted);
         }
 
-        return result;
+        return result ?? YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.ApiError);
     }
 }

@@ -120,8 +120,9 @@ public class EnrichYouTubePodcastProcessor(
         string playlistId;
         if (string.IsNullOrWhiteSpace(request.PlaylistId))
         {
-            var channel =
-                await youTubeChannelService.GetChannel(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
+            var channelLookup =
+                await youTubeChannelService.GetChannelLookup(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
+            var channel = channelLookup.Channel;
             if (channel == null)
             {
                 throw new InvalidOperationException(
