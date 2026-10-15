@@ -6,11 +6,6 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Resolvers;
 
-/// <summary>
-/// Resolves an episode and its owning podcast. An episode-id is globally unique, so it always decides:
-/// a podcast-id or podcast-name supplied alongside it is only a hint used to narrow the search
-/// (point reads within the hinted podcast partitions) and never a reason to fail or report a conflict.
-/// </summary>
 public class PodcastEpisodeResolver(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
@@ -20,57 +15,69 @@ public class PodcastEpisodeResolver(
     public async Task<PodcastEpisodeResolverResponse> ResolvePodcast(PodcastEpisodeResolverRequest request,
         string caller)
     {
-        var hintedPodcasts = new Dictionary<Guid, Podcast>();
-        var hintedPodcastIds = new List<Guid>();
-        if (request.PodcastId != null)
+        Episode? episode;
+        Podcast? podcast = null;
+        if (request.PodcastName != null)
         {
-            hintedPodcastIds.Add(request.PodcastId.Value);
-        }
-        else if (request.PodcastName != null)
-        {
-            await foreach (var podcast in podcastRepository.GetAllBy(x => x.Name == request.PodcastName))
+            var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
+            if (podcasts.Length > 1)
             {
-                hintedPodcasts[podcast.Id] = podcast;
-                hintedPodcastIds.Add(podcast.Id);
+                // Several podcasts share the name: the (globally unique) episode-id identifies the episode,
+                // and the owning podcast must carry the name given in the route.
+                return await ResolveAmbiguousPodcastName(request, request.PodcastName, podcasts);
             }
-        }
 
-        foreach (var hintedPodcastId in hintedPodcastIds)
-        {
-            var hintedEpisode = await episodeRepository.GetEpisode(hintedPodcastId, request.EpisodeId);
-            if (hintedEpisode != null)
+            if (podcasts.Length == 0)
             {
-                return await Resolved(hintedEpisode, hintedPodcasts);
+                return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
             }
-        }
 
-        if (hintedPodcastIds.Count == 0)
+            podcast = podcasts.Single();
+            episode = await episodeRepository.GetEpisode(podcast.Id, request.EpisodeId);
+        }
+        else if (request.PodcastId != null)
         {
-            logger.LogWarning("{method} used without podcast-id or podcast-name. Episode-id: '{episodeId}'.", caller,
-                request.EpisodeId);
+            var episodeTask = episodeRepository.GetEpisode(request.PodcastId.Value, request.EpisodeId);
+            var podcastTask = podcastRepository.GetPodcast(request.PodcastId.Value);
+            await Task.WhenAll(episodeTask, podcastTask);
+            episode = episodeTask.Result;
+            podcast = podcastTask.Result;
         }
         else
         {
-            logger.LogWarning(
-                "{method}: Episode-id '{episodeId}' not found within hinted podcasts (podcast-id: '{podcastId}', podcast-name: '{podcastName}'). Searching by episode-id.",
-                caller, request.EpisodeId, request.PodcastId, request.PodcastName);
+            episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId);
+            if (episode != null)
+            {
+                podcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            }
+
+            logger.LogWarning("{method} used without podcast-id. Episode-id: '{episodeId}'.", caller,
+                request.EpisodeId);
         }
 
+        return new PodcastEpisodeResolverResponse(episode, podcast,
+            episode == null ? PodcastEpisodeResolveState.EpisodeNotFound : PodcastEpisodeResolveState.Resolved);
+    }
+
+    private async Task<PodcastEpisodeResolverResponse> ResolveAmbiguousPodcastName(
+        PodcastEpisodeResolverRequest request,
+        string routePodcastName,
+        IReadOnlyCollection<Podcast> podcastsWithName)
+    {
         var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId);
         if (episode == null)
         {
             return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
         }
 
-        return await Resolved(episode, hintedPodcasts);
-    }
+        var owner = podcastsWithName.SingleOrDefault(x => x.Id == episode.PodcastId);
+        if (owner == null)
+        {
+            var actualPodcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            throw new PodcastEpisodeMismatchException(
+                request.EpisodeId, routePodcastName, episode.PodcastId, actualPodcast?.Name);
+        }
 
-    private async Task<PodcastEpisodeResolverResponse> Resolved(Episode episode,
-        IReadOnlyDictionary<Guid, Podcast> knownPodcasts)
-    {
-        var podcast = knownPodcasts.TryGetValue(episode.PodcastId, out var known)
-            ? known
-            : await podcastRepository.GetPodcast(episode.PodcastId);
-        return new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        return new PodcastEpisodeResolverResponse(episode, owner, PodcastEpisodeResolveState.Resolved);
     }
 }
