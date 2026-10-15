@@ -17,25 +17,6 @@ namespace FunctionHost.Tests.Api;
 
 public class EpisodeDeleteServiceTests
 {
-    [Fact(DisplayName = "Delete returns PodcastConflict when podcast name resolves ambiguously")]
-    public async Task Delete_returns_conflict_on_podcast_ambiguity()
-    {
-        // Arrange
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict));
-
-        var service = CreateService(resolver.Object);
-
-        // Act
-        var result = await service.DeleteAsync(
-            new PodcastEpisodeRequestWrapper("Ambiguous Show", Guid.NewGuid()),
-            CancellationToken.None);
-
-        // Assert
-        result.Status.Should().Be(EpisodeDeleteStatus.PodcastConflict);
-    }
-
     [Fact(DisplayName = "Delete returns NotFound when episode or podcast missing")]
     public async Task Delete_returns_not_found_when_missing()
     {

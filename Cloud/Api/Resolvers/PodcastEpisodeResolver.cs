@@ -22,7 +22,7 @@ public class PodcastEpisodeResolver(
             var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
             if (podcasts.Length > 1)
             {
-                return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastConflict);
+                return await ResolveAmbiguousPodcastName(request, podcasts, caller);
             }
             else if (podcasts.Length == 0)
             {
@@ -53,5 +53,37 @@ public class PodcastEpisodeResolver(
         }
 
         return new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+    }
+
+    /// <summary>
+    /// Several podcasts share the route's podcast-name, so the name cannot choose the podcast. The episode-id is unique,
+    /// so find the episode by it and compare its podcast with the podcasts carrying the name. A podcast that does not carry
+    /// the name means the route and the data disagree, which is an error rather than a not-found.
+    /// </summary>
+    private async Task<PodcastEpisodeResolverResponse> ResolveAmbiguousPodcastName(
+        PodcastEpisodeResolverRequest request,
+        IReadOnlyCollection<Podcast> podcastsWithName,
+        string caller)
+    {
+        logger.LogWarning(
+            "{method}: {podcastCount} podcasts share the Podcast-Name '{podcastName}' (podcast-ids: {podcastIds}). Resolving Episode-id '{episodeId}' by id.",
+            caller, podcastsWithName.Count, request.PodcastName,
+            string.Join(", ", podcastsWithName.Select(x => x.Id)), request.EpisodeId);
+
+        var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId);
+        if (episode == null)
+        {
+            return new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
+        }
+
+        var owningPodcast = podcastsWithName.SingleOrDefault(x => x.Id == episode.PodcastId);
+        if (owningPodcast == null)
+        {
+            var actualPodcast = await podcastRepository.GetPodcast(episode.PodcastId);
+            throw new PodcastEpisodeMismatchException(
+                request.EpisodeId, request.PodcastName!, episode.PodcastId, actualPodcast?.Name);
+        }
+
+        return new PodcastEpisodeResolverResponse(episode, owningPodcast, PodcastEpisodeResolveState.Resolved);
     }
 }

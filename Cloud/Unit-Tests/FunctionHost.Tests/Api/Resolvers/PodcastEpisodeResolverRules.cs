@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using FluentAssertions;
 using Moq;
+using Microsoft.Extensions.Logging;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Resolvers;
@@ -171,6 +172,130 @@ public class PodcastEpisodeResolverRules
         // Assert
         result.Episode.Should().BeSameAs(episode);
         result.Podcast.Should().BeSameAs(owner);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts share the requested name but the episode belongs to a podcast with a different name, then throw a mismatch exception naming the episode-id, route name and actual podcast, because the data and route are inconsistent.")]
+    public async Task resolve_by_duplicate_name_when_episode_owner_has_other_name_throws_mismatch()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        AddPodcast(name);
+        AddPodcast(name);
+        var actualOwner = AddPodcast(_fixture.CreateTitle());
+        var episode = AddEpisode(actualOwner);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var act = () => sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, name), "test");
+
+        // Assert
+        var exception = (await act.Should().ThrowAsync<PodcastEpisodeMismatchException>()).Which;
+        exception.EpisodeId.Should().Be(episode.Id);
+        exception.RoutePodcastName.Should().Be(name);
+        exception.ActualPodcastId.Should().Be(actualOwner.Id);
+        exception.ActualPodcastName.Should().Be(actualOwner.Name);
+        exception.Message.Should().Contain(episode.Id.ToString())
+            .And.Contain(name)
+            .And.Contain(actualOwner.Name)
+            .And.Contain(actualOwner.Id.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts share the requested name and the episode's own podcast no longer exists, then throw a mismatch exception that carries the missing podcast's id and no name, because a dangling podcast-id means something has gone wrong.")]
+    public async Task resolve_by_duplicate_name_when_episode_podcast_is_missing_throws_mismatch_without_name()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        AddPodcast(name);
+        AddPodcast(name);
+        var missingPodcast = _fixture.CreatePodcast();
+        var episode = AddEpisode(missingPodcast);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var act = () => sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, name), "test");
+
+        // Assert
+        var exception = (await act.Should().ThrowAsync<PodcastEpisodeMismatchException>()).Which;
+        exception.ActualPodcastId.Should().Be(missingPodcast.Id);
+        exception.ActualPodcastName.Should().BeNull();
+        exception.Message.Should().Contain(missingPodcast.Id.ToString())
+            .And.Contain(PodcastEpisodeMismatchException.MissingPodcastName);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts share the requested name and no episode has the episode-id, then the episode is not found, because there is no such episode.")]
+    public async Task resolve_by_duplicate_name_with_unknown_episode_id_is_episode_not_found()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        AddPodcast(name);
+        AddPodcast(name);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        var result = await sut.ResolvePodcast(new PodcastEpisodeResolverRequest(_fixture.CreateGuid(), null, name),
+            "test");
+
+        // Assert
+        result.State.Should().Be(PodcastEpisodeResolveState.EpisodeNotFound);
+        result.Episode.Should().BeNull();
+        result.Podcast.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when two podcasts share the requested name, then log a warning naming the route name, the podcast-ids and the caller, because duplicate podcast names are a data problem that must be visible in App Insights.")]
+    public async Task resolve_by_duplicate_name_logs_warning_with_podcast_ids()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var first = AddPodcast(name);
+        var second = AddPodcast(name);
+        var episode = AddEpisode(second);
+        var caller = _fixture.Create<string>();
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        await sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, name), caller);
+
+        // Assert
+        VerifyLogged(LogLevel.Warning, name, first.Id.ToString(), second.Id.ToString(), caller);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when exactly one podcast has the requested name, then log no warning, because only duplicate names are a data problem.")]
+    public async Task resolve_by_unique_name_logs_no_warning()
+    {
+        // Arrange
+        var owner = AddPodcast(_fixture.CreateTitle());
+        var episode = AddEpisode(owner);
+        var sut = _mocker.CreateInstance<PodcastEpisodeResolver>();
+
+        // Act
+        await sut.ResolvePodcast(new PodcastEpisodeResolverRequest(episode.Id, null, owner.Name), "test");
+
+        // Assert
+        _mocker.GetMock<ILogger<PodcastEpisodeResolver>>().Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    private void VerifyLogged(LogLevel level, params string[] fragments)
+    {
+        _mocker.GetMock<ILogger<PodcastEpisodeResolver>>().Verify(
+            x => x.Log(
+                level,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => fragments.All(f => v!.ToString()!.Contains(f))),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     private Podcast AddPodcast(string name)

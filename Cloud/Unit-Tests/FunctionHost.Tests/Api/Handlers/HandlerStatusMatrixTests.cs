@@ -261,25 +261,6 @@ public class HandlerStatusMatrixTests
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Fact(DisplayName = "DeleteEpisodeHandler maps PodcastConflict to 409")]
-    public async Task DeleteEpisodeHandler_podcast_conflict_returns_409()
-    {
-        // Arrange
-        var service = new Mock<IEpisodeDeleteService>();
-        service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.PodcastConflict));
-
-        var handler = new DeleteEpisodeHandler(service.Object, NullLogger<DeleteEpisodeHandler>.Instance);
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
-
-        var result = await handler.Handle(
-            new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
-            CancellationToken.None);
-
-        result.StatusCode.Should().Be(HttpStatusCode.Conflict);
-    }
-
     [Fact(DisplayName = "DeleteEpisodeHandler maps AlreadySocial to 400 with tweeted body")]
     public async Task DeleteEpisodeHandler_already_social_returns_400()
     {

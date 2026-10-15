@@ -25,13 +25,6 @@ public class EpisodeDeleteService(
                 request.ToPodcastEpisodeResolverRequest(),
                 nameof(DeleteAsync));
 
-            if (resolved.State == PodcastEpisodeResolveState.PodcastConflict)
-            {
-                logger.LogWarning(
-                    "Delete: Multiple podcasts with Podcast-Name: '{podcastName}', Episode-id: '{episodeId}'.",
-                    request.PodcastName, request.EpisodeId);
-                return new EpisodeDeleteResult(EpisodeDeleteStatus.PodcastConflict);
-            }
 
             if (resolved.Episode == null || resolved.Podcast == null)
             {
