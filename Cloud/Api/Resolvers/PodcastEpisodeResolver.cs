@@ -22,7 +22,7 @@ public class PodcastEpisodeResolver(
             var podcasts = await podcastRepository.GetAllBy(x => x.Name == request.PodcastName).ToArrayAsync();
             if (podcasts.Length > 1)
             {
-                return await ResolveAmbiguousPodcastName(request, podcasts, caller);
+                return await ResolveAmbiguousPodcastName(request, request.PodcastName, podcasts, caller);
             }
             else if (podcasts.Length == 0)
             {
@@ -62,12 +62,13 @@ public class PodcastEpisodeResolver(
     /// </summary>
     private async Task<PodcastEpisodeResolverResponse> ResolveAmbiguousPodcastName(
         PodcastEpisodeResolverRequest request,
+        string routePodcastName,
         IReadOnlyCollection<Podcast> podcastsWithName,
         string caller)
     {
         logger.LogWarning(
             "{method}: {podcastCount} podcasts share the Podcast-Name '{podcastName}' (podcast-ids: {podcastIds}). Resolving Episode-id '{episodeId}' by id.",
-            caller, podcastsWithName.Count, request.PodcastName,
+            caller, podcastsWithName.Count, routePodcastName,
             string.Join(", ", podcastsWithName.Select(x => x.Id)), request.EpisodeId);
 
         var episode = await episodeRepository.GetBy(x => x.Id == request.EpisodeId);
@@ -81,7 +82,7 @@ public class PodcastEpisodeResolver(
         {
             var actualPodcast = await podcastRepository.GetPodcast(episode.PodcastId);
             throw new PodcastEpisodeMismatchException(
-                request.EpisodeId, request.PodcastName!, episode.PodcastId, actualPodcast?.Name);
+                request.EpisodeId, routePodcastName, episode.PodcastId, actualPodcast?.Name);
         }
 
         return new PodcastEpisodeResolverResponse(episode, owningPodcast, PodcastEpisodeResolveState.Resolved);

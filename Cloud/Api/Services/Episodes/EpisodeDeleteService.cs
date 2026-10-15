@@ -25,7 +25,6 @@ public class EpisodeDeleteService(
                 request.ToPodcastEpisodeResolverRequest(),
                 nameof(DeleteAsync));
 
-
             if (resolved.Episode == null || resolved.Podcast == null)
             {
                 logger.LogWarning(
