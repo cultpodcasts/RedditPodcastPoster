@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
@@ -61,7 +61,7 @@ public class YouTubeItemResolver(
         {
             if (latestPlaylistItems.Failure != null)
             {
-                LogPlaylistFetchFailure(request.Podcast, latestPlaylistItems.Failure, playlistId);
+                logger.LogPlaylistFetchFailure(request.Podcast, latestPlaylistItems.Failure, playlistId);
             }
 
             return null;
@@ -147,7 +147,7 @@ public class YouTubeItemResolver(
         {
             if (channelVideosResponse.Failure != null)
             {
-                LogPlaylistFetchFailure(request.Podcast, channelVideosResponse.Failure,
+                logger.LogPlaylistFetchFailure(request.Podcast, channelVideosResponse.Failure,
                     new YouTubePlaylistId(
                         channelVideosResponse.Channel?.ContentDetails?.RelatedPlaylists?.Uploads ?? string.Empty,
                         YouTubePlaylistIdSource.ChannelUploads,
@@ -185,32 +185,5 @@ public class YouTubeItemResolver(
                 "{method} Retrieved {count} items published on YouTube. {releasedSince} is Null.",
                 method, count, nameof(indexingContext.ReleasedSince));
         }
-    }
-
-    private void LogPlaylistFetchFailure(RedditPodcastPoster.Models.Podcasts.Podcast podcast,
-        YouTubePlaylistFetchFailure? failure, YouTubePlaylistId playlistId)
-    {
-        if (failure == null)
-        {
-            return;
-        }
-
-        if (failure == YouTubePlaylistFetchFailure.Skipped)
-        {
-            // YouTube is bypassed this pass: nothing was looked up, so nothing is missing.
-            return;
-        }
-
-        if (failure == YouTubePlaylistFetchFailure.NotFound)
-        {
-            logger.LogError(
-                "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
-                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
-            return;
-        }
-
-        logger.LogError(
-            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}, failure '{Failure}').",
-            podcast.Name, podcast.Id, playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, failure);
     }
 }

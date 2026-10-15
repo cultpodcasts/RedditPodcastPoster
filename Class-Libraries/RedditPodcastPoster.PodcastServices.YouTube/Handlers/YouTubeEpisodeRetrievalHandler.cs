@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
@@ -56,7 +57,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 newEpisodes = getPlaylistEpisodesResult.Results;
             }
 
-            LogPlaylistFetchFailure(podcast, getPlaylistEpisodesResult.Failure, playlistId);
+            logger.LogPlaylistFetchFailure(podcast, getPlaylistEpisodesResult.Failure, playlistId);
 
             // Arbitrary-order playlists never yield a head-order probe result (IsExpensiveQuery stays
             // null), and even if a probe value sneaks through the expensive flag must stay untouched —
@@ -98,33 +99,6 @@ public class YouTubeEpisodeRetrievalHandler(
         handled = true;
 
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
-    }
-
-    private void LogPlaylistFetchFailure(Podcast podcast, YouTubePlaylistFetchFailure? failure,
-        YouTubePlaylistId playlistId)
-    {
-        if (failure == null)
-        {
-            return;
-        }
-
-        if (failure == YouTubePlaylistFetchFailure.Skipped)
-        {
-            // YouTube is bypassed this pass: nothing was looked up, so nothing is missing.
-            return;
-        }
-
-        if (failure == YouTubePlaylistFetchFailure.NotFound)
-        {
-            logger.LogError(
-                "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
-                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
-            return;
-        }
-
-        logger.LogError(
-            "YouTube playlist fetch failed for podcast '{PodcastName}' (id '{PodcastId}') playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}, failure '{Failure}').",
-            podcast.Name, podcast.Id, playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, failure);
     }
 
     private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)

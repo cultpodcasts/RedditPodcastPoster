@@ -1,4 +1,4 @@
-﻿using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -14,7 +14,7 @@ public interface ITolerantYouTubeChannelService
         bool withStatistics = false,
         bool withContentDetails = false);
 
-    /// <summary>As <see cref="GetChannel"/>, but says why no channel was returned (skipped, not found, API error, quota).</summary>
+    /// <summary>As <see cref="GetChannel"/>, but says why no channel was returned (skipped, not found, API error, quota). A pass-cache hit is Found even when YouTube is bypassed.</summary>
     Task<YouTubeChannelLookupResult> GetChannelLookup(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,

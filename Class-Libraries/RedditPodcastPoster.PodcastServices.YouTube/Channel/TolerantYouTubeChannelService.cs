@@ -38,7 +38,15 @@ public class TolerantYouTubeChannelService(
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
-            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.Skipped);
+            // One skip policy, owned by the inner service: a pass-cache hit is still Found, otherwise Skipped.
+            // No API call is made, so no call is recorded and key rotation does not apply.
+            return await youTubeChannelService.GetChannelLookup(
+                channelId,
+                indexingContext,
+                withSnippets,
+                withContentOwnerDetails,
+                withStatistics,
+                withContentDetails);
         }
 
         YouTubeChannelLookupResult? result = null;

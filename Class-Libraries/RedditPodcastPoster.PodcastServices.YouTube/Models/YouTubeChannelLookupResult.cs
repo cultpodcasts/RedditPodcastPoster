@@ -3,10 +3,13 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 /// <summary>Why a channels.list lookup did or did not produce a channel.</summary>
 public enum YouTubeChannelLookupOutcome
 {
-    /// <summary>The API returned the channel (or it came from the pass cache).</summary>
-    Found,
+    /// <summary>Unset. Never a successful lookup, so a defaulted outcome cannot read as success.</summary>
+    Unknown = 0,
 
-    /// <summary>No API call was made because SkipYouTubeUrlResolving is set for this pass.</summary>
+    /// <summary>The API returned the channel (or it came from the pass cache).</summary>
+    Found = 1,
+
+    /// <summary>No API call was made because SkipYouTubeUrlResolving is set for this pass and nothing was cached.</summary>
     Skipped,
 
     /// <summary>The API answered successfully with no items: the channel id does not exist or is not public.</summary>
@@ -19,11 +22,37 @@ public enum YouTubeChannelLookupOutcome
     QuotaExhausted
 }
 
-/// <summary>Result of a channels.list lookup; <see cref="Channel"/> is set only when <see cref="Outcome"/> is Found.</summary>
-public record YouTubeChannelLookupResult(Google.Apis.YouTube.v3.Data.Channel? Channel, YouTubeChannelLookupOutcome Outcome)
+/// <summary>
+/// Result of a channels.list lookup. <see cref="Channel"/> is set if, and only if, <see cref="Outcome"/> is
+/// <see cref="YouTubeChannelLookupOutcome.Found"/>; use <see cref="Found"/> and <see cref="Of"/> to create one.
+/// </summary>
+public sealed record YouTubeChannelLookupResult
 {
-    public static YouTubeChannelLookupResult Found(Google.Apis.YouTube.v3.Data.Channel channel) =>
-        new(channel, YouTubeChannelLookupOutcome.Found);
+    private YouTubeChannelLookupResult(Google.Apis.YouTube.v3.Data.Channel? channel, YouTubeChannelLookupOutcome outcome)
+    {
+        Channel = channel;
+        Outcome = outcome;
+    }
 
-    public static YouTubeChannelLookupResult Of(YouTubeChannelLookupOutcome outcome) => new(null, outcome);
+    public Google.Apis.YouTube.v3.Data.Channel? Channel { get; }
+
+    public YouTubeChannelLookupOutcome Outcome { get; }
+
+    public static YouTubeChannelLookupResult Found(Google.Apis.YouTube.v3.Data.Channel channel)
+    {
+        ArgumentNullException.ThrowIfNull(channel);
+        return new YouTubeChannelLookupResult(channel, YouTubeChannelLookupOutcome.Found);
+    }
+
+    public static YouTubeChannelLookupResult Of(YouTubeChannelLookupOutcome outcome)
+    {
+        if (outcome is YouTubeChannelLookupOutcome.Found or YouTubeChannelLookupOutcome.Unknown)
+        {
+            throw new ArgumentException(
+                $"Outcome '{outcome}' cannot be created without a channel; use {nameof(Found)} for a found channel.",
+                nameof(outcome));
+        }
+
+        return new YouTubeChannelLookupResult(null, outcome);
+    }
 }

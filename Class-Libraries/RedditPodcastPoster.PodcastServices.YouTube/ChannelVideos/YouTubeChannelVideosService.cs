@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Google.Apis.YouTube.v3.Data;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
@@ -32,13 +32,6 @@ public class YouTubeChannelVideosService(
             return new GetChannelVideosResponse(cachedVideos.Channel, cachedVideos.PlaylistItems);
         }
 
-        if (indexingContext.SkipYouTubeUrlResolving)
-        {
-            logger.LogDebug("{GetChannelVideosName}: skipped for channel-id '{ChannelId}' as YouTube is bypassed this pass.",
-                nameof(GetChannelVideos), channelId.ChannelId);
-            return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.Skipped);
-        }
-
         var lookup =
             await youTubeChannelService.GetChannelLookup(channelId, indexingContext, true, true, withContentDetails: true);
         var channel = lookup.Channel;
@@ -47,7 +40,14 @@ public class YouTubeChannelVideosService(
             switch (lookup.Outcome)
             {
                 case YouTubeChannelLookupOutcome.Skipped:
+                    // YouTube is bypassed this pass and the channel is not in the pass cache: nothing was looked up.
+                    logger.LogDebug(
+                        "{GetChannelVideosName}: skipped for channel-id '{ChannelId}' as YouTube is bypassed this pass.",
+                        nameof(GetChannelVideos), channelId.ChannelId);
                     return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.Skipped);
+                case YouTubeChannelLookupOutcome.QuotaExhausted:
+                    // The tolerant channel service already logged the error and set YouTubeQuotaExhausted.
+                    return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.QuotaExhausted);
                 case YouTubeChannelLookupOutcome.NotFound:
                     logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.",
                         nameof(GetChannelVideos), channelId.ChannelId);

@@ -122,14 +122,19 @@ public class EnrichYouTubePodcastProcessor(
         {
             var channelLookup =
                 await youTubeChannelService.GetChannelLookup(new YouTubeChannelId(podcast.YouTubeChannelId), indexOptions);
-            var channel = channelLookup.Channel;
-            if (channel == null)
+            if (channelLookup.Outcome == YouTubeChannelLookupOutcome.NotFound)
             {
                 throw new InvalidOperationException(
                     $"Could not find YouTube channel with channel-id '{podcast.YouTubeChannelId}'.");
             }
 
-            playlistId = channel.ContentDetails.RelatedPlaylists.Uploads;
+            if (channelLookup.Outcome != YouTubeChannelLookupOutcome.Found || channelLookup.Channel == null)
+            {
+                throw new InvalidOperationException(
+                    $"YouTube channel lookup failed for channel-id '{podcast.YouTubeChannelId}' (outcome '{channelLookup.Outcome}').");
+            }
+
+            playlistId = channelLookup.Channel.ContentDetails.RelatedPlaylists.Uploads;
         }
         else
         {
