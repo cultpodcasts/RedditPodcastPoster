@@ -26,7 +26,7 @@ public class EpisodeUpdateServiceTests
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private PodcastEpisodeResolverResponse _resolved =
-        new(null, null, PodcastEpisodeResolveState.PodcastNotFound);
+        new(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
     private Episode? _saved;
     private string? _uriSeenByRemove;
     private Func<Task<EntitySearchIndexerResponse>> _index = () =>

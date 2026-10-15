@@ -26,16 +26,16 @@ public class EpisodeGetService(
 
             if (podcastEpisodeResolverResponse.Episode == null)
             {
-                logger.LogWarning("{method}: Episode with name '{episodeId}' not found.", nameof(GetAsync),
+                logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(GetAsync),
                     request.EpisodeId);
                 return new EpisodeGetResult(EpisodeGetStatus.EpisodeNotFound);
             }
 
             if (podcastEpisodeResolverResponse.Podcast == null)
             {
-                logger.LogWarning("{method}: Podcast with id '{podcastName}' not found for episode-id '{episodeId}'.",
-                    nameof(GetAsync), podcastEpisodeResolverResponse,
-                    request.PodcastName);
+                logger.LogWarning("{method}: Podcast with id '{podcastId}' not found for episode-id '{episodeId}'.",
+                    nameof(GetAsync), podcastEpisodeResolverResponse.Episode.PodcastId,
+                    request.EpisodeId);
                 return new EpisodeGetResult(EpisodeGetStatus.PodcastNotFound);
             }
 

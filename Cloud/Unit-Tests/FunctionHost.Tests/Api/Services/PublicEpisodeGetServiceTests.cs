@@ -19,7 +19,7 @@ public class PublicEpisodeGetServiceTests
     {
         var resolver = new Mock<IPodcastEpisodeResolver>();
         resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound));
+            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.EpisodeNotFound));
 
         var service = new PublicEpisodeGetService(resolver.Object, NullLogger<PublicEpisodeGetService>.Instance);
         var result = await service.GetAsync(new PodcastEpisodeRequestWrapper(Guid.NewGuid()), CancellationToken.None);
