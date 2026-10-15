@@ -33,7 +33,7 @@ public class CachedTolerantYouTubePlaylistService(
             logger.LogInformation("Skipping '{method}' as '{property}' is set. Channel-id: '{playlistId}'.",
                 nameof(GetPlaylistVideoSnippets), nameof(indexingContext.SkipYouTubeUrlResolving),
                 playlistId.PlaylistId);
-            return new GetPlaylistVideoSnippetsResponse(null);
+            return new GetPlaylistVideoSnippetsResponse(null, Failure: YouTubePlaylistFetchFailure.Skipped);
         }
 
         var result = await tolerantYouTubePlaylistService.GetPlaylistVideoSnippets(

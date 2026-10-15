@@ -29,7 +29,7 @@ public class YouTubeChannelService(
         _cache.Clear();
     }
 
-    public async Task<Google.Apis.YouTube.v3.Data.Channel?> GetChannel(
+    public async Task<YouTubeChannelLookupResult> GetChannelLookup(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,
         bool withSnippets = false,
@@ -40,17 +40,18 @@ public class YouTubeChannelService(
         var cachedResult = GetCachedChannel(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics);
         if (cachedResult != null)
         {
-            return cachedResult;
+            return YouTubeChannelLookupResult.Found(cachedResult);
         }
 
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             logger.LogInformation(
                 "Skipping '{method}' as '{SkipYouTubeUrlResolving}' is set. Channel-id: '{ChannelId}'.",
-                nameof(GetChannel), nameof(indexingContext.SkipYouTubeUrlResolving), channelId.ChannelId);
-            return null;
+                nameof(GetChannelLookup), nameof(indexingContext.SkipYouTubeUrlResolving), channelId.ChannelId);
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.Skipped);
         }
 
+        // contentDetails is always requested; withContentDetails is accepted for callers but adds no extra part.
         var requestScope = "contentDetails";
         if (withSnippets)
         {
@@ -65,11 +66,6 @@ public class YouTubeChannelService(
         if (withStatistics)
         {
             requestScope += ",statistics";
-        }
-
-        if (withContentDetails)
-        {
-            requestScope += ",contentDetails";
         }
 
         ChannelListResponse result;
@@ -101,7 +97,7 @@ public class YouTubeChannelService(
                 "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
                 nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
             await quotaUsageTracker.RecordNonQuotaErrorAsync();
-            return null;
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.ApiError);
         }
         catch (Exception ex)
         {
@@ -109,17 +105,18 @@ public class YouTubeChannelService(
                 "Failed to use {YouTubeService} obtaining channel with id '{ChannelId}' and request-scope '{requestScope}'.",
                 nameof(youTubeService.YouTubeService), channelId.ChannelId, requestScope);
             await quotaUsageTracker.RecordNonQuotaErrorAsync();
-            return null;
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.ApiError);
         }
 
         var channelContentDetails = result.Items?.SingleOrDefault();
-        if (channelContentDetails != null)
+        if (channelContentDetails == null)
         {
-            _cache[GetWriteCacheKey(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics)] =
-                channelContentDetails;
+            return YouTubeChannelLookupResult.Of(YouTubeChannelLookupOutcome.NotFound);
         }
 
-        return channelContentDetails;
+        _cache[GetWriteCacheKey(channelId.ChannelId, withSnippets, withContentOwnerDetails, withStatistics)] =
+            channelContentDetails;
+        return YouTubeChannelLookupResult.Found(channelContentDetails);
     }
 
     private string GetWriteCacheKey(

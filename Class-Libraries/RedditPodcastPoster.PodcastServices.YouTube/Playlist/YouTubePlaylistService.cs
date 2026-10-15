@@ -36,7 +36,7 @@ public class YouTubePlaylistService(
                 "Skipping '{nameofGetPlaylistVideoSnippets}' as '{nameofIndexingContextSkipYouTubeUrlResolving}' is set. Playlist-id: '{playlistId}'.",
                 nameof(GetPlaylistVideoSnippets), nameof(indexingContext.SkipYouTubeUrlResolving),
                 playlistId.PlaylistId);
-            return new GetPlaylistVideoSnippetsResponse(null);
+            return new GetPlaylistVideoSnippetsResponse(null, Failure: YouTubePlaylistFetchFailure.Skipped);
         }
 
         // Curated playlists carry no date information in their positions: new items may appear at
