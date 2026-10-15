@@ -20,6 +20,13 @@ public class TolerantYouTubePlaylistService(
         YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false,
         bool expensivePlaylist = false, PlaylistOrder? playlistOrder = null)
     {
+        if (indexingContext.SkipYouTubeUrlResolving)
+        {
+            // YouTube is bypassed this pass: the inner service makes no API call and returns Skipped, so no quota
+            // call is recorded and key rotation does not apply.
+            return await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
+                indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
+        }
         var result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
         var rotationExcepted = false;
