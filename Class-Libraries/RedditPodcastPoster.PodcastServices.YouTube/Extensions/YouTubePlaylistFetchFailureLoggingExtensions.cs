@@ -25,7 +25,7 @@ public static class YouTubePlaylistFetchFailureLoggingExtensions
                 return;
             case YouTubePlaylistFetchFailure.NotFound:
                 logger.LogError(
-                    "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private - find and set a new YouTubePlaylistId.",
+                    "YouTube playlist '{PlaylistId}' (source: {Source}, identifier: {SourceIdentifier}) for podcast '{PodcastName}' (id '{PodcastId}') was not found. The playlist may have been deleted or made private — find and set a new YouTubePlaylistId.",
                     playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier, podcast.Name, podcast.Id);
                 return;
             default:

@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 /// </summary>
 public enum YouTubePlaylistFetchFailure
 {
-    /// <summary>HTTP 404 - playlist deleted, private, or id wrong; update YouTubePlaylistId.</summary>
+    /// <summary>HTTP 404 — playlist deleted, private, or id wrong; update YouTubePlaylistId.</summary>
     NotFound,
 
     /// <summary>Other Google API / unexpected error while fetching playlist items.</summary>
