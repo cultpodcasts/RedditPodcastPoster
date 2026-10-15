@@ -79,7 +79,7 @@ A command result carries status and command details. It does not carry the saved
 ```mermaid
 flowchart TD
     R[ResolvePodcast request] --> N{Route carries?}
-    N -- podcast name --> L[PodcastNameAttachLookup.FindByName<br/>case-insensitive, shared with podcast get, submit and rename]
+    N -- podcast name --> L[PodcastNameAttachLookup.FindByName<br/>case-insensitive, as in podcast get and name-only submit]
     N -- podcast-id --> P[Point reads: episode and podcast by id]
     N -- episode-id only --> I[Episode by id, then its podcast]
     L -- 0 podcasts --> PNF[PodcastNotFound]
@@ -91,7 +91,7 @@ flowchart TD
 ```
 
 - **Name first.** The podcast name narrows the search to one partition. A unique name never triggers a search across podcasts.
-- **Same name rule everywhere.** The name is matched with the shared case-insensitive `PodcastNameAttachLookup.FindByName`, so "which podcasts have this name" means the same on the episode, podcast, submit and rename routes.
+- **Same name rule everywhere.** The name is matched case-insensitively with the shared `PodcastNameAttachLookup.FindByName`, the lookup podcast get and name-only submit use, so "which podcasts have this name" means the same on the episode, podcast and submit routes. Rename applies the same case-insensitive rule inline (`PodcastRenameService`).
 - **Conflict.** When several podcasts share the name, the episode-id (unique) decides. The episode's podcast must be one of the podcasts with the name; the resolver returns that podcast.
 - **Mismatch.** An episode whose podcast is not one of them, or whose podcast no longer exists, means the route and the data disagree. The resolver throws `PodcastEpisodeMismatchException`. The calling service's catch logs it with `LogError(ex, ...)` so it appears in App Insights exceptions, and the handler returns its failure status (500 for `GET episode/{podcast-name}/{episode-id}`), not 404.
 - **Unknown id** is a normal not-found (404).
