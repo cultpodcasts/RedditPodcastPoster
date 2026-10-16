@@ -26,26 +26,16 @@ using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.Configuration;
 
-return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest, args), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
 
-        return Task.FromResult(-1);
-    });
+return await Parser.Default.ParseArguments<SubmitUrlRequest>(args)
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest, args), errs => Task.FromResult(-1));
 
 async Task<int> Run(SubmitUrlRequest request, string[] hostArgs)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var builder = Host.CreateApplicationBuilder(hostArgs);
 
     builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();

@@ -7,9 +7,8 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Configuration;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 

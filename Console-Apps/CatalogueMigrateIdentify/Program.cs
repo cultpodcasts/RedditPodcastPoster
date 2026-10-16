@@ -8,6 +8,11 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -25,25 +30,10 @@ builder.Services
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<CatalogueMigrateIdentifyRequest>(args)
-    .MapResult(async request => await Run(request), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
-
-        return Task.FromResult(-1);
-    });
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1));
 
 async Task<int> Run(CatalogueMigrateIdentifyRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var processor = host.Services.GetRequiredService<CatalogueMigrateIdentifyProcessor>();
     var result = await processor.Run(request);
     return result.ExitCode;

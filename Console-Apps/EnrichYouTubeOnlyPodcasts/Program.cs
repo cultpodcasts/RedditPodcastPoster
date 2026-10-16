@@ -16,6 +16,11 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 var appDirectory = AppContext.BaseDirectory;
@@ -46,25 +51,10 @@ builder.Services
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<EnrichYouTubePodcastRequest>(args)
-    .MapResult(async request => await Run(request), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
-
-        return Task.FromResult(-1);
-    });
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1));
 
 async Task<int> Run(EnrichYouTubePodcastRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var processor = host.Services.GetService<EnrichYouTubePodcastProcessor>();
     await processor!.Run(request);
     return 0;

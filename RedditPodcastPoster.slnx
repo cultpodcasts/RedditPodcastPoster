@@ -164,6 +164,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.People.Tests/RedditPodcastPoster.People.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher.Tests/RedditPodcastPoster.ContentPublisher.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Configuration.Tests/RedditPodcastPoster.Configuration.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Netflix.Tests/RedditPodcastPoster.Netflix.Tests.csproj" />
 

@@ -16,7 +16,4 @@ public class SeedSupportedLanguagesRequest
         HelpText = "Overwrite an existing LookUps document.")]
     public bool Force { get; set; }
 
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

@@ -12,9 +12,8 @@ using RedditPodcastPoster.UrlShortening.Extensions;
 using RemoveEpisodes;
 using RemoveEpisodes.PodcastRestore;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 

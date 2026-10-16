@@ -11,7 +11,4 @@ public class Request
     [Option('s', "subject",
         HelpText = "Subject to enrich with images", Group = "selector")]
     public string Subject { get; set; } = "";
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

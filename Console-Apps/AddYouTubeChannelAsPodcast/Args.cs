@@ -10,7 +10,4 @@ public class Args
     [Value(1, MetaName = "most-recent-upload-name",
         HelpText = "Name of the most recently uploaded video to YouTube by this channel", Required = true)]
     public string MostRecentUploadedVideoTitle { get; set; } = "";
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }
