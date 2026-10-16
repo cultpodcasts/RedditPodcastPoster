@@ -1,8 +1,9 @@
 using System.Linq.Expressions;
 using Azure.Search.Documents;
-using CliSearchTests.Fakes;
+using RemoveEpisodes.Tests.Fakes;
 using FluentAssertions;
 using Moq;
+using Microsoft.Extensions.Logging;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
@@ -18,7 +19,7 @@ public class RemoveEpisodesSearchRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly FakeEpisodeSearchIndex _index = new();
-    private readonly Mock<SearchClient> _search = new();
+    private readonly Mock<SearchClient> _search;
     private readonly Podcast _podcast;
     private readonly Podcast _otherPodcast;
     private readonly Episode _episode;
@@ -31,7 +32,11 @@ public class RemoveEpisodesSearchRules
         _episode = _fixture.CreateStoredEpisode(_podcast);
         _newsReport = _fixture.CreateStoredEpisode(_podcast);
 
-        _mocker.Use(_search);
+        // AutoMocker cannot construct SearchClient (it picks the settings constructor and fails on a null endpoint),
+        // so the client mock comes from Moq's protected parameterless constructor and is registered with AutoMocker.
+        var searchClient = Mock.Of<SearchClient>();
+        _mocker.Use(searchClient);
+        _search = Mock.Get(searchClient);
         _search
             .Setup(x => x.SearchAsync<SearchDocument>(It.IsAny<string>(), It.IsAny<SearchOptions>(),
                 It.IsAny<CancellationToken>()))
@@ -57,7 +62,7 @@ public class RemoveEpisodesSearchRules
     private RemoveRequest Query() => new()
     {
         Query = _fixture.CreateTitle(),
-        Throttle = 5,
+        Throttle = _index.Count,
         IsNonDryRun = true
     };
 
@@ -98,6 +103,31 @@ public class RemoveEpisodesSearchRules
         _search.Verify(x => x.DeleteDocumentsAsync("id",
             It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { _episode.Id.ToString() })),
             It.IsAny<IndexDocumentsOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Remove episodes CLI: when an episode document has no series name, then it is skipped and a warning " +
+        "names its id, because without a series name its podcast cannot be found.")]
+    public async Task episode_without_series_name_is_skipped_and_logged()
+    {
+        // Arrange
+        _index.Add(SearchContentKind.Episode, _episode.Id, _episode.Title, _fixture.CreateTitle(),
+            null, _fixture.CreateTitle());
+        var sut = _mocker.CreateInstance<Processor>();
+
+        // Act
+        await sut.Process(Query());
+
+        // Assert
+        _mocker.GetMock<IEpisodeRepository>().Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
+        _search.Verify(x => x.DeleteDocumentsAsync(It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+            It.IsAny<IndexDocumentsOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ILogger<Processor>>().Verify(x => x.Log(
+            LogLevel.Warning,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((state, _) => $"{state}".Contains(_episode.Id.ToString())),
+            null,
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
 
     [Fact(DisplayName =

@@ -9,7 +9,7 @@ using Moq;
 using RedditPodcastPoster.Search.Models;
 using SearchDocument = RedditPodcastPoster.Search.Models.SearchDocument;
 
-namespace CliSearchTests.Fakes;
+namespace RemoveEpisodes.Tests.Fakes;
 
 /// <summary>
 /// Stands in for the live episode search index. It enforces the schema the Azure service enforces:
@@ -17,6 +17,8 @@ namespace CliSearchTests.Fakes;
 /// and a <c>$filter</c> must name a filterable field. The schema is built from <see cref="EpisodeSearchRecord"/>,
 /// the type that creates the index, so the fake cannot drift from it. Every stored document is held in the index's
 /// own field names, and is read back through <see cref="SearchDocument"/> exactly as the search client reads it.
+/// The fake evaluates only <c>$select</c> and <c>$filter</c>: it ignores the search text, so every stored document that passes
+/// the filter is a match for any query.
 /// </summary>
 public sealed class FakeEpisodeSearchIndex
 {
@@ -30,8 +32,10 @@ public sealed class FakeEpisodeSearchIndex
 
     private readonly List<Dictionary<string, object?>> _documents = [];
 
-    public void Add(string contentKind, Guid id, string title, string description, string? seriesName,
-        params string[] subjects)
+    public int Count => _documents.Count;
+
+    public FakeEpisodeSearchIndex Add(string contentKind, Guid id, string title, string description,
+        string? seriesName, params string[] subjects)
     {
         var document = new Dictionary<string, object?>
         {
@@ -50,6 +54,7 @@ public sealed class FakeEpisodeSearchIndex
         }
 
         _documents.Add(document);
+        return this;
     }
 
     public Task<Response<SearchResults<SearchDocument>>> Search(SearchOptions? options)

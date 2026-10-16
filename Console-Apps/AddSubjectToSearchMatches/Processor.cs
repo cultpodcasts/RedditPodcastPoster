@@ -57,8 +57,17 @@ public class Processor(
 
         logger.LogInformation(message);
 
-        var allSearchResultEpisodes = allSearchResults.Select(x =>
-            new PodcastEpisode(x.Document.SeriesName!, x.Document.ToEpisodeModel()));
+        var withoutSeriesName = allSearchResults.Where(x => string.IsNullOrWhiteSpace(x.Document.SeriesName));
+        foreach (var skipped in withoutSeriesName)
+        {
+            logger.LogWarning(
+                "Skipping episode '{EpisodeId}': its search document has no series name, so its podcast cannot be found.",
+                skipped.Document.Id);
+        }
+
+        var allSearchResultEpisodes = allSearchResults
+            .Where(x => !string.IsNullOrWhiteSpace(x.Document.SeriesName))
+            .Select(x => new PodcastEpisode(x.Document.SeriesName!, x.Document.ToEpisodeModel()));
         var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName!);
         var updatedEpisodeIds = new List<Guid>();
         foreach (var podcastEpisodeGroup in podcastEpisodesGroups)
