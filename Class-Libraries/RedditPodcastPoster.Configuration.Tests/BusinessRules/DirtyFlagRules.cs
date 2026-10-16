@@ -7,9 +7,11 @@ namespace RedditPodcastPoster.Configuration.Tests.BusinessRules;
 public class DirtyFlagRules : IDisposable
 {
     private const string PathspecProperty = "GitDirtyPathspec";
+    private const string TargetsFile = "Directory.Build.targets";
+    private const string StatusCommandPrefix = "git status";
     private const string ProjectFolder = "Console-Apps/SomeApp";
     private const string GitExecutable = "git";
-    private const string GitIdentity = "-c user.name=rules -c user.email=rules@example.invalid";
+    private const string GitIdentity = "-c user.name=rules -c user.email=rules@example.invalid -c commit.gpgsign=false";
 
     private readonly string _repository = Path.Combine(Path.GetTempPath(), $"dirty-flag-{Guid.NewGuid():N}");
     private readonly string _projectDirectory;
@@ -17,15 +19,31 @@ public class DirtyFlagRules : IDisposable
     public DirtyFlagRules()
     {
         _projectDirectory = Path.Combine(_repository, ProjectFolder);
-        Directory.CreateDirectory(_projectDirectory);
-        File.WriteAllText(Path.Combine(_projectDirectory, "Program.cs"), "// tracked");
-        Git("init --quiet");
-        Git("add --all");
-        Git($"{GitIdentity} commit --quiet --message initial");
+        try
+        {
+            Directory.CreateDirectory(_projectDirectory);
+            File.WriteAllText(Path.Combine(_projectDirectory, "Program.cs"), "// tracked");
+            Git("init --quiet");
+            Git("add --all");
+            Git($"{GitIdentity} commit --quiet --message initial");
+        }
+        catch
+        {
+            // xUnit does not call Dispose when the constructor throws.
+            DeleteRepository();
+            throw;
+        }
     }
 
-    public void Dispose()
+    public void Dispose() => DeleteRepository();
+
+    private void DeleteRepository()
     {
+        if (!Directory.Exists(_repository))
+        {
+            return;
+        }
+
         foreach (var file in Directory.EnumerateFiles(_repository, "*", SearchOption.AllDirectories))
         {
             File.SetAttributes(file, FileAttributes.Normal);
@@ -99,13 +117,18 @@ public class DirtyFlagRules : IDisposable
 
     private string DirtyStatus()
     {
-        // The pathspec is read from Directory.Build.targets, the one place MSBuild takes it from, and run from a
-        // project directory, as MSBuild's Exec does.
-        var pathspec = XDocument.Load(Path.Combine(ConsoleAppSources.RepositoryRoot, "Directory.Build.targets"))
-            .Descendants(PathspecProperty)
-            .Single()
-            .Value;
-        return Git($"status --porcelain -- {pathspec}", _projectDirectory);
+        // Runs the real command: the SetGitVersionInfo Exec in Directory.Build.targets, with its GitDirtyPathspec
+        // property substituted, from a project directory as MSBuild does. An Exec that stops using the property
+        // (plain "git status --porcelain") fails the rule that expects it.
+        var targets = XDocument.Load(Path.Combine(ConsoleAppSources.RepositoryRoot, TargetsFile));
+        var pathspec = targets.Descendants(PathspecProperty).Single().Value;
+        var propertyReference = $"$({PathspecProperty})";
+        var command = targets.Descendants("Exec")
+            .Select(exec => exec.Attribute("Command")!.Value)
+            .Single(text => text.StartsWith(StatusCommandPrefix, StringComparison.Ordinal));
+        command.Should().Contain(propertyReference, "the Dirty flag must be computed with the shared pathspec");
+        var arguments = command[StatusCommandPrefix.Length..].Replace(propertyReference, pathspec).Trim();
+        return Git($"status {arguments}", _projectDirectory);
     }
 
     private void Write(string relativePath)

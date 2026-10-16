@@ -50,6 +50,7 @@ public class ConsoleAppVersionRules
         projectDirectories.Should().NotBeEmpty();
         entryPointDirectories.Should().BeEquivalentTo(projectDirectories);
     }
+
     [Theory(DisplayName =
         "A console app answers --version as its first statement, because --version must print once and never build a host, read config or touch Cosmos or Search.")]
     [MemberData(nameof(ConsoleAppEntryPoints))]
