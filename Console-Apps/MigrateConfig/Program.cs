@@ -2,35 +2,19 @@ using CommandLine;
 using MigrateConfig;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 return await Parser.Default.ParseArguments<SecretsRequest, LaunchSettingsRequest>(args)
     .MapResult(
         (SecretsRequest request) =>
         {
-            if (request.Version)
-            {
-                VersionInfo.PrintVersion();
-                return Task.FromResult(0);
-            }
-
             return new SecretsProcessor().Process(request);
         },
         (LaunchSettingsRequest request) =>
         {
-            if (request.Version)
-            {
-                VersionInfo.PrintVersion();
-                return Task.FromResult(0);
-            }
-
             return new LaunchSettingsProcessor().Process(request);
         },
-        errs =>
-        {
-            if (errs.Any(x => x is VersionRequestedError))
-            {
-                VersionInfo.PrintVersion();
-                return Task.FromResult(0);
-            }
-
-            return Task.FromResult(1);
-        });
+        errs => Task.FromResult(1));

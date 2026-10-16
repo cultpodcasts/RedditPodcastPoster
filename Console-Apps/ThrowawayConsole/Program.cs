@@ -15,9 +15,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 

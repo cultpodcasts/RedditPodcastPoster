@@ -13,6 +13,11 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -37,25 +42,10 @@ builder.Services
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<CategorisePodcastEpisodesRequest>(args)
-    .MapResult(async request => await Run(request), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
-
-        return Task.FromResult(-1);
-    });
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1));
 
 async Task<int> Run(CategorisePodcastEpisodesRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var service = host.Services.GetService<CategorisePodcastEpisodesProcessor>()!;
     await service.Run(request);
     return 0;
