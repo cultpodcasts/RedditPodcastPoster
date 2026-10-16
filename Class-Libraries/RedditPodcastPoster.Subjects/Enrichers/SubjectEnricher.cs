@@ -67,7 +67,7 @@ public class SubjectEnricher(
             }
             else if (!episode.Subjects.Any())
             {
-                logger.LogError("'No updates: '{episodeTitle}' ({episodeId}).",
+                logger.LogInformation("No updates: '{episodeTitle}' ({episodeId}).",
                     episode.Title, episode.Id);
             }
         }
