@@ -4,6 +4,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.Search.Querying;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Matching;
 
@@ -32,12 +33,7 @@ public class Processor(
             throw new InvalidOperationException($"No subject with name '{request.Query}' found.");
         }
 
-        var options = new SearchOptions();
-        options.Select.Add("id");
-        options.Select.Add("episodeTitle");
-        options.Select.Add("episodeDescription");
-        options.Select.Add("subjects");
-        options.Select.Add("podcastName");
+        var options = EpisodeSearchOptions.Create();
         var searchQuery = request.NotWholeTerm ? request.Query : $"\"{request.Query}\"";
         var results = await searchClient.SearchAsync<SearchDocument>(searchQuery, options);
         if (results == null)
@@ -62,7 +58,7 @@ public class Processor(
         logger.LogInformation(message);
 
         var allSearchResultEpisodes = allSearchResults.Select(x =>
-            new PodcastEpisode(x.Document.PodcastName!, x.Document.ToEpisodeModel()));
+            new PodcastEpisode(x.Document.SeriesName!, x.Document.ToEpisodeModel()));
         var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName!);
         var updatedEpisodeIds = new List<Guid>();
         foreach (var podcastEpisodeGroup in podcastEpisodesGroups)

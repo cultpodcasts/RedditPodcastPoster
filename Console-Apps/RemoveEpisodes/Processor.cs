@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Azure.Search.Documents;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.Search.Querying;
 
 namespace RemoveEpisodes;
 
@@ -22,12 +23,7 @@ public class Processor(
             logger.LogWarning("Is Dry-run.");
         }
 
-        var options = new SearchOptions();
-        options.Select.Add("id");
-        options.Select.Add("episodeTitle");
-        options.Select.Add("episodeDescription");
-        options.Select.Add("subjects");
-        options.Select.Add("podcastName");
+        var options = EpisodeSearchOptions.Create();
         var searchQuery = request.NotWholeTerm ? request.Query : $"\"{request.Query}\"";
         var results = await searchClient.SearchAsync<SearchDocument>(searchQuery, options);
         if (results == null)
@@ -52,12 +48,12 @@ public class Processor(
         logger.LogInformation(message);
 
         var allSearchResultEpisodes = allSearchResults
-            .Where(x => !string.IsNullOrWhiteSpace(x.Document.PodcastName))
+            .Where(x => !string.IsNullOrWhiteSpace(x.Document.SeriesName))
             .Select(x => new
             {
-                PodcastName = x.Document.PodcastName!,
+                PodcastName = x.Document.SeriesName!,
                 EpisodeId = x.Document.Id,
-                EpisodeTitle = x.Document.EpisodeTitle
+                EpisodeTitle = x.Document.Title
             });
 
         var podcastEpisodesGroups = allSearchResultEpisodes.GroupBy(x => x.PodcastName);
