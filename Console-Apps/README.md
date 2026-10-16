@@ -173,7 +173,7 @@ MigrateConfig launch-settings Cloud/Indexer/Properties/launchSettings.json Index
 
 ### RemoveEpisodes
 
-**Purpose:** Mark matching search episodes as removed, restore from a prior remove log, or undo an accidental podcast removal (`restore-podcast`). `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
+**Purpose:** Mark matching search episodes as removed (the search is limited to `Episode` documents; the index also holds TV show episodes, films and news reports, which are left alone), restore from a prior remove log, or undo an accidental podcast removal (`restore-podcast`). `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
 
 **Run:** `dotnet run --project Console-Apps/RemoveEpisodes --` · PATH: `RemoveEpisodes`
 
@@ -435,7 +435,7 @@ Index --reindex-search -n "<PodcastName>"
 
 ### AddSubjectToSearchMatches
 
-**Purpose:** Add a subject to episodes matching a search query.
+**Purpose:** Add a subject to episodes matching a search query (the search is limited to `Episode` documents; the index also holds TV show episodes, films and news reports, which are left alone).
 
 **Run:** `dotnet run --project Console-Apps/AddSubjectToSearchMatches --` · PATH: `AddSubjectToSearchMatches`
 

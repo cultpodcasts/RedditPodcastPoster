@@ -218,6 +218,7 @@
     <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />
 
     <Project Path="Console-Apps/AddSubjectToSearchMatches/AddSubjectToSearchMatches.csproj" />
+    <Project Path="Console-Apps/AddSubjectToSearchMatches.Tests/AddSubjectToSearchMatches.Tests.csproj" />
 
     <Project Path="Console-Apps/AddYouTubeChannelAsPodcast/AddYouTubeChannelAsPodcast.csproj" />
 
