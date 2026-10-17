@@ -144,4 +144,49 @@ public sealed class StagedPublishRules : IDisposable
 
     private Guid IdOf(string fileKey) =>
         System.Text.Json.Nodes.JsonNode.Parse(_scenario.Files[fileKey])!["id"]!.GetValue<Guid>();
+
+    [Fact(DisplayName =
+        "Staged publish: when the output folder does not exist, then the run fails with the folder exception " +
+        "(exit 2) before anything else, because a missing folder is a folder problem and not an unexpected failure.")]
+    public async Task missing_output_folder_fails_with_the_folder_exception()
+    {
+        // Arrange
+        _scenario.GivenFilm();
+        Directory.Delete(_scenario.OutputDirectory);
+
+        // Act
+        var run = () => _scenario.PublishFirstTime();
+
+        // Assert
+        (await run.Should().ThrowAsync<PublicationFolderException>()).Which.Message.Should().Contain("does not exist");
+    }
+
+    [Fact(DisplayName =
+        "Staged publish: when a run failed part-way after deleting an accepted file and the same --accept-removal " +
+        "is repeated, then the re-run is blocked as an unused acceptance and changes nothing, because that file is " +
+        "already gone and the stale value must be dropped.")]
+    public async Task repeating_an_acceptance_for_a_file_the_first_run_deleted_is_blocked()
+    {
+        // Arrange
+        var gone = _scenario.GivenBaselineFileKey();
+        _scenario.GivenExistingFile(gone, _fixture.CreateGuid());
+        var film = _scenario.GivenFilm();
+        var kept = _scenario.GivenFilm();
+        _scenario.GivenExistingFile(kept.FileKey, kept.Id);
+        var options = new PublishOptions(AcceptedRemovals: [gone]);
+        _scenario.FailCommitNumber(1);
+        var failed = () => _scenario.Publish(options);
+        await failed.Should().ThrowAsync<PublicationApplyException>();
+        _scenario.StopFailingCommits();
+
+        // Act
+        var report = await _scenario.Publish(options with { DiscardStaging = true });
+        var withoutIt = await _scenario.Publish();
+
+        // Assert
+        report.Applied.Should().BeFalse();
+        report.Plan.UnusedAcceptances.Should().Equal(gone);
+        withoutIt.Applied.Should().BeTrue();
+        _scenario.Files.Keys.Should().BeEquivalentTo(film.FileKey, kept.FileKey);
+    }
 }

@@ -39,26 +39,69 @@ public class PublicationFolder
 
     public string FolderPath { get; }
 
-    /// <summary>Whether <paramref name="path"/> is the folder itself or anywhere beneath it.</summary>
+    /// <summary>
+    /// Whether <paramref name="path"/> is the folder itself or anywhere beneath it. Every existing part of both
+    /// paths is resolved first (symbolic links and junctions followed, short names and case as the file system
+    /// has them), so a path reached through a link into the folder is contained. Limits: a link created after
+    /// the check, and hard links to a file, are not seen.
+    /// </summary>
     public bool Contains(string path)
     {
-        var root = Path.GetFullPath(FolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var full = Path.GetFullPath(path);
-        return full.Equals(root, StringComparison.OrdinalIgnoreCase) ||
-               full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-               full.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var root = Resolve(FolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var full = Resolve(path);
+        return full.Equals(root, comparison) ||
+               full.StartsWith(root + Path.DirectorySeparatorChar, comparison) ||
+               full.StartsWith(root + Path.AltDirectorySeparatorChar, comparison);
     }
 
+    private static string Resolve(string path)
+    {
+        var full = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(full)!;
+        var current = root;
+        var parts = full[root.Length..].Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var candidate = Path.Combine(current, parts[i]);
+            var entry = Directory.Exists(candidate) ? new DirectoryInfo(candidate)
+                : File.Exists(candidate) ? (FileSystemInfo)new FileInfo(candidate)
+                : null;
+            if (entry is null)
+            {
+                // nothing exists from here on: the rest cannot be a link
+                return Path.Combine([current, .. parts[i..]]);
+            }
+
+            current = entry.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? RealName(current, entry);
+        }
+
+        return current;
+    }
+
+    /// <summary>The name the file system itself holds for an entry (long name and true case, not a short name).</summary>
+    private static string RealName(string parent, FileSystemInfo entry)
+    {
+        try
+        {
+            var real = Directory.EnumerateFileSystemEntries(parent, entry.Name).FirstOrDefault();
+            return real is null ? entry.FullName : Path.Combine(parent, Path.GetFileName(real));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return entry.FullName;
+        }
+    }
     /// <summary>
     /// Reads the top-level <c>*.json</c> files, the same files update.ps1 used to clear, taking the id from
     /// each and, for unprefixed (podcast) files, the episode ids.
     /// </summary>
     public async Task<IReadOnlyList<BaselineFile>> ReadBaselineAsync()
     {
-        if (!Directory.Exists(FolderPath))
-        {
-            throw new PublicationFolderException($"The output folder '{FolderPath}' does not exist.");
-        }
+        EnsureExists();
 
         try
         {
@@ -68,7 +111,12 @@ public class PublicationFolder
                          .Order(StringComparer.Ordinal))
             {
                 var fileKey = Path.GetFileNameWithoutExtension(path);
-                files.Add(await ReadAsync(path, fileKey));
+                var info = new FileInfo(path);
+                files.Add((await ReadAsync(path, fileKey)) with
+                {
+                    Length = info.Length,
+                    LastWriteUtcTicks = info.LastWriteTimeUtc.Ticks
+                });
             }
 
             return files;
@@ -77,6 +125,15 @@ public class PublicationFolder
         {
             throw new PublicationFolderException(
                 $"The output folder '{FolderPath}' could not be read: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>Fails with <see cref="PublicationFolderException"/> when the folder does not exist.</summary>
+    public void EnsureExists()
+    {
+        if (!Directory.Exists(FolderPath))
+        {
+            throw new PublicationFolderException($"The output folder '{FolderPath}' does not exist.");
         }
     }
 
@@ -106,20 +163,26 @@ public class PublicationFolder
         return staged.Count;
     }
 
-    /// <summary>Fails when the folder's <c>*.json</c> files are no longer the ones the plan was made from.</summary>
+    /// <summary>
+    /// Fails when the folder's <c>*.json</c> files are no longer the ones the plan was made from: a file added or
+    /// removed, or one whose length or last-write time differs from when it was read. It does not hash content.
+    /// </summary>
     public void EnsureUnchanged(IReadOnlyCollection<BaselineFile> baseline)
     {
         var now = Directory.EnumerateFiles(FolderPath, "*" + FileExtension, SearchOption.TopDirectoryOnly)
             .Where(p => Path.GetExtension(p).Equals(FileExtension, StringComparison.OrdinalIgnoreCase))
-            .Select(p => Path.GetFileNameWithoutExtension(p)!)
-            .ToHashSet(StringComparer.Ordinal);
-        if (!now.SetEquals(baseline.Select(b => b.FileKey)))
+            .Select(p => new FileInfo(p))
+            .ToDictionary(i => Path.GetFileNameWithoutExtension(i.Name), StringComparer.Ordinal);
+        var same = now.Count == baseline.Count && baseline.All(b =>
+            now.TryGetValue(b.FileKey, out var info) &&
+            info.Length == b.Length &&
+            info.LastWriteTimeUtc.Ticks == b.LastWriteUtcTicks);
+        if (!same)
         {
             throw new PublicationFolderException(
                 $"The files in '{FolderPath}' changed while the publish was being prepared; nothing was changed. Run again.");
         }
     }
-
     /// <summary>Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched.</summary>
     public async Task StageAsync(CosmosSelector data)
     {

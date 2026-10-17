@@ -38,11 +38,13 @@ public class PublicDatabasePublisher(
     /// Works out, then does, the publish of the folder this run is in. Phase one touches nothing: it reads the
     /// files already there as the baseline, reads every item once, checks the file keys, counts each live
     /// parent's children and plans every write, move and deletion. Phase two first stages all new content
-    /// (reading each item's children from Cosmos into <c>{key}.json.tmp</c> files in the folder) and checks the
-    /// folder is still what was planned from, so a Cosmos failure, or a folder that changed meanwhile, leaves
-    /// the folder as it was; only then does it apply the plan: deletions, then moves (a file whose item moved
-    /// to another file name is moved there first so its content stays comparable for git), then swaps each
-    /// staged file in, as the plan says, creating or replacing. A failure while applying is a
+    /// (reading each item's children from Cosmos into <c>{key}.json.tmp</c> files in the folder), checks the
+    /// folder is still what was planned from and writes the migration manifest if one was asked for, so a Cosmos
+    /// failure, a folder that changed meanwhile or an unwritable manifest leaves the folder as it was; only then
+    /// does it apply the plan: deletions, then moves (a file whose item moved to another file name is moved
+    /// there first and then overwritten; git pairs old and new files by content similarity whatever the
+    /// publisher does), then swaps each staged file in, as the plan says, creating or replacing. A failure
+    /// while applying is a
     /// <see cref="PublicationApplyException"/>: the staged files not yet swapped in stay, and the next run refuses
     /// until they are discarded with <see cref="PublishOptions.DiscardStaging"/>. When the plan has a file that
     /// would disappear unexplained the plan is returned unapplied. Throws <see cref="PublicationFolderException"/>
@@ -52,6 +54,8 @@ public class PublicDatabasePublisher(
     /// </summary>
     public async Task<PublicationReport> Run(PublishOptions options)
     {
+        folder.EnsureExists();
+
         if (options.MigrationsOut is { } migrationsOut && folder.Contains(migrationsOut))
         {
             throw new PublicationFolderException(
@@ -114,26 +118,35 @@ public class PublicDatabasePublisher(
         }
 
         await StageAsync(plan, candidates, baseline);
+        var migrationsFile = await WriteMigrationsAsync(options, plan);
         Apply(plan);
-
-        string? migrationsFile = null;
-        if (options.MigrationsOut is { } path)
-        {
-            try
-            {
-                await MigrationManifest.WriteAsync(path, MigrationManifest.Create(plan));
-                migrationsFile = Path.GetFullPath(path);
-            }
-            catch (Exception ex)
-            {
-                throw new PublicationApplyException(
-                    $"The files were published but the migration manifest '{path}' could not be written: {ex.Message}", ex);
-            }
-        }
 
         return new PublicationReport(plan, Applied: true, migrationsFile);
     }
 
+    /// <summary>
+    /// Writes the migration manifest, when asked for, after the content is staged and before the folder is
+    /// changed: it is fully determined by the plan, so a failure here leaves the folder as it was (staged files
+    /// discarded) and a crash while applying still leaves the manifest of what was intended.
+    /// </summary>
+    private async Task<string?> WriteMigrationsAsync(PublishOptions options, PublicationPlan plan)
+    {
+        if (options.MigrationsOut is not { } path)
+        {
+            return null;
+        }
+
+        try
+        {
+            await MigrationManifest.WriteAsync(path, MigrationManifest.Create(plan));
+            return Path.GetFullPath(path);
+        }
+        catch (Exception ex)
+        {
+            folder.DiscardStaging();
+            throw new IOException($"The migration manifest '{path}' could not be written: {ex.Message}", ex);
+        }
+    }
     /// <summary>
     /// Builds every planned file from Cosmos into its staged file. Nothing but staged files is written; they are
     /// all discarded again if anything fails, including the folder having changed in the meantime.

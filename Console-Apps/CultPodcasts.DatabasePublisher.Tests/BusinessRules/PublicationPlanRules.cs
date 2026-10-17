@@ -17,8 +17,8 @@ public sealed class PublicationPlanRules : IDisposable
 
     [Fact(DisplayName =
         "Publication plan: when a podcast was transferred to a TV show, then its file is moved to the tvshow- " +
-        "name and rewritten with the show, and the move is logged, because moving it first keeps the old content " +
-        "comparable so git can pair old and new (with no guarantee), and the transfer keeps the podcast's id on the show.")]
+        "name and rewritten with the show, and the move is logged, because the file is the same item under a new " +
+        "name (git pairs old and new by content similarity, with no guarantee) and the transfer keeps the podcast's id on the show.")]
     public async Task podcast_transferred_to_a_tv_show_is_moved_and_rewritten()
     {
         // Arrange

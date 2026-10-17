@@ -139,4 +139,54 @@ public sealed class MigrationManifestRules : IDisposable
         (await run.Should().ThrowAsync<PublicationFolderException>()).Which.Message.Should().Contain("--migrations-out");
         Directory.EnumerateFileSystemEntries(_scenario.OutputDirectory).Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "Migration manifest: when the --migrations-out path cannot be written, then the run fails naming the path " +
+        "before the folder is touched, and no existing file changes and nothing stays staged, because the list of " +
+        "migrations must not be lost after the folder has been published.")]
+    public async Task unwritable_manifest_path_fails_before_the_folder_is_touched()
+    {
+        // Arrange
+        var transferred = _scenario.GivenPodcast();
+        _scenario.GivenExistingFile(transferred.FileKey, transferred.Id);
+        _scenario.Podcasts.Remove(transferred);
+        var show = _scenario.GivenTvShowFrom(transferred);
+        _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1);
+        Directory.CreateDirectory(_manifestFolder);
+        var blocker = Path.Combine(_manifestFolder, "blocker");
+        File.WriteAllText(blocker, _fixture.Create<string>());
+        var unwritable = Path.Combine(blocker, "migrations.json");
+        var before = _scenario.Files;
+
+        // Act
+        var run = () => _scenario.Publish(new PublishOptions(MigrationsOut: unwritable));
+
+        // Assert
+        (await run.Should().ThrowAsync<IOException>()).Which.Message.Should().Contain(unwritable);
+        _scenario.Files.Should().BeEquivalentTo(before);
+        _scenario.StagedFileNames.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Migration manifest: when the publish fails part-way while applying, then the manifest of what the plan " +
+        "intended is already on disk, because it is written before the folder is changed.")]
+    public async Task manifest_of_the_plan_survives_a_failed_apply()
+    {
+        // Arrange
+        var transferred = _scenario.GivenPodcast();
+        _scenario.GivenExistingFile(transferred.FileKey, transferred.Id);
+        _scenario.Podcasts.Remove(transferred);
+        var show = _scenario.GivenTvShowFrom(transferred);
+        _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1);
+        _scenario.FailCommitNumber(1);
+
+        // Act
+        var run = () => _scenario.Publish(new PublishOptions(MigrationsOut: ManifestPath));
+
+        // Assert
+        await run.Should().ThrowAsync<PublicationApplyException>();
+        var migration = JsonNode.Parse(await File.ReadAllTextAsync(ManifestPath))!["migrations"]!.AsArray().Single()!;
+        (migration["oldFile"]!.GetValue<string>(), migration["newFile"]!.GetValue<string>())
+            .Should().Be((transferred.FileKey + ".json", show.FileKey + ".json"));
+    }
 }

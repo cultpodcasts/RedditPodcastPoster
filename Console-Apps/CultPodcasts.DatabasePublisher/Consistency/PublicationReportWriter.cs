@@ -23,7 +23,7 @@ public static class PublicationReportWriter
             $"{plan.Files.Count - created - moved} overwritten, {moved} moved, {plan.Deletions.Count} deleted, " +
             $"{created} created.");
 
-        WriteList("Moved (the old file's content is kept comparable so git can pair old and new; not guaranteed)", plan.Moves.Select(MoveLine), "yellow");
+        WriteList("Moved, then overwritten (git pairs old and new by content similarity, with no guarantee)", plan.Moves.Select(MoveLine), "yellow");
         WriteList(
             "Deleted (explained or accepted)",
             plan.Deletions.Select(r => r.Describe() + (r.Accepted ? " [accepted]" : "")),

@@ -5,8 +5,9 @@ public static class PublicationPlanner
     /// <summary>
     /// Matches every file already in the output folder to this run's items by file key and id, decides what
     /// happens to each (replace, move, delete, or refuse), and decides for every file written whether it
-    /// creates or replaces. A file whose item moved to another file is moved there so its content stays comparable for git,
-    /// including a podcast whose episodes all became films (a film has its episode's id); a podcast file where only\n    /// some of the episodes did is not treated as migrated.
+    /// creates or replaces. A file whose item moved to another file is moved there (and then overwritten),
+    /// including a podcast whose episodes all became films (a film has its episode's id); a podcast file where
+    /// only some of the episodes did is not treated as migrated.
     /// </summary>
     public static PublicationPlan Plan(
         IReadOnlyCollection<BaselineFile> baseline,

@@ -6,9 +6,11 @@ namespace CultPodcasts.DatabasePublisher.Consistency;
 /// moved to; for <see cref="RemovalReason.Replaced"/> the item that now owns the file key.
 /// </param>
 /// <param name="Accepted">An unexplained removal the operator accepted with <c>--accept-removal</c>.</param>
-/// <param name="UnaccountedChildren">For a podcast file whose episodes only partly became films: how many are published nowhere.</param>
+/// <param name="UnaccountedChildren">
+/// For a podcast file whose episodes only partly became films: how many are published nowhere.
+/// </param>
 /// <param name="MoveTo">
-/// The file key the file is moved to (so its content stays comparable for git, with no guarantee git pairs them) when it has exactly one successor whose
+/// The file key the file is moved to, and then overwritten, when it has exactly one successor whose
 /// file does not exist yet; otherwise the file is deleted.
 /// </param>
 public sealed record FileRemoval(

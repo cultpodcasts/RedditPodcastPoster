@@ -253,4 +253,92 @@ public sealed class OutputFolderRules : IDisposable
         // Assert
         (inside, itself, sibling).Should().Be((true, true, false));
     }
+
+    [Fact(DisplayName =
+        "Output folder: when a baseline file is rewritten with the same name after it was read, then the check " +
+        "fails whether its length or only its last-write time changed, because the plan relied on what the file " +
+        "held when it was read.")]
+    public async Task baseline_file_that_changed_content_is_refused()
+    {
+        // Arrange
+        var folder = new PublicationFolder(_folder, new JsonSerializerOptionsProvider());
+        var path = Path.Combine(_folder, "a.json");
+        File.WriteAllText(path, $$"""{ "id": "{{_fixture.CreateGuid()}}" }""");
+        var baseline = await folder.ReadBaselineAsync();
+        var original = File.ReadAllText(path);
+        var stamp = File.GetLastWriteTimeUtc(path);
+
+        // Act
+        File.WriteAllText(path, original + " ");
+        var longer = Record.Exception(() => folder.EnsureUnchanged(baseline));
+        File.WriteAllText(path, original);
+        File.SetLastWriteTimeUtc(path, stamp.AddMinutes(1));
+        var touched = Record.Exception(() => folder.EnsureUnchanged(baseline));
+        File.SetLastWriteTimeUtc(path, stamp);
+        var untouched = Record.Exception(() => folder.EnsureUnchanged(baseline));
+
+        // Assert
+        longer.Should().BeOfType<PublicationFolderException>();
+        touched.Should().BeOfType<PublicationFolderException>();
+        untouched.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Output folder: when a path goes through a directory link that points into the folder, then it is " +
+        "contained, and through one that points elsewhere it is not, because a manifest reached through a link " +
+        "would still land in the data folder.")]
+    public void containment_follows_directory_links()
+    {
+        // Arrange
+        var folder = new PublicationFolder(_folder, new JsonSerializerOptionsProvider());
+        var elsewhere = Path.Combine(Path.GetTempPath(), "public-db-elsewhere-" + Guid.NewGuid());
+        Directory.CreateDirectory(elsewhere);
+        var intoFolder = Path.Combine(elsewhere, "into");
+        var outOfFolder = Path.Combine(elsewhere, "out");
+        try
+        {
+            var made = TryCreateDirectoryLink(intoFolder, _folder) && TryCreateDirectoryLink(outOfFolder, elsewhere);
+            if (!made)
+            {
+                return; // this OS or account may not create links; the rule needs one
+            }
+
+            // Act
+            var through = folder.Contains(Path.Combine(intoFolder, "sub", "m.json"));
+            var away = folder.Contains(Path.Combine(outOfFolder, "m.json"));
+
+            // Assert
+            (through, away).Should().Be((true, false));
+        }
+        finally
+        {
+            Directory.Delete(elsewhere, true);
+        }
+    }
+
+    private static bool TryCreateDirectoryLink(string link, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(link, target);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+        }
+
+        var start = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+        {
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        using var process = System.Diagnostics.Process.Start(start)!;
+        process.WaitForExit();
+        return process.ExitCode == 0;
+    }
 }
