@@ -579,6 +579,7 @@ Exit codes: `0` published; `1` the data cannot be published consistently (a file
 The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
 
 `update.ps1` in the PublicDatabase repo must stop deleting the `*.json` files before it runs the publisher (the publisher needs them as the baseline); that change is tracked in cultpodcasts/RedditPodcastPoster#1040 and is made once this change is settled. It already stops on a non-zero exit, so nothing is committed after a failed check.
+
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
 
 ## Ops utilities
