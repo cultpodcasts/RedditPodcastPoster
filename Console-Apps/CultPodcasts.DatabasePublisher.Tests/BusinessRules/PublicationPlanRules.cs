@@ -17,8 +17,8 @@ public sealed class PublicationPlanRules : IDisposable
 
     [Fact(DisplayName =
         "Publication plan: when a podcast was transferred to a TV show, then its file is moved to the tvshow- " +
-        "name and rewritten with the show, and the rename is logged, because git can only follow the history of " +
-        "a file that was renamed, and the transfer keeps the podcast's id on the show.")]
+        "name and rewritten with the show, and the move is logged, because moving it first keeps the old content " +
+        "comparable so git can pair old and new (with no guarantee), and the transfer keeps the podcast's id on the show.")]
     public async Task podcast_transferred_to_a_tv_show_is_moved_and_rewritten()
     {
         // Arrange
@@ -38,7 +38,7 @@ public sealed class PublicationPlanRules : IDisposable
         report.Plan.Files.Should().ContainSingle().Which.MovedFromKey.Should().Be(podcast.FileKey);
         _scenario.Files.Keys.Should().BeEquivalentTo(show.FileKey);
         IdOf(show.FileKey).Should().Be(show.Id);
-        VerifyLogged(LogLevel.Information, $"Renamed '{podcast.FileKey}.json' to '{show.FileKey}.json'");
+        VerifyLogged(LogLevel.Information, $"Moved '{podcast.FileKey}.json' to '{show.FileKey}.json'");
     }
 
     [Fact(DisplayName =
@@ -117,7 +117,7 @@ public sealed class PublicationPlanRules : IDisposable
 
     [Fact(DisplayName =
         "Publication plan: when a podcast changed its file key, then the old file is moved to the new name and " +
-        "rewritten, because the item is the same and git should see one renamed file.")]
+        "rewritten, because the item is the same and the moved file keeps its shape so git can pair old and new.")]
     public async Task renamed_podcast_is_moved_to_its_new_file_name()
     {
         // Arrange

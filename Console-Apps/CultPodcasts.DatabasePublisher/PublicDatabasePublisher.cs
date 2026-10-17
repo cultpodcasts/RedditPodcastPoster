@@ -37,16 +37,42 @@ public class PublicDatabasePublisher(
     /// <summary>
     /// Works out, then does, the publish of the folder this run is in. Phase one touches nothing: it reads the
     /// files already there as the baseline, reads every item once, checks the file keys, counts each live
-    /// parent's children and plans every write, move and deletion. Phase two applies the plan: deletions, then
-    /// moves (a file whose item moved to another file name is renamed first, so git sees the history follow),
-    /// then the writes, each of which may only create or only replace as planned. When the plan has a file
-    /// that would disappear unexplained the plan is returned unapplied. Throws
-    /// <see cref="PublicationFolderException"/> when the folder is wrongly empty or populated for
-    /// <see cref="PublishOptions.Initial"/>, and <see cref="PublicDatabaseConsistencyException"/> from the
-    /// file-key check. Holds no state between runs; printing the report is the caller's job.
+    /// parent's children and plans every write, move and deletion. Phase two first stages all new content
+    /// (reading each item's children from Cosmos into <c>{key}.json.tmp</c> files in the folder) and checks the
+    /// folder is still what was planned from, so a Cosmos failure, or a folder that changed meanwhile, leaves
+    /// the folder as it was; only then does it apply the plan: deletions, then moves (a file whose item moved
+    /// to another file name is moved there first so its content stays comparable for git), then swaps each
+    /// staged file in, as the plan says, creating or replacing. A failure while applying is a
+    /// <see cref="PublicationApplyException"/>: the staged files not yet swapped in stay, and the next run refuses
+    /// until they are discarded with <see cref="PublishOptions.DiscardStaging"/>. When the plan has a file that
+    /// would disappear unexplained the plan is returned unapplied. Throws <see cref="PublicationFolderException"/>
+    /// when the folder is wrongly empty or populated for <see cref="PublishOptions.Initial"/>, holds staged files, or
+    /// <see cref="PublishOptions.MigrationsOut"/> is inside it, and <see cref="PublicDatabaseConsistencyException"/>
+    /// from the file-key check. Holds no state between runs; printing the report is the caller's job.
     /// </summary>
     public async Task<PublicationReport> Run(PublishOptions options)
     {
+        if (options.MigrationsOut is { } migrationsOut && folder.Contains(migrationsOut))
+        {
+            throw new PublicationFolderException(
+                $"--migrations-out '{migrationsOut}' is inside the output folder '{folder.FolderPath}'; " +
+                "the manifest must be written elsewhere so it is never published with the data.");
+        }
+
+        var staged = folder.FindStaging();
+        if (staged.Count > 0)
+        {
+            if (!options.DiscardStaging)
+            {
+                throw new PublicationFolderException(
+                    $"The output folder '{folder.FolderPath}' holds {staged.Count} staged file(s) ({string.Join(", ", staged.Take(5))}" +
+                    $"{(staged.Count > 5 ? ", ..." : "")}) from a publish that did not finish, so it may be partly updated. " +
+                    "Check it with git status, then run again with --discard-staging to delete the staged files.");
+            }
+
+            logger.LogWarning("Discarding {Count} staged file(s) left by an interrupted publish.", folder.DiscardStaging());
+        }
+
         var baseline = await folder.ReadBaselineAsync();
         if (baseline.Count == 0 && !options.Initial)
         {
@@ -87,47 +113,98 @@ public class PublicDatabasePublisher(
             return new PublicationReport(plan, Applied: false);
         }
 
-        foreach (var removal in plan.Deletions)
-        {
-            folder.Delete(removal.FileKey);
-            logger.LogInformation("Deleted '{FileKey}.json' ({Reason}, id {Id}).", removal.FileKey, removal.Reason, removal.Id);
-        }
+        await StageAsync(plan, candidates, baseline);
+        Apply(plan);
 
-        foreach (var move in plan.Moves)
+        string? migrationsFile = null;
+        if (options.MigrationsOut is { } path)
         {
-            folder.Move(move.FileKey, move.MoveTo!);
-            logger.LogInformation(
-                "Renamed '{FromFileKey}.json' to '{ToFileKey}.json' ({Reason}, id {Id}).",
-                move.FileKey,
-                move.MoveTo,
-                move.Reason,
-                move.Id);
-        }
-
-        var candidatesByKey = candidates.ToDictionary(c => c.Item.FileKey, StringComparer.OrdinalIgnoreCase);
-        await CreateProgress().StartAsync(async ctx =>
-        {
-            var progress = ctx.AddTask("Write files", maxValue: Math.Max(plan.Files.Count, 1));
-            if (plan.Files.Count == 0)
+            try
             {
-                progress.Increment(1);
+                await MigrationManifest.WriteAsync(path, MigrationManifest.Create(plan));
+                migrationsFile = Path.GetFullPath(path);
             }
+            catch (Exception ex)
+            {
+                throw new PublicationApplyException(
+                    $"The files were published but the migration manifest '{path}' could not be written: {ex.Message}", ex);
+            }
+        }
 
-            await Parallel.ForEachAsync(
-                plan.Files,
-                new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
-                async (file, _) =>
-                {
-                    var data = await candidatesByKey[file.Item.FileKey].Build();
-                    await folder.WriteAsync(data, file.Mode);
-                    progress.Increment(1);
-                });
-            progress.StopTask();
-        });
-
-        return new PublicationReport(plan, Applied: true);
+        return new PublicationReport(plan, Applied: true, migrationsFile);
     }
 
+    /// <summary>
+    /// Builds every planned file from Cosmos into its staged file. Nothing but staged files is written; they are
+    /// all discarded again if anything fails, including the folder having changed in the meantime.
+    /// </summary>
+    private async Task StageAsync(
+        PublicationPlan plan,
+        IReadOnlyCollection<Candidate> candidates,
+        IReadOnlyCollection<BaselineFile> baseline)
+    {
+        var candidatesByKey = candidates.ToDictionary(c => c.Item.FileKey, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            await CreateProgress().StartAsync(async ctx =>
+            {
+                var progress = ctx.AddTask("Stage files", maxValue: Math.Max(plan.Files.Count, 1));
+                if (plan.Files.Count == 0)
+                {
+                    progress.Increment(1);
+                }
+
+                await Parallel.ForEachAsync(
+                    plan.Files,
+                    new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
+                    async (file, _) =>
+                    {
+                        await folder.StageAsync(await candidatesByKey[file.Item.FileKey].Build());
+                        progress.Increment(1);
+                    });
+                progress.StopTask();
+            });
+            folder.EnsureUnchanged(baseline);
+        }
+        catch
+        {
+            folder.DiscardStaging();
+            throw;
+        }
+    }
+
+    private void Apply(PublicationPlan plan)
+    {
+        try
+        {
+            foreach (var removal in plan.Deletions)
+            {
+                folder.Delete(removal.FileKey);
+                logger.LogInformation("Deleted '{FileKey}.json' ({Reason}, id {Id}).", removal.FileKey, removal.Reason, removal.Id);
+            }
+
+            foreach (var move in plan.Moves)
+            {
+                folder.Move(move.FileKey, move.MoveTo!);
+                logger.LogInformation(
+                    "Moved '{FromFileKey}.json' to '{ToFileKey}.json' ({Reason}, id {Id}).",
+                    move.FileKey,
+                    move.MoveTo,
+                    move.Reason,
+                    move.Id);
+            }
+
+            foreach (var file in plan.Files)
+            {
+                folder.Commit(file.Item.FileKey, file.Mode);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new PublicationApplyException(
+                $"Publishing failed part-way ({ex.Message}); the output folder may be partly updated.", ex);
+        }
+    }
     private static Progress CreateProgress() =>
         AnsiConsole.Progress()
             .AutoClear(false)

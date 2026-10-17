@@ -23,7 +23,7 @@ public static class PublicationReportWriter
             $"{plan.Files.Count - created - moved} overwritten, {moved} moved, {plan.Deletions.Count} deleted, " +
             $"{created} created.");
 
-        WriteList("Moved (git follows the file by its content)", plan.Moves.Select(MoveLine), "yellow");
+        WriteList("Moved (the old file's content is kept comparable so git can pair old and new; not guaranteed)", plan.Moves.Select(MoveLine), "yellow");
         WriteList(
             "Deleted (explained or accepted)",
             plan.Deletions.Select(r => r.Describe() + (r.Accepted ? " [accepted]" : "")),
@@ -47,6 +47,11 @@ public static class PublicationReportWriter
         {
             AnsiConsole.MarkupLine(
                 "[red]Check each file above. To accept one, run again with --accept-removal <file key or id>.[/]");
+        }
+
+        if (report.MigrationsFile is not null)
+        {
+            AnsiConsole.MarkupLineInterpolated($"Migration manifest written to {report.MigrationsFile}");
         }
 
         AnsiConsole.MarkupLine(report.Applied

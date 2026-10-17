@@ -71,4 +71,41 @@ public class PublishOptionsRules
         swallowed.Should().Throw<ArgumentException>();
         empty.Should().Throw<ArgumentException>();
     }
+
+    [Fact(DisplayName =
+        "Publisher arguments: when --discard-staging is present, then it is switched on without a value, and " +
+        "otherwise it is off, because clearing a failed run's leftovers must be asked for.")]
+    public void discard_staging_is_a_flag()
+    {
+        // Arrange
+
+        // Act
+        var on = PublishOptions.Parse(["--discard-staging"]);
+        var off = PublishOptions.Parse([]);
+
+        // Assert
+        (on.DiscardStaging, off.DiscardStaging).Should().Be((true, false));
+    }
+
+    [Fact(DisplayName =
+        "Publisher arguments: when --migrations-out is given as a separate value or with =, then the path is " +
+        "kept, and when it has no value or is absent, then it is rejected or null, because the manifest location " +
+        "must be chosen explicitly.")]
+    public void migrations_out_takes_a_path_in_either_form()
+    {
+        // Arrange
+        var path = _fixture.Create<string>();
+
+        // Act
+        var separate = PublishOptions.Parse(["--migrations-out", path]);
+        var inline = PublishOptions.Parse([$"--migrations-out={path}"]);
+        var absent = PublishOptions.Parse([]);
+        var missing = () => PublishOptions.Parse(["--migrations-out"]);
+        var empty = () => PublishOptions.Parse(["--migrations-out="]);
+
+        // Assert
+        (separate.MigrationsOut, inline.MigrationsOut, absent.MigrationsOut).Should().Be((path, path, null));
+        missing.Should().Throw<ArgumentException>();
+        empty.Should().Throw<ArgumentException>();
+    }
 }

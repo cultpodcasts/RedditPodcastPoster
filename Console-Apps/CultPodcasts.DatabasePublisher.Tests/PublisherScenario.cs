@@ -29,12 +29,13 @@ internal sealed class PublisherScenario : IDisposable
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly TestFolder _folder;
     private PublicDatabasePublisher? _publisher;
 
     public PublisherScenario()
     {
         Directory.CreateDirectory(OutputDirectory);
-        _mocker.Use(new PublicationFolder(OutputDirectory, new JsonSerializerOptionsProvider()));
+        _mocker.Use<PublicationFolder>(_folder = new TestFolder(OutputDirectory));
 
         _mocker.Setup<IPodcastRepository, IAsyncEnumerable<Podcast>>(r => r.GetAll())
             .Returns(() => Podcasts.ToAsyncEnumerable());
@@ -52,7 +53,7 @@ internal sealed class PublisherScenario : IDisposable
         _mocker.Setup<ITvShowEpisodeRepository, IAsyncEnumerable<TvShowEpisode>>(
                 r => r.GetByTvShowId(It.IsAny<Guid>(), It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .Returns((Guid tvShowId, Expression<Func<TvShowEpisode, bool>> selector) =>
-                TvShowEpisodes.Where(e => e.TvShowId == tvShowId).Where(selector.Compile()).ToAsyncEnumerable());
+                CosmosFailure is not null ? throw CosmosFailure : TvShowEpisodes.Where(e => e.TvShowId == tvShowId).Where(selector.Compile()).ToAsyncEnumerable());
 
         _mocker.Setup<INewsOrganisationRepository, IAsyncEnumerable<NewsOrganisation>>(r => r.GetAll())
             .Returns(() => NewsOrganisations.ToAsyncEnumerable());
@@ -83,6 +84,19 @@ internal sealed class PublisherScenario : IDisposable
     /// <summary>The exact names of the top-level <c>*.json</c> files in the output folder, sorted.</summary>
     public IReadOnlyList<string> FileNames =>
         Directory.EnumerateFiles(OutputDirectory, "*.json").Select(p => Path.GetFileName(p)!).Order(StringComparer.Ordinal).ToList();
+
+    /// <summary>When set, reading a TV show's episodes (which happens only when its file content is built) fails with it.</summary>
+    public Exception? CosmosFailure { get; set; }
+
+    /// <summary>Makes the n-th (1-based) swap of a staged file into place fail, as a crash part-way through applying would.</summary>
+    public void FailCommitNumber(int number) => _folder.FailOnCommit = number;
+
+    /// <summary>Lets every swap succeed again, as it would on the next run.</summary>
+    public void StopFailingCommits() => _folder.FailOnCommit = null;
+
+    /// <summary>The names of the staged <c>*.json.tmp</c> files in the output folder.</summary>
+    public IReadOnlyList<string> StagedFileNames =>
+        Directory.EnumerateFiles(OutputDirectory, "*.tmp").Select(p => Path.GetFileName(p)!).Order(StringComparer.Ordinal).ToList();
 
     public List<Podcast> Podcasts { get; } = [];
     public List<Episode> Episodes { get; } = [];
@@ -200,7 +214,8 @@ internal sealed class PublisherScenario : IDisposable
                 }));
 
     /// <summary>Runs the publisher for a first publish into an empty folder.</summary>
-    public Task<PublicationReport> PublishFirstTime() => Publish(new PublishOptions(Initial: true));
+    public Task<PublicationReport> PublishFirstTime(PublishOptions? options = null) =>
+        Publish(options ?? new PublishOptions(Initial: true));
 
     public Task<PublicationReport> Publish(PublishOptions? options = null) =>
         (_publisher ??= _mocker.CreateInstance<PublicDatabasePublisher>()).Run(options ?? new PublishOptions());
@@ -216,4 +231,21 @@ internal sealed class PublisherScenario : IDisposable
 
     private Episode NewEpisode(int releasedDaysAgo) =>
         _fixture.CreateEpisode(e => e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(releasedDaysAgo));
+
+    private sealed class TestFolder(string path) : PublicationFolder(path, new JsonSerializerOptionsProvider())
+    {
+        private int _commits;
+
+        public int? FailOnCommit { get; set; }
+
+        public override void Commit(string fileKey, WriteMode mode)
+        {
+            if (++_commits == FailOnCommit)
+            {
+                throw new IOException($"Simulated failure swapping in '{fileKey}.json'.");
+            }
+
+            base.Commit(fileKey, mode);
+        }
+    }
 }
