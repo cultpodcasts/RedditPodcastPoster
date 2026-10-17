@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CultPodcasts.DatabasePublisher.Consistency;
 using CultPodcasts.DatabasePublisher.Tests.Fakes;
 using Moq;
 using Moq.AutoMock;
@@ -20,7 +21,7 @@ namespace CultPodcasts.DatabasePublisher.Tests;
 /// selector the publisher passes), and files land in <see cref="Writer"/>. Entities are built through the
 /// same mapper the podcast-to-TV/news/film transfer uses, so a migrated item shares its id with the podcast it came from.
 /// </summary>
-internal sealed class PublisherScenario
+internal sealed class PublisherScenario : IDisposable
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
@@ -84,6 +85,9 @@ internal sealed class PublisherScenario
 
     public InMemorySafeFileEntityWriter Writer { get; }
 
+    /// <summary>The directory a previous run's files were moved to; empty until a test writes baseline files.</summary>
+    public string BaselineDirectory { get; } = Path.Combine(Path.GetTempPath(), "public-db-baseline-" + Guid.NewGuid());
+
     public List<Podcast> Podcasts { get; } = [];
     public List<Episode> Episodes { get; } = [];
     public List<TvShow> TvShows { get; } = [];
@@ -115,9 +119,12 @@ internal sealed class PublisherScenario
         return episode;
     }
 
-    public TvShow GivenTvShow(Action<TvShow>? customize = null)
+    public TvShow GivenTvShow(Action<TvShow>? customize = null) => GivenTvShowFrom(NewPodcast(), customize);
+
+    /// <summary>The TV show a podcast becomes when it is transferred: same id, same name, prefixed file key.</summary>
+    public TvShow GivenTvShowFrom(Podcast podcast, Action<TvShow>? customize = null)
     {
-        var show = CatalogueParentKindMapper.ToTvShow(NewPodcast());
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
         customize?.Invoke(show);
         TvShows.Add(show);
         return show;
@@ -161,7 +168,22 @@ internal sealed class PublisherScenario
         return film;
     }
 
-    public Task Publish() => _mocker.CreateInstance<PublicDatabasePublisher>().Run();
+    /// <summary>Writes a file as a previous run left it; a null id leaves the file without one.</summary>
+    public void WriteBaselineFile(string fileKey, Guid? id) =>
+        File.WriteAllText(
+            Path.Combine(Directory.CreateDirectory(BaselineDirectory).FullName, fileKey + ".json"),
+            id is null ? "{}" : $"{{ \"id\": \"{id}\" }}");
+
+    public Task<PublicationReport> Publish(PublishOptions? options = null) =>
+        _mocker.CreateInstance<PublicDatabasePublisher>().Run(options ?? new PublishOptions());
+
+    public void Dispose()
+    {
+        if (Directory.Exists(BaselineDirectory))
+        {
+            Directory.Delete(BaselineDirectory, true);
+        }
+    }
 
     private Podcast NewPodcast() => _fixture.CreatePodcast(p => p.Name = _fixture.CreateTitle());
 
