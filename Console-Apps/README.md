@@ -542,8 +542,30 @@ CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
 
 ### CultPodcasts.DatabasePublisher
 
-**Purpose:** Publish a public-facing podcast/episode JSON dump from Cosmos. No CLI flags.
+**Purpose:** Publish the public JSON database from Cosmos into the current directory, one file per live item:
 
+| Kind | File key | Content |
+|------|----------|---------|
+| Podcast | `{slug}` | podcast with its episodes |
+| TV show | `tvshow-{slug}` | show with its episodes |
+| News organisation | `news-{slug}` | organisation with its reports |
+| Film | `film-{slug}` | the film itself (no children) |
+
+Removed items and removed episodes or reports are not published, and a podcast, show or organisation with no episodes or reports gets no file. Children are listed newest first (ties broken by id); the podcast file shape is unchanged. TV show, news and film files keep each release at its catalogue precision (year, date or UTC date-time) and key `urls` by service key.
+
+A podcast that is transferred to a TV show or news organisation keeps its id, but its rows are deleted: its old `{slug}.json` stops being published and `tvshow-{slug}.json` or `news-{slug}.json` appears. With a baseline (below) the run lists that move as *migrated*.
+
+Before writing anything the publisher checks every file key across all kinds: present, carrying its kind's prefix (podcasts must not use a reserved one), and unique ignoring case. Any problem fails the run (exit 1) with the full list.
+
+| Option | Description |
+|--------|-------------|
+| `--baseline <folder>` | Folder holding the previous publish's `*.json` files. The run reports files that are no longer published, as renamed, migrated or removed (listed, allowed) or unexplained (the item is gone, has nothing to publish, was replaced by another item, or the old file has no id), and fails with exit 1 on any unexplained one. |
+| `--accept-unexplained-removals` | Report unexplained removals but do not fail. |
+| `--use-v2` | Ignored (legacy; `update.ps1` still passes it). |
+
+Without `--baseline` the run publishes as before and says it cannot detect removals. Files are written before the baseline comparison, so a failed run leaves the folder part-written: restore it with `git restore .` and `git clean -fd` in the PublicDatabase repo.
+
+`update.ps1` should move the existing `*.json` files to a temporary folder instead of deleting them and pass that folder as `--baseline`, so the safe-writer still sees an empty output folder and the publisher can compare. It already stops on a non-zero exit, so nothing is committed after a failed check.
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
 
 ## Ops utilities

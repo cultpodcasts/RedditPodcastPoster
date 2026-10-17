@@ -242,6 +242,7 @@
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
 
     <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
+    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher.Tests/CultPodcasts.DatabasePublisher.Tests.csproj" />
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
 
