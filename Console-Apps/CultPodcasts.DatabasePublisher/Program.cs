@@ -14,6 +14,17 @@ if (VersionInfo.TryHandleVersionRequest(args))
     return 0;
 }
 
+PublishOptions options;
+try
+{
+    options = PublishOptions.Parse(args);
+}
+catch (ArgumentException ex)
+{
+    AnsiConsole.MarkupLineInterpolated($"[red]{ex.Message}[/]");
+    return 2;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -36,7 +47,7 @@ using var host = builder.Build();
 var publisher = host.Services.GetRequiredService<PublicDatabasePublisher>();
 try
 {
-    await publisher.Run();
+    await publisher.Run(options);
 }
 catch (PublicDatabaseConsistencyException ex)
 {

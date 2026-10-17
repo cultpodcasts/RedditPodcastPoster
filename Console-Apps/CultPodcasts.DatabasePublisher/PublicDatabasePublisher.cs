@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using CultPodcasts.DatabasePublisher.Consistency;
@@ -38,8 +39,18 @@ public class PublicDatabasePublisher(
     /// </summary>
     private static readonly int PublishParallelism = Math.Clamp(Environment.ProcessorCount * 2, 4, 16);
 
-    public async Task Run()
+    private readonly ConcurrentBag<PublishedItem> _published = new();
+
+    /// <summary>
+    /// Writes one file per live item. File keys are validated across all kinds before the first write. When
+    /// <see cref="PublishOptions.BaselinePath"/> is given, every file of the previous publish that is no longer
+    /// written is reported, and the run fails if any disappeared without a rename, migration or removal flag.
+    /// </summary>
+    public async Task<PublicationReport> Run(PublishOptions options)
     {
+        var baseline = options.BaselinePath is null ? null : await PublicationBaseline.ReadAsync(options.BaselinePath);
+        IReadOnlyCollection<CatalogueItem> inventory = [];
+
         AnsiConsole.MarkupLine(
             $"[grey]Publish parallelism:[/] {PublishParallelism} (parent feed sequential; child fetch + write parallel)");
 
@@ -55,7 +66,7 @@ public class PublicDatabasePublisher(
             .StartAsync(async ctx =>
             {
                 var fileKeyCheck = ctx.AddTask("File-key check: all kinds", maxValue: 1);
-                var inventory = await ReadInventory();
+                inventory = await ReadInventory();
                 PublicFileKeyGuard.EnsureValid(inventory);
                 fileKeyCheck.Increment(1);
                 fileKeyCheck.StopTask();
@@ -86,7 +97,18 @@ public class PublicDatabasePublisher(
                     PublishFilmAsync);
             });
 
+        var published = _published.OrderBy(p => p.FileKey, StringComparer.Ordinal).ToList();
+        var comparison = baseline is null ? null : PublicationComparer.Compare(baseline, published, inventory);
+        var report = new PublicationReport(published, comparison);
+        PublicationReportWriter.Write(report);
+
+        if (comparison is { Unexplained.Count: > 0 } && !options.AcceptUnexplainedRemovals)
+        {
+            throw new PublicDatabaseConsistencyException(comparison.Unexplained.Select(r => r.Describe()).ToList());
+        }
+
         AnsiConsole.MarkupLine("[green]Finished publishing public database.[/]");
+        return report;
     }
 
     private async Task<IReadOnlyCollection<CatalogueItem>> ReadInventory()
@@ -193,6 +215,7 @@ public class PublicDatabasePublisher(
 
         publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
         await safeFileEntityWriter.Write(publicPodcast);
+        _published.Add(new PublishedItem(podcast.Id, podcast.FileKey, PublicKind.Podcast));
     }
 
     private async Task PublishTvShowAsync(TvShow show)
@@ -205,6 +228,7 @@ public class PublicDatabasePublisher(
 
         var episodes = await tvShowEpisodeRepository.GetByTvShowId(show.Id, e => !e.Removed).ToListAsync();
         await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(show, episodes));
+        _published.Add(new PublishedItem(show.Id, show.FileKey, PublicKind.TvShow));
     }
 
     private async Task PublishNewsOrganisationAsync(NewsOrganisation organisation)
@@ -218,10 +242,14 @@ public class PublicDatabasePublisher(
         var reports = await newsReportRepository.GetByNewsOrganisationId(organisation.Id, r => !r.Removed)
             .ToListAsync();
         await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(organisation, reports));
+        _published.Add(new PublishedItem(organisation.Id, organisation.FileKey, PublicKind.NewsOrganisation));
     }
 
-    private Task PublishFilmAsync(Film film) =>
-        safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(film));
+    private async Task PublishFilmAsync(Film film)
+    {
+        await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(film));
+        _published.Add(new PublishedItem(film.Id, film.FileKey, PublicKind.Film));
+    }
 
     /// <summary>
     /// Single Cosmos reader + N publishers via a bounded channel. Avoids concurrent

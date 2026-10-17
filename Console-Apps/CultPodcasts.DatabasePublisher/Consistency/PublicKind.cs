@@ -31,6 +31,13 @@ public static class PublicKindExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown public kind.")
         };
 
+    /// <summary>The kind a file key belongs to, judged by its prefix; unprefixed keys are podcasts.</summary>
+    public static PublicKind FromFileKey(string fileKey) =>
+        fileKey.StartsWith(FileKeyFactory.TvShowPrefix, StringComparison.OrdinalIgnoreCase) ? PublicKind.TvShow
+        : fileKey.StartsWith(FileKeyFactory.NewsOrganisationPrefix, StringComparison.OrdinalIgnoreCase) ? PublicKind.NewsOrganisation
+        : fileKey.StartsWith(FileKeyFactory.FilmPrefix, StringComparison.OrdinalIgnoreCase) ? PublicKind.Film
+        : PublicKind.Podcast;
+
     public static bool UsesReservedPrefix(string fileKey) =>
         ReservedPrefixes.Any(prefix => fileKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 }
