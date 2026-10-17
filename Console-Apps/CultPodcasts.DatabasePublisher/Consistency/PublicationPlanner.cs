@@ -6,7 +6,7 @@ public static class PublicationPlanner
     /// Matches every file already in the output folder to this run's items by file key and id, decides what
     /// happens to each (replace, move, delete, or refuse), and decides for every file written whether it
     /// creates or replaces. A file whose item moved to another file is moved there so its history follows it,
-    /// including a podcast whose single episode became a film (the film has the episode's id).
+    /// including a podcast whose episodes all became films (a film has its episode's id); a podcast file where only\n    /// some of the episodes did is not treated as migrated.
     /// </summary>
     public static PublicationPlan Plan(
         IReadOnlyCollection<BaselineFile> baseline,
@@ -14,7 +14,8 @@ public static class PublicationPlanner
         IReadOnlyCollection<CatalogueItem> inventory,
         IReadOnlyCollection<string> accepted)
     {
-        var publishedByKey = published.ToDictionary(p => p.FileKey, StringComparer.OrdinalIgnoreCase);
+        // Keys are matched exactly: a key that differs only by case is a different file name, so it is a delete and a create.
+        var publishedByKey = published.ToDictionary(p => p.FileKey, StringComparer.Ordinal);
         var publishedById = published.OrderBy(p => p.FileKey, StringComparer.Ordinal).ToLookup(p => p.Id);
         var filmsById = published.Where(p => p.Kind == PublicKind.Film).ToDictionary(p => p.Id);
         var inventoryById = inventory.ToLookup(i => i.Id);
@@ -96,9 +97,18 @@ public static class PublicationPlanner
                     .Select(childId => filmsById[childId])
                     .OrderBy(f => f.FileKey, StringComparer.Ordinal)
                     .ToList();
-                if (films.Count > 0)
+                var episodeCount = file.ChildIds.Distinct().Count();
+                if (films.Count > 0 && films.Count == episodeCount)
                 {
                     return new FileRemoval(file.FileKey, id, RemovalReason.Migrated, films, MoveTo: MoveTargetFor(films));
+                }
+
+                // Only some of the episodes became films and Cosmos does not say what happened to the podcast
+                // or the rest, so the file is not treated as migrated: it must be accepted knowingly.
+                if (films.Count > 0 && existing.Count == 0)
+                {
+                    return new FileRemoval(
+                        file.FileKey, id, RemovalReason.NotFound, films, UnaccountedChildren: episodeCount - films.Count);
                 }
             }
 

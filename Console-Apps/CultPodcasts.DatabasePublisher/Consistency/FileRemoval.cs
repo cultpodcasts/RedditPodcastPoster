@@ -6,6 +6,7 @@ namespace CultPodcasts.DatabasePublisher.Consistency;
 /// moved to; for <see cref="RemovalReason.Replaced"/> the item that now owns the file key.
 /// </param>
 /// <param name="Accepted">An unexplained removal the operator accepted with <c>--accept-removal</c>.</param>
+/// <param name="UnaccountedChildren">For a podcast file whose episodes only partly became films: how many are published nowhere.</param>
 /// <param name="MoveTo">
 /// The file key the file is moved to (so git can follow its history) when it has exactly one successor whose
 /// file does not exist yet; otherwise the file is deleted.
@@ -16,7 +17,8 @@ public sealed record FileRemoval(
     RemovalReason Reason,
     IReadOnlyList<PublishedItem> Successors,
     bool Accepted = false,
-    string? MoveTo = null)
+    string? MoveTo = null,
+    int UnaccountedChildren = 0)
 {
     /// <summary>Explained by Cosmos, or accepted by the operator: the plan may act on it.</summary>
     public bool IsResolved => Reason.IsExplained() || Accepted;
@@ -40,6 +42,10 @@ public sealed record FileRemoval(
                 $"{file} still exists in Cosmos and is not removed, but has no episodes or reports to publish.",
             RemovalReason.Replaced =>
                 $"{file} is now published for a different item (id {Successors[0].Id}).",
+            RemovalReason.NotFound when UnaccountedChildren > 0 =>
+                $"{file} no longer exists in Cosmos and was not flagged removed; only {Successors.Count} of its " +
+                $"{Successors.Count + UnaccountedChildren} episodes became films ({string.Join(", ", Successors.Select(s => $"'{s.FileKey}.json'"))}), " +
+                $"{UnaccountedChildren} are not published anywhere.",
             RemovalReason.NotFound =>
                 $"{file} no longer exists in Cosmos and was not flagged removed.",
             RemovalReason.Unreadable =>

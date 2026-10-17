@@ -1,4 +1,5 @@
 using CultPodcasts.DatabasePublisher.Consistency;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -36,7 +37,7 @@ public sealed class PublicationPlanRules : IDisposable
         (move.FileKey, move.MoveTo, move.Reason).Should().Be((podcast.FileKey, show.FileKey, RemovalReason.Migrated));
         report.Plan.Files.Should().ContainSingle().Which.MovedFromKey.Should().Be(podcast.FileKey);
         _scenario.Files.Keys.Should().BeEquivalentTo(show.FileKey);
-        _scenario.Files[show.FileKey].Should().Contain($"\"id\": \"{show.Id}\"").And.Contain("\"episodes\"");
+        IdOf(show.FileKey).Should().Be(show.Id);
         VerifyLogged(LogLevel.Information, $"Renamed '{podcast.FileKey}.json' to '{show.FileKey}.json'");
     }
 
@@ -58,7 +59,7 @@ public sealed class PublicationPlanRules : IDisposable
         // Assert
         report.Plan.Moves.Should().ContainSingle().Which.MoveTo.Should().Be(organisation.FileKey);
         _scenario.Files.Keys.Should().BeEquivalentTo(organisation.FileKey);
-        _scenario.Files[organisation.FileKey].Should().Contain($"\"id\": \"{organisation.Id}\"").And.Contain("\"reports\"");
+        IdOf(organisation.FileKey).Should().Be(organisation.Id);
     }
 
     [Fact(DisplayName =
@@ -84,7 +85,7 @@ public sealed class PublicationPlanRules : IDisposable
         (move.FileKey, move.MoveTo, move.Reason).Should().Be((podcast.FileKey, film.FileKey, RemovalReason.Migrated));
         report.Plan.Unexplained.Should().BeEmpty();
         _scenario.Files.Keys.Should().BeEquivalentTo(film.FileKey);
-        _scenario.Files[film.FileKey].Should().Contain($"\"id\": \"{film.Id}\"");
+        IdOf(film.FileKey).Should().Be(film.Id);
     }
 
     [Fact(DisplayName =
@@ -175,7 +176,7 @@ public sealed class PublicationPlanRules : IDisposable
         report.Plan.Removals.Should().BeEmpty();
         report.Plan.Files.Select(f => (f.Item.FileKey, f.Mode)).Should().BeEquivalentTo(
             [(podcast.FileKey, WriteMode.Replace), (film.FileKey, WriteMode.Create)]);
-        _scenario.Files[podcast.FileKey].Should().Contain(episode.Title);
+        JsonNode.Parse(_scenario.Files[podcast.FileKey])!["episodes"]!.AsArray().Single()!["title"]!.GetValue<string>().Should().Be(episode.Title);
     }
 
     [Fact(DisplayName =
@@ -319,7 +320,7 @@ public sealed class PublicationPlanRules : IDisposable
         var removal = report.Plan.Unexplained.Should().ContainSingle().Subject;
         removal.Reason.Should().Be(RemovalReason.Replaced);
         removal.Successors.Single().Id.Should().Be(podcast.Id);
-        _scenario.Files[podcast.FileKey].Should().Contain(otherId.ToString());
+        IdOf(podcast.FileKey).Should().Be(otherId);
     }
 
     [Fact(DisplayName =
@@ -384,6 +385,177 @@ public sealed class PublicationPlanRules : IDisposable
         second.Plan.Removals.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "Publication plan: when a vanished podcast file lists several episodes and only one of them became a film, " +
+        "then it is unexplained and untouched and says how many episodes are not accounted for, because one " +
+        "matching episode must not hide the others being dropped.")]
+    public async Task podcast_file_where_only_one_episode_became_a_film_is_not_migrated()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var became = _scenario.GivenEpisode(podcast, releasedDaysAgo: 5);
+        var other = _scenario.GivenEpisode(podcast, releasedDaysAgo: 6);
+        var another = _scenario.GivenEpisode(podcast, releasedDaysAgo: 7);
+        _scenario.GivenExistingFile(podcast.FileKey, podcast.Id, became.Id, other.Id, another.Id);
+        var before = _scenario.Files[podcast.FileKey];
+        _scenario.Podcasts.Clear();
+        _scenario.Episodes.Clear();
+        _scenario.GivenFilmFrom(podcast, became);
+
+        // Act
+        var report = await _scenario.Publish();
+
+        // Assert
+        report.Applied.Should().BeFalse();
+        var removal = report.Plan.Unexplained.Should().ContainSingle().Subject;
+        removal.Reason.Should().Be(RemovalReason.NotFound);
+        removal.Describe().Should().Contain("only 1 of its 3 episodes").And.Contain("2 are not published anywhere");
+        _scenario.Files.Should().ContainSingle().Which.Value.Should().Be(before);
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when the partly migrated podcast file is accepted by name, then it is deleted and the " +
+        "film is created, because the operator has been told how many episodes are not accounted for.")]
+    public async Task partly_migrated_podcast_file_can_be_accepted_knowingly()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var became = _scenario.GivenEpisode(podcast, releasedDaysAgo: 5);
+        var other = _scenario.GivenEpisode(podcast, releasedDaysAgo: 6);
+        _scenario.GivenExistingFile(podcast.FileKey, podcast.Id, became.Id, other.Id);
+        _scenario.Podcasts.Clear();
+        _scenario.Episodes.Clear();
+        var film = _scenario.GivenFilmFrom(podcast, became);
+
+        // Act
+        var report = await _scenario.Publish(new PublishOptions(AcceptedRemovals: [podcast.FileKey]));
+
+        // Assert
+        report.Applied.Should().BeTrue();
+        _scenario.FileNames.Should().Equal(film.FileKey + ".json");
+        IdOf(film.FileKey).Should().Be(film.Id);
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when two items swap file keys, then both old files are unexplained (each key is now " +
+        "another item's) and nothing changes, and when both are accepted each key ends up holding its new item, " +
+        "because a swap cannot be told from two unrelated replacements.")]
+    public async Task swapped_file_keys_block_and_can_be_accepted_with_an_exact_end_state()
+    {
+        // Arrange
+        var first = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(first, releasedDaysAgo: 1);
+        var second = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(second, releasedDaysAgo: 2);
+        _scenario.GivenExistingFile(first.FileKey, second.Id);
+        _scenario.GivenExistingFile(second.FileKey, first.Id);
+
+        // Act
+        var blocked = await _scenario.Publish();
+        var accepted = await _scenario.Publish(new PublishOptions(AcceptedRemovals: [first.FileKey, second.FileKey]));
+
+        // Assert
+        blocked.Plan.Unexplained.Select(r => r.Reason).Should().Equal(RemovalReason.Replaced, RemovalReason.Replaced);
+        accepted.Applied.Should().BeTrue();
+        _scenario.Files.Keys.Should().BeEquivalentTo(first.FileKey, second.FileKey);
+        IdOf(first.FileKey).Should().Be(first.Id);
+        IdOf(second.FileKey).Should().Be(second.Id);
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when one item moves to the key another existing file holds and that file's item moves " +
+        "on (a chain), then the plan is blocked and untouched, because the file that is overwritten has no " +
+        "explanation of its own.")]
+    public async Task chain_of_renames_blocks_and_touches_nothing()
+    {
+        // Arrange
+        var first = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(first, releasedDaysAgo: 1);
+        var second = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(second, releasedDaysAgo: 2);
+        var oldKey = _scenario.GivenBaselineFileKey();
+        _scenario.GivenExistingFile(oldKey, first.Id);
+        _scenario.GivenExistingFile(first.FileKey, second.Id);
+        var before = _scenario.Files;
+
+        // Act
+        var report = await _scenario.Publish();
+
+        // Assert
+        report.Applied.Should().BeFalse();
+        var unexplained = report.Plan.Unexplained.Should().ContainSingle().Subject;
+        (unexplained.FileKey, unexplained.Reason).Should().Be((first.FileKey, RemovalReason.Replaced));
+        _scenario.Files.Should().BeEquivalentTo(before);
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when two existing files carry the same id and the item now has another key, then the " +
+        "first of them (by name) is moved to it and the second is deleted, because a target can be claimed once.")]
+    public async Task two_files_claiming_one_target_move_one_and_delete_the_other()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(podcast, releasedDaysAgo: 1);
+        var keys = new[] { _scenario.GivenBaselineFileKey(), _scenario.GivenBaselineFileKey() }
+            .Order(StringComparer.Ordinal).ToList();
+        _scenario.GivenExistingFile(keys[0], podcast.Id);
+        _scenario.GivenExistingFile(keys[1], podcast.Id);
+
+        // Act
+        var report = await _scenario.Publish();
+
+        // Assert
+        var move = report.Plan.Moves.Should().ContainSingle().Subject;
+        (move.FileKey, move.MoveTo).Should().Be((keys[0], podcast.FileKey));
+        report.Plan.Deletions.Should().ContainSingle().Which.FileKey.Should().Be(keys[1]);
+        _scenario.FileNames.Should().Equal(podcast.FileKey + ".json");
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when an item's key differs from its existing file's key only by case, then the old file " +
+        "is deleted and the new one created under the exact new name, because on a case-sensitive file system a " +
+        "replace of the differently-cased path would not exist and on a case-insensitive one the old case would stay.")]
+    public async Task key_that_differs_only_by_case_is_deleted_and_created()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        podcast.FileKey = char.ToUpperInvariant(podcast.FileKey[0]) + podcast.FileKey[1..];
+        _scenario.GivenEpisode(podcast, releasedDaysAgo: 1);
+        var lower = podcast.FileKey.ToLowerInvariant();
+        lower.Should().NotBe(podcast.FileKey);
+        _scenario.GivenExistingFile(lower, podcast.Id);
+
+        // Act
+        var report = await _scenario.Publish();
+
+        // Assert
+        report.Applied.Should().BeTrue();
+        report.Plan.Moves.Should().BeEmpty();
+        report.Plan.Deletions.Should().ContainSingle().Which.FileKey.Should().Be(lower);
+        _scenario.FileNames.Should().Equal(podcast.FileKey + ".json");
+        IdOf(podcast.FileKey).Should().Be(podcast.Id);
+    }
+
+    [Fact(DisplayName =
+        "Publication plan: when an --accept-removal value names a file that is already explained (a migrated " +
+        "podcast), then the plan is blocked as an unused acceptance, because acceptances are only for removals " +
+        "that were not explained.")]
+    public async Task accepting_an_explained_removal_blocks_as_unused()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast(p => p.Removed = true);
+        _scenario.GivenExistingFile(podcast.FileKey, podcast.Id);
+
+        // Act
+        var report = await _scenario.Publish(new PublishOptions(AcceptedRemovals: [podcast.FileKey]));
+
+        // Assert
+        report.Applied.Should().BeFalse();
+        report.Plan.UnusedAcceptances.Should().Equal(podcast.FileKey);
+        _scenario.Files.Keys.Should().BeEquivalentTo(podcast.FileKey);
+    }
+
+    private Guid IdOf(string fileKey) => JsonNode.Parse(_scenario.Files[fileKey])!["id"]!.GetValue<Guid>();
     private void VerifyLogged(LogLevel level, string messageFragment) =>
         _scenario.Logger.Verify(
             l => l.Log(

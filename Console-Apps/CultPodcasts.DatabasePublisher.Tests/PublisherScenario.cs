@@ -80,6 +80,10 @@ internal sealed class PublisherScenario : IDisposable
             path => File.ReadAllText(path),
             StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The exact names of the top-level <c>*.json</c> files in the output folder, sorted.</summary>
+    public IReadOnlyList<string> FileNames =>
+        Directory.EnumerateFiles(OutputDirectory, "*.json").Select(p => Path.GetFileName(p)!).Order(StringComparer.Ordinal).ToList();
+
     public List<Podcast> Podcasts { get; } = [];
     public List<Episode> Episodes { get; } = [];
     public List<TvShow> TvShows { get; } = [];
