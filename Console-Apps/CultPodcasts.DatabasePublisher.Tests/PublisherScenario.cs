@@ -213,6 +213,23 @@ internal sealed class PublisherScenario : IDisposable
                     episodes = episodeIds.Select(e => new { id = e })
                 }));
 
+    /// <summary>
+    /// Leaves a file in the output folder as a previous publish did, with children (<c>episodes</c> or
+    /// <c>reports</c>) that have the given ids and raw <c>release</c> values (a string, a number or null).
+    /// </summary>
+    public void GivenExistingFileWithChildren(
+        string fileKey,
+        Guid id,
+        string childProperty,
+        params (Guid Id, object? Release)[] children) =>
+        File.WriteAllText(
+            Path.Combine(OutputDirectory, fileKey + ".json"),
+            JsonSerializer.Serialize(new Dictionary<string, object?>
+            {
+                ["id"] = id,
+                ["name"] = fileKey,
+                [childProperty] = children.Select(c => new { id = c.Id, release = c.Release }).ToList()
+            }));
     /// <summary>Runs the publisher for a first publish into an empty folder.</summary>
     public Task<PublicationReport> PublishFirstTime(PublishOptions? options = null) =>
         Publish(options ?? new PublishOptions(Initial: true));

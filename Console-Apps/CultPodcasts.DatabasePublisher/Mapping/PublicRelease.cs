@@ -13,4 +13,10 @@ public static class PublicRelease
 {
     public static string? Format(CatalogueRelease? release) =>
         release is null ? null : JsonSerializer.Serialize(release).Trim('"');
+
+    /// <summary>
+    /// The text a podcast episode's release has always had: the instant as the JSON serializer writes a
+    /// <see cref="DateTime"/>, so a trailing <c>Z</c> for a UTC value and none for an unspecified one.
+    /// </summary>
+    public static string FormatInstant(DateTime release) => JsonSerializer.Serialize(release).Trim('"');
 }

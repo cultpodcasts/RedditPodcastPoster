@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CultPodcasts.DatabasePublisher.Consistency;
+using CultPodcasts.DatabasePublisher.Mapping;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 
@@ -183,11 +184,19 @@ public class PublicationFolder
                 $"The files in '{FolderPath}' changed while the publish was being prepared; nothing was changed. Run again.");
         }
     }
-    /// <summary>Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched.</summary>
-    public async Task StageAsync(CosmosSelector data)
+    /// <summary>
+    /// Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched. Before writing, an
+    /// episode or report that the previous file (<paramref name="baselineFileKey"/>, by default the file's own key;
+    /// a moved file's old key) already had, with the same release instant, keeps that file's exact release text
+    /// (<see cref="BaselineReleaseText"/>), so a file does not change only because a date-time gained or lost a
+    /// trailing <c>Z</c>. An absent or unreadable previous file changes nothing.
+    /// </summary>
+    public async Task StageAsync(CosmosSelector data, string? baselineFileKey = null)
     {
+        var path = StagingPathOf(data.FileKey);
+        (await BaselineReleaseText.ReadAsync(PathOf(baselineFileKey ?? data.FileKey))).Apply(data);
         await using var stream = new FileStream(
-            StagingPathOf(data.FileKey), FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         await JsonSerializer.SerializeAsync(stream, data, data.GetType(), _options);
     }
 

@@ -172,7 +172,7 @@ public class PublicDatabasePublisher(
                     new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
                     async (file, _) =>
                     {
-                        await folder.StageAsync(await candidatesByKey[file.Item.FileKey].Build());
+                        await folder.StageAsync(await candidatesByKey[file.Item.FileKey].Build(), file.MovedFromKey);
                         progress.Increment(1);
                     });
                 progress.StopTask();

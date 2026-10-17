@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using CultPodcasts.DatabasePublisher.Mapping;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
@@ -16,9 +17,20 @@ public class PublicEpisode
     [JsonPropertyOrder(4)]
     public string? Description { get; init; }
 
+    /// <summary>The release instant: what episodes are ordered by. It is not itself written; see <see cref="ReleaseText"/>.</summary>
+    [JsonIgnore]
+    public DateTime Release { get; init; }
+
+    /// <summary>
+    /// The <c>release</c> text of the previous publish when this episode was already there with the same instant,
+    /// so a file does not change only because of a trailing <c>Z</c> (see <see cref="BaselineReleaseText"/>).
+    /// </summary>
+    [JsonIgnore]
+    public string? PreservedRelease { get; set; }
+
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public DateTime Release { get; init; }
+    public string ReleaseText => PreservedRelease ?? PublicRelease.FormatInstant(Release);
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]
