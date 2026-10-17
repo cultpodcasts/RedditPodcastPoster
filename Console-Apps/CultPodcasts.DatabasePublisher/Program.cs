@@ -3,9 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CultPodcasts.DatabasePublisher;
+using CultPodcasts.DatabasePublisher.Consistency;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Configuration;
+using Spectre.Console;
 
 if (VersionInfo.TryHandleVersionRequest(args))
 {
@@ -32,6 +34,14 @@ builder.Services
 using var host = builder.Build();
 
 var publisher = host.Services.GetRequiredService<PublicDatabasePublisher>();
-await publisher.Run();
+try
+{
+    await publisher.Run();
+}
+catch (PublicDatabaseConsistencyException ex)
+{
+    AnsiConsole.MarkupLineInterpolated($"[red]{ex.Message}[/]");
+    return 1;
+}
 
 return 0;
