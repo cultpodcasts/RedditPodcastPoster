@@ -542,7 +542,49 @@ CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
 
 ### CultPodcasts.DatabasePublisher
 
-**Purpose:** Publish a public-facing podcast/episode JSON dump from Cosmos. No CLI flags.
+**Purpose:** Publish the public JSON database from Cosmos into the current directory, one file per live item:
+
+| Kind | File key | Content |
+|------|----------|---------|
+| Podcast | `{slug}` | podcast with its episodes |
+| TV show | `tvshow-{slug}` | show with its episodes |
+| News organisation | `news-{slug}` | organisation with its reports |
+| Film | `film-{slug}` | the film itself (no children) |
+
+Removed items and removed episodes or reports are not published. A show, organisation or podcast with no episodes or reports at all gets no file; one whose episodes or reports are all flagged removed still gets a file with an empty list, exactly as podcasts always have (the check counts rows, removed or not). The podcast file shape and bytes are unchanged (pinned by a golden rule test). Children of TV shows and news organisations are listed newest first with ties broken by id, so the files do not change between runs; podcast episodes keep their existing ordering.
+
+The TV show, news and film files differ from the podcast file on purpose:
+
+- `release` is always a string that keeps the catalogue precision: `2019`, `2019-05-01` or `2019-05-01T12:00:00Z`. Podcast episodes always carry a full date-time.
+- `urls` is a map of catalogue service key to url for every service the item has (`spotify`, `apple`, `youtube`, and the streaming keys such as `bbcIplayer`, `bbcSounds`, `internetArchive`, `netflix`). Podcast episodes keep their fixed object (`spotify`, `apple`, `youtube`, `internetArchive`, `bbc`), where BBC iPlayer and BBC Sounds share the single `bbc` key.
+
+**The output folder is the baseline.** Run the publisher in the folder that holds the previous publish (the PublicDatabase checkout) and do not clear it first. Before touching any file it reads every top-level `*.json` there, reads the catalogue once, checks every file key and id, and plans the whole run:
+
+- a file whose item is still published under the same key and id is replaced in place;
+- a file whose item moved to another file name is **moved** to that name first (`File.Move`, no git needed) and then overwritten with the new content: a renamed podcast, a podcast transferred to a TV show (`tvshow-{slug}`) or news organisation (`news-{slug}`) with the same id, and a podcast whose only episode became a film (`film-{slug}`, found because the film takes the episode's id, which is listed in the old file). Each move is logged and listed in the migration manifest (below). A podcast whose episodes all became several films has its file deleted and the films created, with no move; a move never overwrites an existing file. A podcast file where only some of its episodes became films is not treated as migrated: the others are not accounted for, so it is unexplained (the message says how many) until accepted;
+- a file whose item is flagged removed is deleted;
+- any other file that would stop being published is **unexplained**: the item is gone from Cosmos (including a podcast file where only some episodes became films), still exists but has nothing to publish, has been replaced by another item under the same key (so two items swapping keys is unexplained too), or the file has no readable id. If there is any, nothing is written, moved or deleted, the list is printed and the run exits with 1. File keys are compared exactly, so a key that differs from the existing file only by case is a delete and a create;
+- new files are created; only planned files are ever created, replaced, moved or deleted.
+
+**Nothing is touched until all content is built.** After planning, every new file is first built from Cosmos into a staged `{key}.json.tmp` next to its target (same folder, so the final step is a rename), and the folder is checked to be unchanged since it was read (the same set of `*.json` files, each with the same length and last-write time; contents are not hashed). If `--migrations-out` was given, the manifest is written at this point too. Only then are the deletions and moves applied and each staged file swapped in. A Cosmos failure, an unwritable manifest path, or a folder that changed meanwhile, therefore leaves the folder exactly as it was (staged files are removed again; exit 3, or 2 for the changed folder). If the process dies while applying, the folder may be partly updated and the unswapped `*.json.tmp` files remain: the next run refuses (exit 2) and names them; check `git status`, then run again with `--discard-staging`, and the plan is made again from whatever the folder now holds. Repeat only the `--accept-removal` values whose files still exist: a file the first run already deleted is gone, so repeating its value blocks the run as an unused acceptance. Keep the first run's migration manifest (use a different `--migrations-out` path for the re-run): the re-run only knows what is left to do and writes the manifest of that. One window: a podcast whose only episode became a film is moved to the film's name before the film is swapped in, and that file still carries the podcast's id until then; if a crash lands exactly there, the next run reports it as replaced by another item, and `--accept-removal film-{slug}` resolves it.
+
+Git only sees the final tree and pairs an old and a new file by content similarity, however the new file got its name, so a move and a delete plus create are paired identically and there is no guarantee either way: a large change in content is recorded as a delete and an add. The move, the log and the manifest exist so the publisher can state exactly which file became which.
+
+**Migration manifest.** With `--migrations-out <path>` a successful publish writes `{ "version": 1, "migrations": [ { "id", "newId", "oldFile", "newFile", "kind", "reason" } ] }` there (indented, sorted by old then new file; an empty list when there were none; written after the content is staged and before the folder is changed, so it states what the plan intended even if applying then fails, and an unwritable path fails the run with the folder untouched; never when the plan is blocked). `oldFile` and `newFile` are file names relative to the output folder, `id` is the old file's item id, `newId` the new file's (a film has its episode's id), `kind` is the new kind (`podcast`, `tvShow`, `newsOrganisation`, `film`) and `reason` is `renamed` or `migrated`. It lists every renamed or migrated file the plan acted on, including one deleted rather than moved because its target already existed, and one entry per film for a podcast that became several. A tool can check each entry against `git diff --cached -M --name-status` after `git add -A` to report whether git saw a rename. The path must be outside the output folder (otherwise the run fails with exit 2 before changing anything), so the manifest can never be committed with the data; with no `--migrations-out` none is written. The check resolves symbolic links, junctions, short names and case for the parts of the path that exist; it does not see a link created after the check or a hard link to a file.
+
+| Option | Description |
+|--------|-------------|
+| `--initial` | There is no previous publish: the output folder holds no published files. Required for a first publish; an empty folder without it is refused (exit 2), and `--initial` with files present is refused too. |
+| `--accept-removal <file key or id>` | Repeatable. Accept one unexplained removal after checking it: that file is deleted and the run continues. An accepted value that matches no unexplained removal blocks the run, so a stale flag is not ignored. |
+| `--discard-staging` | Delete the `*.json.tmp` files an interrupted run left in the output folder before running. Without it, their presence refuses the run (exit 2). |
+| `--migrations-out <path>` | Write the migration manifest (above) to this path before the folder is changed. Must be outside the output folder. |
+| `--use-v2` | Ignored (legacy; `update.ps1` still passes it). |
+
+Exit codes: `0` published; `1` the data cannot be published consistently (a file-key or id problem, or unexplained removals, in which case nothing was changed); `2` the arguments or the output folder are unusable (a missing folder, one wrongly empty or populated, a `--migrations-out` path inside it), or staged files from an interrupted run are present (nothing was changed); `3` an unexpected failure (for example Cosmos or the disk): the folder is unchanged unless the message says it may be partly updated, in which case run `git status` and then `--discard-staging`.
+
+The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
+
+`update.ps1` in the PublicDatabase repo must stop deleting the `*.json` files before it runs the publisher (the publisher needs them as the baseline); that change is tracked in cultpodcasts/RedditPodcastPoster#1040 and is made once this change is settled. It already stops on a non-zero exit, so nothing is committed after a failed check.
 
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
 
