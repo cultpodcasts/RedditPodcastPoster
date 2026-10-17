@@ -1,12 +1,15 @@
 namespace CultPodcasts.DatabasePublisher.Consistency;
 
-/// <summary>Why a file from the previous publish is not among this run's files.</summary>
+/// <summary>Why a file already in the output folder is not written again under the same key.</summary>
 public enum RemovalReason
 {
     /// <summary>The item is published under a different file key in the same kind.</summary>
     Renamed,
 
-    /// <summary>The item is published as a different kind (a podcast transferred to a TV show or news organisation).</summary>
+    /// <summary>
+    /// The item is published as a different kind: a podcast transferred to a TV show or news organisation (same
+    /// id), or a podcast whose episode became a film (the film has the episode's id).
+    /// </summary>
     Migrated,
 
     /// <summary>The item is flagged removed in Cosmos.</summary>
@@ -21,7 +24,7 @@ public enum RemovalReason
     /// <summary>The item is gone from Cosmos and was not flagged removed first.</summary>
     NotFound,
 
-    /// <summary>The previous file has no readable id, so it cannot be matched.</summary>
+    /// <summary>The file has no readable id, so it cannot be matched.</summary>
     Unreadable
 }
 

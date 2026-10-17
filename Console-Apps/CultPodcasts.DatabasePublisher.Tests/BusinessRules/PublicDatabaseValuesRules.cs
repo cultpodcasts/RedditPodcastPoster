@@ -1,17 +1,22 @@
+using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.Podcasts;
 
 namespace CultPodcasts.DatabasePublisher.Tests.BusinessRules;
 
 [Collection(PublisherCollection.Name)]
-public class PublicDatabaseValuesRules
+public sealed class PublicDatabaseValuesRules : IDisposable
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly PublisherScenario _scenario = new();
+
+    public void Dispose() => _scenario.Dispose();
 
     [Fact(DisplayName =
         "Public database: when a TV show episode carries a description, length, explicit flag, subjects, service " +
@@ -45,7 +50,7 @@ public class PublicDatabaseValuesRules
         });
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var published = Published(show.FileKey)["episodes"]!.AsArray().Single()!.AsObject();
@@ -84,7 +89,7 @@ public class PublicDatabaseValuesRules
         });
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var published = Published(organisation.FileKey)["reports"]!.AsArray().Single()!.AsObject();
@@ -117,7 +122,7 @@ public class PublicDatabaseValuesRules
         });
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var published = Published(film.FileKey);
@@ -151,7 +156,7 @@ public class PublicDatabaseValuesRules
         }
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         Published(show.FileKey)["episodes"]!.AsArray().Select(e => e!["id"]!.GetValue<Guid>())
@@ -177,7 +182,7 @@ public class PublicDatabaseValuesRules
         }
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         Published(organisation.FileKey)["reports"]!.AsArray().Select(r => r!["id"]!.GetValue<Guid>())
@@ -205,7 +210,7 @@ public class PublicDatabaseValuesRules
         _scenario.TvShowEpisodes.Reverse();
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         Published(show.FileKey)["episodes"]!.AsArray().Select(e => e!["id"]!.GetValue<Guid>())
@@ -227,7 +232,7 @@ public class PublicDatabaseValuesRules
         _scenario.GivenNewsReport(organisation, releasedDaysAgo: 1, r => r.Removed = true);
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         Published(podcast.FileKey)["episodes"]!.AsArray().Should().BeEmpty();
@@ -235,5 +240,75 @@ public class PublicDatabaseValuesRules
         Published(organisation.FileKey)["reports"]!.AsArray().Should().BeEmpty();
     }
 
-    private JsonObject Published(string fileKey) => JsonNode.Parse(_scenario.Writer.Files[fileKey])!.AsObject();
+    [Fact(DisplayName =
+        "Public database: when releases are a year, a date and a date-time, then each is published as a string " +
+        "that keeps its precision (the year as text, yyyy-MM-dd, and ISO-8601 Zulu) on TV show episodes, news " +
+        "reports and films alike, because a consumer must read one type whatever the precision.")]
+    public async Task release_is_always_a_string_that_keeps_its_precision()
+    {
+        // Arrange
+        var year = DomainTestFixture.UtcToday.Year - 3;
+        var date = DateOnly.FromDateTime(DomainTestFixture.UtcDaysAgo(40));
+        var dateTime = DomainTestFixture.UtcDaysAgo(8).AddHours(14).AddMinutes(30);
+        var show = _scenario.GivenTvShow();
+        var byYear = _scenario.GivenTvShowEpisode(show, 1, e => e.Release = CatalogueRelease.FromYear(year));
+        var byDate = _scenario.GivenTvShowEpisode(show, 1, e => e.Release = CatalogueRelease.FromDate(date));
+        var byDateTime = _scenario.GivenTvShowEpisode(show, 1, e => e.Release = CatalogueRelease.FromDateTimeUtc(dateTime));
+        var organisation = _scenario.GivenNewsOrganisation();
+        _scenario.GivenNewsReport(organisation, 1, r => r.Release = CatalogueRelease.FromYear(year));
+        var film = _scenario.GivenFilm(customize: f => f.Release = CatalogueRelease.FromDateTimeUtc(dateTime));
+        var unreleased = _scenario.GivenFilm(customize: f => f.Release = null);
+
+        // Act
+        await _scenario.PublishFirstTime();
+
+        // Assert
+        var episodes = Published(show.FileKey)["episodes"]!.AsArray().ToDictionary(e => e!["id"]!.GetValue<Guid>());
+        var zulu = dateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        episodes[byYear.Id]!["release"]!.GetValueKind().Should().Be(JsonValueKind.String);
+        episodes[byYear.Id]!["release"]!.GetValue<string>().Should().Be(year.ToString(CultureInfo.InvariantCulture));
+        episodes[byDate.Id]!["release"]!.GetValue<string>().Should().Be(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        episodes[byDateTime.Id]!["release"]!.GetValue<string>().Should().Be(zulu);
+        Published(organisation.FileKey)["reports"]!.AsArray().Single()!["release"]!.GetValue<string>()
+            .Should().Be(year.ToString(CultureInfo.InvariantCulture));
+        Published(film.FileKey)["release"]!.GetValue<string>().Should().Be(zulu);
+        Published(unreleased.FileKey).ContainsKey("release").Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Public database: when an episode is on both BBC iPlayer and BBC Sounds, then a podcast file keeps its single " +
+        "bbc url (iPlayer first) while a TV show file lists bbcIplayer and bbcSounds separately, because the new " +
+        "kinds publish every catalogue service key as it is and the two shapes differ on purpose.")]
+    public async Task podcast_urls_merge_the_bbc_services_and_the_new_kinds_do_not()
+    {
+        // Arrange
+        var iplayer = _fixture.Create<Uri>();
+        var sounds = _fixture.Create<Uri>();
+        var iplayerKey = StreamingServiceWire.ToKey(StreamingService.BbcIplayer);
+        var soundsKey = StreamingServiceWire.ToKey(StreamingService.BbcSounds);
+        var podcast = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e =>
+        {
+            EpisodeServicePresence.Upsert(e, iplayerKey, iplayer, null);
+            EpisodeServicePresence.Upsert(e, soundsKey, sounds, null);
+        });
+        var show = _scenario.GivenTvShow();
+        _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1, e => e.Services = new Dictionary<string, ServiceLink>
+        {
+            [iplayerKey] = new() { Url = iplayer },
+            [soundsKey] = new() { Url = sounds }
+        });
+
+        // Act
+        await _scenario.PublishFirstTime();
+
+        // Assert
+        var podcastUrls = Published(podcast.FileKey)["episodes"]!.AsArray().Single()!["urls"]!.AsObject();
+        podcastUrls.Select(u => u.Key).Should().Equal("bbc");
+        podcastUrls["bbc"]!.GetValue<string>().Should().Be(iplayer.OriginalString);
+        var showUrls = Published(show.FileKey)["episodes"]!.AsArray().Single()!["urls"]!.AsObject();
+        showUrls.Select(u => u.Key).Should().Equal(iplayerKey, soundsKey);
+        showUrls[soundsKey]!.GetValue<string>().Should().Be(sounds.OriginalString);
+    }
+    private JsonObject Published(string fileKey) => JsonNode.Parse(_scenario.Files[fileKey])!.AsObject();
 }

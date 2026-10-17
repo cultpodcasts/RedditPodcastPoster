@@ -8,36 +8,35 @@ public class PublishOptionsRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "Publisher arguments: when --baseline is given as a separate value or with =, then the baseline path is " +
-        "read, because update.ps1 passes the folder it moved the previous files to.")]
-    public void baseline_path_is_read_from_either_form()
+        "Publisher arguments: when --initial is present, then it is switched on without needing a value, because " +
+        "it is the explicit statement that the output folder holds no previous publish.")]
+    public void initial_is_a_flag()
     {
         // Arrange
-        var path = _fixture.Create<string>();
 
         // Act
-        var separate = PublishOptions.Parse(["--baseline", path]);
-        var joined = PublishOptions.Parse([$"--baseline={path}"]);
+        var options = PublishOptions.Parse(["--initial"]);
 
         // Assert
-        separate.BaselinePath.Should().Be(path);
-        joined.BaselinePath.Should().Be(path);
+        options.Initial.Should().BeTrue();
+        options.Accepted.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Publisher arguments: when --accept-unexplained-removals is present, then it is switched on without " +
-        "needing a value, because it is a flag.")]
-    public void accept_flag_needs_no_value()
+        "Publisher arguments: when --accept-removal is repeated as a separate value or with =, then every value is " +
+        "kept, because each reviewed removal is accepted on its own.")]
+    public void accept_removal_is_repeatable_in_either_form()
     {
         // Arrange
-        var path = _fixture.Create<string>();
+        var first = _fixture.Create<string>();
+        var second = _fixture.Create<string>();
 
         // Act
-        var options = PublishOptions.Parse(["--accept-unexplained-removals", "--baseline", path]);
+        var options = PublishOptions.Parse(["--accept-removal", first, $"--accept-removal={second}"]);
 
         // Assert
-        options.AcceptUnexplainedRemovals.Should().BeTrue();
-        options.BaselinePath.Should().Be(path);
+        options.Accepted.Should().Equal(first, second);
+        options.Initial.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -51,20 +50,25 @@ public class PublishOptionsRules
         var options = PublishOptions.Parse(["--use-v2"]);
 
         // Assert
-        options.Should().Be(new PublishOptions());
+        options.Initial.Should().BeFalse();
+        options.Accepted.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Publisher arguments: when --baseline has no value, then parsing fails, because a missing baseline would " +
-        "silently turn the removal check off.")]
-    public void baseline_without_a_value_fails()
+        "Publisher arguments: when --accept-removal has no value or the next token is another option, then " +
+        "parsing fails, because a swallowed option would accept something nobody named.")]
+    public void accept_removal_without_a_value_fails()
     {
         // Arrange
 
         // Act
-        var parse = () => PublishOptions.Parse(["--baseline"]);
+        var missing = () => PublishOptions.Parse(["--accept-removal"]);
+        var swallowed = () => PublishOptions.Parse(["--accept-removal", "--initial"]);
+        var empty = () => PublishOptions.Parse(["--accept-removal="]);
 
         // Assert
-        parse.Should().Throw<ArgumentException>();
+        missing.Should().Throw<ArgumentException>();
+        swallowed.Should().Throw<ArgumentException>();
+        empty.Should().Throw<ArgumentException>();
     }
 }

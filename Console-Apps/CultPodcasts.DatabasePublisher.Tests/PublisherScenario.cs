@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using CultPodcasts.DatabasePublisher.Consistency;
-using CultPodcasts.DatabasePublisher.Tests.Fakes;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -12,32 +13,31 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Persistence.Writers;
+using RedditPodcastPoster.Persistence.Providers;
 
 namespace CultPodcasts.DatabasePublisher.Tests;
 
 /// <summary>
 /// In-memory Cosmos for the publisher: every repository answers from the lists below (honouring the
-/// selector the publisher passes), and files land in <see cref="Writer"/>. Entities are built through the
-/// same mapper the podcast-to-TV/news/film transfer uses, so a migrated item shares its id with the podcast it came from.
+/// selector the publisher passes), and the publisher works in a real temporary output folder
+/// (<see cref="OutputDirectory"/>) that tests can pre-populate with the files of a previous publish. Entities
+/// are built through the same mapper the podcast-to-TV/news/film transfer uses, so a migrated item shares its id
+/// with the podcast it came from and a film takes the id of its episode. One publisher instance serves every
+/// <see cref="Publish"/> call of a scenario, as the singleton does in the real host.
 /// </summary>
 internal sealed class PublisherScenario : IDisposable
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private PublicDatabasePublisher? _publisher;
 
     public PublisherScenario()
     {
-        Writer = new InMemorySafeFileEntityWriter();
-        _mocker.Use<ISafeFileEntityWriter>(Writer);
+        Directory.CreateDirectory(OutputDirectory);
+        _mocker.Use(new PublicationFolder(OutputDirectory, new JsonSerializerOptionsProvider()));
 
         _mocker.Setup<IPodcastRepository, IAsyncEnumerable<Podcast>>(r => r.GetAll())
             .Returns(() => Podcasts.ToAsyncEnumerable());
-        _mocker.Setup<IPodcastRepository, IAsyncEnumerable<Podcast>>(
-                r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
-            .Returns((Expression<Func<Podcast, bool>> selector) =>
-                Podcasts.Where(selector.Compile()).ToAsyncEnumerable());
-        _mocker.Setup<IPodcastRepository, Task<int>>(r => r.Count()).ReturnsAsync(() => Podcasts.Count);
         _mocker.Setup<IEpisodeRepository, Task<int>>(r => r.Count(It.IsAny<Guid>()))
             .ReturnsAsync((Guid podcastId) => Episodes.Count(e => e.PodcastId == podcastId));
         _mocker.Setup<IEpisodeRepository, IAsyncEnumerable<Episode>>(
@@ -47,11 +47,6 @@ internal sealed class PublisherScenario : IDisposable
 
         _mocker.Setup<ITvShowRepository, IAsyncEnumerable<TvShow>>(r => r.GetAll())
             .Returns(() => TvShows.ToAsyncEnumerable());
-        _mocker.Setup<ITvShowRepository, IAsyncEnumerable<TvShow>>(
-                r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
-            .Returns((Expression<Func<TvShow, bool>> selector) =>
-                TvShows.Where(selector.Compile()).ToAsyncEnumerable());
-        _mocker.Setup<ITvShowRepository, Task<int>>(r => r.Count()).ReturnsAsync(() => TvShows.Count);
         _mocker.Setup<ITvShowEpisodeRepository, Task<int>>(r => r.Count(It.IsAny<Guid>()))
             .ReturnsAsync((Guid tvShowId) => TvShowEpisodes.Count(e => e.TvShowId == tvShowId));
         _mocker.Setup<ITvShowEpisodeRepository, IAsyncEnumerable<TvShowEpisode>>(
@@ -61,12 +56,6 @@ internal sealed class PublisherScenario : IDisposable
 
         _mocker.Setup<INewsOrganisationRepository, IAsyncEnumerable<NewsOrganisation>>(r => r.GetAll())
             .Returns(() => NewsOrganisations.ToAsyncEnumerable());
-        _mocker.Setup<INewsOrganisationRepository, IAsyncEnumerable<NewsOrganisation>>(
-                r => r.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
-            .Returns((Expression<Func<NewsOrganisation, bool>> selector) =>
-                NewsOrganisations.Where(selector.Compile()).ToAsyncEnumerable());
-        _mocker.Setup<INewsOrganisationRepository, Task<int>>(r => r.Count())
-            .ReturnsAsync(() => NewsOrganisations.Count);
         _mocker.Setup<INewsReportRepository, Task<int>>(r => r.Count(It.IsAny<Guid>()))
             .ReturnsAsync((Guid organisationId) => NewsReports.Count(r => r.NewsOrganisationId == organisationId));
         _mocker.Setup<INewsReportRepository, IAsyncEnumerable<NewsReport>>(
@@ -77,16 +66,19 @@ internal sealed class PublisherScenario : IDisposable
 
         _mocker.Setup<IFilmRepository, IAsyncEnumerable<Film>>(r => r.GetAll())
             .Returns(() => Films.ToAsyncEnumerable());
-        _mocker.Setup<IFilmRepository, IAsyncEnumerable<Film>>(
-                r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
-            .Returns((Expression<Func<Film, bool>> selector) => Films.Where(selector.Compile()).ToAsyncEnumerable());
-        _mocker.Setup<IFilmRepository, Task<int>>(r => r.Count()).ReturnsAsync(() => Films.Count);
     }
 
-    public InMemorySafeFileEntityWriter Writer { get; }
+    /// <summary>The folder the publisher runs in; empty until a test writes files of a previous publish into it.</summary>
+    public string OutputDirectory { get; } = Path.Combine(Path.GetTempPath(), "public-db-output-" + Guid.NewGuid());
 
-    /// <summary>The directory a previous run's files were moved to; empty until a test writes baseline files.</summary>
-    public string BaselineDirectory { get; } = Path.Combine(Path.GetTempPath(), "public-db-baseline-" + Guid.NewGuid());
+    public Mock<ILogger<PublicDatabasePublisher>> Logger => _mocker.GetMock<ILogger<PublicDatabasePublisher>>();
+
+    /// <summary>The top-level <c>*.json</c> files in the output folder as they are now, file key to text.</summary>
+    public IReadOnlyDictionary<string, string> Files =>
+        Directory.EnumerateFiles(OutputDirectory, "*.json").ToDictionary(
+            path => Path.GetFileNameWithoutExtension(path)!,
+            path => File.ReadAllText(path),
+            StringComparer.OrdinalIgnoreCase);
 
     public List<Podcast> Podcasts { get; } = [];
     public List<Episode> Episodes { get; } = [];
@@ -141,6 +133,14 @@ internal sealed class PublisherScenario : IDisposable
         return episode;
     }
 
+    /// <summary>The news organisation a podcast becomes when it is transferred: same id, prefixed file key.</summary>
+    public NewsOrganisation GivenNewsOrganisationFrom(Podcast podcast, Action<NewsOrganisation>? customize = null)
+    {
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        customize?.Invoke(organisation);
+        NewsOrganisations.Add(organisation);
+        return organisation;
+    }
     public NewsOrganisation GivenNewsOrganisation(Action<NewsOrganisation>? customize = null)
     {
         var organisation = CatalogueParentKindMapper.ToNewsOrganisation(NewPodcast());
@@ -160,6 +160,14 @@ internal sealed class PublisherScenario : IDisposable
         return report;
     }
 
+    /// <summary>The film an episode becomes when it is transferred: the film has the episode's id.</summary>
+    public Film GivenFilmFrom(Podcast podcast, Episode episode, Action<Film>? customize = null)
+    {
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+        customize?.Invoke(film);
+        Films.Add(film);
+        return film;
+    }
     public Film GivenFilm(int releasedDaysAgo = 1, Action<Film>? customize = null)
     {
         var film = CatalogueParentKindMapper.ToFilm(NewPodcast(), NewEpisode(releasedDaysAgo));
@@ -168,23 +176,38 @@ internal sealed class PublisherScenario : IDisposable
         return film;
     }
 
-    /// <summary>Writes a file as a previous run left it; a null id leaves the file without one.</summary>
-    public void WriteBaselineFile(string fileKey, Guid? id) =>
+    /// <summary>A file key no item in the scenario has, for a file a previous publish left behind.</summary>
+    public string GivenBaselineFileKey() => FileKeyFactory.GetFileKey(_fixture.CreateTitle());
+
+    /// <summary>
+    /// Leaves a file in the output folder as a previous publish did: a null id leaves it without one, and
+    /// <paramref name="episodeIds"/> become the episodes of a podcast file.
+    /// </summary>
+    public void GivenExistingFile(string fileKey, Guid? id, params Guid[] episodeIds) =>
         File.WriteAllText(
-            Path.Combine(Directory.CreateDirectory(BaselineDirectory).FullName, fileKey + ".json"),
-            id is null ? "{}" : $"{{ \"id\": \"{id}\" }}");
+            Path.Combine(OutputDirectory, fileKey + ".json"),
+            id is null
+                ? "{}"
+                : JsonSerializer.Serialize(new
+                {
+                    id,
+                    name = fileKey,
+                    episodes = episodeIds.Select(e => new { id = e })
+                }));
+
+    /// <summary>Runs the publisher for a first publish into an empty folder.</summary>
+    public Task<PublicationReport> PublishFirstTime() => Publish(new PublishOptions(Initial: true));
 
     public Task<PublicationReport> Publish(PublishOptions? options = null) =>
-        _mocker.CreateInstance<PublicDatabasePublisher>().Run(options ?? new PublishOptions());
+        (_publisher ??= _mocker.CreateInstance<PublicDatabasePublisher>()).Run(options ?? new PublishOptions());
 
     public void Dispose()
     {
-        if (Directory.Exists(BaselineDirectory))
+        if (Directory.Exists(OutputDirectory))
         {
-            Directory.Delete(BaselineDirectory, true);
+            Directory.Delete(OutputDirectory, true);
         }
     }
-
     private Podcast NewPodcast() => _fixture.CreatePodcast(p => p.Name = _fixture.CreateTitle());
 
     private Episode NewEpisode(int releasedDaysAgo) =>

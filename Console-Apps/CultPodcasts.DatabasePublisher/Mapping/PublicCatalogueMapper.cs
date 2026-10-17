@@ -11,7 +11,8 @@ namespace CultPodcasts.DatabasePublisher.Mapping;
 /// Maps TV shows, news organisations and films onto their public files. Conventions follow the podcast file:
 /// blank text and empty lists are omitted, children are newest first, and the caller has already dropped
 /// removed children. Ties on release are broken by id so the output does not depend on read order and
-/// git sees no churn between runs.
+/// git sees no churn between runs; this applies to the new kinds only, podcast episodes keep the ordering
+/// they have always had. <c>release</c> is a string (see <see cref="PublicRelease"/>).
 /// </summary>
 public static class PublicCatalogueMapper
 {
@@ -29,7 +30,7 @@ public static class PublicCatalogueMapper
                     Id = e.Id,
                     Title = e.Title,
                     Description = NullIfBlank(e.Description),
-                    Release = e.Release,
+                    Release = PublicRelease.Format(e.Release),
                     Length = e.Length,
                     Explicit = e.Explicit,
                     Subjects = NullIfEmpty(e.Subjects),
@@ -52,7 +53,7 @@ public static class PublicCatalogueMapper
                     Id = r.Id,
                     Title = r.Title,
                     Description = NullIfBlank(r.Description),
-                    Release = r.Release,
+                    Release = PublicRelease.Format(r.Release),
                     Length = r.Length,
                     Explicit = r.Explicit,
                     Subjects = NullIfEmpty(r.Subjects),
@@ -67,7 +68,7 @@ public static class PublicCatalogueMapper
             FileKey = film.FileKey,
             Name = film.Name,
             Description = NullIfBlank(film.Description),
-            Release = film.Release,
+            Release = PublicRelease.Format(film.Release),
             Length = film.Length,
             Explicit = film.Explicit,
             ImdbId = NullIfBlank(film.ImdbId),

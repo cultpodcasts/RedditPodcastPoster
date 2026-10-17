@@ -2,42 +2,60 @@ using Spectre.Console;
 
 namespace CultPodcasts.DatabasePublisher.Consistency;
 
-/// <summary>Prints the publication summary: what was written per kind and what changed since the baseline.</summary>
+/// <summary>Prints the publication report: what was (or would be) written per kind and what happens to existing files.</summary>
 public static class PublicationReportWriter
 {
     private const int ListLimit = 50;
 
     public static void Write(PublicationReport report)
     {
-        AnsiConsole.MarkupLine("[bold]Publication summary[/]");
+        var plan = report.Plan;
+        AnsiConsole.MarkupLine(report.Applied ? "[bold]Publication summary[/]" : "[bold]Publication plan (nothing was changed)[/]");
         foreach (var kind in Enum.GetValues<PublicKind>())
         {
-            AnsiConsole.MarkupLine($"  {kind}: {report.Published.Count(p => p.Kind == kind)} file(s)");
+            AnsiConsole.MarkupLine($"  {kind}: {plan.Files.Count(f => f.Item.Kind == kind)} file(s)");
         }
 
-        if (report.Comparison is not { } comparison)
-        {
-            AnsiConsole.MarkupLine(
-                "[yellow]No --baseline supplied: files that stop being published cannot be detected.[/]");
-            return;
-        }
-
+        var created = plan.Files.Count(f => f.Mode == WriteMode.Create);
+        var moved = plan.Moves.Count;
         AnsiConsole.MarkupLine(
-            $"[bold]Compared with the previous publish[/] ({comparison.BaselineFileCount} file(s)): " +
-            $"{comparison.Unchanged} unchanged, {comparison.Added.Count} new, " +
-            $"{comparison.Removals.Count} no longer published under the same key.");
+            $"[bold]Output folder[/]: {plan.BaselineFileCount} existing file(s); " +
+            $"{plan.Files.Count - created - moved} overwritten, {moved} moved, {plan.Deletions.Count} deleted, " +
+            $"{created} created.");
 
-        WriteList("New files", comparison.Added.Select(a => $"{a.Kind}: '{a.FileKey}.json'"), "green");
+        WriteList("Moved (git follows the file by its content)", plan.Moves.Select(MoveLine), "yellow");
         WriteList(
-            "No longer published, explained (renamed, migrated or removed)",
-            comparison.Removals.Where(r => r.Reason.IsExplained()).Select(r => r.Describe()),
+            "Deleted (explained or accepted)",
+            plan.Deletions.Select(r => r.Describe() + (r.Accepted ? " [accepted]" : "")),
             "yellow");
         WriteList(
-            "No longer published, UNEXPLAINED",
-            comparison.Unexplained.Select(r => r.Describe()),
+            "Created",
+            plan.Files.Where(f => f.Mode == WriteMode.Create).Select(f => $"{f.Item.Kind}: '{f.Item.FileKey}.json'"),
+            "green");
+        WriteList(
+            "UNEXPLAINED - would disappear",
+            plan.Unexplained.Select(r => r.Describe()),
             "red",
             limit: int.MaxValue);
+        WriteList(
+            "--accept-removal values that matched no unexplained removal",
+            plan.UnusedAcceptances,
+            "red",
+            limit: int.MaxValue);
+
+        if (plan.Unexplained.Count > 0)
+        {
+            AnsiConsole.MarkupLine(
+                "[red]Check each file above. To accept one, run again with --accept-removal <file key or id>.[/]");
+        }
+
+        AnsiConsole.MarkupLine(report.Applied
+            ? "[green]Finished publishing public database.[/]"
+            : "[red]Nothing was written, moved or deleted.[/]");
     }
+
+    private static string MoveLine(FileRemoval removal) =>
+        $"'{removal.FileKey}.json' -> '{removal.MoveTo}.json' ({removal.Reason}, id {removal.Id})";
 
     private static void WriteList(string heading, IEnumerable<string> lines, string colour, int limit = ListLimit)
     {

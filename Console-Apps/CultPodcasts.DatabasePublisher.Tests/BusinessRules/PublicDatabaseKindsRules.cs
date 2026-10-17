@@ -1,4 +1,5 @@
 using System.Globalization;
+using CultPodcasts.DatabasePublisher.Consistency;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -10,10 +11,12 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace CultPodcasts.DatabasePublisher.Tests.BusinessRules;
 
 [Collection(PublisherCollection.Name)]
-public class PublicDatabaseKindsRules
+public sealed class PublicDatabaseKindsRules : IDisposable
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly PublisherScenario _scenario = new();
+
+    public void Dispose() => _scenario.Dispose();
 
     [Fact(DisplayName =
         "Public database: when a podcast with platform ids and three episodes (ids, subjects, urls on every " +
@@ -109,11 +112,11 @@ public class PublicDatabaseKindsRules
                          """;
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
-        _scenario.Writer.Files.Keys.Should().BeEquivalentTo(podcast.FileKey);
-        Normalise(_scenario.Writer.Files[podcast.FileKey]).Should().Be(Normalise(expected));
+        _scenario.Files.Keys.Should().BeEquivalentTo(podcast.FileKey);
+        Normalise(_scenario.Files[podcast.FileKey]).Should().Be(Normalise(expected));
     }
     [Fact(DisplayName =
         "Public database: when a TV show has live and removed episodes, then it is published as tvshow-{slug}.json " +
@@ -142,7 +145,7 @@ public class PublicDatabaseKindsRules
         _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 5, e => e.Removed = true);
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var file = ReadFile(show.FileKey);
@@ -174,7 +177,7 @@ public class PublicDatabaseKindsRules
         _scenario.GivenNewsReport(organisation, releasedDaysAgo: 4, r => r.Removed = true);
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var file = ReadFile(organisation.FileKey);
@@ -198,7 +201,7 @@ public class PublicDatabaseKindsRules
         });
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
         var file = ReadFile(film.FileKey);
@@ -232,15 +235,15 @@ public class PublicDatabaseKindsRules
         _scenario.GivenFilm(customize: f => f.Removed = true);
 
         // Act
-        await _scenario.Publish();
+        await _scenario.PublishFirstTime();
 
         // Assert
-        _scenario.Writer.Files.Keys.Should().BeEquivalentTo(liveShow.FileKey, liveOrganisation.FileKey, liveFilm.FileKey);
+        _scenario.Files.Keys.Should().BeEquivalentTo(liveShow.FileKey, liveOrganisation.FileKey, liveFilm.FileKey);
     }
 
     [Fact(DisplayName =
-        "Public database: when two films share a file key, then the run fails naming the key and writes no file " +
-        "at all, because a silent overwrite would swap one item's history for another's in the public repo.")]
+        "Public database: when two films share a file key, then the run fails naming the key and both films and says " +
+        "how to fix it, and writes no file at all, because a silent overwrite would swap one item's history for another's.")]
     public async Task duplicate_file_keys_fail_before_anything_is_written()
     {
         // Arrange
@@ -248,14 +251,18 @@ public class PublicDatabaseKindsRules
         _scenario.GivenEpisode(podcast, releasedDaysAgo: 1);
         var title = _fixture.CreateTitle();
         var first = _scenario.GivenFilm(customize: f => f.FileKey = FileKeyFactory.GetFilmFileKey(title));
-        _scenario.GivenFilm(customize: f => f.FileKey = FileKeyFactory.GetFilmFileKey(title));
+        var second = _scenario.GivenFilm(customize: f => f.FileKey = FileKeyFactory.GetFilmFileKey(title));
 
         // Act
-        var run = () => _scenario.Publish();
+        var run = () => _scenario.PublishFirstTime();
 
         // Assert
-        (await run.Should().ThrowAsync<InvalidOperationException>()).WithMessage($"*{first.FileKey}*");
-        _scenario.Writer.Files.Should().BeEmpty();
+        var message = (await run.Should().ThrowAsync<PublicDatabaseConsistencyException>()).Which.Message;
+        message.Should().Contain(first.FileKey)
+            .And.Contain($"'{first.Name}' (id {first.Id})")
+            .And.Contain($"'{second.Name}' (id {second.Id})")
+            .And.Contain("different stored file key");
+        _scenario.Files.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -269,11 +276,11 @@ public class PublicDatabaseKindsRules
         _scenario.GivenFilm(customize: f => f.FileKey = FileKeyFactory.GetFilmFileKey(title).ToUpperInvariant());
 
         // Act
-        var run = () => _scenario.Publish();
+        var run = () => _scenario.PublishFirstTime();
 
         // Assert
-        await run.Should().ThrowAsync<InvalidOperationException>();
-        _scenario.Writer.Files.Should().BeEmpty();
+        await run.Should().ThrowAsync<PublicDatabaseConsistencyException>();
+        _scenario.Files.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -286,11 +293,11 @@ public class PublicDatabaseKindsRules
         _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1);
 
         // Act
-        var run = () => _scenario.Publish();
+        var run = () => _scenario.PublishFirstTime();
 
         // Assert
-        (await run.Should().ThrowAsync<InvalidOperationException>()).WithMessage($"*{show.Id}*");
-        _scenario.Writer.Files.Should().BeEmpty();
+        (await run.Should().ThrowAsync<PublicDatabaseConsistencyException>()).WithMessage($"*{show.Id}*");
+        _scenario.Files.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -304,14 +311,35 @@ public class PublicDatabaseKindsRules
         _scenario.GivenPodcast(p => p.FileKey = FileKeyFactory.TvShowPrefix + FileKeyFactory.GetFileKey(p.Name));
 
         // Act
-        var run = () => _scenario.Publish();
+        var run = () => _scenario.PublishFirstTime();
 
         // Assert
-        (await run.Should().ThrowAsync<InvalidOperationException>()).WithMessage("*prefix*");
-        _scenario.Writer.Files.Should().BeEmpty();
+        (await run.Should().ThrowAsync<PublicDatabaseConsistencyException>()).WithMessage("*prefix*");
+        _scenario.Files.Should().BeEmpty();
     }
 
-    private JsonObject ReadFile(string fileKey) => JsonNode.Parse(_scenario.Writer.Files[fileKey])!.AsObject();
+    [Fact(DisplayName =
+        "Public database: when a podcast and a TV show are both live with the same id (a half-finished transfer), " +
+        "then the run fails naming both and writes nothing, because a file that moved is recognised by its id and " +
+        "two live owners of one id would make that guess.")]
+    public async Task one_id_on_two_live_items_fails_before_anything_is_written()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        _scenario.GivenEpisode(podcast, releasedDaysAgo: 1);
+        var show = _scenario.GivenTvShowFrom(podcast);
+        _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1);
+
+        // Act
+        var run = () => _scenario.PublishFirstTime();
+
+        // Assert
+        var message = (await run.Should().ThrowAsync<PublicDatabaseConsistencyException>()).Which.Message;
+        message.Should().Contain($"Id '{podcast.Id}' belongs to more than one live item")
+            .And.Contain("Podcast").And.Contain("TvShow");
+        _scenario.Files.Should().BeEmpty();
+    }
+    private JsonObject ReadFile(string fileKey) => JsonNode.Parse(_scenario.Files[fileKey])!.AsObject();
 
     private static IEnumerable<string> PropertyNames(JsonObject node) => node.Select(p => p.Key);
 

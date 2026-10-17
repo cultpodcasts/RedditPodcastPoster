@@ -1,23 +1,22 @@
 using System.Collections.Concurrent;
-using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using CultPodcasts.DatabasePublisher.Consistency;
 using CultPodcasts.DatabasePublisher.Mapping;
 using CultPodcasts.DatabasePublisher.PublicModels;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Persistence.Writers;
 using Spectre.Console;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace CultPodcasts.DatabasePublisher;
 
 public class PublicDatabasePublisher(
-    ISafeFileEntityWriter safeFileEntityWriter,
+    PublicationFolder folder,
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITvShowRepository tvShowRepository,
@@ -25,36 +24,112 @@ public class PublicDatabasePublisher(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IFilmRepository filmRepository,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<PublicDatabasePublisher> logger
-#pragma warning restore CS9113 // Parameter is unread.
 )
 {
     /// <summary>
-    /// Bounded concurrency for per-item child fetch + disk write.
-    /// Parent FeedIterator iteration stays single-threaded (MoveNext is not safe concurrently).
-    /// Child queries are independent per parent partition and may run in parallel.
-    /// Publish order across items is not guaranteed; children within a file remain
-    /// ordered by release descending.
+    /// Bounded concurrency for the per-item child count and fetch. Each parent's children are an independent
+    /// query on its own partition, so they may run in parallel; the parents are read once, up front.
+    /// Files are written in an unspecified order; children within a file are ordered newest first.
     /// </summary>
     private static readonly int PublishParallelism = Math.Clamp(Environment.ProcessorCount * 2, 4, 16);
 
-    private readonly ConcurrentBag<PublishedItem> _published = new();
-
     /// <summary>
-    /// Writes one file per live item. File keys are validated across all kinds before the first write. When
-    /// <see cref="PublishOptions.BaselinePath"/> is given, every file of the previous publish that is no longer
-    /// written is reported, and the run fails if any disappeared without a rename, migration or removal flag.
+    /// Works out, then does, the publish of the folder this run is in. Phase one touches nothing: it reads the
+    /// files already there as the baseline, reads every item once, checks the file keys, counts each live
+    /// parent's children and plans every write, move and deletion. Phase two applies the plan: deletions, then
+    /// moves (a file whose item moved to another file name is renamed first, so git sees the history follow),
+    /// then the writes, each of which may only create or only replace as planned. When the plan has a file
+    /// that would disappear unexplained the plan is returned unapplied. Throws
+    /// <see cref="PublicationFolderException"/> when the folder is wrongly empty or populated for
+    /// <see cref="PublishOptions.Initial"/>, and <see cref="PublicDatabaseConsistencyException"/> from the
+    /// file-key check. Holds no state between runs; printing the report is the caller's job.
     /// </summary>
     public async Task<PublicationReport> Run(PublishOptions options)
     {
-        var baseline = options.BaselinePath is null ? null : await PublicationBaseline.ReadAsync(options.BaselinePath);
-        IReadOnlyCollection<CatalogueItem> inventory = [];
+        var baseline = await folder.ReadBaselineAsync();
+        if (baseline.Count == 0 && !options.Initial)
+        {
+            throw new PublicationFolderException(
+                $"The output folder '{folder.FolderPath}' holds no published files. It must hold the previous publish " +
+                "so that nothing can vanish unnoticed; run with --initial only for a genuine first publish.");
+        }
+
+        if (baseline.Count > 0 && options.Initial)
+        {
+            throw new PublicationFolderException(
+                $"--initial was given but the output folder '{folder.FolderPath}' already holds {baseline.Count} published file(s).");
+        }
 
         AnsiConsole.MarkupLine(
-            $"[grey]Publish parallelism:[/] {PublishParallelism} (parent feed sequential; child fetch + write parallel)");
+            $"[grey]Publish parallelism:[/] {PublishParallelism} (parents read once; child count and fetch parallel)");
 
-        await AnsiConsole.Progress()
+        var (plan, candidates) = await CreateProgress().StartAsync(async ctx =>
+        {
+            var catalogue = await ReadCatalogueAsync(ctx.AddTask("Read catalogue", maxValue: 4));
+
+            var fileKeyCheck = ctx.AddTask("File-key check: all kinds", maxValue: 1);
+            PublicFileKeyGuard.EnsureValid(catalogue.Items);
+            fileKeyCheck.Increment(1);
+            fileKeyCheck.StopTask();
+
+            var found = await FindCandidatesAsync(catalogue, ctx);
+            var planned = PublicationPlanner.Plan(
+                baseline,
+                found.Select(c => c.Item).ToList(),
+                catalogue.Items,
+                options.Accepted);
+            return (planned, found);
+        });
+
+        if (plan.IsBlocked)
+        {
+            return new PublicationReport(plan, Applied: false);
+        }
+
+        foreach (var removal in plan.Deletions)
+        {
+            folder.Delete(removal.FileKey);
+            logger.LogInformation("Deleted '{FileKey}.json' ({Reason}, id {Id}).", removal.FileKey, removal.Reason, removal.Id);
+        }
+
+        foreach (var move in plan.Moves)
+        {
+            folder.Move(move.FileKey, move.MoveTo!);
+            logger.LogInformation(
+                "Renamed '{FromFileKey}.json' to '{ToFileKey}.json' ({Reason}, id {Id}).",
+                move.FileKey,
+                move.MoveTo,
+                move.Reason,
+                move.Id);
+        }
+
+        var candidatesByKey = candidates.ToDictionary(c => c.Item.FileKey, StringComparer.OrdinalIgnoreCase);
+        await CreateProgress().StartAsync(async ctx =>
+        {
+            var progress = ctx.AddTask("Write files", maxValue: Math.Max(plan.Files.Count, 1));
+            if (plan.Files.Count == 0)
+            {
+                progress.Increment(1);
+            }
+
+            await Parallel.ForEachAsync(
+                plan.Files,
+                new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
+                async (file, _) =>
+                {
+                    var data = await candidatesByKey[file.Item.FileKey].Build();
+                    await folder.WriteAsync(data, file.Mode);
+                    progress.Increment(1);
+                });
+            progress.StopTask();
+        });
+
+        return new PublicationReport(plan, Applied: true);
+    }
+
+    private static Progress CreateProgress() =>
+        AnsiConsole.Progress()
             .AutoClear(false)
             .HideCompleted(false)
             .Columns(
@@ -62,113 +137,78 @@ public class PublicDatabasePublisher(
                 new ProgressBarColumn(),
                 new PercentageColumn(),
                 new RemainingTimeColumn(),
-                new SpinnerColumn())
-            .StartAsync(async ctx =>
-            {
-                var fileKeyCheck = ctx.AddTask("File-key check: all kinds", maxValue: 1);
-                inventory = await ReadInventory();
-                PublicFileKeyGuard.EnsureValid(inventory);
-                fileKeyCheck.Increment(1);
-                fileKeyCheck.StopTask();
+                new SpinnerColumn());
 
-                await PublishKindAsync(
-                    ctx,
-                    "Podcasts",
-                    podcastRepository.Count(),
-                    podcastRepository.GetAllBy(p => !(p.Removed ?? false)),
-                    PublishPodcastAsync);
-                await PublishKindAsync(
-                    ctx,
-                    "TV shows",
-                    tvShowRepository.Count(),
-                    tvShowRepository.GetAllBy(s => !(s.Removed ?? false)),
-                    PublishTvShowAsync);
-                await PublishKindAsync(
-                    ctx,
-                    "News organisations",
-                    newsOrganisationRepository.Count(),
-                    newsOrganisationRepository.GetAllBy(o => !(o.Removed ?? false)),
-                    PublishNewsOrganisationAsync);
-                await PublishKindAsync(
-                    ctx,
-                    "Films",
-                    filmRepository.Count(),
-                    filmRepository.GetAllBy(f => !(f.Removed ?? false)),
-                    PublishFilmAsync);
-            });
-
-        var published = _published.OrderBy(p => p.FileKey, StringComparer.Ordinal).ToList();
-        var comparison = baseline is null ? null : PublicationComparer.Compare(baseline, published, inventory);
-        var report = new PublicationReport(published, comparison);
-        PublicationReportWriter.Write(report);
-
-        if (comparison is { Unexplained.Count: > 0 } && !options.AcceptUnexplainedRemovals)
-        {
-            throw new PublicDatabaseConsistencyException(comparison.Unexplained.Select(r => r.Describe()).ToList());
-        }
-
-        AnsiConsole.MarkupLine("[green]Finished publishing public database.[/]");
-        return report;
+    private async Task<Catalogue> ReadCatalogueAsync(ProgressTask progress)
+    {
+        var podcasts = await podcastRepository.GetAll().ToListAsync();
+        progress.Increment(1);
+        var shows = await tvShowRepository.GetAll().ToListAsync();
+        progress.Increment(1);
+        var organisations = await newsOrganisationRepository.GetAll().ToListAsync();
+        progress.Increment(1);
+        var films = await filmRepository.GetAll().ToListAsync();
+        progress.Increment(1);
+        progress.StopTask();
+        return new Catalogue(podcasts, shows, organisations, films);
     }
 
-    private async Task<IReadOnlyCollection<CatalogueItem>> ReadInventory()
+    /// <summary>
+    /// The items that will have a file: live parents that have at least one child row (removed or not, as the
+    /// podcast rule has always counted) and live films. Counting is the only child query here.
+    /// </summary>
+    private async Task<IReadOnlyList<Candidate>> FindCandidatesAsync(Catalogue catalogue, ProgressContext ctx)
     {
-        var inventory = new List<CatalogueItem>();
-        await foreach (var podcast in podcastRepository.GetAll())
-        {
-            inventory.Add(new CatalogueItem(podcast.Id, podcast.FileKey, PublicKind.Podcast, podcast.Removed ?? false));
-        }
+        var livePodcasts = catalogue.Podcasts.Where(p => !(p.Removed ?? false)).ToList();
+        var liveShows = catalogue.TvShows.Where(s => !(s.Removed ?? false)).ToList();
+        var liveOrganisations = catalogue.NewsOrganisations.Where(o => !(o.Removed ?? false)).ToList();
+        var liveFilms = catalogue.Films.Where(f => !(f.Removed ?? false)).ToList();
 
-        await foreach (var show in tvShowRepository.GetAll())
-        {
-            inventory.Add(new CatalogueItem(show.Id, show.FileKey, PublicKind.TvShow, show.Removed ?? false));
-        }
-
-        await foreach (var organisation in newsOrganisationRepository.GetAll())
-        {
-            inventory.Add(new CatalogueItem(
-                organisation.Id,
-                organisation.FileKey,
-                PublicKind.NewsOrganisation,
-                organisation.Removed ?? false));
-        }
-
-        await foreach (var film in filmRepository.GetAll())
-        {
-            inventory.Add(new CatalogueItem(film.Id, film.FileKey, PublicKind.Film, film.Removed ?? false));
-        }
-
-        return inventory;
-    }
-
-    private static async Task PublishKindAsync<T>(
-        ProgressContext ctx,
-        string description,
-        Task<int> countTask,
-        IAsyncEnumerable<T> source,
-        Func<T, Task> publishAsync)
-    {
-        var count = await countTask;
-        var progress = ctx.AddTask(description, maxValue: Math.Max(count, 1));
-        if (count == 0)
+        var parents = livePodcasts.Count + liveShows.Count + liveOrganisations.Count;
+        var progress = ctx.AddTask("Count episodes and reports", maxValue: Math.Max(parents, 1));
+        if (parents == 0)
         {
             progress.Increment(1);
-            progress.StopTask();
-            return;
         }
 
-        await PublishAllParallelAsync(source, publishAsync, progress);
+        var candidates = new ConcurrentBag<Candidate>();
+
+        await CountEachAsync(livePodcasts, p => episodeRepository.Count(p.Id), p =>
+            candidates.Add(Candidate.For(p.Id, p.FileKey, PublicKind.Podcast, () => BuildPodcastAsync(p))), progress);
+        await CountEachAsync(liveShows, s => tvShowEpisodeRepository.Count(s.Id), s =>
+            candidates.Add(Candidate.For(s.Id, s.FileKey, PublicKind.TvShow, () => BuildTvShowAsync(s))), progress);
+        await CountEachAsync(liveOrganisations, o => newsReportRepository.Count(o.Id), o =>
+            candidates.Add(Candidate.For(
+                o.Id, o.FileKey, PublicKind.NewsOrganisation, () => BuildNewsOrganisationAsync(o))), progress);
+        foreach (var film in liveFilms)
+        {
+            candidates.Add(Candidate.For(
+                film.Id, film.FileKey, PublicKind.Film, () => Task.FromResult(PublicCatalogueMapper.ToPublic(film))));
+        }
+
         progress.StopTask();
+        return candidates.OrderBy(c => c.Item.FileKey, StringComparer.Ordinal).ToList();
     }
 
-    private async Task PublishPodcastAsync(Podcast podcast)
-    {
-        var episodeCount = await episodeRepository.Count(podcast.Id);
-        if (episodeCount <= 0)
-        {
-            return;
-        }
+    private static Task CountEachAsync<T>(
+        IReadOnlyList<T> parents,
+        Func<T, Task<int>> countAsync,
+        Action<T> hasChildren,
+        ProgressTask progress) =>
+        Parallel.ForEachAsync(
+            parents,
+            new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
+            async (parent, _) =>
+            {
+                if (await countAsync(parent) > 0)
+                {
+                    hasChildren(parent);
+                }
 
+                progress.Increment(1);
+            });
+    private async Task<PublicPodcast> BuildPodcastAsync(Podcast podcast)
+    {
         var publicPodcast = new PublicPodcast(podcast.Id)
         {
             FileKey = podcast.FileKey,
@@ -214,92 +254,43 @@ public class PublicDatabasePublisher(
         }
 
         publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
-        await safeFileEntityWriter.Write(publicPodcast);
-        _published.Add(new PublishedItem(podcast.Id, podcast.FileKey, PublicKind.Podcast));
+        return publicPodcast;
     }
-
-    private async Task PublishTvShowAsync(TvShow show)
+    private async Task<PublicTvShow> BuildTvShowAsync(TvShow show)
     {
-        var episodeCount = await tvShowEpisodeRepository.Count(show.Id);
-        if (episodeCount <= 0)
-        {
-            return;
-        }
-
         var episodes = await tvShowEpisodeRepository.GetByTvShowId(show.Id, e => !e.Removed).ToListAsync();
-        await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(show, episodes));
-        _published.Add(new PublishedItem(show.Id, show.FileKey, PublicKind.TvShow));
+        return PublicCatalogueMapper.ToPublic(show, episodes);
     }
 
-    private async Task PublishNewsOrganisationAsync(NewsOrganisation organisation)
+    private async Task<PublicNewsOrganisation> BuildNewsOrganisationAsync(NewsOrganisation organisation)
     {
-        var reportCount = await newsReportRepository.Count(organisation.Id);
-        if (reportCount <= 0)
-        {
-            return;
-        }
-
         var reports = await newsReportRepository.GetByNewsOrganisationId(organisation.Id, r => !r.Removed)
             .ToListAsync();
-        await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(organisation, reports));
-        _published.Add(new PublishedItem(organisation.Id, organisation.FileKey, PublicKind.NewsOrganisation));
+        return PublicCatalogueMapper.ToPublic(organisation, reports);
     }
 
-    private async Task PublishFilmAsync(Film film)
+    /// <summary>Everything in Cosmos, read once, whether or not it is live.</summary>
+    private sealed record Catalogue(
+        IReadOnlyList<Podcast> Podcasts,
+        IReadOnlyList<TvShow> TvShows,
+        IReadOnlyList<NewsOrganisation> NewsOrganisations,
+        IReadOnlyList<Film> Films)
     {
-        await safeFileEntityWriter.Write(PublicCatalogueMapper.ToPublic(film));
-        _published.Add(new PublishedItem(film.Id, film.FileKey, PublicKind.Film));
+        public IReadOnlyList<CatalogueItem> Items { get; } =
+        [
+            .. Podcasts.Select(p => new CatalogueItem(p.Id, p.FileKey, PublicKind.Podcast, p.Removed ?? false, p.Name)),
+            .. TvShows.Select(s => new CatalogueItem(s.Id, s.FileKey, PublicKind.TvShow, s.Removed ?? false, s.Name)),
+            .. NewsOrganisations.Select(o =>
+                new CatalogueItem(o.Id, o.FileKey, PublicKind.NewsOrganisation, o.Removed ?? false, o.Name)),
+            .. Films.Select(f => new CatalogueItem(f.Id, f.FileKey, PublicKind.Film, f.Removed ?? false, f.Name))
+        ];
     }
 
-    /// <summary>
-    /// Single Cosmos reader + N publishers via a bounded channel. Avoids concurrent
-    /// FeedIterator.MoveNext on the parent query while overlapping child fetch/write
-    /// with the next parent page fetch.
-    /// </summary>
-    private static async Task PublishAllParallelAsync<T>(
-        IAsyncEnumerable<T> source,
-        Func<T, Task> publishAsync,
-        ProgressTask progress)
+    /// <summary>An item that will have a file, and how to build that file's content.</summary>
+    private sealed record Candidate(PublishedItem Item, Func<Task<CosmosSelector>> Build)
     {
-        var channel = Channel.CreateBounded<T>(new BoundedChannelOptions(PublishParallelism * 2)
-        {
-            FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = false,
-            SingleWriter = true
-        });
-
-        var workers = Enumerable.Range(0, PublishParallelism).Select(async _ =>
-        {
-            await foreach (var item in channel.Reader.ReadAllAsync())
-            {
-                await publishAsync(item);
-                progress.Increment(1);
-            }
-        }).ToArray();
-
-        try
-        {
-            await foreach (var item in source)
-            {
-                await channel.Writer.WriteAsync(item);
-            }
-
-            channel.Writer.Complete();
-            await Task.WhenAll(workers);
-        }
-        catch (Exception)
-        {
-            channel.Writer.TryComplete();
-            try
-            {
-                await Task.WhenAll(workers);
-            }
-            catch
-            {
-                // Prefer the producer/publish failure that started the shutdown.
-            }
-
-            throw;
-        }
+        public static Candidate For<T>(Guid id, string fileKey, PublicKind kind, Func<Task<T>> build)
+            where T : CosmosSelector =>
+            new(new PublishedItem(id, fileKey, kind), async () => await build());
     }
 }

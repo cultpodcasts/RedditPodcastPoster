@@ -1,12 +1,14 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Catalogue;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
 /// <summary>
 /// A playable inside a TV show or news organisation file. Mirrors <see cref="PublicEpisode"/>, except that
-/// <c>release</c> keeps the catalogue precision (year, date or UTC date-time) and <c>urls</c> is keyed by
-/// catalogue service key, because these kinds are not limited to Spotify, Apple and YouTube.
+/// <c>release</c> is always a string that keeps the catalogue precision (<c>2019</c>, <c>2019-05-01</c> or
+/// <c>2019-05-01T12:00:00Z</c>, never a number) and <c>urls</c> is a map keyed by catalogue service key
+/// (<c>spotify</c>, <c>apple</c>, <c>youtube</c> and the streaming keys such as <c>bbcIplayer</c>,
+/// <c>bbcSounds</c>, <c>internetArchive</c>, <c>netflix</c>), because these kinds are not limited to Spotify,
+/// Apple and YouTube and do not merge the BBC services into one key.
 /// </summary>
 public class PublicPlayable
 {
@@ -24,7 +26,7 @@ public class PublicPlayable
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public CatalogueRelease? Release { get; init; }
+    public string? Release { get; init; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]

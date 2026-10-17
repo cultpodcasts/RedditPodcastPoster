@@ -1,4 +1,4 @@
 namespace CultPodcasts.DatabasePublisher.Consistency;
 
-/// <summary>What a run wrote and, when a baseline was supplied, how that differs from the previous publish.</summary>
-public sealed record PublicationReport(IReadOnlyList<PublishedItem> Published, BaselineComparison? Comparison);
+/// <summary>The plan of a run and whether it was carried out (it is not when the plan is blocked).</summary>
+public sealed record PublicationReport(PublicationPlan Plan, bool Applied);

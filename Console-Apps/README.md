@@ -551,21 +551,34 @@ CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
 | News organisation | `news-{slug}` | organisation with its reports |
 | Film | `film-{slug}` | the film itself (no children) |
 
-Removed items and removed episodes or reports are not published, and a podcast, show or organisation with no episodes or reports gets no file. Children are listed newest first (ties broken by id); the podcast file shape is unchanged. TV show, news and film files keep each release at its catalogue precision (year, date or UTC date-time) and key `urls` by service key.
+Removed items and removed episodes or reports are not published. A show, organisation or podcast with no episodes or reports at all gets no file; one whose episodes or reports are all flagged removed still gets a file with an empty list, exactly as podcasts always have (the check counts rows, removed or not). The podcast file shape and bytes are unchanged (pinned by a golden rule test). Children of TV shows and news organisations are listed newest first with ties broken by id, so the files do not change between runs; podcast episodes keep their existing ordering.
 
-A podcast that is transferred to a TV show or news organisation keeps its id, but its rows are deleted: its old `{slug}.json` stops being published and `tvshow-{slug}.json` or `news-{slug}.json` appears. With a baseline (below) the run lists that move as *migrated*.
+The TV show, news and film files differ from the podcast file on purpose:
 
-Before writing anything the publisher checks every file key across all kinds: present, carrying its kind's prefix (podcasts must not use a reserved one), and unique ignoring case. Any problem fails the run (exit 1) with the full list.
+- `release` is always a string that keeps the catalogue precision: `2019`, `2019-05-01` or `2019-05-01T12:00:00Z`. Podcast episodes always carry a full date-time.
+- `urls` is a map of catalogue service key to url for every service the item has (`spotify`, `apple`, `youtube`, and the streaming keys such as `bbcIplayer`, `bbcSounds`, `internetArchive`, `netflix`). Podcast episodes keep their fixed object (`spotify`, `apple`, `youtube`, `internetArchive`, `bbc`), where BBC iPlayer and BBC Sounds share the single `bbc` key.
+
+**The output folder is the baseline.** Run the publisher in the folder that holds the previous publish (the PublicDatabase checkout) and do not clear it first. Before touching any file it reads every top-level `*.json` there, reads the catalogue once, checks every file key and id, and plans the whole run:
+
+- a file whose item is still published under the same key and id is replaced in place;
+- a file whose item moved to another file name is **moved** to that name first (`File.Move`, no git needed) and then overwritten with the new content, so git sees a rename: a renamed podcast, a podcast transferred to a TV show (`tvshow-{slug}`) or news organisation (`news-{slug}`) with the same id, and a podcast whose single episode became a film (`film-{slug}`, found because the film takes the episode's id, which is listed in the old file). Each rename is logged. A podcast whose episodes became several films has its file deleted and the films created, with no rename; a move never overwrites an existing file;
+- a file whose item is flagged removed is deleted;
+- any other file that would stop being published is **unexplained**: the item is gone from Cosmos, still exists but has nothing to publish, has been replaced by another item under the same key, or the file has no readable id. If there is any, nothing is written, moved or deleted, the list is printed and the run exits with 1;
+- new files are created; only planned files are ever created, replaced, moved or deleted.
+
+Git follows a rename by similarity of content; the move guarantees the old name disappears and the new one appears in one step, not that git will always record it as a rename if the content changed a lot.
 
 | Option | Description |
 |--------|-------------|
-| `--baseline <folder>` | Folder holding the previous publish's `*.json` files. The run reports files that are no longer published, as renamed, migrated or removed (listed, allowed) or unexplained (the item is gone, has nothing to publish, was replaced by another item, or the old file has no id), and fails with exit 1 on any unexplained one. |
-| `--accept-unexplained-removals` | Report unexplained removals but do not fail. |
+| `--initial` | There is no previous publish: the output folder holds no published files. Required for a first publish; an empty folder without it is refused (exit 2), and `--initial` with files present is refused too. |
+| `--accept-removal <file key or id>` | Repeatable. Accept one unexplained removal after checking it: that file is deleted and the run continues. An accepted value that matches no unexplained removal blocks the run, so a stale flag is not ignored. |
 | `--use-v2` | Ignored (legacy; `update.ps1` still passes it). |
 
-Without `--baseline` the run publishes as before and says it cannot detect removals. Files are written before the baseline comparison, so a failed run leaves the folder part-written: restore it with `git restore .` and `git clean -fd` in the PublicDatabase repo.
+Exit codes: `0` published; `1` the data cannot be published consistently (a file-key or id problem, or unexplained removals, in which case nothing was changed); `2` the arguments or the output folder are unusable (nothing was changed unless an I/O error struck part-way; check with `git status`).
 
-`update.ps1` should move the existing `*.json` files to a temporary folder instead of deleting them and pass that folder as `--baseline`, so the safe-writer still sees an empty output folder and the publisher can compare. It already stops on a non-zero exit, so nothing is committed after a failed check.
+The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
+
+`update.ps1` in the PublicDatabase repo must stop deleting the `*.json` files before it runs the publisher (the publisher needs them as the baseline); that change is tracked in cultpodcasts/RedditPodcastPoster#1040 and is made once this change is settled. It already stops on a non-zero exit, so nothing is committed after a failed check.
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
 
 ## Ops utilities

@@ -1,10 +1,9 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
-/// <summary>A film is its own file: it has no parent, so there is no nested list.</summary>
+/// <summary>A film is its own file: it has no parent, so there is no nested list. <c>release</c> and <c>urls</c> follow <see cref="PublicPlayable"/>.</summary>
 public sealed class PublicFilm(Guid id) : PublicCatalogueEntity(id, ModelType.Film)
 {
     [JsonPropertyName("name")]
@@ -17,7 +16,7 @@ public sealed class PublicFilm(Guid id) : PublicCatalogueEntity(id, ModelType.Fi
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public CatalogueRelease? Release { get; init; }
+    public string? Release { get; init; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]
