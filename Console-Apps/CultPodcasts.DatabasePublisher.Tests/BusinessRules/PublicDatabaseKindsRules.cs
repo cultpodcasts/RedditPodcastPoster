@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -15,28 +16,93 @@ public class PublicDatabaseKindsRules
     private readonly PublisherScenario _scenario = new();
 
     [Fact(DisplayName =
-        "Public database: when a podcast with an episode is published, then its file keeps exactly the existing " +
-        "shape (id, name, episodes with id/title/description/release/duration/explicit/urls), because consumers " +
-        "track these files in git and adding other kinds must not change a single podcast byte.")]
-    public async Task podcast_file_keeps_the_existing_shape()
+        "Public database: when a podcast with platform ids and three episodes (ids, subjects, urls on every " +
+        "service, a blank description) is published, then the whole file is exactly the existing podcast text, " +
+        "because consumers track these files in git and publishing other kinds must not change a single podcast byte.")]
+    public async Task podcast_file_keeps_the_existing_text_byte_for_byte()
     {
         // Arrange
-        var podcast = _scenario.GivenPodcast();
-        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 3);
-        var release = episode.ReleaseUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        var podcast = _scenario.GivenPodcast(p =>
+        {
+            p.AppleId = _fixture.Create<int>();
+            p.SpotifyId = _fixture.Create<string>();
+            p.YouTubeChannelId = _fixture.Create<string>();
+            p.YouTubePlaylistId = _fixture.Create<string>();
+        });
+        var allServices = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e =>
+        {
+            e.Ids = new EpisodeIds
+            {
+                Spotify = _fixture.Create<string>(),
+                Apple = _fixture.Create<int>(),
+                YouTube = _fixture.Create<string>()
+            };
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, _fixture.Create<Uri>(), null);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Apple, _fixture.Create<Uri>(), null);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, _fixture.Create<Uri>(), null);
+        });
+        var bbcWithSubjects = _scenario.GivenEpisode(podcast, releasedDaysAgo: 3, e =>
+        {
+            e.Description = " ";
+            e.Subjects = [_fixture.Create<string>(), _fixture.Create<string>()];
+            EpisodeServicePresence.Upsert(
+                e, StreamingServiceWire.ToKey(StreamingService.BbcSounds), _fixture.Create<Uri>(), null);
+        });
+        var archiveExplicit = _scenario.GivenEpisode(podcast, releasedDaysAgo: 9, e =>
+        {
+            e.Explicit = true;
+            EpisodeServicePresence.Upsert(
+                e, StreamingServiceWire.ToKey(StreamingService.InternetArchive), _fixture.Create<Uri>(), null);
+        });
         var expected = $$"""
                          {
                            "id": "{{podcast.Id}}",
                            "name": "{{podcast.Name}}",
+                           "spotifyId": "{{podcast.SpotifyId}}",
+                           "appleId": {{podcast.AppleId}},
+                           "youTubeChannelId": "{{podcast.YouTubeChannelId}}",
+                           "youTubePlaylistId": "{{podcast.YouTubePlaylistId}}",
                            "episodes": [
                              {
-                               "id": "{{episode.Id}}",
-                               "title": "{{episode.Title}}",
-                               "description": "{{episode.Description}}",
-                               "release": "{{release}}",
-                               "duration": "{{episode.Length}}",
+                               "id": "{{allServices.Id}}",
+                               "title": "{{allServices.Title}}",
+                               "description": "{{allServices.Description}}",
+                               "release": "{{Release(allServices)}}",
+                               "duration": "{{allServices.Length}}",
                                "explicit": false,
-                               "urls": {}
+                               "spotifyId": "{{allServices.Ids!.Spotify}}",
+                               "appleId": {{allServices.Ids.Apple}},
+                               "youTubeId": "{{allServices.Ids.YouTube}}",
+                               "urls": {
+                                 "spotify": "{{Url(allServices, ServiceKeys.Spotify)}}",
+                                 "apple": "{{Url(allServices, ServiceKeys.Apple)}}",
+                                 "youtube": "{{Url(allServices, ServiceKeys.YouTube)}}"
+                               }
+                             },
+                             {
+                               "id": "{{bbcWithSubjects.Id}}",
+                               "title": "{{bbcWithSubjects.Title}}",
+                               "release": "{{Release(bbcWithSubjects)}}",
+                               "duration": "{{bbcWithSubjects.Length}}",
+                               "explicit": false,
+                               "subjects": [
+                                 "{{bbcWithSubjects.Subjects[0]}}",
+                                 "{{bbcWithSubjects.Subjects[1]}}"
+                               ],
+                               "urls": {
+                                 "bbc": "{{Url(bbcWithSubjects, StreamingServiceWire.ToKey(StreamingService.BbcSounds))}}"
+                               }
+                             },
+                             {
+                               "id": "{{archiveExplicit.Id}}",
+                               "title": "{{archiveExplicit.Title}}",
+                               "description": "{{archiveExplicit.Description}}",
+                               "release": "{{Release(archiveExplicit)}}",
+                               "duration": "{{archiveExplicit.Length}}",
+                               "explicit": true,
+                               "urls": {
+                                 "internetArchive": "{{Url(archiveExplicit, StreamingServiceWire.ToKey(StreamingService.InternetArchive))}}"
+                               }
                              }
                            ]
                          }
@@ -49,7 +115,6 @@ public class PublicDatabaseKindsRules
         _scenario.Writer.Files.Keys.Should().BeEquivalentTo(podcast.FileKey);
         Normalise(_scenario.Writer.Files[podcast.FileKey]).Should().Be(Normalise(expected));
     }
-
     [Fact(DisplayName =
         "Public database: when a TV show has live and removed episodes, then it is published as tvshow-{slug}.json " +
         "with the show's name and external ids and only the live episodes, newest first, with their service urls " +
@@ -251,4 +316,10 @@ public class PublicDatabaseKindsRules
     private static IEnumerable<string> PropertyNames(JsonObject node) => node.Select(p => p.Key);
 
     private static string Normalise(string text) => text.Replace("\r\n", "\n");
+
+    private static string Release(Episode episode) =>
+        episode.ReleaseUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
+    private static string Url(Episode episode, string key) =>
+        EpisodeServicePresence.TryGetUrl(episode, key)!.OriginalString;
 }
