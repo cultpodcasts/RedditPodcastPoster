@@ -585,15 +585,36 @@ Git only sees the final tree and pairs an old and a new file by content similari
 | `--accept-removal <file key or id>` | Repeatable. Accept one unexplained removal after checking it: that file is deleted and the run continues. An accepted value that matches no unexplained removal blocks the run, so a stale flag is not ignored. |
 | `--discard-staging` | Delete the `*.json.tmp` files an interrupted run left in the output folder before running. Without it, their presence refuses the run (exit 2). |
 | `--migrations-out <path>` | Write the migration manifest (above) to this path before the folder is changed. Must be outside the output folder. |
-| `--use-v2` | Ignored (legacy; `update.ps1` still passes it). |
+| `--use-v2` | Ignored (legacy). |
 
 Exit codes: `0` published; `1` the data cannot be published consistently (a file-key or id problem, or unexplained removals, in which case nothing was changed); `2` the arguments or the output folder are unusable (a missing folder, one wrongly empty or populated, a `--migrations-out` path inside it), or staged files from an interrupted run are present (nothing was changed); `3` an unexpected failure (for example Cosmos or the disk): the folder is unchanged unless the message says it may be partly updated, in which case run `git status` and then `--discard-staging`.
 
 The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
 
-`update.ps1` in the PublicDatabase repo must stop deleting the `*.json` files before it runs the publisher (the publisher needs them as the baseline); that change is tracked in cultpodcasts/RedditPodcastPoster#1040 and is made once this change is settled. It already stops on a non-zero exit, so nothing is committed after a failed check.
-
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
+
+#### `update.ps1`: publishing into the PublicDatabase repo
+
+`CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1` is the script that publishes the public database into the PublicDatabase repo (it replaced the old script that deleted every `*.json` first; the publisher now needs those files as its baseline). **The copy in this repo is the source of truth.** The script works on the folder it sits in, so it runs from a copy in the root of the PublicDatabase checkout:
+
+```powershell
+Copy-Item <RedditPodcastPoster>\Console-Apps\CultPodcasts.DatabasePublisher\PublicDatabaseScripts\update.ps1 <PublicDatabase>\update.ps1
+```
+
+**The PublicDatabase copy must be refreshed by copying again after every change to the script here.** The script carries a `$ScriptVersion` line (bump it with every change) and prints `update.ps1 version X` when it starts; it also warns when its version differs from the script that sits beside the commit the publisher exe was built from, so a stale copy is spotted. Edit the script here, never in PublicDatabase.
+
+Before running it, publish the exe from a RedditPodcastPoster checkout that has the change you want: `pwsh scripts/publish-console-apps.ps1 -App CultPodcasts.DatabasePublisher` (to `artifacts\tools`). The script finds the exe and the clone through `-SourceRepo` (default: `..\cultpodcasts\RedditPodcastPoster` next to the PublicDatabase checkout) and refuses an exe built before `--migrations-out` existed, by looking its commit up in that clone; `-PublisherExe` points it at an exe somewhere else, such as a temporary publish of a branch.
+
+```powershell
+.\update.ps1                                  # preview (the default): the repo is not touched
+.\update.ps1 -AcceptRemoval <id|file key>,... # after checking each unexplained removal the preview listed
+.\update.ps1 -Apply -SkipPush                 # copy the result in, stage, check renames, commit; review, then push yourself
+.\update.ps1 -Apply                           # the same, and push
+```
+
+- **Preview** copies the repo's top-level `*.json` into a sibling working folder (`-WorkFolder`, default `..\PublicDatabase-publish`), runs the publisher there (it is the baseline, so nothing is deleted first) and prints what would be created, replaced, moved and deleted. It writes `PublicDatabase-publish.report.txt` (added, removed and changed files) and `PublicDatabase-publish.migrations.json` next to the working folder and, for each migration (a podcast that became a TV show or news organisation), says whether git would see a rename or a delete plus an add. The repo's files, index and objects are not touched. A refused publish (exit 1) stops with the reason and a ready-to-paste `-AcceptRemoval` line per unexplained removal.
+- **`-Apply`** needs nothing staged and no modified or untracked top-level `*.json`, publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, commits `New episodes <date>`, and pushes unless `-SkipPush` is given.
+- It needs `git` and the publisher's own Cosmos access (the publisher reads its secrets as it always has).
 
 ## Ops utilities
 

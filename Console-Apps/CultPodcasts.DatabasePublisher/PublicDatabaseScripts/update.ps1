@@ -32,7 +32,17 @@ Folder to publish into. Must be outside this repo. Reused between runs only if t
 File key or id of a removal you have checked and accept (repeatable); passed to --accept-removal.
 .PARAMETER PublisherExe
 Override the publisher path (for testing). The default is the CultPodcasts.DatabasePublisher exe in the
-RedditPodcastPoster artifacts\tools folder next to this repo.
+artifacts\tools folder of the RedditPodcastPoster repo (see -SourceRepo).
+.PARAMETER SourceRepo
+The RedditPodcastPoster clone. It is used to find the default publisher exe (artifacts\tools) and to look up the
+commit the exe was built from, to check that it is new enough. Default: '..\cultpodcasts\RedditPodcastPoster'
+next to this repo.
+
+.NOTES
+The source of truth for this script is Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1
+in the RedditPodcastPoster repo. It runs from a copy in the root of the PublicDatabase repo (it works on the
+folder it is in), so copy it there again after every change and compare the version it prints ($ScriptVersion
+below). Run with -PublisherExe and -SourceRepo when the clone or the exe is not in the default place.
 #>
 [CmdletBinding()]
 param(
@@ -41,8 +51,13 @@ param(
     [switch]$Apply,
     [string]$WorkFolder,
     [string[]]$AcceptRemoval = @(),
-    [string]$PublisherExe
+    [string]$PublisherExe,
+    [string]$SourceRepo
 )
+
+# Bump this when the script changes, and copy the script into the PublicDatabase repo again: a copy whose version
+# differs from the one in RedditPodcastPoster is stale.
+$ScriptVersion = '1.0.0'
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -118,7 +133,7 @@ function Assert-PublisherSupportsMigrations {
     $ErrorActionPreference = 'Stop'
 
     if ($versionExit -ne 0 -or $versionText -notmatch 'Git Hash:\s*([0-9a-fA-F]{40})') {
-        throw "Could not read the version of '$Publisher' (--version exited $versionExit). Rebuild and republish the CLIs from main after PR #1039 is merged."
+        throw "Could not read the version of '$Publisher' (--version exited $versionExit). Rebuild and republish the DatabasePublisher from RedditPodcastPoster main (scripts\publish-console-apps.ps1 -App CultPodcasts.DatabasePublisher)."
     }
 
     $hash = $Matches[1]
@@ -127,7 +142,7 @@ function Assert-PublisherSupportsMigrations {
     }
 
     if (-not (Test-Path -LiteralPath (Join-Path $SourceRepo '.git'))) {
-        throw "Cannot confirm the publisher is new enough: the source repo '$SourceRepo' was not found. Expected the RedditPodcastPoster repo next to this one."
+        throw "Cannot confirm the publisher is new enough: the source repo '$SourceRepo' was not found. Pass the RedditPodcastPoster clone with -SourceRepo (by default it is expected next to this repo, at ..\cultpodcasts\RedditPodcastPoster)."
     }
 
     $ErrorActionPreference = 'Continue'
@@ -136,14 +151,42 @@ function Assert-PublisherSupportsMigrations {
     $ErrorActionPreference = 'Stop'
 
     if ($showExit -ne 0) {
-        throw "Cannot confirm the publisher is new enough: its commit $hash has no PublishOptions.cs in '$SourceRepo' (an older publisher, or a commit this clone does not have). Pull main, then republish the CLIs after PR #1039 is merged."
+        throw "Cannot confirm the publisher is new enough: its commit $hash has no PublishOptions.cs in '$SourceRepo' (an older publisher, or a commit this clone does not have). Pull main in that clone, then republish the DatabasePublisher."
     }
 
     if ($optionsSource -notmatch '--migrations-out') {
-        throw "The publisher at '$Publisher' is an old build ($hash) that does not support --migrations-out or the folder-as-baseline checks. Merge PR #1039, then republish the CLIs from main. Nothing was changed."
+        throw "The publisher at '$Publisher' is an old build ($hash) that does not support --migrations-out or the folder-as-baseline checks. Pull main in the RedditPodcastPoster clone and republish the DatabasePublisher. Nothing was changed."
     }
 
     Write-Host "Publisher version OK: $hash"
+    return [string]$hash
+}
+
+# Warns (never fails) when this copy of the script is not the version that sits beside the publisher's commit in
+# RedditPodcastPoster, so a stale copy in the PublicDatabase repo is noticed.
+function Test-ScriptIsCurrent {
+    param(
+        [Parameter(Mandatory)][string]$PublisherHash,
+        [Parameter(Mandatory)][string]$SourceRepo,
+        [Parameter(Mandatory)][string]$ThisVersion
+    )
+
+    $ErrorActionPreference = 'Continue'
+    $theirs = (& git -C $SourceRepo show "${PublisherHash}:Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1" 2>$null | Out-String)
+    $showExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+
+    if ($showExit -ne 0) {
+        Write-Host "Script version $ThisVersion (the publisher's commit has no copy of this script to compare with)."
+    }
+    elseif ($theirs -match '(?m)^\$ScriptVersion\s*=\s*''([^'']+)''') {
+        if ($Matches[1] -eq $ThisVersion) {
+            Write-Host "Script version $ThisVersion matches the one beside the publisher's commit."
+        }
+        else {
+            Write-Warning "This copy of update.ps1 is version $ThisVersion but the publisher's commit has version $($Matches[1]). Copy Console-Apps\CultPodcasts.DatabasePublisher\PublicDatabaseScripts\update.ps1 from RedditPodcastPoster over this file."
+        }
+    }
 }
 
 # 'git diff --cached -M --name-status' as it would be if the working folder's *.json were staged in the repo,
@@ -350,7 +393,14 @@ function Write-RefusalSummary {
     Write-Host ('  or all at once: .\update.ps1 -AcceptRemoval ' + (($items | ForEach-Object { $_.Id }) -join ',')) -ForegroundColor Cyan
 }
 
+Write-Host "update.ps1 version $ScriptVersion"
+
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $SourceRepo) {
+    $SourceRepo = Join-Path $repoRoot '..\cultpodcasts\RedditPodcastPoster'
+}
+
+$sourceRepoPath = if (Test-Path -LiteralPath $SourceRepo) { (Resolve-Path -LiteralPath $SourceRepo).ProviderPath } else { $SourceRepo }
 if ($PublisherExe) {
     if (-not (Test-Path -LiteralPath $PublisherExe -PathType Leaf)) {
         throw "Publisher '$PublisherExe' was not found."
@@ -359,18 +409,16 @@ if ($PublisherExe) {
     $publisherPath = $PublisherExe
 }
 else {
-    $publisherBasePath = Join-Path $repoRoot '..\cultpodcasts\RedditPodcastPoster\artifacts\tools\CultPodcasts.DatabasePublisher'
+    $publisherBasePath = Join-Path $sourceRepoPath 'artifacts\tools\CultPodcasts.DatabasePublisher'
     $publisherPath = @(
         "$publisherBasePath.exe",
         $publisherBasePath
     ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 
     if (-not $publisherPath) {
-        throw "Could not find CultPodcasts.DatabasePublisher next to this repo. Expected '$publisherBasePath.exe' or '$publisherBasePath'."
+        throw "Could not find CultPodcasts.DatabasePublisher. Expected '$publisherBasePath.exe' or '$publisherBasePath' (publish it with scripts\publish-console-apps.ps1 -App CultPodcasts.DatabasePublisher in the RedditPodcastPoster clone, or pass -PublisherExe and -SourceRepo)."
     }
 }
-
-$sourceRepoPath = Join-Path $repoRoot '..\cultpodcasts\RedditPodcastPoster'
 
 # The working folder must be a sibling-style folder outside the repo, never the repo or a parent or child of it.
 if (-not $WorkFolder) {
@@ -393,7 +441,8 @@ $commitMessage = 'New episodes {0}' -f $CommitDate.ToString('d MMMM yyyy', [Syst
 Push-Location $repoRoot
 
 try {
-    Assert-PublisherSupportsMigrations -Publisher $publisherPath -SourceRepo $sourceRepoPath
+    $publisherHash = Assert-PublisherSupportsMigrations -Publisher $publisherPath -SourceRepo $sourceRepoPath
+    Test-ScriptIsCurrent -PublisherHash $publisherHash -SourceRepo $sourceRepoPath -ThisVersion $ScriptVersion
 
     $repoFiles = Get-JsonFiles -Folder $repoRoot
     if ($repoFiles.Count -eq 0) {
@@ -463,7 +512,7 @@ try {
     switch ($publisherExit) {
         0 { }
         1 { }
-        2 { throw "The publisher rejected its arguments or the working folder (exit 2). The repo was not changed. If this is an old publisher, republish the CLIs after PR #1039 is merged." }
+        2 { throw "The publisher rejected its arguments or the working folder (exit 2). The repo was not changed. If this is an old publisher, republish the DatabasePublisher from RedditPodcastPoster main." }
         3 { throw "The publisher failed unexpectedly (exit 3). The working folder '$workFolderPath' may be partly updated (staged *.json.tmp files may remain); it is rebuilt from the repo on the next run. The repo was not changed." }
         default { throw "The publisher exited with unexpected code $publisherExit. The repo was not changed." }
     }
