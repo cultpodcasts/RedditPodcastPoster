@@ -26,7 +26,7 @@ public class PublicPlayable
 
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public string? Release { get; set; }
+    public string? Release { get; init; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]

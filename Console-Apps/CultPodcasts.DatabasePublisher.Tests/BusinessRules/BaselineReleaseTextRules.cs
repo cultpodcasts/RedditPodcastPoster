@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
-using CultPodcasts.DatabasePublisher.PublicModels;
+using CultPodcasts.DatabasePublisher.Consistency;
 using FluentAssertions;
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Persistence.Providers;
 
 namespace CultPodcasts.DatabasePublisher.Tests.BusinessRules;
 
@@ -14,22 +13,14 @@ public sealed class BaselineReleaseTextRules : IDisposable
     private const string Afternoon = "2026-08-17T10:30:15Z";
 
     private readonly PublisherScenario _scenario = new();
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "public-db-release-" + Guid.NewGuid());
 
-    public BaselineReleaseTextRules() => Directory.CreateDirectory(_folder);
-
-    public void Dispose()
-    {
-        _scenario.Dispose();
-        Directory.Delete(_folder, true);
-    }
+    public void Dispose() => _scenario.Dispose();
 
     [Theory(DisplayName =
-        "Release text: when an episode is already in the previous file with a release that stands for the same " +
-        "instant, then the previous text is published exactly as it was (no Z, a Z, an offset, extra fractional " +
-        "digits or a bare date), because a published file must not change just because of how a date-time is written.")]
+        "Release text: when an episode is already in the previous file with a full date-time release that stands " +
+        "for the same instant, then the previous text is published exactly as it was (no Z, a Z, an offset or extra " +
+        "fractional digits), because a published file must not change just because of how a date-time is written.")]
     [InlineData("2026-08-17T00:00:00", Midnight)]
-    [InlineData("2026-08-17", Midnight)]
     [InlineData("2026-08-17T00:00:00Z", Midnight)]
     [InlineData("2026-08-17T10:30:15", Afternoon)]
     [InlineData("2026-08-17T10:30:15Z", Afternoon)]
@@ -49,12 +40,35 @@ public sealed class BaselineReleaseTextRules : IDisposable
         PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be(previous);
     }
 
+    [Fact(DisplayName =
+        "Release text: when the kept previous text has an offset, then the file holds it the way the serializer " +
+        "escapes it and publishing again changes nothing, because the check must be on the bytes written and not " +
+        "only on the text read back.")]
+    public async Task kept_offset_text_is_written_as_the_serializer_writes_it_and_is_stable()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Afternoon));
+        _scenario.GivenExistingFileWithChildren(
+            podcast.FileKey, podcast.Id, "episodes", (episode.Id, "2026-08-17T11:30:15+01:00"));
+
+        // Act
+        await _scenario.Publish();
+        var first = _scenario.Files[podcast.FileKey];
+        await _scenario.Publish();
+
+        // Assert
+        first.Should().Contain("2026-08-17T11:30:15\\u002B01:00");
+        _scenario.Files[podcast.FileKey].Should().Be(first);
+    }
+
     [Theory(DisplayName =
         "Release text: when an episode is in the previous file but its release is a different instant, then the " +
         "newly formatted release is published, because a real change of release must reach the file.")]
     [InlineData("2026-08-16T00:00:00", Midnight)]
     [InlineData("2026-08-17T10:30:16Z", Afternoon)]
     [InlineData("2026-08-17T10:30:15+01:00", Afternoon)]
+    [InlineData("2026-08-17T10:30:15.1234567Z", Afternoon)]
     public async Task different_instant_publishes_the_new_text(string previous, string current)
     {
         // Arrange
@@ -90,13 +104,22 @@ public sealed class BaselineReleaseTextRules : IDisposable
     }
 
     [Theory(DisplayName =
-        "Release text: when the previous release text is not a date-time (words, an impossible date, empty, a " +
-        "year, another date format, a number or null), then the newly formatted release is published, because " +
-        "nothing can be said to be the same instant.")]
+        "Release text: when the previous release text is not a full date-time (words, an impossible date, empty, a " +
+        "year, a bare date, a time without seconds or with a space, an offset without minutes, more than seven " +
+        "fractional digits, another date format, a number or null), then the newly formatted release is " +
+        "published, because nothing can be said to be the same instant, and a bare date is never held against a " +
+        "date-time.")]
     [InlineData("not a date")]
     [InlineData("2026-13-45")]
+    [InlineData("2026-08-17T25:00:00")]
     [InlineData("")]
     [InlineData("2026")]
+    [InlineData("2026-08-17")]
+    [InlineData("2026-08-17T00:00")]
+    [InlineData("2026-08-17T 00:00:00")]
+    [InlineData("2026-08-17T00:00:00+00")]
+    [InlineData("2026-08-17T00:00:00.00000000Z")]
+    [InlineData("2026-08-17T00:00:00Z\n")]
     [InlineData("17/08/2026")]
     [InlineData(2026)]
     [InlineData(null)]
@@ -112,6 +135,56 @@ public sealed class BaselineReleaseTextRules : IDisposable
 
         // Assert
         PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be(Midnight);
+    }
+
+    [Theory(DisplayName =
+        "Release text: when the current culture is not the invariant one (a Buddhist, Um al-Qura or Turkish " +
+        "calendar and digits), then the previous text is still compared as the instant it is, because a " +
+        "regression to culture-sensitive parsing must not change what is published.")]
+    [InlineData("th-TH")]
+    [InlineData("ar-SA")]
+    [InlineData("tr-TR")]
+    public async Task comparison_does_not_depend_on_the_current_culture(string culture)
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Afternoon));
+        _scenario.GivenExistingFileWithChildren(podcast.FileKey, podcast.Id, "episodes", (episode.Id, "2026-08-17T10:30:15"));
+        var original = CultureInfo.CurrentCulture;
+
+        // Act
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            await _scenario.Publish();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+
+        // Assert
+        PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be("2026-08-17T10:30:15");
+    }
+
+    [Fact(DisplayName =
+        "Release text: when the previous file has two children with the same id, then the first one's text is the " +
+        "one used, because the file is read once and a repeated id must not change which text wins from run to run.")]
+    public async Task first_of_two_children_with_the_same_id_wins()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Midnight));
+        _scenario.GivenExistingFileWithChildren(
+            podcast.FileKey, podcast.Id, "episodes",
+            (episode.Id, "2026-08-17T00:00:00"),
+            (episode.Id, "2026-08-17T00:00:00Z"));
+
+        // Act
+        await _scenario.Publish();
+
+        // Assert
+        PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be("2026-08-17T00:00:00");
     }
 
     [Fact(DisplayName =
@@ -137,6 +210,25 @@ public sealed class BaselineReleaseTextRules : IDisposable
     }
 
     [Fact(DisplayName =
+        "Release text: when the previous file's key is now published for a different item (a different root id), " +
+        "then none of its texts are used, because another item's text must never be applied if a file key is " +
+        "reused.")]
+    public async Task a_previous_file_of_a_different_item_gives_no_text()
+    {
+        // Arrange
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Midnight));
+        var otherItem = Guid.NewGuid();
+        _scenario.GivenExistingFileWithChildren(podcast.FileKey, otherItem, "episodes", (episode.Id, "2026-08-17T00:00:00"));
+
+        // Act
+        await _scenario.Publish(new PublishOptions(AcceptedRemovals: [otherItem.ToString()]));
+
+        // Assert
+        PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be(Midnight);
+    }
+
+    [Fact(DisplayName =
         "Release text: when a podcast became a TV show and the show's episode was in the podcast's file with the " +
         "same release instant, then the show file keeps that previous text, because the file is moved and " +
         "overwritten and its dates should not change only because of a Z.")]
@@ -155,6 +247,65 @@ public sealed class BaselineReleaseTextRules : IDisposable
 
         // Assert
         PublishedRelease(show.FileKey, "episodes", episode.Id).Should().Be("2026-08-17T00:00:00");
+    }
+
+    [Fact(DisplayName =
+        "Release text: when a podcast became a news organisation and the report was in the podcast's file with the " +
+        "same release instant, then the organisation file keeps that previous text, because a migration to a news " +
+        "organisation reads the old podcast file's episodes as its reports' baseline.")]
+    public async Task migrated_news_organisation_keeps_the_previous_release_text()
+    {
+        // Arrange
+        var transferred = _scenario.GivenPodcast();
+        _scenario.Podcasts.Remove(transferred);
+        var organisation = _scenario.GivenNewsOrganisationFrom(transferred);
+        var report = _scenario.GivenNewsReport(organisation, releasedDaysAgo: 1,
+            r => r.Release = CatalogueRelease.FromDateTimeUtc(Utc(Midnight)));
+        _scenario.GivenExistingFileWithChildren(transferred.FileKey, transferred.Id, "episodes", (report.Id, "2026-08-17T00:00:00"));
+
+        // Act
+        var published = await _scenario.Publish();
+
+        // Assert
+        published.Plan.Moves.Should().ContainSingle().Which.MoveTo.Should().Be(organisation.FileKey);
+        PublishedRelease(organisation.FileKey, "reports", report.Id).Should().Be("2026-08-17T00:00:00");
+    }
+
+    [Fact(DisplayName =
+        "Release text: when a TV show episode was published with only a date and its release is now a date-time at " +
+        "midnight, then the date-time is published, because a catalogue release that gains a time of day must not " +
+        "be held at its old, coarser text.")]
+    public async Task tv_show_episode_whose_precision_grew_publishes_the_new_text()
+    {
+        // Arrange
+        var show = _scenario.GivenTvShow();
+        var episode = _scenario.GivenTvShowEpisode(show, releasedDaysAgo: 1,
+            e => e.Release = CatalogueRelease.FromDateTimeUtc(Utc("2019-05-01T00:00:00Z")));
+        _scenario.GivenExistingFileWithChildren(show.FileKey, show.Id, "episodes", (episode.Id, "2019-05-01"));
+
+        // Act
+        await _scenario.Publish();
+
+        // Assert
+        PublishedRelease(show.FileKey, "episodes", episode.Id).Should().Be("2019-05-01T00:00:00Z");
+    }
+
+    [Fact(DisplayName =
+        "Release text: when a news report was published with only a date and its release is now a date-time at " +
+        "midnight, then the date-time is published, because the new kinds follow the same precision rule.")]
+    public async Task news_report_whose_precision_grew_publishes_the_new_text()
+    {
+        // Arrange
+        var organisation = _scenario.GivenNewsOrganisation();
+        var report = _scenario.GivenNewsReport(organisation, releasedDaysAgo: 1,
+            r => r.Release = CatalogueRelease.FromDateTimeUtc(Utc("2019-05-01T00:00:00Z")));
+        _scenario.GivenExistingFileWithChildren(organisation.FileKey, organisation.Id, "reports", (report.Id, "2019-05-01"));
+
+        // Act
+        await _scenario.Publish();
+
+        // Assert
+        PublishedRelease(organisation.FileKey, "reports", report.Id).Should().Be("2019-05-01T00:00:00Z");
     }
 
     [Fact(DisplayName =
@@ -180,64 +331,57 @@ public sealed class BaselineReleaseTextRules : IDisposable
     }
 
     [Theory(DisplayName =
-        "Release text: when the previous file is absent, is not JSON, is not an object or has no episodes, then the " +
-        "episode's release is written exactly as it always has been, because without a readable baseline there is " +
-        "nothing to keep.")]
-    [InlineData(null)]
+        "Release text: when the previous file is not JSON, is not an object or has no episodes, then the episode's " +
+        "release is written exactly as it always has been, because without a readable baseline there is nothing to " +
+        "keep (the file has no id, so it is accepted as an unexplained removal).")]
     [InlineData("{ not json")]
     [InlineData("[]")]
     [InlineData("{}")]
     [InlineData("""{ "episodes": "none" }""")]
-    public async Task absent_or_unreadable_previous_file_changes_nothing(string? previousFile)
+    public async Task previous_file_of_the_wrong_shape_gives_no_text(string previousFile)
     {
         // Arrange
-        var folder = new PublicationFolder(_folder, new JsonSerializerOptionsProvider());
-        var id = Guid.NewGuid();
-        var podcast = new PublicPodcast(Guid.NewGuid())
-        {
-            FileKey = "podcast",
-            Episodes = [new PublicEpisode { Id = id, Release = Utc(Midnight) }]
-        };
-        if (previousFile is not null)
-        {
-            File.WriteAllText(Path.Combine(_folder, "podcast.json"), previousFile);
-        }
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Midnight));
+        File.WriteAllText(Path.Combine(_scenario.OutputDirectory, podcast.FileKey + ".json"), previousFile);
 
         // Act
-        await folder.StageAsync(podcast);
+        await _scenario.Publish(new PublishOptions(AcceptedRemovals: [podcast.FileKey]));
 
         // Assert
-        PublishedRelease(Path.Combine(_folder, "podcast.json.tmp"), "episodes", id, isPath: true).Should().Be(Midnight);
+        PublishedRelease(podcast.FileKey, "episodes", episode.Id).Should().Be(Midnight);
     }
 
     [Fact(DisplayName =
-        "Release text: when a baseline file key is given for staging, then that file is the baseline instead of the " +
-        "target's own, because a moved file's old name is where the previous text is.")]
-    public async Task staging_reads_the_baseline_from_the_given_key()
+        "Release text: when the previous file exists but cannot be read (it is locked), then the publish fails with " +
+        "the folder exception and changes nothing, because quietly publishing every date afresh would put " +
+        "thousands of lines of churn into the repository.")]
+    public async Task a_locked_previous_file_fails_the_publish_and_changes_nothing()
     {
         // Arrange
-        var folder = new PublicationFolder(_folder, new JsonSerializerOptionsProvider());
-        var id = Guid.NewGuid();
-        File.WriteAllText(
-            Path.Combine(_folder, "old-key.json"),
-            JsonSerializer.Serialize(new { id = Guid.NewGuid(), episodes = new[] { new { id, release = "2026-08-17T00:00:00" } } }));
-        var podcast = new PublicPodcast(Guid.NewGuid())
-        {
-            FileKey = "new-key",
-            Episodes = [new PublicEpisode { Id = id, Release = Utc(Midnight) }]
-        };
+        var podcast = _scenario.GivenPodcast();
+        var episode = _scenario.GivenEpisode(podcast, releasedDaysAgo: 1, e => e.ReleaseUtc = Utc(Midnight));
+        _scenario.GivenExistingFileWithChildren(podcast.FileKey, podcast.Id, "episodes", (episode.Id, "2026-08-17T00:00:00"));
+        var path = Path.Combine(_scenario.OutputDirectory, podcast.FileKey + ".json");
+        var before = File.ReadAllText(path);
 
         // Act
-        await folder.StageAsync(podcast, "old-key");
+        Func<Task> publish;
+        await using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            publish = () => _scenario.Publish();
+            await publish.Should().ThrowAsync<PublicationFolderException>();
+        }
 
         // Assert
-        PublishedRelease(Path.Combine(_folder, "new-key.json.tmp"), "episodes", id, isPath: true).Should().Be("2026-08-17T00:00:00");
+        _scenario.StagedFileNames.Should().BeEmpty();
+        _scenario.FileNames.Should().Equal(podcast.FileKey + ".json");
+        File.ReadAllText(path).Should().Be(before);
     }
 
-    private string PublishedRelease(string fileKeyOrPath, string children, Guid id, bool isPath = false)
+    private string PublishedRelease(string fileKey, string children, Guid id)
     {
-        var text = isPath ? File.ReadAllText(fileKeyOrPath) : _scenario.Files[fileKeyOrPath];
-        using var document = JsonDocument.Parse(text);
+        using var document = JsonDocument.Parse(_scenario.Files[fileKey]);
         return document.RootElement.GetProperty(children).EnumerateArray()
             .Single(c => c.GetProperty("id").GetGuid() == id)
             .GetProperty("release").GetString()!;

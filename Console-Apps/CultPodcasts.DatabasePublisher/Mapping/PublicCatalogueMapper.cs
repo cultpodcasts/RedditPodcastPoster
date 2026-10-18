@@ -12,11 +12,15 @@ namespace CultPodcasts.DatabasePublisher.Mapping;
 /// blank text and empty lists are omitted, children are newest first, and the caller has already dropped
 /// removed children. Ties on release are broken by id so the output does not depend on read order and
 /// git sees no churn between runs; this applies to the new kinds only, podcast episodes keep the ordering
-/// they have always had. <c>release</c> is a string (see <see cref="PublicRelease"/>).
+/// they have always had. <c>release</c> is a string (see <see cref="PublicRelease"/>); a child that the previous
+/// file already had with the same release instant keeps that file's text (see <see cref="BaselineReleaseText"/>).
 /// </summary>
 public static class PublicCatalogueMapper
 {
-    public static PublicTvShow ToPublic(TvShow show, IEnumerable<TvShowEpisode> episodes) =>
+    public static PublicTvShow ToPublic(
+        TvShow show,
+        IEnumerable<TvShowEpisode> episodes,
+        BaselineReleaseText? previous = null) =>
         new(show.Id)
         {
             FileKey = show.FileKey,
@@ -30,7 +34,7 @@ public static class PublicCatalogueMapper
                     Id = e.Id,
                     Title = e.Title,
                     Description = NullIfBlank(e.Description),
-                    Release = PublicRelease.Format(e.Release),
+                    Release = (previous ?? BaselineReleaseText.None).Choose(e.Id, PublicRelease.Format(e.Release)),
                     Length = e.Length,
                     Explicit = e.Explicit,
                     Subjects = NullIfEmpty(e.Subjects),
@@ -42,7 +46,10 @@ public static class PublicCatalogueMapper
                 .ToList()
         };
 
-    public static PublicNewsOrganisation ToPublic(NewsOrganisation organisation, IEnumerable<NewsReport> reports) =>
+    public static PublicNewsOrganisation ToPublic(
+        NewsOrganisation organisation,
+        IEnumerable<NewsReport> reports,
+        BaselineReleaseText? previous = null) =>
         new(organisation.Id)
         {
             FileKey = organisation.FileKey,
@@ -53,7 +60,7 @@ public static class PublicCatalogueMapper
                     Id = r.Id,
                     Title = r.Title,
                     Description = NullIfBlank(r.Description),
-                    Release = PublicRelease.Format(r.Release),
+                    Release = (previous ?? BaselineReleaseText.None).Choose(r.Id, PublicRelease.Format(r.Release)),
                     Length = r.Length,
                     Explicit = r.Explicit,
                     Subjects = NullIfEmpty(r.Subjects),

@@ -230,6 +230,7 @@ internal sealed class PublisherScenario : IDisposable
                 ["name"] = fileKey,
                 [childProperty] = children.Select(c => new { id = c.Id, release = c.Release }).ToList()
             }));
+
     /// <summary>Runs the publisher for a first publish into an empty folder.</summary>
     public Task<PublicationReport> PublishFirstTime(PublishOptions? options = null) =>
         Publish(options ?? new PublishOptions(Initial: true));

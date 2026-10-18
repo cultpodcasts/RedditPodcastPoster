@@ -21,16 +21,20 @@ public class PublicEpisode
     [JsonIgnore]
     public DateTime Release { get; init; }
 
-    /// <summary>
-    /// The <c>release</c> text of the previous publish when this episode was already there with the same instant,
-    /// so a file does not change only because of a trailing <c>Z</c> (see <see cref="BaselineReleaseText"/>).
-    /// </summary>
-    [JsonIgnore]
-    public string? PreservedRelease { get; set; }
+    private string? _releaseText;
 
+    /// <summary>
+    /// The <c>release</c> text. Unless one is given, which is the text of the previous publish when this episode
+    /// was already there with the same instant (see <see cref="BaselineReleaseText"/>), it is the instant as the
+    /// serializer has always written it.
+    /// </summary>
     [JsonPropertyName("release")]
     [JsonPropertyOrder(7)]
-    public string ReleaseText => PreservedRelease ?? PublicRelease.FormatInstant(Release);
+    public string ReleaseText
+    {
+        get => _releaseText ?? PublicRelease.FormatInstant(Release);
+        init => _releaseText = value;
+    }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(8)]

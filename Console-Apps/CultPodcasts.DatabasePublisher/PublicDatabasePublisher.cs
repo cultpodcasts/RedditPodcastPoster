@@ -157,6 +157,7 @@ public class PublicDatabasePublisher(
         IReadOnlyCollection<BaselineFile> baseline)
     {
         var candidatesByKey = candidates.ToDictionary(c => c.Item.FileKey, StringComparer.OrdinalIgnoreCase);
+        var baselineByKey = baseline.ToDictionary(b => b.FileKey, StringComparer.Ordinal);
         try
         {
             await CreateProgress().StartAsync(async ctx =>
@@ -172,7 +173,8 @@ public class PublicDatabasePublisher(
                     new ParallelOptions { MaxDegreeOfParallelism = PublishParallelism },
                     async (file, _) =>
                     {
-                        await folder.StageAsync(await candidatesByKey[file.Item.FileKey].Build(), file.MovedFromKey);
+                        var data = await candidatesByKey[file.Item.FileKey].Build(PreviousReleases(file, baselineByKey));
+                        await folder.StageAsync(data);
                         progress.Increment(1);
                     });
                 progress.StopTask();
@@ -185,6 +187,19 @@ public class PublicDatabasePublisher(
             throw;
         }
     }
+
+    /// <summary>
+    /// The release texts a planned file may keep: those of the file it replaces, or of the file it is moved from,
+    /// provided that file holds the same item (same root id), so another item's texts are never applied if a
+    /// file key was reused. A file with no such baseline, a new file, keeps nothing.
+    /// </summary>
+    private static BaselineReleaseText PreviousReleases(
+        PlannedFile file,
+        IReadOnlyDictionary<string, BaselineFile> baselineByKey) =>
+        baselineByKey.TryGetValue(file.MovedFromKey ?? file.Item.FileKey, out var previous) &&
+        previous.Id == file.Item.Id
+            ? previous.Releases ?? BaselineReleaseText.None
+            : BaselineReleaseText.None;
 
     private void Apply(PublicationPlan plan)
     {
@@ -264,16 +279,16 @@ public class PublicDatabasePublisher(
         var candidates = new ConcurrentBag<Candidate>();
 
         await CountEachAsync(livePodcasts, p => episodeRepository.Count(p.Id), p =>
-            candidates.Add(Candidate.For(p.Id, p.FileKey, PublicKind.Podcast, () => BuildPodcastAsync(p))), progress);
+            candidates.Add(Candidate.For(p.Id, p.FileKey, PublicKind.Podcast, previous => BuildPodcastAsync(p, previous))), progress);
         await CountEachAsync(liveShows, s => tvShowEpisodeRepository.Count(s.Id), s =>
-            candidates.Add(Candidate.For(s.Id, s.FileKey, PublicKind.TvShow, () => BuildTvShowAsync(s))), progress);
+            candidates.Add(Candidate.For(s.Id, s.FileKey, PublicKind.TvShow, previous => BuildTvShowAsync(s, previous))), progress);
         await CountEachAsync(liveOrganisations, o => newsReportRepository.Count(o.Id), o =>
             candidates.Add(Candidate.For(
-                o.Id, o.FileKey, PublicKind.NewsOrganisation, () => BuildNewsOrganisationAsync(o))), progress);
+                o.Id, o.FileKey, PublicKind.NewsOrganisation, previous => BuildNewsOrganisationAsync(o, previous))), progress);
         foreach (var film in liveFilms)
         {
             candidates.Add(Candidate.For(
-                film.Id, film.FileKey, PublicKind.Film, () => Task.FromResult(PublicCatalogueMapper.ToPublic(film))));
+                film.Id, film.FileKey, PublicKind.Film, _ => Task.FromResult(PublicCatalogueMapper.ToPublic(film))));
         }
 
         progress.StopTask();
@@ -297,7 +312,7 @@ public class PublicDatabasePublisher(
 
                 progress.Increment(1);
             });
-    private async Task<PublicPodcast> BuildPodcastAsync(Podcast podcast)
+    private async Task<PublicPodcast> BuildPodcastAsync(Podcast podcast, BaselineReleaseText previous)
     {
         var publicPodcast = new PublicPodcast(podcast.Id)
         {
@@ -327,6 +342,7 @@ public class PublicDatabasePublisher(
                 Explicit = episode.Explicit,
                 Length = episode.Length,
                 Release = episode.ReleaseUtc,
+                ReleaseText = previous.Choose(episode.Id, PublicRelease.FormatInstant(episode.ReleaseUtc)),
                 SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode),
                 Title = episode.Title,
                 YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode),
@@ -346,17 +362,17 @@ public class PublicDatabasePublisher(
         publicPodcast.Episodes = publicEpisodes.OrderByDescending(x => x.Release).ToList();
         return publicPodcast;
     }
-    private async Task<PublicTvShow> BuildTvShowAsync(TvShow show)
+    private async Task<PublicTvShow> BuildTvShowAsync(TvShow show, BaselineReleaseText previous)
     {
         var episodes = await tvShowEpisodeRepository.GetByTvShowId(show.Id, e => !e.Removed).ToListAsync();
-        return PublicCatalogueMapper.ToPublic(show, episodes);
+        return PublicCatalogueMapper.ToPublic(show, episodes, previous);
     }
 
-    private async Task<PublicNewsOrganisation> BuildNewsOrganisationAsync(NewsOrganisation organisation)
+    private async Task<PublicNewsOrganisation> BuildNewsOrganisationAsync(NewsOrganisation organisation, BaselineReleaseText previous)
     {
         var reports = await newsReportRepository.GetByNewsOrganisationId(organisation.Id, r => !r.Removed)
             .ToListAsync();
-        return PublicCatalogueMapper.ToPublic(organisation, reports);
+        return PublicCatalogueMapper.ToPublic(organisation, reports, previous);
     }
 
     /// <summary>Everything in Cosmos, read once, whether or not it is live.</summary>
@@ -376,11 +392,11 @@ public class PublicDatabasePublisher(
         ];
     }
 
-    /// <summary>An item that will have a file, and how to build that file's content.</summary>
-    private sealed record Candidate(PublishedItem Item, Func<Task<CosmosSelector>> Build)
+    /// <summary>An item that will have a file, and how to build that file's content given the release texts it may keep.</summary>
+    private sealed record Candidate(PublishedItem Item, Func<BaselineReleaseText, Task<CosmosSelector>> Build)
     {
-        public static Candidate For<T>(Guid id, string fileKey, PublicKind kind, Func<Task<T>> build)
+        public static Candidate For<T>(Guid id, string fileKey, PublicKind kind, Func<BaselineReleaseText, Task<T>> build)
             where T : CosmosSelector =>
-            new(new PublishedItem(id, fileKey, kind), async () => await build());
+            new(new PublishedItem(id, fileKey, kind), async previous => await build(previous));
     }
 }

@@ -98,7 +98,10 @@ public class PublicationFolder
     }
     /// <summary>
     /// Reads the top-level <c>*.json</c> files, the same files update.ps1 used to clear, taking the id from
-    /// each and, for unprefixed (podcast) files, the episode ids.
+    /// each, for unprefixed (podcast) files the episode ids, and for every kind the release text of each episode
+    /// or report. Each file is read once; a file that exists but cannot be read (locked, no access) fails the
+    /// whole read with <see cref="PublicationFolderException"/>, so nothing is planned or changed from a partial
+    /// picture, whereas a file that is not JSON of the expected shape is a file with no id.
     /// </summary>
     public async Task<IReadOnlyList<BaselineFile>> ReadBaselineAsync()
     {
@@ -184,19 +187,12 @@ public class PublicationFolder
                 $"The files in '{FolderPath}' changed while the publish was being prepared; nothing was changed. Run again.");
         }
     }
-    /// <summary>
-    /// Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched. Before writing, an
-    /// episode or report that the previous file (<paramref name="baselineFileKey"/>, by default the file's own key;
-    /// a moved file's old key) already had, with the same release instant, keeps that file's exact release text
-    /// (<see cref="BaselineReleaseText"/>), so a file does not change only because a date-time gained or lost a
-    /// trailing <c>Z</c>. An absent or unreadable previous file changes nothing.
-    /// </summary>
-    public async Task StageAsync(CosmosSelector data, string? baselineFileKey = null)
+
+    /// <summary>Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched.</summary>
+    public async Task StageAsync(CosmosSelector data)
     {
-        var path = StagingPathOf(data.FileKey);
-        (await BaselineReleaseText.ReadAsync(PathOf(baselineFileKey ?? data.FileKey))).Apply(data);
         await using var stream = new FileStream(
-            path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            StagingPathOf(data.FileKey), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         await JsonSerializer.SerializeAsync(stream, data, data.GetType(), _options);
     }
 
@@ -245,9 +241,11 @@ public class PublicationFolder
                 return new BaselineFile(fileKey, null, []);
             }
 
-            return new BaselineFile(fileKey, guid, PublicKindExtensions.FromFileKey(fileKey) == PublicKind.Podcast
-                ? ChildIds(root)
-                : []);
+            return new BaselineFile(
+                fileKey,
+                guid,
+                PublicKindExtensions.FromFileKey(fileKey) == PublicKind.Podcast ? ChildIds(root) : [],
+                Releases: BaselineReleaseText.FromDocument(root));
         }
         catch (JsonException)
         {
