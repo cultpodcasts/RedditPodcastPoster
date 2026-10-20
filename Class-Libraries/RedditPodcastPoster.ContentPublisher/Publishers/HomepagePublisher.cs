@@ -14,13 +14,13 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.HomePage;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
+using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Models.Services;
-using RedditPodcastPoster.Subjects.Providers;
 
 namespace RedditPodcastPoster.ContentPublisher.Publishers;
 
@@ -28,7 +28,7 @@ public class HomepagePublisher(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ITextSanitiser textSanitiser,
-    ICachedSubjectProvider subjectsProvider,
+    ISubjectsProvider subjectsProvider,
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
     ILookupRepository lookupRepository,
@@ -42,6 +42,7 @@ public class HomepagePublisher(
     };
 
     private readonly ContentOptions _contentOptions = contentOptions.Value;
+    private readonly IReadOnlyList<Subject> _subjects = subjectsProvider.GetAll().ToBlockingEnumerable().ToList();
 
     public async Task<PublishHomepageResult> PublishHomepage()
     {
@@ -112,9 +113,7 @@ public class HomepagePublisher(
             .OrderByDescending(x => x.Release)
             .ToList();
 
-        IReadOnlyList<Subject> subjects = await subjectsProvider.GetAll().ToListAsync(ct);
-        var sanitizedPodcasts = await Task.WhenAll(
-            orderedPodcasts.Select(podcastResult => SanitiseResult(podcastResult, subjects, textSanitiser)));
+        var sanitizedPodcasts = await Task.WhenAll(orderedPodcasts.Select(Sanitise));
 
         return new HomePageModel
         {
@@ -265,6 +264,11 @@ public class HomepagePublisher(
         }
 
         return trimmed;
+    }
+
+    private Task<PodcastResult> Sanitise(PodcastResult podcastResult)
+    {
+        return SanitiseResult(podcastResult, _subjects, textSanitiser);
     }
 
     /// <summary>
