@@ -512,7 +512,7 @@ $sourceRepoPath = Resolve-UserPath -Path $SourceRepo
 # sub-folder was treated as the baseline).
 $wrongPlace = "copy this script into the root of the PublicDatabase repo and run it from there (see Console-Apps/README.md in RedditPodcastPoster)."
 $ErrorActionPreference = 'Continue'
-$topLevel = (& git -C $repoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
+$topLevel = (& git -C $repoRoot rev-parse --show-toplevel 2>$null | Out-String).Trim()
 $topLevelExit = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
 if ($topLevelExit -ne 0 -or -not $topLevel) {
@@ -586,7 +586,7 @@ try {
         }
 
         $ErrorActionPreference = 'Continue'
-        $branch = (& git symbolic-ref --quiet --short HEAD 2>$null | Select-Object -First 1)
+        $branch = (& git symbolic-ref --quiet --short HEAD 2>$null | Out-String).Trim()
         $branchExit = $LASTEXITCODE
         $ErrorActionPreference = 'Stop'
         if ($branchExit -ne 0 -or -not $branch) {
@@ -598,10 +598,10 @@ try {
         }
         else {
             $ErrorActionPreference = 'Continue'
-            $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null | Select-Object -First 1)
+            $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null | Out-String).Trim()
             $upstreamExit = $LASTEXITCODE
-            $remote = (& git config --get "branch.$branch.remote" 2>$null | Select-Object -First 1)
-            $mergeRef = (& git config --get "branch.$branch.merge" 2>$null | Select-Object -First 1)
+            $remote = (& git config --get "branch.$branch.remote" 2>$null | Out-String).Trim()
+            $mergeRef = (& git config --get "branch.$branch.merge" 2>$null | Out-String).Trim()
             $ErrorActionPreference = 'Stop'
             if ($upstreamExit -ne 0 -or -not $upstream -or -not $remote -or -not $mergeRef -or $remote -eq '.') {
                 throw "-Apply pushes, but branch '$branch' has no upstream on a remote. Set one (git branch --set-upstream-to=origin/$branch) or use -Apply -SkipPush and push yourself. Nothing was changed."
