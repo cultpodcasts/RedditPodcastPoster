@@ -66,9 +66,13 @@ param(
     [string]$SourceRepo
 )
 
+# Values may arrive as one comma-separated string (pwsh -File .\update.ps1 -AcceptRemoval a,b,c); file keys and ids
+# never contain commas, so split, trim and drop empties once here.
+$AcceptRemoval = @($AcceptRemoval | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
 # A human-readable label, printed at the start. Bump it when the script changes. Staleness is not judged by it: the
 # script compares its own content with the copy at HEAD of -SourceRepo (see Test-ScriptIsCurrent).
-$ScriptVersion = '1.1.0'
+$ScriptVersion = '1.1.1'
 
 # The script's path inside the RedditPodcastPoster repo, as git names it.
 $SourceScriptGitPath = 'Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1'
@@ -439,19 +443,29 @@ function Write-NameList {
     }
 }
 
-# After a refused (exit 1) run: show, unmissably, the removals the publisher could not explain and how to accept
-# them. The publisher's own printed plan has already been shown above; its text is parsed here only for the
-# unexplained block, and the raw block is echoed if it cannot be parsed, so a change of wording degrades to raw text.
+# After a refused (exit 1) run: show, unmissably, why. The publisher's own printed plan has already been shown above;
+# its text is parsed here only for two blocks: the removals it could not explain ('UNEXPLAINED ...') and the
+# --accept-removal values that matched none of them ('--accept-removal values that matched no unexplained removal').
+# A block that cannot be parsed is echoed raw, so a change of wording degrades to raw text.
 function Write-RefusalSummary {
     param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$PublisherLines)
 
+    $staleHeading = 'matched no unexplained removal'
     $block = New-Object 'System.Collections.Generic.List[string]'
-    $inBlock = $false
+    $staleValues = New-Object 'System.Collections.Generic.List[string]'
+    $staleHeadingLine = $null
+    $section = 'none'
     foreach ($line in $PublisherLines) {
-        if ($line -match '^\s*UNEXPLAINED') { $inBlock = $true }
-        if ($inBlock) {
-            $block.Add($line)
-            if ($line -match '^\s*Check each file') { break }
+        if ($line -match '^\s*Check each file') { $section = 'none'; continue }
+        if ($line -match [regex]::Escape($staleHeading)) { $section = 'stale'; $staleHeadingLine = $line.Trim(); continue }
+        if ($line -match '^\s*UNEXPLAINED') { $section = 'unexplained' }
+
+        switch ($section) {
+            'unexplained' { $block.Add($line) }
+            'stale' {
+                # The values are listed one per indented line; the first unindented line ends the list.
+                if ($line -match '^\s+(\S.*)$') { $staleValues.Add($Matches[1].Trim()) } else { $section = 'none' }
+            }
         }
     }
 
@@ -461,15 +475,26 @@ function Write-RefusalSummary {
     Write-Host 'PUBLISH REFUSED - NOTHING WAS PUBLISHED. The repo and the working folder were not changed.' -ForegroundColor Red
     Write-Host $bar -ForegroundColor Red
 
+    if ($staleHeadingLine) {
+        Write-Host ''
+        Write-Host "STALE -AcceptRemoval VALUES ($($staleValues.Count)): these match no unexplained removal in this run, so the publisher refused rather than ignore them:" -ForegroundColor Yellow
+        foreach ($value in $staleValues) { Write-Host "  * $value" -ForegroundColor Yellow }
+        if ($staleValues.Count -eq 0) { Write-Host "  (could not read the list; the publisher said: $staleHeadingLine)" -ForegroundColor Yellow }
+        Write-Host 'Drop or correct them (a removal already published, or a mistyped file key or id) and run again.' -ForegroundColor Cyan
+    }
+
     if ($block.Count -eq 0) {
-        Write-Host 'The publisher did not print an UNEXPLAINED block, so the refusal is for another reason (inconsistent data).' -ForegroundColor Red
-        Write-Host 'Read the publisher output above.' -ForegroundColor Red
+        if (-not $staleHeadingLine) {
+            Write-Host 'The publisher did not print an UNEXPLAINED block, so the refusal is for another reason (inconsistent data).' -ForegroundColor Red
+            Write-Host 'Read the publisher output above.' -ForegroundColor Red
+        }
+
         return
     }
 
     $joined = ($block -join '')
     $idPattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
-    $items = @([regex]::Matches($joined, "'([^']+)'\s*\(id\s*($idPattern)\)\s*(.*?)(?=(?:'[^']+'\s*\(id\s)|Check each file|$)") |
+    $items = @([regex]::Matches($joined, "'([^']+)'\s*\(id\s*($idPattern)\)\s*(.*?)(?=(?:'[^']+'\s*\(id\s)|Check each file|--accept-removal values|$)") |
         ForEach-Object { [pscustomobject]@{ File = $_.Groups[1].Value; Id = $_.Groups[2].Value; Why = $_.Groups[3].Value.Trim() } })
 
     Write-Host ''
