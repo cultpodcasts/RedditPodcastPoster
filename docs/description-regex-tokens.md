@@ -14,12 +14,10 @@ The pattern may contain these recognised tokens, which are resolved **per episod
 ## Example: strip a leading episode title
 
 Some podcasts start every description with the episode title, sometimes followed directly by the text with no
-separator, for example (Cultimatum-The Culture of Cults & Human Trafficking):
+separator, for example:
 
-```
-Cheryl Hope: Trafficked at Age 6 — Breaking the Silence on Exclusive BrethrenCONTENT ADVISORY: ...
-```
-
+```n<Guest Name>: <Episode Subject> - <More Title>CONTENT ADVISORY: ...
+```n
 The website's **Episode title prefix removal** description-regex preset is:
 
 ```
@@ -58,8 +56,16 @@ existing podcasts behave exactly as before. In particular the YouTube episode en
 compiled the description regex with **no** options (everything else uses `IgnoreCase | Singleline`); it keeps
 doing so for token-free patterns. Token patterns always use `IgnoreCase | Singleline` everywhere.
 
+## Match timeout
+
+Every description regex is compiled with `DescriptionRegexTokens.MatchTimeout` (2 seconds). If a match times out
+(catastrophic backtracking) it is treated as no match and the description is left unchanged, instead of the
+exception failing indexing/publishing. This is the only behaviour change for token-free patterns and only affects
+pathological patterns that previously could hang.
+
 ## Validation
 
 The Api (`POST podcast`) validates a submitted `descriptionRegex` after expanding the tokens with sample values,
 so a pattern containing tokens is accepted when the rest of it is a valid regex. An invalid pattern is rejected
-with `400 Bad Request` and the podcast is not saved. A blank value clears the regex.
+with `400 Bad Request` and the body `{"error":"Invalid description-regex: <parser message>"}`
+(`ApiErrorResponse`); the podcast is not saved. A blank value clears the regex.
