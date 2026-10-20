@@ -639,7 +639,7 @@ function Write-PushPreview {
         }
     }
 
-    return , $warnings.ToArray()
+    return $warnings.ToArray()
 }
 
 # After an -Apply commit: how to review it, how to undo it, and what comes next.
