@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
@@ -11,7 +12,8 @@ using RedditPodcastPoster.Text.TitleCasing;
 namespace RedditPodcastPoster.Text.Sanitisers;
 
 public partial class TextSanitiser(
-    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance)
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance,
+    ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
     private static readonly ConcurrentDictionary<string, Regex> BoundaryWordCache = new(StringComparer.Ordinal);
@@ -95,7 +97,6 @@ public partial class TextSanitiser(
         description = FixCharacters(description);
         return description;
     }
-
 
     public string ExtractDescription(
         string episodeDescription,
@@ -202,10 +203,13 @@ public partial class TextSanitiser(
         {
             match = regex.Match(body);
         }
-        catch (RegexMatchTimeoutException)
+        catch (RegexMatchTimeoutException ex)
         {
             // A pathological description regex (see DescriptionRegexTokens.MatchTimeout) leaves the description
-            // unchanged rather than failing the caller.
+            // unchanged rather than failing the caller. Log the pattern (never the description) so it can be found.
+            logger.LogWarning(ex,
+                "Description regex match timed out after {MatchTimeout}; description left unchanged. Pattern: {Pattern}",
+                regex.MatchTimeout, regex.ToString());
             return body;
         }
 
