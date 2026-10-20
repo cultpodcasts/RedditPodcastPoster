@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using AutoFixture;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
@@ -28,7 +30,29 @@ public class DescriptionRegexTokenRules
 
     private TextSanitiser Sut => _mocker.CreateInstance<TextSanitiser>();
 
+    private static readonly Fixture DataFixture = new();
+
     private string Word() => "w" + _fixture.Create<Guid>().ToString("N")[..8];
+
+    private static string DataWord() => "w" + DataFixture.Create<Guid>().ToString("N")[..8];
+
+    // Generated titles around an ampersand.
+    public static TheoryData<string> AmpersandTitles() => new() { $"{DataWord()} & {DataWord()}" };
+
+    // Generated (title, title as it appears in the description) pairs exercising apostrophe, quote, dash and
+    // ampersand equivalence (typographic and HTML-entity forms).
+    public static TheoryData<string, string> TypographicAndEntityVariants()
+    {
+        var (a, b, c, d, e) = (DataWord(), DataWord(), DataWord(), DataWord(), DataWord());
+        return new TheoryData<string, string>
+        {
+            { $"{a} & {b}'s \"{c}\" {d} - {e} 2", $"{a} &amp; {b}&#39;s &quot;{c}&quot; {d} &ndash; {e} 2" },
+            { $"{a} & {b}'s \"{c}\" {d} - {e} 2", $"{a} & {b}\u2019s \u201C{c}\u201D {d} \u2013 {e} 2" },
+            { $"{a} &amp; {b}&#39;s {d}", $"{a} & {b}'s {d}" },
+            { $"{a} &amp; {b}&#39;s {d}", $"{a} &amp; {b}&#39;s {d}" },
+            { $"{a} & {b}\u2019s {d} \u2014 {e} 2", $"{a} & {b}'s {d} - {e} 2" }
+        };
+    }
 
     // Scenario shape: an episode title containing a colon and an em dash.
     private string CreateTitle() => $"{Word()} {Word()}: {Word()} {Word()} \u2014 {Word()} {Word()}";
@@ -181,7 +205,7 @@ public class DescriptionRegexTokenRules
         "When the episode title contains regex metacharacters or special characters, they are escaped and matched " +
         "literally.")]
     [InlineData("What? (Part 1) [Live] * + . $ ^ | \\ {x} #1")]
-    [InlineData("Tom & Jerry")]
+    [MemberData(nameof(AmpersandTitles), DisableDiscoveryEnumeration = true)]
     [InlineData("Why (and how)?")]
     [InlineData("Part 1 \u2014 The Beginning")]
     [InlineData("C++ $100 ^ [x] {y} a|b")]
@@ -232,11 +256,7 @@ public class DescriptionRegexTokenRules
     [Theory(DisplayName =
         "When the title and the description use different apostrophe, quote, dash or ampersand forms (typographic " +
         "or HTML entities), the title still matches.")]
-    [InlineData("Tom & Jerry's \"Big\" Day - Part 2", "Tom &amp; Jerry&#39;s &quot;Big&quot; Day &ndash; Part 2")]
-    [InlineData("Tom & Jerry's \"Big\" Day - Part 2", "Tom & Jerry\u2019s \u201CBig\u201D Day \u2013 Part 2")]
-    [InlineData("Tom &amp; Jerry&#39;s Day", "Tom & Jerry's Day")]
-    [InlineData("Tom &amp; Jerry&#39;s Day", "Tom &amp; Jerry&#39;s Day")]
-    [InlineData("Tom & Jerry\u2019s Day \u2014 Part 2", "Tom & Jerry's Day - Part 2")]
+    [MemberData(nameof(TypographicAndEntityVariants), DisableDiscoveryEnumeration = true)]
     public void typographic_and_entity_variants_match(string title, string titleInDescription)
     {
         // Arrange
@@ -628,7 +648,8 @@ public class DescriptionRegexTokenRules
     }
 
     [Fact(DisplayName =
-        "When a description regex match times out, the description is left unchanged instead of the caller failing.")]
+        "When a description regex match times out, the description is left unchanged instead of the caller failing, " +
+        "and a warning naming the pattern is logged so the pathological podcast regex can be found.")]
     public void timed_out_match_leaves_description_unchanged()
     {
         // Arrange
@@ -640,6 +661,13 @@ public class DescriptionRegexTokenRules
 
         // Assert
         result.Should().Be(description);
+        _mocker.GetMock<ILogger<TextSanitiser>>().Verify(x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(pathological.ToString())),
+                It.Is<Exception?>(ex => ex is RegexMatchTimeoutException),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =

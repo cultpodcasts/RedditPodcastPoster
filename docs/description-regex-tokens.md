@@ -16,8 +16,10 @@ The pattern may contain these recognised tokens, which are resolved **per episod
 Some podcasts start every description with the episode title, sometimes followed directly by the text with no
 separator, for example:
 
-```n<Guest Name>: <Episode Subject> - <More Title>CONTENT ADVISORY: ...
-```n
+```
+<Episode title><Body text with no separator>
+```
+
 The website's **Episode title prefix removal** description-regex preset is:
 
 ```
