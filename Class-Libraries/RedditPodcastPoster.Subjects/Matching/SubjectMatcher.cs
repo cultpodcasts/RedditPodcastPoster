@@ -22,7 +22,8 @@ public class SubjectMatcher(
             episode,
             options?.IgnoredAssociatedSubjects,
             options?.IgnoredSubjects,
-            options?.DescriptionRegex);
+            options?.DescriptionRegex,
+            options?.PodcastName);
         var subjectMatch = subjectMatches
             .OrderBy(x => x.Subject.IsVisible ? 0 : 1)
             .ThenByDescending(x => x.MatchResults.Sum(y => y.Matches));

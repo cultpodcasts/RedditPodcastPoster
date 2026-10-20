@@ -17,7 +17,6 @@ using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Text;
-using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Models.Services;
@@ -268,6 +267,7 @@ public class HomepagePublisher(
 
     private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
+        var rawEpisodeTitle = podcastResult.EpisodeTitle;
         Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
         {
@@ -286,15 +286,27 @@ public class HomepagePublisher(
             subjectKnownTerms,
             podcastResult.Language);
 
-        Regex? descRegex = null;
-        if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
-        {
-            descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
-        }
-
-        podcastResult.EpisodeDescription =
-            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
+        podcastResult.EpisodeDescription = SanitiseDescription(podcastResult, rawEpisodeTitle, textSanitiser);
         return podcastResult;
+    }
+
+    /// <summary>
+    /// Sanitises a homepage episode's description. The description regex tokens
+    /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from <paramref name="rawEpisodeTitle" />, the title
+    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" />
+    /// rewrites it, because the raw title is what the feed description starts with.
+    /// </summary>
+    internal static string SanitiseDescription(
+        PodcastResult podcastResult,
+        string rawEpisodeTitle,
+        ITextSanitiser textSanitiser)
+    {
+        var descRegex = DescriptionRegexTokens.Create(
+            podcastResult.DescriptionRegex,
+            rawEpisodeTitle,
+            podcastResult.PodcastName);
+
+        return textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
     }
 
     private async Task<bool> PublishHomepageToR2(HomePageModel homepageContent)

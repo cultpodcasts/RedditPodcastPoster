@@ -4,11 +4,13 @@ public enum PodcastUpdateStatus
 {
     Accepted,
     NotFound,
-    Failed
+    Failed,
+    BadRequest
 }
 
 public record PodcastUpdateResult(
     PodcastUpdateStatus Status,
     Guid? PodcastId = null,
     bool FailureIndexingEpisodes = false,
-    bool FailureDeletingFromIndex = false);
+    bool FailureDeletingFromIndex = false,
+    string? Error = null);

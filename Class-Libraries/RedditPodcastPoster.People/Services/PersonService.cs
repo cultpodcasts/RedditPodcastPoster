@@ -5,13 +5,11 @@ using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.People.Repositories;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.People.Services;
 
 public class PersonService(
-    IPersonRepository personRepository,
-    ITextSanitiser textSanitiser) : IPersonService
+    IPersonRepository personRepository) : IPersonService
 {
     public async Task<Person?> Match(string nameOrAlias)
     {
@@ -93,8 +91,7 @@ public class PersonService(
             matchCount += CountMatches(term, WebUtility.HtmlDecode(episode.Title));
             if (withDescription)
             {
-                var description = textSanitiser.ExtractDescription(episode.Description, string.Empty);
-                matchCount += CountMatches(term, WebUtility.HtmlDecode(description));
+                matchCount += CountMatches(term, WebUtility.HtmlDecode(episode.Description));
             }
 
             if (matchCount > 0)
