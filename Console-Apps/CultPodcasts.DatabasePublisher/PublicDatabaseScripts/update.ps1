@@ -14,36 +14,47 @@ this repo (and commits / pushes) when -Apply is given.
 4. Reports files added / removed / changed against the repo, the migrations from the manifest, and, for each
    migration, whether git would see a rename (R) or a delete + add. Without -Apply this is worked out with a
    throw-away git index and object store, so the repo (files, index, objects) is not touched at all.
-5. Only with -Apply: copies the working folder's *.json into the repo (removing the ones the publisher removed),
-   stages the top-level *.json (git add -A restricted to them), re-checks 'git diff --cached -M --name-status'
-   against the manifest, commits, and pushes unless -SkipPush is given.
+5. Only with -Apply: first checks the repo (nothing staged, no modified or untracked top-level *.json, a named
+   branch and, unless -SkipPush, an upstream that is not ahead of this branch after a fetch), then copies the
+   working folder's *.json into the repo (removing the ones the publisher removed), stages the top-level *.json
+   (git add -A restricted to them), re-checks 'git diff --cached -M --name-status' against the manifest, commits,
+   and PUSHES unless -SkipPush is given (to the branch's upstream, named before anything is copied).
 
 Publisher exit codes: 0 published; 1 refused (inconsistent data or an unexplained vanished item; nothing was
 changed); 2 unusable arguments or folder; 3 unexpected failure (the working folder may be partly updated; it is
 rebuilt from the repo on the next run). Whatever the code, the repo is untouched unless -Apply got past it.
 
+.PARAMETER CommitDate
+The date in the commit message 'New episodes <d MMMM yyyy>' (only used with -Apply). Default: today.
 .PARAMETER Apply
-Copy the published result into the repo, stage, check renames, commit (and push unless -SkipPush).
+Copy the published result into the repo, stage, check renames, commit, and push unless -SkipPush is given.
+Plain -Apply PUSHES; use -Apply -SkipPush to review the commit before pushing it yourself.
 .PARAMETER SkipPush
-Do not push after committing (only relevant with -Apply).
+Do not push after committing (only relevant with -Apply). The upstream checks are then skipped too.
 .PARAMETER WorkFolder
-Folder to publish into. Must be outside this repo. Reused between runs only if this script created it.
+Folder to publish into. Must be outside this repo. Reused between runs only if this script created it. A relative
+path is relative to PowerShell's current location. Default: 'PublicDatabase-publish' beside this repo.
 .PARAMETER AcceptRemoval
 File key or id of a removal you have checked and accept (repeatable); passed to --accept-removal.
 .PARAMETER PublisherExe
 Override the publisher path (for testing). The default is the CultPodcasts.DatabasePublisher exe in the
 artifacts\tools folder of the RedditPodcastPoster repo (see -SourceRepo).
 .PARAMETER SourceRepo
-The RedditPodcastPoster clone. It is used to find the default publisher exe (artifacts\tools) and to look up the
-commit the exe was built from, to check that it is new enough. Default: '..\cultpodcasts\RedditPodcastPoster'
-next to this repo.
+The RedditPodcastPoster clone. It is used to find the default publisher exe (artifacts\tools), to look up the
+commit the exe was built from (to check that it is new enough), and to check that this copy of the script is the
+same as the one at that clone's HEAD. Default, a per-machine convention: with this repo at <repos>\PublicDatabase,
+the clone at <repos>\cultpodcasts\RedditPodcastPoster (a 'cultpodcasts' folder beside this repo that holds the
+clone). Pass -SourceRepo when the clone is elsewhere. A relative path is relative to PowerShell's location.
 
 .NOTES
 The source of truth for this script is Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1
 in the RedditPodcastPoster repo. It runs from a copy in the root of the PublicDatabase repo (it works on the
-folder it is in), so copy it there again after every change and compare the version it prints ($ScriptVersion
-below). Run with -PublisherExe and -SourceRepo when the clone or the exe is not in the default place.
+folder it is in, and refuses to run from anywhere else), so copy it there again after every change. On every run
+it compares itself (line endings ignored) with the script at HEAD of -SourceRepo and warns when they differ.
+Run with -PublisherExe and -SourceRepo when the clone or the exe is not in the default place.
+Written for and tested with PowerShell (5.1 and 7) on Windows; pwsh on other platforms is untested.
 #>
+#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [datetime]$CommitDate = (Get-Date),
@@ -55,9 +66,12 @@ param(
     [string]$SourceRepo
 )
 
-# Bump this when the script changes, and copy the script into the PublicDatabase repo again: a copy whose version
-# differs from the one in RedditPodcastPoster is stale.
-$ScriptVersion = '1.0.0'
+# A human-readable label, printed at the start. Bump it when the script changes. Staleness is not judged by it: the
+# script compares its own content with the copy at HEAD of -SourceRepo (see Test-ScriptIsCurrent).
+$ScriptVersion = '1.1.0'
+
+# The script's path inside the RedditPodcastPoster repo, as git names it.
+$SourceScriptGitPath = 'Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1'
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -92,6 +106,85 @@ function Invoke-ExternalCommand {
     return $output
 }
 
+# Paths are compared ignoring case on Windows (the file system does) and exactly elsewhere.
+$PathComparison = if ([System.IO.Path]::DirectorySeparatorChar -eq '\') { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+
+# A path from the user, made absolute against PowerShell's current location (not the .NET process directory),
+# normalised, and without a trailing separator. The path does not have to exist.
+function Resolve-UserPath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    return [System.IO.Path]::GetFullPath($resolved).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+}
+
+# True when $Path is $Root or inside it.
+function Test-PathIsWithin {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    return $Path.Equals($Root, $PathComparison) -or
+        $Path.StartsWith($Root + [System.IO.Path]::DirectorySeparatorChar, $PathComparison)
+}
+
+# A hashtable whose keys are compared exactly, so file keys that differ only in case stay distinct (the publisher
+# treats them as a delete plus a create).
+function New-OrdinalTable {
+    return New-Object System.Collections.Hashtable ([System.StringComparer]::Ordinal)
+}
+
+# The raw bytes git prints for a command (no PowerShell line splitting or re-encoding), or $null if git fails.
+function Get-GitOutputBytes {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = 'git'
+    $startInfo.Arguments = (($Arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join ' ')
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    try {
+        $errorTask = $process.StandardError.ReadToEndAsync()
+        $buffer = New-Object System.IO.MemoryStream
+        $process.StandardOutput.BaseStream.CopyTo($buffer)
+        $process.WaitForExit()
+        [void]$errorTask.Result
+        if ($process.ExitCode -ne 0) {
+            return $null
+        }
+
+        return , $buffer.ToArray()
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
+# SHA-256 of a script's text with line endings normalised (CRLF -> LF) and any UTF-8 BOM dropped: the repo blob is
+# LF while a Windows checkout and the PublicDatabase copy are CRLF (.gitattributes text=auto).
+function Get-NormalisedTextHash {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][byte[]]$Bytes)
+
+    $text = (New-Object System.Text.UTF8Encoding $false).GetString($Bytes)
+    if ($text.Length -gt 0 -and $text[0] -eq [char]0xFEFF) {
+        $text = $text.Substring(1)
+    }
+
+    $text = $text.Replace("`r`n", "`n")
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return [System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($text))).Replace('-', '')
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
 # The top-level *.json files of a folder, the only files the publisher reads or writes.
 function Get-JsonFiles {
     param([Parameter(Mandatory)][string]$Folder)
@@ -104,7 +197,7 @@ function Get-JsonFiles {
 function Get-JsonHashes {
     param([Parameter(Mandatory)][string]$Folder)
 
-    $hashes = @{}
+    $hashes = New-OrdinalTable
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
         foreach ($file in (Get-JsonFiles -Folder $Folder)) {
@@ -142,7 +235,7 @@ function Assert-PublisherSupportsMigrations {
     }
 
     if (-not (Test-Path -LiteralPath (Join-Path $SourceRepo '.git'))) {
-        throw "Cannot confirm the publisher is new enough: the source repo '$SourceRepo' was not found. Pass the RedditPodcastPoster clone with -SourceRepo (by default it is expected next to this repo, at ..\cultpodcasts\RedditPodcastPoster)."
+        throw "Cannot confirm the publisher is new enough: the source repo '$SourceRepo' was not found. Pass the RedditPodcastPoster clone with -SourceRepo (by default it is expected in a 'cultpodcasts' folder beside this repo: <repos>\cultpodcasts\RedditPodcastPoster for <repos>\PublicDatabase)."
     }
 
     $ErrorActionPreference = 'Continue'
@@ -162,31 +255,38 @@ function Assert-PublisherSupportsMigrations {
     return [string]$hash
 }
 
-# Warns (never fails) when this copy of the script is not the version that sits beside the publisher's commit in
-# RedditPodcastPoster, so a stale copy in the PublicDatabase repo is noticed.
+# Warns (never fails) when this copy of the script differs from the script at HEAD of the RedditPodcastPoster clone
+# (the source of truth), ignoring line endings, so a stale copy in the PublicDatabase repo is noticed. HEAD is the
+# clone's checked-out commit: pull the clone first to compare with the latest main.
 function Test-ScriptIsCurrent {
     param(
-        [Parameter(Mandatory)][string]$PublisherHash,
+        [Parameter(Mandatory)][string]$ScriptPath,
         [Parameter(Mandatory)][string]$SourceRepo,
         [Parameter(Mandatory)][string]$ThisVersion
     )
 
-    $ErrorActionPreference = 'Continue'
-    $theirs = (& git -C $SourceRepo show "${PublisherHash}:Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1" 2>$null | Out-String)
-    $showExit = $LASTEXITCODE
-    $ErrorActionPreference = 'Stop'
+    if (-not (Test-Path -LiteralPath (Join-Path $SourceRepo '.git'))) {
+        Write-Warning "Could not check that this copy of update.ps1 is current: the source repo '$SourceRepo' was not found."
+        return
+    }
 
-    if ($showExit -ne 0) {
-        Write-Host "Script version $ThisVersion (the publisher's commit has no copy of this script to compare with)."
+    $theirs = Get-GitOutputBytes -Arguments @('-C', $SourceRepo, 'show', "HEAD:$SourceScriptGitPath")
+    if ($null -eq $theirs) {
+        Write-Warning "Could not check that this copy of update.ps1 is current: HEAD of '$SourceRepo' has no $SourceScriptGitPath (an old checkout or another branch)."
+        return
     }
-    elseif ($theirs -match '(?m)^\$ScriptVersion\s*=\s*''([^'']+)''') {
-        if ($Matches[1] -eq $ThisVersion) {
-            Write-Host "Script version $ThisVersion matches the one beside the publisher's commit."
-        }
-        else {
-            Write-Warning "This copy of update.ps1 is version $ThisVersion but the publisher's commit has version $($Matches[1]). Copy Console-Apps\CultPodcasts.DatabasePublisher\PublicDatabaseScripts\update.ps1 from RedditPodcastPoster over this file."
-        }
+
+    $mine = Get-NormalisedTextHash -Bytes ([System.IO.File]::ReadAllBytes($ScriptPath))
+    if ($mine -eq (Get-NormalisedTextHash -Bytes $theirs)) {
+        Write-Host "This copy of update.ps1 (version $ThisVersion) is identical to the one at HEAD of '$SourceRepo'."
+        return
     }
+
+    $theirText = (New-Object System.Text.UTF8Encoding $false).GetString($theirs)
+    $theirVersion = if ($theirText -match '(?m)^\$ScriptVersion\s*=\s*''([^'']+)''') { $Matches[1] } else { 'no version line' }
+    Write-Warning ("This copy of update.ps1 (version $ThisVersion) differs from the one at HEAD of '$SourceRepo' (version $theirVersion). " +
+        "If the clone is up to date, this copy is stale: copy $SourceScriptGitPath from the clone over '$ScriptPath'. " +
+        "If this copy was edited here, move the edit into the clone instead (the clone is the source of truth). If the clone is behind, pull it.")
 }
 
 # 'git diff --cached -M --name-status' as it would be if the working folder's *.json were staged in the repo,
@@ -244,10 +344,10 @@ function Get-MigrationGitRows {
         [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$NameStatus
     )
 
-    $renamed = @{}
-    $deleted = @{}
-    $added = @{}
-    $modified = @{}
+    $renamed = New-OrdinalTable
+    $deleted = New-OrdinalTable
+    $added = New-OrdinalTable
+    $modified = New-OrdinalTable
     foreach ($line in $NameStatus) {
         $parts = $line -split "`t"
         $code = $parts[0]
@@ -263,7 +363,7 @@ function Get-MigrationGitRows {
     foreach ($migration in $Migrations) {
         $old = [string]$migration.oldFile
         $new = [string]$migration.newFile
-        if ($renamed.ContainsKey($old) -and $renamed[$old].New -eq $new) {
+        if ($renamed.ContainsKey($old) -and $renamed[$old].New -ceq $new) {
             $result = 'rename'
             $detail = "R$($renamed[$old].Score)"
         }
@@ -395,21 +495,47 @@ function Write-RefusalSummary {
 
 Write-Host "update.ps1 version $ScriptVersion"
 
-$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not $SourceRepo) {
-    $SourceRepo = Join-Path $repoRoot '..\cultpodcasts\RedditPodcastPoster'
+$scriptPath = $PSCommandPath
+if (-not $PSScriptRoot -or -not $scriptPath) {
+    throw "update.ps1 must be run as a script file (.\update.ps1 from the root of the PublicDatabase repo), not dot-sourced or pasted."
 }
 
-$sourceRepoPath = if (Test-Path -LiteralPath $SourceRepo) { (Resolve-Path -LiteralPath $SourceRepo).ProviderPath } else { $SourceRepo }
-if ($PublisherExe) {
-    if (-not (Test-Path -LiteralPath $PublisherExe -PathType Leaf)) {
-        throw "Publisher '$PublisherExe' was not found."
-    }
+$repoRoot = Resolve-UserPath -Path $PSScriptRoot
+if (-not $SourceRepo) {
+    $SourceRepo = Join-Path (Join-Path (Split-Path -Parent $repoRoot) 'cultpodcasts') 'RedditPodcastPoster'
+}
 
-    $publisherPath = $PublisherExe
+$sourceRepoPath = Resolve-UserPath -Path $SourceRepo
+
+# The script works on the folder it is in, so that folder must be the root of the PublicDatabase checkout: not the
+# source copy in RedditPodcastPoster, and not a sub-folder (git would then work on the enclosing repo while the
+# sub-folder was treated as the baseline).
+$wrongPlace = "copy this script into the root of the PublicDatabase repo and run it from there (see Console-Apps/README.md in RedditPodcastPoster)."
+$ErrorActionPreference = 'Continue'
+$topLevel = (& git -C $repoRoot rev-parse --show-toplevel 2>$null | Select-Object -First 1)
+$topLevelExit = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($topLevelExit -ne 0 -or -not $topLevel) {
+    throw "'$repoRoot' is not inside a git repo: $wrongPlace"
+}
+
+$topLevelPath = Resolve-UserPath -Path ([string]$topLevel)
+if (-not $topLevelPath.Equals($repoRoot, $PathComparison)) {
+    throw "This script is in '$repoRoot', which is not the root of its git repo ('$topLevelPath'): $wrongPlace"
+}
+
+if (Test-PathIsWithin -Path $repoRoot -Root $sourceRepoPath) {
+    throw "This script is running from inside the source repo '$sourceRepoPath' (the source of truth is not a publish target): $wrongPlace"
+}
+
+if ($PublisherExe) {
+    $publisherPath = Resolve-UserPath -Path $PublisherExe
+    if (-not (Test-Path -LiteralPath $publisherPath -PathType Leaf)) {
+        throw "Publisher '$publisherPath' was not found."
+    }
 }
 else {
-    $publisherBasePath = Join-Path $sourceRepoPath 'artifacts\tools\CultPodcasts.DatabasePublisher'
+    $publisherBasePath = Join-Path (Join-Path (Join-Path $sourceRepoPath 'artifacts') 'tools') 'CultPodcasts.DatabasePublisher'
     $publisherPath = @(
         "$publisherBasePath.exe",
         $publisherBasePath
@@ -425,12 +551,13 @@ if (-not $WorkFolder) {
     $WorkFolder = Join-Path (Split-Path -Parent $repoRoot) 'PublicDatabase-publish'
 }
 
-$workFolderPath = [System.IO.Path]::GetFullPath($WorkFolder).TrimEnd('\', '/')
-$repoFullPath = [System.IO.Path]::GetFullPath($repoRoot).TrimEnd('\', '/')
-if ($workFolderPath.Equals($repoFullPath, [System.StringComparison]::OrdinalIgnoreCase) -or
-    $workFolderPath.StartsWith($repoFullPath + '\', [System.StringComparison]::OrdinalIgnoreCase) -or
-    $repoFullPath.StartsWith($workFolderPath + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "The working folder '$workFolderPath' must be outside the repo '$repoFullPath'."
+$workFolderPath = Resolve-UserPath -Path $WorkFolder
+if ((Test-PathIsWithin -Path $workFolderPath -Root $repoRoot) -or (Test-PathIsWithin -Path $repoRoot -Root $workFolderPath)) {
+    throw "The working folder '$workFolderPath' must be outside the repo '$repoRoot'."
+}
+
+if ($SkipPush -and -not $Apply) {
+    Write-Host '-SkipPush has no effect without -Apply (a preview never commits or pushes).'
 }
 
 $manifestPath = $workFolderPath + '.migrations.json'
@@ -441,20 +568,64 @@ $commitMessage = 'New episodes {0}' -f $CommitDate.ToString('d MMMM yyyy', [Syst
 Push-Location $repoRoot
 
 try {
-    $publisherHash = Assert-PublisherSupportsMigrations -Publisher $publisherPath -SourceRepo $sourceRepoPath
-    Test-ScriptIsCurrent -PublisherHash $publisherHash -SourceRepo $sourceRepoPath -ThisVersion $ScriptVersion
+    [void](Assert-PublisherSupportsMigrations -Publisher $publisherPath -SourceRepo $sourceRepoPath)
+    Test-ScriptIsCurrent -ScriptPath $scriptPath -SourceRepo $sourceRepoPath -ThisVersion $ScriptVersion
 
     $repoFiles = Get-JsonFiles -Folder $repoRoot
     if ($repoFiles.Count -eq 0) {
         throw "The repo has no top-level *.json files to use as the baseline; this script does not do a first publish."
     }
 
+    $dirtyJson = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'status', '--porcelain', '--', ':(glob)*.json') -CaptureOutput -Description 'Checking the JSON files are committed' | Where-Object { $_ })
+    $pushTarget = $null
     if ($Apply) {
+        # Everything -Apply needs is checked here, before anything is copied, staged or committed.
         $staged = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('diff', '--cached', '--name-only') -CaptureOutput -Description 'Checking for staged changes' | Where-Object { $_ })
-        $dirtyJson = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('status', '--porcelain', '--', ':(glob)*.json') -CaptureOutput -Description 'Checking the JSON files are committed' | Where-Object { $_ })
         if ($staged.Count -gt 0 -or $dirtyJson.Count -gt 0) {
-            throw "-Apply needs a repo with nothing staged and no modified or untracked top-level *.json files, so the data commit holds only this publish. Commit, stash or restore them first."
+            throw "-Apply needs a repo with nothing staged and no modified or untracked top-level *.json files, so the data commit holds only this publish. Commit, stash or restore them first. Nothing was changed."
         }
+
+        $ErrorActionPreference = 'Continue'
+        $branch = (& git symbolic-ref --quiet --short HEAD 2>$null | Select-Object -First 1)
+        $branchExit = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        if ($branchExit -ne 0 -or -not $branch) {
+            throw "-Apply needs a checked-out branch to commit to, but HEAD is detached. Check out the branch (normally main) first. Nothing was changed."
+        }
+
+        if ($SkipPush) {
+            Write-Host "Will commit to branch '$branch' and not push (-SkipPush)."
+        }
+        else {
+            $ErrorActionPreference = 'Continue'
+            $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null | Select-Object -First 1)
+            $upstreamExit = $LASTEXITCODE
+            $remote = (& git config --get "branch.$branch.remote" 2>$null | Select-Object -First 1)
+            $mergeRef = (& git config --get "branch.$branch.merge" 2>$null | Select-Object -First 1)
+            $ErrorActionPreference = 'Stop'
+            if ($upstreamExit -ne 0 -or -not $upstream -or -not $remote -or -not $mergeRef -or $remote -eq '.') {
+                throw "-Apply pushes, but branch '$branch' has no upstream on a remote. Set one (git branch --set-upstream-to=origin/$branch) or use -Apply -SkipPush and push yourself. Nothing was changed."
+            }
+
+            Write-Host "Fetching $remote to check '$branch' is not behind $upstream..."
+            Invoke-ExternalCommand -FilePath 'git' -Arguments @('fetch', '--quiet', $remote) -Description "Fetching $remote" | Out-Null
+            $behind = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', 'HEAD..@{u}') -CaptureOutput -Description 'Counting commits behind the upstream' | Select-Object -First 1)
+            if ($behind -gt 0) {
+                throw "Branch '$branch' is $behind commit(s) behind $upstream, so this publish would be based on a stale baseline and the push would be rejected. Pull first (git pull --ff-only), then run again. Nothing was changed."
+            }
+
+            $ahead = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', '@{u}..HEAD') -CaptureOutput -Description 'Counting commits ahead of the upstream' | Select-Object -First 1)
+            if ($ahead -gt 0) {
+                Write-Warning "Branch '$branch' already has $ahead commit(s) that are not on $upstream; the push will send them too."
+            }
+
+            $pushTarget = [pscustomobject]@{ Remote = [string]$remote; Ref = [string]$mergeRef; Branch = [string]$branch; Upstream = [string]$upstream }
+            Write-Host "Will commit to branch '$branch' and push it to $remote ($upstream) at the end. Use -Apply -SkipPush to review the commit first." -ForegroundColor Yellow
+        }
+    }
+    elseif ($dirtyJson.Count -gt 0) {
+        Write-Warning ("The repo has $($dirtyJson.Count) modified or untracked top-level *.json file(s). The Added/Removed/Changed lists compare with " +
+            "these working-tree files, but the git rename view compares with HEAD, so the two can disagree. -Apply refuses until they are committed, stashed or restored.")
     }
 
     $repoHashes = Get-JsonHashes -Folder $repoRoot
@@ -548,7 +719,7 @@ try {
     $addedFiles = @($workHashes.Keys | Where-Object { -not $repoHashes.ContainsKey($_) } | Sort-Object)
     $removedFiles = @($repoHashes.Keys | Where-Object { -not $workHashes.ContainsKey($_) } | Sort-Object)
     $changedFiles = @($workHashes.Keys | Where-Object { $repoHashes.ContainsKey($_) -and $repoHashes[$_] -ne $workHashes[$_] } | Sort-Object)
-    $migratedOld = @{}
+    $migratedOld = New-OrdinalTable
     foreach ($migration in $migrations) { $migratedOld[[string]$migration.oldFile] = $true }
     $removedUnexplained = @($removedFiles | Where-Object { -not $migratedOld.ContainsKey($_) })
 
@@ -567,6 +738,10 @@ try {
 
     if (-not $Apply) {
         if ($changeCount -gt 0) {
+            if ($dirtyJson.Count -gt 0) {
+                Write-Warning 'The rename view below compares with HEAD, not with the uncommitted *.json files in the working tree (see the warning above).'
+            }
+
             $previewStatus = @(Get-PreviewNameStatus -RepoRoot $repoRoot -Folder $workFolderPath)
             Write-MigrationGitReport -Rows @(Get-MigrationGitRows -Migrations $migrations -NameStatus $previewStatus) -Label 'preview with a temporary index; the repo is untouched'
         }
@@ -580,7 +755,7 @@ try {
         }
 
         Write-Host ''
-        Write-Host 'The repo was not changed. Review the above and the working folder, then run again with -Apply to copy the result into the repo, stage, commit and (without -SkipPush) push. Apply publishes afresh, so it can differ if the data changed meanwhile.'
+        Write-Host 'The repo was not changed. Review the above and the working folder, then run again with -Apply -SkipPush to copy the result into the repo, stage and commit it for review (plain -Apply also pushes). Apply publishes afresh, so it can differ if the data changed meanwhile.'
         return
     }
 
@@ -638,8 +813,9 @@ try {
         return
     }
 
-    Write-Host 'Pushing to remote...'
-    Invoke-ExternalCommand -FilePath 'git' -Arguments @('push') -Description 'Pushing git changes' | Out-Null
+    # Pushed explicitly to the upstream checked before anything was copied, never to whatever a bare 'git push' picks.
+    Write-Host "Pushing '$($pushTarget.Branch)' to $($pushTarget.Remote) ($($pushTarget.Upstream))..."
+    Invoke-ExternalCommand -FilePath 'git' -Arguments @('push', $pushTarget.Remote, "HEAD:$($pushTarget.Ref)") -Description 'Pushing git changes' | Out-Null
 }
 finally {
     Pop-Location
