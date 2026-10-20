@@ -4,9 +4,12 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.TheTvdb.Extensions;
+using RedditPodcastPoster.Tmdb.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -21,6 +24,10 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddRepositories()
+    .AddTmdbClient()
+    .AddTheTvdbClient()
+    .AddScoped<ICatalogueAuthorityLookup, CatalogueAuthorityLookup>()
+    .AddScoped<ICatalogueAuthorityPreviewer, CatalogueAuthorityPreviewer>()
     .AddScoped<CatalogueMigrateIdentifyProcessor>();
 
 using var host = builder.Build();

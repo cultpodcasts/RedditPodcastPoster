@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
             .AddTmdbClient()
             .AddTheTvdbClient()
             .AddScoped<ICatalogueAuthorityLookup, CatalogueAuthorityLookup>()
+            .AddScoped<ICatalogueAuthorityPreviewer, CatalogueAuthorityPreviewer>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
             .AddSingleton<IFoundEpisodeFilter, FoundEpisodeFilter>()
             .AddScoped<IEpisodeResolver, EpisodeResolver>()

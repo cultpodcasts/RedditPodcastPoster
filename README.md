@@ -156,7 +156,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
 }
 ```
 
-`tmdb:ApiKey` (Azure app setting `tmdb__ApiKey`, Key Vault secret `Tmdb-ApiKey`) is the TMDB API Read Access Token, sent as `Authorization: Bearer`. It is not a v3 query key.
+`tmdb:ApiKey` (Azure app setting `tmdb__ApiKey`, Key Vault secret `Tmdb-ApiKey`) is either a TMDB v3 API key, sent as the `api_key` query parameter, or a read-access token (a JWT), sent as `Authorization: Bearer`.
 
 `thetvdb:ApiKey` (Azure app setting `thetvdb__ApiKey`, Key Vault secret `TheTvdb-ApiKey`) is the TheTVDB API v4 project key. It is sent in the login body, then calls use the returned bearer token.
 

@@ -88,7 +88,7 @@ public sealed class TmdbClient(
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        ApplyCredential(request);
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -102,6 +102,24 @@ public sealed class TmdbClient(
         }
 
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A read-access token is a JWT and is sent as Bearer.
+    /// A v3 API key has no dots and is sent as <c>api_key</c>. Sending that key as Bearer is a 401.
+    /// </summary>
+    private void ApplyCredential(HttpRequestMessage request)
+    {
+        var key = _options.ApiKey.Trim();
+        if (key.Contains('.', StringComparison.Ordinal))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+            return;
+        }
+
+        var relative = request.RequestUri?.OriginalString ?? string.Empty;
+        var separator = relative.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        request.RequestUri = new Uri(relative + separator + "api_key=" + Uri.EscapeDataString(key), UriKind.Relative);
     }
 
     private static TmdbSearchHit MapHit(TmdbListedTitleDto item, TmdbTitleKind kind)

@@ -137,6 +137,7 @@ public class TmdbClientRules
         var seriesId = CreateTmdbId();
         var name = _fixture.CreateTitle();
         var imdbId = "tt" + _fixture.CreateAppleId();
+        _options.ApiKey = string.Join('.', _fixture.CreateYouTubeId(), _fixture.CreateYouTubeId(), _fixture.CreateYouTubeId());
         _handler.Enqueue(HttpStatusCode.OK, DetailsJson(seriesId, name, imdbId, tvdbId: null, year: DomainTestFixture.UtcToday.Year));
         var sut = _mocker.CreateInstance<TmdbClient>();
 
@@ -153,6 +154,31 @@ public class TmdbClientRules
         request.RequestUri.Should().NotBeNull();
         request.RequestUri!.OriginalString.Should().NotContain(_options.ApiKey);
         request.RequestUri.Query.Should().NotContain("api_key");
+    }
+
+    [Fact(DisplayName =
+        "A TMDB v3 API key is sent as the api_key query parameter and not as a bearer token, because that key is not a read-access token.")]
+    public async Task v3_api_key_is_a_query_parameter()
+    {
+        // Arrange
+        var apiKey = Convert.ToHexString(BitConverter.GetBytes(_fixture.CreateAppleId()))
+            .PadRight(32, 'a')[..32]
+            .ToLowerInvariant();
+        _options.ApiKey = apiKey;
+        var name = _fixture.CreateTitle();
+        _handler.Enqueue(HttpStatusCode.OK, SearchJson(CreateTmdbId(), name, DomainTestFixture.UtcToday.Year));
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hits = await sut.SearchTvAsync(name);
+
+        // Assert
+        hits.Should().ContainSingle();
+        _handler.Requests.Should().ContainSingle();
+        var request = _handler.Requests[0];
+        request.Headers.Authorization.Should().BeNull();
+        request.RequestUri.Should().NotBeNull();
+        request.RequestUri!.Query.Should().Contain("api_key=" + apiKey);
     }
 
     [Fact(DisplayName =
