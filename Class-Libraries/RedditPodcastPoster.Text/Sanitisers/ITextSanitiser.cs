@@ -14,4 +14,11 @@ public interface ITextSanitiser
     string SanitiseDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, Regex? descriptionRegex);
     string ExtractDescription(string episodeDescription, string descriptionRegex);
+
+    /// <summary>
+    /// As <see cref="ExtractDescription(string, string)"/>, additionally expanding the
+    /// <c>{episode-title}</c> and <c>{podcast-name}</c> tokens of <paramref name="descriptionRegex"/>.
+    /// </summary>
+    string ExtractDescription(string episodeDescription, string descriptionRegex, string? episodeTitle,
+        string? podcastName);
 }

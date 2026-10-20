@@ -268,6 +268,7 @@ public class HomepagePublisher(
 
     private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
+        var rawEpisodeTitle = podcastResult.EpisodeTitle;
         Regex? titleRegex = null;
         if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
         {
@@ -286,11 +287,11 @@ public class HomepagePublisher(
             subjectKnownTerms,
             podcastResult.Language);
 
-        Regex? descRegex = null;
-        if (!string.IsNullOrWhiteSpace(podcastResult.DescriptionRegex))
-        {
-            descRegex = new Regex(podcastResult.DescriptionRegex, Podcast.DescriptionFlags);
-        }
+        // The description regex tokens ({episode-title}, {podcast-name}) refer to the unsanitised title.
+        var descRegex = DescriptionRegexTokens.Create(
+            podcastResult.DescriptionRegex,
+            rawEpisodeTitle,
+            podcastResult.PodcastName);
 
         podcastResult.EpisodeDescription =
             textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);

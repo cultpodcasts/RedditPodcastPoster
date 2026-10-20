@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Text.Models;
 using RedditPodcastPoster.Text.TitleCasing;
@@ -97,9 +98,18 @@ public partial class TextSanitiser(
 
     public string ExtractDescription(string episodeDescription, string descriptionRegex)
     {
-        if (!string.IsNullOrWhiteSpace(descriptionRegex))
+        return ExtractDescription(episodeDescription, descriptionRegex, null, null);
+    }
+
+    public string ExtractDescription(
+        string episodeDescription,
+        string descriptionRegex,
+        string? episodeTitle,
+        string? podcastName)
+    {
+        var regex = DescriptionRegexTokens.Create(descriptionRegex, episodeTitle, podcastName);
+        if (regex != null)
         {
-            var regex = new Regex(descriptionRegex!, RegexOptions.IgnoreCase | RegexOptions.Singleline);
             return ExtractDescription(episodeDescription, regex);
         }
 

@@ -10,6 +10,7 @@ using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Dtos.Mapping;
@@ -48,9 +49,7 @@ public class EpisodeDtoMapper(
             ? null
             : new Regex(podcast.TitleRegex, RegexOptions.IgnoreCase);
 
-        var descriptionRegex = string.IsNullOrWhiteSpace(podcast.DescriptionRegex)
-            ? null
-            : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var descriptionRegex = DescriptionRegexTokens.Create(podcast.DescriptionRegex, episode.Title, podcast.Name);
 
         EpisodeServicePresence.NormalizeCatalog(episode);
         var dto = new EpisodeDto

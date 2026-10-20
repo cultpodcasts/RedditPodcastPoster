@@ -6,6 +6,7 @@ using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -32,6 +33,19 @@ public class PodcastUpdateService(
                 "{method}: Podcast Change Request: episode-id: '{podcastId}'. {podcastChangeRequestWrapper}",
                 nameof(UpdateAsync), podcastChangeRequestWrapper.PodcastId,
                 JsonSerializer.Serialize(podcastChangeRequestWrapper.Podcast));
+            if (!DescriptionRegexTokens.TryValidate(podcastChangeRequestWrapper.Podcast.DescriptionRegex,
+                    out var descriptionRegexError))
+            {
+                // Tokens such as {episode-title} are expanded with sample values before validating.
+                logger.LogWarning(
+                    "{method}: Invalid description-regex for podcast-id '{podcastId}': {error}",
+                    nameof(UpdateAsync), podcastChangeRequestWrapper.PodcastId, descriptionRegexError);
+                return new PodcastUpdateResult(
+                    PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: $"Invalid description-regex: {descriptionRegexError}");
+            }
+
             var podcast = await podcastRepository.GetBy(x => x.Id == podcastChangeRequestWrapper.PodcastId);
             if (podcast == null)
             {

@@ -164,7 +164,8 @@ public class SubjectService(
         Episode episode,
         string[]? ignoredAssociatedSubjects = null,
         string[]? ignoredSubjects = null,
-        string? descriptionRegex = null)
+        string? descriptionRegex = null,
+        string? podcastName = null)
     {
         ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
         ignoredSubjects = ignoredSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
@@ -172,13 +173,15 @@ public class SubjectService(
         var subjects = await subjectRepository.GetAll().ToListAsync();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject,
-                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
+                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex,
+                    podcastName)))
             .Where(x => x.MatchResults.Any()).ToArray();
         if (!matches.Any() || matches.All(x => x.Subject.SubjectType == SubjectType.Meta || !x.Subject.IsVisible))
         {
             matches = subjects
                 .Select(subject => new SubjectMatch(subject,
-                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex)))
+                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex,
+                        podcastName)))
                 .Where(x => x.MatchResults.Any()).ToArray();
         }
 
@@ -191,7 +194,8 @@ public class SubjectService(
         bool withDescription,
         string[]? ignoredAssociatedSubjects = null,
         string[]? ignoredSubjects = null,
-        string? descriptionRegex = null)
+        string? descriptionRegex = null,
+        string? podcastName = null)
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
@@ -213,7 +217,11 @@ public class SubjectService(
                     if (withDescription)
                     {
                         var episodeDescription =
-                            textSanitiser.ExtractDescription(episode.Description, descriptionRegex ?? string.Empty);
+                            textSanitiser.ExtractDescription(
+                                episode.Description,
+                                descriptionRegex ?? string.Empty,
+                                episode.Title,
+                                podcastName);
                         var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
                         if (descMatch > 0)
                         {

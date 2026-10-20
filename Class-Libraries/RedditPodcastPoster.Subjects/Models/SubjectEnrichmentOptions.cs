@@ -6,4 +6,5 @@ public record SubjectEnrichmentOptions(
     string[]? IgnoredAssociatedSubjects,
     string[]? IgnoredSubjects,
     string? DefaultSubject,
-    string DescriptionRegex);
+    string DescriptionRegex,
+    string PodcastName = "");

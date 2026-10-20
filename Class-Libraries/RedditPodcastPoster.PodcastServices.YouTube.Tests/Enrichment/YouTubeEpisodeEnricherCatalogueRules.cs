@@ -319,6 +319,73 @@ public class YouTubeEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "When the podcast description regex uses the {episode-title} token, the enricher expands it with the " +
+        "episode title and the title prefix is stripped from the YouTube video description.")]
+    public async Task enrich_expands_episode_title_token_in_description_regex()
+    {
+        // Arrange
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithDescription(string.Empty));
+        var rawDescription = youTubeInput.Title + "Real description follows";
+        var sanitizedDescription = "Real description follows";
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.DescriptionRegex = @"^\s*{episode-title}\s*(?<body>.*)$";
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Title = youTubeInput.Title;
+                e.Length = youTubeInput.Duration;
+                e.ReleaseUtc = youTubeInput.Release;
+                e.Description = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
+                e.Urls = new ServiceUrls();
+            })
+            .Create();
+        var textSanitiser = _mocker.GetMock<ITextSanitiser>();
+        textSanitiser
+            .Setup(x => x.SanitiseDescription(
+                rawDescription,
+                It.IsAny<Regex>()))
+            .Returns((string description, Regex regex) => regex.Match(description).Groups["body"].Value);
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
+        videoService
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                true,
+                It.IsAny<bool>()))
+            .ReturnsAsync([
+                new Google.Apis.YouTube.v3.Data.Video
+                {
+                    Id = youTubeInput.YouTubeId,
+                    Snippet = new VideoSnippet { Description = rawDescription }
+                }
+            ]);
+        var sut = CreateEnricher(
+            resolver.Object,
+            videoService.Object,
+            textSanitiser.Object);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            new EnrichmentContext());
+
+        // Assert
+        episode.Description.Should().Be(sanitizedDescription);
+        textSanitiser.Verify(
+            x => x.SanitiseDescription(rawDescription, It.IsAny<Regex>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
         "When Apple identity is missing and the stored release is midnight UTC, a matching YouTube catalogue item " +
         "backfills publish time-of-day on the same calendar date.")]
     public async Task enrich_backfills_release_time_when_apple_missing_and_stored_release_is_midnight()
