@@ -585,15 +585,53 @@ Git only sees the final tree and pairs an old and a new file by content similari
 | `--accept-removal <file key or id>` | Repeatable. Accept one unexplained removal after checking it: that file is deleted and the run continues. An accepted value that matches no unexplained removal blocks the run, so a stale flag is not ignored. |
 | `--discard-staging` | Delete the `*.json.tmp` files an interrupted run left in the output folder before running. Without it, their presence refuses the run (exit 2). |
 | `--migrations-out <path>` | Write the migration manifest (above) to this path before the folder is changed. Must be outside the output folder. |
-| `--use-v2` | Ignored (legacy; `update.ps1` still passes it). |
+| `--use-v2` | Ignored (legacy). |
 
 Exit codes: `0` published; `1` the data cannot be published consistently (a file-key or id problem, or unexplained removals, in which case nothing was changed); `2` the arguments or the output folder are unusable (a missing folder, one wrongly empty or populated, a `--migrations-out` path inside it), or staged files from an interrupted run are present (nothing was changed); `3` an unexpected failure (for example Cosmos or the disk): the folder is unchanged unless the message says it may be partly updated, in which case run `git status` and then `--discard-staging`.
 
 The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
 
-`update.ps1` in the PublicDatabase repo must stop deleting the `*.json` files before it runs the publisher (the publisher needs them as the baseline); that change is tracked in cultpodcasts/RedditPodcastPoster#1040 and is made once this change is settled. It already stops on a non-zero exit, so nothing is committed after a failed check.
-
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
+
+#### `update.ps1`: publishing into the PublicDatabase repo
+
+`CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1` is the script that publishes the public database into the PublicDatabase repo (it replaced the old script that deleted every `*.json` first; the publisher now needs those files as its baseline). **The copy in this repo is the source of truth.** The script works on the folder it sits in, so it runs from a copy in the root of the PublicDatabase checkout:
+
+```powershell
+Copy-Item <RedditPodcastPoster>\Console-Apps\CultPodcasts.DatabasePublisher\PublicDatabaseScripts\update.ps1 <PublicDatabase>\update.ps1
+```
+
+**The PublicDatabase copy must be refreshed by copying again after every change to the script here.** On every run the script compares its own content (line endings ignored, since the repo stores LF and a Windows checkout has CRLF) with the script at the checked-out `HEAD` of the `-SourceRepo` clone and warns when they differ, so a stale copy is spotted without relying on anyone bumping a number; pull the clone first to compare with the latest `main`. The check only warns, and says so when it cannot compare (no clone, or no script at its `HEAD`). The `$ScriptVersion` line is a human-readable label printed at the start (`update.ps1 version X`); bump it with each change. Edit the script here, never in PublicDatabase.
+
+The script refuses to run from anywhere but the root of a git checkout that is not inside the `-SourceRepo` clone, so running the source copy here, or a copy in a sub-folder, stops at once with a message pointing back to this section.
+
+Before running it, publish the exe from a RedditPodcastPoster checkout that has the change you want: `pwsh scripts/publish-console-apps.ps1 -App CultPodcasts.DatabasePublisher` (to `artifacts\tools`). The script finds the exe and the clone through `-SourceRepo` and refuses an exe built before `--migrations-out` existed, by looking its commit up in that clone; `-PublisherExe` points it at an exe somewhere else, such as a temporary publish of a branch. The default `-SourceRepo` is a per-machine convention, not a requirement: with the checkout at `<repos>\PublicDatabase` it is `<repos>\cultpodcasts\RedditPodcastPoster` (a `cultpodcasts` folder beside the PublicDatabase checkout that holds the clone). Pass `-SourceRepo` when the clone is elsewhere. Relative `-SourceRepo`, `-WorkFolder` and `-PublisherExe` values are resolved against PowerShell's current location.
+
+The script is written for and tested with PowerShell (Windows PowerShell 5.1 and pwsh 7) on Windows. It builds paths with `Join-Path` and compares file keys case-sensitively, but pwsh on Linux or macOS is untested.
+
+```powershell
+.\update.ps1                                  # preview (the default): the repo is not touched
+.\update.ps1 -AcceptRemoval <id|file key>,... # after checking each unexplained removal the preview listed
+.\update.ps1 -Apply                           # copy the result in, stage, check renames, commit LOCALLY (never pushes)
+.\update.ps1 -Apply -CommitDate 2026-10-19    # commit message 'New episodes 19 October 2026' (default: today)
+#   ... review the commit (git show --stat HEAD); undo it with git reset --keep <sha printed by -Apply> ...
+.\update.ps1 -Push                            # push the reviewed commit(s), after the upstream checks below
+```
+
+A commit and a push never happen in the same run: a local commit can be undone, a push cannot. `-Apply` and `-Push` together are refused. `-SkipPush` (version 1.1) is gone, because `-Apply` no longer pushes; passing it fails at parameter binding rather than quietly meaning something else.
+
+```mermaid
+flowchart LR
+    P["update.ps1<br/>(preview)"] -->|review the lists,<br/>the work folder| A["update.ps1 -Apply<br/>(local commit)"]
+    A -->|review: git show --stat HEAD| R{happy?}
+    R -->|no| U["git reset --keep pre-sha<br/>(repo as before)"]
+    R -->|yes| S["update.ps1 -Push<br/>(checks, then push)"]
+```
+
+- **Preview** copies the repo's top-level `*.json` into a sibling working folder (`-WorkFolder`, default `..\PublicDatabase-publish`), runs the publisher there (it is the baseline, so nothing is deleted first) and prints what would be created, replaced, moved and deleted. It writes `PublicDatabase-publish.report.txt` (added, removed and changed files) and `PublicDatabase-publish.migrations.json` next to the working folder and, for each migration in the manifest (renamed, or moved to a TV show, news organisation or film), says whether git would see a rename or a delete plus an add. The repo's files, index and objects are not touched. A refused publish (exit 1) stops with the reason and a ready-to-paste `-AcceptRemoval` line per unexplained removal. If the checkout has modified or untracked top-level `*.json`, the preview warns: the added/removed/changed lists compare with the working-tree files but the git rename view compares with `HEAD`, so they can disagree (and `-Apply` would refuse).
+- **`-Apply`** first checks, before anything is copied: nothing staged and no modified or untracked top-level `*.json`, and a checked-out branch (not a detached `HEAD`). It records `HEAD` as the undo point. It then publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, and commits `New episodes <date>` (the date is `-CommitDate`, default today) **locally; it never pushes and does not contact the remote**. After the commit it shows `git show --stat HEAD` and the short stat against the undo point, and prints the review commands, the undo command (`git reset --keep <pre-sha>`, safe because nothing else was staged and the JSON was clean, and `--keep` refuses rather than discard unrelated edits such as `update.ps1` itself) and the next step (`.\update.ps1 -Push`). If the copy, the staging or the commit fails part way (an `index.lock`, no `user.name`/`user.email`, a hook), it prints how to put the repo back before rethrowing: `git reset --keep <pre-sha>` if a commit was made, otherwise `git restore --source=HEAD --staged --worktree -- ':(glob)*.json'` and `git clean -f -- ':(glob)*.json'`.
+- **`-Push`** is a separate run after the commit has been reviewed. It does not run the publisher or need the exe. It refuses if anything is staged or a top-level `*.json` is modified or untracked, if `HEAD` is detached, or if the branch has no upstream on a remote. It then runs `git fetch` and refuses if the branch is behind its upstream (printing how to undo the local publish, pull and apply again) or has nothing to push. It shows `git log --oneline @{u}..HEAD` and `git diff --stat -M @{u}..HEAD`, and warns about any commit to be pushed that is a merge, is not a `New episodes ...` commit, or changes anything other than top-level `*.json`; with any such warning it asks `Push anyway? [y/N]` and refuses unless the answer is yes. Finally it pushes explicitly with `git push <remote> HEAD:<upstream branch>` (never a bare `git push`).
+- It needs `git` and the publisher's own Cosmos access (the publisher reads its secrets as it always has).
 
 ## Ops utilities
 
