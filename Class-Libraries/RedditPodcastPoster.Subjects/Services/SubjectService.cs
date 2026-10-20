@@ -170,18 +170,25 @@ public class SubjectService(
         ignoredAssociatedSubjects = ignoredAssociatedSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
         ignoredSubjects = ignoredSubjects?.Select(x => x.Trim().ToLowerInvariant()).ToArray();
 
+        // The description regex (with its {episode-title}/{podcast-name} tokens) is built and applied once per
+        // episode, and only if the description pass is needed - not once per subject term.
+        var episodeDescription = new Lazy<string>(() => WebUtility.HtmlDecode(
+            textSanitiser.ExtractDescription(
+                episode.Description,
+                descriptionRegex ?? string.Empty,
+                episode.Title,
+                podcastName)));
+
         var subjects = await subjectRepository.GetAll().ToListAsync();
         var matches = subjects
             .Select(subject => new SubjectMatch(subject,
-                Matches(episode, subject, false, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex,
-                    podcastName)))
+                Matches(episode, subject, null, ignoredAssociatedSubjects, ignoredSubjects)))
             .Where(x => x.MatchResults.Any()).ToArray();
         if (!matches.Any() || matches.All(x => x.Subject.SubjectType == SubjectType.Meta || !x.Subject.IsVisible))
         {
             matches = subjects
                 .Select(subject => new SubjectMatch(subject,
-                    Matches(episode, subject, true, ignoredAssociatedSubjects, ignoredSubjects, descriptionRegex,
-                        podcastName)))
+                    Matches(episode, subject, episodeDescription, ignoredAssociatedSubjects, ignoredSubjects)))
                 .Where(x => x.MatchResults.Any()).ToArray();
         }
 
@@ -191,11 +198,9 @@ public class SubjectService(
     private MatchResult[] Matches(
         Episode episode,
         Subject subject,
-        bool withDescription,
+        Lazy<string>? episodeDescription,
         string[]? ignoredAssociatedSubjects = null,
-        string[]? ignoredSubjects = null,
-        string? descriptionRegex = null,
-        string? podcastName = null)
+        string[]? ignoredSubjects = null)
     {
         var matches = new List<MatchResult>();
         var subjectTerm = subject.GetSubjectTerms();
@@ -214,15 +219,9 @@ public class SubjectService(
                         matches.Add(new MatchResult(term.Term, titleMatch, SubjectMatchSource.Title));
                     }
 
-                    if (withDescription)
+                    if (episodeDescription != null)
                     {
-                        var episodeDescription =
-                            textSanitiser.ExtractDescription(
-                                episode.Description,
-                                descriptionRegex ?? string.Empty,
-                                episode.Title,
-                                podcastName);
-                        var descMatch = GetMatches(term.Term, WebUtility.HtmlDecode(episodeDescription));
+                        var descMatch = GetMatches(term.Term, episodeDescription.Value);
                         if (descMatch > 0)
                         {
                             matches.Add(new MatchResult(term.Term, descMatch, SubjectMatchSource.Description));

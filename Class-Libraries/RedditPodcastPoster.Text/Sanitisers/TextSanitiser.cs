@@ -96,10 +96,6 @@ public partial class TextSanitiser(
         return description;
     }
 
-    public string ExtractDescription(string episodeDescription, string descriptionRegex)
-    {
-        return ExtractDescription(episodeDescription, descriptionRegex, null, null);
-    }
 
     public string ExtractDescription(
         string episodeDescription,
@@ -201,7 +197,18 @@ public partial class TextSanitiser(
 
     internal string ExtractBody(string body, Regex regex)
     {
-        var match = regex.Match(body);
+        Match match;
+        try
+        {
+            match = regex.Match(body);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // A pathological description regex (see DescriptionRegexTokens.MatchTimeout) leaves the description
+            // unchanged rather than failing the caller.
+            return body;
+        }
+
         if (match.Success)
         {
             return match.Result("${body}");

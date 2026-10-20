@@ -37,6 +37,13 @@ public static partial class DescriptionRegexTokens
 
     public static readonly IReadOnlyList<string> Tokens = [EpisodeTitle, PodcastName];
 
+    /// <summary>
+    /// Match timeout for every description regex. Curator-supplied patterns are applied to feed-supplied text, so a
+    /// pathological pattern (e.g. nested quantifiers) must not hang a homepage publish, indexer run or API request.
+    /// A timed-out match is treated as "no match" by <c>TextSanitiser.ExtractBody</c> (description unchanged).
+    /// </summary>
+    public static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(2);
+
     internal const string NeverMatches = "(?!)";
 
     /// <summary>
@@ -119,10 +126,10 @@ public static partial class DescriptionRegexTokens
 
         if (!ContainsTokens(pattern))
         {
-            return new Regex(pattern, tokenFreeOptions);
+            return new Regex(pattern, tokenFreeOptions, MatchTimeout);
         }
 
-        return new Regex(Expand(pattern, episodeTitle, podcastName), Podcast.DescriptionFlags);
+        return new Regex(Expand(pattern, episodeTitle, podcastName), Podcast.DescriptionFlags, MatchTimeout);
     }
 
     /// <summary>

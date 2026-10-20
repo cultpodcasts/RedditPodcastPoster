@@ -266,7 +266,21 @@ public class HomepagePublisher(
         return trimmed;
     }
 
-    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
+    private Task<PodcastResult> Sanitise(PodcastResult podcastResult)
+    {
+        return SanitiseResult(podcastResult, _subjects, textSanitiser);
+    }
+
+    /// <summary>
+    /// Sanitises a homepage episode's title and description. The description regex tokens
+    /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from the raw title captured before
+    /// <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" /> rewrites it, because
+    /// the raw title is what the feed description starts with.
+    /// </summary>
+    internal static async Task<PodcastResult> SanitiseResult(
+        PodcastResult podcastResult,
+        IReadOnlyList<Subject> subjects,
+        ITextSanitiser textSanitiser)
     {
         var rawEpisodeTitle = podcastResult.EpisodeTitle;
         Regex? titleRegex = null;
@@ -276,7 +290,7 @@ public class HomepagePublisher(
         }
 
         var subjectKnownTerms = (podcastResult.Subjects ?? [])
-            .Select(x => _subjects.SingleOrDefault(y => y.Name == x))
+            .Select(x => subjects.SingleOrDefault(y => y.Name == x))
             .SelectMany(x => x?.KnownTerms ?? [])
             .ToArray();
 
@@ -287,7 +301,6 @@ public class HomepagePublisher(
             subjectKnownTerms,
             podcastResult.Language);
 
-        // The description regex tokens ({episode-title}, {podcast-name}) refer to the unsanitised title.
         var descRegex = DescriptionRegexTokens.Create(
             podcastResult.DescriptionRegex,
             rawEpisodeTitle,
