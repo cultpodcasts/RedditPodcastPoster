@@ -612,13 +612,25 @@ The script is written for and tested with PowerShell (Windows PowerShell 5.1 and
 ```powershell
 .\update.ps1                                  # preview (the default): the repo is not touched
 .\update.ps1 -AcceptRemoval <id|file key>,... # after checking each unexplained removal the preview listed
-.\update.ps1 -Apply -SkipPush                 # copy the result in, stage, check renames, commit; review, then push yourself
-.\update.ps1 -Apply                           # the same, and PUSH (after the upstream checks below)
-.\update.ps1 -Apply -SkipPush -CommitDate 2026-10-19  # commit message 'New episodes 19 October 2026' (default: today)
+.\update.ps1 -Apply                           # copy the result in, stage, check renames, commit LOCALLY (never pushes)
+.\update.ps1 -Apply -CommitDate 2026-10-19    # commit message 'New episodes 19 October 2026' (default: today)
+#   ... review the commit (git show --stat HEAD); undo it with git reset --keep <sha printed by -Apply> ...
+.\update.ps1 -Push                            # push the reviewed commit(s), after the upstream checks below
+```
+
+A commit and a push never happen in the same run: a local commit can be undone, a push cannot. `-Apply` and `-Push` together are refused. `-SkipPush` (version 1.1) is gone, because `-Apply` no longer pushes; passing it fails at parameter binding rather than quietly meaning something else.
+
+```mermaid
+flowchart LR
+    P["update.ps1<br/>(preview)"] -->|review the lists,<br/>the work folder| A["update.ps1 -Apply<br/>(local commit)"]
+    A -->|review: git show --stat HEAD| R{happy?}
+    R -->|no| U["git reset --keep pre-sha<br/>(repo as before)"]
+    R -->|yes| S["update.ps1 -Push<br/>(checks, then push)"]
 ```
 
 - **Preview** copies the repo's top-level `*.json` into a sibling working folder (`-WorkFolder`, default `..\PublicDatabase-publish`), runs the publisher there (it is the baseline, so nothing is deleted first) and prints what would be created, replaced, moved and deleted. It writes `PublicDatabase-publish.report.txt` (added, removed and changed files) and `PublicDatabase-publish.migrations.json` next to the working folder and, for each migration in the manifest (renamed, or moved to a TV show, news organisation or film), says whether git would see a rename or a delete plus an add. The repo's files, index and objects are not touched. A refused publish (exit 1) stops with the reason and a ready-to-paste `-AcceptRemoval` line per unexplained removal. If the checkout has modified or untracked top-level `*.json`, the preview warns: the added/removed/changed lists compare with the working-tree files but the git rename view compares with `HEAD`, so they can disagree (and `-Apply` would refuse).
-- **`-Apply`** first checks, before anything is copied: nothing staged and no modified or untracked top-level `*.json`; a checked-out branch (not a detached `HEAD`); and, unless `-SkipPush` is given, an upstream on a remote that, after a `git fetch`, has no commits this branch lacks. It prints the branch and upstream it will push to (and warns if the branch already has unpushed commits, which the push would send too). It then publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, and commits `New episodes <date>` (the date is `-CommitDate`, default today). **Plain `-Apply` then pushes** to that upstream; with `-SkipPush` it stops after the commit so it can be reviewed and pushed by hand.
+- **`-Apply`** first checks, before anything is copied: nothing staged and no modified or untracked top-level `*.json`, and a checked-out branch (not a detached `HEAD`). It records `HEAD` as the undo point. It then publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, and commits `New episodes <date>` (the date is `-CommitDate`, default today) **locally; it never pushes and does not contact the remote**. After the commit it shows `git show --stat HEAD` and the short stat against the undo point, and prints the review commands, the undo command (`git reset --keep <pre-sha>`, safe because nothing else was staged and the JSON was clean, and `--keep` refuses rather than discard unrelated edits such as `update.ps1` itself) and the next step (`.\update.ps1 -Push`). If the copy, the staging or the commit fails part way (an `index.lock`, no `user.name`/`user.email`, a hook), it prints how to put the repo back before rethrowing: `git reset --keep <pre-sha>` if a commit was made, otherwise `git restore --source=HEAD --staged --worktree -- ':(glob)*.json'` and `git clean -f -- ':(glob)*.json'`.
+- **`-Push`** is a separate run after the commit has been reviewed. It does not run the publisher or need the exe. It refuses if anything is staged or a top-level `*.json` is modified or untracked, if `HEAD` is detached, or if the branch has no upstream on a remote. It then runs `git fetch` and refuses if the branch is behind its upstream (printing how to undo the local publish, pull and apply again) or has nothing to push. It shows `git log --oneline @{u}..HEAD` and `git diff --stat -M @{u}..HEAD`, and warns about any commit to be pushed that is a merge, is not a `New episodes ...` commit, or changes anything other than top-level `*.json`; with any such warning it asks `Push anyway? [y/N]` and refuses unless the answer is yes. Finally it pushes explicitly with `git push <remote> HEAD:<upstream branch>` (never a bare `git push`).
 - It needs `git` and the publisher's own Cosmos access (the publisher reads its secrets as it always has).
 
 ## Ops utilities

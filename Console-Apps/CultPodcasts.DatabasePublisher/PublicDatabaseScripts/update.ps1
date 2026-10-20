@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-Publishes the public database into a SEPARATE working folder, reports what changed, and only copies it into
-this repo (and commits / pushes) when -Apply is given.
+Publishes the public database into a SEPARATE working folder and reports what changed. Only -Apply copies it into
+this repo and commits it locally (never pushing); only a later, separate -Push sends reviewed commits to the remote.
 
 .DESCRIPTION
 1. Checks the publisher exe is the version that knows --migrations-out (podcasts, TV shows, news organisations
@@ -15,22 +15,32 @@ this repo (and commits / pushes) when -Apply is given.
    migration, whether git would see a rename (R) or a delete + add. Without -Apply this is worked out with a
    throw-away git index and object store, so the repo (files, index, objects) is not touched at all.
 5. Only with -Apply: first checks the repo (nothing staged, no modified or untracked top-level *.json, a named
-   branch and, unless -SkipPush, an upstream that is not ahead of this branch after a fetch), then copies the
-   working folder's *.json into the repo (removing the ones the publisher removed), stages the top-level *.json
-   (git add -A restricted to them), re-checks 'git diff --cached -M --name-status' against the manifest, commits,
-   and PUSHES unless -SkipPush is given (to the branch's upstream, named before anything is copied).
+   branch) and records HEAD, then copies the working folder's *.json into the repo (removing the ones the
+   publisher removed), stages the top-level *.json (git add -A restricted to them), re-checks
+   'git diff --cached -M --name-status' against the manifest and commits LOCALLY. It never pushes. It prints how to
+   review the commit and how to undo it (git reset --keep <HEAD before>); if the copy, stage or commit fails part
+   way, it prints how to restore the repo before rethrowing.
+6. Only with -Push (a separate run, after reviewing the commit; it cannot be combined with -Apply and does not run
+   the publisher): checks nothing is staged and no top-level *.json is dirty, a named branch with an upstream on a
+   remote, fetches, refuses if the branch is behind or has nothing to push, shows the log and diff stat of what
+   will be pushed (warning about commits that touch anything other than top-level *.json or are not
+   'New episodes ...' commits), then pushes with an explicit 'git push <remote> HEAD:<upstream branch>'.
+
+A commit and a push never happen in the same run: a local commit can be undone, a push cannot.
 
 Publisher exit codes: 0 published; 1 refused (inconsistent data or an unexplained vanished item; nothing was
 changed); 2 unusable arguments or folder; 3 unexpected failure (the working folder may be partly updated; it is
 rebuilt from the repo on the next run). Whatever the code, the repo is untouched unless -Apply got past it.
+-Push does not run the publisher.
 
 .PARAMETER CommitDate
 The date in the commit message 'New episodes <d MMMM yyyy>' (only used with -Apply). Default: today.
 .PARAMETER Apply
-Copy the published result into the repo, stage, check renames, commit, and push unless -SkipPush is given.
-Plain -Apply PUSHES; use -Apply -SkipPush to review the commit before pushing it yourself.
-.PARAMETER SkipPush
-Do not push after committing (only relevant with -Apply). The upstream checks are then skipped too.
+Copy the published result into the repo, stage, check renames and commit LOCALLY. Never pushes: review the commit
+(the script prints the commands, and how to undo it), then run again with -Push. Cannot be combined with -Push.
+.PARAMETER Push
+Push the commits already made (by -Apply) and reviewed, after the upstream checks; does not run the publisher or
+need the exe. Cannot be combined with -Apply. (-SkipPush, from version 1.1, is gone: -Apply no longer pushes.)
 .PARAMETER WorkFolder
 Folder to publish into. Must be outside this repo. Reused between runs only if this script created it. A relative
 path is relative to PowerShell's current location. Default: 'PublicDatabase-publish' beside this repo.
@@ -58,8 +68,8 @@ Written for and tested with PowerShell (5.1 and 7) on Windows; pwsh on other pla
 [CmdletBinding()]
 param(
     [datetime]$CommitDate = (Get-Date),
-    [switch]$SkipPush,
     [switch]$Apply,
+    [switch]$Push,
     [string]$WorkFolder,
     [string[]]$AcceptRemoval = @(),
     [string]$PublisherExe,
@@ -72,7 +82,7 @@ $AcceptRemoval = @($AcceptRemoval | ForEach-Object { $_ -split ',' } | ForEach-O
 
 # A human-readable label, printed at the start. Bump it when the script changes. Staleness is not judged by it: the
 # script compares its own content with the copy at HEAD of -SourceRepo (see Test-ScriptIsCurrent).
-$ScriptVersion = '1.1.1'
+$ScriptVersion = '1.2.0'
 
 # The script's path inside the RedditPodcastPoster repo, as git names it.
 $SourceScriptGitPath = 'Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1'
@@ -518,7 +528,173 @@ function Write-RefusalSummary {
     Write-Host ('  or all at once: .\update.ps1 -AcceptRemoval ' + (($items | ForEach-Object { $_.Id }) -join ',')) -ForegroundColor Cyan
 }
 
+# Runs git and shows its output on the console (Invoke-ExternalCommand's uncaptured output would be swallowed by the
+# caller's pipeline).
+function Write-GitOutput {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    foreach ($line in @(Invoke-ExternalCommand -FilePath 'git' -Arguments $Arguments -CaptureOutput -Description $Description)) {
+        Write-Host "  $line"
+    }
+}
+
+# The checked-out branch, or a refusal (naming the action) when HEAD is detached.
+function Get-CurrentBranch {
+    param([Parameter(Mandatory)][string]$Action)
+
+    $ErrorActionPreference = 'Continue'
+    $branch = (& git symbolic-ref --quiet --short HEAD 2>$null | Out-String).Trim()
+    $branchExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($branchExit -ne 0 -or -not $branch) {
+        throw "$Action needs a checked-out branch, but HEAD is detached. Check out the branch (normally main) first. Nothing was changed."
+    }
+
+    return $branch
+}
+
+# Refuses when anything is staged or a top-level *.json is modified or untracked, so a commit (or a push) holds only
+# what was published and reviewed.
+function Assert-NothingStagedOrDirtyJson {
+    param(
+        [Parameter(Mandatory)][string]$Action,
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$DirtyJson
+    )
+
+    $staged = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('diff', '--cached', '--name-only') -CaptureOutput -Description 'Checking for staged changes' | Where-Object { $_ })
+    if ($staged.Count -gt 0 -or $DirtyJson.Count -gt 0) {
+        throw "$Action needs a repo with nothing staged and no modified or untracked top-level *.json files ($($staged.Count) staged, $($DirtyJson.Count) dirty *.json). Commit, stash or restore them first. Nothing was changed."
+    }
+}
+
+# Where -Push will push, checked before anything is pushed: the branch's upstream on a real remote (not '.'), fetched,
+# with the branch not behind it and at least one commit ahead. Returns the remote, the upstream's ref on that remote
+# (branch.<b>.merge) and the counts.
+function Get-PushTarget {
+    param([Parameter(Mandatory)][string]$Branch)
+
+    $ErrorActionPreference = 'Continue'
+    $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null | Out-String).Trim()
+    $upstreamExit = $LASTEXITCODE
+    $remote = (& git config --get "branch.$Branch.remote" 2>$null | Out-String).Trim()
+    $mergeRef = (& git config --get "branch.$Branch.merge" 2>$null | Out-String).Trim()
+    $ErrorActionPreference = 'Stop'
+    if ($upstreamExit -ne 0 -or -not $upstream -or -not $remote -or -not $mergeRef -or $remote -eq '.') {
+        throw "-Push needs branch '$Branch' to have an upstream on a remote, and it has none. Set one (git branch --set-upstream-to=origin/$Branch) and run again. Nothing was pushed."
+    }
+
+    Write-Host "Fetching $remote to check '$Branch' against $upstream..."
+    Invoke-ExternalCommand -FilePath 'git' -Arguments @('fetch', '--quiet', $remote) -Description "Fetching $remote" | Out-Null
+    $behind = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', 'HEAD..@{u}') -CaptureOutput -Description 'Counting commits behind the upstream' | Select-Object -First 1)
+    $ahead = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', '@{u}..HEAD') -CaptureOutput -Description 'Counting commits ahead of the upstream' | Select-Object -First 1)
+
+    if ($behind -gt 0) {
+        $base = ((Invoke-ExternalCommand -FilePath 'git' -Arguments @('merge-base', 'HEAD', '@{u}') -CaptureOutput -Description 'Finding the merge base') | Select-Object -First 1)
+        throw ("Branch '$Branch' is $behind commit(s) behind $upstream (and $ahead ahead), so the push would be rejected and the local publish is based on a stale baseline. Nothing was pushed. " +
+            "Undo the local publish commit(s) with 'git reset --keep $base', pull ('git pull --ff-only'), then run -Apply again and review before -Push.")
+    }
+
+    if ($ahead -eq 0) {
+        throw "Branch '$Branch' has no commits that are not already on $upstream, so there is nothing to push. Run -Apply first (and review its commit). Nothing was pushed."
+    }
+
+    return [pscustomobject]@{ Remote = [string]$remote; Ref = [string]$mergeRef; Branch = [string]$Branch; Upstream = [string]$upstream; Ahead = $ahead }
+}
+
+# Shows what -Push would send (log and diff stat of @{u}..HEAD) and returns warnings for commits that are not plain
+# publish commits: a subject other than 'New episodes ...', or a change to anything but top-level *.json.
+function Write-PushPreview {
+    param([Parameter(Mandatory)][object]$Target)
+
+    Write-Host ''
+    Write-Host "Commits that will be pushed to $($Target.Remote) ($($Target.Upstream)): $($Target.Ahead)"
+    Write-GitOutput -Arguments @('--no-pager', 'log', '--oneline', '--no-decorate', '@{u}..HEAD') -Description 'Listing the commits to push'
+    Write-Host ''
+    Write-Host 'What they change (git diff --stat -M @{u}..HEAD):'
+    Write-GitOutput -Arguments @('-c', 'core.quotepath=false', '--no-pager', 'diff', '--stat=200', '-M', '@{u}..HEAD') -Description 'Showing the diff stat to push'
+
+    $warnings = New-Object 'System.Collections.Generic.List[string]'
+    $commits = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--reverse', '@{u}..HEAD') -CaptureOutput -Description 'Listing the commits to push' | Where-Object { $_ })
+    foreach ($commit in $commits) {
+        $subject = ((Invoke-ExternalCommand -FilePath 'git' -Arguments @('log', '-1', '--format=%s', $commit) -CaptureOutput -Description 'Reading a commit subject') | Select-Object -First 1)
+        $short = $commit.Substring(0, 8)
+        $parents = @(((Invoke-ExternalCommand -FilePath 'git' -Arguments @('log', '-1', '--format=%P', $commit) -CaptureOutput -Description 'Reading commit parents') | Select-Object -First 1) -split ' ' | Where-Object { $_ })
+        if ($parents.Count -gt 1) {
+            $warnings.Add("$short '$subject' is a merge commit, not a publish commit.")
+        }
+
+        if ([string]$subject -notmatch '^New episodes ') {
+            $warnings.Add("$short '$subject' is not a 'New episodes ...' publish commit.")
+        }
+
+        $files = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'diff-tree', '--no-commit-id', '--name-only', '-r', '--root', $commit) -CaptureOutput -Description 'Listing a commit''s files' | Where-Object { $_ })
+        $other = @($files | Where-Object { $_ -notmatch '^[^/]+\.json$' })
+        if ($other.Count -gt 0) {
+            $shown = ($other | Select-Object -First 5) -join ', '
+            $more = if ($other.Count -gt 5) { " and $($other.Count - 5) more" } else { '' }
+            $warnings.Add("$short '$subject' changes $($other.Count) file(s) that are not top-level *.json: $shown$more.")
+        }
+    }
+
+    return , $warnings.ToArray()
+}
+
+# After an -Apply commit: how to review it, how to undo it, and what comes next.
+function Write-ApplyCommitGuide {
+    param([Parameter(Mandatory)][string]$PreSha)
+
+    $short = $PreSha.Substring(0, 8)
+    Write-Host ''
+    Write-Host 'The commit (git show --stat HEAD):'
+    Write-GitOutput -Arguments @('-c', 'core.quotepath=false', '--no-pager', 'show', '--stat=200', '-M', '--format=fuller', 'HEAD') -Description 'Showing the commit'
+    Write-Host ''
+    Write-Host "Against the HEAD before this run ($short) (git diff -M --shortstat $short HEAD):"
+    Write-GitOutput -Arguments @('--no-pager', 'diff', '-M', '--shortstat', $PreSha, 'HEAD') -Description 'Diffing against the HEAD before this run'
+    Write-Host ''
+    Write-Host 'COMMITTED LOCALLY ONLY - NOTHING WAS PUSHED.' -ForegroundColor Green
+    Write-Host 'Review it:' -ForegroundColor Cyan
+    Write-Host '  git show --stat HEAD' -ForegroundColor Cyan
+    Write-Host "  git diff -M --stat $PreSha HEAD" -ForegroundColor Cyan
+    Write-Host "Undo it (puts the repo back exactly as it was before this run; --keep refuses rather than discard other local edits):" -ForegroundColor Cyan
+    Write-Host "  git reset --keep $PreSha" -ForegroundColor Cyan
+    Write-Host 'When you are happy with it, push it:' -ForegroundColor Cyan
+    Write-Host '  .\update.ps1 -Push' -ForegroundColor Cyan
+}
+
+# After a failure part way through -Apply's copy / stage / commit: how to put the repo back.
+function Write-ApplyRecovery {
+    param([Parameter(Mandatory)][string]$PreSha)
+
+    $ErrorActionPreference = 'Continue'
+    $headNow = (& git rev-parse HEAD 2>$null | Out-String).Trim()
+    $ErrorActionPreference = 'Stop'
+
+    $bar = '!' * 78
+    Write-Host ''
+    Write-Host $bar -ForegroundColor Red
+    Write-Host '-Apply FAILED PART WAY. Nothing was pushed, but the repo may hold part of this publish.' -ForegroundColor Red
+    Write-Host $bar -ForegroundColor Red
+    if ($headNow -and $headNow -ne $PreSha) {
+        Write-Host "A commit was made ($($headNow.Substring(0, 8))). Undo it with:" -ForegroundColor Cyan
+        Write-Host "  git reset --keep $PreSha" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host 'No commit was made. Put the top-level *.json back as they were (restores modified and deleted files, then removes added ones):' -ForegroundColor Cyan
+        Write-Host "  git restore --source=HEAD --staged --worktree -- ':(glob)*.json'" -ForegroundColor Cyan
+        Write-Host "  git clean -f -- ':(glob)*.json'" -ForegroundColor Cyan
+    }
+
+    Write-Host "Then check with: git status (HEAD should be $PreSha)" -ForegroundColor Cyan
+}
+
 Write-Host "update.ps1 version $ScriptVersion"
+
+if ($Apply -and $Push) {
+    throw "-Apply and -Push cannot be used together: -Apply commits locally, you review the commit, then a separate run of -Push pushes it (a push cannot be undone). Nothing was changed."
+}
 
 $scriptPath = $PSCommandPath
 if (-not $PSScriptRoot -or -not $scriptPath) {
@@ -553,6 +729,47 @@ if (Test-PathIsWithin -Path $repoRoot -Root $sourceRepoPath) {
     throw "This script is running from inside the source repo '$sourceRepoPath' (the source of truth is not a publish target): $wrongPlace"
 }
 
+if ($Push) {
+    $ignored = @('CommitDate', 'WorkFolder', 'AcceptRemoval', 'PublisherExe') | Where-Object { $PSBoundParameters.ContainsKey($_) }
+    if ($ignored) {
+        Write-Warning ("-Push does not publish, so these are ignored: -" + ($ignored -join ', -'))
+    }
+
+    Push-Location $repoRoot
+    try {
+        Test-ScriptIsCurrent -ScriptPath $scriptPath -SourceRepo $sourceRepoPath -ThisVersion $ScriptVersion
+        $dirtyJson = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'status', '--porcelain', '--', ':(glob)*.json') -CaptureOutput -Description 'Checking the JSON files are committed' | Where-Object { $_ })
+        Assert-NothingStagedOrDirtyJson -Action '-Push' -DirtyJson $dirtyJson
+        $branch = Get-CurrentBranch -Action '-Push'
+        $target = Get-PushTarget -Branch $branch
+        $warnings = @(Write-PushPreview -Target $target)
+        if ($warnings.Count -gt 0) {
+            Write-Host ''
+            foreach ($warning in $warnings) {
+                Write-Warning $warning
+            }
+            # A push cannot be undone, so a warning here must be answered before anything is sent. Anything but 'y'
+            # (including no console to ask on) refuses.
+            $answer = Read-Host "The commits above are not all plain publish commits and would be pushed too. Push anyway? [y/N]"
+            if ($answer -notmatch '^(y|yes)$') {
+                throw "Not pushed: the commits to push are not all plain publish commits (see the warnings above). Nothing was pushed."
+            }
+        }
+
+        $headSha = ((Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-parse', 'HEAD') -CaptureOutput -Description 'Reading HEAD') | Select-Object -First 1)
+        Write-Host ''
+        Write-Host "Pushing '$($target.Branch)' ($($headSha.Substring(0, 8))) to $($target.Remote) as $($target.Ref)..." -ForegroundColor Yellow
+        # Pushed explicitly to the upstream checked above, never to whatever a bare 'git push' picks.
+        Invoke-ExternalCommand -FilePath 'git' -Arguments @('push', $target.Remote, "HEAD:$($target.Ref)") -Description 'Pushing git changes' | Out-Null
+        Write-Host "Pushed $($target.Ahead) commit(s) to $($target.Remote) ($($target.Upstream))." -ForegroundColor Green
+    }
+    finally {
+        Pop-Location
+    }
+
+    return
+}
+
 if ($PublisherExe) {
     $publisherPath = Resolve-UserPath -Path $PublisherExe
     if (-not (Test-Path -LiteralPath $publisherPath -PathType Leaf)) {
@@ -581,10 +798,6 @@ if ((Test-PathIsWithin -Path $workFolderPath -Root $repoRoot) -or (Test-PathIsWi
     throw "The working folder '$workFolderPath' must be outside the repo '$repoRoot'."
 }
 
-if ($SkipPush -and -not $Apply) {
-    Write-Host '-SkipPush has no effect without -Apply (a preview never commits or pushes).'
-}
-
 $manifestPath = $workFolderPath + '.migrations.json'
 $reportPath = $workFolderPath + '.report.txt'
 $markerName = '.update-ps1-work-folder'
@@ -602,52 +815,16 @@ try {
     }
 
     $dirtyJson = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'status', '--porcelain', '--', ':(glob)*.json') -CaptureOutput -Description 'Checking the JSON files are committed' | Where-Object { $_ })
-    $pushTarget = $null
+    $preSha = $null
     if ($Apply) {
         # Everything -Apply needs is checked here, before anything is copied, staged or committed.
-        $staged = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('diff', '--cached', '--name-only') -CaptureOutput -Description 'Checking for staged changes' | Where-Object { $_ })
-        if ($staged.Count -gt 0 -or $dirtyJson.Count -gt 0) {
-            throw "-Apply needs a repo with nothing staged and no modified or untracked top-level *.json files, so the data commit holds only this publish. Commit, stash or restore them first. Nothing was changed."
-        }
-
-        $ErrorActionPreference = 'Continue'
-        $branch = (& git symbolic-ref --quiet --short HEAD 2>$null | Out-String).Trim()
-        $branchExit = $LASTEXITCODE
-        $ErrorActionPreference = 'Stop'
-        if ($branchExit -ne 0 -or -not $branch) {
-            throw "-Apply needs a checked-out branch to commit to, but HEAD is detached. Check out the branch (normally main) first. Nothing was changed."
-        }
-
-        if ($SkipPush) {
-            Write-Host "Will commit to branch '$branch' and not push (-SkipPush)."
-        }
-        else {
-            $ErrorActionPreference = 'Continue'
-            $upstream = (& git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null | Out-String).Trim()
-            $upstreamExit = $LASTEXITCODE
-            $remote = (& git config --get "branch.$branch.remote" 2>$null | Out-String).Trim()
-            $mergeRef = (& git config --get "branch.$branch.merge" 2>$null | Out-String).Trim()
-            $ErrorActionPreference = 'Stop'
-            if ($upstreamExit -ne 0 -or -not $upstream -or -not $remote -or -not $mergeRef -or $remote -eq '.') {
-                throw "-Apply pushes, but branch '$branch' has no upstream on a remote. Set one (git branch --set-upstream-to=origin/$branch) or use -Apply -SkipPush and push yourself. Nothing was changed."
-            }
-
-            Write-Host "Fetching $remote to check '$branch' is not behind $upstream..."
-            Invoke-ExternalCommand -FilePath 'git' -Arguments @('fetch', '--quiet', $remote) -Description "Fetching $remote" | Out-Null
-            $behind = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', 'HEAD..@{u}') -CaptureOutput -Description 'Counting commits behind the upstream' | Select-Object -First 1)
-            if ($behind -gt 0) {
-                throw "Branch '$branch' is $behind commit(s) behind $upstream, so this publish would be based on a stale baseline and the push would be rejected. Pull first (git pull --ff-only), then run again. Nothing was changed."
-            }
-
-            $ahead = [int](Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-list', '--count', '@{u}..HEAD') -CaptureOutput -Description 'Counting commits ahead of the upstream' | Select-Object -First 1)
-            if ($ahead -gt 0) {
-                Write-Warning "Branch '$branch' already has $ahead commit(s) that are not on $upstream; the push will send them too."
-            }
-
-            $pushTarget = [pscustomobject]@{ Remote = [string]$remote; Ref = [string]$mergeRef; Branch = [string]$branch; Upstream = [string]$upstream }
-            Write-Host "Will commit to branch '$branch' and push it to $remote ($upstream) at the end. Use -Apply -SkipPush to review the commit first." -ForegroundColor Yellow
-        }
+        Assert-NothingStagedOrDirtyJson -Action '-Apply' -DirtyJson $dirtyJson
+        $branch = Get-CurrentBranch -Action '-Apply'
+        # Recorded before anything is copied: the undo point printed after the commit (or after a failure).
+        $preSha = [string]((Invoke-ExternalCommand -FilePath 'git' -Arguments @('rev-parse', 'HEAD') -CaptureOutput -Description 'Reading HEAD') | Select-Object -First 1)
+        Write-Host "Will commit to branch '$branch' (now at $($preSha.Substring(0, 8))) LOCALLY ONLY; nothing is pushed. Review the commit, then run .\update.ps1 -Push." -ForegroundColor Yellow
     }
+
     elseif ($dirtyJson.Count -gt 0) {
         Write-Warning ("The repo has $($dirtyJson.Count) modified or untracked top-level *.json file(s). The Added/Removed/Changed lists compare with " +
             "these working-tree files, but the git rename view compares with HEAD, so the two can disagree. -Apply refuses until they are committed, stashed or restored.")
@@ -780,7 +957,7 @@ try {
         }
 
         Write-Host ''
-        Write-Host 'The repo was not changed. Review the above and the working folder, then run again with -Apply -SkipPush to copy the result into the repo, stage and commit it for review (plain -Apply also pushes). Apply publishes afresh, so it can differ if the data changed meanwhile.'
+        Write-Host 'The repo was not changed. Review the above and the working folder, then run again with -Apply to copy the result into the repo, stage it and commit it LOCALLY (it never pushes). Review that commit, then run -Push to push it. Apply publishes afresh, so it can differ if the data changed meanwhile.'
         return
     }
 
@@ -790,7 +967,7 @@ try {
     }
 
     if ($changeCount -eq 0) {
-        Write-Host 'No changes detected after publishing. Skipping commit and push.'
+        Write-Host 'No changes detected after publishing. Nothing was committed.'
         return
     }
 
@@ -802,45 +979,46 @@ try {
         throw "The repo's JSON files changed while publishing; nothing was copied. Run again."
     }
 
-    Write-Host 'Copying the published files into the repo...'
-    foreach ($name in $removedFiles) {
-        Remove-Item -LiteralPath (Join-Path $repoRoot $name) -Force
+    # From here the repo is changed. Any failure before the commit is made, or by the commit itself (an index.lock,
+    # no user.name / user.email, a hook), prints how to put the repo back before rethrowing.
+    try {
+        Write-Host 'Copying the published files into the repo...'
+        foreach ($name in $removedFiles) {
+            Remove-Item -LiteralPath (Join-Path $repoRoot $name) -Force
+        }
+
+        foreach ($name in ($addedFiles + $changedFiles)) {
+            Copy-Item -LiteralPath (Join-Path $workFolderPath $name) -Destination (Join-Path $repoRoot $name) -Force
+        }
+
+        $repoAfter = Get-JsonHashes -Folder $repoRoot
+        $copyDiffers = ($repoAfter.Count -ne $workHashes.Count) -or
+            @($workHashes.Keys | Where-Object { -not $repoAfter.ContainsKey($_) -or $repoAfter[$_] -ne $workHashes[$_] }).Count -gt 0
+        if ($copyDiffers) {
+            throw "The repo's JSON files do not match the working folder after copying. Nothing was staged or committed."
+        }
+
+        Write-Host "Staging changes (top-level *.json)..."
+        Invoke-ExternalCommand -FilePath 'git' -Arguments @('add', '-A', '--', ':(glob)*.json') -Description 'Staging git changes' | Out-Null
+
+        $nameStatus = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'diff', '--cached', '-M', '--name-status') -CaptureOutput -Description 'Checking staged changes' | Where-Object { $_ })
+
+        if ($nameStatus.Count -eq 0) {
+            Write-Host 'No changes detected after publishing. Nothing was committed.'
+            return
+        }
+
+        Write-MigrationGitReport -Rows @(Get-MigrationGitRows -Migrations $migrations -NameStatus $nameStatus) -Label 'staged: git diff --cached -M --name-status'
+
+        Write-Host "Creating commit: $commitMessage"
+        Invoke-ExternalCommand -FilePath 'git' -Arguments @('commit', '-m', $commitMessage) -Description 'Creating git commit' | Out-Null
+    }
+    catch {
+        Write-ApplyRecovery -PreSha $preSha
+        throw
     }
 
-    foreach ($name in ($addedFiles + $changedFiles)) {
-        Copy-Item -LiteralPath (Join-Path $workFolderPath $name) -Destination (Join-Path $repoRoot $name) -Force
-    }
-
-    $repoAfter = Get-JsonHashes -Folder $repoRoot
-    $copyDiffers = ($repoAfter.Count -ne $workHashes.Count) -or
-        @($workHashes.Keys | Where-Object { -not $repoAfter.ContainsKey($_) -or $repoAfter[$_] -ne $workHashes[$_] }).Count -gt 0
-    if ($copyDiffers) {
-        throw "The repo's JSON files do not match the working folder after copying. Nothing was staged; inspect with git status (git restore . and git clean -fd -- '*.json' undo the copy)."
-    }
-
-    Write-Host "Staging changes (top-level *.json)..."
-    Invoke-ExternalCommand -FilePath 'git' -Arguments @('add', '-A', '--', ':(glob)*.json') -Description 'Staging git changes' | Out-Null
-
-    $nameStatus = @(Invoke-ExternalCommand -FilePath 'git' -Arguments @('-c', 'core.quotepath=false', 'diff', '--cached', '-M', '--name-status') -CaptureOutput -Description 'Checking staged changes' | Where-Object { $_ })
-
-    if ($nameStatus.Count -eq 0) {
-        Write-Host 'No changes detected after publishing. Skipping commit and push.'
-        return
-    }
-
-    Write-MigrationGitReport -Rows @(Get-MigrationGitRows -Migrations $migrations -NameStatus $nameStatus) -Label 'staged: git diff --cached -M --name-status'
-
-    Write-Host "Creating commit: $commitMessage"
-    Invoke-ExternalCommand -FilePath 'git' -Arguments @('commit', '-m', $commitMessage) -Description 'Creating git commit' | Out-Null
-
-    if ($SkipPush) {
-        Write-Host 'Skipping git push because -SkipPush was supplied.'
-        return
-    }
-
-    # Pushed explicitly to the upstream checked before anything was copied, never to whatever a bare 'git push' picks.
-    Write-Host "Pushing '$($pushTarget.Branch)' to $($pushTarget.Remote) ($($pushTarget.Upstream))..."
-    Invoke-ExternalCommand -FilePath 'git' -Arguments @('push', $pushTarget.Remote, "HEAD:$($pushTarget.Ref)") -Description 'Pushing git changes' | Out-Null
+    Write-ApplyCommitGuide -PreSha $preSha
 }
 finally {
     Pop-Location
