@@ -266,21 +266,7 @@ public class HomepagePublisher(
         return trimmed;
     }
 
-    private Task<PodcastResult> Sanitise(PodcastResult podcastResult)
-    {
-        return SanitiseResult(podcastResult, _subjects, textSanitiser);
-    }
-
-    /// <summary>
-    /// Sanitises a homepage episode's title and description. The description regex tokens
-    /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from the raw title captured before
-    /// <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" /> rewrites it, because
-    /// the raw title is what the feed description starts with.
-    /// </summary>
-    internal static async Task<PodcastResult> SanitiseResult(
-        PodcastResult podcastResult,
-        IReadOnlyList<Subject> subjects,
-        ITextSanitiser textSanitiser)
+    private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
         var rawEpisodeTitle = podcastResult.EpisodeTitle;
         Regex? titleRegex = null;
@@ -290,7 +276,7 @@ public class HomepagePublisher(
         }
 
         var subjectKnownTerms = (podcastResult.Subjects ?? [])
-            .Select(x => subjects.SingleOrDefault(y => y.Name == x))
+            .Select(x => _subjects.SingleOrDefault(y => y.Name == x))
             .SelectMany(x => x?.KnownTerms ?? [])
             .ToArray();
 
@@ -301,14 +287,27 @@ public class HomepagePublisher(
             subjectKnownTerms,
             podcastResult.Language);
 
+        podcastResult.EpisodeDescription = SanitiseDescription(podcastResult, rawEpisodeTitle, textSanitiser);
+        return podcastResult;
+    }
+
+    /// <summary>
+    /// Sanitises a homepage episode's description. The description regex tokens
+    /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from <paramref name="rawEpisodeTitle" />, the title
+    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" />
+    /// rewrites it, because the raw title is what the feed description starts with.
+    /// </summary>
+    internal static string SanitiseDescription(
+        PodcastResult podcastResult,
+        string rawEpisodeTitle,
+        ITextSanitiser textSanitiser)
+    {
         var descRegex = DescriptionRegexTokens.Create(
             podcastResult.DescriptionRegex,
             rawEpisodeTitle,
             podcastResult.PodcastName);
 
-        podcastResult.EpisodeDescription =
-            textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
-        return podcastResult;
+        return textSanitiser.SanitiseDescription(podcastResult.EpisodeDescription, descRegex);
     }
 
     private async Task<bool> PublishHomepageToR2(HomePageModel homepageContent)
