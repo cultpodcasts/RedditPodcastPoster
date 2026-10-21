@@ -25,7 +25,8 @@ public interface ICatalogueParentLookup
     /// <summary>
     /// Fallback when no parent's <c>indexing</c> holds a YouTube channel id: the news organisation or TV show whose
     /// name is the channel title (case-insensitive, exact) and which claims no YouTube channel yet (no
-    /// <c>indexing</c>, or an empty <c>youTubeChannelId</c>). Parents already claiming a channel are skipped.
+    /// <c>indexing</c>, or an empty <c>youTubeChannelId</c>). Parents already claiming a channel, and removed parents
+    /// (a name is too weak to block a submit on a removed parent), are skipped.
     /// Many → <see cref="AmbiguousParentNameException"/>.
     /// </summary>
     Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle);
@@ -149,7 +150,7 @@ public class CatalogueParentLookup(
         var shows = await PublisherNameAttachLookup.FindByName(tvShows, title);
         var matches = organisations.Select(CatalogueParentMatch.For)
             .Concat(shows.Select(CatalogueParentMatch.For))
-            .Where(x => string.IsNullOrWhiteSpace(x.Indexing?.YouTubeChannelId))
+            .Where(x => !x.Parent.IsRemoved() && string.IsNullOrWhiteSpace(x.Indexing?.YouTubeChannelId))
             .ToList();
         return Single(matches, title);
     }

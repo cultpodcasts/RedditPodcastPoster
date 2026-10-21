@@ -223,6 +223,62 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "A TV show whose indexing has an empty-string YouTube channel id counts as unclaimed and gets a URL whose channel title is its name.")]
+    public async Task parent_with_empty_channel_id_gets_url_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Drama " + _fixture.CreateTitle();
+        var show = AddShow(i => i.YouTubeChannelId = string.Empty, name);
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(show.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "A removed parent named like the channel title is not matched by title: the active namesake gets the URL, and with none the URL goes to the podcast pipeline.")]
+    public async Task removed_parent_is_skipped_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var removed = AddOrganisation(name: name);
+        removed.Removed = true;
+        var active = AddShow(name: name);
+        var activeUrl = YouTubeUrl();
+        OwnerIs(activeUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var lonelyName = "Synthetic Gone " + _fixture.CreateTitle();
+        var lonelyRemoved = AddOrganisation(name: lonelyName);
+        lonelyRemoved.Removed = true;
+        var lonelyUrl = YouTubeUrl();
+        OwnerIs(lonelyUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(),
+                YouTubeChannelTitle: lonelyName));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(activeUrl, new IndexingContext(), new SubmitOptions(null, true));
+        var lonelyResult = await sut.Submit(lonelyUrl, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(active.Id, Times.Once());
+        VerifyRoutedTo(removed.Id, Times.Never());
+        VerifyRoutedTo(lonelyRemoved.Id, Times.Never());
+        lonelyResult.PodcastResult.Should().NotBe(SubmitResultState.PodcastRemoved);
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                null, lonelyUrl, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
         "A podcast that owns the channel still gets the URL even when an unclaimed parent is named like the channel title.")]
     public async Task podcast_owner_wins_over_title_fallback()
     {
