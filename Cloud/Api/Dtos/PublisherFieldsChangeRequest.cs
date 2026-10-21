@@ -5,10 +5,25 @@ namespace Api.Dtos;
 /// <summary>
 /// Publisher fields a curator can PATCH on a news organisation, TV show or film. Omitted (null) = unchanged.
 /// Strings: "" clears. Arrays: [] clears. Same rules as the podcast change request.
-/// <c>language</c> "" or English is stored as null. Name and removed are not editable here.
+/// <c>language</c> "" or English is stored as null. Name is not editable here (it needs a rename flow).
 /// </summary>
 public abstract class PublisherFieldsChangeRequest
 {
+    /// <summary>Network / label / brand attribution (Cosmos <c>publisher</c>). Trimmed; "" clears.</summary>
+    [JsonPropertyName("publisher")]
+    public string? Publisher { get; set; }
+
+    /// <summary>"" allowed.</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// News organisation / TV show: cascades to the children (sets or clears their <c>parentRemoved</c>, and on
+    /// removal deletes their search documents). Film: deletes the film's own search document on removal.
+    /// </summary>
+    [JsonPropertyName("removed")]
+    public bool? Removed { get; set; }
+
     [JsonPropertyName("language")]
     public string? Language { get; set; }
 

@@ -18,6 +18,8 @@ public sealed class SearchCleanupMock
             .Setup(c => c.DeleteDocumentsAsync(
                 It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<IndexDocumentsOptions>(),
                 It.IsAny<CancellationToken>()))
+            .Callback<string, IEnumerable<string>, IndexDocumentsOptions, CancellationToken>(
+                (_, keys, _, _) => DeleteBatches.Add(keys.ToArray()))
             .ReturnsAsync(Response.FromValue(
                 SearchModelFactory.IndexDocumentsResult([SearchModelFactory.IndexingResult("id", null, true, 200)]),
                 Mock.Of<Response>()));
@@ -25,6 +27,11 @@ public sealed class SearchCleanupMock
     }
 
     public EpisodeSearchIndexCleanup Cleanup { get; }
+
+    /// <summary>Every delete call's keys, in order.</summary>
+    public List<string[]> DeleteBatches { get; } = [];
+
+    public IEnumerable<string> DeletedKeys => DeleteBatches.SelectMany(batch => batch);
 
     public void VerifyDelete(Guid id, Times times) =>
         Client.Verify(c => c.DeleteDocumentsAsync(

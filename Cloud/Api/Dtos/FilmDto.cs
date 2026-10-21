@@ -17,9 +17,6 @@ public class FilmDto : PublisherFieldsDto
     [JsonPropertyName("tmdbId")]
     public int? TmdbId { get; set; }
 
-    [JsonPropertyName("description")]
-    public string Description { get; set; } = "";
-
     [JsonPropertyName("release")]
     public string? Release { get; set; }
 
@@ -31,6 +28,9 @@ public class FilmDto : PublisherFieldsDto
 
     [JsonPropertyName("ignored")]
     public bool Ignored { get; set; }
+
+    [JsonPropertyName("posted")]
+    public bool Posted { get; set; }
 
     [JsonPropertyName("tweeted")]
     public bool Tweeted { get; set; }

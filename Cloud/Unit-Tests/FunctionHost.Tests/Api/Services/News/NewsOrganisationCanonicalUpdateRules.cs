@@ -17,12 +17,14 @@ public class NewsOrganisationCanonicalUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly SearchCleanupMock _search = new();
     private NewsOrganisation? _saved;
     private NewsReport[]? _savedReports;
 
     public NewsOrganisationCanonicalUpdateRules()
     {
         _mocker.Use(NullLogger<NewsOrganisationService>.Instance);
+        _mocker.Use(_search.Cleanup);
         _mocker.GetMock<INewsOrganisationRepository>()
             .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
             .Callback<NewsOrganisation>(organisation => _saved = organisation)

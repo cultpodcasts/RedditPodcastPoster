@@ -1,3 +1,4 @@
+using Api.Dtos.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -20,7 +21,7 @@ public class PostNewsReportHandler(
         return result.Status switch
         {
             NewsReportUpdateStatus.Accepted =>
-                ctx.Accepted(),
+                await ctx.Accepted((result.Outcome ?? new EpisodeUpdateOutcome()).ToDto(), c),
             NewsReportUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.ReportId }, c),
             NewsReportUpdateStatus.BadRequest =>

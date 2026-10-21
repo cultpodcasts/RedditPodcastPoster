@@ -1,3 +1,4 @@
+using Api.Services.Catalogue;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -88,6 +89,7 @@ public static class ApiAreaServiceCollectionExtensions
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<ITvShowService, TvShowService>()
             .AddScoped<IGetTvShowHandler, GetTvShowHandler>()
             .AddScoped<IPostTvShowHandler, PostTvShowHandler>()
@@ -95,8 +97,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
             .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
 
+    /// <summary>Shared by the news, TV and film editors (post-status retraction). Safe to call more than once.</summary>
+    private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
+    {
+        services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
+        return services;
+    }
+
     public static IServiceCollection AddApiNews(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<INewsOrganisationService, NewsOrganisationService>()
             .AddScoped<IGetNewsOrganisationHandler, GetNewsOrganisationHandler>()
             .AddScoped<IPostNewsOrganisationHandler, PostNewsOrganisationHandler>()
@@ -106,6 +116,7 @@ public static class ApiAreaServiceCollectionExtensions
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<IFilmService, FilmService>()
             .AddScoped<IGetFilmHandler, GetFilmHandler>()
             .AddScoped<IPostFilmHandler, PostFilmHandler>();

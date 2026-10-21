@@ -16,6 +16,7 @@ public class TvShowFieldUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly SearchCleanupMock _search = new();
     private readonly List<TvShowEpisode> _episodes = [];
     private TvShow? _saved;
     private TvShowEpisode[]? _savedEpisodes;
@@ -23,6 +24,7 @@ public class TvShowFieldUpdateRules
     public TvShowFieldUpdateRules()
     {
         _mocker.Use(NullLogger<TvShowService>.Instance);
+        _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.Save(It.IsAny<TvShow>()))
             .Callback<TvShow>(show => _saved = show)

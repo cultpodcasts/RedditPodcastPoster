@@ -1,3 +1,4 @@
+using Api.Dtos.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -20,7 +21,7 @@ public class PostFilmHandler(
         return result.Status switch
         {
             FilmUpdateStatus.Accepted =>
-                ctx.Accepted(),
+                await ctx.Accepted((result.Outcome ?? new EpisodeUpdateOutcome()).ToDto(), c),
             FilmUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.FilmId }, c),
             FilmUpdateStatus.BadRequest =>

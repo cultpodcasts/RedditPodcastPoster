@@ -11,6 +11,12 @@ public abstract class PublisherFieldsDto
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
+    [JsonPropertyName("publisher")]
+    public string PublisherName { get; set; } = "";
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = "";
+
     [JsonPropertyName("language")]
     public string? Language { get; set; }
 

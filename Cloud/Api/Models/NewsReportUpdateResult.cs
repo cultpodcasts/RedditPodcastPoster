@@ -10,4 +10,5 @@ public enum NewsReportUpdateStatus
 
 public record NewsReportUpdateResult(
     NewsReportUpdateStatus Status,
-    string? Message = null);
+    string? Message = null,
+    EpisodeUpdateOutcome? Outcome = null);

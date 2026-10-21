@@ -23,6 +23,21 @@ public abstract class PlayableFieldsChangeRequest
     [JsonPropertyName("duration")]
     public string? Duration { get; set; }
 
+    /// <summary>Same as the episode edit API: sets the Reddit posted flag.</summary>
+    [JsonPropertyName("posted")]
+    public bool? Posted { get; set; }
+
+    /// <summary>Same as the episode edit API: sets the flag; true → false also deletes the tweet.</summary>
+    [JsonPropertyName("tweeted")]
+    public bool? Tweeted { get; set; }
+
+    /// <summary>
+    /// Same as the episode edit API: true deletes the Bluesky post, and clears the Bluesky state only when the post is
+    /// gone. Bluesky posted cannot be set to true here.
+    /// </summary>
+    [JsonPropertyName("unBluesky")]
+    public bool? UnBluesky { get; set; }
+
     [JsonPropertyName("explicit")]
     public bool? Explicit { get; set; }
 

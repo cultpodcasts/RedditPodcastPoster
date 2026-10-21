@@ -11,6 +11,8 @@ public static class CatalogueDtoMapping
     {
         dto.Id = publisher.Id;
         dto.Name = publisher.Name;
+        dto.PublisherName = publisher.PublisherName;
+        dto.Description = publisher.Description;
         dto.Language = publisher.Language;
         dto.Removed = publisher.IsRemoved();
         dto.TwitterHandle = publisher.TwitterHandle;
@@ -37,6 +39,7 @@ public static class CatalogueDtoMapping
         dto.Explicit = playable.Explicit;
         dto.Ignored = playable.Ignored;
         dto.Removed = playable.Removed;
+        dto.Posted = playable.Posted;
         dto.Tweeted = playable.Tweeted;
         dto.BlueskyPosted = playable.BlueskyPosted;
         dto.Subjects = [.. playable.Subjects];

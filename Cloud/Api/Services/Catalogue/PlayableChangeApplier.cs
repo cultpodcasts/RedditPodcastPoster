@@ -11,13 +11,20 @@ namespace Api.Services.Catalogue;
 /// </summary>
 public static class PlayableChangeApplier
 {
-    public static bool TryApply(Playable playable, PlayableFieldsChange change, out string? error)
+    public static bool TryApply(
+        Playable playable,
+        PlayableFieldsChange change,
+        out PostStatusChange postStatus,
+        out string? error)
     {
+        postStatus = PostStatusChange.None;
         if (!TryParseRelease(change.Release, allowYear: false, out var release, out error) ||
             !TryParseDuration(change.Duration, out var length, out error))
         {
             return false;
         }
+
+        postStatus = PostStatusApplier.Apply(playable, change.Posted, change.Tweeted, change.UnBluesky);
 
         if (!string.IsNullOrWhiteSpace(change.Title))
         {

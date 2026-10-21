@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Twitter.Builders;
 using RedditPodcastPoster.Twitter.Clients;
@@ -12,7 +13,10 @@ public class TweetManager(
     ILogger<TweetManager> logger
 ) : ITweetManager
 {
-    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
+    public Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode) =>
+        RemoveTweet(SocialPostRemovalTarget.From(podcastEpisode));
+
+    public async Task<RemoveTweetState> RemoveTweet(SocialPostRemovalTarget target)
     {
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)
@@ -23,10 +27,10 @@ public class TweetManager(
             }
 
             var matchingTweets = tweetsResponse.Tweets.Where(
-                x => x.Text.Contains(podcastEpisode.Podcast.Name) &&
-                     x.Text.Contains(podcastEpisode.Episode.Length.ToString(TweetBuilder.LengthFormat,
+                x => x.Text.Contains(target.ParentName) &&
+                     x.Text.Contains(target.Length.ToString(TweetBuilder.LengthFormat,
                          CultureInfo.InvariantCulture)) &&
-                     x.Text.Contains(podcastEpisode.Episode.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat))
+                     x.Text.Contains(target.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat))
             );
             if (!matchingTweets.Any())
             {
@@ -36,7 +40,7 @@ public class TweetManager(
             if (matchingTweets.Count() > 1)
             {
                 logger.LogError(
-                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Count(), podcastEpisode.Episode.Id);
+                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Count(), target.Id);
                 return RemoveTweetState.Other;
             }
 

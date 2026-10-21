@@ -12,6 +12,22 @@ public static class PublisherChangeApplier
 {
     public static void Apply(Publisher publisher, PublisherFieldsChange change)
     {
+        if (change.PublisherName != null)
+        {
+            publisher.PublisherName = change.PublisherName.Trim();
+        }
+
+        if (change.Description != null)
+        {
+            publisher.Description = change.Description;
+        }
+
+        if (change.Removed != null)
+        {
+            // Same as PodcastChangeApplier: the flag only. Services run the cascade (children / search documents).
+            publisher.Removed = change.Removed.Value;
+        }
+
         if (change.Language != null)
         {
             publisher.Language = EpisodeChangeApplier.NormaliseEpisodeLanguage(change.Language);

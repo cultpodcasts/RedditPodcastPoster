@@ -1,3 +1,4 @@
+using Api.Dtos.Extensions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -20,7 +21,7 @@ public class PostTvShowEpisodeHandler(
         return result.Status switch
         {
             TvShowEpisodeUpdateStatus.Accepted =>
-                ctx.Accepted(),
+                await ctx.Accepted((result.Outcome ?? new EpisodeUpdateOutcome()).ToDto(), c),
             TvShowEpisodeUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.EpisodeId }, c),
             TvShowEpisodeUpdateStatus.BadRequest =>

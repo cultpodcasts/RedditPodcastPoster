@@ -1,5 +1,6 @@
 using Api.Models;
 using Api.Services.Catalogue;
+using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -9,13 +10,13 @@ namespace Api.Services.News;
 
 /// <summary>
 /// Curator GET/PATCH for a news organisation. Mirrors <c>TvShowService</c> for lookup (id, or a unique name).
-/// The editable set is the publisher fields a news organisation carries (social handles, hashtags, terms,
-/// subjects, language). Name and removed are not editable here: a rename moves the public <c>/news/{name}</c>
-/// route and search series name, and removal must also clear search documents, so both need their own flows.
+/// The editable set is the shared publisher fields, including publisher, description and removed (which cascades to
+/// the reports). Name is not editable here: a rename moves the public <c>/news/{name}</c> route and search series name.
 /// </summary>
 public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
+    EpisodeSearchIndexCleanup searchIndexCleanup,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -73,18 +74,17 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Accepted);
             }
 
-            // Reports carry the organisation's search terms and language (publisherSearchTerms /
-            // publisherLanguage) for search. Saving a changed report also bumps its _ts, so the
-            // newsreport search indexer picks the new values up on its next run.
-            var reports = await newsReportRepository.GetByNewsOrganisationId(organisation.Id).ToListAsync(cancellationToken);
-            var changed = reports.Where(report => report.SetNewsOrganisationProperties(organisation).Updated).ToArray();
-            if (changed.Length > 0)
-            {
-                await newsReportRepository.Save(changed);
-                logger.LogInformation(
-                    "{method}: Updated {count} news report(s) of news organisation '{id}' with its new properties.",
-                    nameof(UpdateAsync), changed.Length, organisation.Id);
-            }
+            // Reports carry the organisation's search terms, language and removed (publisherSearchTerms /
+            // publisherLanguage / parentRemoved). Removal cascades like a podcast removal; see ParentChangeCascade.
+            await ParentChangeCascade.Run(
+                newsReportRepository.GetByNewsOrganisationId(organisation.Id),
+                report => report.SetNewsOrganisationProperties(organisation).Updated,
+                newsReportRepository.Save,
+                request.Change.Removed == true,
+                organisation.Name,
+                searchIndexCleanup,
+                logger,
+                cancellationToken);
 
             return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Accepted);
         }

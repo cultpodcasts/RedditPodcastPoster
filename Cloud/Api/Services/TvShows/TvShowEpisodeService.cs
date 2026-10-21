@@ -2,6 +2,7 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.TvShows;
@@ -9,6 +10,7 @@ namespace Api.Services.TvShows;
 public class TvShowEpisodeService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
+    IPlayableSocialRetraction socialRetraction,
     ILogger<TvShowEpisodeService> logger) : ITvShowEpisodeService
 {
     public async Task<TvShowEpisodeGetResult> GetAsync(Guid episodeId, CancellationToken cancellationToken)
@@ -39,8 +41,7 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound);
             }
 
-            var wasRemoved = episode.Removed;
-            if (!PlayableChangeApplier.TryApply(episode, request.Change, out var playableError))
+            if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
             {
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
             }
@@ -55,16 +56,25 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, tvdbError);
             }
 
+            // Same order as EpisodeUpdateService: Bluesky delete before the save (needs the AT URI), tweet after.
+            var target = new SocialPostRemovalTarget(episode.Id, episode.TvShowName ?? string.Empty, episode.Length,
+                episode.ReleaseSort, episode.BlueskyPost);
+            var outcome = new EpisodeUpdateOutcome
+            {
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, episode, target)
+            };
             await tvShowEpisodeRepository.Save(episode);
+            outcome.TweetDeleted = await socialRetraction.RemoveTweet(postStatus, target);
 
-            // As news reports: the sibling pull indexer never deletes, so a removal deletes the search document.
-            if (episode.Removed && !wasRemoved)
+            // As news reports: the sibling pull indexer never deletes, so removed=true deletes the search document
+            // (every time, as the episode API, so a retry finishes the job).
+            if (request.Change.Removed == true)
             {
                 await searchIndexCleanup.DeleteSearchEntry(episode.TvShowName ?? string.Empty, episode.Id,
                     cancellationToken);
             }
 
-            return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted);
+            return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome);
         }
         catch (Exception ex)
         {

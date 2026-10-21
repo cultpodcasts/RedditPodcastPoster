@@ -101,12 +101,13 @@ public static class RequestModelExtensions
         request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
         {
             Imdb = request.Imdb,
-            Description = request.Description,
             Release = request.Release,
             Duration = request.Duration,
             Explicit = request.Explicit,
             Ignored = request.Ignored,
-            Removed = request.Removed,
+            Posted = request.Posted,
+            Tweeted = request.Tweeted,
+            UnBluesky = request.UnBluesky,
             Subjects = request.Subjects,
             Guests = request.Guests
         });
@@ -134,6 +135,9 @@ public static class RequestModelExtensions
     private static T CopyPublisherFieldsTo<T>(this PublisherFieldsChangeRequest request, T model)
         where T : Models.PublisherFieldsChange
     {
+        model.PublisherName = request.Publisher;
+        model.Description = request.Description;
+        model.Removed = request.Removed;
         model.Language = request.Language;
         model.TwitterHandle = request.TwitterHandle;
         model.BlueskyHandle = request.BlueskyHandle;
@@ -154,6 +158,9 @@ public static class RequestModelExtensions
         model.Description = request.Description;
         model.Release = request.Release;
         model.Duration = request.Duration;
+        model.Posted = request.Posted;
+        model.Tweeted = request.Tweeted;
+        model.UnBluesky = request.UnBluesky;
         model.Explicit = request.Explicit;
         model.Ignored = request.Ignored;
         model.Removed = request.Removed;

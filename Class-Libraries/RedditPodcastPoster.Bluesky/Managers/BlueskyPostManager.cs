@@ -10,6 +10,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
@@ -161,21 +162,24 @@ public class BlueskyPostManager(
         }
     }
 
-    public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)
+    public Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode) =>
+        RemovePost(SocialPostRemovalTarget.From(podcastEpisode));
+
+    public async Task<RemovePostState> RemovePost(SocialPostRemovalTarget target)
     {
         var agent = await blueskyAgent.GetAsync();
         var collection = new Nsid("app.bsky.feed.post");
 
         RecordKey? recordKey;
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Episode.BlueskyPost))
+        if (!string.IsNullOrWhiteSpace(target.BlueskyPost))
         {
-            if (!AtUri.TryParse(podcastEpisode.Episode.BlueskyPost, out var atUri) ||
+            if (!AtUri.TryParse(target.BlueskyPost, out var atUri) ||
                 atUri.RecordKey is null)
             {
                 logger.LogError(
                     "Episode '{EpisodeId}' has BlueskyPost '{BlueskyPost}' that could not be parsed as an AT URI.",
-                    podcastEpisode.Episode.Id,
-                    podcastEpisode.Episode.BlueskyPost);
+                    target.Id,
+                    target.BlueskyPost);
                 return RemovePostState.Other;
             }
 
@@ -183,7 +187,7 @@ public class BlueskyPostManager(
         }
         else
         {
-            var legacy = await ResolveRecordKeyByLegacySearch(agent, collection, podcastEpisode);
+            var legacy = await ResolveRecordKeyByLegacySearch(agent, collection, target);
             if (legacy.Status == LegacyRecordKeyStatus.NotFound)
             {
                 return RemovePostState.NotFound;
@@ -213,7 +217,7 @@ public class BlueskyPostManager(
     private async Task<(LegacyRecordKeyStatus Status, RecordKey? RecordKey)> ResolveRecordKeyByLegacySearch(
         BlueskyAgent agent,
         Nsid collection,
-        PodcastEpisode podcastEpisode)
+        SocialPostRemovalTarget target)
     {
         var posts = await agent.ListRecords<AtProtoRecord>(collection, 100);
         if (!posts.Succeeded)
@@ -229,12 +233,12 @@ public class BlueskyPostManager(
         }
 
         var matchingPosts = posts.Result.Where(x =>
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
+            x.Value.ExtensionData["text"].GetString()!.Contains(target.ParentName) &&
+            x.Value.ExtensionData["text"].GetString()!.Contains(target.Length.ToString(
                 BlueskyEmbedCardPostFactory.LengthFormat,
                 CultureInfo.InvariantCulture)) &&
             x.Value.ExtensionData["text"].GetString()!.Contains(
-                podcastEpisode.Episode.ReleaseUtc.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
+                target.ReleaseUtc.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
         ).ToArray();
 
         if (!matchingPosts.Any())
@@ -246,7 +250,7 @@ public class BlueskyPostManager(
         {
             logger.LogError(
                 "Multiple bluesky-posts ({Count}) found matching episode-id '{EpisodeId}'", matchingPosts.Length,
-                podcastEpisode.Episode.Id);
+                target.Id);
             return (LegacyRecordKeyStatus.Ambiguous, null);
         }
 

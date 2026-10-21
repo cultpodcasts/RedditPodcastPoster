@@ -31,6 +31,9 @@ public abstract class PlayableFieldsDto
     [JsonPropertyName("removed")]
     public bool Removed { get; set; }
 
+    [JsonPropertyName("posted")]
+    public bool Posted { get; set; }
+
     [JsonPropertyName("tweeted")]
     public bool Tweeted { get; set; }
 

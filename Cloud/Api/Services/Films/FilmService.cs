@@ -2,6 +2,7 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -11,6 +12,7 @@ namespace Api.Services.Films;
 public class FilmService(
     IFilmRepository filmRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
+    IPlayableSocialRetraction socialRetraction,
     ILogger<FilmService> logger) : IFilmService
 {
     public async Task<FilmGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -60,8 +62,7 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.NotFound);
             }
 
-            var wasRemoved = film.IsRemoved();
-            if (!TryApply(film, request.Change, out var fieldError))
+            if (!TryApply(film, request.Change, out var postStatus, out var fieldError))
             {
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, fieldError);
             }
@@ -71,15 +72,23 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, imdbError);
             }
 
+            // Same order as EpisodeUpdateService: Bluesky delete before the save (needs the AT URI), tweet after.
+            var target = new SocialPostRemovalTarget(film.Id, film.Name, film.Length, film.ReleaseSort, film.BlueskyPost);
+            var outcome = new EpisodeUpdateOutcome
+            {
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target)
+            };
             await filmRepository.Save(film);
+            outcome.TweetDeleted = await socialRetraction.RemoveTweet(postStatus, target);
 
-            // The film search indexer never deletes, so a removal deletes the search document.
-            if (film.IsRemoved() && !wasRemoved)
+            // As the episode API: removed=true always deletes the search document (the film indexer never deletes),
+            // so a retry finishes the job.
+            if (request.Change.Removed == true)
             {
                 await searchIndexCleanup.DeleteSearchEntry(film.Name, film.Id, cancellationToken);
             }
 
-            return new FilmUpdateResult(FilmUpdateStatus.Accepted);
+            return new FilmUpdateResult(FilmUpdateStatus.Accepted, Outcome: outcome);
         }
         catch (Exception ex)
         {
@@ -92,20 +101,22 @@ public class FilmService(
     /// Publisher fields (shared with news organisations and TV shows), then the playable fields a film has.
     /// Release may be a year or a date. Validates first, so a 400 leaves the film untouched.
     /// </summary>
-    internal static bool TryApply(Film film, FilmChangeRequest change, out string? error)
+    internal static bool TryApply(
+        Film film,
+        FilmChangeRequest change,
+        out PostStatusChange postStatus,
+        out string? error)
     {
+        postStatus = PostStatusChange.None;
         if (!PlayableChangeApplier.TryParseRelease(change.Release, allowYear: true, out var release, out error) ||
             !PlayableChangeApplier.TryParseDuration(change.Duration, out var length, out error))
         {
             return false;
         }
 
+        // Publisher fields include publisher, description and removed.
         PublisherChangeApplier.Apply(film, change);
-
-        if (change.Description != null)
-        {
-            film.Description = change.Description;
-        }
+        postStatus = PostStatusApplier.Apply(film, change.Posted, change.Tweeted, change.UnBluesky);
 
         if (release is not null)
         {
@@ -125,11 +136,6 @@ public class FilmService(
         if (change.Ignored != null)
         {
             film.Ignored = change.Ignored.Value;
-        }
-
-        if (change.Removed != null)
-        {
-            film.Removed = change.Removed.Value;
         }
 
         if (change.Subjects != null)

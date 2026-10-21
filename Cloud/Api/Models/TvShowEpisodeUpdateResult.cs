@@ -10,4 +10,5 @@ public enum TvShowEpisodeUpdateStatus
 
 public record TvShowEpisodeUpdateResult(
     TvShowEpisodeUpdateStatus Status,
-    string? Message = null);
+    string? Message = null,
+    EpisodeUpdateOutcome? Outcome = null);
