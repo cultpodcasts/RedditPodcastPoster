@@ -170,7 +170,9 @@ Hidden items can still be accepted: load them with `includeHidden=true`, include
 Routing: each URL goes through the toolbar submit's channel-owner rule (`IEpisodeUrlRouter`, RPP #1054): the owning
 podcast, unless a news organisation / TV show owns the channel / show (or the podcast is playlist-scoped and the video
 is not in its playlist). URLs owned by different podcasts / parents give `DifferentPodcasts`; a removed owning parent
-fails the item.
+fails the item. For a parent, the first owned URL stores (or matches) the item; the other URLs it owns are submitted
+enrich-only, so they can add links to that item but never create a second news report / TV episode. If no owned URL
+produces an item, the item fails with an error naming the parent.
 
 HTTP **500** on catastrophic failure with `{ "message": "Failure" }`.
 

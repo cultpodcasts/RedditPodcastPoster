@@ -584,6 +584,52 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "With enrich-only set, a URL that matches no stored playable creates nothing and returns no item, because discovery's extra URLs may only enrich the item the first URL stored, never add a second one.")]
+    public async Task parent_submitter_enrich_only_never_creates()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true, EnrichOnly: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        result.PlayableId.Should().BeNull();
+        result.CatalogueSearchSource.Should().BeNull();
+        _reports.Should().BeEmpty();
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "With enrich-only set, a URL the processor matches to a stored report still enriches and saves that report and returns its id, because enrich-only blocks only creation, not adding links to the discovered item.")]
+    public async Task parent_submitter_enrich_only_still_enriches_matched_report()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var stored = StoreReport(organisation, YouTubeUrl());
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var merged = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        merged.Services![ServiceKeys.Spotify] = new ServiceLink { Url = spotifyUrl };
+        ProcessorReturns(new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: merged));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), spotifyUrl, new IndexingContext(),
+            new SubmitOptions(null, true, EnrichOnly: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.PlayableId.Should().Be(stored.Id);
+        result.CatalogueSearchSource!.Episode.Id.Should().Be(stored.Id);
+        _reports.Should().ContainSingle();
+        _savedReports.Should().ContainSingle().Which.Should().BeSameAs(stored);
+        stored.Services![ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
+    }
+
+    [Fact(DisplayName =
         "The parent submitter matches the URL against the parent's stored playables (projected with ids from their service urls), like a podcast's episodes, so the categoriser and processor can find an existing item.")]
     public async Task parent_submitter_passes_stored_playables_as_known_episodes()
     {
