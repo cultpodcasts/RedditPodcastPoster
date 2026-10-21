@@ -13,6 +13,7 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
+using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
 
 namespace RedditPodcastPoster.Bluesky.Managers;
@@ -21,6 +22,7 @@ public class BlueskyPostManager(
     IBlueskyPoster poster,
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
+    ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
     IAsyncInstance<BlueskyAgent> blueskyAgent,
     IOptions<BlueskyOptions> options,
     ILogger<BlueskyPostManager> logger)
@@ -48,8 +50,7 @@ public class BlueskyPostManager(
             throw;
         }
 
-        var failures = 0;
-        var posts = 0;
+        var run = new PostRun();
         if (unposted.Any())
         {
             logger.LogWarning(
@@ -60,79 +61,9 @@ public class BlueskyPostManager(
 
             foreach (var podcastEpisode in unposted)
             {
-                if (posts >= _options.MaxPosts)
+                if (!await PostOne(podcastEpisode, run))
                 {
-                    logger.LogWarning(
-                        "Stopping Bluesky posting because max-posts limit was reached. Posts: {posts}, Max-posts: {maxPosts}.",
-                        posts,
-                        _options.MaxPosts);
                     break;
-                }
-
-                try
-                {
-                    var shortnerResult = await shortnerService.Write(podcastEpisode);
-                    if (!shortnerResult.Success)
-                    {
-                        logger.LogError("Unsuccessful shortening-url.");
-                    }
-
-                    logger.LogInformation("Bluesky Post init.");
-                    try
-                    {
-                        var status = await poster.Post(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
-                        logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
-                        var posted = status == BlueskySendStatus.Success;
-
-                        if (!posted)
-                        {
-                            logger.LogWarning(
-                                "Bluesky post not sent for podcast '{podcastName}' (podcast-id '{podcastId}') episode-id '{episodeId}'. Status: {status}.",
-                                podcastEpisode.Podcast.Name,
-                                podcastEpisode.Podcast.Id,
-                                podcastEpisode.Episode.Id,
-                                status);
-
-                            if (status is BlueskySendStatus.Failure or BlueskySendStatus.FailureAuth
-                                or BlueskySendStatus.Unknown)
-                            {
-                                failures++;
-                                if (failures >= _options.MaxFailures)
-                                {
-                                    logger.LogWarning(
-                                        "Stopping Bluesky posting because failure threshold was reached. Failures: {failures}, Max-failures: {maxFailures}.",
-                                        failures,
-                                        _options.MaxFailures);
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                logger.LogWarning(
-                                    "Stopping Bluesky posting due to non-retriable status '{status}' for episode-id '{episodeId}'.",
-                                    status,
-                                    podcastEpisode.Episode.Id);
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            posts++;
-                        }
-                    }
-                    catch (EpisodeNotFoundException e)
-                    {
-                        logger.LogError(e,
-                            "Candidate episode to post to bluesky not found. Podcast '{podcastName}' with podcast-id '{podcastId}' and episode-id '{episodeId}'.",
-                            podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex,
-                        "Unable to bluesky-post episode with id '{episodeId}' with title '{episodeTitle}' from podcast with id '{podcastId}' and name '{podcastName}'.",
-                        podcastEpisode.Episode.Id, podcastEpisode.Episode.Title, podcastEpisode.Podcast.Id,
-                        podcastEpisode.Podcast.Name);
                 }
             }
         }
@@ -144,21 +75,148 @@ public class BlueskyPostManager(
                 spotifyRefreshed);
         }
 
-        if (posts == 0)
+        // TV episodes, news reports and films follow the podcast episodes within the same max-posts and
+        // failure budget. Their candidates come from their own containers, not the shared podcast cache.
+        var catalogueCount = 0;
+        if (!run.Stopped && run.Posts < _options.MaxPosts)
+        {
+            IReadOnlyList<PodcastEpisode> catalogueUnposted = [];
+            try
+            {
+                catalogueUnposted = await cataloguePlayableSocialPosts.GetBlueskyReady();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failure to find Bluesky-ready TV episodes, news reports or films.");
+            }
+
+            catalogueCount = catalogueUnposted.Count;
+            foreach (var item in catalogueUnposted)
+            {
+                if (!await PostOne(item, run))
+                {
+                    break;
+                }
+            }
+        }
+
+        var candidateCount = unposted.Count() + catalogueCount;
+        if (run.Posts == 0)
         {
             logger.LogWarning(
                 "Bluesky posting run completed with zero posts. Candidate-count: {candidateCount}, failures: {failures}.",
-                unposted.Count(),
-                failures);
+                candidateCount,
+                run.Failures);
         }
         else
         {
             logger.LogWarning(
                 "Bluesky posting run completed. Posts: {posts}, candidate-count: {candidateCount}, failures: {failures}.",
-                posts,
-                unposted.Count(),
-                failures);
+                run.Posts,
+                candidateCount,
+                run.Failures);
         }
+    }
+
+    private sealed class PostRun
+    {
+        public int Posts { get; set; }
+        public int Failures { get; set; }
+        public bool Stopped { get; set; }
+    }
+
+    /// <summary>Posts one candidate. Returns false when the run must stop.</summary>
+    private async Task<bool> PostOne(PodcastEpisode podcastEpisode, PostRun run)
+    {
+        if (run.Posts >= _options.MaxPosts)
+        {
+            logger.LogWarning(
+                "Stopping Bluesky posting because max-posts limit was reached. Posts: {posts}, Max-posts: {maxPosts}.",
+                run.Posts,
+                _options.MaxPosts);
+            run.Stopped = true;
+            return false;
+        }
+
+        try
+        {
+            Uri? shortUrl;
+            var hasShareImage = false;
+            if (podcastEpisode.IsCataloguePlayable)
+            {
+                // The KV short link is podcast-shaped ({podcastSafeName}/{episodeId}); link to the kind route instead.
+                shortUrl = CataloguePlayableSiteLink.For(podcastEpisode);
+            }
+            else
+            {
+                var shortnerResult = await shortnerService.Write(podcastEpisode);
+                if (!shortnerResult.Success)
+                {
+                    logger.LogError("Unsuccessful shortening-url.");
+                }
+
+                shortUrl = shortnerResult.Url;
+                hasShareImage = shortnerResult.HasShareImage;
+            }
+
+            logger.LogInformation("Bluesky Post init.");
+            try
+            {
+                var status = await poster.Post(podcastEpisode, shortUrl, hasShareImage);
+                logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
+                if (status == BlueskySendStatus.Success)
+                {
+                    run.Posts++;
+                    return true;
+                }
+
+                logger.LogWarning(
+                    "Bluesky post not sent for podcast '{podcastName}' (podcast-id '{podcastId}') episode-id '{episodeId}'. Status: {status}.",
+                    podcastEpisode.Podcast.Name,
+                    podcastEpisode.Podcast.Id,
+                    podcastEpisode.Episode.Id,
+                    status);
+
+                if (status is BlueskySendStatus.Failure or BlueskySendStatus.FailureAuth
+                    or BlueskySendStatus.Unknown)
+                {
+                    run.Failures++;
+                    if (run.Failures >= _options.MaxFailures)
+                    {
+                        logger.LogWarning(
+                            "Stopping Bluesky posting because failure threshold was reached. Failures: {failures}, Max-failures: {maxFailures}.",
+                            run.Failures,
+                            _options.MaxFailures);
+                        run.Stopped = true;
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                logger.LogWarning(
+                    "Stopping Bluesky posting due to non-retriable status '{status}' for episode-id '{episodeId}'.",
+                    status,
+                    podcastEpisode.Episode.Id);
+                run.Stopped = true;
+                return false;
+            }
+            catch (EpisodeNotFoundException e)
+            {
+                logger.LogError(e,
+                    "Candidate episode to post to bluesky not found. Podcast '{podcastName}' with podcast-id '{podcastId}' and episode-id '{episodeId}'.",
+                    podcastEpisode.Podcast.Name, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Unable to bluesky-post {contentKind} with id '{episodeId}' with title '{episodeTitle}' from parent with id '{podcastId}' and name '{podcastName}'.",
+                podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id, podcastEpisode.Episode.Title,
+                podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
+        }
+
+        return true;
     }
 
     public async Task<RemovePostState> RemovePost(PodcastEpisode podcastEpisode)

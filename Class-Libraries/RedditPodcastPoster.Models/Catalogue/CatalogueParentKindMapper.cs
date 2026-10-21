@@ -105,6 +105,65 @@ public static class CatalogueParentKindMapper
         return playable;
     }
 
+    /// <summary>
+    /// Read-only social-post projection of a TV episode: the show stands in for the podcast.
+    /// Never save the projection; posted state is written back to the TV episode.
+    /// </summary>
+    public static PodcastEpisode ToPostProjection(TvShowEpisode playable, TvShow tvShow) =>
+        ToPostProjection(playable, tvShow, nameof(ContentKinds.ContentKind.TvShowEpisode));
+
+    /// <summary>Read-only social-post projection of a news report: the organisation stands in for the podcast.</summary>
+    public static PodcastEpisode ToPostProjection(NewsReport playable, NewsOrganisation organisation) =>
+        ToPostProjection(playable, organisation, nameof(ContentKinds.ContentKind.NewsReport));
+
+    /// <summary>
+    /// Read-only social-post projection of a film. A film has no parent, so the film's own
+    /// publisher fields (handles, hashtags) stand in for the podcast and its name is the title.
+    /// </summary>
+    public static PodcastEpisode ToPostProjection(Film film)
+    {
+        ArgumentNullException.ThrowIfNull(film);
+        var podcast = new Podcast { Id = film.Id };
+        CopyPublisher(film, podcast);
+        var episode = new Episode
+        {
+            Id = film.Id,
+            Title = film.Name,
+            Description = film.Description,
+            Length = film.Length,
+            Explicit = film.Explicit,
+            Posted = film.Posted,
+            Tweeted = film.Tweeted,
+            OldBlueskyPosted = film.OldBlueskyPosted,
+            BlueskyPost = film.BlueskyPost,
+            Ignored = film.Ignored,
+            Removed = film.IsRemoved(),
+            Language = film.Language,
+            Subjects = [.. film.Subjects],
+            RemovedSubjects = [.. film.RemovedSubjects],
+            Matches = film.Matches.Select(CloneMatch).ToList(),
+            SearchTerms = film.SearchTerms,
+            HashTag = film.HashTag,
+            Services = CloneServices(film.Services),
+            Guests = CloneArray(film.Guests)
+        };
+        episode.SetRelease(film.Release);
+        episode.SetPodcastProperties(podcast);
+        return new PodcastEpisode(podcast, episode) { ContentKind = nameof(ContentKinds.ContentKind.Film) };
+    }
+
+    private static PodcastEpisode ToPostProjection(Playable playable, Publisher parent, string contentKind)
+    {
+        ArgumentNullException.ThrowIfNull(playable);
+        ArgumentNullException.ThrowIfNull(parent);
+        var podcast = new Podcast { Id = parent.Id };
+        CopyPublisher(parent, podcast);
+        var episode = new Episode { Id = playable.Id };
+        CopyPlayable(playable, episode);
+        episode.SetPodcastProperties(podcast);
+        return new PodcastEpisode(podcast, episode) { ContentKind = contentKind };
+    }
+
     private static void CopyPublisher(Publisher source, Publisher target)
     {
         target.Name = source.Name;

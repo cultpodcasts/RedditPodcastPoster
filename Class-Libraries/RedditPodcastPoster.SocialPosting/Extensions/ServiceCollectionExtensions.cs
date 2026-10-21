@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IPodcastEpisodeFilter, PodcastEpisodeFilter>()
             .AddSingleton<IRecentEpisodeCandidatesProvider, RecentEpisodeCandidatesProvider>()
             .AddScoped<IPodcastEpisodeProvider, PodcastEpisodeProvider>()
+            .AddScoped<ICataloguePlayableSocialPosts, CataloguePlayableSocialPosts>()
             .AddScoped<IPostModelFactory, PostModelFactory>();
     }
 }
