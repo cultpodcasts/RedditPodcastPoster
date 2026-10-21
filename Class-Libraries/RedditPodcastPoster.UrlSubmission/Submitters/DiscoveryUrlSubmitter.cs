@@ -110,7 +110,10 @@ public class DiscoveryUrlSubmitter(
         {
             try
             {
-                var enriched = await catalogueParentSubmitter.Submit(parent, other.Url, indexingContext, submitOptions);
+                // Once the item exists, an extra URL may only enrich it: discovery matched these URLs as one episode,
+                // so a URL the item does not match must not become a second news report / TV episode.
+                var options = playableId == null ? submitOptions : submitOptions with { EnrichOnly = true };
+                var enriched = await catalogueParentSubmitter.Submit(parent, other.Url, indexingContext, options);
                 if (enriched.PlayableId != null && playableId != null && enriched.PlayableId != playableId)
                 {
                     logger.LogWarning(
@@ -130,6 +133,12 @@ public class DiscoveryUrlSubmitter(
                     "Discovery-result '{DiscoveryResultId}': could not add '{Url}' to {ContentKind} '{PlayableId}'.",
                     discoveryResult.Id, other.Url, parent.ContentKind, playableId);
             }
+        }
+
+        if (Rank(episodeResult) == 0)
+        {
+            throw new InvalidOperationException(
+                $"{parent.Kind} '{parent.Parent.Name}' ({parent.Parent.Id}) owns the channel of this discovery result, but none of its URLs produced a {parent.ContentKind} (episode state '{episodeResult}').");
         }
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(result with { EpisodeResult = episodeResult });

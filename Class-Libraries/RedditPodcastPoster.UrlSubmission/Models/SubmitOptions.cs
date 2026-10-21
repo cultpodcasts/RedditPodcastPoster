@@ -14,6 +14,10 @@ namespace RedditPodcastPoster.UrlSubmission.Models;
 /// File the URL under this news organisation / TV show (by id) and never create a podcast. Exclusive with
 /// <paramref name="PodcastId"/> / <paramref name="PodcastName"/>.
 /// </param>
+/// <param name="EnrichOnly">
+/// News organisation / TV show submits only: the URL may enrich (or match) a stored news report / TV episode but never
+/// creates one. Discovery sets it for a result's extra URLs once its item exists, so one discovered episode is one item.
+/// </param>
 public record SubmitOptions(
     Guid? PodcastId,
     bool MatchOtherServices,
@@ -24,4 +28,5 @@ public record SubmitOptions(
     NonPodcastServiceItemMetaData? PrefetchedMeta = null,
     bool RefreshMeta = false,
     SubmitClassificationSignals? ClassificationSignals = null,
-    CatalogueParentTarget? Parent = null);
+    CatalogueParentTarget? Parent = null,
+    bool EnrichOnly = false);

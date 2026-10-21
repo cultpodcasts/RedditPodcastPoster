@@ -584,6 +584,26 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "With enrich-only set, a URL that matches no stored playable creates nothing and returns no item, because discovery's extra URLs may only enrich the item the first URL stored, never add a second one.")]
+    public async Task parent_submitter_enrich_only_never_creates()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true, EnrichOnly: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        result.PlayableId.Should().BeNull();
+        result.CatalogueSearchSource.Should().BeNull();
+        _reports.Should().BeEmpty();
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
         "The parent submitter matches the URL against the parent's stored playables (projected with ids from their service urls), like a podcast's episodes, so the categoriser and processor can find an existing item.")]
     public async Task parent_submitter_passes_stored_playables_as_known_episodes()
     {
