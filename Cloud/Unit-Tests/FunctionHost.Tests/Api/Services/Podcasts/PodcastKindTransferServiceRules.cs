@@ -139,6 +139,38 @@ public class PodcastKindTransferServiceRules
     }
 
     [Fact(DisplayName =
+        "Transferring an auto-indexed podcast to a news organisation keeps its discovery settings (YouTube channel " +
+        "id, Spotify and Apple ids, index-all) on the organisation's indexing, because change-kind must not stop " +
+        "submits and the hourly indexer from matching the channel.")]
+    public async Task transfer_to_news_organisation_keeps_indexing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.AppleId = _fixture.CreateAppleId();
+            p.IndexAllEpisodes = true;
+        });
+        _podcasts.Seed(podcast);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        var indexing = _savedOrganisation!.Indexing;
+        indexing.Should().NotBeNull();
+        indexing!.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        indexing.SpotifyId.Should().Be(podcast.SpotifyId);
+        indexing.AppleId.Should().Be(podcast.AppleId);
+        indexing.IndexAllEpisodes.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A missing target kind is rejected without writing catalogue rows, because Film is not a parent transfer.")]
     public async Task missing_target_is_invalid()
     {

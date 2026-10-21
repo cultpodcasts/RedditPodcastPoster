@@ -34,6 +34,12 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// same as <see cref="PodcastUpdater"/>. New items are saved as TvShowEpisode / NewsReport;
 /// merged and term-removed items update the stored playable. Cross-platform enrichment and
 /// hero promotion are not run for these kinds.
+/// <para>
+/// The parent itself is never upserted: only the Indexer-owned fields a pass changed
+/// (<c>lastIndexed</c>, <c>latestReleased</c>, changed <c>indexing</c> members) are patched via
+/// <see cref="CatalogueParentIndexerPatch"/>, so curator edits, renames and removals saved during the
+/// pass survive, and an unchanged parent costs no write.
+/// </para>
 /// </summary>
 public class CatalogueParentsUpdater(
     ITvShowRepository tvShowRepository,
@@ -142,9 +148,9 @@ public class CatalogueParentsUpdater(
             await tvShowEpisodeRepository.Save(outcome.ChangedPlayables);
         }
 
-        if (outcome.ParentChanged)
+        if (!outcome.ParentPatch.IsEmpty && !await tvShowRepository.PatchIndexerState(show.Id, outcome.ParentPatch))
         {
-            await tvShowRepository.Save(show);
+            LogParentGone("TvShow", show);
         }
 
         LogOutcome("TvShow", show, outcome);
@@ -165,12 +171,20 @@ public class CatalogueParentsUpdater(
             await newsReportRepository.Save(outcome.ChangedPlayables);
         }
 
-        if (outcome.ParentChanged)
+        if (!outcome.ParentPatch.IsEmpty &&
+            !await newsOrganisationRepository.PatchIndexerState(organisation.Id, outcome.ParentPatch))
         {
-            await newsOrganisationRepository.Save(organisation);
+            LogParentGone("NewsOrganisation", organisation);
         }
 
         LogOutcome("NewsOrganisation", organisation, outcome);
+    }
+
+    private void LogParentGone(string kind, Publisher parent)
+    {
+        logger.LogWarning(
+            "Catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' was deleted during the index pass; indexer state not written.",
+            kind, parent.Id, parent.Name);
     }
 
     private void LogOutcome<TPlayable>(string kind, Publisher parent, ParentIndexOutcome<TPlayable> outcome)
@@ -189,6 +203,9 @@ public class CatalogueParentsUpdater(
         IndexingContext indexingContext)
         where TPlayable : Playable
     {
+        var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
+        var lastIndexedBefore = parent.LastIndexed;
+        var latestReleasedBefore = parent.LatestReleased;
         var podcast = source.ToTransientPodcast(parent);
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
         var releasedSince = indexingContext.ReleasedSince!.Value;
@@ -266,10 +283,16 @@ public class CatalogueParentsUpdater(
             parent.LatestReleased = newest;
         }
 
-        // Discovery flags (expensive queries, show counts) live on Indexing, so save the parent every pass.
+        // Write back only what this pass moved (and only the Indexer-owned fields), so a curator edit saved
+        // mid-pass is not overwritten by this pass's snapshot of the parent.
+        var parentPatch = new CatalogueParentIndexerPatch(
+            parent.LastIndexed != lastIndexedBefore ? parent.LastIndexed : null,
+            parent.LatestReleased != latestReleasedBefore ? parent.LatestReleased : null,
+            source,
+            CatalogueIndexingChanges.ChangedSince(indexingBefore, source));
         return new ParentIndexOutcome<TPlayable>(
             [.. changed.Values],
-            ParentChanged: true,
+            parentPatch,
             addedEpisodes.Count,
             merge.MergedEpisodes.Count,
             filtered.FilteredEpisodes.Count,
@@ -427,7 +450,7 @@ public class CatalogueParentsUpdater(
 
     private sealed record ParentIndexOutcome<TPlayable>(
         IReadOnlyList<TPlayable> ChangedPlayables,
-        bool ParentChanged,
+        CatalogueParentIndexerPatch ParentPatch,
         int Added,
         int Merged,
         int Filtered,

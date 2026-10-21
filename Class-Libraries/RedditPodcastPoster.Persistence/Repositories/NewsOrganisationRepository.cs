@@ -33,6 +33,9 @@ public class NewsOrganisationRepository(
             new PartitionKey(organisation.Id.ToString()));
     }
 
+    public Task<bool> PatchIndexerState(Guid newsOrganisationId, CatalogueParentIndexerPatch patch) =>
+        CatalogueParentIndexerPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, patch);
+
     public async Task Delete(Guid newsOrganisationId)
     {
         try

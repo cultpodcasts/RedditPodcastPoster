@@ -149,12 +149,35 @@ public class Indexer(
         try
         {
             var updateStopwatch = Stopwatch.StartNew();
-            results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            try
+            {
+                results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
+                    nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
+                results = false;
+            }
+
+            // Podcasts and TV/News parents fail independently: a podcast-batch exception must not skip the parents.
             var parentIdsToIndex = CatalogueParentIdsForPass(indexerContext, indexerContextWrapper.Pass);
             if (parentIdsToIndex.Length > 0)
             {
-                results &= await catalogueParentsUpdater.UpdateParents(parentIdsToIndex, indexingContext);
+                try
+                {
+                    results &= await catalogueParentsUpdater.UpdateParents(parentIdsToIndex, indexingContext);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Failure to execute {nameofICatalogueParentsUpdater}.{nameofICatalogueParentsUpdater.UpdateParents}.",
+                        nameof(ICatalogueParentsUpdater), nameof(ICatalogueParentsUpdater.UpdateParents));
+                    results = false;
+                }
             }
+
             updateStopwatch.Stop();
             updateMs = updateStopwatch.ElapsedMilliseconds;
 
@@ -163,13 +186,6 @@ public class Indexer(
                 context.InstanceId,
                 indexerContextWrapper.Pass,
                 updateMs);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
-                nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
-            results = false;
         }
         finally
         {

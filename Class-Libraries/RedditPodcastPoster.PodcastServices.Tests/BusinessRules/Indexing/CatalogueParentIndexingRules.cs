@@ -31,8 +31,8 @@ public class CatalogueParentIndexingRules
     private readonly AutoMocker _mocker = new();
     private readonly List<TvShowEpisode> _savedTvEpisodes = [];
     private readonly List<NewsReport> _savedReports = [];
-    private readonly List<TvShow> _savedShows = [];
-    private readonly List<NewsOrganisation> _savedOrganisations = [];
+    private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _showPatches = [];
+    private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _organisationPatches = [];
     private readonly Dictionary<Guid, TvShow> _shows = [];
     private readonly Dictionary<Guid, NewsOrganisation> _organisations = [];
     private List<TvShowEpisode> _storedTvEpisodes = [];
@@ -55,18 +55,18 @@ public class CatalogueParentIndexingRules
             .ReturnsAsync((Guid id) => _shows.GetValueOrDefault(id));
         tvShows.Setup(x => x.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns(() => _shows.Values.ToAsyncEnumerable());
-        tvShows.Setup(x => x.Save(It.IsAny<TvShow>()))
-            .Callback((TvShow show) => _savedShows.Add(show))
-            .Returns(Task.CompletedTask);
+        tvShows.Setup(x => x.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
+            .Callback((Guid id, CatalogueParentIndexerPatch patch) => _showPatches.Add((id, patch)))
+            .ReturnsAsync(true);
 
         var organisations = _mocker.GetMock<INewsOrganisationRepository>();
         organisations.Setup(x => x.GetNewsOrganisation(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _organisations.GetValueOrDefault(id));
         organisations.Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
             .Returns(() => _organisations.Values.ToAsyncEnumerable());
-        organisations.Setup(x => x.Save(It.IsAny<NewsOrganisation>()))
-            .Callback((NewsOrganisation organisation) => _savedOrganisations.Add(organisation))
-            .Returns(Task.CompletedTask);
+        organisations.Setup(x => x.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
+            .Callback((Guid id, CatalogueParentIndexerPatch patch) => _organisationPatches.Add((id, patch)))
+            .ReturnsAsync(true);
 
         var tvEpisodes = _mocker.GetMock<ITvShowEpisodeRepository>();
         tvEpisodes.Setup(x => x.GetByTvShowId(It.IsAny<Guid>(), It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
@@ -108,11 +108,12 @@ public class CatalogueParentIndexingRules
             .Returns((Guid id, Expression<Func<Episode, bool>> _) =>
                 _podcastEpisodes.Where(x => x.PodcastId == id).ToAsyncEnumerable());
 
-        var terms = new Mock<IEliminationTermsProvider>();
-        terms.Setup(x => x.GetEliminationTerms()).Returns(new EliminationTerms());
+        _mocker.GetMock<IEliminationTermsProvider>()
+            .Setup(x => x.GetEliminationTerms())
+            .Returns(new EliminationTerms());
         _mocker.GetMock<IAsyncInstance<IEliminationTermsProvider>>()
             .Setup(x => x.GetAsync())
-            .ReturnsAsync(terms.Object);
+            .ReturnsAsync(() => _mocker.GetMock<IEliminationTermsProvider>().Object);
     }
 
     private CatalogueParentsUpdater Sut => _mocker.CreateInstance<CatalogueParentsUpdater>();
@@ -167,8 +168,10 @@ public class CatalogueParentIndexingRules
         saved.TvShowName.Should().Be(show.Name);
         saved.Title.Should().Be(discovered.Title);
         saved.Services.Should().ContainKey(ServiceKeys.YouTube);
-        _savedShows.Should().ContainSingle().Which.LastIndexed.Should().NotBeNull();
-        show.LatestReleased.Should().Be(discovered.ReleaseUtc);
+        var patch = _showPatches.Should().ContainSingle().Subject;
+        patch.Id.Should().Be(show.Id);
+        patch.Patch.LastIndexed.Should().NotBeNull();
+        patch.Patch.LatestReleased.Should().Be(discovered.ReleaseUtc);
     }
 
     [Fact(DisplayName =
@@ -190,7 +193,7 @@ public class CatalogueParentIndexingRules
         saved.Id.Should().Be(discovered.Id);
         saved.NewsOrganisationId.Should().Be(organisation.Id);
         saved.NewsOrganisationName.Should().Be(organisation.Name);
-        _savedOrganisations.Should().ContainSingle();
+        _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(organisation.Id);
         _savedTvEpisodes.Should().BeEmpty();
     }
 
@@ -273,8 +276,8 @@ public class CatalogueParentIndexingRules
         _existingPassedToProvider.Should().BeNull();
         _savedTvEpisodes.Should().BeEmpty();
         _savedReports.Should().BeEmpty();
-        _savedShows.Should().BeEmpty();
-        _savedOrganisations.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -405,5 +408,69 @@ public class CatalogueParentIndexingRules
         transient.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
         transient.ReleaseAuthority.Should().Be(podcast.ReleaseAuthority);
         transient.EpisodeIncludeTitleRegex.Should().Be(podcast.EpisodeIncludeTitleRegex);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: the parent is never upserted in full; only the Indexer-owned fields it changed " +
+        "(lastIndexed and the indexing flags discovery moved) are patched, because a curator edit, rename or removal " +
+        "saved during the pass must not be overwritten by the pass's stale snapshot.")]
+    public async Task only_indexer_owned_fields_that_changed_are_patched()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.YouTubePlaylistQueryIsExpensive = false;
+        _mocker.GetMock<IEpisodeProvider>()
+            .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .Callback((Podcast p, IEnumerable<Episode> _, IndexingContext _) => p.YouTubePlaylistQueryIsExpensive = true)
+            .ReturnsAsync([]);
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(x => x.Save(It.IsAny<NewsOrganisation>()), Times.Never);
+        var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
+        patch.LastIndexed.Should().NotBeNull();
+        patch.LatestReleased.Should().BeNull();
+        patch.ChangedIndexingProperties.Should().Equal("youTubePlaylistQueryIsExpensive");
+        patch.Indexing.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a pass changes nothing on the parent (it did not complete, found nothing " +
+        "new and moved no discovery flag), then the parent is not written at all, because an unchanged parent must " +
+        "cost no Cosmos write.")]
+    public async Task unchanged_parent_is_not_written()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode()];
+        _merge = (_, incoming) => new EpisodeMergeResult([], [], [], [incoming]);
+
+        // Act
+        await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        _showPatches.Should().BeEmpty();
+        _mocker.GetMock<ITvShowRepository>().Verify(x => x.Save(It.IsAny<TvShow>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when the parent was deleted during the pass, then the pass still succeeds, " +
+        "because the patch finding no document is not an indexing failure.")]
+    public async Task parent_deleted_mid_pass_is_not_a_failure()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.PatchIndexerState(show.Id, It.IsAny<CatalogueParentIndexerPatch>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var success = await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
     }
 }

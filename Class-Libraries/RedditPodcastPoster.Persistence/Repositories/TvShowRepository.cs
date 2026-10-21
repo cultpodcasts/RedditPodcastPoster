@@ -31,6 +31,9 @@ public class TvShowRepository(
         await tvShowsContainer.UpsertItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
     }
 
+    public Task<bool> PatchIndexerState(Guid tvShowId, CatalogueParentIndexerPatch patch) =>
+        CatalogueParentIndexerPatchOperations.Apply(tvShowsContainer, tvShowId, patch);
+
     public async Task Delete(Guid tvShowId)
     {
         try
