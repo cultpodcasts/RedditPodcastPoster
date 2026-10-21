@@ -7,6 +7,7 @@ using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.DiscoverySubmissions;
 using Api.Handlers.Episodes;
+using Api.Handlers.Catalogue;
 using Api.Handlers.Films;
 using Api.Handlers.Homepage;
 using Api.Handlers.People;
@@ -97,10 +98,13 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
             .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
 
-    /// <summary>Shared by the news, TV and film editors (post-status retraction). Safe to call more than once.</summary>
+    /// <summary>Shared by the news, TV and film editors (post-status retraction, rename). Safe to call more than once.</summary>
     private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
     {
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
+        services.TryAddScoped<PlayableSearchRename>();
+        services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
+        services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();
         return services;
     }
 

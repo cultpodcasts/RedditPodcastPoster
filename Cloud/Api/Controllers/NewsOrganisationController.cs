@@ -7,6 +7,7 @@ using Api;
 using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.News;
+using Api.Handlers.Catalogue;
 using Api.Models;
 using Azure.Diagnostics;
 
@@ -15,6 +16,7 @@ namespace Api.Controllers;
 public class NewsOrganisationController(
     IGetNewsOrganisationHandler getNewsOrganisationHandler,
     IPostNewsOrganisationHandler postNewsOrganisationHandler,
+    ICatalogueRenameHandler catalogueRenameHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<NewsOrganisationController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -41,6 +43,22 @@ public class NewsOrganisationController(
             ["curate"],
             new NewsOrganisationChangeRequestWrapper(newsOrganisationId, change.ToModel()),
             postNewsOrganisationHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>Rename, like <c>PodcastRename</c>: admin only; records a redirect and propagates the new name.</summary>
+    [Function("NewsOrganisationRename")]
+    public Task<HttpResponseData> Rename(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsorganisation/name/{newsOrganisationIdentifier}")]
+        HttpRequestData req,
+        string newsOrganisationIdentifier,
+        [FromBody] Dtos.CatalogueRenameRequest rename,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            new CatalogueRenameCommand(newsOrganisationIdentifier, rename.NewName),
+            catalogueRenameHandler.HandleNewsOrganisation,
             Unauthorised,
             ct);
 }

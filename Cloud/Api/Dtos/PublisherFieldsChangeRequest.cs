@@ -5,7 +5,7 @@ namespace Api.Dtos;
 /// <summary>
 /// Publisher fields a curator can PATCH on a news organisation, TV show or film. Omitted (null) = unchanged.
 /// Strings: "" clears. Arrays: [] clears. Same rules as the podcast change request.
-/// <c>language</c> "" or English is stored as null. Name is not editable here (it needs a rename flow).
+/// <c>language</c> "" or English is stored as null. Name is not part of PATCH; it has its own rename endpoint (<c>POST {kind}/name/{identifier}</c>) that records a redirect.
 /// </summary>
 public abstract class PublisherFieldsChangeRequest
 {

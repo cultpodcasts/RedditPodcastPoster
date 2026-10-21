@@ -23,7 +23,7 @@ public static class ParentChangeCascade
 {
     internal const int SaveBatchSize = 100;
 
-    public sealed record Result(int Children, int Saved, bool SearchDeleteSucceeded);
+    public sealed record Result(int Children, int Saved, bool SearchDeleteSucceeded, IReadOnlyList<Guid> ChildIds);
 
     public static async Task<Result> Run<TChild>(
         IAsyncEnumerable<TChild> children,
@@ -55,6 +55,6 @@ public static class ParentChangeCascade
                 parentName, all.Select(child => child.Id).ToArray(), cancellationToken);
         }
 
-        return new Result(all.Count, changed.Length, searchDeleteSucceeded);
+        return new Result(all.Count, changed.Length, searchDeleteSucceeded, all.Select(child => child.Id).ToArray());
     }
 }

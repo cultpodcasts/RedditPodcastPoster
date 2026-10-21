@@ -5,7 +5,7 @@ namespace Api.Dtos;
 /// <summary>
 /// PATCH body for <c>film/{id}</c>. A film is a publisher that is also playable, so this is the IMDb canonical id,
 /// the shared publisher fields (publisher, description, removed, search terms, hashtag and language live on the publisher) and the playable
-/// fields a film has. There is no title (the display name is <c>name</c>, which is not editable here).
+/// fields a film has. There is no title (the display name is <c>name</c>, which is changed by <c>POST film/name/{identifier}</c>).
 /// Omitted (null) = unchanged.
 /// </summary>
 public class FilmChangeRequest : PublisherFieldsChangeRequest

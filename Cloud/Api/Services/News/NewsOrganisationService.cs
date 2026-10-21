@@ -11,7 +11,7 @@ namespace Api.Services.News;
 /// <summary>
 /// Curator GET/PATCH for a news organisation. Mirrors <c>TvShowService</c> for lookup (id, or a unique name).
 /// The editable set is the shared publisher fields, including publisher, description and removed (which cascades to
-/// the reports). Name is not editable here: a rename moves the public <c>/news/{name}</c> route and search series name.
+/// the reports). Name is not part of PATCH: it is changed by <c>POST newsorganisation/name/{identifier}</c> (<c>CatalogueRenameService</c>), which records a redirect.
 /// </summary>
 public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
