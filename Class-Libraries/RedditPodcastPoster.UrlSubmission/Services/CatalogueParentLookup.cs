@@ -10,6 +10,9 @@ public interface ICatalogueParentLookup
     /// <summary>The news organisation or TV show with this id (a curator targeting a parent by id).</summary>
     Task<CatalogueParentMatch?> FindById(Guid id);
 
+    /// <summary>The <paramref name="kind"/> row with this id only (an explicit parent target).</summary>
+    Task<CatalogueParentMatch?> FindById(CatalogueParentKind kind, Guid id);
+
     /// <summary>Case-insensitive name match across news organisations and TV shows. Many → <see cref="AmbiguousParentNameException"/>.</summary>
     Task<CatalogueParentMatch?> FindByName(string name);
 
@@ -37,6 +40,18 @@ public class CatalogueParentLookup(
         if (organisation != null)
         {
             return CatalogueParentMatch.For(organisation);
+        }
+
+        var show = await tvShows.GetTvShow(id);
+        return show == null ? null : CatalogueParentMatch.For(show);
+    }
+
+    public async Task<CatalogueParentMatch?> FindById(CatalogueParentKind kind, Guid id)
+    {
+        if (kind == CatalogueParentKind.NewsOrganisation)
+        {
+            var organisation = await newsOrganisations.GetNewsOrganisation(id);
+            return organisation == null ? null : CatalogueParentMatch.For(organisation);
         }
 
         var show = await tvShows.GetTvShow(id);

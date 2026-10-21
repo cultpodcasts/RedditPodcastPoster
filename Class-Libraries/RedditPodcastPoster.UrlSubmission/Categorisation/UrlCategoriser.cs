@@ -27,13 +27,34 @@ public class UrlCategoriser(
 #pragma warning restore CS9113 // Parameter is unread.
     : IUrlCategoriser
 {
-    public async Task<CategorisedItem> Categorise(
+    public Task<CategorisedItem> Categorise(
         Podcast? podcast,
         Uri url,
         IndexingContext indexingContext,
         bool matchOtherServices,
         NonPodcastServiceItemMetaData? prefetchedMeta = null,
-        bool forceMetaExtract = false)
+        bool forceMetaExtract = false) =>
+        CategoriseCore(podcast, null, url, indexingContext, matchOtherServices, prefetchedMeta, forceMetaExtract);
+
+    public Task<CategorisedItem> Categorise(
+        Podcast podcast,
+        IReadOnlyList<Episode> knownEpisodes,
+        Uri url,
+        IndexingContext indexingContext,
+        bool matchOtherServices,
+        NonPodcastServiceItemMetaData? prefetchedMeta,
+        bool forceMetaExtract) =>
+        CategoriseCore(podcast, knownEpisodes, url, indexingContext, matchOtherServices, prefetchedMeta,
+            forceMetaExtract);
+
+    private async Task<CategorisedItem> CategoriseCore(
+        Podcast? podcast,
+        IReadOnlyList<Episode>? knownEpisodes,
+        Uri url,
+        IndexingContext indexingContext,
+        bool matchOtherServices,
+        NonPodcastServiceItemMetaData? prefetchedMeta,
+        bool forceMetaExtract)
     {
         CategorisedSpotifyItem? resolvedSpotifyItem = null;
         CategorisedAppleItem? resolvedAppleItem = null;
@@ -44,7 +65,11 @@ public class UrlCategoriser(
 
         Episode? matchingEpisode = null;
         List<Episode> episodes = [];
-        if (podcast != null)
+        if (knownEpisodes != null)
+        {
+            episodes = [.. knownEpisodes];
+        }
+        else if (podcast != null)
         {
             episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync();
         }

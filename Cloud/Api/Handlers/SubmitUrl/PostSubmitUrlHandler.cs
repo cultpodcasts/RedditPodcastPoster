@@ -23,6 +23,10 @@ public class PostSubmitUrlHandler(
                 await ctx.Ok(SubmitUrlResponse.Successful(result.Result!), c),
             SubmitUrlStatus.PodcastNotFound =>
                 await ctx.NotFound(new { message = result.Message }, c),
+            SubmitUrlStatus.ParentNotFound =>
+                await ctx.NotFound(new { message = result.Message }, c),
+            SubmitUrlStatus.BadRequest =>
+                await ctx.BadRequest(new { message = result.Message }, c),
             SubmitUrlStatus.Rejected =>
                 await ctx.BadRequest(new SubmitDispositionResponse(result.Result?.ContentKind, rejected: true), c),
             SubmitUrlStatus.RequiresCurator =>

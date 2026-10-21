@@ -30,6 +30,7 @@ public class CatalogueParentRoutingRules
     private readonly List<TvShow> _shows = [];
     private readonly List<NewsReport> _reports = [];
     private readonly List<TvShowEpisode> _tvEpisodes = [];
+    private readonly List<NewsReport> _savedReports = [];
     private IReadOnlyList<Podcast> _podcasts = [];
 
     public CatalogueParentRoutingRules()
@@ -54,15 +55,21 @@ public class CatalogueParentRoutingRules
             .ReturnsAsync((Expression<Func<NewsReport, bool>> p) => _reports.FirstOrDefault(p.Compile()));
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.Save(It.IsAny<NewsReport>()))
-            .Callback<NewsReport>(_reports.Add)
+            .Callback<NewsReport>(report => { _reports.Remove(report); _reports.Add(report); _savedReports.Add(report); })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync((Expression<Func<TvShowEpisode, bool>> p) => _tvEpisodes.FirstOrDefault(p.Compile()));
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
-            .Callback<TvShowEpisode>(_tvEpisodes.Add)
+            .Callback<TvShowEpisode>(episode => { _tvEpisodes.Remove(episode); _tvEpisodes.Add(episode); })
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetByNewsOrganisationId(It.IsAny<Guid>()))
+            .Returns((Guid id) => ToAsync(_reports.Where(x => x.NewsOrganisationId == id)));
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
+            .Returns((Guid id) => ToAsync(_tvEpisodes.Where(x => x.TvShowId == id)));
         _mocker.Use<ICatalogueParentLookup>(_mocker.CreateInstance<CatalogueParentLookup>());
     }
 
@@ -465,17 +472,34 @@ public class CatalogueParentRoutingRules
             Times.Once);
     }
 
-    private (CatalogueParentSubmitter Sut, Episode Episode, Uri Url) ArrangeSubmitter()
+    private (CatalogueParentSubmitter Sut, Episode Episode, Uri Url) ArrangeSubmitter(Uri? submitted = null)
     {
-        var url = YouTubeUrl();
+        var url = submitted ?? YouTubeUrl();
         var episode = _fixture.CreateEpisode(e =>
         {
             e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
         });
+        ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        return (_mocker.CreateInstance<CatalogueParentSubmitter>(), episode, url);
+    }
+
+    private void ProcessorReturns(SubmitResult result) =>
         _mocker.GetMock<IPodcastProcessor>()
             .Setup(p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
-            .ReturnsAsync(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
-        return (_mocker.CreateInstance<CatalogueParentSubmitter>(), episode, url);
+            .ReturnsAsync(result);
+
+    private NewsReport StoreReport(NewsOrganisation organisation, Uri youTubeUrl)
+    {
+        var stored = new NewsReport(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Length = _fixture.CreateDuration(),
+            Guests = [_fixture.CreateTitle(2)],
+            Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = youTubeUrl } }
+        };
+        stored.SetNewsOrganisationProperties(organisation);
+        _reports.Add(stored);
+        return stored;
     }
 
     [Fact(DisplayName =
@@ -493,8 +517,9 @@ public class CatalogueParentRoutingRules
 
         // Assert
         _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
-                It.Is<Podcast?>(p => p != null && p.Id == organisation.Id && p.YouTubeChannelId == channelId &&
-                                     p.Name == organisation.Name),
+                It.Is<Podcast>(p => p.Id == organisation.Id && p.YouTubeChannelId == channelId &&
+                                    p.Name == organisation.Name),
+                It.Is<IReadOnlyList<Episode>>(known => known.Count == 0),
                 url, It.IsAny<IndexingContext>(), true, It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
             Times.Once);
         _reports.Should().ContainSingle();
@@ -539,12 +564,7 @@ public class CatalogueParentRoutingRules
         // Arrange
         var organisation = AddOrganisation();
         var (sut, _, url) = ArrangeSubmitter();
-        var stored = new NewsReport(_fixture.CreateTitle())
-        {
-            Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } }
-        };
-        stored.SetNewsOrganisationProperties(organisation);
-        _reports.Add(stored);
+        var stored = StoreReport(organisation, url);
         var other = AddOrganisation();
 
         // Act
@@ -560,6 +580,168 @@ public class CatalogueParentRoutingRules
         dryRun.EpisodeResult.Should().Be(SubmitResultState.Created);
         dryRun.CatalogueSearchSource.Should().BeNull();
         _reports.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "The parent submitter matches the URL against the parent's stored playables (projected with ids from their service urls), like a podcast's episodes, so the categoriser and processor can find an existing item.")]
+    public async Task parent_submitter_passes_stored_playables_as_known_episodes()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var videoId = _fixture.CreateYouTubeId();
+        var stored = StoreReport(organisation, new Uri($"https://www.youtube.com/watch?v={videoId}"));
+        AddOrganisation();
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.IsAny<Podcast>(),
+                It.Is<IReadOnlyList<Episode>>(known => known.Count == 1 && known[0].Id == stored.Id &&
+                                                       known[0].Ids!.YouTube == videoId &&
+                                                       known[0].Guests!.SequenceEqual(stored.Guests!)),
+                url, It.IsAny<IndexingContext>(), true, It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A cross-platform resubmit the processor matches to a stored report and enriches copies the new service and subjects onto that report, saves it, re-indexes it and returns Enriched with its id, never a second report.")]
+    public async Task parent_submitter_enriches_matched_report()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var stored = StoreReport(organisation, YouTubeUrl());
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var subject = _fixture.CreateTitle(1);
+        var merged = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        merged.Services![ServiceKeys.Spotify] = new ServiceLink { Url = spotifyUrl };
+        merged.Subjects = [subject];
+        ProcessorReturns(new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: merged));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), spotifyUrl, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.PlayableId.Should().Be(stored.Id);
+        result.CatalogueSearchSource!.Episode.Id.Should().Be(stored.Id);
+        _reports.Should().ContainSingle();
+        _savedReports.Should().ContainSingle().Which.Should().BeSameAs(stored);
+        stored.Services![ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
+        stored.Services.Should().ContainKey(ServiceKeys.YouTube);
+        stored.Subjects.Should().Equal(subject);
+    }
+
+    [Fact(DisplayName =
+        "A resubmit the processor matches to a stored report with nothing new is EpisodeAlreadyExists with that report's id, and nothing is saved or indexed.")]
+    public async Task parent_submitter_known_item_already_exists()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var url = YouTubeUrl();
+        var stored = StoreReport(organisation, url);
+        var matched = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        ProcessorReturns(new SubmitResult(SubmitResultState.EpisodeAlreadyExists, SubmitResultState.None, Episode: matched));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        result.PlayableId.Should().Be(stored.Id);
+        result.CatalogueSearchSource.Should().BeNull();
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "The same video under another URL form (youtu.be vs watch?v=) is EpisodeAlreadyExists even when the processor would create it, because the stored report's YouTube id matches.")]
+    public async Task parent_submitter_same_video_other_url_form()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var videoId = _fixture.CreateYouTubeId();
+        var stored = StoreReport(organisation, new Uri($"https://www.youtube.com/watch?v={videoId}"));
+        var (sut, _, url) = ArrangeSubmitter(new Uri($"https://youtu.be/{videoId}"));
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        result.PlayableId.Should().Be(stored.Id);
+        _savedReports.Should().BeEmpty();
+        _reports.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "An explicit parent target files the URL under that news organisation by id with no podcast lookup or owner routing, and never creates a podcast.")]
+    public async Task explicit_parent_target_routes_by_id()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var url = YouTubeUrl();
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true,
+            Parent: new CatalogueParentTarget(CatalogueParentKind.NewsOrganisation, organisation.Id, organisation.Name)));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+        _mocker.GetMock<IPodcastService>().Verify(
+            s => s.GetEpisodeUrlOwner(It.IsAny<Uri>(), It.IsAny<IndexingContext>()), Times.Never);
+        _mocker.GetMock<IPodcastRepository>().Verify(r => r.GetPodcast(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "An explicit parent target whose id is not a row of that kind (missing, or a TV show sent as a news organisation) is parent-not-found and nothing is stored.")]
+    public async Task explicit_parent_target_missing_is_not_found()
+    {
+        // Arrange
+        var show = AddShow();
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        var wrongKind = () => sut.Submit(YouTubeUrl(), new IndexingContext(), new SubmitOptions(null, true,
+            Parent: new CatalogueParentTarget(CatalogueParentKind.NewsOrganisation, show.Id)));
+        var missing = () => sut.Submit(YouTubeUrl(), new IndexingContext(), new SubmitOptions(null, true,
+            Parent: new CatalogueParentTarget(CatalogueParentKind.TvShow, _fixture.CreateGuid())));
+
+        // Assert
+        (await wrongKind.Should().ThrowAsync<SubmitParentNotFoundException>()).Which.ParentId.Should().Be(show.Id);
+        await missing.Should().ThrowAsync<SubmitParentNotFoundException>();
+        VerifyRoutedTo(show.Id, Times.Never());
+        VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "When the channel / show owner of a URL with no podcast match cannot be resolved, the submit fails closed instead of creating a podcast, because a news organisation or TV show might own the channel.")]
+    public async Task owner_lookup_failure_fails_closed()
+    {
+        // Arrange
+        var url = YouTubeUrl();
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.GetEpisodeUrlOwner(url, It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new HttpRequestException("synthetic quota failure"));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        var create = () => sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true, CreatePodcast: true));
+        var byUnknownName = () => sut.Submit(url, new IndexingContext(),
+            new SubmitOptions(null, true, PodcastName: _fixture.CreateTitle()));
+
+        // Assert
+        await create.Should().ThrowAsync<InvalidOperationException>();
+        await byUnknownName.Should().ThrowAsync<InvalidOperationException>();
+        VerifyNoPodcastPipeline();
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

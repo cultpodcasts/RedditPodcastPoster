@@ -18,7 +18,7 @@ public class SubmitUrlService(
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILogger<SubmitUrlService> logger,
-    IPlayableSearchDocumentSwap? playableSearch = null) : ISubmitUrlService
+    IPlayableSearchDocumentSwap playableSearch) : ISubmitUrlService
 {
     public async Task<SubmitUrlResult> SubmitAsync(
         SubmitUrlRequest submitUrlModel,
@@ -29,6 +29,27 @@ public class SubmitUrlService(
             logger.LogInformation(
                 "{RunName}: Handling url-submission: url: '{Url}', podcast-id: '{PodcastId}', podcast-name: '{PodcastName}'.",
                 nameof(SubmitAsync), submitUrlModel.Url, submitUrlModel.PodcastId, submitUrlModel.PodcastName);
+            var parentTarget = submitUrlModel.GetParentTarget(out var parentError);
+            if (parentError != null)
+            {
+                logger.LogWarning("{RunName}: Rejected submit of '{Url}': {Error}", nameof(SubmitAsync),
+                    submitUrlModel.Url, parentError);
+                return new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: parentError);
+            }
+
+            if (parentTarget != null && !UrlSubmitter.IsPodcastPlatformUrl(submitUrlModel.Url))
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
+                    Message: "Only Spotify, YouTube or Apple Podcasts URLs can be filed under a news organisation or TV show.");
+            }
+
+            if (parentTarget != null)
+            {
+                logger.LogInformation(
+                    "{RunName}: Filing '{Url}' under {Kind} '{ParentId}' ('{ParentName}').",
+                    nameof(SubmitAsync), submitUrlModel.Url, parentTarget.Kind, parentTarget.Id, parentTarget.Name);
+            }
+
             Guid? podcastId = submitUrlModel.PodcastId;
             // Name-only: unique → attach by id; many → 409; none → leave id unset so ingest creates a series with PodcastName.
             if (podcastId == null && !string.IsNullOrWhiteSpace(submitUrlModel.PodcastName))
@@ -61,7 +82,8 @@ public class SubmitUrlService(
                 podcastId,
                 true,
                 PodcastName: submitUrlModel.PodcastName,
-                PrefetchedMeta: submitUrlModel.PrefetchedMeta);
+                PrefetchedMeta: submitUrlModel.PrefetchedMeta,
+                Parent: parentTarget);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
@@ -143,6 +165,17 @@ public class SubmitUrlService(
                 ContentKind: ex.ContentKind,
                 ParentName: ex.ParentName);
         }
+        catch (SubmitParentNotFoundException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Submit referenced missing {Kind} id '{ParentId}' for '{Url}'.",
+                nameof(SubmitAsync),
+                ex.Kind,
+                ex.ParentId,
+                submitUrlModel.Url);
+            return new SubmitUrlResult(SubmitUrlStatus.ParentNotFound, Message: $"{ex.Kind} not found");
+        }
         catch (SubmitPodcastNotFoundException ex)
         {
             logger.LogWarning(
@@ -176,13 +209,6 @@ public class SubmitUrlService(
     /// </summary>
     private async Task IndexCatalogueParentItem(CatalogueSearchSource source, CancellationToken cancellationToken)
     {
-        if (playableSearch == null)
-        {
-            logger.LogError("No playable search indexer is registered; '{PlayableId}' waits for the search indexer.",
-                source.Episode.Id);
-            return;
-        }
-
         var contentKind = source.Kind == CatalogueParentKind.NewsOrganisation
             ? SearchContentKind.NewsReport
             : SearchContentKind.TvShowEpisode;

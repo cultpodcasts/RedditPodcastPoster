@@ -20,9 +20,9 @@ public class UrlSubmitter(
     IUrlCategoriser urlCategoriser,
     ICategorisedItemProcessor categorisedItemProcessor,
     ILogger<UrlSubmitter> logger,
-    IOptions<SubmitContentTypesOptions>? submitContentTypes = null,
-    ICatalogueParentLookup? catalogueParentLookup = null,
-    ICatalogueParentSubmitter? catalogueParentSubmitter = null)
+    ICatalogueParentLookup catalogueParentLookup,
+    ICatalogueParentSubmitter catalogueParentSubmitter,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -41,11 +41,15 @@ public class UrlSubmitter(
                     ContentKind: SubmitClassification.NewsReport);
             }
 
+            if (submitOptions.Parent is { } target)
+            {
+                return await SubmitToParentTarget(target, url, indexingContext, submitOptions);
+            }
+
             Podcast? podcast = null;
             CatalogueParentMatch? parent = null;
             EpisodeUrlOwner? owner = null;
-            var routesToParents = catalogueParentLookup != null && catalogueParentSubmitter != null &&
-                                  IsPodcastPlatformUrl(url);
+            var routesToParents = IsPodcastPlatformUrl(url);
             if (!submitOptions.CreatePodcast)
             {
                 if (submitOptions.PodcastId != null)
@@ -53,7 +57,7 @@ public class UrlSubmitter(
                     podcast = await podcastRepository.GetPodcast(submitOptions.PodcastId.Value);
                     if (podcast == null && routesToParents)
                     {
-                        parent = await catalogueParentLookup!.FindById(submitOptions.PodcastId.Value);
+                        parent = await catalogueParentLookup.FindById(submitOptions.PodcastId.Value);
                     }
 
                     if (podcast == null && parent == null)
@@ -85,7 +89,7 @@ public class UrlSubmitter(
                     if (podcast == null && routesToParents)
                     {
                         // No podcast has the name: target a news organisation or TV show with it.
-                        parent = await catalogueParentLookup!.FindByName(submitOptions.PodcastName);
+                        parent = await catalogueParentLookup.FindByName(submitOptions.PodcastName);
                     }
                 }
                 else
@@ -112,7 +116,7 @@ public class UrlSubmitter(
                 owner ??= await TryGetEpisodeUrlOwner(url, indexingContext);
                 if (owner != null)
                 {
-                    parent = await catalogueParentLookup!.FindByOwner(owner.Ids);
+                    parent = await catalogueParentLookup.FindByOwner(owner.Ids);
                 }
             }
 
@@ -130,7 +134,7 @@ public class UrlSubmitter(
                 logger.LogInformation(
                     "Submit of '{Url}' routed to {Kind} '{ParentName}' ({ParentId}).",
                     url, parent.Kind, parent.Parent.Name, parent.Parent.Id);
-                return await catalogueParentSubmitter!.Submit(parent, url, indexingContext, submitOptions);
+                return await catalogueParentSubmitter.Submit(parent, url, indexingContext, submitOptions);
             }
 
             var categorisedItem =
@@ -196,6 +200,10 @@ public class UrlSubmitter(
         {
             throw;
         }
+        catch (SubmitParentNotFoundException)
+        {
+            throw;
+        }
         catch (InvalidOperationException)
         {
             throw;
@@ -231,7 +239,7 @@ public class UrlSubmitter(
             return (podcast, null);
         }
 
-        var channelOwner = await catalogueParentLookup!.FindByOwner(ids);
+        var channelOwner = await catalogueParentLookup.FindByOwner(ids);
         if (channelOwner == null)
         {
             return (podcast, null);
@@ -256,14 +264,16 @@ public class UrlSubmitter(
         return (null, channelOwner);
     }
 
-    private static bool IsPodcastPlatformUrl(Uri url) =>
+    /// <summary>Spotify, YouTube or Apple Podcasts: the URLs that can be routed to a news organisation or TV show.</summary>
+    public static bool IsPodcastPlatformUrl(Uri url) =>
         SpotifyPodcastServiceMatcher.IsMatch(url) ||
         YouTubePodcastServiceMatcher.IsMatch(url) ||
         ApplePodcastServiceMatcher.IsMatch(url);
 
     /// <summary>
-    /// Owner ids for the name and create-podcast paths, which did not resolve them before. A lookup failure
-    /// keeps the previous behaviour (no routing) instead of failing the submit.
+    /// Owner ids for the name and create-podcast paths, which did not resolve them before. A lookup failure fails
+    /// the submit (closed): with the owner unknown, going on would create a podcast for a channel / show a news
+    /// organisation or TV show may own.
     /// </summary>
     private async Task<EpisodeUrlOwner?> TryGetEpisodeUrlOwner(Uri url, IndexingContext indexingContext)
     {
@@ -273,8 +283,56 @@ public class UrlSubmitter(
         }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or HttpRequestException)
         {
-            logger.LogWarning(e, "Could not resolve the channel / show of '{Url}'; not routing to a news organisation or TV show.", url);
-            return null;
+            logger.LogError(e,
+                "Could not resolve the channel / show of '{Url}'; refusing to create a podcast it might not own.", url);
+            throw new InvalidOperationException(
+                $"Could not check which podcast, news organisation or TV show owns '{url}'. Retry, or submit with a podcast, news organisation or TV show.",
+                e);
         }
+    }
+
+    /// <summary>
+    /// The curator chose the news organisation / TV show (by id). No podcast lookup, no owner routing, and never a
+    /// podcast: a missing parent is <see cref="SubmitParentNotFoundException"/>.
+    /// </summary>
+    private async Task<SubmitResult> SubmitToParentTarget(
+        CatalogueParentTarget target,
+        Uri url,
+        IndexingContext indexingContext,
+        SubmitOptions submitOptions)
+    {
+        if (!IsPodcastPlatformUrl(url))
+        {
+            // SubmitUrlService answers this with a 400 first; this guard keeps other callers from reaching the categoriser.
+            throw new InvalidOperationException(
+                $"Only Spotify, YouTube or Apple Podcasts URLs can be filed under a {target.Kind}; got '{url}'.");
+        }
+
+        var parent = await catalogueParentLookup.FindById(target.Kind, target.Id);
+        if (parent == null)
+        {
+            logger.LogWarning("Submit of '{Url}' targeted {Kind} '{ParentId}' which does not exist.", url, target.Kind,
+                target.Id);
+            throw new SubmitParentNotFoundException(target.Kind, target.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(target.Name) &&
+            !string.Equals(target.Name.Trim(), parent.Parent.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Submit of '{Url}' targeted {Kind} '{ParentId}' as '{TargetName}', but it is named '{ParentName}'; filing by id.",
+                url, target.Kind, target.Id, target.Name, parent.Parent.Name);
+        }
+
+        if (parent.Parent.IsRemoved())
+        {
+            logger.LogWarning("{Kind} with id '{ParentId}' is removed.", parent.Kind, parent.Parent.Id);
+            return new SubmitResult(SubmitResultState.None, SubmitResultState.PodcastRemoved,
+                ContentKind: parent.ContentKind);
+        }
+
+        logger.LogInformation("Submit of '{Url}' filed under {Kind} '{ParentName}' ({ParentId}) by the curator.",
+            url, parent.Kind, parent.Parent.Name, parent.Parent.Id);
+        return await catalogueParentSubmitter.Submit(parent, url, indexingContext, submitOptions);
     }
 }
