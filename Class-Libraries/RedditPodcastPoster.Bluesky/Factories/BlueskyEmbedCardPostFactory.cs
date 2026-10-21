@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.SocialPosting.Factories;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;
@@ -78,17 +79,30 @@ public class BlueskyEmbedCardPostFactory(
         var guestHandles = guestHandlesToAppend.Length > 0
             ? " " + string.Join(" ", guestHandlesToAppend)
             : string.Empty;
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
+        if (SocialPostKindTemplate.HasParentLine(podcastEpisode))
         {
-            postBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.BlueskyHandle}{guestHandles}");
+            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.BlueskyHandle))
+            {
+                postBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.BlueskyHandle}{guestHandles}");
+            }
+            else
+            {
+                postBuilder.AppendLine($"{podcastName}{guestHandles}");
+            }
         }
         else
         {
-            postBuilder.AppendLine($"{podcastName}{guestHandles}");
+            // Film: no parent name; the film's own handle and guests still get tagged.
+            var filmHandles = string.Join(" ",
+                new[] { podcastEpisode.Podcast.BlueskyHandle }.Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Concat(guestHandlesToAppend));
+            if (!string.IsNullOrWhiteSpace(filmHandles))
+            {
+                postBuilder.AppendLine(filmHandles);
+            }
         }
 
-        postBuilder.AppendLine(
-            $"{podcastEpisode.Episode.ReleaseUtc.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
+        postBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
         var endHashTags = string.Join(" ",
             episodeHashtags
@@ -105,17 +119,19 @@ public class BlueskyEmbedCardPostFactory(
         var shortUrlOnly = hasShareImage && _blueskyOptions.ShortUrlOnlyWhenShareImage;
         var includeShortInText = shortUrlOnly
             || (_blueskyOptions.WithEpisodeUrl &&
-                (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
+                (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
+                 podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
         if (shortUrl != null && includeShortInText)
         {
-            postBuilder.AppendLine($"{shortUrl}");
+            postBuilder.AppendLine($"{shortUrl.AbsoluteUri}");
         }
 
         // Short URL is already in postBuilder when includeShortInText. Extra 26 was for dual-link
         // budgeting; short-URL-only share-image posts skip it and allow a longer title.
         var reserveSecondUrlBudget = !shortUrlOnly
             && _blueskyOptions.WithEpisodeUrl
-            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+            && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
+                 podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
         var permittedTitleLength = 300 - (postBuilder.Length + (reserveSecondUrlBudget ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)

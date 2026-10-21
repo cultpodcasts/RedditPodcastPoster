@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Twitter.Builders;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Dtos;
@@ -12,6 +13,7 @@ public class TweetPoster(
     IEpisodeRepository episodeRepository,
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
+    ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
@@ -35,7 +37,14 @@ public class TweetPoster(
             podcastEpisode.Episode.Tweeted = true;
             try
             {
-                await episodeRepository.Save(podcastEpisode.Episode);
+                if (podcastEpisode.IsCataloguePlayable)
+                {
+                    await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode);
+                }
+                else
+                {
+                    await episodeRepository.Save(podcastEpisode.Episode);
+                }
             }
             catch (Exception ex)
             {

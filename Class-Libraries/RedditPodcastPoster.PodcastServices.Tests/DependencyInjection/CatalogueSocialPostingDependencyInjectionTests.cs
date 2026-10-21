@@ -42,6 +42,23 @@ public class CatalogueSocialPostingDependencyInjectionTests
     }
 
     [Fact(DisplayName =
+        "Social posting container: when AddSocialPostingServices is registered, then the TV, news and film post candidates and writer are registered scoped, because Tweet and Bluesky need them alongside podcast candidates.")]
+    public void social_posting_registers_catalogue_playable_social_posts()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddSocialPostingServices();
+
+        // Assert
+        services.Should().Contain(d =>
+            d.ServiceType == typeof(ICataloguePlayableSocialPosts) &&
+            d.ImplementationType == typeof(CataloguePlayableSocialPosts) &&
+            d.Lifetime == ServiceLifetime.Scoped);
+    }
+
+    [Fact(DisplayName =
         "Index-like catalogue container: when host stubs platform retrieval handlers and repositories, then IEpisodeProvider and IPodcastEpisodeFilter resolve, because indexing needs catalogue intake and candidacy filters without Reddit.")]
     public void index_like_container_resolves_episode_provider_and_podcast_episode_filter()
     {
@@ -111,9 +128,9 @@ public class CatalogueSocialPostingDependencyInjectionTests
         services.AddSingleton(Mock.Of<IEpisodeRepository>());
         services.AddSingleton(Mock.Of<IPodcastRepository>());
 
-        var subjects = new Mock<ISubjectsProvider>();
-        subjects.Setup(x => x.GetAll()).Returns(EmptySubjects());
-        services.AddSingleton(subjects.Object);
+        var subjects = Mock.Of<ISubjectsProvider>();
+        Mock.Get(subjects).Setup(x => x.GetAll()).Returns(EmptySubjects);
+        services.AddSingleton(subjects);
     }
 
     private static async IAsyncEnumerable<Subject> EmptySubjects()

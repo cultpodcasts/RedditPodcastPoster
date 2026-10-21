@@ -89,7 +89,7 @@ public class TwitterClient(
             _options.AccessTokenSecret);
 
         var createTweetRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"https://api.twitter.com/2/users/{_options.TwitterId}/tweets");
+            $"https://api.twitter.com/2/users/{_options.TwitterId}/tweets?tweet.fields=entities");
 
         using var httpClient = new HttpClient(oauth);
 
