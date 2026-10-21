@@ -92,6 +92,11 @@ public class UrlSubmitter(
                 {
                     owner = await podcastService.GetEpisodeUrlOwner(url, indexingContext);
                     podcast = owner?.Podcast;
+                    if (podcast != null && routesToParents && owner != null)
+                    {
+                        (podcast, parent) = await PreferParentOverPlaylistScopedPodcast(
+                            podcast, owner.Ids, url, indexingContext);
+                    }
                 }
 
                 if (podcast != null && podcast.IsRemoved())
@@ -206,6 +211,49 @@ public class UrlSubmitter(
             logger.LogError(e, "Error ingesting '{url}'.", url);
             return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
+    }
+
+    /// <summary>
+    /// A podcast matched only by YouTube channel, scoped to one playlist of that channel (e.g. a show on a news
+    /// outlet's channel), keeps the URL only when the video is in its playlist. Otherwise the news organisation
+    /// or TV show that owns the channel gets it. With no owning parent the podcast keeps it (unchanged).
+    /// </summary>
+    private async Task<(Podcast? Podcast, CatalogueParentMatch? Parent)> PreferParentOverPlaylistScopedPodcast(
+        Podcast podcast,
+        EpisodeUrlOwnerIds ids,
+        Uri url,
+        IndexingContext indexingContext)
+    {
+        if (string.IsNullOrWhiteSpace(ids.YouTubeChannelId) ||
+            string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId) ||
+            podcast.YouTubeChannelId != ids.YouTubeChannelId)
+        {
+            return (podcast, null);
+        }
+
+        var channelOwner = await catalogueParentLookup!.FindByOwner(ids);
+        if (channelOwner == null)
+        {
+            return (podcast, null);
+        }
+
+        var inPlaylist = await podcastService.IsVideoInPodcastPlaylist(podcast, url, indexingContext);
+        if (inPlaylist == true)
+        {
+            return (podcast, null);
+        }
+
+        if (inPlaylist == null)
+        {
+            throw new InvalidOperationException(
+                $"Could not check whether '{url}' is in the playlist of podcast '{podcast.Name}', which shares its channel with {channelOwner.Kind} '{channelOwner.Parent.Name}'. Retry, or submit with the podcast or {channelOwner.Kind} name.");
+        }
+
+        logger.LogInformation(
+            "Video '{Url}' is not in playlist '{PlaylistId}' of podcast '{PodcastName}' ({PodcastId}); routing to channel owner {Kind} '{ParentName}' ({ParentId}).",
+            url, podcast.YouTubePlaylistId, podcast.Name, podcast.Id, channelOwner.Kind, channelOwner.Parent.Name,
+            channelOwner.Parent.Id);
+        return (null, channelOwner);
     }
 
     private static bool IsPodcastPlatformUrl(Uri url) =>

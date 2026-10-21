@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -91,5 +92,39 @@ public class PodcastServiceNonPodcastLookupRules
         unownedResult.Podcast.Should().BeNull();
         unownedResult.Ids.ApplePodcastId.Should().Be(appleId + 1);
         bbcResult.Ids.IsEmpty.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Playlist membership: a channel-wide podcast always contains the video, a list= URL of its playlist needs no API call, otherwise YouTube's answer (including unknown) is returned.")]
+    public async Task playlist_membership_rules()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var scoped = _fixture.CreatePodcast(p => p.YouTubePlaylistId = playlistId);
+        var channelWide = _fixture.CreatePodcast(p => p.YouTubePlaylistId = string.Empty);
+        var membership = _mocker.GetMock<RedditPodcastPoster.PodcastServices.YouTube.Playlist.IYouTubePlaylistMembership>();
+        membership.SetupSequence(m => m.Contains(
+                It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(false)
+            .ReturnsAsync((bool?)null);
+        var sut = _mocker.CreateInstance<PodcastService>();
+        var plain = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        var withList = new Uri($"https://www.youtube.com/watch?v={videoId}&list={playlistId}");
+
+        // Act
+        var wide = await sut.IsVideoInPodcastPlaylist(channelWide, plain, new IndexingContext());
+        var listed = await sut.IsVideoInPodcastPlaylist(scoped, withList, new IndexingContext());
+        var notIn = await sut.IsVideoInPodcastPlaylist(scoped, plain, new IndexingContext());
+        var unknown = await sut.IsVideoInPodcastPlaylist(scoped, plain, new IndexingContext());
+
+        // Assert
+        wide.Should().BeTrue();
+        listed.Should().BeTrue();
+        notIn.Should().BeFalse();
+        unknown.Should().BeNull();
+        membership.Verify(m => m.Contains(
+            It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(), playlistId, videoId),
+            Times.Exactly(2));
     }
 }

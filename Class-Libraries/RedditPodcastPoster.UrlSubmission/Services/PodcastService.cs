@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Spotify.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
@@ -24,6 +25,7 @@ public class PodcastService(
     ISpotifyEpisodeResolver spotifyEpisodeResolver,
     IYouTubeVideoService youTubeVideoService,
     INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
+    IYouTubePlaylistMembership youTubePlaylistMembership,
 #pragma warning disable CS9113 // Parameter is unread.
     ILogger<PodcastService> logger
 #pragma warning restore CS9113 // Parameter is unread.
@@ -36,6 +38,27 @@ public class PodcastService(
     {
         var ids = await GetOwnerIds(url, indexingContext);
         return new EpisodeUrlOwner(await MatchPodcast(ids), ids);
+    }
+
+    public async Task<bool?> IsVideoInPodcastPlaylist(Podcast podcast, Uri url, IndexingContext indexingContext)
+    {
+        if (string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+        {
+            return true;
+        }
+
+        if (string.Equals(YouTubePlaylistIdResolver.Extract(url), podcast.YouTubePlaylistId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var videoId = YouTubeIdResolver.Extract(url);
+        if (string.IsNullOrWhiteSpace(videoId) || indexingContext.SkipYouTubeUrlResolving)
+        {
+            return null;
+        }
+
+        return await youTubePlaylistMembership.Contains(youTubeService, podcast.YouTubePlaylistId, videoId);
     }
 
     private async Task<EpisodeUrlOwnerIds> GetOwnerIds(Uri url, IndexingContext indexingContext)

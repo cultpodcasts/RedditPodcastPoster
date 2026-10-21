@@ -335,6 +335,136 @@ public class CatalogueParentRoutingRules
             .Should().Be(secondChannelWide.Id);
     }
 
+    /// <summary>
+    /// Modelled on a news outlet's channel that also hosts one playlist-scoped podcast (a show of the outlet,
+    /// not auto-indexed). Synthetic ids only.
+    /// </summary>
+    private (Podcast Show, NewsOrganisation Outlet, Uri Url) ArrangeSharedChannel()
+    {
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var outlet = AddOrganisation(i => i.YouTubeChannelId = channelId, name: "Synthetic News Network");
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.Name = "Synthetic Scoop";
+            p.PublisherName = "Synthetic News Network";
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks;
+            p.IndexAllEpisodes = false;
+        });
+        _podcasts = [show];
+        var url = YouTubeUrl();
+        OwnerIs(url, show, new EpisodeUrlOwnerIds(YouTubeChannelId: channelId));
+        return (show, outlet, url);
+    }
+
+    private void InPlaylist(Podcast podcast, Uri url, bool? inPlaylist) =>
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.IsVideoInPodcastPlaylist(
+                It.Is<Podcast>(p => p.Id == podcast.Id), url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(inPlaylist);
+
+    [Fact(DisplayName =
+        "Shared channel: a video that is not in the playlist-scoped podcast's playlist goes to the news organisation that owns the channel, not the podcast.")]
+    public async Task shared_channel_video_outside_playlist_goes_to_outlet()
+    {
+        // Arrange
+        var (show, outlet, url) = ArrangeSharedChannel();
+        InPlaylist(show, url, false);
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(outlet.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast?>(p => p != null && p.Id == show.Id), It.IsAny<Uri>(), It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Shared channel: a video in the podcast's playlist stays with the podcast.")]
+    public async Task shared_channel_video_in_playlist_stays_with_podcast()
+    {
+        // Arrange
+        var (show, outlet, url) = ArrangeSharedChannel();
+        InPlaylist(show, url, true);
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(outlet.Id, Times.Never());
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast?>(p => p != null && p.Id == show.Id), url, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Shared channel: when playlist membership cannot be checked the submit fails without storing anything or creating a podcast.")]
+    public async Task shared_channel_unknown_membership_fails_safely()
+    {
+        // Arrange
+        var (show, outlet, url) = ArrangeSharedChannel();
+        InPlaylist(show, url, null);
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        var act = () => sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        VerifyRoutedTo(outlet.Id, Times.Never());
+        VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "Shared channel: explicitly naming the playlist-scoped podcast still wins, without a playlist check.")]
+    public async Task shared_channel_explicit_podcast_name_wins()
+    {
+        // Arrange
+        var (show, outlet, url) = ArrangeSharedChannel();
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true, PodcastName: show.Name));
+
+        // Assert
+        VerifyRoutedTo(outlet.Id, Times.Never());
+        _mocker.GetMock<IPodcastService>().Verify(s => s.IsVideoInPodcastPlaylist(
+            It.IsAny<Podcast>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>()), Times.Never);
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast?>(p => p != null && p.Id == show.Id), url, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A playlist-scoped podcast on a channel no news organisation or TV show owns keeps the URL as before, without a playlist check.")]
+    public async Task playlist_scoped_podcast_without_parent_unchanged()
+    {
+        // Arrange
+        var (show, outlet, url) = ArrangeSharedChannel();
+        _organisations.Remove(outlet);
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        _mocker.GetMock<IPodcastService>().Verify(s => s.IsVideoInPodcastPlaylist(
+            It.IsAny<Podcast>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>()), Times.Never);
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast?>(p => p != null && p.Id == show.Id), url, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private (CatalogueParentSubmitter Sut, Episode Episode, Uri Url) ArrangeSubmitter()
     {
         var url = YouTubeUrl();
