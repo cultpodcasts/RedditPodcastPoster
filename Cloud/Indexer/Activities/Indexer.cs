@@ -16,6 +16,7 @@ namespace Indexer.Activities;
 [DurableTask(nameof(Indexer))]
 public class Indexer(
     IPodcastsUpdater podcastsUpdater,
+    ICatalogueParentsUpdater catalogueParentsUpdater,
     IActivityMarshaller activityMarshaller,
     IIndexingStrategy indexingStrategy,
     IActivityOptionsProvider activityOptionsProvider,
@@ -148,7 +149,35 @@ public class Indexer(
         try
         {
             var updateStopwatch = Stopwatch.StartNew();
-            results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            try
+            {
+                results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
+                    nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
+                results = false;
+            }
+
+            // Podcasts and TV/News parents fail independently: a podcast-batch exception must not skip the parents.
+            var parentIdsToIndex = CatalogueParentIdsForPass(indexerContext, indexerContextWrapper.Pass);
+            if (parentIdsToIndex.Length > 0)
+            {
+                try
+                {
+                    results &= await catalogueParentsUpdater.UpdateParents(parentIdsToIndex, indexingContext);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Failure to execute {nameofICatalogueParentsUpdater}.{nameofICatalogueParentsUpdater.UpdateParents}.",
+                        nameof(ICatalogueParentsUpdater), nameof(ICatalogueParentsUpdater.UpdateParents));
+                    results = false;
+                }
+            }
+
             updateStopwatch.Stop();
             updateMs = updateStopwatch.ElapsedMilliseconds;
 
@@ -157,13 +186,6 @@ public class Indexer(
                 context.InstanceId,
                 indexerContextWrapper.Pass,
                 updateMs);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex,
-                "Failure to execute {nameofIPodcastsUpdater}.{nameofIPodcastsUpdater.UpdatePodcasts}.",
-                nameof(IPodcastsUpdater), nameof(IPodcastsUpdater.UpdatePodcasts));
-            results = false;
         }
         finally
         {
@@ -229,5 +251,17 @@ public class Indexer(
             nameof(RunAsync), indexerContextWrapper.Pass, result);
 
         return result;
+    }
+
+    /// <summary>TvShow / NewsOrganisation ids for this pass; empty when the orchestration predates them.</summary>
+    public static Guid[] CatalogueParentIdsForPass(IndexerContext indexerContext, int pass)
+    {
+        var batches = indexerContext.CatalogueParentIndexIds;
+        if (batches is null || pass < 1 || pass > batches.Length)
+        {
+            return [];
+        }
+
+        return batches[pass - 1] ?? [];
     }
 }
