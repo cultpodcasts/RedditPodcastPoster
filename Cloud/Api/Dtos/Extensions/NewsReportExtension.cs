@@ -28,6 +28,7 @@ public static class NewsReportExtension
             SearchTerms = report.SearchTerms,
             HashTag = report.HashTag,
             Language = report.Language,
+            Guests = report.Guests,
             Services = report.Services.ToDtos()
         };
     }

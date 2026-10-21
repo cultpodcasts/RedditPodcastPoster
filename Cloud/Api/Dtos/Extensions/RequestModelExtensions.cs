@@ -140,7 +140,8 @@ public static class RequestModelExtensions
         Subjects = request.Subjects,
         SearchTerms = request.SearchTerms,
         HashTag = request.HashTag,
-        Language = request.Language
+        Language = request.Language,
+        Guests = request.Guests
     };
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()

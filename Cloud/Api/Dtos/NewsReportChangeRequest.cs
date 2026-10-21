@@ -43,6 +43,13 @@ public class NewsReportChangeRequest
     [JsonPropertyName("hashTag")]
     public string? HashTag { get; set; }
 
+    /// <summary>
+    /// Guest person names; replaces the list. [] clears (stored as null). Blank names are dropped and
+    /// names trimmed. Same rule as the episode edit API.
+    /// </summary>
+    [JsonPropertyName("guests")]
+    public string[]? Guests { get; set; }
+
     /// <summary>"" or English clears (stored as null = English).</summary>
     [JsonPropertyName("language")]
     public string? Language { get; set; }

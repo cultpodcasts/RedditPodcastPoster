@@ -11,6 +11,7 @@ namespace Api.Services.News;
 /// <summary>
 /// Curator GET/PATCH for a news report. Mirrors <c>TvShowEpisodeService</c> for lookup (by report id).
 /// Service links and social-post retraction are not editable here yet.
+/// Guests follow the episode edit API: they are not in search documents or subjects, so a guest edit is a plain save.
 /// </summary>
 public class NewsReportService(
     INewsReportRepository newsReportRepository,
@@ -154,6 +155,17 @@ public class NewsReportService(
         if (change.Language != null)
         {
             report.Language = EpisodeChangeApplier.NormaliseEpisodeLanguage(change.Language);
+        }
+
+        if (change.Guests != null)
+        {
+            // Same as EpisodeChangeApplier: replace; [] clears to null; blanks dropped; names trimmed.
+            report.Guests = change.Guests.Length > 0
+                ? change.Guests
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .ToArray()
+                : null;
         }
 
         return true;

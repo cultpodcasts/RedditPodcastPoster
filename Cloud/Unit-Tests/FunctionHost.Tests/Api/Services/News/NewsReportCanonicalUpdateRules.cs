@@ -169,6 +169,53 @@ public class NewsReportCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
+        "PATCH news report guests replaces the list, trimming names and dropping blanks, because guests follow the episode edit API.")]
+    public async Task update_replaces_guests()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Guests = ["Synthetic Old Guest"]);
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest
+        {
+            Guests = [" Synthetic Reporter ", "", "  ", "Synthetic Witness"]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
+        _saved!.Guests.Should().Equal("Synthetic Reporter", "Synthetic Witness");
+        VerifySearchDelete(report, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report with an empty guests array clears guests to null, because [] is how a curator removes every guest on episodes too.")]
+    public async Task update_clears_guests_with_empty_array()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Guests = ["Synthetic Old Guest"]);
+
+        // Act
+        await Update(report, new NewsReportChangeRequest { Guests = [] });
+
+        // Assert
+        _saved!.Guests.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report without guests leaves existing guests alone, because omitted JSON is a no-op.")]
+    public async Task update_without_guests_keeps_guests()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Guests = ["Synthetic Kept Guest"]);
+
+        // Act
+        await Update(report, new NewsReportChangeRequest { Title = "Synthetic retitle" });
+
+        // Assert
+        _saved!.Guests.Should().Equal("Synthetic Kept Guest");
+    }
+
+    [Fact(DisplayName =
         "PATCH news report removed=true saves the report and deletes its search document, because the newsreport search indexer never deletes.")]
     public async Task removing_a_report_deletes_its_search_document()
     {
@@ -216,11 +263,11 @@ public class NewsReportCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "GET news report by id returns Found with its organisation, date-only release and duration, because curator UIs load the report before editing.")]
+        "GET news report by id returns Found with its organisation, date-only release, duration and guests, because curator UIs load the report before editing.")]
     public async Task get_by_id_returns_the_report()
     {
         // Arrange
-        var report = CreateReport();
+        var report = CreateReport(r => r.Guests = ["Synthetic Reporter"]);
         var sut = _mocker.CreateInstance<NewsReportService>();
 
         // Act
@@ -235,5 +282,6 @@ public class NewsReportCanonicalUpdateRules
         dto.Release.Should().Be("2026-10-01");
         dto.Duration.Should().Be("0:04:00");
         dto.Subjects.Should().Equal("Synthetic Cult");
+        dto.Guests.Should().Equal("Synthetic Reporter");
     }
 }

@@ -13,4 +13,5 @@ public class NewsReportChangeRequest
     public string? SearchTerms { get; set; }
     public string? HashTag { get; set; }
     public string? Language { get; set; }
+    public string[]? Guests { get; set; }
 }

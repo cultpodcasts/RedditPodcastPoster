@@ -54,6 +54,10 @@ public class NewsReportDto
     [JsonPropertyName("language")]
     public string? Language { get; set; }
 
+    /// <summary>Guest person names, as on episodes. Null when there are none.</summary>
+    [JsonPropertyName("guests")]
+    public string[]? Guests { get; set; }
+
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 }
