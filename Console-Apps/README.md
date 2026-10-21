@@ -137,7 +137,7 @@ SubmitUrl -r `
 |------|--------|
 | `languages` | `R2PublishProcessor` — languages list to R2 |
 | `people` | `R2PublishProcessor` — People register to R2 |
-| `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
+| `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 (subjects, podcasts, TV shows, news organisations, films; films carry `id`) |
 | `subjects` | `R2PublishProcessor` — subjects name list to R2 |
 | `homepage` | `R2PublishProcessor` — homepage JSON to R2 |
 | `lookups` | languages + people + search-suggestions + subjects, then flairs (**not** homepage / feed) |
