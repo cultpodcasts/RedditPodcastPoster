@@ -172,6 +172,32 @@ public class EpisodeResultsEnricherCatalogueParentRules
         enriched.Single().PodcastResults.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "News organisations and TV shows are read once per discovery run, not once per result, because a run enriches hundreds of results and these containers are small.")]
+    public async Task parents_are_loaded_once_per_run()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var organisation = AddOrganisation(i => i.YouTubeChannelId = channelId);
+        EpisodeResult[] results =
+        [
+            CreateEpisodeResult(ids => ids.YouTube = channelId),
+            CreateEpisodeResult(ids => ids.Spotify = _fixture.Create<string>())
+        ];
+        var sut = _mocker.CreateInstance<EpisodeResultsEnricher>();
+
+        // Act
+        var enriched = await sut.EnrichWithPodcastDetails(results).ToListAsync();
+
+        // Assert
+        enriched[0].PodcastResults.Should().ContainSingle().Which.PodcastId.Should().Be(organisation.Id);
+        enriched[1].PodcastResults.Should().BeEmpty();
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(
+            r => r.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()), Times.Once);
+        _mocker.GetMock<ITvShowRepository>().Verify(
+            r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()), Times.Once);
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())

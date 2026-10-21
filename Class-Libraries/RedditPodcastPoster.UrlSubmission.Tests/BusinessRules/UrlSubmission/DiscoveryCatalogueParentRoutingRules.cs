@@ -216,6 +216,45 @@ public class DiscoveryCatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "When the first URL the TV show owns yields no item and the second URL it owns creates one, the result is CreatedEpisode with that item, because the stored item must not be reported as an error.")]
+    public async Task item_created_by_second_owned_url_is_reported_created()
+    {
+        // Arrange
+        var spotifyShowId = _fixture.CreateSpotifyId();
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var show = AddShow(i =>
+        {
+            i.SpotifyId = spotifyShowId;
+            i.YouTubeChannelId = channelId;
+        });
+        var spotifyUrl = SpotifyUrl();
+        var youTubeUrl = YouTubeUrl();
+        OwnerIs(spotifyUrl, null, new EpisodeUrlOwnerIds(SpotifyShowId: spotifyShowId));
+        OwnerIs(youTubeUrl, null, new EpisodeUrlOwnerIds(YouTubeChannelId: channelId));
+        var playableId = _fixture.CreateGuid();
+        _mocker.GetMock<ICatalogueParentSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<CatalogueParentMatch>(), spotifyUrl, It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.None, SubmitResultState.None,
+                ContentKind: SubmitClassification.TvShowEpisode));
+        _mocker.GetMock<ICatalogueParentSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<CatalogueParentMatch>(), youTubeUrl, It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.Created, SubmitResultState.None,
+                ContentKind: SubmitClassification.TvShowEpisode, PlayableId: playableId));
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var result = await sut.Submit(Result(youTube: youTubeUrl, spotify: spotifyUrl), new IndexingContext(),
+            Options());
+
+        // Assert
+        result.State.Should().Be(DiscoverySubmitResultState.CreatedEpisode);
+        result.PlayableId.Should().Be(playableId);
+        result.ParentId.Should().Be(show.Id);
+    }
+
+    [Fact(DisplayName =
         "When one URL of a discovery result belongs to a podcast and another to a news organisation, the result is DifferentPodcasts and nothing is stored, as for two different podcasts.")]
     public async Task podcast_and_parent_owners_are_different_owners()
     {

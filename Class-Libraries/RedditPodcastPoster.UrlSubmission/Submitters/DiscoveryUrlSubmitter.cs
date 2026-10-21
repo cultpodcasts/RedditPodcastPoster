@@ -121,11 +121,7 @@ public class DiscoveryUrlSubmitter(
 
                 playableId ??= enriched.PlayableId;
                 searchSource = enriched.CatalogueSearchSource ?? searchSource;
-                if (enriched.EpisodeResult == SubmitResultState.Enriched &&
-                    episodeResult is SubmitResultState.EpisodeAlreadyExists or SubmitResultState.None)
-                {
-                    episodeResult = SubmitResultState.Enriched;
-                }
+                episodeResult = Strongest(episodeResult, enriched.EpisodeResult);
             }
             catch (Exception e) when (e is InvalidOperationException or HttpRequestException or ArgumentException)
             {
@@ -144,6 +140,18 @@ public class DiscoveryUrlSubmitter(
             ParentId: parent.Parent.Id,
             CatalogueSearchSource: searchSource);
     }
+
+    /// <summary>The item's state across its URLs: Created, then Enriched, then EpisodeAlreadyExists, then anything else.</summary>
+    private static SubmitResultState Strongest(SubmitResultState current, SubmitResultState next) =>
+        Rank(next) > Rank(current) ? next : current;
+
+    private static int Rank(SubmitResultState state) => state switch
+    {
+        SubmitResultState.Created => 3,
+        SubmitResultState.Enriched => 2,
+        SubmitResultState.EpisodeAlreadyExists => 1,
+        _ => 0
+    };
 
     private sealed record RoutedUrl(Uri Url, EpisodeUrlRoute Route);
 }

@@ -1,9 +1,6 @@
-using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Models.News;
-using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -30,6 +27,8 @@ public class EpisodeResultsEnricher(
     public async IAsyncEnumerable<EnrichedEpisodeResult> EnrichWithPodcastDetails(
         IEnumerable<EpisodeResult> episodeResults)
     {
+        // News organisations / TV shows are few: load the indexed ones once per run and match in memory.
+        IReadOnlyList<CatalogueOwner>? catalogueOwners = null;
         foreach (var episodeResult in episodeResults)
         {
             var podcasts = new List<Podcast>();
@@ -38,27 +37,24 @@ public class EpisodeResultsEnricher(
             {
                 Add(podcasts, GetCurrentIndexed(
                     await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync()));
-                Add(parents, await FindParent(
-                    x => x.Indexing != null && x.Indexing.SpotifyId == spotifyId,
-                    x => x.Indexing != null && x.Indexing.SpotifyId == spotifyId));
+                catalogueOwners ??= await LoadCatalogueOwners();
+                Add(parents, FindParent(catalogueOwners, x => x.SpotifyId == spotifyId));
             }
 
             if (episodeResult.PodcastIds.Apple is { } appleId)
             {
                 Add(podcasts, GetCurrentIndexed(
                     await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToArrayAsync()));
-                Add(parents, await FindParent(
-                    x => x.Indexing != null && x.Indexing.AppleId == appleId,
-                    x => x.Indexing != null && x.Indexing.AppleId == appleId));
+                catalogueOwners ??= await LoadCatalogueOwners();
+                Add(parents, FindParent(catalogueOwners, x => x.AppleId == appleId));
             }
 
             if (episodeResult.PodcastIds.YouTube is { } channelId)
             {
                 Add(podcasts, GetCurrentIndexed(
                     await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channelId).ToArrayAsync()));
-                Add(parents, await FindParent(
-                    x => x.Indexing != null && x.Indexing.YouTubeChannelId == channelId,
-                    x => x.Indexing != null && x.Indexing.YouTubeChannelId == channelId));
+                catalogueOwners ??= await LoadCatalogueOwners();
+                Add(parents, FindParent(catalogueOwners, x => x.YouTubeChannelId == channelId));
             }
 
             var enriched = episodeResultEnricher.Enrich(episodeResult, podcasts.ToArray());
@@ -90,23 +86,28 @@ public class EpisodeResultsEnricher(
         }
     }
 
-    /// <summary>The news organisation / TV show that owns the id, with the podcast tie-break (the auto-indexed one).</summary>
-    private async Task<CatalogueOwner?> FindParent(
-        Expression<Func<NewsOrganisation, bool>> organisationOwns,
-        Expression<Func<TvShow, bool>> showOwns)
+    private async Task<IReadOnlyList<CatalogueOwner>> LoadCatalogueOwners()
     {
-        var organisations = await newsOrganisationRepository.GetAllBy(organisationOwns).ToArrayAsync();
-        var shows = await tvShowRepository.GetAllBy(showOwns).ToArrayAsync();
-        CatalogueOwner[] owners =
+        var organisations = await newsOrganisationRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
+        var shows = await tvShowRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
+        return
         [
             .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!)),
             .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!))
         ];
-        return owners.Length switch
+    }
+
+    /// <summary>The news organisation / TV show that owns the id, with the podcast tie-break (the auto-indexed one).</summary>
+    private static CatalogueOwner? FindParent(
+        IReadOnlyList<CatalogueOwner> owners,
+        Func<CatalogueIndexingSource, bool> owns)
+    {
+        var matches = owners.Where(x => owns(x.Indexing)).ToArray();
+        return matches.Length switch
         {
             0 => null,
-            1 => owners[0],
-            _ => owners.FirstOrDefault(x => x.Indexing.IsAutoIndexed)
+            1 => matches[0],
+            _ => matches.FirstOrDefault(x => x.Indexing.IsAutoIndexed)
         };
     }
 
