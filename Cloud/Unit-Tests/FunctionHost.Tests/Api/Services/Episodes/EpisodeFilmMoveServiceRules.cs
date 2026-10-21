@@ -110,6 +110,24 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
+        "An active episode moved out of a removed podcast becomes an active film, because the episode, not the podcast, is what moves.")]
+    public async Task film_from_removed_podcast_is_active()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Removed = true);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        _savedFilms.Should().ContainSingle().Which.IsRemoved().Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "A title in the request names the film and its search document instead of the episode title.")]
     public async Task title_override_names_film_and_search_document()
     {

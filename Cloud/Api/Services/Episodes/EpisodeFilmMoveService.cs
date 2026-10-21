@@ -90,6 +90,9 @@ public class EpisodeFilmMoveService(
                 film = CatalogueParentKindMapper.ToFilm(podcast, episode);
                 film.Name = name;
                 film.FileKey = FileKeyFactory.GetFilmFileKey(name);
+                // ToFilm copies publisher fields from the podcast, including Removed. Here the (active) episode is the
+                // unit that moves, so the film is active even when it leaves a removed podcast.
+                film.Removed = null;
                 await filmRepository.Save(film);
             }
 
