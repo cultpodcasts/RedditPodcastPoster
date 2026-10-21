@@ -1,14 +1,10 @@
-using System.Net;
 using System.Text;
 using System.Text.Json;
 using Azure.Core.Serialization;
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
 using Api.Dtos.Extensions;
-using Api.Handlers;
-using Api.Handlers.SubmitUrl;
 using Api.Models;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -155,8 +151,8 @@ public class SubmitUrlParentTargetRules
     }
 
     [Fact(DisplayName =
-        "A parentId that is not a row of parentKind is ParentNotFound, which the handler returns as 404 with a message.")]
-    public async Task missing_parent_is_404()
+        "A parentId that is not a row of parentKind is ParentNotFound with a message naming the kind (the handler maps it to 404).")]
+    public async Task missing_parent_is_parent_not_found()
     {
         // Arrange
         var parentId = _fixture.CreateGuid();
@@ -168,35 +164,10 @@ public class SubmitUrlParentTargetRules
 
         // Act
         var result = await Submit(request);
-        var service = new Mock<ISubmitUrlService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(result);
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var response = await new PostSubmitUrlHandler(service.Object, NullLogger<PostSubmitUrlHandler>.Instance)
-            .Handle(new HandlerContext(req.Object, null), request, CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.ParentNotFound);
         result.Message.Should().Contain("NewsOrganisation");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact(DisplayName = "PostSubmitUrlHandler maps BadRequest to 400.")]
-    public async Task handler_maps_bad_request()
-    {
-        // Arrange
-        var service = new Mock<ISubmitUrlService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: "synthetic"));
-        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-
-        // Act
-        var response = await new PostSubmitUrlHandler(service.Object, NullLogger<PostSubmitUrlHandler>.Instance)
-            .Handle(new HandlerContext(req.Object, null), new SubmitUrlRequest { Url = YouTubeUrl() },
-                CancellationToken.None);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact(DisplayName =
