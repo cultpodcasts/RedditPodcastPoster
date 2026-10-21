@@ -35,6 +35,28 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
+        "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
+        "because the public hub is the programme, not the channel we found it on.")]
+    public void tv_show_uses_canonical_programme_name()
+    {
+        // Arrange
+        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(publisherName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+
+        // Act
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+
+        // Assert
+        show.Name.Should().Be(showName);
+        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(showName));
+        playable.TvShowName.Should().Be(showName);
+        playable.Services.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
         "Mapping a podcast to a news organisation keeps the podcast id as the news organisation id.")]
     public void news_organisation_keeps_podcast_id()
     {
@@ -49,6 +71,29 @@ public class CatalogueParentKindMapperRules
         organisation.Name.Should().Be(podcast.Name);
         organisation.ModelType.Should().Be(ModelType.NewsOrganisation);
         organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(podcast.Name));
+    }
+
+    [Fact(DisplayName =
+        "Mapping an extra YouTube channel of a news organisation uses the canonical organisation name, " +
+        "because one outlet can have several YouTube channels and must not mint a second parent name.")]
+    public void extra_news_channel_uses_canonical_organisation_name()
+    {
+        // Arrange
+        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
+        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+
+        // Act
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+
+        // Assert
+        organisation.Id.Should().Be(podcast.Id);
+        organisation.Name.Should().Be(organisationName);
+        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(organisationName));
+        report.Id.Should().Be(episode.Id);
+        report.NewsOrganisationName.Should().Be(organisationName);
     }
 
     [Fact(DisplayName =
@@ -71,6 +116,30 @@ public class CatalogueParentKindMapperRules
         playable.ModelType.Should().Be(ModelType.TvShowEpisode);
         playable.Services.Should().NotBeNull();
         playable.Services!.ContainsKey(ServiceKeys.YouTube).Should().BeTrue();
+        playable.Imdb.Should().BeNull();
+        playable.Tvdb.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB URIs, " +
+        "because episode identity pages are per playable and must be set by the curator.")]
+    public void tv_show_episode_does_not_inherit_parent_canonical_uris()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        show.Imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        show.Tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+
+        // Assert
+        show.Imdb.Should().NotBeNull();
+        show.Tvdb.Should().NotBeNull();
+        playable.Imdb.Should().BeNull();
+        playable.Tvdb.Should().BeNull();
     }
 
     [Fact(DisplayName =

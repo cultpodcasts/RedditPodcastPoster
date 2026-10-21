@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -39,6 +40,15 @@ public static class CatalogueMigrateSearchDocuments
             if (contentKind == SearchContentKind.Film)
             {
                 record.SeriesName = null;
+            }
+            else if (contentKind == SearchContentKind.TvShowEpisode)
+            {
+                record.SeriesName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+            }
+            else
+            {
+                // Extra YouTube channels of an outlet are parented onto the canonical organisation name.
+                record.SeriesName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
             }
 
             documents.Add(record);

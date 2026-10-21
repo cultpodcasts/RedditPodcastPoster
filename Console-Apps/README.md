@@ -297,7 +297,7 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CatalogueMigrateIdentify
 
-**Purpose:** Dry-run corpus identify. URL scan: BBC `/news/` → News + allowlist (S-008). Podcast-level: YouTube-only **four-letter** names with YouTube-only episodes → News + allowlist; **two or more** stored BBC iPlayer episode URLs (no Spotify/Apple ids) → TV, even when some other episodes lack iPlayer. Film is not discovered here (use `CatalogueMigrate --kind Film --podcast-id`). Mixed Spotify plus `/news/` stays Episode and needs a curator. The TV scan reads `episode.Services` only; leftover-only iPlayer in Cosmos `urls.bbc` is not on the typed Episode and needs EpisodeServiceBackfill first. **`--apply` always exits 2.** Dry-run only; agent run-gate: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+**Purpose:** Dry-run corpus identify. URL scan: BBC `/news/` → News + allowlist (S-008). Podcast-level: YouTube-only publishers whose names look like news organisations (four-letter call sign, a News word, newspaper masthead such as Times/Herald, 24/7 rolling news, France 24 / Jazeera / Euronews, or ABC/NBC/CBS/FOX plus a channel number; names that say Podcast stay podcasts; curator stay-podcast names stay podcasts) with YouTube-only episodes → News + allowlist; curator-named TV programmes (canonical show name, not the channel; playables keep a services map for every platform) → TV; **two or more** stored BBC iPlayer episode URLs (no Spotify/Apple ids) → TV, even when some other episodes lack iPlayer. Film is not discovered here (use `CatalogueMigrate --kind Film --podcast-id`). Mixed Spotify plus `/news/` stays Episode and needs a curator. The TV scan reads `episode.Services` only; leftover-only iPlayer in Cosmos `urls.bbc` is not on the typed Episode and needs EpisodeServiceBackfill first. Signal-identified TV and film rows are checked against TMDB and TheTVDB only when that set is at most 50. A larger set is reported and not sent. News is not sent. A unique agreeing title is the only match. When the publisher name is not one programme, programmes come from the episodes: an iPlayer series or season slug, a repeated title (including parts), or a brand shared by two or more episodes. Each of those is checked the same way, up to 50 programmes on that publisher. A single remaining title is its own programme and is tried as a film when it is not a series. A shorter clause with several hits does not replace the full title. **`--apply` always exits 2.** Dry-run only; agent run-gate: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
 
@@ -308,15 +308,22 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CatalogueMigrate
 
-**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply will need an allowlist (S-008). Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Film requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, frozen 2 Oct 2026; 308 names after the 21 Oct 2026 curator review). Dry-run still discovers via Identify heuristics and logs `onAllowlist`. Podcasts with auto-indexing (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) are blocked. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+
+`--apply` writes **only** with `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, otherwise it exits 2. Each podcast: destination upsert → verify count → same-id Search swap (`contentKind`) → delete episodes → delete podcast. Evidence goes to one JSONL per batch, with full before-snapshots. Re-running resumes. `--rollback <file>` previews a restore. Add `--apply --consent "I approve CatalogueMigrate rollback of <file name> in production"` to restore. Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 a podcast failed (run stopped, source kept). Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Ops: [`docs/catalogue-run/gate-5.md`](../docs/catalogue-run/gate-5.md).
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
 
 | Option | Description |
 |--------|-------------|
-| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required) |
+| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required unless `--rollback`) |
 | `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
-| `--apply` | Always refused (exit 2). Dry-run only; does not write Cosmos |
+| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
+| `--consent` | Human approval phrase (see above). Never default it or script it |
+| `--batch-size` | Podcasts per evidence file (default 25, max 500) |
+| `--limit` | Stop after this many eligible podcasts |
+| `--evidence-dir` | Evidence folder (default `catalogue-migrate-evidence`) |
+| `--rollback` | Evidence JSONL to restore from. Previews unless `--apply` |
 
 ### CategorisePodcastEpisodes
 

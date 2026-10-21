@@ -20,12 +20,14 @@ public static class CatalogueParentKindMapper
     public static TvShow ToTvShow(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var show = new TvShow(podcast.Name)
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+        var show = new TvShow(showName)
         {
             Id = podcast.Id
         };
         CopyPublisher(podcast, show);
-        show.FileKey = FileKeyFactory.GetTvShowFileKey(podcast.Name);
+        show.Name = showName;
+        show.FileKey = FileKeyFactory.GetTvShowFileKey(showName);
         show.ModelType = ModelType.TvShow;
         show.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return show;
@@ -34,12 +36,14 @@ public static class CatalogueParentKindMapper
     public static NewsOrganisation ToNewsOrganisation(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var organisation = new NewsOrganisation(podcast.Name)
+        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+        var organisation = new NewsOrganisation(organisationName)
         {
             Id = podcast.Id
         };
         CopyPublisher(podcast, organisation);
-        organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(podcast.Name);
+        organisation.Name = organisationName;
+        organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(organisationName);
         organisation.ModelType = ModelType.NewsOrganisation;
         organisation.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return organisation;
