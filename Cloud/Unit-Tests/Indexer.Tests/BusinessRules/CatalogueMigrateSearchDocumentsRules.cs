@@ -35,6 +35,27 @@ public class CatalogueMigrateSearchDocumentsRules
     }
 
     [Fact(DisplayName =
+        "A News search-swap document for an extra YouTube channel of an outlet uses the canonical organisation name as " +
+        "seriesName, because those reports are parented onto that organisation, not a second one.")]
+    public void news_swap_for_extra_channel_uses_organisation_name()
+    {
+        // Arrange
+        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
+        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+        var episode = _fixture.CreateStoredEpisode(podcast);
+
+        // Act
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast,
+            [episode],
+            SearchContentKind.NewsReport);
+
+        // Assert
+        documents.Single().SeriesName.Should().Be(CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName));
+        documents.Single().SeriesName.Should().NotBe(channelName);
+    }
+
+    [Fact(DisplayName =
         "A TV search-swap document keeps the episode id and sets contentKind TvShowEpisode.")]
     public void tv_swap_keeps_episode_id()
     {

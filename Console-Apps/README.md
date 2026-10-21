@@ -308,15 +308,22 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CatalogueMigrate
 
-**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, 317 names frozen 2 Oct 2026); dry-run still discovers via Identify heuristics and logs `onAllowlist`. Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Film requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, 317 names frozen 2 Oct 2026). Dry-run still discovers via Identify heuristics and logs `onAllowlist`. Podcasts with auto-indexing (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) are blocked. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+
+`--apply` writes **only** with `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, otherwise it exits 2. Each podcast: destination upsert → verify count → same-id Search swap (`contentKind`) → delete episodes → delete podcast. Evidence goes to one JSONL per batch, with full before-snapshots. Re-running resumes. `--rollback <file>` previews a restore. Add `--apply --consent "I approve CatalogueMigrate rollback of <file name> in production"` to restore. Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 a podcast failed (run stopped, source kept). Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Ops: [`docs/catalogue-run/gate-5.md`](../docs/catalogue-run/gate-5.md).
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
 
 | Option | Description |
 |--------|-------------|
-| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required) |
+| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required unless `--rollback`) |
 | `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
-| `--apply` | Always refused (exit 2). Dry-run only; does not write Cosmos |
+| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
+| `--consent` | Human approval phrase (see above). Never default it or script it |
+| `--batch-size` | Podcasts per evidence file (default 25, max 500) |
+| `--limit` | Stop after this many eligible podcasts |
+| `--evidence-dir` | Evidence folder (default `catalogue-migrate-evidence`) |
+| `--rollback` | Evidence JSONL to restore from. Previews unless `--apply` |
 
 ### CategorisePodcastEpisodes
 

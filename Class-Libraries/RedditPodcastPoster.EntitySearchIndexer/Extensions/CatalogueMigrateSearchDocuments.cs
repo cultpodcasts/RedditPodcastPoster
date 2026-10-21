@@ -45,6 +45,11 @@ public static class CatalogueMigrateSearchDocuments
             {
                 record.SeriesName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
             }
+            else
+            {
+                // Extra YouTube channels of an outlet are parented onto the canonical organisation name.
+                record.SeriesName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+            }
 
             documents.Add(record);
         }

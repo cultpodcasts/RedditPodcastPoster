@@ -15,7 +15,7 @@ Migrator tooling is **merged to `main`**. Apply is not this Build.
 
 ## Notes
 
-Dry-run default. **`--apply` always exits 2** in this checkout (writes not implemented). GATE 5 unlock is not apply. Agents must not pass `--apply`.
+Dry-run default. The writer came later in PR #1049 (see [gate-5.md](./gate-5.md)): `--apply` writes only with the human's exact consent phrase, otherwise it exits 2. GATE 5 unlock is not apply. Agents must not pass `--apply` or `--consent`.
 
 ## When Build 5 is done
 

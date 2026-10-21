@@ -31,6 +31,20 @@ public class FilmRepository(
         await filmsContainer.UpsertItemAsync(film, new PartitionKey(film.Id.ToString()));
     }
 
+    public async Task Delete(Guid filmId)
+    {
+        try
+        {
+            await filmsContainer.DeleteItemAsync<Film>(
+                filmId.ToString(),
+                new PartitionKey(filmId.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // idempotent delete
+        }
+    }
+
     public async Task<int> Count()
     {
         var iterator = filmsContainer.GetItemQueryIterator<int>(

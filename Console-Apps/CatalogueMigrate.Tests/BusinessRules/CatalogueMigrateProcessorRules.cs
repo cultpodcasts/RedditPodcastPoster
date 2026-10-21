@@ -10,6 +10,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Migration;
+using CatalogueMigrate.Tests.Fakes;
 using Xunit;
 
 namespace CatalogueMigrate.Tests.BusinessRules;
@@ -27,11 +28,16 @@ public class CatalogueMigrateProcessorRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
+        _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
+        _mocker.Use<ICatalogueMigrateDestination>(new InMemoryCatalogueMigrateDestination());
+        _mocker.Use<ICatalogueMigrateEvidenceStore>(new InMemoryCatalogueMigrateEvidenceStore());
+        _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.UtcNow));
+        _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when --apply is set, then the tool exits 2 without planning, " +
-        "because --apply is always refused and writes are not implemented.")]
+        "Catalogue migrate: when --apply is set without --consent, then the tool exits 2 without planning, " +
+        "because writes need the exact human consent phrase.")]
     public async Task apply_is_refused()
     {
         // Arrange
