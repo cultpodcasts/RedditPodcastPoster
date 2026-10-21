@@ -15,7 +15,7 @@ namespace Api.Services.News;
 /// </summary>
 public class NewsReportService(
     INewsReportRepository newsReportRepository,
-    EpisodeSearchIndexCleanup searchIndexCleanup,
+    CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
     ILogger<NewsReportService> logger) : INewsReportService
 {
@@ -64,14 +64,10 @@ public class NewsReportService(
             };
             await newsReportRepository.Save(report);
 
-            // The newsreport search indexer only adds and updates (high-water mark on _ts); it never deletes.
-            // As the episode API, removed=true always deletes the document, so a retry finishes the job.
-            // A restored report is re-pushed by that indexer because the save bumped _ts.
-            if (request.Change.Removed == true)
-            {
-                await searchIndexCleanup.DeleteSearchEntry(
-                    report.NewsOrganisationName ?? string.Empty, report.Id, cancellationToken);
-            }
+            // As the episode API: removed=true always deletes the search document and the short link (the newsreport
+            // pull indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
+            outcome.SearchIndexer = await searchSync.AfterSave(
+                report, target.Projection, request.Change.Removed == true, cancellationToken);
 
             return new NewsReportUpdateResult(NewsReportUpdateStatus.Accepted, Outcome: outcome);
         }

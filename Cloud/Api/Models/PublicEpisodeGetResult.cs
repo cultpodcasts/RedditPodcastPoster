@@ -13,4 +13,5 @@ public enum PublicEpisodeGetStatus
 public record PublicEpisodeGetResult(
     PublicEpisodeGetStatus Status,
     Episode? Episode = null,
-    Podcast? Podcast = null);
+    Podcast? Podcast = null,
+    PlayableKind? Kind = null);

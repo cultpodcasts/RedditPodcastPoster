@@ -8,6 +8,7 @@ namespace Api.Services.Episodes;
 
 public class EpisodeGetService(
     IPodcastEpisodeResolver podcastEpisodeResolver,
+    ICataloguePlayableResolver cataloguePlayableResolver,
     ICachedSubjectProvider subjectsProvider,
     ILogger<EpisodeGetService> logger) : IEpisodeGetService
 {
@@ -26,6 +27,20 @@ public class EpisodeGetService(
 
             if (podcastEpisodeResolverResponse.Episode == null)
             {
+                // Not a podcast episode: a news report, TV episode or film keeps its id (catalogue migration), so
+                // look there before reporting not found. Curators see removed items too, as with episodes.
+                var catalogue = await cataloguePlayableResolver.Resolve(request.EpisodeId, cancellationToken);
+                if (catalogue != null)
+                {
+                    var catalogueSubjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
+                    return new EpisodeGetResult(
+                        EpisodeGetStatus.Ok,
+                        catalogue.Projection.Episode,
+                        catalogue.Projection.Podcast,
+                        catalogueSubjects,
+                        PlayableKind.For(catalogue));
+                }
+
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(GetAsync),
                     request.EpisodeId);
                 return new EpisodeGetResult(EpisodeGetStatus.EpisodeNotFound);
@@ -45,7 +60,9 @@ public class EpisodeGetService(
                 EpisodeGetStatus.Ok,
                 podcastEpisodeResolverResponse.Episode,
                 podcastEpisodeResolverResponse.Podcast,
-                subjects);
+                subjects,
+                PlayableKind.ForPodcastEpisode(
+                    podcastEpisodeResolverResponse.Episode.Id, podcastEpisodeResolverResponse.Podcast));
         }
         catch (Exception ex)
         {
