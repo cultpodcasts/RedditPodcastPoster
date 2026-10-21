@@ -1,5 +1,6 @@
 using Api.Models;
 using Api.Services.Catalogue;
+using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -8,6 +9,9 @@ namespace Api.Services.TvShows;
 
 public class TvShowService(
     ITvShowRepository tvShowRepository,
+    ITvShowEpisodeRepository tvShowEpisodeRepository,
+    EpisodeSearchIndexCleanup searchIndexCleanup,
+    IServiceIdsUniqueness serviceIdsUniqueness,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -67,7 +71,41 @@ public class TvShowService(
                 return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, tvdbError);
             }
 
+            PublisherChangeApplier.Apply(show, request.Change);
+            if (await serviceIdsUniqueness.FindConflict(show.Id, request.Change) is { } conflict)
+            {
+                logger.LogWarning("{method}: {message}", nameof(UpdateAsync), conflict.Message);
+                return new TvShowUpdateResult(TvShowUpdateStatus.Conflict, conflict.Message, conflict.OwnerIds);
+            }
+
+            show.Indexing = ServiceIdsApplier.Apply(show.Indexing, request.Change, show, logger);
             await tvShowRepository.Save(show);
+
+            if (!request.Change.ChangesChildProjection)
+            {
+                return new TvShowUpdateResult(TvShowUpdateStatus.Accepted);
+            }
+
+            // Same as news: episodes carry the show's search terms, language and removed; removal cascades like a
+            // podcast removal (see ParentChangeCascade).
+            var cascade = await ParentChangeCascade.Run(
+                tvShowEpisodeRepository.GetByTvShowId(show.Id),
+                episode => episode.SetTvShowProperties(show).Updated,
+                tvShowEpisodeRepository.Save,
+                request.Change.Removed == true,
+                show.Name,
+                searchIndexCleanup,
+                logger,
+                cancellationToken);
+
+            // The cascade is idempotent: a 500 here tells the curator to retry, which finishes the search clean-up.
+            if (!cascade.SearchDeleteSucceeded)
+            {
+                logger.LogError("{method}: removed '{id}' but deleting its children's search documents failed.",
+                    nameof(UpdateAsync), show.Id);
+                return new TvShowUpdateResult(TvShowUpdateStatus.Failed, "Search clean-up failed; retry the request.");
+            }
+
             return new TvShowUpdateResult(TvShowUpdateStatus.Accepted);
         }
         catch (Exception ex)

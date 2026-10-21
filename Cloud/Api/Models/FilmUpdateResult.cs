@@ -10,4 +10,5 @@ public enum FilmUpdateStatus
 
 public record FilmUpdateResult(
     FilmUpdateStatus Status,
-    string? Message = null);
+    string? Message = null,
+    EpisodeUpdateOutcome? Outcome = null);

@@ -7,6 +7,7 @@ using Api;
 using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.Films;
+using Api.Handlers.Catalogue;
 using Api.Models;
 using Azure.Diagnostics;
 
@@ -15,6 +16,7 @@ namespace Api.Controllers;
 public class FilmController(
     IGetFilmHandler getFilmHandler,
     IPostFilmHandler postFilmHandler,
+    ICatalogueRenameHandler catalogueRenameHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<FilmController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -41,6 +43,22 @@ public class FilmController(
             ["curate"],
             new FilmChangeRequestWrapper(filmId, change.ToModel()),
             postFilmHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>Rename, like <c>PodcastRename</c>: admin only; records a redirect and propagates the new name.</summary>
+    [Function("FilmRename")]
+    public Task<HttpResponseData> Rename(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "film/name/{filmIdentifier}")]
+        HttpRequestData req,
+        string filmIdentifier,
+        [FromBody] Dtos.CatalogueRenameRequest rename,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            new CatalogueRenameCommand(filmIdentifier, rename.NewName),
+            catalogueRenameHandler.HandleFilm,
             Unauthorised,
             ct);
 }

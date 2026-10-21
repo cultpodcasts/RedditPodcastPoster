@@ -97,22 +97,91 @@ public static class RequestModelExtensions
         KnownTerms = request.KnownTerms
     };
 
-    public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) => new()
-    {
-        Imdb = request.Imdb
-    };
+    public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) =>
+        request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
+        {
+            Imdb = request.Imdb,
+            Release = request.Release,
+            Duration = request.Duration,
+            Explicit = request.Explicit,
+            Ignored = request.Ignored,
+            Posted = request.Posted,
+            Tweeted = request.Tweeted,
+            UnBluesky = request.UnBluesky,
+            Subjects = request.Subjects,
+            Guests = request.Guests
+        });
 
-    public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) => new()
-    {
-        Imdb = request.Imdb,
-        Tvdb = request.Tvdb
-    };
+    public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
+        {
+            Imdb = request.Imdb,
+            Tvdb = request.Tvdb
+        }));
 
-    public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) => new()
+    public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>
+        request.CopyPlayableFieldsTo(new Models.TvShowEpisodeChangeRequest
+        {
+            Imdb = request.Imdb,
+            Tvdb = request.Tvdb
+        });
+
+    public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest()));
+
+    public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
+        request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());
+
+    private static T CopyPublisherFieldsTo<T>(this PublisherFieldsChangeRequest request, T model)
+        where T : Models.PublisherFieldsChange
     {
-        Imdb = request.Imdb,
-        Tvdb = request.Tvdb
-    };
+        model.PublisherName = request.Publisher;
+        model.Description = request.Description;
+        model.Removed = request.Removed;
+        model.Language = request.Language;
+        model.TwitterHandle = request.TwitterHandle;
+        model.BlueskyHandle = request.BlueskyHandle;
+        model.HashTag = request.HashTag;
+        model.EnrichmentHashTags = request.EnrichmentHashTags;
+        model.SearchTerms = request.SearchTerms;
+        model.KnownTerms = request.KnownTerms;
+        model.DefaultSubject = request.DefaultSubject;
+        model.IgnoredSubjects = request.IgnoredSubjects;
+        model.IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects;
+        return model;
+    }
+
+    private static T CopyServiceIdsTo<T>(this ServiceIdsChangeRequest request, T model)
+        where T : Models.ServiceIdsChange
+    {
+        model.YouTubeChannelId = request.YouTubeChannelId;
+        model.YouTubePlaylistId = request.YouTubePlaylistId;
+        model.SpotifyId = request.SpotifyId;
+        model.AppleId = request.AppleId;
+        model.NullAppleId = request.NullAppleId;
+        return model;
+    }
+
+    private static T CopyPlayableFieldsTo<T>(this PlayableFieldsChangeRequest request, T model)
+        where T : Models.PlayableFieldsChange
+    {
+        model.Title = request.Title;
+        model.Description = request.Description;
+        model.Release = request.Release;
+        model.Duration = request.Duration;
+        model.Posted = request.Posted;
+        model.Tweeted = request.Tweeted;
+        model.UnBluesky = request.UnBluesky;
+        model.Explicit = request.Explicit;
+        model.Ignored = request.Ignored;
+        model.Removed = request.Removed;
+        model.Subjects = request.Subjects;
+        model.SearchTerms = request.SearchTerms;
+        model.HashTag = request.HashTag;
+        model.Language = request.Language;
+        model.Guests = request.Guests;
+        return model;
+    }
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {

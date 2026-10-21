@@ -34,6 +34,44 @@ public class RedirectService(
         return false;
     }
 
+    public async Task<bool> CreateCatalogueRedirect(CatalogueRedirect redirect)
+    {
+        if (!await IsCatalogueRedirectSafe(redirect))
+        {
+            return false;
+        }
+
+        var result = await kVClient.Write(new KVRecord { Key = redirect.Key, Value = redirect.NewName },
+            _redirectOptions.KVRedirectNamespaceId);
+        if (!result.Success)
+        {
+            throw new InvalidOperationException($"Failed to write catalogue-redirect '{redirect.Key}'.");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> IsCatalogueRedirectSafe(CatalogueRedirect redirect)
+    {
+        var redirects = await kVClient.GetAll(_redirectOptions.KVRedirectNamespaceId);
+        if (redirects == null)
+        {
+            throw new InvalidOperationException("Null response when requesting all keys");
+        }
+
+        // Same rule as the podcast IsSafe: refuse when a redirect already starts at the new name (a loop).
+        var newKeyLower = redirect.NewKey.ToLowerInvariant();
+        if (redirects.Keys.Any(key => key.ToLowerInvariant() == newKeyLower))
+        {
+            logger.LogError(
+                "Unable to create catalogue-redirect. Redirect considered unsafe. '{OldKey}' -> '{NewName}'.",
+                redirect.Key, redirect.NewName);
+            return false;
+        }
+
+        return true;
+    }
+
     private async Task<bool> IsSafe(PodcastRedirect podcastRedirect)
     {
         var allRedirects = await GetAllPodcastRedirects();

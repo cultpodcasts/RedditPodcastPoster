@@ -7,6 +7,7 @@ using Api;
 using Api.Dtos.Extensions;
 using Api.Factories;
 using Api.Handlers.TvShows;
+using Api.Handlers.Catalogue;
 using Api.Models;
 using Azure.Diagnostics;
 
@@ -15,6 +16,7 @@ namespace Api.Controllers;
 public class TvShowController(
     IGetTvShowHandler getTvShowHandler,
     IPostTvShowHandler postTvShowHandler,
+    ICatalogueRenameHandler catalogueRenameHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TvShowController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -41,6 +43,22 @@ public class TvShowController(
             ["curate"],
             new TvShowChangeRequestWrapper(tvShowId, change.ToModel()),
             postTvShowHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>Rename, like <c>PodcastRename</c>: admin only; records a redirect and propagates the new name.</summary>
+    [Function("TvShowRename")]
+    public Task<HttpResponseData> Rename(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshow/name/{tvShowIdentifier}")]
+        HttpRequestData req,
+        string tvShowIdentifier,
+        [FromBody] Dtos.CatalogueRenameRequest rename,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["admin"],
+            new CatalogueRenameCommand(tvShowIdentifier, rename.NewName),
+            catalogueRenameHandler.HandleTvShow,
             Unauthorised,
             ct);
 }

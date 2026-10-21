@@ -1,12 +1,16 @@
 using Api.Models;
 using Api.Services.Catalogue;
+using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.TvShows;
 
 public class TvShowEpisodeService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
+    EpisodeSearchIndexCleanup searchIndexCleanup,
+    IPlayableSocialRetraction socialRetraction,
     ILogger<TvShowEpisodeService> logger) : ITvShowEpisodeService
 {
     public async Task<TvShowEpisodeGetResult> GetAsync(Guid episodeId, CancellationToken cancellationToken)
@@ -37,6 +41,14 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound);
             }
 
+            // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
+            var target = SocialPostRemovalTarget.For(episode);
+
+            if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
+            {
+                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
+            }
+
             if (!CanonicalUriPatch.TryApply(request.Change.Imdb, uri => episode.Imdb = uri, out var imdbError))
             {
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, imdbError);
@@ -47,8 +59,24 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, tvdbError);
             }
 
+            // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
+            // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
+            var outcome = new EpisodeUpdateOutcome
+            {
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, episode, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, episode, target)
+            };
             await tvShowEpisodeRepository.Save(episode);
-            return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted);
+
+            // As news reports: the sibling pull indexer never deletes, so removed=true deletes the search document
+            // (every time, as the episode API, so a retry finishes the job).
+            if (request.Change.Removed == true)
+            {
+                await searchIndexCleanup.DeleteSearchEntry(episode.TvShowName ?? string.Empty, episode.Id,
+                    cancellationToken);
+            }
+
+            return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome);
         }
         catch (Exception ex)
         {

@@ -17,12 +17,14 @@ public class TvShowCanonicalUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly SearchCleanupMock _search = new();
     private readonly List<TvShow> _catalogue = [];
     private TvShow? _saved;
 
     public TvShowCanonicalUpdateRules()
     {
         _mocker.Use(NullLogger<TvShowService>.Instance);
+        _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.Save(It.IsAny<TvShow>()))
             .Callback<TvShow>(show => _saved = show)

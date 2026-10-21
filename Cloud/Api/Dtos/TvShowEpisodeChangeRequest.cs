@@ -2,7 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class TvShowEpisodeChangeRequest
+/// <summary>PATCH body for <c>tvshowepisode/{id}</c>: canonical ids plus the shared playable fields.</summary>
+public class TvShowEpisodeChangeRequest : PlayableFieldsChangeRequest
 {
     [JsonPropertyName("imdb")]
     public string? Imdb { get; set; }

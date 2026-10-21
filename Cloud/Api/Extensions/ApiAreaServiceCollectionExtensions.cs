@@ -1,3 +1,4 @@
+using Api.Services.Catalogue;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,7 @@ using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.DiscoverySubmissions;
 using Api.Handlers.Episodes;
+using Api.Handlers.Catalogue;
 using Api.Handlers.Films;
 using Api.Handlers.Homepage;
 using Api.Handlers.People;
@@ -17,6 +19,7 @@ using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
 using Api.Handlers.SupportedLanguages;
 using Api.Handlers.TitleCasingRules;
+using Api.Handlers.News;
 using Api.Handlers.TvShows;
 using Api.Resolvers;
 using Api.Services.Discovery;
@@ -33,6 +36,7 @@ using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
 using Api.Services.SupportedLanguages;
 using Api.Services.TitleCasingRules;
+using Api.Services.News;
 using Api.Services.TvShows;
 
 namespace Api.Extensions;
@@ -86,6 +90,7 @@ public static class ApiAreaServiceCollectionExtensions
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<ITvShowService, TvShowService>()
             .AddScoped<IGetTvShowHandler, GetTvShowHandler>()
             .AddScoped<IPostTvShowHandler, PostTvShowHandler>()
@@ -93,8 +98,30 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
             .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
 
+    /// <summary>Shared by the news, TV and film editors (post-status retraction, rename). Safe to call more than once.</summary>
+    private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
+    {
+        services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
+        services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
+        services.TryAddScoped<PlayableSearchRename>();
+        services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
+        services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();
+        return services;
+    }
+
+    public static IServiceCollection AddApiNews(this IServiceCollection services) =>
+        services
+            .AddCatalogueEditing()
+            .AddScoped<INewsOrganisationService, NewsOrganisationService>()
+            .AddScoped<IGetNewsOrganisationHandler, GetNewsOrganisationHandler>()
+            .AddScoped<IPostNewsOrganisationHandler, PostNewsOrganisationHandler>()
+            .AddScoped<INewsReportService, NewsReportService>()
+            .AddScoped<IGetNewsReportHandler, GetNewsReportHandler>()
+            .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>();
+
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<IFilmService, FilmService>()
             .AddScoped<IGetFilmHandler, GetFilmHandler>()
             .AddScoped<IPostFilmHandler, PostFilmHandler>();

@@ -5,6 +5,7 @@ using Api.Handlers.Episodes;
 using Api.Handlers.Homepage;
 using Api.Handlers.People;
 using Api.Handlers.Films;
+using Api.Handlers.Catalogue;
 using Api.Handlers.Podcasts;
 using Api.Handlers.Public;
 using Api.Handlers.TvShows;
@@ -33,6 +34,7 @@ public class ApiIocTests
         [typeof(IPostFilmHandler)],
         [typeof(IIndexPodcastHandler)],
         [typeof(IRenamePodcastHandler)],
+        [typeof(ICatalogueRenameHandler)],
         [typeof(IGetEpisodeHandler)],
         [typeof(IGetOutgoingEpisodesHandler)],
         [typeof(IPostEpisodeHandler)],

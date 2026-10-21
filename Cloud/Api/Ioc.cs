@@ -82,6 +82,7 @@ public static class Ioc
             .AddApiEpisodes()
             .AddApiPodcasts()
             .AddApiTvShows()
+            .AddApiNews()
             .AddApiFilms()
             .AddApiPeople()
             .AddApiSubjects()

@@ -2,16 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class TvShowEpisodeDto
+/// <summary>Curator GET for a TV-show episode: the shared playable fields plus its show and canonical ids.</summary>
+public class TvShowEpisodeDto : PlayableFieldsDto
 {
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
-
     [JsonPropertyName("tvShowId")]
     public Guid TvShowId { get; set; }
 
-    [JsonPropertyName("title")]
-    public string Title { get; set; } = "";
+    [JsonPropertyName("tvShowName")]
+    public string? TvShowName { get; set; }
 
     [JsonPropertyName("imdb")]
     public Uri? Imdb { get; set; }
