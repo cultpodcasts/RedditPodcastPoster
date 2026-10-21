@@ -17,6 +17,7 @@ using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
 using Api.Handlers.SupportedLanguages;
 using Api.Handlers.TitleCasingRules;
+using Api.Handlers.News;
 using Api.Handlers.TvShows;
 using Api.Resolvers;
 using Api.Services.Discovery;
@@ -33,6 +34,7 @@ using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
 using Api.Services.SupportedLanguages;
 using Api.Services.TitleCasingRules;
+using Api.Services.News;
 using Api.Services.TvShows;
 
 namespace Api.Extensions;
@@ -92,6 +94,15 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<ITvShowEpisodeService, TvShowEpisodeService>()
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
             .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
+
+    public static IServiceCollection AddApiNews(this IServiceCollection services) =>
+        services
+            .AddScoped<INewsOrganisationService, NewsOrganisationService>()
+            .AddScoped<IGetNewsOrganisationHandler, GetNewsOrganisationHandler>()
+            .AddScoped<IPostNewsOrganisationHandler, PostNewsOrganisationHandler>()
+            .AddScoped<INewsReportService, NewsReportService>()
+            .AddScoped<IGetNewsReportHandler, GetNewsReportHandler>()
+            .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services

@@ -114,6 +114,35 @@ public static class RequestModelExtensions
         Tvdb = request.Tvdb
     };
 
+    public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) => new()
+    {
+        Language = request.Language,
+        TwitterHandle = request.TwitterHandle,
+        BlueskyHandle = request.BlueskyHandle,
+        HashTag = request.HashTag,
+        EnrichmentHashTags = request.EnrichmentHashTags,
+        SearchTerms = request.SearchTerms,
+        KnownTerms = request.KnownTerms,
+        DefaultSubject = request.DefaultSubject,
+        IgnoredSubjects = request.IgnoredSubjects,
+        IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects
+    };
+
+    public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) => new()
+    {
+        Title = request.Title,
+        Description = request.Description,
+        Release = request.Release,
+        Duration = request.Duration,
+        Explicit = request.Explicit,
+        Ignored = request.Ignored,
+        Removed = request.Removed,
+        Subjects = request.Subjects,
+        SearchTerms = request.SearchTerms,
+        HashTag = request.HashTag,
+        Language = request.Language
+    };
+
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {
         DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,

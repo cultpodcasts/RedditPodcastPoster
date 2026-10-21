@@ -212,4 +212,31 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// </summary>
     public const string CosmosParentNotRemovedSql =
         "((NOT IS_DEFINED(e.parentRemoved) OR e.parentRemoved=false) AND (NOT IS_DEFINED(e.podcastRemoved) OR e.podcastRemoved=false))";
+
+    /// <summary>
+    /// Applies a curator subject update (episodes, TV episodes, news reports) and maintains <see cref="Playable.RemovedSubjects"/>.
+    /// </summary>
+    public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
+    {
+        var newList = newSubjects.ToList();
+        if (Subjects.SequenceEqual(newList))
+        {
+            return false;
+        }
+
+        var newSet = new HashSet<string>(newList, StringComparer.OrdinalIgnoreCase);
+        foreach (var subject in Subjects)
+        {
+            if (!newSet.Contains(subject) &&
+                !RemovedSubjects.Contains(subject, StringComparer.OrdinalIgnoreCase))
+            {
+                RemovedSubjects.Add(subject);
+            }
+        }
+
+        RemovedSubjects.RemoveAll(s => newSet.Contains(s));
+        Subjects = newList;
+        Matches.RemoveAll(m => !newSet.Contains(m.Subject, StringComparer.OrdinalIgnoreCase));
+        return true;
+    }
 }
