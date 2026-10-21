@@ -11,6 +11,9 @@ namespace Api.Resolvers;
 /// each episode's id, so a GET by episode id that misses the episode tables looks here next. The three lookups run
 /// together; the parent is read for its current name and removed flag (the denormalised copy on the item is the
 /// fallback when the parent document is missing).
+/// Cost: the three lookups are cross-partition queries and run only when no podcast episode has the id. Both callers
+/// are signed-in or curate routes taking a raw GUID (no kind prefix to pick one container), so a miss is rare and
+/// bounded; revisit if an anonymous route ever uses this.
 /// </summary>
 public class CataloguePlayableResolver(
     INewsReportRepository newsReportRepository,

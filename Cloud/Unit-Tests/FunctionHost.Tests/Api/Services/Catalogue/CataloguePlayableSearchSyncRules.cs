@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
+using SocialPostRemovalTarget = Api.Services.Catalogue.SocialPostRemovalTarget;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
 
@@ -60,7 +61,7 @@ public class CataloguePlayableSearchSyncRules
     }
 
     private static PodcastEpisode ShortLinkTarget(NewsReport report) =>
-        global::Api.Services.Catalogue.SocialPostRemovalTarget.For(report).Projection;
+        SocialPostRemovalTarget.For(report).Projection;
 
     [Fact(DisplayName =
         "Plain English rule: when a news report edit is not a removal, then its search document is pushed straight away as a NewsReport under the organisation, because a curator edit must show in search without waiting for the pull indexer.")]
@@ -143,7 +144,7 @@ public class CataloguePlayableSearchSyncRules
         episode.SetTvShowProperties(show);
 
         // Act
-        await Sut.AfterSave(episode, global::Api.Services.Catalogue.SocialPostRemovalTarget.For(episode).Projection,
+        await Sut.AfterSave(episode, SocialPostRemovalTarget.For(episode).Projection,
             removedByChange: false, CancellationToken.None);
 
         // Assert
@@ -161,7 +162,7 @@ public class CataloguePlayableSearchSyncRules
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
 
         // Act
-        await Sut.AfterSave(film, global::Api.Services.Catalogue.SocialPostRemovalTarget.For(film).Projection,
+        await Sut.AfterSave(film, SocialPostRemovalTarget.For(film).Projection,
             removedByChange: false, CancellationToken.None);
 
         // Assert

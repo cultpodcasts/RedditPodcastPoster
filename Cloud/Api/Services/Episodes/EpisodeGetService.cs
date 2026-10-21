@@ -32,13 +32,9 @@ public class EpisodeGetService(
                 var catalogue = await cataloguePlayableResolver.Resolve(request.EpisodeId, cancellationToken);
                 if (catalogue != null)
                 {
-                    var catalogueSubjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-                    return new EpisodeGetResult(
-                        EpisodeGetStatus.Ok,
-                        catalogue.Projection.Episode,
-                        catalogue.Projection.Podcast,
-                        catalogueSubjects,
-                        PlayableKind.For(catalogue));
+                    return await Found(
+                        catalogue.Projection.Episode, catalogue.Projection.Podcast, PlayableKind.For(catalogue),
+                        cancellationToken);
                 }
 
                 logger.LogWarning("{method}: Episode with id '{episodeId}' not found.", nameof(GetAsync),
@@ -54,20 +50,27 @@ public class EpisodeGetService(
                 return new EpisodeGetResult(EpisodeGetStatus.PodcastNotFound);
             }
 
-            var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
-
-            return new EpisodeGetResult(
-                EpisodeGetStatus.Ok,
+            return await Found(
                 podcastEpisodeResolverResponse.Episode,
                 podcastEpisodeResolverResponse.Podcast,
-                subjects,
                 PlayableKind.ForPodcastEpisode(
-                    podcastEpisodeResolverResponse.Episode.Id, podcastEpisodeResolverResponse.Podcast));
+                    podcastEpisodeResolverResponse.Episode.Id, podcastEpisodeResolverResponse.Podcast),
+                cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "{method}: Failed to get episode.", nameof(GetAsync));
             return new EpisodeGetResult(EpisodeGetStatus.Failed);
         }
+    }
+
+    private async Task<EpisodeGetResult> Found(
+        RedditPodcastPoster.Models.Episodes.Episode episode,
+        RedditPodcastPoster.Models.Podcasts.Podcast podcast,
+        PlayableKind kind,
+        CancellationToken cancellationToken)
+    {
+        var subjects = await subjectsProvider.GetAll().ToListAsync(cancellationToken);
+        return new EpisodeGetResult(EpisodeGetStatus.Ok, episode, podcast, subjects, kind);
     }
 }
