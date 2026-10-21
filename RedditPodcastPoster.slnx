@@ -240,6 +240,7 @@
     <Project Path="Console-Apps/CosmosDbUploader/CosmosDbUploader.csproj" />
 
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
+    <Project Path="Console-Apps/CreateSearchIndex.Tests/CreateSearchIndex.Tests.csproj" />
 
     <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
     <Project Path="Console-Apps/CultPodcasts.DatabasePublisher.Tests/CultPodcasts.DatabasePublisher.Tests.csproj" />

@@ -403,9 +403,9 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | Option | Description |
 |--------|-------------|
 | `-i, --index` | Index name |
-| `-t, --teardown-index` | Tear down index |
+| `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode, Film and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well |
 | `--update-existing` | Keep index; upsert Cosmos datasource SQL from current `SearchEncodedKeys`. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. Does not copy `episodeTitle` / `podcastName` / `episodeDescription` onto a new index. **Not** a recreate |
-| `--all-playables` | CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer` |
+| `--all-playables` | CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer`. With `--update-existing --reset-indexer`, each sibling indexer is reset too |
 | `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
 | `-d, --datasource` | Data-source name |
 | `-x, --indexer` | Indexer name |
