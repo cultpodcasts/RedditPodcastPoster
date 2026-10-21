@@ -17,6 +17,7 @@ public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
+    IServiceIdsUniqueness serviceIdsUniqueness,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -67,6 +68,12 @@ public class NewsOrganisationService(
             }
 
             PublisherChangeApplier.Apply(organisation, request.Change);
+            if (await serviceIdsUniqueness.FindConflict(organisation.Id, request.Change) is { } conflict)
+            {
+                logger.LogWarning("{method}: {message}", nameof(UpdateAsync), conflict.Message);
+                return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Conflict, conflict.Message, conflict.OwnerIds);
+            }
+
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
             await newsOrganisationRepository.Save(organisation);
 
@@ -77,7 +84,7 @@ public class NewsOrganisationService(
 
             // Reports carry the organisation's search terms, language and removed (publisherSearchTerms /
             // publisherLanguage / parentRemoved). Removal cascades like a podcast removal; see ParentChangeCascade.
-            await ParentChangeCascade.Run(
+            var cascade = await ParentChangeCascade.Run(
                 newsReportRepository.GetByNewsOrganisationId(organisation.Id),
                 report => report.SetNewsOrganisationProperties(organisation).Updated,
                 newsReportRepository.Save,
@@ -86,6 +93,14 @@ public class NewsOrganisationService(
                 searchIndexCleanup,
                 logger,
                 cancellationToken);
+
+            // The cascade is idempotent: a 500 here tells the curator to retry, which finishes the search clean-up.
+            if (!cascade.SearchDeleteSucceeded)
+            {
+                logger.LogError("{method}: removed '{id}' but deleting its children's search documents failed.",
+                    nameof(UpdateAsync), organisation.Id);
+                return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Failed, "Search clean-up failed; retry the request.");
+            }
 
             return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Accepted);
         }

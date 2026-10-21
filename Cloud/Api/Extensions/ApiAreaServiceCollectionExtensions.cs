@@ -102,6 +102,7 @@ public static class ApiAreaServiceCollectionExtensions
     private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
     {
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
+        services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
         services.TryAddScoped<PlayableSearchRename>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
         services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();

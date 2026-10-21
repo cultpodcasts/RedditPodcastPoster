@@ -233,13 +233,8 @@ public class BlueskyPostManager(
         }
 
         var matchingPosts = posts.Result.Where(x =>
-            x.Value.ExtensionData["text"].GetString()!.Contains(target.ParentName) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(target.Length.ToString(
-                BlueskyEmbedCardPostFactory.LengthFormat,
-                CultureInfo.InvariantCulture)) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(
-                target.ReleaseUtc.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
-        ).ToArray();
+            x.Value.ExtensionData.TryGetValue("text", out var text) &&
+            target.Matches(text.GetString())).ToArray();
 
         if (!matchingPosts.Any())
         {

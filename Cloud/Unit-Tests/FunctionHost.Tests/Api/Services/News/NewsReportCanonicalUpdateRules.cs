@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using Azure;
 using Azure.Search.Documents;
@@ -21,6 +22,8 @@ namespace FunctionHost.Tests.Api.Services.News;
 public class NewsReportCanonicalUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private string _organisationName = string.Empty;
+    private DateOnly _release;
     private readonly AutoMocker _mocker = new();
     private readonly Mock<SearchClient> _searchClient = new();
     private NewsReport? _saved;
@@ -44,10 +47,12 @@ public class NewsReportCanonicalUpdateRules
 
     private NewsReport CreateReport(Action<NewsReport>? customise = null)
     {
-        var organisation = new NewsOrganisation("Synthetic Evening News") { Id = _fixture.CreateGuid() };
-        var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = TimeSpan.FromMinutes(4) };
+        _organisationName = _fixture.CreateTitle();
+        _release = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(10));
+        var organisation = new NewsOrganisation(_organisationName) { Id = _fixture.CreateGuid() };
+        var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
         report.SetNewsOrganisationProperties(organisation);
-        report.SetRelease(CatalogueRelease.FromDate(new DateOnly(2026, 10, 1)));
+        report.SetRelease(CatalogueRelease.FromDate(_release));
         report.Subjects = ["Synthetic Cult"];
         customise?.Invoke(report);
         _mocker.GetMock<INewsReportRepository>()
@@ -73,14 +78,16 @@ public class NewsReportCanonicalUpdateRules
     {
         // Arrange
         var report = CreateReport(r => r.HashTag = "#Keep");
+        var release = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(2));
+        var duration = _fixture.CreateDuration() + TimeSpan.FromSeconds(30);
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest
         {
             Title = "  Synthetic raid follow-up  ",
             Description = "Synthetic description.",
-            Release = "2026-10-03",
-            Duration = "0:06:30",
+            Release = release.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Duration = duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture),
             Explicit = true,
             Ignored = true
         });
@@ -91,8 +98,8 @@ public class NewsReportCanonicalUpdateRules
         _saved!.Title.Should().Be("Synthetic raid follow-up");
         _saved.Description.Should().Be("Synthetic description.");
         _saved.Release!.Precision.Should().Be(CatalogueReleasePrecision.Date);
-        _saved.Release.Date.Should().Be(new DateOnly(2026, 10, 3));
-        _saved.Length.Should().Be(TimeSpan.FromSeconds(390));
+        _saved.Release.Date.Should().Be(release);
+        _saved.Length.Should().Be(duration);
         _saved.Explicit.Should().BeTrue();
         _saved.Ignored.Should().BeTrue();
         _saved.HashTag.Should().Be("#Keep");
@@ -278,9 +285,9 @@ public class NewsReportCanonicalUpdateRules
         var dto = result.Report!.ToDto();
         dto.Id.Should().Be(report.Id);
         dto.NewsOrganisationId.Should().Be(report.NewsOrganisationId);
-        dto.NewsOrganisationName.Should().Be("Synthetic Evening News");
-        dto.Release.Should().Be("2026-10-01");
-        dto.Duration.Should().Be("0:04:00");
+        dto.NewsOrganisationName.Should().Be(_organisationName);
+        dto.Release.Should().Be(_release.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        dto.Duration.Should().Be(report.Length.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture));
         dto.Subjects.Should().Equal("Synthetic Cult");
         dto.Guests.Should().Equal("Synthetic Reporter");
     }

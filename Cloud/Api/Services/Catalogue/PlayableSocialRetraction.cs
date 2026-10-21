@@ -7,7 +7,10 @@ using RedditPodcastPoster.Twitter.Models;
 
 namespace Api.Services.Catalogue;
 
-/// <summary>Same order, result mapping and error handling as the un-tweet / un-Bluesky steps in <c>EpisodeUpdateService</c>.</summary>
+/// <summary>
+/// Result mapping and error handling as the un-tweet / un-Bluesky steps in <c>EpisodeUpdateService</c>, except that
+/// <c>tweeted</c> is cleared only when the tweet was deleted (not found or failed keeps it set, so it can be retried).
+/// </summary>
 public class PlayableSocialRetraction(
     ITweetManager tweetManager,
     IBlueskyPostManager blueskyPostManager,
@@ -44,7 +47,7 @@ public class PlayableSocialRetraction(
         return gone;
     }
 
-    public async Task<bool?> RemoveTweet(PostStatusChange change, SocialPostRemovalTarget target)
+    public async Task<bool?> RemoveTweet(PostStatusChange change, IPromotable item, SocialPostRemovalTarget target)
     {
         if (!change.UnTweet)
         {
@@ -66,6 +69,12 @@ public class PlayableSocialRetraction(
             result = RemoveTweetState.Other;
         }
 
-        return result == RemoveTweetState.Deleted;
+        var deleted = result == RemoveTweetState.Deleted;
+        if (deleted)
+        {
+            item.Tweeted = false;
+        }
+
+        return deleted;
     }
 }

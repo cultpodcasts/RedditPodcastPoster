@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,6 +18,7 @@ namespace FunctionHost.Tests.Api.Services.TvShows;
 public class TvShowEpisodeFieldUpdateRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private DateOnly _release;
     private readonly AutoMocker _mocker = new();
     private readonly SearchCleanupMock _search = new();
     private TvShowEpisode? _saved;
@@ -34,9 +36,10 @@ public class TvShowEpisodeFieldUpdateRules
     private TvShowEpisode CreateEpisode(Action<TvShowEpisode>? customise = null)
     {
         var show = new TvShow("Synthetic Cult Docuseries") { Id = _fixture.CreateGuid() };
-        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = TimeSpan.FromMinutes(44) };
+        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
         episode.SetTvShowProperties(show);
-        episode.SetRelease(CatalogueRelease.FromDate(new DateOnly(2026, 9, 1)));
+        _release = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(30));
+        episode.SetRelease(CatalogueRelease.FromDate(_release));
         episode.Subjects = ["Synthetic Cult"];
         customise?.Invoke(episode);
         _mocker.GetMock<ITvShowEpisodeRepository>()
@@ -56,14 +59,16 @@ public class TvShowEpisodeFieldUpdateRules
         // Arrange
         var imdb = new Uri("https://www.imdb.com/title/tt0000002/");
         var episode = CreateEpisode(e => { e.SearchTerms = "keep"; e.Imdb = imdb; });
+        var release = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(1));
+        var duration = _fixture.CreateDuration() + TimeSpan.FromSeconds(30);
 
         // Act
         var result = await Update(episode, new TvShowEpisodeChangeRequest
         {
             Title = " Synthetic Episode Retitled ",
             Description = "Synthetic description",
-            Release = "2026-10-02",
-            Duration = "0:45:30",
+            Release = release.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Duration = duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture),
             Explicit = true,
             Ignored = true,
             HashTag = " #Tag ",
@@ -74,8 +79,8 @@ public class TvShowEpisodeFieldUpdateRules
         result.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
         _saved!.Title.Should().Be("Synthetic Episode Retitled");
         _saved.Description.Should().Be("Synthetic description");
-        _saved.Release!.Date.Should().Be(new DateOnly(2026, 10, 2));
-        _saved.Length.Should().Be(new TimeSpan(0, 45, 30));
+        _saved.Release!.Date.Should().Be(release);
+        _saved.Length.Should().Be(duration);
         _saved.Explicit.Should().BeTrue();
         _saved.Ignored.Should().BeTrue();
         _saved.HashTag.Should().Be("#Tag");
@@ -160,8 +165,8 @@ public class TvShowEpisodeFieldUpdateRules
 
         // Assert
         dto.TvShowName.Should().Be("Synthetic Cult Docuseries");
-        dto.Release.Should().Be("2026-09-01");
-        dto.Duration.Should().Be("0:44:00");
+        dto.Release.Should().Be(_release.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        dto.Duration.Should().Be(episode.Length.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture));
         dto.Subjects.Should().Equal("Synthetic Cult");
         dto.Guests.Should().Equal("Synthetic Survivor");
     }

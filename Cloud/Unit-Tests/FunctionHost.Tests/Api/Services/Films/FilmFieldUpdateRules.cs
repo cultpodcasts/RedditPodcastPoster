@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -32,8 +33,8 @@ public class FilmFieldUpdateRules
 
     private Film CreateFilm(Action<Film>? customise = null)
     {
-        var film = new Film("Synthetic Cult Film") { Id = _fixture.CreateGuid(), Length = TimeSpan.FromMinutes(90) };
-        film.SetRelease(CatalogueRelease.FromYear(1999));
+        var film = new Film("Synthetic Cult Film") { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
+        film.SetRelease(CatalogueRelease.FromYear(DomainTestFixture.UtcToday.Year - 27));
         film.Subjects = ["Synthetic Cult"];
         customise?.Invoke(film);
         _mocker.GetMock<IFilmRepository>().Setup(r => r.GetFilm(film.Id)).ReturnsAsync(film);
@@ -51,12 +52,13 @@ public class FilmFieldUpdateRules
         // Arrange
         var imdb = new Uri("https://www.imdb.com/title/tt0000003/");
         var film = CreateFilm(f => { f.Imdb = imdb; f.TwitterHandle = "@keep"; });
+        var duration = _fixture.CreateDuration() + TimeSpan.FromSeconds(30);
 
         // Act
         var result = await Update(film, new FilmChangeRequest
         {
             Description = "Synthetic film description",
-            Duration = "1:42:00",
+            Duration = duration.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture),
             Explicit = true,
             Ignored = true,
             SearchTerms = "synthetic film",
@@ -69,7 +71,7 @@ public class FilmFieldUpdateRules
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
         _saved!.Description.Should().Be("Synthetic film description");
-        _saved.Length.Should().Be(new TimeSpan(1, 42, 0));
+        _saved.Length.Should().Be(duration);
         _saved.Explicit.Should().BeTrue();
         _saved.Ignored.Should().BeTrue();
         _saved.SearchTerms.Should().Be("synthetic film");
@@ -148,8 +150,8 @@ public class FilmFieldUpdateRules
 
         // Assert
         dto.Name.Should().Be("Synthetic Cult Film");
-        dto.Release.Should().Be("1999");
-        dto.Duration.Should().Be("1:30:00");
+        dto.Release.Should().Be(film.Release!.Year.ToString(CultureInfo.InvariantCulture));
+        dto.Duration.Should().Be(film.Length.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture));
         dto.HashTag.Should().Be("#Film");
         dto.Subjects.Should().Equal("Synthetic Cult");
         dto.Guests.Should().Equal("Synthetic Director");

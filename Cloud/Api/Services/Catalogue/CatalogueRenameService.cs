@@ -137,6 +137,7 @@ public class CatalogueRenameService(
             }
 
             var oldName = entity.Name;
+            CatalogueRedirect? redirect = null;
             var alreadyRenamed = oldName == newName;
             if (!alreadyRenamed)
             {
@@ -154,18 +155,29 @@ public class CatalogueRenameService(
                         "Not redirecting {kind} '{oldName}' -> '{newName}': another {kind} still has the old name.",
                         kind, oldName, newName, kind);
                 }
-                else if (!await redirectService.CreateCatalogueRedirect(new CatalogueRedirect(kind, oldName, newName)))
+                else
                 {
-                    return new CatalogueRenameResult(CatalogueRenameStatus.BadRequest);
+                    redirect = new CatalogueRedirect(kind, oldName, newName);
+                    if (!await redirectService.IsCatalogueRedirectSafe(redirect))
+                    {
+                        return new CatalogueRenameResult(CatalogueRenameStatus.BadRequest);
+                    }
                 }
 
                 entity.Name = newName;
             }
 
-            // Children first, parent last: until the parent is saved, a retry with the same request starts again.
+            // Children, then the redirect, then the parent. If the children fail, no redirect is live and the old URL
+            // still works; if the redirect fails, the parent is unsaved. Either way a retry of the same request
+            // finishes the rename.
             var playableIds = await propagate(entity, c);
             if (!alreadyRenamed)
             {
+                if (redirect != null && !await redirectService.CreateCatalogueRedirect(redirect))
+                {
+                    return new CatalogueRenameResult(CatalogueRenameStatus.BadRequest);
+                }
+
                 await save(entity);
                 logger.LogInformation("Renamed {kind} '{oldName}' to '{newName}'.", kind, oldName, newName);
             }

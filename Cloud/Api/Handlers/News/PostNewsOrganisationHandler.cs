@@ -25,6 +25,8 @@ public class PostNewsOrganisationHandler(
                 await ctx.NotFound(new { id = request.NewsOrganisationId }, c),
             NewsOrganisationUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            NewsOrganisationUpdateStatus.Conflict =>
+                await ctx.Conflict(new { message = result.Message, ids = result.ConflictingIds }, c),
             NewsOrganisationUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update news organisation"), c),
             _ => await LogAndFail(ctx, c)

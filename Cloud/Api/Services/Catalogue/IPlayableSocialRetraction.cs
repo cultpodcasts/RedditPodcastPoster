@@ -11,6 +11,9 @@ public interface IPlayableSocialRetraction
     /// </summary>
     Task<bool?> RemoveBlueskyPost(PostStatusChange change, IPromotable item, SocialPostRemovalTarget target);
 
-    /// <summary>Call after saving. The tweeted flag is already false. Returns null when nothing was requested.</summary>
-    Task<bool?> RemoveTweet(PostStatusChange change, SocialPostRemovalTarget target);
+    /// <summary>
+    /// Call before saving. Clears <c>tweeted</c> only when the tweet was deleted; not found or a failure leaves it set
+    /// so the un-tweet can be retried. Returns null when nothing was requested.
+    /// </summary>
+    Task<bool?> RemoveTweet(PostStatusChange change, IPromotable item, SocialPostRemovalTarget target);
 }

@@ -26,12 +26,7 @@ public class TweetManager(
                 return RemoveTweetState.Other;
             }
 
-            var matchingTweets = tweetsResponse.Tweets.Where(
-                x => x.Text.Contains(target.ParentName) &&
-                     x.Text.Contains(target.Length.ToString(TweetBuilder.LengthFormat,
-                         CultureInfo.InvariantCulture)) &&
-                     x.Text.Contains(target.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat))
-            );
+            var matchingTweets = tweetsResponse.Tweets.Where(x => target.Matches(x.Text)).ToArray();
             if (!matchingTweets.Any())
             {
                 return RemoveTweetState.NotFound;

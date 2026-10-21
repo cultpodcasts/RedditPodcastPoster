@@ -49,6 +49,10 @@ public class CatalogueRenameHandlerTests
     [InlineData("film")]
     public async Task ok_returns_index_state(string kind)
     {
+        // Arrange
+        _result = new CatalogueRenameResult(CatalogueRenameStatus.Ok,
+            new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed });
+
         // Act
         await Handle(kind);
 

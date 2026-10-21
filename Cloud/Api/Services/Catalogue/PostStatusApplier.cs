@@ -12,7 +12,8 @@ public readonly record struct PostStatusChange(bool UnTweet, bool UnBluesky)
 /// Post-status edits copied from <c>EpisodeChangeApplier</c>:
 /// <list type="bullet">
 /// <item><c>posted</c>: sets the flag (the Reddit live un-post is retired, so there is no side effect).</item>
-/// <item><c>tweeted</c>: sets the flag; true → false also asks for the tweet to be deleted.</item>
+/// <item><c>tweeted</c>: true sets the flag. true → false asks for the tweet to be deleted and leaves the flag set:
+/// <see cref="IPlayableSocialRetraction"/> clears it only once the delete succeeds, so a live tweet is never forgotten.</item>
 /// <item><c>unBluesky: true</c> on a Bluesky-posted item asks for the post to be deleted. The Bluesky state is not
 /// cleared here: <see cref="IPlayableSocialRetraction"/> deletes first and clears only on success.</item>
 /// </list>
@@ -33,8 +34,10 @@ public static class PostStatusApplier
             {
                 unTweet = true;
             }
-
-            item.Tweeted = tweeted.Value;
+            else
+            {
+                item.Tweeted = tweeted.Value;
+            }
         }
 
         var unBlueskyPost = unBluesky == true && item.BlueskyPosted;

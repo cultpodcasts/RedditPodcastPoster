@@ -62,6 +62,10 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.NotFound);
             }
 
+            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
+            var target = SocialPostRemovalTarget.ForFilm(film.Id, film.Name, film.Release, film.ReleaseSort, film.Length,
+                film.BlueskyPost);
+
             if (!TryApply(film, request.Change, out var postStatus, out var fieldError))
             {
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, fieldError);
@@ -72,14 +76,14 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, imdbError);
             }
 
-            // Same order as EpisodeUpdateService: Bluesky delete before the save (needs the AT URI), tweet after.
-            var target = new SocialPostRemovalTarget(film.Id, film.Name, film.Length, film.ReleaseSort, film.BlueskyPost);
+            // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
+            // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
             var outcome = new EpisodeUpdateOutcome
             {
-                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target)
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, film, target)
             };
             await filmRepository.Save(film);
-            outcome.TweetDeleted = await socialRetraction.RemoveTweet(postStatus, target);
 
             // As the episode API: removed=true always deletes the search document (the film indexer never deletes),
             // so a retry finishes the job.

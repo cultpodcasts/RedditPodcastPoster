@@ -47,20 +47,23 @@ public class NewsReportService(
                 return new NewsReportUpdateResult(NewsReportUpdateStatus.NotFound);
             }
 
+            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
+            var target = SocialPostRemovalTarget.ForCatalogueChild(report.Id, report.NewsOrganisationName ?? string.Empty,
+                report.Release, report.ReleaseSort, report.Length, report.BlueskyPost);
+
             if (!PlayableChangeApplier.TryApply(report, request.Change, out var postStatus, out var error))
             {
                 return new NewsReportUpdateResult(NewsReportUpdateStatus.BadRequest, error);
             }
 
-            // Same order as EpisodeUpdateService: Bluesky delete before the save (needs the AT URI), tweet after.
-            var target = new SocialPostRemovalTarget(report.Id, report.NewsOrganisationName ?? string.Empty,
-                report.Length, report.ReleaseSort, report.BlueskyPost);
+            // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
+            // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
             var outcome = new EpisodeUpdateOutcome
             {
-                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, report, target)
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, report, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, report, target)
             };
             await newsReportRepository.Save(report);
-            outcome.TweetDeleted = await socialRetraction.RemoveTweet(postStatus, target);
 
             // The newsreport search indexer only adds and updates (high-water mark on _ts); it never deletes.
             // As the episode API, removed=true always deletes the document, so a retry finishes the job.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -34,6 +35,7 @@ public class PostStatusRules
     private readonly List<string> _calls = [];
     private NewsReport? _savedReport;
     private string? _blueskyPostAtSave;
+    private SocialPostRemovalTarget? _tweetTarget;
 
     public PostStatusRules()
     {
@@ -44,7 +46,11 @@ public class PostStatusRules
         _mocker.Use<IPlayableSocialRetraction>(new PlayableSocialRetraction(
             _tweets.Object, _bluesky.Object, NullLogger<PlayableSocialRetraction>.Instance));
         _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>()))
-            .Callback(() => _calls.Add("tweet"))
+            .Callback<SocialPostRemovalTarget>(target =>
+            {
+                _calls.Add("tweet");
+                _tweetTarget = target;
+            })
             .ReturnsAsync(RemoveTweetState.Deleted);
         _bluesky.Setup(b => b.RemovePost(It.IsAny<SocialPostRemovalTarget>()))
             .Callback(() => _calls.Add("bluesky"))
@@ -62,10 +68,10 @@ public class PostStatusRules
 
     private NewsReport CreateReport(Action<NewsReport>? customise = null)
     {
-        var organisation = new NewsOrganisation("Synthetic Evening News") { Id = _fixture.CreateGuid() };
-        var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = new TimeSpan(0, 6, 30) };
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
         report.SetNewsOrganisationProperties(organisation);
-        report.SetRelease(CatalogueRelease.FromDate(new DateOnly(2026, 10, 3)));
+        report.SetRelease(CatalogueRelease.FromDate(DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(3))));
         customise?.Invoke(report);
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
@@ -76,6 +82,18 @@ public class PostStatusRules
     private Task<NewsReportUpdateResult> Update(NewsReport report, NewsReportChangeRequest change) =>
         _mocker.CreateInstance<NewsReportService>()
             .UpdateAsync(new NewsReportChangeRequestWrapper(report.Id, change), CancellationToken.None);
+
+    /// <summary>Post text laid out as #1051's SocialPostKindTemplate: quoted title, optional parent line, release line.</summary>
+    private static string PostText(string title, string? parentLine, string releaseLine) =>
+        parentLine == null
+            ? $"\"{title}\"\n{releaseLine}\n#Synthetic\nhttps://t.co/synthetic"
+            : $"\"{title}\"\n{parentLine}\n{releaseLine}\n#Synthetic\nhttps://t.co/synthetic";
+
+    private static string DateLine(DateTime releaseUtc) =>
+        releaseUtc.ToString(SocialPostRemovalTarget.ReleaseFormat, CultureInfo.InvariantCulture);
+
+    private static string LengthText(TimeSpan length) =>
+        length.ToString(SocialPostRemovalTarget.LengthFormat, CultureInfo.InvariantCulture);
 
     [Fact(DisplayName =
         "PATCH news report posted and tweeted=true set the flags with no social side effect, because the episode API only sets them.")]
@@ -97,24 +115,46 @@ public class PostStatusRules
     }
 
     [Fact(DisplayName =
-        "PATCH news report tweeted=false on a tweeted report clears the flag, saves, then deletes the tweet matched on the organisation name, length and release, because that is the episode un-tweet.")]
-    public async Task untweet_deletes_tweet_after_save()
+        "PATCH news report tweeted=false on a tweeted report deletes the tweet laid out as the news post (organisation line, date, length), then clears the flag and saves, because the flag only drops once the tweet is gone.")]
+    public async Task untweet_deletes_tweet_then_clears_and_saves()
     {
         // Arrange
         var report = CreateReport(r => r.Tweeted = true);
+        var post = PostText(report.Title, report.NewsOrganisationName,
+            $"{DateLine(report.ReleaseSort)} {LengthText(report.Length)}");
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { Tweeted = false });
 
         // Assert
+        _calls.Should().Equal("tweet", "save");
+        _tweetTarget!.Id.Should().Be(report.Id);
+        _tweetTarget.Matches(post).Should().BeTrue();
         _savedReport!.Tweeted.Should().BeFalse();
-        _calls.Should().Equal("save", "tweet");
-        _tweets.Verify(t => t.RemoveTweet(It.Is<SocialPostRemovalTarget>(x =>
-            x.Id == report.Id &&
-            x.ParentName == "Synthetic Evening News" &&
-            x.Length == new TimeSpan(0, 6, 30) &&
-            x.ReleaseUtc == new DateTime(2026, 10, 3, 0, 0, 0, DateTimeKind.Utc))), Times.Once);
         result.Outcome!.TweetDeleted.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report un-tweet matches the tweet on the release and length it was posted with, even when the same PATCH changes them, because the post text carries the old values.")]
+    public async Task untweet_matches_pre_patch_release_and_length()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Tweeted = true);
+        var post = PostText(report.Title, report.NewsOrganisationName,
+            $"{DateLine(report.ReleaseSort)} {LengthText(report.Length)}");
+        var newRelease = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(1));
+
+        // Act
+        await Update(report, new NewsReportChangeRequest
+        {
+            Tweeted = false,
+            Release = newRelease.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Duration = (report.Length + TimeSpan.FromMinutes(1)).ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+        });
+
+        // Assert
+        _tweetTarget!.Matches(post).Should().BeTrue();
+        _savedReport!.Release!.Date.Should().Be(newRelease);
     }
 
     [Fact(DisplayName =
@@ -129,23 +169,45 @@ public class PostStatusRules
 
         // Assert
         _tweets.VerifyNoOtherCalls();
+        _savedReport!.Tweeted.Should().BeFalse();
         result.Outcome!.TweetDeleted.Should().BeNull();
     }
 
-    [Fact(DisplayName =
-        "PATCH news report tweeted=false keeps the flag false even when the tweet delete fails, and reports tweetDeleted=false, because the episode API does the same.")]
-    public async Task untweet_failure_still_clears_flag()
+    [Theory(DisplayName =
+        "PATCH news report tweeted=false keeps tweeted=true and reports tweetDeleted=false when the tweet was not deleted, because a live tweet must never be forgotten and the curator can retry.")]
+    [InlineData(RemoveTweetState.NotFound)]
+    [InlineData(RemoveTweetState.TooManyRequests)]
+    [InlineData(RemoveTweetState.Other)]
+    public async Task untweet_not_deleted_keeps_flag(RemoveTweetState state)
     {
         // Arrange
         var report = CreateReport(r => r.Tweeted = true);
-        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>())).ThrowsAsync(new InvalidOperationException("synthetic"));
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>())).ReturnsAsync(state);
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { Tweeted = false });
 
         // Assert
         result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
-        _savedReport!.Tweeted.Should().BeFalse();
+        _savedReport!.Tweeted.Should().BeTrue();
+        result.Outcome!.TweetDeleted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report tweeted=false keeps tweeted=true when the tweet manager throws, and still saves the other changes, because the delete failed.")]
+    public async Task untweet_exception_keeps_flag()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Tweeted = true);
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>())).ThrowsAsync(new InvalidOperationException("synthetic"));
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest { Tweeted = false, Posted = true });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
+        _savedReport!.Tweeted.Should().BeTrue();
+        _savedReport.Posted.Should().BeTrue();
         result.Outcome!.TweetDeleted.Should().BeFalse();
     }
 
@@ -219,16 +281,18 @@ public class PostStatusRules
     }
 
     [Fact(DisplayName =
-        "PATCH TV episode un-tweet and unBluesky use the show name, and GET returns posted, because TV episodes share the playable post-status editor.")]
+        "PATCH TV episode un-tweet and unBluesky find the post by the show line and a date line with no length when the length is unknown, and GET returns posted, because TV posts leave a zero length out.")]
     public async Task tv_episode_post_status()
     {
         // Arrange
-        var show = new TvShow("Synthetic Docuseries") { Id = _fixture.CreateGuid() };
+        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Tweeted = true, BlueskyPost = SyntheticAtUri };
         episode.SetTvShowProperties(show);
+        episode.SetRelease(CatalogueRelease.FromDate(DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(5))));
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync(episode);
+        var post = PostText(episode.Title, show.Name, DateLine(episode.ReleaseSort));
 
         // Act
         var result = await _mocker.CreateInstance<TvShowEpisodeService>().UpdateAsync(
@@ -239,36 +303,42 @@ public class PostStatusRules
         // Assert
         result.Outcome!.TweetDeleted.Should().BeTrue();
         result.Outcome.BlueskyPostDeleted.Should().BeTrue();
-        _tweets.Verify(t => t.RemoveTweet(It.Is<SocialPostRemovalTarget>(x => x.ParentName == "Synthetic Docuseries")), Times.Once);
+        _tweetTarget!.Matches(post).Should().BeTrue();
+        _calls.Should().Equal("bluesky", "tweet");
         episode.ToDto().Posted.Should().BeTrue();
         episode.ToDto().Tweeted.Should().BeFalse();
         episode.ToDto().BlueskyPosted.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "PATCH film un-tweet and unBluesky use the film name and set posted, and publisher is editable, because films carry the same post status and publisher fields.")]
+        "PATCH film un-tweet finds the post by its re-cased title and year-only release with no parent line, sets posted, and publisher is editable, because film posts have no parent line and show a year-only release as the year.")]
     public async Task film_post_status_and_publisher()
     {
         // Arrange
-        var film = new Film("Synthetic Cult Film") { Id = _fixture.CreateGuid(), Tweeted = true, BlueskyPost = SyntheticAtUri };
+        var publisher = _fixture.CreateTitle();
+        var film = new Film(_fixture.CreateTitle(3)) { Id = _fixture.CreateGuid(), Tweeted = true, BlueskyPost = SyntheticAtUri };
+        film.SetRelease(CatalogueRelease.FromYear(DomainTestFixture.UtcToday.Year - 30));
         Film? saved = null;
         _mocker.GetMock<IFilmRepository>().Setup(r => r.GetFilm(film.Id)).ReturnsAsync(film);
         _mocker.GetMock<IFilmRepository>().Setup(r => r.Save(It.IsAny<Film>()))
             .Callback<Film>(f => saved = f).Returns(Task.CompletedTask);
+        var post = PostText(film.Name.ToUpperInvariant(), null,
+            film.Release!.Year.ToString(CultureInfo.InvariantCulture));
 
         // Act
         var result = await _mocker.CreateInstance<FilmService>().UpdateAsync(
             new FilmChangeRequestWrapper(film.Id,
-                new FilmChangeRequest { Tweeted = false, UnBluesky = true, Posted = true, PublisherName = " Synthetic Pictures " }),
+                new FilmChangeRequest { Tweeted = false, UnBluesky = true, Posted = true, PublisherName = $" {publisher} " }),
             CancellationToken.None);
 
         // Assert
         result.Outcome!.TweetDeleted.Should().BeTrue();
         result.Outcome.BlueskyPostDeleted.Should().BeTrue();
-        _tweets.Verify(t => t.RemoveTweet(It.Is<SocialPostRemovalTarget>(x => x.ParentName == "Synthetic Cult Film")), Times.Once);
+        _tweetTarget!.Matches(post).Should().BeTrue();
         saved!.Posted.Should().BeTrue();
+        saved.Tweeted.Should().BeFalse();
         saved.BlueskyPosted.Should().BeFalse();
-        saved.PublisherName.Should().Be("Synthetic Pictures");
-        film.ToDto().PublisherName.Should().Be("Synthetic Pictures");
+        saved.PublisherName.Should().Be(publisher);
+        film.ToDto().PublisherName.Should().Be(publisher);
     }
 }

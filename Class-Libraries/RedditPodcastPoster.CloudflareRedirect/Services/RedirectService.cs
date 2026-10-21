@@ -36,6 +36,23 @@ public class RedirectService(
 
     public async Task<bool> CreateCatalogueRedirect(CatalogueRedirect redirect)
     {
+        if (!await IsCatalogueRedirectSafe(redirect))
+        {
+            return false;
+        }
+
+        var result = await kVClient.Write(new KVRecord { Key = redirect.Key, Value = redirect.NewName },
+            _redirectOptions.KVRedirectNamespaceId);
+        if (!result.Success)
+        {
+            throw new InvalidOperationException($"Failed to write catalogue-redirect '{redirect.Key}'.");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> IsCatalogueRedirectSafe(CatalogueRedirect redirect)
+    {
         var redirects = await kVClient.GetAll(_redirectOptions.KVRedirectNamespaceId);
         if (redirects == null)
         {
@@ -50,13 +67,6 @@ public class RedirectService(
                 "Unable to create catalogue-redirect. Redirect considered unsafe. '{OldKey}' -> '{NewName}'.",
                 redirect.Key, redirect.NewName);
             return false;
-        }
-
-        var result = await kVClient.Write(new KVRecord { Key = redirect.Key, Value = redirect.NewName },
-            _redirectOptions.KVRedirectNamespaceId);
-        if (!result.Success)
-        {
-            throw new InvalidOperationException($"Failed to write catalogue-redirect '{redirect.Key}'.");
         }
 
         return true;

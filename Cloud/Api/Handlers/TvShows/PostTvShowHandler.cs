@@ -25,6 +25,8 @@ public class PostTvShowHandler(
                 await ctx.NotFound(new { id = request.TvShowId }, c),
             TvShowUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            TvShowUpdateStatus.Conflict =>
+                await ctx.Conflict(new { message = result.Message, ids = result.ConflictingIds }, c),
             TvShowUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update TV show"), c),
             _ => await LogAndFail(ctx, c)

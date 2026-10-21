@@ -41,6 +41,10 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound);
             }
 
+            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
+            var target = SocialPostRemovalTarget.ForCatalogueChild(episode.Id, episode.TvShowName ?? string.Empty,
+                episode.Release, episode.ReleaseSort, episode.Length, episode.BlueskyPost);
+
             if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
             {
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
@@ -56,15 +60,14 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, tvdbError);
             }
 
-            // Same order as EpisodeUpdateService: Bluesky delete before the save (needs the AT URI), tweet after.
-            var target = new SocialPostRemovalTarget(episode.Id, episode.TvShowName ?? string.Empty, episode.Length,
-                episode.ReleaseSort, episode.BlueskyPost);
+            // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
+            // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
             var outcome = new EpisodeUpdateOutcome
             {
-                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, episode, target)
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, episode, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, episode, target)
             };
             await tvShowEpisodeRepository.Save(episode);
-            outcome.TweetDeleted = await socialRetraction.RemoveTweet(postStatus, target);
 
             // As news reports: the sibling pull indexer never deletes, so removed=true deletes the search document
             // (every time, as the episode API, so a retry finishes the job).

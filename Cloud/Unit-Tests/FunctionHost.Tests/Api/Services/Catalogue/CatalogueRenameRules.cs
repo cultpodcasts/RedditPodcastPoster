@@ -74,6 +74,9 @@ public class CatalogueRenameRules
                 _redirects.Add(redirect);
             })
             .ReturnsAsync(true);
+        _mocker.GetMock<IRedirectService>()
+            .Setup(r => r.IsCatalogueRedirectSafe(It.IsAny<CatalogueRedirect>()))
+            .ReturnsAsync(true);
 
         Filterable<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         Filterable<ITvShowRepository, TvShow>(_shows);
@@ -182,7 +185,7 @@ public class CatalogueRenameRules
         live.NewsOrganisationName.Should().Be(NewName);
         removed.NewsOrganisationName.Should().Be(NewName);
         removed.Removed.Should().BeTrue();
-        _saveOrder.Should().Equal("redirect", "children:2", "parent");
+        _saveOrder.Should().Equal("children:2", "redirect", "parent");
         _merges.Should().ContainSingle();
         _merges[0].Field.Should().Be("seriesName");
         _merges[0].Value.Should().Be(NewName);
@@ -339,7 +342,7 @@ public class CatalogueRenameRules
         var show = AddShow(OldName);
         AddEpisode(show);
         _mocker.GetMock<IRedirectService>()
-            .Setup(r => r.CreateCatalogueRedirect(It.IsAny<CatalogueRedirect>()))
+            .Setup(r => r.IsCatalogueRedirectSafe(It.IsAny<CatalogueRedirect>()))
             .ReturnsAsync(false);
 
         // Act
@@ -354,8 +357,8 @@ public class CatalogueRenameRules
     }
 
     [Fact(DisplayName =
-        "If saving the children fails the parent is not saved, and retrying the same request finishes the rename, " +
-        "saving only the children that are still stale.")]
+        "If saving the children fails neither the redirect nor the parent is written, and retrying the same request " +
+        "finishes the rename, saving only the children that are still stale, then the redirect, then the parent.")]
     public async Task retry_after_partial_failure()
     {
         // Arrange
@@ -369,6 +372,7 @@ public class CatalogueRenameRules
         var first = await Service.RenameNewsOrganisation(
             new CatalogueRenameCommand(organisation.Id.ToString(), NewName), CancellationToken.None);
         var parentSavedAfterFailure = _saveOrder.Contains("parent");
+        var redirectsAfterFailure = _redirects.Count;
         // The in-memory reports kept the new name, as if two saved before the failure; one is still stale.
         reports[2].NewsOrganisationName = OldName;
         organisation.Name = OldName;
@@ -382,10 +386,11 @@ public class CatalogueRenameRules
         // Assert
         first.Status.Should().Be(CatalogueRenameStatus.Failed);
         parentSavedAfterFailure.Should().BeFalse();
+        redirectsAfterFailure.Should().Be(0);
         retry.Status.Should().Be(CatalogueRenameStatus.Ok);
-        _saveOrder.Should().Equal("redirect", "children:1", "parent");
+        _saveOrder.Should().Equal("children:1", "redirect", "parent");
         reports.Should().OnlyContain(r => r.NewsOrganisationName == NewName);
-        _redirects.Should().HaveCount(2).And.OnlyContain(r => r.Key == $"news/{OldName}" && r.NewName == NewName);
+        _redirects.Should().ContainSingle().Which.Should().Match<CatalogueRedirect>(r => r.Key == $"news/{OldName}" && r.NewName == NewName);
     }
 
     [Fact(DisplayName =
