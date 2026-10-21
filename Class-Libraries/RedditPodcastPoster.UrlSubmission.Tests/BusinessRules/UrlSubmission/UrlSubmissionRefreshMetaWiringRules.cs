@@ -119,8 +119,8 @@ public class UrlSubmissionRefreshMetaWiringRules
             Service.Other);
 
         _mocker.GetMock<IPodcastService>()
-            .Setup(s => s.GetPodcastFromEpisodeUrl(url, It.IsAny<IndexingContext>()))
-            .ReturnsAsync(podcast);
+            .Setup(s => s.GetEpisodeUrlOwner(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new EpisodeUrlOwner(podcast, EpisodeUrlOwnerIds.None));
 
         _mocker.GetMock<IUrlCategoriser>()
             .Setup(c => c.Categorise(

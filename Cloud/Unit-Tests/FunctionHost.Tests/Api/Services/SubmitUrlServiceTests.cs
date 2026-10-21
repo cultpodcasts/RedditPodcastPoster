@@ -7,7 +7,10 @@ using Api.Services.SubmitUrl;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -45,6 +48,76 @@ public class SubmitUrlServiceTests
         _mocker.GetMock<IEpisodeSearchIndexerService>()
             .Setup(s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EntitySearchIndexerResponse());
+    }
+
+    [Fact(DisplayName =
+        "A URL routed to a news organisation is indexed immediately as a NewsReport search document keyed by the playable id, under the organisation's name, without the podcast-episode indexer.")]
+    public async Task routed_news_report_is_indexed_immediately()
+    {
+        // Arrange
+        var organisation = new NewsOrganisation("Synthetic News " + _fixture.CreateTitle()) { SearchTerms = "synthetic terms" };
+        var transient = new CatalogueIndexingSource().ToTransientPodcast(organisation);
+        var episode = _fixture.CreateEpisode();
+        IReadOnlyList<EpisodeSearchRecord>? uploaded = null;
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) => uploaded = docs)
+            .ReturnsAsync(true);
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Created,
+                SubmitResultState.None,
+                ContentKind: SubmitClassification.NewsReport,
+                PlayableId: episode.Id,
+                CatalogueSearchSource: new CatalogueSearchSource(transient, episode, CatalogueParentKind.NewsOrganisation)));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(
+            new SubmitUrlRequest { Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        uploaded.Should().ContainSingle();
+        uploaded![0].Id.Should().Be(episode.Id.ToString());
+        uploaded[0].ContentKind.Should().Be(SearchContentKind.NewsReport);
+        uploaded[0].SeriesName.Should().Be(organisation.Name);
+        uploaded[0].PublisherSearchTerms.Should().Be("synthetic terms");
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A failed immediate index of a routed item is logged and the submit still succeeds.")]
+    public async Task routed_index_failure_still_ok()
+    {
+        // Arrange
+        var show = new RedditPodcastPoster.Models.TvShows.TvShow("Synthetic Show " + _fixture.CreateTitle());
+        var episode = _fixture.CreateEpisode();
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic"));
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Created,
+                SubmitResultState.None,
+                ContentKind: SubmitClassification.TvShowEpisode,
+                PlayableId: episode.Id,
+                CatalogueSearchSource: new CatalogueSearchSource(
+                    new CatalogueIndexingSource().ToTransientPodcast(show), episode, CatalogueParentKind.TvShow)));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(
+            new SubmitUrlRequest { Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        result.Result!.PlayableId.Should().Be(episode.Id);
     }
 
     [Fact(DisplayName =

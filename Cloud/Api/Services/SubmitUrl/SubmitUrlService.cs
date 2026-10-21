@@ -1,8 +1,11 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
@@ -14,7 +17,8 @@ public class SubmitUrlService(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
-    ILogger<SubmitUrlService> logger) : ISubmitUrlService
+    ILogger<SubmitUrlService> logger,
+    IPlayableSearchDocumentSwap? playableSearch = null) : ISubmitUrlService
 {
     public async Task<SubmitUrlResult> SubmitAsync(
         SubmitUrlRequest submitUrlModel,
@@ -79,6 +83,11 @@ public class SubmitUrlService(
             }
 
             var episodeId = result.Episode?.Id;
+            if (result.CatalogueSearchSource is { } searchSource)
+            {
+                await IndexCatalogueParentItem(searchSource, cancellationToken);
+            }
+
             if (result.PlayableId.HasValue && result.Episode == null)
             {
                 return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
@@ -158,6 +167,39 @@ public class SubmitUrlService(
         {
             logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(SubmitAsync), submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.Failed, Message: "Failure");
+        }
+    }
+
+    /// <summary>
+    /// A URL routed to a news organisation / TV show is indexed now, like a podcast episode, with the
+    /// same document as kind transfer (search key = playable id). A failure is logged, not returned.
+    /// </summary>
+    private async Task IndexCatalogueParentItem(CatalogueSearchSource source, CancellationToken cancellationToken)
+    {
+        if (playableSearch == null)
+        {
+            logger.LogError("No playable search indexer is registered; '{PlayableId}' waits for the search indexer.",
+                source.Episode.Id);
+            return;
+        }
+
+        var contentKind = source.Kind == CatalogueParentKind.NewsOrganisation
+            ? SearchContentKind.NewsReport
+            : SearchContentKind.TvShowEpisode;
+        try
+        {
+            var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+                source.Parent, [source.Episode], contentKind);
+            if (!await playableSearch.UploadAsync(documents, cancellationToken))
+            {
+                logger.LogError("Failed to index {ContentKind} '{PlayableId}' after submission.", contentKind,
+                    source.Episode.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to index {ContentKind} '{PlayableId}' after submission.", contentKind,
+                source.Episode.Id);
         }
     }
 }

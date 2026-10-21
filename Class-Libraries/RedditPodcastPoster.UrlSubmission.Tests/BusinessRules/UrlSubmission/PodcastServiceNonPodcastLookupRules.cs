@@ -66,4 +66,30 @@ public class PodcastServiceNonPodcastLookupRules
         // Assert
         podcast.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "GetEpisodeUrlOwner returns the Apple podcast id it matched on, with the owning podcast when one has it and none otherwise, so a news organisation or TV show can be looked up.")]
+    public async Task episode_url_owner_carries_apple_podcast_id()
+    {
+        // Arrange
+        var appleId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = appleId);
+        await _mocker.Get<IPodcastRepository>().Save(podcast);
+        var sut = _mocker.CreateInstance<PodcastService>();
+        var owned = new Uri($"https://podcasts.apple.com/us/podcast/synthetic/id{appleId}?i={_fixture.CreateAppleId()}");
+        var unowned = new Uri($"https://podcasts.apple.com/us/podcast/synthetic/id{appleId + 1}?i={_fixture.CreateAppleId()}");
+        var bbc = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var ownedResult = await sut.GetEpisodeUrlOwner(owned, new IndexingContext());
+        var unownedResult = await sut.GetEpisodeUrlOwner(unowned, new IndexingContext());
+        var bbcResult = await sut.GetEpisodeUrlOwner(bbc, new IndexingContext());
+
+        // Assert
+        ownedResult.Podcast!.Id.Should().Be(podcast.Id);
+        ownedResult.Ids.ApplePodcastId.Should().Be(appleId);
+        unownedResult.Podcast.Should().BeNull();
+        unownedResult.Ids.ApplePodcastId.Should().Be(appleId + 1);
+        bbcResult.Ids.IsEmpty.Should().BeTrue();
+    }
 }

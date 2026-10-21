@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
@@ -28,9 +29,17 @@ public class PodcastService(
 #pragma warning restore CS9113 // Parameter is unread.
 ) : IPodcastService
 {
-    public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext)
+    public async Task<Podcast?> GetPodcastFromEpisodeUrl(Uri url, IndexingContext indexingContext) =>
+        (await GetEpisodeUrlOwner(url, indexingContext)).Podcast;
+
+    public async Task<EpisodeUrlOwner> GetEpisodeUrlOwner(Uri url, IndexingContext indexingContext)
     {
-        IEnumerable<Podcast> v2Podcasts;
+        var ids = await GetOwnerIds(url, indexingContext);
+        return new EpisodeUrlOwner(await MatchPodcast(ids), ids);
+    }
+
+    private async Task<EpisodeUrlOwnerIds> GetOwnerIds(Uri url, IndexingContext indexingContext)
+    {
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {
             var episodeId = SpotifyIdResolver.GetEpisodeId(url);
@@ -48,10 +57,10 @@ public class PodcastService(
                     $"Unable to find spotify-full-show for spotify-episode with spotify-episode-id '{episodeId}'.");
             }
 
-            v2Podcasts = await podcastRepository.GetAllBy(podcast => podcast.SpotifyId == episode.FullEpisode.Show.Id)
-                .ToArrayAsync();
+            return new EpisodeUrlOwnerIds(SpotifyShowId: episode.FullEpisode.Show.Id);
         }
-        else if (YouTubePodcastServiceMatcher.IsMatch(url))
+
+        if (YouTubePodcastServiceMatcher.IsMatch(url))
         {
             var videoId = YouTubeIdResolver.Extract(url);
             if (string.IsNullOrWhiteSpace(videoId))
@@ -66,8 +75,39 @@ public class PodcastService(
                 throw new InvalidOperationException($"Unable to find youtube-video for youtube-video-id '{videoId}'.");
             }
 
-            var snippetChannelId = episodes.FirstOrDefault()!.Snippet.ChannelId;
+            var snippet = episodes.First().Snippet;
+            return new EpisodeUrlOwnerIds(YouTubeChannelId: snippet.ChannelId, YouTubeChannelTitle: snippet.ChannelTitle);
+        }
 
+        if (ApplePodcastServiceMatcher.IsMatch(url))
+        {
+            var podcastId = AppleIdResolver.GetPodcastId(url);
+            if (podcastId == null)
+            {
+                throw new ArgumentException($"Unable to extract apple-episode-id from '{url}'.", nameof(url));
+            }
+
+            return new EpisodeUrlOwnerIds(ApplePodcastId: podcastId);
+        }
+
+        if (nonPodcastServiceAdapterResolver.ForSubmit(url) != null)
+        {
+            return EpisodeUrlOwnerIds.None;
+        }
+
+        throw new ArgumentException($"Unable to determine service for url '{url}'.", nameof(url));
+    }
+
+    private async Task<Podcast?> MatchPodcast(EpisodeUrlOwnerIds ids)
+    {
+        IEnumerable<Podcast> v2Podcasts;
+        if (ids.SpotifyShowId is { } spotifyShowId)
+        {
+            v2Podcasts = await podcastRepository.GetAllBy(podcast => podcast.SpotifyId == spotifyShowId)
+                .ToArrayAsync();
+        }
+        else if (ids.YouTubeChannelId is { } snippetChannelId)
+        {
             v2Podcasts = await podcastRepository.GetAllBy(podcast =>
                 podcast.YouTubeChannelId == snippetChannelId).ToArrayAsync();
             if (v2Podcasts.Count() > 1)
@@ -82,7 +122,7 @@ public class PodcastService(
 
                 if (v2Podcasts.Count() > 1)
                 {
-                    var videoChannelName = episodes.First().Snippet.ChannelTitle.Trim().ToLowerInvariant();
+                    var videoChannelName = (ids.YouTubeChannelTitle ?? string.Empty).Trim().ToLowerInvariant();
                     v2Podcasts = v2Podcasts.Where(x => x.Name.Trim().ToLowerInvariant() == videoChannelName);
                     if (v2Podcasts.Count() != 1)
                     {
@@ -95,23 +135,13 @@ public class PodcastService(
                 }
             }
         }
-        else if (ApplePodcastServiceMatcher.IsMatch(url))
+        else if (ids.ApplePodcastId is { } podcastId)
         {
-            var podcastId = AppleIdResolver.GetPodcastId(url);
-            if (podcastId == null)
-            {
-                throw new ArgumentException($"Unable to extract apple-episode-id from '{url}'.", nameof(url));
-            }
-
             v2Podcasts = await podcastRepository.GetAllBy(podcast => podcast.AppleId == podcastId).ToArrayAsync();
-        }
-        else if (nonPodcastServiceAdapterResolver.ForSubmit(url) != null)
-        {
-            v2Podcasts = [];
         }
         else
         {
-            throw new ArgumentException($"Unable to determine service for url '{url}'.", nameof(url));
+            v2Podcasts = [];
         }
 
         if (v2Podcasts.Count() > 1)
