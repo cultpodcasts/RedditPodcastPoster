@@ -13,7 +13,8 @@ public static class CatalogueTvShowCanonicalNames
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["SABC"] = "3 Days in Dimona: African Hebrew Israelites",
-            ["SABC 2"] = "Surviving Jefferey Epstein"
+            ["SABC 2"] = "Surviving Jefferey Epstein",
+            ["This Morning"] = "This Morning"
         };
 
     public static IEnumerable<string> PublisherNames => ShowNameByPublisherName.Keys;

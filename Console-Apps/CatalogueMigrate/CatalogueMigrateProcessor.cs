@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -99,13 +100,14 @@ public class CatalogueMigrateProcessor(
             plannedCount++;
             searchDocumentCount += searchDocuments.Count;
             logger.LogInformation(
-                "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} searchDocuments={SearchDocumentCount} allowlist={RequiresAllowlist}",
+                "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} searchDocuments={SearchDocumentCount} allowlist={RequiresAllowlist} onAllowlist={OnAllowlist}",
                 plan.SourcePodcastId,
                 plan.ContentKind,
                 plan.DestParentId,
                 plan.DestPlayableIds.Length,
                 searchDocuments.Count,
-                plan.RequiresAllowlist);
+                plan.RequiresAllowlist,
+                CatalogueNewsOrganisationAllowlist.Contains(podcast.Name));
         }
 
         logger.LogInformation(

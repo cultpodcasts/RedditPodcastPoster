@@ -7,7 +7,8 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 namespace RedditPodcastPoster.UrlSubmission.Migration;
 
 /// <summary>
-/// Dry-run identify for corpus migrate (Build 5). Apply is GATE 5 and needs an allowlist for News (S-008).
+/// Dry-run identify for corpus migrate (Build 5). Apply is GATE 5 and needs
+/// <see cref="RedditPodcastPoster.Models.Catalogue.CatalogueNewsOrganisationAllowlist"/> for News (S-008).
 /// Apply batches in GATE 5 are still News then Film then TV (S-007).
 /// Mixed classified kinds (News plus Episode/Film/TV) stay Episode and need a curator.
 /// Homogeneous News still requires every classified URL to be News.
@@ -171,11 +172,13 @@ public static class CatalogueMigrateIdentify
             return false;
         }
 
-        return LooksLikeNewsOrganisationName(podcast.Name);
+        return LooksLikeNewsOrganisationName(podcast.Name)
+               || CatalogueNewsOrganisationChannelAliases.IsExtraChannel(podcast.Name);
     }
 
     /// <summary>
-    /// Dry-run name heuristic only. Apply still needs S-008. Four-letter call signs
+    /// Dry-run name heuristic only. Apply still needs
+    /// <see cref="CatalogueNewsOrganisationAllowlist"/> (S-008). Four-letter call signs
     /// are one US pattern; many affiliates publish as ABC7, FOX 5, or “… News”.
     /// Newspapers (Times, Herald, …) and rolling-news names (24/7, France 24)
     /// are outlets worldwide, not only US TV.
@@ -233,9 +236,10 @@ public static class CatalogueMigrateIdentify
     }
 
     /// <summary>
-    /// Curator: partisan, advocacy, or news-satire publishers stay podcasts even when
-    /// the name looks like a news organisation. News Central TV and BreakThrough News
-    /// are outlets and are not on this list.
+    /// Curator: partisan, advocacy, news-satire, or one-person host channels stay
+    /// podcasts even when the name or YouTube About looks like a news organisation.
+    /// News Central TV, BreakThrough News, Newsmax, Democracy Now!, Redacted,
+    /// Le Média, and Law&amp;Crime are outlets and are not on this list.
     /// </summary>
     public static readonly IReadOnlySet<string> StayPodcastPublisherNames =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -245,7 +249,12 @@ public static class CatalogueMigrateIdentify
             "NIUS",
             "MAGNO NEWS",
             "HW News English",
-            "MintPress News"
+            "MintPress News",
+            "Andy Ngo",
+            "Ari Melber, Journalist & Attorney",
+            "XENU TV",
+            "Owen Report",
+            "Nancy Mace"
         };
 
     /// <summary>

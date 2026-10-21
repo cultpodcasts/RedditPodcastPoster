@@ -308,7 +308,7 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CatalogueMigrate
 
-**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply will need an allowlist (S-008). Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Film requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+**Purpose:** Dry-run corpus **move plans**. News then Film then TV (S-007). Keeps GUIDs. Builds same-id Azure Search swap documents (`contentKind`) but does not upload. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, 317 names frozen 2 Oct 2026); dry-run still discovers via Identify heuristics and logs `onAllowlist`. Film is a one-off (episode id, no parent). **`--apply` always exits 2.** Film requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
 

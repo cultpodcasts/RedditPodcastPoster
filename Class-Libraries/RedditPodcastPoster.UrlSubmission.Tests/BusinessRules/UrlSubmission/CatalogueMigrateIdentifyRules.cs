@@ -525,7 +525,7 @@ public class CatalogueMigrateIdentifyRules
 
     [Theory(DisplayName =
         "A YouTube-only publisher whose exact name is on the stay-podcast list stays Episode, " +
-        "because partisan, advocacy, and news-satire rows remain podcasts.")]
+        "because partisan, advocacy, news-satire, and one-person host rows remain podcasts.")]
     [MemberData(nameof(StayPodcastPublisherNameRows))]
     public void stay_podcast_publisher_name_stays_episode(string name)
     {
@@ -545,6 +545,44 @@ public class CatalogueMigrateIdentifyRules
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
         result.RequiresAllowlist.Should().BeFalse();
+    }
+
+    public static TheoryData<string> ExtraNewsChannelPublisherNameRows()
+    {
+        var rows = new TheoryData<string>();
+        foreach (var name in CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames)
+        {
+            rows.Add(name);
+        }
+
+        return rows;
+    }
+
+    [Theory(DisplayName =
+        "A YouTube-only extra channel of a news organisation is a NewsReport candidate that needs an allowlist, " +
+        "because one news outlet can have several YouTube channels and those rows are not a second organisation.")]
+    [MemberData(nameof(ExtraNewsChannelPublisherNameRows))]
+    public void extra_youtube_channel_of_a_news_organisation_is_a_news_candidate(string name)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = name;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.RequiresAllowlist.Should().BeTrue();
+        CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(name)
+            .Should()
+            .NotBe(name);
     }
 
     [Fact(DisplayName =
@@ -817,7 +855,8 @@ public class CatalogueMigrateIdentifyRules
                     n = HashCode.Combine(n, i);
                 }
             });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name))
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
+                && !CatalogueNewsOrganisationAllowlist.Contains(name))
             {
                 return name;
             }

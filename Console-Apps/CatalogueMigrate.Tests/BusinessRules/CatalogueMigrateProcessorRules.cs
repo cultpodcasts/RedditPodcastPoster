@@ -368,7 +368,8 @@ public class CatalogueMigrateProcessorRules
                     n = HashCode.Combine(n, i);
                 }
             });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name))
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
+                && !CatalogueNewsOrganisationAllowlist.Contains(name))
             {
                 return name;
             }

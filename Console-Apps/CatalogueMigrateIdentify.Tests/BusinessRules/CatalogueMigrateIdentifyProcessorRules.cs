@@ -703,7 +703,8 @@ public class CatalogueMigrateIdentifyProcessorRules
                     n = HashCode.Combine(n, i);
                 }
             });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name))
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
+                && !CatalogueNewsOrganisationAllowlist.Contains(name))
             {
                 return name;
             }
