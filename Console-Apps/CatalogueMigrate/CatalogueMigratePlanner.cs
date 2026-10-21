@@ -40,6 +40,14 @@ public static class CatalogueMigratePlanner
     public const string FilmHasOtherEpisodes =
         "Film podcast has other (removed) episodes. A curator must clear them before Film apply.";
 
+    public const string ServiceIdsWouldBeDropped =
+        "The TV show / news organisation would not keep the podcast's YouTube / Spotify / Apple ids, so submits and " +
+        "the indexer would stop matching it. Merge and deploy PR #1050 (parents keep indexing ids) before apply.";
+
+    public const string ParentNameExists =
+        "Another TV show / news organisation already has this name (or fileKey). Apply would create a duplicate " +
+        "parent. A curator must merge or rename first.";
+
     /// <summary>
     /// Null when the podcast is not a candidate for this kind (same filter as identify-scan dry-run).
     /// </summary>
@@ -109,6 +117,12 @@ public static class CatalogueMigratePlanner
             block = AutoIndexed;
         }
 
+        if (block is null && DestinationParent(podcast, kind) is { } parent &&
+            CatalogueMigrateServiceIds.Dropped(podcast, parent).Count > 0)
+        {
+            block = ServiceIdsWouldBeDropped;
+        }
+
         var plan = CatalogueMigrateMover.Plan(podcast, planEpisodes, kind);
         return new CatalogueMigrateUnit(
             podcast,
@@ -119,4 +133,12 @@ public static class CatalogueMigratePlanner
             onAllowlist,
             block);
     }
+
+    /// <summary>The TV show / news organisation the writer would store for this podcast; null for Film.</summary>
+    public static Publisher? DestinationParent(Podcast podcast, string kind) => kind switch
+    {
+        SubmitClassification.NewsReport => CatalogueParentKindMapper.ToNewsOrganisation(podcast),
+        SubmitClassification.TvShowEpisode => CatalogueParentKindMapper.ToTvShow(podcast),
+        _ => null
+    };
 }

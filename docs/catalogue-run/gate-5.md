@@ -29,7 +29,7 @@ Note: snapshots are typed `Podcast`/`Episode`. Cosmos fields that are not on the
 |---|---------|
 | 1 | **DEPLOY** Indexer → Discover → Api + CLIs **only when the human names that deploy** |
 | 2 | Full backup (`CosmosDbDownloader`) |
-| 3 | Dry-run identify and plans. Review the `block=` lines. |
+| 3 | Dry-run identify and plans. Review the `block=` lines. **PR #1050 must be merged and the Indexer deployed before step 4**, so moved TV shows and news organisations keep their YouTube / Spotify / Apple ids on `indexing` (the planner blocks a News / TV move that would drop one). |
 | 4 | Apply News, then Film, then TV, **only with the human's own consent phrase**. Start with `--limit 5` and spot-check. Search is swapped per podcast. |
 | 5 | Only now: drop Episode dual-key/bridges if the audit is still green → redeploy Functions |
 | 6 | Worker / Site follow-ups if needed **and named** |

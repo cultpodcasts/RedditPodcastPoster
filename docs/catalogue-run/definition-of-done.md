@@ -25,6 +25,8 @@ dotnet build RedditPodcastPoster.slnx -c Release
 
 Check: `CatalogueMigrate --version` shows the merged commit.
 
+- [ ] PR #1050 merged and the Indexer deployed **before any `--apply`** (section E).
+
 ## C. Backup (before any apply)
 
 ```powershell
@@ -47,21 +49,25 @@ CatalogueMigrate --kind TvShowEpisode | Tee-Object tv-plan-$stamp.log
 CatalogueMigrate --kind Film --podcast-id <podcast-guid> | Tee-Object film-plan-<podcast-guid>.log
 ```
 
-Review each `Catalogue migrate plan` line. `apply=True` lines will move. `block=` lines will not move, and each one says why: not on S-008, partial news, auto-indexed, or a Film with other episodes.
+Review each `Catalogue migrate plan` line. `apply=True` lines will move. `block=` lines will not move, and each one says why: not on S-008, partial news, auto-indexed, a Film with other episodes, a parent that would drop a service id, or a parent name that already belongs to another TV show or news organisation.
 
 ## E. Apply (S-007 order: News, then Film, then TV)
+
+**Before any `--apply`:** PR #1050 (indexer for migrated parents, and the mapper that keeps the podcast's YouTube / Spotify / Apple ids on the parent's `indexing`) must be **merged and deployed**. Without it, a moved TV show or news organisation loses its channel id and submits stop matching it (the NBC News failure). The planner also blocks any News / TV move whose parent would drop a service id, and any move onto a name that already belongs to another TV show or news organisation.
+
+The `--consent` values below are placeholders on purpose. Jon types the exact phrase from [gate-5.md](./gate-5.md) himself; it is never copied from this checklist.
 
 Start with a small batch, spot-check it, then do the rest. Each command writes `catalogue-migrate-evidence\<runId>-<kind>-batch-NNN.jsonl`.
 
 ```powershell
-CatalogueMigrate --kind NewsReport --apply --limit 5 --consent "I approve CatalogueMigrate --kind NewsReport production writes"
+CatalogueMigrate --kind NewsReport --apply --limit 5 --consent "<type the phrase from gate-5.md yourself>"
 # spot-check (section F), then:
-CatalogueMigrate --kind NewsReport --apply --batch-size 25 --consent "I approve CatalogueMigrate --kind NewsReport production writes"
+CatalogueMigrate --kind NewsReport --apply --batch-size 25 --consent "<type the phrase from gate-5.md yourself>"
 
-CatalogueMigrate --kind Film --podcast-id <podcast-guid> --apply --consent "I approve CatalogueMigrate --kind Film production writes"
+CatalogueMigrate --kind Film --podcast-id <podcast-guid> --apply --consent "<type the phrase from gate-5.md yourself>"
 
-CatalogueMigrate --kind TvShowEpisode --apply --limit 5 --consent "I approve CatalogueMigrate --kind TvShowEpisode production writes"
-CatalogueMigrate --kind TvShowEpisode --apply --batch-size 25 --consent "I approve CatalogueMigrate --kind TvShowEpisode production writes"
+CatalogueMigrate --kind TvShowEpisode --apply --limit 5 --consent "<type the phrase from gate-5.md yourself>"
+CatalogueMigrate --kind TvShowEpisode --apply --batch-size 25 --consent "<type the phrase from gate-5.md yourself>"
 ```
 
 Exit codes:
@@ -73,7 +79,7 @@ Rollback of one batch (dry-run first):
 
 ```powershell
 CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl
-CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl --apply --consent "I approve CatalogueMigrate rollback of <file>.jsonl in production"
+CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl --apply --consent "<type the rollback phrase from gate-5.md yourself>"
 ```
 
 ## F. Spot-check after each kind

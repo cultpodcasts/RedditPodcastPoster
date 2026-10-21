@@ -20,6 +20,7 @@ public class CatalogueMigrateProcessorRules
     private readonly DomainTestFixture _fixture = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
     private readonly InMemoryPodcastRepository _podcasts = new();
+    private readonly InMemoryCatalogueMigrateDestination _destination = new();
     private readonly AutoMocker _mocker;
 
     public CatalogueMigrateProcessorRules()
@@ -29,9 +30,12 @@ public class CatalogueMigrateProcessorRules
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
-        _mocker.Use<ICatalogueMigrateDestination>(new InMemoryCatalogueMigrateDestination());
+        _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);
+        _mocker.Use<ICatalogueMigrateDestination>(_destination);
+        _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(new InMemoryCatalogueMigrateEvidenceStore());
         _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.UtcNow));
+        _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }
 

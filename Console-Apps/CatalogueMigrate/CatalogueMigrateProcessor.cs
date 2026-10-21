@@ -40,6 +40,8 @@ public class CatalogueMigrateProcessor(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     Func<CatalogueMigrateApplier> applierFactory,
+    ICatalogueMigrateDestinationReader destinationReader,
+    CatalogueMigrateRollbackPreviewer rollbackPreviewer,
     ICatalogueMigrateEvidenceStore evidenceStore,
     TimeProvider timeProvider,
     ILogger<CatalogueMigrateProcessor> logger)
@@ -132,6 +134,7 @@ public class CatalogueMigrateProcessor(
                     continue;
                 }
 
+                unit = await BlockDuplicateParent(unit);
                 if (unit.ApplyEligible && request.Limit is { } limit && eligibleCount >= limit)
                 {
                     logger.LogInformation("Catalogue migrate --limit {Limit} reached. Re-run to continue.", limit);
@@ -247,7 +250,8 @@ public class CatalogueMigrateProcessor(
         }
 
         var targets = begins.Where(begin => !conflicts.Contains(begin.PodcastId)).ToList();
-        var applier = applierFactory();
+        // A preview only reads the destination, so it never builds the applier (and with it the Search client).
+        var applier = request.Apply ? applierFactory() : null;
         var runId = timeProvider.GetUtcNow().ToString("yyyyMMdd'T'HHmmss'Z'");
         var restored = 0;
         var exitCode = ExitOk;
@@ -264,7 +268,10 @@ public class CatalogueMigrateProcessor(
         {
             foreach (var begin in targets)
             {
-                if (await applier.Rollback(begin, batch, runId, request.Apply, cancellationToken))
+                var ok = applier is not null
+                    ? await applier.Rollback(begin, batch, runId, request.Apply, cancellationToken)
+                    : !(await rollbackPreviewer.Preview(begin, apply: false)).Refused;
+                if (ok)
                 {
                     restored++;
                 }
@@ -282,6 +289,33 @@ public class CatalogueMigrateProcessor(
             restored,
             conflicts.Count);
         return new CatalogueMigrateRunResult(exitCode, targets.Count, 0, AppliedCount: request.Apply ? restored : 0, EvidenceFiles: evidenceFiles);
+    }
+
+    /// <summary>
+    /// Blocks a News / TV move whose destination name or fileKey already belongs to another parent of that kind
+    /// (a channel alias or canonical TV name, or an outlet already moved by change-kind). Apply would otherwise
+    /// create a second parent with the same name and fileKey instead of attaching to the existing one.
+    /// </summary>
+    private async Task<CatalogueMigrateUnit> BlockDuplicateParent(CatalogueMigrateUnit unit)
+    {
+        if (!unit.ApplyEligible || CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind) is not { } parent)
+        {
+            return unit;
+        }
+
+        var existing = await destinationReader.FindOtherParentWithName(unit.Kind, parent.Name, parent.FileKey, parent.Id);
+        if (existing is null)
+        {
+            return unit;
+        }
+
+        logger.LogWarning(
+            "Catalogue migrate {PodcastId} {Kind}: parent name '{ParentName}' already belongs to {ExistingParentId}. Blocked.",
+            unit.Podcast.Id,
+            unit.Kind,
+            parent.Name,
+            existing);
+        return unit with { ApplyBlockReason = CatalogueMigratePlanner.ParentNameExists };
     }
 
     private CatalogueMigratePlanLine LogPlan(CatalogueMigrateUnit unit)

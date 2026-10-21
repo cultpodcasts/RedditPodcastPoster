@@ -26,6 +26,7 @@ public class CatalogueMigrateApplier(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ICatalogueMigrateDestination destination,
+    CatalogueMigrateRollbackPreviewer rollbackPreviewer,
     ILogger<CatalogueMigrateApplier> logger)
 {
     public async Task<CatalogueMigrateApplyOutcome> Apply(
@@ -128,15 +129,11 @@ public class CatalogueMigrateApplier(
         bool apply,
         CancellationToken cancellationToken)
     {
-        if (begin.BeforePodcast is not { } podcast || begin.BeforeEpisodes is not { } episodes)
-        {
-            throw new InvalidDataException($"Begin record for {begin.PodcastId} has no snapshot.");
-        }
-
+        var preview = await rollbackPreviewer.Preview(begin, apply);
+        var podcast = begin.BeforePodcast!;
+        var episodes = begin.BeforeEpisodes!;
         var kind = begin.Kind;
-        var parentId = begin.DestParentId ?? begin.DestPlayableIds.Single();
-        var stored = await destination.CountPlayables(kind, parentId);
-        var written = kind == SubmitClassification.Film ? 1 : begin.DestPlayableIds.Length;
+        var parentId = preview.ParentId;
 
         Task Record(string evt, string? detail = null) =>
             evidence.Write(begin with
@@ -149,35 +146,17 @@ public class CatalogueMigrateApplier(
                 Detail = detail
             });
 
-        if (stored > written)
+        if (preview.Refused)
         {
-            logger.LogError(
-                "Catalogue migrate rollback refused for {PodcastId}: {Stored} playables under {ParentId}, batch wrote {Written}.",
-                begin.PodcastId,
-                stored,
-                parentId,
-                written);
             if (apply)
             {
-                await Record(CatalogueMigrateEvidenceEvent.RollbackRefused, $"stored={stored} written={written}");
+                await Record(CatalogueMigrateEvidenceEvent.RollbackRefused, $"stored={preview.Stored} written={preview.Written}");
             }
 
             return false;
         }
 
-        var searchDocuments = episodes
-            .Where(episode => !episode.Removed)
-            .Select(episode => new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true))
-            .ToList();
-        logger.LogInformation(
-            "Catalogue migrate rollback {Mode} {PodcastId} {Kind}: restore podcast + {EpisodeCount} episodes, {SearchDocumentCount} search documents back to Episode, delete {Written} playables under {ParentId}.",
-            apply ? "apply" : "dry-run",
-            begin.PodcastId,
-            kind,
-            episodes.Length,
-            searchDocuments.Count,
-            written,
-            parentId);
+        var searchDocuments = preview.SearchDocuments;
         if (!apply)
         {
             return true;

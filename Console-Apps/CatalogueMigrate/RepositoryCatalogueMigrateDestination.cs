@@ -14,6 +14,7 @@ public sealed class RepositoryCatalogueMigrateDestination(
     INewsOrganisationRepository newsOrganisations,
     INewsReportRepository newsReports,
     IFilmRepository films,
+    ICatalogueMigrateDestinationReader reader,
     IPlayableSearchDocumentSwap searchSwap) : ICatalogueMigrateDestination
 {
     public async Task<bool> HasTvShow(Guid tvShowId) => await tvShows.GetTvShow(tvShowId) is not null;
@@ -41,13 +42,10 @@ public sealed class RepositoryCatalogueMigrateDestination(
 
     public Task SaveFilm(Film film) => films.Save(film);
 
-    public async Task<int> CountPlayables(string kind, Guid parentId) => kind switch
-    {
-        SubmitClassification.NewsReport => await newsReports.Count(parentId),
-        SubmitClassification.TvShowEpisode => await tvShowEpisodes.Count(parentId),
-        SubmitClassification.Film => await films.GetFilm(parentId) is null ? 0 : 1,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
-    };
+    public Task<int> CountPlayables(string kind, Guid parentId) => reader.CountPlayables(kind, parentId);
+
+    public Task<Guid?> FindOtherParentWithName(string kind, string name, string fileKey, Guid excludeId) =>
+        reader.FindOtherParentWithName(kind, name, fileKey, excludeId);
 
     public Task DeletePlayable(string kind, Guid parentId, Guid playableId) => kind switch
     {

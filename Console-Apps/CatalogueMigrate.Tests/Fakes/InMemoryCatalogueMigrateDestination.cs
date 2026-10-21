@@ -61,6 +61,16 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
         _ => Films.ContainsKey(parentId) ? 1 : 0
     });
 
+    public Task<Guid?> FindOtherParentWithName(string kind, string name, string fileKey, Guid excludeId) =>
+        Task.FromResult(kind switch
+        {
+            SubmitClassification.NewsReport => NewsOrganisations.Values
+                .FirstOrDefault(x => (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
+            SubmitClassification.TvShowEpisode => TvShows.Values
+                .FirstOrDefault(x => (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
+            _ => (Guid?)null
+        });
+
     public Task DeletePlayable(string kind, Guid parentId, Guid playableId)
     {
         switch (kind)

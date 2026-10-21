@@ -30,9 +30,11 @@ builder.Services
     .AddEpisodeSearchIndexerService()
     .AddSingleton(TimeProvider.System)
     .AddSingleton<ICatalogueMigrateEvidenceStore, FileCatalogueMigrateEvidenceStore>()
+    .AddScoped<ICatalogueMigrateDestinationReader, RepositoryCatalogueMigrateDestinationReader>()
+    .AddScoped<CatalogueMigrateRollbackPreviewer>()
     .AddScoped<ICatalogueMigrateDestination, RepositoryCatalogueMigrateDestination>()
     .AddScoped<CatalogueMigrateApplier>()
-    // Resolved only on --apply / --rollback, so a dry-run never builds the Search client.
+    // Resolved only on --apply / --rollback --apply, so a dry-run or rollback preview never builds the Search client.
     .AddScoped<Func<CatalogueMigrateApplier>>(s => s.GetRequiredService<CatalogueMigrateApplier>)
     .AddScoped<CatalogueMigrateProcessor>();
 

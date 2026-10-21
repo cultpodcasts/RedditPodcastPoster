@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -216,6 +217,30 @@ public class TmdbClientRules
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*ApiKey*");
         _handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a TMDB call with a v3 API key fails, the error log and the exception name the path and status but never " +
+        "the key or the api_key parameter, because the key rides in the query string and must not leak into logs.")]
+    public async Task failed_call_never_logs_the_v3_key()
+    {
+        // Arrange
+        _handler.Enqueue(HttpStatusCode.InternalServerError, "{}");
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var act = () => sut.SearchTvAsync(_fixture.CreateTitle());
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
+        thrown.Which.Message.Should().NotContain(_options.ApiKey).And.NotContain("api_key");
+        _handler.Requests.Single().RequestUri!.OriginalString.Should().Contain("api_key=");
+        var logged = _mocker.GetMock<ILogger<TmdbClient>>().Invocations
+            .Where(invocation => invocation.Method.Name == nameof(ILogger.Log))
+            .Select(invocation => invocation.Arguments[2]?.ToString() ?? string.Empty)
+            .ToList();
+        logged.Should().NotBeEmpty();
+        logged.Should().OnlyContain(message => !message.Contains(_options.ApiKey) && !message.Contains("api_key"));
     }
 
     private int CreateTmdbId()

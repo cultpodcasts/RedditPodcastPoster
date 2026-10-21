@@ -9,7 +9,7 @@ namespace CatalogueMigrate;
 /// Destination containers plus the search swap. Every write is an upsert or an
 /// idempotent delete, so a batch can be re-run after a failure.
 /// </summary>
-public interface ICatalogueMigrateDestination
+public interface ICatalogueMigrateDestination : ICatalogueMigrateDestinationReader
 {
     Task<bool> HasTvShow(Guid tvShowId);
     Task<bool> HasNewsOrganisation(Guid newsOrganisationId);
@@ -17,9 +17,6 @@ public interface ICatalogueMigrateDestination
     Task SaveNews(NewsOrganisation organisation, IReadOnlyList<NewsReport> reports);
     Task SaveTv(TvShow show, IReadOnlyList<TvShowEpisode> episodes);
     Task SaveFilm(Film film);
-
-    /// <summary>Playables stored under the parent. Film: 1 when the film exists (parentId is the film id).</summary>
-    Task<int> CountPlayables(string kind, Guid parentId);
 
     Task DeletePlayable(string kind, Guid parentId, Guid playableId);
 

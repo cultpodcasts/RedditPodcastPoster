@@ -34,10 +34,13 @@ public class CatalogueMigrateApplyRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use<ICatalogueMigrateDestination>(_destination);
+        _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(_evidence);
         _mocker.Use<TimeProvider>(_clock);
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
+        _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);
+        _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }
 
@@ -392,6 +395,100 @@ public class CatalogueMigrateApplyRules
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
         _destination.NewsReports.Should().HaveCount(2);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: a News apply keeps the podcast's YouTube channel id (and other service ids) on the stored " +
+        "organisation's indexing, because a moved outlet that loses its channel id stops matching submits.")]
+    public async Task news_apply_keeps_parent_service_ids()
+    {
+        // Arrange
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var indexing = _destination.NewsOrganisations[podcast.Id].Indexing;
+        indexing.Should().NotBeNull();
+        indexing!.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        CatalogueMigrateServiceIds.Dropped(podcast, _destination.NewsOrganisations[podcast.Id]).Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when another news organisation already has the destination name, then News apply is blocked " +
+        "and nothing is written, because apply must attach to that outlet or stop, never mint a duplicate.")]
+    public async Task existing_news_organisation_with_same_name_blocks_apply()
+    {
+        // Arrange
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var existing = CatalogueParentKindMapper.ToNewsOrganisation(_fixture.CreatePodcast(p => p.Name = podcast.Name));
+        _destination.NewsOrganisations[existing.Id] = existing;
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.ParentNameExists);
+        _destination.NewsOrganisations.Keys.Should().Equal(existing.Id);
+        _destination.NewsReports.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when a publisher maps to a canonical TV show name that another TV show already has, then TV " +
+        "apply is blocked, because the canonical name must attach to the existing show, not create a second one.")]
+    public async Task canonical_tv_name_owned_by_another_show_blocks_apply()
+    {
+        // Arrange
+        var (publisherName, showName) = CatalogueTvShowCanonicalNames.ShowNameByPublisherName
+            .First(pair => !string.Equals(pair.Key, pair.Value, StringComparison.OrdinalIgnoreCase));
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var existing = CatalogueParentKindMapper.ToTvShow(_fixture.CreatePodcast(p => p.Name = showName));
+        _destination.TvShows[existing.Id] = existing;
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, podcastId: podcast.Id));
+
+        // Assert
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.ParentNameExists);
+        _destination.TvShows.Keys.Should().Equal(existing.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate rollback: a preview (no --apply) reports the plan without building the applier, because a " +
+        "preview must never build the Search client or write.")]
+    public async Task rollback_preview_does_not_build_the_applier()
+    {
+        // Arrange
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var applied = await _mocker.CreateInstance<CatalogueMigrateProcessor>().Run(ApplyRequest(SubmitClassification.NewsReport));
+        var applierBuilds = 0;
+        _mocker.Use<Func<CatalogueMigrateApplier>>(() =>
+        {
+            applierBuilds++;
+            return _mocker.CreateInstance<CatalogueMigrateApplier>();
+        });
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Rollback = applied.Evidence.Single() });
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.PlannedCount.Should().Be(1);
+        applierBuilds.Should().Be(0);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        _destination.NewsOrganisations.Should().ContainKey(podcast.Id);
     }
 
     private CatalogueMigrateRequest ApplyRequest(
