@@ -28,10 +28,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
     IOptions<CosmosDbSettings> cosmosDbSettings,
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<CreateSearchIndexProcessor> logger
-#pragma warning restore CS9113 // Parameter is unread.
-)
+    ILogger<CreateSearchIndexProcessor> logger)
 {
     private const string ActiveEpisodesFilter =
         $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";

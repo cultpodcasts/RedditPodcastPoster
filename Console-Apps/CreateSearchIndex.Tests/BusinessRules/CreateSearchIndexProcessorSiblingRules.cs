@@ -36,6 +36,7 @@ public class CreateSearchIndexProcessorSiblingRules
     private readonly AutoMocker _mocker = new();
     private readonly List<string> _createdOrUpdatedIndexers = [];
     private readonly List<string> _createdOrUpdatedDataSources = [];
+    private readonly List<(string Call, string Indexer)> _indexerCallOrder = [];
 
     public CreateSearchIndexProcessorSiblingRules()
     {
@@ -51,10 +52,12 @@ public class CreateSearchIndexProcessorSiblingRules
             PushSubscriptionsContainer = "push"
         }));
 
-        // Azure SDK clients mock through their protected parameterless constructors.
-        _mocker.Use(new Mock<SearchClient>());
-        _mocker.Use(new Mock<SearchIndexerClient>());
-        _mocker.Use(new Mock<SearchIndexClient>());
+        // AutoMocker builds Azure SDK clients through their *Settings constructors, which throw without an endpoint.
+        // Mock.Of uses the protected parameterless constructor; the mocks are registered with AutoMocker so the
+        // SUT still comes from CreateInstance and setups still go through _mocker.GetMock<T>().
+        _mocker.Use(Mock.Of<SearchClient>());
+        _mocker.Use(Mock.Get(Mock.Of<SearchIndexerClient>()));
+        _mocker.Use(Mock.Get(Mock.Of<SearchIndexClient>()));
         var indexer = _mocker.GetMock<SearchIndexerClient>();
         // Every indexer and data source already exists (the state before a rebuild).
         indexer.Setup(x => x.GetIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -71,7 +74,10 @@ public class CreateSearchIndexProcessorSiblingRules
         indexer.Setup(x => x.CreateOrUpdateIndexerAsync(It.IsAny<SearchIndexer>(), It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .Callback((SearchIndexer i, bool _, CancellationToken _) =>
-                _createdOrUpdatedIndexers.Add(i.Name))
+            {
+                _createdOrUpdatedIndexers.Add(i.Name);
+                _indexerCallOrder.Add(("create-or-update", i.Name));
+            })
             .ReturnsAsync((SearchIndexer i, bool _, CancellationToken _) =>
                 Response.FromValue(i, Status(200)));
         indexer.Setup(x => x.CreateOrUpdateDataSourceConnectionAsync(It.IsAny<SearchIndexerDataSourceConnection>(),
@@ -81,6 +87,7 @@ public class CreateSearchIndexProcessorSiblingRules
             .ReturnsAsync((SearchIndexerDataSourceConnection d, bool _, CancellationToken _) =>
                 Response.FromValue(d, Status(200)));
         indexer.Setup(x => x.ResetIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback((string name, CancellationToken _) => _indexerCallOrder.Add(("reset", name)))
             .ReturnsAsync(Status(204));
 
         var index = _mocker.GetMock<SearchIndexClient>();
@@ -93,11 +100,30 @@ public class CreateSearchIndexProcessorSiblingRules
             .ReturnsAsync((SearchIndex i, bool _, bool _, CancellationToken _) => Response.FromValue(i, Status(200)));
     }
 
-    private static Response Status(int status)
+    private static Response Status(int status) => new StatusResponse(status);
+
+    /// <summary>Focused fake: the processor only reads <see cref="Response.Status"/>.</summary>
+    private sealed class StatusResponse(int status) : Response
     {
-        var response = new Mock<Response>();
-        response.SetupGet(x => x.Status).Returns(status);
-        return response.Object;
+        public override int Status => status;
+        public override string ReasonPhrase => string.Empty;
+        public override Stream? ContentStream { get; set; }
+        public override string ClientRequestId { get; set; } = string.Empty;
+        public override void Dispose() { }
+        protected override bool ContainsHeader(string name) => false;
+        protected override IEnumerable<Azure.Core.HttpHeader> EnumerateHeaders() => [];
+
+        protected override bool TryGetHeader(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value)
+        {
+            value = null;
+            return false;
+        }
+
+        protected override bool TryGetHeaderValues(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IEnumerable<string>? values)
+        {
+            values = null;
+            return false;
+        }
     }
 
     [Fact(DisplayName =
@@ -174,5 +200,12 @@ public class CreateSearchIndexProcessorSiblingRules
         }
 
         indexer.Verify(x => x.DeleteIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        foreach (var name in SiblingIndexers)
+        {
+            var ensured = _indexerCallOrder.IndexOf(("create-or-update", name));
+            var reset = _indexerCallOrder.IndexOf(("reset", name));
+            ensured.Should().BeGreaterThanOrEqualTo(0, "sibling '{0}' must be ensured", name);
+            reset.Should().BeGreaterThan(ensured, "sibling '{0}' must exist before it is reset", name);
+        }
     }
 }
