@@ -301,6 +301,49 @@ public class DiscoveryCatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "When the first owned URL produces no item, the next URL the TV show owns is submitted without enrich-only so it can still store the item, because one failed link must not lose the discovered episode.")]
+    public async Task next_owned_url_may_create_when_first_produced_no_item()
+    {
+        // Arrange
+        var spotifyShowId = _fixture.CreateSpotifyId();
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var show = AddShow(i =>
+        {
+            i.SpotifyId = spotifyShowId;
+            i.YouTubeChannelId = channelId;
+        });
+        var spotifyUrl = SpotifyUrl();
+        var youTubeUrl = YouTubeUrl();
+        OwnerIs(spotifyUrl, null, new EpisodeUrlOwnerIds(SpotifyShowId: spotifyShowId));
+        OwnerIs(youTubeUrl, null, new EpisodeUrlOwnerIds(YouTubeChannelId: channelId));
+        var playableId = _fixture.CreateGuid();
+        _mocker.GetMock<ICatalogueParentSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<CatalogueParentMatch>(), spotifyUrl, It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.None, SubmitResultState.None,
+                ContentKind: SubmitClassification.TvShowEpisode));
+        _mocker.GetMock<ICatalogueParentSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<CatalogueParentMatch>(), youTubeUrl, It.IsAny<IndexingContext>(),
+                It.Is<SubmitOptions>(o => !o.EnrichOnly)))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.Created, SubmitResultState.None,
+                ContentKind: SubmitClassification.TvShowEpisode, PlayableId: playableId));
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var result = await sut.Submit(Result(youTube: youTubeUrl, spotify: spotifyUrl), new IndexingContext(),
+            Options());
+
+        // Assert
+        result.State.Should().Be(DiscoverySubmitResultState.CreatedEpisode);
+        result.PlayableId.Should().Be(playableId);
+        result.ParentId.Should().Be(show.Id);
+        _mocker.GetMock<ICatalogueParentSubmitter>().Verify(s => s.Submit(
+                It.Is<CatalogueParentMatch>(m => m.Parent.Id == show.Id), youTubeUrl, It.IsAny<IndexingContext>(),
+                It.Is<SubmitOptions>(o => !o.EnrichOnly)),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
         "When no URL the news organisation owns produces an item, the discovery result fails with an error naming the organisation, because a bare 'unknown state' gives the curator nothing to act on.")]
     public async Task no_item_from_owned_urls_fails_with_clear_error()
     {
