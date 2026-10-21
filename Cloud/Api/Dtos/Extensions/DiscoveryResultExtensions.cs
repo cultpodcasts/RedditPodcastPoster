@@ -15,7 +15,8 @@ public static class DiscoveryResultExtensions
             {
                 Name = kv.Value.Name,
                 IsVisible = kv.Value.IsVisible,
-                VisibleEpisodes = kv.Value.VisibleEpisodes
+                VisibleEpisodes = kv.Value.VisibleEpisodes,
+                Kind = kv.Value.Kind
             });
 
         return new DiscoveryResponse

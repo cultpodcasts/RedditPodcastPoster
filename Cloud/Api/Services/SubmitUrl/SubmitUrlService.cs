@@ -203,29 +203,7 @@ public class SubmitUrlService(
         }
     }
 
-    /// <summary>
-    /// A URL routed to a news organisation / TV show is indexed now, like a podcast episode, with the
-    /// same document as kind transfer (search key = playable id). A failure is logged, not returned.
-    /// </summary>
-    private async Task IndexCatalogueParentItem(CatalogueSearchSource source, CancellationToken cancellationToken)
-    {
-        var contentKind = source.Kind == CatalogueParentKind.NewsOrganisation
-            ? SearchContentKind.NewsReport
-            : SearchContentKind.TvShowEpisode;
-        try
-        {
-            var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
-                source.Parent, [source.Episode], contentKind);
-            if (!await playableSearch.UploadAsync(documents, cancellationToken))
-            {
-                logger.LogError("Failed to index {ContentKind} '{PlayableId}' after submission.", contentKind,
-                    source.Episode.Id);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to index {ContentKind} '{PlayableId}' after submission.", contentKind,
-                source.Episode.Id);
-        }
-    }
+    /// <summary>A URL routed to a news organisation / TV show is indexed now, like a podcast episode.</summary>
+    private Task IndexCatalogueParentItem(CatalogueSearchSource source, CancellationToken cancellationToken) =>
+        CatalogueSubmitSearchIndexing.IndexAsync(playableSearch, source, logger, cancellationToken);
 }

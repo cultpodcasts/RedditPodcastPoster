@@ -664,6 +664,7 @@ public class DiscoverySubmissionReviewService(
             item.Attempts++;
             item.EpisodeId = attempt.EpisodeId;
             item.PodcastId = attempt.PodcastId;
+            item.ContentKind = attempt.ContentKind;
             item.Message = attempt.Message;
             var failedAttempt = attempt.Message == DiscoverySubmitItemOutcomeMessages.Error;
             item.State = failedAttempt ? DiscoverySubmissionItemState.Failed : DiscoverySubmissionItemState.Succeeded;

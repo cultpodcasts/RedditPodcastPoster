@@ -63,6 +63,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<ICatalogueKindSubmitter, CatalogueKindSubmitter>()
             .AddScoped<ICatalogueParentLookup, CatalogueParentLookup>()
+            .AddScoped<IEpisodeUrlRouter, EpisodeUrlRouter>()
             .AddScoped<ICatalogueParentSubmitter, CatalogueParentSubmitter>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
             .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>()

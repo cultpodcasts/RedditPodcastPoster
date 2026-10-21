@@ -1,4 +1,5 @@
 using Api.Models;
+using Api.Services.SubmitUrl;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Discovery;
@@ -14,6 +15,7 @@ public class DiscoveryCurationSubmitService(
     IDiscoveryResultsService discoveryResultsService,
     IDiscoveryUrlSubmitter discoveryUrlSubmitter,
     IEpisodeSearchIndexerService searchIndexerService,
+    IPlayableSearchDocumentSwap playableSearch,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
     public Task<DiscoveryCurationSubmitResult> SubmitAsync(
@@ -62,10 +64,7 @@ public class DiscoveryCurationSubmitService(
             await discoveryResultsService.MarkAsProcessed(request.DiscoveryResultsDocumentIds, request.ResultIds,
                 erroredResults);
 
-            var episodeIds = submitResults
-                .Where(x => x.EpisodeId != null)
-                .Select(x => x.EpisodeId!.Value);
-            var indexed = await searchIndexerService.IndexEpisodes(episodeIds, terminal);
+            var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
 
             await discoveryResultsService.UpdateDiscoveryInfoContent();
 
@@ -118,8 +117,7 @@ public class DiscoveryCurationSubmitService(
             await discoveryResultsService.UpdateResultStates(request.DiscoveryResultsDocumentIds, succeeded,
                 erroredResults);
 
-            var indexed = await searchIndexerService.IndexEpisodes(
-                submitResults.Where(x => x.EpisodeId != null).Select(x => x.EpisodeId!.Value), terminal);
+            var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
                 new DiscoverySubmitOutcome("Success", erroredResults.Length > 0, submitResults, indexed));
         }
@@ -129,6 +127,10 @@ public class DiscoveryCurationSubmitService(
             return Failed(submitResults);
         }
     }
+
+    /// <summary>Podcast episodes only: news reports / TV episodes (with a content kind) are indexed at submit.</summary>
+    private static IEnumerable<Guid> PodcastEpisodeIds(IEnumerable<DiscoverySubmitItemOutcome> outcomes) =>
+        outcomes.Where(x => x.EpisodeId != null && x.ContentKind == null).Select(x => x.EpisodeId!.Value);
 
     private static DiscoveryCurationSubmitResult Failed(List<DiscoverySubmitItemOutcome> attempted) =>
         new(DiscoveryCurationSubmitStatus.Failed,
@@ -157,8 +159,17 @@ public class DiscoveryCurationSubmitService(
             try
             {
                 var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
-                submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id, result.Episode?.Id,
-                    result.Episode?.PodcastId, result.State.ToString()));
+                submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id,
+                    result.Episode?.Id ?? result.PlayableId,
+                    result.Episode?.PodcastId ?? result.ParentId,
+                    result.State.ToString(),
+                    ContentKind: result.ContentKind));
+                if (result.CatalogueSearchSource is { } searchSource)
+                {
+                    // A news report / TV episode is not in the episodes container: index its document directly.
+                    await CatalogueSubmitSearchIndexing.IndexAsync(playableSearch, searchSource, logger,
+                        CancellationToken.None);
+                }
             }
             catch (Exception ex)
             {

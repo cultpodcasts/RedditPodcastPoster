@@ -255,6 +255,12 @@ public class DiscoverySubmissionItemOutcomeDto
     [JsonPropertyName("lastAttemptAt")]
     [JsonPropertyOrder(80)]
     public DateTime? LastAttemptAt { get; set; }
+
+    /// <summary><c>NewsReport</c> or <c>TvShowEpisode</c> for an item stored under a news organisation / TV show.</summary>
+    [JsonPropertyName("contentKind")]
+    [JsonPropertyOrder(90)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ContentKind { get; set; }
 }
 
 /// <summary>POST DiscoverySubmissions/{id}/retry.</summary>

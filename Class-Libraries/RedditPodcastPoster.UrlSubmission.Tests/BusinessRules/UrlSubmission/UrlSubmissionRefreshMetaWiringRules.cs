@@ -24,6 +24,7 @@ public class UrlSubmissionRefreshMetaWiringRules
 
     public UrlSubmissionRefreshMetaWiringRules()
     {
+        _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
         _mocker.Use(NullLogger<CategorisedItem>.Instance);
     }
 
