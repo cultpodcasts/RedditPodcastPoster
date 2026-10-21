@@ -21,7 +21,8 @@ public record IndexerContext(
     bool? DuplicatePublisherOperation = null,
     bool? DuplicateTweetOperation = null,
     bool? DuplicateBlueskyOperation = null,
-    PodcastEpisode[]? RecentEpisodeCandidates = null)
+    PodcastEpisode[]? RecentEpisodeCandidates = null,
+    Guid[][]? CatalogueParentIndexIds = null)
 {
     public override string ToString()
     {

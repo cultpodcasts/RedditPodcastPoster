@@ -16,6 +16,7 @@ namespace Indexer.Activities;
 [DurableTask(nameof(Indexer))]
 public class Indexer(
     IPodcastsUpdater podcastsUpdater,
+    ICatalogueParentsUpdater catalogueParentsUpdater,
     IActivityMarshaller activityMarshaller,
     IIndexingStrategy indexingStrategy,
     IActivityOptionsProvider activityOptionsProvider,
@@ -149,6 +150,11 @@ public class Indexer(
         {
             var updateStopwatch = Stopwatch.StartNew();
             results = await podcastsUpdater.UpdatePodcasts(idsToIndex, indexingContext);
+            var parentIdsToIndex = CatalogueParentIdsForPass(indexerContext, indexerContextWrapper.Pass);
+            if (parentIdsToIndex.Length > 0)
+            {
+                results &= await catalogueParentsUpdater.UpdateParents(parentIdsToIndex, indexingContext);
+            }
             updateStopwatch.Stop();
             updateMs = updateStopwatch.ElapsedMilliseconds;
 
@@ -229,5 +235,17 @@ public class Indexer(
             nameof(RunAsync), indexerContextWrapper.Pass, result);
 
         return result;
+    }
+
+    /// <summary>TvShow / NewsOrganisation ids for this pass; empty when the orchestration predates them.</summary>
+    public static Guid[] CatalogueParentIdsForPass(IndexerContext indexerContext, int pass)
+    {
+        var batches = indexerContext.CatalogueParentIndexIds;
+        if (batches is null || pass < 1 || pass > batches.Length)
+        {
+            return [];
+        }
+
+        return batches[pass - 1] ?? [];
     }
 }

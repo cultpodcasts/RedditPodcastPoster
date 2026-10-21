@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
@@ -177,5 +178,60 @@ public class CatalogueParentKindMapperRules
         publisherLanguage.Should().NotBeNullOrWhiteSpace();
         film.Language.Should().BeNull();
         film.ReleaseSort.Should().Be(episode.ReleaseSort);
+    }
+
+    [Fact(DisplayName =
+        "Mapping a podcast to a TV show or news organisation keeps its episode-discovery settings under indexing, " +
+        "because the hourly indexer must keep finding new playables for migrated parents.")]
+    public void parents_keep_discovery_settings()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.IndexAllEpisodes = true;
+        podcast.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        podcast.EpisodeIncludeTitleRegex = _fixture.Create<string>();
+        podcast.MinimumDuration = _fixture.CreateDuration();
+
+        // Act
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Assert
+        foreach (var indexing in new[] { show.Indexing, organisation.Indexing })
+        {
+            indexing.Should().NotBeNull();
+            indexing!.IsAutoIndexed.Should().BeTrue();
+            indexing.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+            indexing.YouTubePlaylistId.Should().Be(podcast.YouTubePlaylistId);
+            indexing.ReleaseAuthority.Should().Be(podcast.ReleaseAuthority);
+            indexing.EpisodeIncludeTitleRegex.Should().Be(podcast.EpisodeIncludeTitleRegex);
+            indexing.MinimumDuration.Should().Be(podcast.MinimumDuration);
+        }
+    }
+
+    [Fact(DisplayName =
+        "A parent's indexing settings round-trip through JSON with the podcast wire names under indexing, and a " +
+        "transient podcast built from them has the parent's id, because Cosmos stores them and discovery reads them.")]
+    public void indexing_settings_round_trip_and_build_a_transient_podcast()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.IndexAllEpisodes = true;
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+
+        // Act
+        var json = JsonSerializer.Serialize(show);
+        var restored = JsonSerializer.Deserialize<RedditPodcastPoster.Models.TvShows.TvShow>(json)!;
+        var transient = restored.Indexing!.ToTransientPodcast(restored);
+
+        // Assert
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("indexing").GetProperty("youTubeChannelId").GetString()
+            .Should().Be(podcast.YouTubeChannelId);
+        document.RootElement.GetProperty("indexing").GetProperty("indexAllEpisodes").GetBoolean().Should().BeTrue();
+        transient.Id.Should().Be(show.Id);
+        transient.Name.Should().Be(show.Name);
+        transient.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        transient.IndexAllEpisodes.Should().BeTrue();
     }
 }

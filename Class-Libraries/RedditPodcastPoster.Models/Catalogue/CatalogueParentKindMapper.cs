@@ -12,6 +12,8 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// Maps a Podcast (+ episodes) onto a TvShow or NewsOrganisation parent,
 /// or a one-off episode onto a Film (no parent). Parent id is the podcast id;
 /// each playable keeps its episode id. Film is never a parent.
+/// TV and News parents keep the podcast's discovery settings (<see cref="CatalogueIndexingSource"/>)
+/// so the hourly indexer can keep finding new playables.
 /// </summary>
 public static class CatalogueParentKindMapper
 {
@@ -25,6 +27,7 @@ public static class CatalogueParentKindMapper
         CopyPublisher(podcast, show);
         show.FileKey = FileKeyFactory.GetTvShowFileKey(podcast.Name);
         show.ModelType = ModelType.TvShow;
+        show.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return show;
     }
 
@@ -38,6 +41,7 @@ public static class CatalogueParentKindMapper
         CopyPublisher(podcast, organisation);
         organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(podcast.Name);
         organisation.ModelType = ModelType.NewsOrganisation;
+        organisation.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return organisation;
     }
 
