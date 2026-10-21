@@ -9,7 +9,11 @@ public enum SubmitUrlStatus
     Conflict,
     Failed,
     Rejected,
-    RequiresCurator
+    RequiresCurator,
+    /// <summary>The request itself is invalid (e.g. parent and podcast fields together); 400 with a message.</summary>
+    BadRequest,
+    /// <summary>The <c>parentId</c> is not a row of <c>parentKind</c>; 404.</summary>
+    ParentNotFound
 }
 
 public record SubmitUrlResult(

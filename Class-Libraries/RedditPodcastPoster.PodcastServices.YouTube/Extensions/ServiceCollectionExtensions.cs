@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeEpisodeEnricher, YouTubeEpisodeEnricher>()
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
+            .AddScoped<IYouTubePlaylistMembership, YouTubePlaylistMembership>()
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<ITolerantYouTubeVideoService, TolerantYouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()

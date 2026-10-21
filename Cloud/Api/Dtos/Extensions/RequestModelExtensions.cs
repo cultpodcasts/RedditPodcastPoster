@@ -231,6 +231,9 @@ public static class RequestModelExtensions
         Url = request.Url,
         PodcastId = request.PodcastId,
         PodcastName = request.PodcastName,
+        ParentKind = request.ParentKind,
+        ParentId = request.ParentId,
+        ParentName = request.ParentName,
         PrefetchedMeta = request.PrefetchedMeta
     };
 

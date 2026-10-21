@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api.Models;
 
@@ -10,6 +12,13 @@ public class SubmitUrlRequest
     public Guid? PodcastId { get; set; }
 
     public string? PodcastName { get; set; }
+
+    /// <summary><c>NewsOrganisation</c> or <c>TvShow</c>, case-insensitive (website hub Submit URL).</summary>
+    public string? ParentKind { get; set; }
+
+    public Guid? ParentId { get; set; }
+
+    public string? ParentName { get; set; }
 
     /// <summary>
     /// Worker-injected streaming metadata from StreamMeta KV after prepare/extract
@@ -23,6 +32,46 @@ public class SubmitUrlRequest
     /// Submit needs a non-blank absolute http(s) URL.
     /// </summary>
     public bool HasUsableHttpUrl() => IsUsableHttpUrl(Url);
+
+    /// <summary>True when any parent-target field was sent.</summary>
+    public bool HasParentTarget() =>
+        !string.IsNullOrWhiteSpace(ParentKind) || ParentId != null || !string.IsNullOrWhiteSpace(ParentName);
+
+    /// <summary>
+    /// The explicit news organisation / TV show target, or null when none was sent. <paramref name="error"/> is set
+    /// (and the result null) for an unknown kind, a missing / empty id, or parent and podcast fields together.
+    /// </summary>
+    public CatalogueParentTarget? GetParentTarget(out string? error)
+    {
+        error = null;
+        if (!HasParentTarget())
+        {
+            return null;
+        }
+
+        if (PodcastId != null || !string.IsNullOrWhiteSpace(PodcastName))
+        {
+            error = "Send either parentKind/parentId/parentName or podcastId/podcastName, not both.";
+            return null;
+        }
+
+        var kindText = ParentKind?.Trim();
+        if (string.IsNullOrEmpty(kindText) || kindText.Any(char.IsDigit) ||
+            !Enum.TryParse<CatalogueParentKind>(kindText, ignoreCase: true, out var kind) ||
+            !Enum.IsDefined(kind))
+        {
+            error = "parentKind must be 'NewsOrganisation' or 'TvShow'.";
+            return null;
+        }
+
+        if (ParentId is not { } id || id == Guid.Empty)
+        {
+            error = "parentId is required with parentKind.";
+            return null;
+        }
+
+        return new CatalogueParentTarget(kind, id, string.IsNullOrWhiteSpace(ParentName) ? null : ParentName.Trim());
+    }
 
     public static bool TryParseUsableHttpUrl(string? value, [NotNullWhen(true)] out Uri url)
     {

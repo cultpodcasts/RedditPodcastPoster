@@ -12,7 +12,8 @@ public record SubmitResult(
     string? ContentKind = null,
     Guid? PlayableId = null,
     bool Rejected = false,
-    bool RequiresCurator = false
+    bool RequiresCurator = false,
+    CatalogueSearchSource? CatalogueSearchSource = null
 )
 {
     public override string ToString()

@@ -10,6 +10,10 @@ namespace RedditPodcastPoster.UrlSubmission.Models;
 /// Overwrite vs fill-missing enrichment is chosen at the composition root by which
 /// <c>IEpisodeEnricher</c> is registered — not by this flag.
 /// </param>
+/// <param name="Parent">
+/// File the URL under this news organisation / TV show (by id) and never create a podcast. Exclusive with
+/// <paramref name="PodcastId"/> / <paramref name="PodcastName"/>.
+/// </param>
 public record SubmitOptions(
     Guid? PodcastId,
     bool MatchOtherServices,
@@ -19,4 +23,5 @@ public record SubmitOptions(
     EpisodeCreationSource CreationSource = EpisodeCreationSource.SubmitUrl,
     NonPodcastServiceItemMetaData? PrefetchedMeta = null,
     bool RefreshMeta = false,
-    SubmitClassificationSignals? ClassificationSignals = null);
+    SubmitClassificationSignals? ClassificationSignals = null,
+    CatalogueParentTarget? Parent = null);
