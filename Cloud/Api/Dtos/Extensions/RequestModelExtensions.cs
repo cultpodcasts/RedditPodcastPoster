@@ -113,11 +113,11 @@ public static class RequestModelExtensions
         });
 
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
-        request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
         {
             Imdb = request.Imdb,
             Tvdb = request.Tvdb
-        });
+        }));
 
     public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.TvShowEpisodeChangeRequest
@@ -127,7 +127,7 @@ public static class RequestModelExtensions
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
-        request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest());
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest()));
 
     public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());
@@ -148,6 +148,17 @@ public static class RequestModelExtensions
         model.DefaultSubject = request.DefaultSubject;
         model.IgnoredSubjects = request.IgnoredSubjects;
         model.IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects;
+        return model;
+    }
+
+    private static T CopyServiceIdsTo<T>(this ServiceIdsChangeRequest request, T model)
+        where T : Models.ServiceIdsChange
+    {
+        model.YouTubeChannelId = request.YouTubeChannelId;
+        model.YouTubePlaylistId = request.YouTubePlaylistId;
+        model.SpotifyId = request.SpotifyId;
+        model.AppleId = request.AppleId;
+        model.NullAppleId = request.NullAppleId;
         return model;
     }
 

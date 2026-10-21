@@ -1,3 +1,3 @@
 namespace Api.Models;
 
-public class NewsOrganisationChangeRequest : PublisherFieldsChange;
+public class NewsOrganisationChangeRequest : ServiceIdsChange;

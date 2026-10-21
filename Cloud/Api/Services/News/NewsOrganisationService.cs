@@ -67,6 +67,7 @@ public class NewsOrganisationService(
             }
 
             PublisherChangeApplier.Apply(organisation, request.Change);
+            organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
             await newsOrganisationRepository.Save(organisation);
 
             if (!request.Change.ChangesChildProjection)

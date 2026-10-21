@@ -48,4 +48,14 @@ public sealed class TvShow : Publisher, ITvCanonical
     [JsonPropertyOrder(142)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? TmdbId { get; set; }
+
+    /// <summary>
+    /// Episode-discovery settings kept from the migrated podcast (JSON <c>indexing</c>). When
+    /// <see cref="CatalogueIndexingSource.IsAutoIndexed"/>, the hourly indexer finds new playables.
+    /// Omitted when unset.
+    /// </summary>
+    [JsonPropertyName("indexing")]
+    [JsonPropertyOrder(300)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CatalogueIndexingSource? Indexing { get; set; }
 }

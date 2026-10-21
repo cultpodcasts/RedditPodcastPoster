@@ -1,3 +1,3 @@
 namespace Api.Dtos;
 
-public class NewsOrganisationDto : PublisherFieldsDto;
+public class NewsOrganisationDto : ServiceIdsDto;

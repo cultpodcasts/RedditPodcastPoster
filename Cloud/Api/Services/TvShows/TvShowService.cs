@@ -71,6 +71,7 @@ public class TvShowService(
             }
 
             PublisherChangeApplier.Apply(show, request.Change);
+            show.Indexing = ServiceIdsApplier.Apply(show.Indexing, request.Change, show, logger);
             await tvShowRepository.Save(show);
 
             if (!request.Change.ChangesChildProjection)

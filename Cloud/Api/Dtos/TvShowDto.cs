@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Api.Dtos;
 
 /// <summary>Curator GET for a TV show: the shared publisher fields plus canonical ids.</summary>
-public class TvShowDto : PublisherFieldsDto
+public class TvShowDto : ServiceIdsDto
 {
     [JsonPropertyName("imdb")]
     public Uri? Imdb { get; set; }

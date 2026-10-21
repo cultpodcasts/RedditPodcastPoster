@@ -7,6 +7,17 @@ namespace Api.Dtos.Extensions;
 /// <summary>Shared GET mapping for the publisher and playable fields of news, TV and film.</summary>
 public static class CatalogueDtoMapping
 {
+    /// <summary>Service ids from the parent's <c>indexing</c> block (empty when it has none).</summary>
+    public static T WithServiceIds<T>(this T dto, CatalogueIndexingSource? indexing) where T : ServiceIdsDto
+    {
+        dto.YouTubeChannelId = indexing?.YouTubeChannelId ?? "";
+        dto.YouTubePlaylistId = indexing?.YouTubePlaylistId ?? "";
+        dto.YouTubePlaylistIdHistory = indexing?.YouTubePlaylistIdHistory?.ToArray();
+        dto.SpotifyId = indexing?.SpotifyId ?? "";
+        dto.AppleId = indexing?.AppleId;
+        return dto;
+    }
+
     public static T WithPublisherFields<T>(this T dto, Publisher publisher) where T : PublisherFieldsDto
     {
         dto.Id = publisher.Id;
