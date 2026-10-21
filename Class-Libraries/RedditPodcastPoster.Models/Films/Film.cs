@@ -122,6 +122,14 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
 
     public void SetRelease(CatalogueRelease? release) => Release = release;
 
+    /// <summary>Same curator subject rule as <see cref="Playable.ApplyUserSubjects"/>.</summary>
+    public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
+    {
+        var (changed, subjects) = CuratorSubjects.Apply(Subjects, RemovedSubjects, Matches, newSubjects);
+        Subjects = subjects;
+        return changed;
+    }
+
     public void ClearBlueskyPostState()
     {
         BlueskyPost = null;

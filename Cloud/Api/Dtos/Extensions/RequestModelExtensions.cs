@@ -97,52 +97,73 @@ public static class RequestModelExtensions
         KnownTerms = request.KnownTerms
     };
 
-    public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) => new()
-    {
-        Imdb = request.Imdb
-    };
+    public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) =>
+        request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
+        {
+            Imdb = request.Imdb,
+            Description = request.Description,
+            Release = request.Release,
+            Duration = request.Duration,
+            Explicit = request.Explicit,
+            Ignored = request.Ignored,
+            Removed = request.Removed,
+            Subjects = request.Subjects,
+            Guests = request.Guests
+        });
 
-    public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) => new()
-    {
-        Imdb = request.Imdb,
-        Tvdb = request.Tvdb
-    };
+    public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
+        request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
+        {
+            Imdb = request.Imdb,
+            Tvdb = request.Tvdb
+        });
 
-    public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) => new()
-    {
-        Imdb = request.Imdb,
-        Tvdb = request.Tvdb
-    };
+    public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>
+        request.CopyPlayableFieldsTo(new Models.TvShowEpisodeChangeRequest
+        {
+            Imdb = request.Imdb,
+            Tvdb = request.Tvdb
+        });
 
-    public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) => new()
-    {
-        Language = request.Language,
-        TwitterHandle = request.TwitterHandle,
-        BlueskyHandle = request.BlueskyHandle,
-        HashTag = request.HashTag,
-        EnrichmentHashTags = request.EnrichmentHashTags,
-        SearchTerms = request.SearchTerms,
-        KnownTerms = request.KnownTerms,
-        DefaultSubject = request.DefaultSubject,
-        IgnoredSubjects = request.IgnoredSubjects,
-        IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects
-    };
+    public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
+        request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest());
 
-    public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) => new()
+    public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
+        request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());
+
+    private static T CopyPublisherFieldsTo<T>(this PublisherFieldsChangeRequest request, T model)
+        where T : Models.PublisherFieldsChange
     {
-        Title = request.Title,
-        Description = request.Description,
-        Release = request.Release,
-        Duration = request.Duration,
-        Explicit = request.Explicit,
-        Ignored = request.Ignored,
-        Removed = request.Removed,
-        Subjects = request.Subjects,
-        SearchTerms = request.SearchTerms,
-        HashTag = request.HashTag,
-        Language = request.Language,
-        Guests = request.Guests
-    };
+        model.Language = request.Language;
+        model.TwitterHandle = request.TwitterHandle;
+        model.BlueskyHandle = request.BlueskyHandle;
+        model.HashTag = request.HashTag;
+        model.EnrichmentHashTags = request.EnrichmentHashTags;
+        model.SearchTerms = request.SearchTerms;
+        model.KnownTerms = request.KnownTerms;
+        model.DefaultSubject = request.DefaultSubject;
+        model.IgnoredSubjects = request.IgnoredSubjects;
+        model.IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects;
+        return model;
+    }
+
+    private static T CopyPlayableFieldsTo<T>(this PlayableFieldsChangeRequest request, T model)
+        where T : Models.PlayableFieldsChange
+    {
+        model.Title = request.Title;
+        model.Description = request.Description;
+        model.Release = request.Release;
+        model.Duration = request.Duration;
+        model.Explicit = request.Explicit;
+        model.Ignored = request.Ignored;
+        model.Removed = request.Removed;
+        model.Subjects = request.Subjects;
+        model.SearchTerms = request.SearchTerms;
+        model.HashTag = request.HashTag;
+        model.Language = request.Language;
+        model.Guests = request.Guests;
+        return model;
+    }
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {

@@ -218,25 +218,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// </summary>
     public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
     {
-        var newList = newSubjects.ToList();
-        if (Subjects.SequenceEqual(newList))
-        {
-            return false;
-        }
-
-        var newSet = new HashSet<string>(newList, StringComparer.OrdinalIgnoreCase);
-        foreach (var subject in Subjects)
-        {
-            if (!newSet.Contains(subject) &&
-                !RemovedSubjects.Contains(subject, StringComparer.OrdinalIgnoreCase))
-            {
-                RemovedSubjects.Add(subject);
-            }
-        }
-
-        RemovedSubjects.RemoveAll(s => newSet.Contains(s));
-        Subjects = newList;
-        Matches.RemoveAll(m => !newSet.Contains(m.Subject, StringComparer.OrdinalIgnoreCase));
-        return true;
+        var (changed, subjects) = CuratorSubjects.Apply(Subjects, RemovedSubjects, Matches, newSubjects);
+        Subjects = subjects;
+        return changed;
     }
 }

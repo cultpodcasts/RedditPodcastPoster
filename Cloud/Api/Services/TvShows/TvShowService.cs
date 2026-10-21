@@ -8,6 +8,7 @@ namespace Api.Services.TvShows;
 
 public class TvShowService(
     ITvShowRepository tvShowRepository,
+    ITvShowEpisodeRepository tvShowEpisodeRepository,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -67,7 +68,26 @@ public class TvShowService(
                 return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, tvdbError);
             }
 
+            PublisherChangeApplier.Apply(show, request.Change);
             await tvShowRepository.Save(show);
+
+            if (!request.Change.ChangesChildProjection)
+            {
+                return new TvShowUpdateResult(TvShowUpdateStatus.Accepted);
+            }
+
+            // Same as news: episodes carry the show's search terms and language (publisherSearchTerms /
+            // publisherLanguage). Saving a changed episode bumps its _ts, so the tvshowepisode indexer picks it up.
+            var episodes = await tvShowEpisodeRepository.GetByTvShowId(show.Id).ToListAsync(cancellationToken);
+            var changed = episodes.Where(episode => episode.SetTvShowProperties(show).Updated).ToArray();
+            if (changed.Length > 0)
+            {
+                await tvShowEpisodeRepository.Save(changed);
+                logger.LogInformation(
+                    "{method}: Updated {count} episode(s) of TV show '{id}' with its new properties.",
+                    nameof(UpdateAsync), changed.Length, show.Id);
+            }
+
             return new TvShowUpdateResult(TvShowUpdateStatus.Accepted);
         }
         catch (Exception ex)

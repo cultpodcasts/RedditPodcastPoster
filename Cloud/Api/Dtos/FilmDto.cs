@@ -2,14 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Api.Dtos;
 
-public class FilmDto
+/// <summary>
+/// Curator GET for a film: the shared publisher fields, the IMDb canonical id and the playable fields a film has.
+/// <c>release</c> is <c>yyyy</c> for a year-only release, otherwise <c>yyyy-MM-dd</c>.
+/// </summary>
+public class FilmDto : PublisherFieldsDto
 {
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
-
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = "";
-
     [JsonPropertyName("imdb")]
     public Uri? Imdb { get; set; }
 
@@ -18,4 +16,34 @@ public class FilmDto
 
     [JsonPropertyName("tmdbId")]
     public int? TmdbId { get; set; }
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = "";
+
+    [JsonPropertyName("release")]
+    public string? Release { get; set; }
+
+    [JsonPropertyName("duration")]
+    public string Duration { get; set; } = "";
+
+    [JsonPropertyName("explicit")]
+    public bool Explicit { get; set; }
+
+    [JsonPropertyName("ignored")]
+    public bool Ignored { get; set; }
+
+    [JsonPropertyName("tweeted")]
+    public bool Tweeted { get; set; }
+
+    [JsonPropertyName("blueskyPosted")]
+    public bool BlueskyPosted { get; set; }
+
+    [JsonPropertyName("subjects")]
+    public string[] Subjects { get; set; } = [];
+
+    [JsonPropertyName("guests")]
+    public string[]? Guests { get; set; }
+
+    [JsonPropertyName("services")]
+    public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 }

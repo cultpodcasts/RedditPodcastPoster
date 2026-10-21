@@ -21,6 +21,7 @@ public class TvShowEpisodeCanonicalUpdateRules
     public TvShowEpisodeCanonicalUpdateRules()
     {
         _mocker.Use(NullLogger<TvShowEpisodeService>.Instance);
+        _mocker.Use(new SearchCleanupMock().Cleanup);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
             .Callback<TvShowEpisode>(episode => _saved = episode)

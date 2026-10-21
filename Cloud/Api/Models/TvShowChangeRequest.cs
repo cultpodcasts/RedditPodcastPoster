@@ -1,6 +1,6 @@
 namespace Api.Models;
 
-public class TvShowChangeRequest
+public class TvShowChangeRequest : PublisherFieldsChange
 {
     public string? Imdb { get; set; }
 

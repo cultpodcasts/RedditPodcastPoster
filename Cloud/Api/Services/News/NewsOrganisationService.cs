@@ -1,5 +1,5 @@
 using Api.Models;
-using Api.Services.Episodes;
+using Api.Services.Catalogue;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -65,10 +65,10 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
-            Apply(organisation, request.Change);
+            PublisherChangeApplier.Apply(organisation, request.Change);
             await newsOrganisationRepository.Save(organisation);
 
-            if (request.Change.SearchTerms == null && request.Change.Language == null)
+            if (!request.Change.ChangesChildProjection)
             {
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Accepted);
             }
@@ -93,64 +93,6 @@ public class NewsOrganisationService(
             logger.LogError(ex, "{method}: Failed to update news organisation '{id}'.", nameof(UpdateAsync),
                 request.NewsOrganisationId);
             return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.Failed);
-        }
-    }
-
-    /// <summary>Same null / empty semantics as <c>PodcastChangeApplier</c>.</summary>
-    internal static void Apply(NewsOrganisation organisation, NewsOrganisationChangeRequest change)
-    {
-        if (change.Language != null)
-        {
-            organisation.Language = EpisodeChangeApplier.NormaliseEpisodeLanguage(change.Language);
-        }
-
-        if (change.TwitterHandle != null)
-        {
-            organisation.TwitterHandle = change.TwitterHandle.Trim();
-        }
-
-        if (change.BlueskyHandle != null)
-        {
-            organisation.BlueskyHandle = string.IsNullOrWhiteSpace(change.BlueskyHandle)
-                ? null
-                : change.BlueskyHandle.Trim();
-        }
-
-        if (change.HashTag != null)
-        {
-            organisation.HashTag = string.IsNullOrWhiteSpace(change.HashTag) ? null : change.HashTag.Trim();
-        }
-
-        if (change.EnrichmentHashTags != null)
-        {
-            organisation.EnrichmentHashTags = change.EnrichmentHashTags.Length == 0
-                ? null
-                : change.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
-        }
-
-        if (change.SearchTerms != null)
-        {
-            organisation.SearchTerms = string.IsNullOrWhiteSpace(change.SearchTerms) ? null : change.SearchTerms;
-        }
-
-        if (change.KnownTerms != null)
-        {
-            organisation.KnownTerms = change.KnownTerms.Length > 0 ? change.KnownTerms : null;
-        }
-
-        if (change.DefaultSubject != null)
-        {
-            organisation.DefaultSubject = change.DefaultSubject == string.Empty ? null : change.DefaultSubject;
-        }
-
-        if (change.IgnoredSubjects != null)
-        {
-            organisation.IgnoredSubjects = change.IgnoredSubjects;
-        }
-
-        if (change.IgnoredAssociatedSubjects != null)
-        {
-            organisation.IgnoredAssociatedSubjects = change.IgnoredAssociatedSubjects;
         }
     }
 }

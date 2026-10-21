@@ -1,8 +1,7 @@
-using System.Globalization;
 using Api.Models;
+using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -47,7 +46,7 @@ public class NewsReportService(
             }
 
             var wasRemoved = report.Removed;
-            if (!TryApply(report, request.Change, out var error))
+            if (!PlayableChangeApplier.TryApply(report, request.Change, out var error))
             {
                 return new NewsReportUpdateResult(NewsReportUpdateStatus.BadRequest, error);
             }
@@ -70,104 +69,5 @@ public class NewsReportService(
                 request.ReportId);
             return new NewsReportUpdateResult(NewsReportUpdateStatus.Failed);
         }
-    }
-
-    /// <summary>Validates first, then applies, so a 400 leaves the report untouched.</summary>
-    internal static bool TryApply(NewsReport report, NewsReportChangeRequest change, out string? error)
-    {
-        error = null;
-        DateOnly? release = null;
-        if (change.Release != null)
-        {
-            if (!DateOnly.TryParseExact(change.Release, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out var parsed))
-            {
-                error = $"Invalid release '{change.Release}': expected a calendar date yyyy-MM-dd.";
-                return false;
-            }
-
-            release = parsed;
-        }
-
-        TimeSpan? length = null;
-        if (!string.IsNullOrWhiteSpace(change.Duration))
-        {
-            if (!TimeSpan.TryParse(change.Duration, CultureInfo.InvariantCulture, out var parsed) ||
-                parsed < TimeSpan.Zero)
-            {
-                error = $"Invalid duration '{change.Duration}': expected h:mm:ss.";
-                return false;
-            }
-
-            length = parsed;
-        }
-
-        if (!string.IsNullOrWhiteSpace(change.Title))
-        {
-            report.Title = change.Title.Trim();
-        }
-
-        if (change.Description != null)
-        {
-            report.Description = change.Description;
-        }
-
-        if (release is not null)
-        {
-            report.SetRelease(CatalogueRelease.FromDate(release.Value));
-        }
-
-        if (length is not null)
-        {
-            report.Length = length.Value;
-        }
-
-        if (change.Explicit != null)
-        {
-            report.Explicit = change.Explicit.Value;
-        }
-
-        if (change.Ignored != null)
-        {
-            report.Ignored = change.Ignored.Value;
-        }
-
-        if (change.Removed != null)
-        {
-            report.Removed = change.Removed.Value;
-        }
-
-        if (change.Subjects != null)
-        {
-            report.ApplyUserSubjects(change.Subjects);
-        }
-
-        if (change.SearchTerms != null)
-        {
-            report.SearchTerms = string.IsNullOrWhiteSpace(change.SearchTerms) ? null : change.SearchTerms;
-        }
-
-        if (change.HashTag != null)
-        {
-            report.HashTag = string.IsNullOrWhiteSpace(change.HashTag) ? null : change.HashTag.Trim();
-        }
-
-        if (change.Language != null)
-        {
-            report.Language = EpisodeChangeApplier.NormaliseEpisodeLanguage(change.Language);
-        }
-
-        if (change.Guests != null)
-        {
-            // Same as EpisodeChangeApplier: replace; [] clears to null; blanks dropped; names trimmed.
-            report.Guests = change.Guests.Length > 0
-                ? change.Guests
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x.Trim())
-                    .ToArray()
-                : null;
-        }
-
-        return true;
     }
 }

@@ -1,6 +1,6 @@
 namespace Api.Models;
 
-public class TvShowEpisodeChangeRequest
+public class TvShowEpisodeChangeRequest : PlayableFieldsChange
 {
     public string? Imdb { get; set; }
 
