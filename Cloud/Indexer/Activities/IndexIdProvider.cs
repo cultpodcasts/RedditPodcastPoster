@@ -9,12 +9,14 @@ using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 
 namespace Indexer.Activities;
 
 [DurableTask(nameof(IndexIdProvider))]
 public class IndexIdProvider(
     IPodcastRepository podcastRepository,
+    ICatalogueParentsUpdater catalogueParentsUpdater,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<IndexIdProvider> logger
@@ -66,7 +68,12 @@ public class IndexIdProvider(
             }
         }
 
+        var catalogueParentIds = await catalogueParentsUpdater.GetIndexableParentIds();
+        var catalogueParentBatches = IndexPassBatchSplitter.Split(catalogueParentIds, req.IndexPasses);
+        logger.LogInformation(
+            "IndexIdProvider catalogue-parent-count='{CatalogueParentCount}'", catalogueParentIds.Length);
+
         logger.LogInformation($"{nameof(RunAsync)} Completed.");
-        return new IndexIdProviderResponse(batches);
+        return new IndexIdProviderResponse(batches, catalogueParentBatches);
     }
 }

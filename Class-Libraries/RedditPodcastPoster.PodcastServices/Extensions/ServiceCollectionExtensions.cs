@@ -59,6 +59,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IPodcastPassApiCache, PodcastPassApiCache>()
                 .AddScoped<IPodcastsUpdater, PodcastsUpdater>()
                 .AddScoped<IPodcastUpdater, PodcastUpdater>()
+                .AddScoped<ICatalogueParentsUpdater, CatalogueParentsUpdater>()
                 .AddScoped<IHeroEpisodePromoter, NullHeroEpisodePromoter>()
                 .AddScoped<INonPodcastServiceCategoriser, NonPodcastServiceCategoriser>()
                 .AddScoped<INonPodcastServiceAdapterResolver, NonPodcastServiceAdapterResolver>()
