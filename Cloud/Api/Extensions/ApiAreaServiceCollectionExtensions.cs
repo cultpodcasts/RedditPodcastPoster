@@ -86,7 +86,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostPodcastKindTransferHandler, PostPodcastKindTransferHandler>()
             .AddScoped<IIndexPodcastHandler, IndexPodcastHandler>()
             .AddScoped<IRenamePodcastHandler, RenamePodcastHandler>()
-            .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>();
+            .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
+            .AddScoped<ICataloguePlayableResolver, CataloguePlayableResolver>();
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services
@@ -104,6 +105,7 @@ public static class ApiAreaServiceCollectionExtensions
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
         services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
         services.TryAddScoped<PlayableSearchRename>();
+        services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
         services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();
         return services;

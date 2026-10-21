@@ -9,7 +9,7 @@ namespace Api.Services.TvShows;
 
 public class TvShowEpisodeService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
-    EpisodeSearchIndexCleanup searchIndexCleanup,
+    CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
     ILogger<TvShowEpisodeService> logger) : ITvShowEpisodeService
 {
@@ -68,13 +68,10 @@ public class TvShowEpisodeService(
             };
             await tvShowEpisodeRepository.Save(episode);
 
-            // As news reports: the sibling pull indexer never deletes, so removed=true deletes the search document
-            // (every time, as the episode API, so a retry finishes the job).
-            if (request.Change.Removed == true)
-            {
-                await searchIndexCleanup.DeleteSearchEntry(episode.TvShowName ?? string.Empty, episode.Id,
-                    cancellationToken);
-            }
+            // As news reports: removed=true always deletes the search document and the short link (the sibling pull
+            // indexer never deletes); any other edit pushes the document now.
+            outcome.SearchIndexer = await searchSync.AfterSave(
+                episode, target.Projection, request.Change.Removed == true, cancellationToken);
 
             return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome);
         }

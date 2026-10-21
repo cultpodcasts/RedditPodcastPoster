@@ -1,65 +1,138 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using Api.Models;
 using Api.Resolvers;
 using Api.Services.Public;
-using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.Episodes.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace FunctionHost.Tests.Api.Services;
 
 public class PublicEpisodeGetServiceTests
 {
-    [Fact(DisplayName = "Get returns NotFound when episode missing or removed")]
-    public async Task Get_returns_not_found_when_episode_missing()
+    private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private PodcastEpisodeResolverResponse _podcastResolution =
+        new(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
+    private CataloguePlayableResolution? _catalogueResolution;
+
+    public PublicEpisodeGetServiceTests()
     {
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound));
+        _mocker.Use(NullLogger<PublicEpisodeGetService>.Instance);
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .ReturnsAsync(() => _podcastResolution);
+        _mocker.GetMock<ICataloguePlayableResolver>()
+            .Setup(r => r.Resolve(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _catalogueResolution);
+    }
 
-        var service = new PublicEpisodeGetService(resolver.Object, NullLogger<PublicEpisodeGetService>.Instance);
-        var result = await service.GetAsync(new PodcastEpisodeRequestWrapper(Guid.NewGuid()), CancellationToken.None);
+    private Task<PublicEpisodeGetResult> Get(Guid id) =>
+        _mocker.CreateInstance<PublicEpisodeGetService>()
+            .GetAsync(new PodcastEpisodeRequestWrapper(id), CancellationToken.None);
 
+    private CataloguePlayableResolution CreateNewsReportResolution(bool removed)
+    {
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        report.SetNewsOrganisationProperties(organisation);
+        return new CataloguePlayableResolution(
+            nameof(NewsReport),
+            CatalogueParentKindMapper.ToPostProjection(report, organisation),
+            organisation.Id,
+            organisation.Name,
+            organisation.Name,
+            removed);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when no podcast episode and no news report, TV episode or film has the id, then the public get is not found, because an unknown id is a normal 404.")]
+    public async Task get_reports_unknown_id_as_not_found()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+
+        // Act
+        var result = await Get(id);
+
+        // Assert
         result.Status.Should().Be(PublicEpisodeGetStatus.NotFound);
     }
 
-    [Fact(DisplayName = "Get returns Ok with domain episode and podcast")]
-    public async Task Get_returns_ok_with_domain_entities()
+    [Fact(DisplayName =
+        "Plain English rule: when the id is a podcast episode, then the public get returns it with content kind Episode and the podcast as parent, because podcast responses keep their shape and only gain kind fields.")]
+    public async Task get_returns_podcast_episode_with_episode_kind()
     {
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
-        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Title = "Ep", Removed = false };
-        var podcast = new Podcast { Id = podcastId, Name = "Show", Removed = false };
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Name = _fixture.CreateTitle());
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        _podcastResolution = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
 
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
+        // Act
+        var result = await Get(episode.Id);
 
-        var service = new PublicEpisodeGetService(resolver.Object, NullLogger<PublicEpisodeGetService>.Instance);
-        var result = await service.GetAsync(new PodcastEpisodeRequestWrapper(podcastId, episodeId), CancellationToken.None);
-
+        // Assert
         result.Status.Should().Be(PublicEpisodeGetStatus.Ok);
         result.Episode.Should().BeSameAs(episode);
         result.Podcast.Should().BeSameAs(podcast);
+        result.Kind!.ContentKind.Should().Be("Episode");
+        result.Kind.ParentId.Should().Be(podcast.Id);
+        result.Kind.Slug.Should().Be(podcast.Name);
+        result.Kind.Path.Should().StartWith("/podcast/");
+        _mocker.GetMock<ICataloguePlayableResolver>()
+            .Verify(r => r.Resolve(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact(DisplayName = "Get returns NotFound when podcast removed")]
-    public async Task Get_returns_not_found_when_podcast_removed()
+    [Fact(DisplayName =
+        "Plain English rule: when the podcast is removed, then the public get is not found, because removed podcasts are hidden from signed-in users.")]
+    public async Task get_reports_removed_podcast_as_not_found()
     {
-        var episode = new Episode { Id = Guid.NewGuid(), Removed = false };
-        var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Gone", Removed = true };
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Removed = true);
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        _podcastResolution = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
 
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
-            .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
+        // Act
+        var result = await Get(episode.Id);
 
-        var service = new PublicEpisodeGetService(resolver.Object, NullLogger<PublicEpisodeGetService>.Instance);
-        var result = await service.GetAsync(new PodcastEpisodeRequestWrapper(episode.Id), CancellationToken.None);
+        // Assert
+        result.Status.Should().Be(PublicEpisodeGetStatus.NotFound);
+    }
 
+    [Fact(DisplayName =
+        "Plain English rule: when the id is not a podcast episode but is a news report, then the public get returns the report with its kind, parent and site path, because a bookmark made before the catalogue migration keeps the id.")]
+    public async Task get_returns_catalogue_playable_by_id()
+    {
+        // Arrange
+        _catalogueResolution = CreateNewsReportResolution(removed: false);
+
+        // Act
+        var result = await Get(_catalogueResolution.Projection.Episode.Id);
+
+        // Assert
+        result.Status.Should().Be(PublicEpisodeGetStatus.Ok);
+        result.Episode!.Id.Should().Be(_catalogueResolution.Projection.Episode.Id);
+        result.Podcast!.Name.Should().Be(_catalogueResolution.ParentName);
+        result.Kind!.ContentKind.Should().Be("NewsReport");
+        result.Kind.ParentName.Should().Be(_catalogueResolution.ParentName);
+        result.Kind.Path.Should().StartWith("/news/");
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when the news report, TV episode or film (or its parent) is removed, then the public get is not found, because removed items stay hidden as removed episodes do.")]
+    public async Task get_reports_removed_catalogue_playable_as_not_found()
+    {
+        // Arrange
+        _catalogueResolution = CreateNewsReportResolution(removed: true);
+
+        // Act
+        var result = await Get(_catalogueResolution.Projection.Episode.Id);
+
+        // Assert
         result.Status.Should().Be(PublicEpisodeGetStatus.NotFound);
     }
 }

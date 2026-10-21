@@ -4,8 +4,38 @@ using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
-public class PublicEpisodeDto
+public class PublicEpisodeDto : IPlayableKindDto
 {
+    /// <summary><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</summary>
+    [JsonPropertyName("contentKind")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(300)]
+    public string? ContentKind { get; set; }
+
+    /// <summary>Podcast, news organisation or TV show id; null for a film.</summary>
+    [JsonPropertyName("parentId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(301)]
+    public Guid? ParentId { get; set; }
+
+    /// <summary>Podcast, news organisation or TV show name; null for a film.</summary>
+    [JsonPropertyName("parentName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(302)]
+    public string? ParentName { get; set; }
+
+    /// <summary>Site route segment: the parent name, or a film's own name.</summary>
+    [JsonPropertyName("slug")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(303)]
+    public string? Slug { get; set; }
+
+    /// <summary>Site path with the kind's short id, e.g. <c>/news/{slug}/{shortId}</c>.</summary>
+    [JsonPropertyName("path")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyOrder(304)]
+    public string? Path { get; set; }
+
     [JsonPropertyName("id")]
     [JsonPropertyOrder(1)]
     public Guid Id { get; set; }

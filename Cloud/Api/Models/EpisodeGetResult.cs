@@ -16,4 +16,5 @@ public record EpisodeGetResult(
     EpisodeGetStatus Status,
     Episode? Episode = null,
     Podcast? Podcast = null,
-    IReadOnlyList<Subject>? Subjects = null);
+    IReadOnlyList<Subject>? Subjects = null,
+    PlayableKind? Kind = null);

@@ -165,6 +165,8 @@ Cloud/Api/
 | Error envelope | `Api.Dtos` | `ApiErrorResponse` | No | Yes on failure paths |
 | Submit-url success shape | `Api.Dtos` | `SubmitUrlResponse` | No | Yes — **only** submit-url flow (do not reuse as generic error) |
 
+**Episode GET by id resolves every kind.** `GET episode/{id}` (and the podcast-scoped GETs) and `GET public/episode/{id}` look up a podcast episode first, then a news report, TV episode or film with that id (`ICataloguePlayableResolver`; the catalogue migration keeps ids). `EpisodeDto` / `PublicEpisodeDto` carry the additive `IPlayableKindDto` fields from `Api.Models.PlayableKind`: `contentKind` (`Episode` | `NewsReport` | `TvShowEpisode` | `Film`), `parentId`, `parentName`, `slug` and `path` (`CatalogueShortId.PlayablePath`). They are omitted when null, so other episode responses keep their shape. A film has no parent fields. The public GET is 404 for a removed item or parent. News, TV and film PATCHes re-index and, on removal, delete the search document and short link through `CataloguePlayableSearchSync`.
+
 **Naming rule:** never put a type named `Person`, `Podcast`, `Subject`, or bare `Episode` in `Api.Dtos` or `Api.Models` — those collide with `RedditPodcastPoster.Models.*` and break aliases. Use `PersonDto` / `PersonChangeRequest` (and likewise for Podcast/Subject).
 
 **DTO naming (exemplary):**

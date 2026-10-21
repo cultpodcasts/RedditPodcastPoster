@@ -7,6 +7,7 @@ namespace Api.Services.Public;
 
 public class PublicEpisodeGetService(
     IPodcastEpisodeResolver podcastEpisodeResolver,
+    ICataloguePlayableResolver cataloguePlayableResolver,
     ILogger<PublicEpisodeGetService> logger) : IPublicEpisodeGetService
 {
     public async Task<PublicEpisodeGetResult> GetAsync(
@@ -22,6 +23,21 @@ public class PublicEpisodeGetService(
                 await podcastEpisodeResolver.ResolvePodcast(
                     request.ToPodcastEpisodeResolverRequest(),
                     nameof(GetAsync));
+
+            if (podcastEpisodeResolverResponse.Episode == null)
+            {
+                // Not a podcast episode: a news report, TV episode or film keeps its id (catalogue migration), so a
+                // bookmark made on the episode still resolves. Removed items (or removed parents) stay not found.
+                var catalogue = await cataloguePlayableResolver.Resolve(request.EpisodeId, cancellationToken);
+                if (catalogue is { Removed: false })
+                {
+                    return new PublicEpisodeGetResult(
+                        PublicEpisodeGetStatus.Ok,
+                        catalogue.Projection.Episode,
+                        catalogue.Projection.Podcast,
+                        PlayableKind.For(catalogue));
+                }
+            }
 
             if (podcastEpisodeResolverResponse.Episode == null || podcastEpisodeResolverResponse.Episode.IsRemoved())
             {
@@ -42,7 +58,9 @@ public class PublicEpisodeGetService(
             return new PublicEpisodeGetResult(
                 PublicEpisodeGetStatus.Ok,
                 podcastEpisodeResolverResponse.Episode,
-                podcastEpisodeResolverResponse.Podcast);
+                podcastEpisodeResolverResponse.Podcast,
+                PlayableKind.ForPodcastEpisode(
+                    podcastEpisodeResolverResponse.Episode.Id, podcastEpisodeResolverResponse.Podcast));
         }
         catch (Exception ex)
         {

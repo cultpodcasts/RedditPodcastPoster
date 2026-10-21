@@ -20,7 +20,7 @@ public class GetPublicEpisodeHandler(
         return result.Status switch
         {
             PublicEpisodeGetStatus.Ok =>
-                await ctx.Ok(result.Episode!.ToDto(result.Podcast!), c),
+                await ctx.Ok(result.Episode!.ToDto(result.Podcast!).WithKind(result.Kind), c),
             PublicEpisodeGetStatus.NotFound =>
                 ctx.NotFound(),
             PublicEpisodeGetStatus.Failed =>
