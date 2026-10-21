@@ -1,7 +1,6 @@
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Twitter.Builders;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Models;
 
@@ -22,21 +21,20 @@ public class TweetManager(
                 return RemoveTweetState.Other;
             }
 
-            var matchingTweets = tweetsResponse.Tweets.Where(
-                x => x.Text.Contains(podcastEpisode.Podcast.Name) &&
-                     x.Text.Contains(podcastEpisode.Episode.Length.ToString(TweetBuilder.LengthFormat,
-                         CultureInfo.InvariantCulture)) &&
-                     x.Text.Contains(podcastEpisode.Episode.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat))
-            );
+            // Same pieces as the post template, so TV, news and film tweets are found too.
+            var fingerprint = SocialPostRemovalFingerprint.For(podcastEpisode);
+            var matchingTweets = tweetsResponse.Tweets
+                .Where(x => fingerprint.Matches(x.Text, x.ExpandedUrls()))
+                .ToArray();
             if (!matchingTweets.Any())
             {
                 return RemoveTweetState.NotFound;
             }
 
-            if (matchingTweets.Count() > 1)
+            if (matchingTweets.Length > 1)
             {
                 logger.LogError(
-                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Count(), podcastEpisode.Episode.Id);
+                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Length, podcastEpisode.Episode.Id);
                 return RemoveTweetState.Other;
             }
 

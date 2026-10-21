@@ -9,6 +9,7 @@ using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
 using RedditPodcastPoster.SocialPosting.Episodes;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -286,14 +287,11 @@ public class BlueskyPostManager(
             return (LegacyRecordKeyStatus.NotFound, null);
         }
 
+        // Same pieces as the post template, so TV, news and film posts are found too.
+        var fingerprint = SocialPostRemovalFingerprint.For(podcastEpisode);
         var matchingPosts = posts.Result.Where(x =>
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Podcast.Name) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(podcastEpisode.Episode.Length.ToString(
-                BlueskyEmbedCardPostFactory.LengthFormat,
-                CultureInfo.InvariantCulture)) &&
-            x.Value.ExtensionData["text"].GetString()!.Contains(
-                podcastEpisode.Episode.ReleaseUtc.ToString(BlueskyEmbedCardPostFactory.ReleaseFormat))
-        ).ToArray();
+            x.Value.ExtensionData.TryGetValue("text", out var text) &&
+            fingerprint.Matches(text.GetString())).ToArray();
 
         if (!matchingPosts.Any())
         {

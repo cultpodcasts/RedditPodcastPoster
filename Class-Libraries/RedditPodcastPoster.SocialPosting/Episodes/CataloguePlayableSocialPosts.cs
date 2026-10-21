@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.SocialPosting.Episodes;
 
@@ -45,7 +46,7 @@ public class CataloguePlayableSocialPosts(
         var items = new List<PodcastEpisode>();
 
         var tvShows = await tvShowRepository
-            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
+            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            x.LatestReleased.IsDefined() && x.LatestReleased != null &&
                            x.LatestReleased >= since)
             .ToArrayAsync();
@@ -58,7 +59,7 @@ public class CataloguePlayableSocialPosts(
         }
 
         var organisations = await newsOrganisationRepository
-            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
+            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            x.LatestReleased.IsDefined() && x.LatestReleased != null &&
                            x.LatestReleased >= since)
             .ToArrayAsync();
@@ -70,20 +71,28 @@ public class CataloguePlayableSocialPosts(
             items.AddRange(reports.Select(r => CatalogueParentKindMapper.ToPostProjection(r, organisation)));
         }
 
+        // A film has no releaseCosmosFallback: a document written before releaseSort existed only has
+        // release, and its ReleaseSort is rebuilt from that on read. Fetch those too and let the
+        // in-memory ReleaseUtc check below apply the window.
         var films = await filmRepository
-            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) && x.ReleaseSort >= since)
+            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
+                           (!x.ReleaseSort.IsDefined() || x.ReleaseSort >= since))
             .ToArrayAsync();
         items.AddRange(films.Select(CatalogueParentKindMapper.ToPostProjection));
 
+        // Same readiness as the podcast filter (PodcastEpisodeFilter): in the window, not removed or ignored,
+        // a postable link, and not held back by a YouTube publishing delay.
         var postable = items
             .Where(x => x.Episode.ReleaseUtc >= since &&
                         x.Episode is { Removed: false, Ignored: false } &&
-                        EpisodeServicePresence.TryGetPreferredSocialPostUrl(x.Episode, out _, out _))
+                        EpisodeServicePresence.TryGetPreferredSocialPostUrl(x.Episode, out _, out _) &&
+                        !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .OrderByDescending(x => x.Episode.ReleaseUtc)
             .ToArray();
         logger.LogInformation(
-            "Catalogue social-post candidates since '{Since:O}': tv-shows {TvShows}, news-organisations {Organisations}, films {Films}, postable {Postable}.",
-            since, tvShows.Length, organisations.Length, films.Length, postable.Length);
+            "Catalogue social-post candidates since '{Since:O}': tv-shows {TvShows}, news-organisations {Organisations}, films {Films}, items {Items}, postable {Postable}, skipped {Skipped}.",
+            since, tvShows.Length, organisations.Length, films.Length, items.Count, postable.Length,
+            items.Count - postable.Length);
         return postable;
     }
 

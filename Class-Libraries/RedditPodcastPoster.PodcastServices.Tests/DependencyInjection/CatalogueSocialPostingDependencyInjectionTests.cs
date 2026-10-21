@@ -128,9 +128,9 @@ public class CatalogueSocialPostingDependencyInjectionTests
         services.AddSingleton(Mock.Of<IEpisodeRepository>());
         services.AddSingleton(Mock.Of<IPodcastRepository>());
 
-        var subjects = new Mock<ISubjectsProvider>();
-        subjects.Setup(x => x.GetAll()).Returns(EmptySubjects());
-        services.AddSingleton(subjects.Object);
+        var subjects = Mock.Of<ISubjectsProvider>();
+        Mock.Get(subjects).Setup(x => x.GetAll()).Returns(EmptySubjects);
+        services.AddSingleton(subjects);
     }
 
     private static async IAsyncEnumerable<Subject> EmptySubjects()

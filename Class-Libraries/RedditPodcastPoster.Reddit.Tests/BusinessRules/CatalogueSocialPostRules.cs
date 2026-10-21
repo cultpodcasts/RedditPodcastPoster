@@ -22,12 +22,15 @@ using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.SocialPosting.Factories;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.Twitter.Builders;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Configuration;
+using RedditPodcastPoster.Twitter.Dtos;
+using RedditPodcastPoster.Twitter.Managers;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Posters;
 using RedditPodcastPoster.UrlShortening.Extensions;
@@ -360,6 +363,159 @@ public class CatalogueSocialPostRules
         Lines(tweet)[1].Should().StartWith(podcast.Name);
         Lines(tweet)[2].Should().Be(
             $"{episode.ReleaseUtc.ToString(TweetBuilder.ReleaseFormat)} {episode.Length.ToString(TweetBuilder.LengthFormat, System.Globalization.CultureInfo.InvariantCulture)}");
+    }
+
+    // ---- removal matches what the templates built ------------------------------------------
+
+    /// <summary>What the Twitter API returns: links in the text become t.co, the originals are in the entities.</summary>
+    private static Tweet AsReturnedByTwitter(string tweetText)
+    {
+        var urls = System.Text.RegularExpressions.Regex.Matches(tweetText, @"https?://\S+")
+            .Select(m => m.Value).ToArray();
+        var text = urls.Aggregate(tweetText, (current, url) => current.Replace(url, "https://t.co/synthetic"));
+        return new Tweet
+        {
+            Id = "1", Text = text,
+            Entities = new TweetEntities { Urls = urls.Select(u => new TweetUrlEntity { ExpandedUrl = u }).ToArray() }
+        };
+    }
+
+    [Fact(DisplayName =
+        "When a TV episode's tweet is looked up for removal, then the tweet built by the template matches, because the remover uses the same release line and site link as the template.")]
+    public async Task tv_tweet_round_trips_to_its_removal_fingerprint()
+    {
+        // Arrange
+        var (show, tvEpisode) = CreateTvEpisode();
+        var item = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+        var tweet = AsReturnedByTwitter(
+            await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
+        var sut = SocialPostRemovalFingerprint.For(item);
+
+        // Act
+        var matches = sut.Matches(tweet.Text, tweet.ExpandedUrls());
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a news report with no known length was posted without its site link, then the text still matches, because the fingerprint uses the template's release line without a [0:00:00] length.")]
+    public async Task zero_length_news_report_matches_on_the_release_line()
+    {
+        // Arrange
+        var (organisation, report) = CreateNewsReport();
+        report.Length = TimeSpan.Zero;
+        var item = CatalogueParentKindMapper.ToPostProjection(report, organisation);
+        var text = await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, null);
+        var sut = SocialPostRemovalFingerprint.For(item);
+
+        // Act
+        var matches = sut.Matches(text);
+
+        // Assert
+        text.Should().NotContain("[0:00:00]");
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a year-only film's tweet is looked up for removal, then it matches through the film's site link in the tweet's expanded URLs, because the title can't be rebuilt and the release shows only the year.")]
+    public async Task year_only_film_tweet_matches_on_its_site_link()
+    {
+        // Arrange
+        var film = CreateFilm(CatalogueRelease.FromYear(1998));
+        var item = CatalogueParentKindMapper.ToPostProjection(film);
+        var tweet = AsReturnedByTwitter(
+            await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
+        var sut = SocialPostRemovalFingerprint.For(item);
+
+        // Act
+        var matches = sut.Matches(tweet.Text, tweet.ExpandedUrls());
+
+        // Assert
+        tweet.Text.Should().NotContain("/film/");
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a zero-length film's Bluesky post is looked up for removal, then it matches through the site link in the post text, because Bluesky keeps the full link in the text.")]
+    public async Task zero_length_film_bluesky_post_matches_on_its_site_link()
+    {
+        // Arrange
+        var film = CreateFilm(CatalogueRelease.FromDate(new DateOnly(2003, 4, 9)), TimeSpan.Zero);
+        var item = CatalogueParentKindMapper.ToPostProjection(film);
+        var post = await _mocker.CreateInstance<BlueskyEmbedCardPostFactory>()
+            .Create(item, CataloguePlayableSiteLink.For(item));
+        var sut = SocialPostRemovalFingerprint.For(item);
+
+        // Act
+        var matches = sut.Matches(post.Text);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When another film's tweet is checked, then it does not match, because the site link carries each film's own short id.")]
+    public async Task another_films_tweet_does_not_match()
+    {
+        // Arrange
+        var film = CreateFilm(CatalogueRelease.FromYear(1998));
+        var other = CreateFilm(CatalogueRelease.FromYear(1998));
+        var otherItem = CatalogueParentKindMapper.ToPostProjection(other);
+        var tweet = AsReturnedByTwitter(
+            await _mocker.CreateInstance<TweetBuilder>().BuildTweet(otherItem, CataloguePlayableSiteLink.For(otherItem)));
+        var sut = SocialPostRemovalFingerprint.For(CatalogueParentKindMapper.ToPostProjection(film));
+
+        // Act
+        var matches = sut.Matches(tweet.Text, tweet.ExpandedUrls());
+
+        // Assert
+        matches.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a podcast episode's tweet is looked up for removal, then it matches on name, date and length as before, because podcast removal is unchanged.")]
+    public async Task podcast_tweet_still_matches_its_fingerprint()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => { p.HashTag = null; p.EnrichmentHashTags = null; });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Subjects = [];
+        episode.Guests = null;
+        var item = new PodcastEpisode(podcast, episode);
+        var text = await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, null);
+        var sut = SocialPostRemovalFingerprint.For(item);
+
+        // Act
+        var matches = sut.Matches(text);
+
+        // Assert
+        matches.Should().BeTrue();
+        sut.SiteLinkShortId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a year-only film is un-tweeted, then the tweet manager deletes the film's tweet, because it matches on the film's site link and not the podcast date format.")]
+    public async Task tweet_manager_removes_a_year_only_film_tweet()
+    {
+        // Arrange
+        var film = CreateFilm(CatalogueRelease.FromYear(1998), TimeSpan.Zero);
+        var item = CatalogueParentKindMapper.ToPostProjection(film);
+        var tweet = AsReturnedByTwitter(
+            await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
+        var unrelated = new Tweet { Id = "2", Text = "\"Something else\"\n1998\nhttps://t.co/other" };
+        _mocker.GetMock<ITwitterClient>()
+            .Setup(x => x.GetTweets())
+            .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [unrelated, tweet]));
+        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweet(tweet)).ReturnsAsync(true);
+        var sut = _mocker.CreateInstance<TweetManager>();
+
+        // Act
+        var result = await sut.RemoveTweet(item);
+
+        // Assert
+        result.Should().Be(RemoveTweetState.Deleted);
+        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweet(unrelated), Times.Never);
     }
 
     // ---- posted state ------------------------------------------------------------------------
