@@ -28,10 +28,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
     IOptions<CosmosDbSettings> cosmosDbSettings,
-#pragma warning disable CS9113 // Parameter is unread.
-    ILogger<CreateSearchIndexProcessor> logger
-#pragma warning restore CS9113 // Parameter is unread.
-)
+    ILogger<CreateSearchIndexProcessor> logger)
 {
     private const string ActiveEpisodesFilter =
         $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
@@ -43,6 +40,7 @@ public partial class CreateSearchIndexProcessor(
 
     public async Task Process(CreateSearchIndexRequest request)
     {
+        var plan = SearchIndexRebuildPlan.For(request);
         if (request.TearDownIndex)
         {
             if (request.UpdateExisting)
@@ -51,7 +49,7 @@ public partial class CreateSearchIndexProcessor(
                     "Refusing --update-existing together with --teardown-index (that recreates the index).");
             }
 
-            await TearDown(request);
+            await TearDown(request, plan);
         }
 
         if (request.UpdateExisting)
@@ -91,10 +89,25 @@ public partial class CreateSearchIndexProcessor(
 
         }
 
-        if (request.AllPlayables &&
-            !string.IsNullOrWhiteSpace(request.IndexName))
+        if (plan.EnsureSiblings)
         {
+            if (!request.AllPlayables)
+            {
+                logger.LogWarning(
+                    "--teardown-index recreates the TvShowEpisode, Film and NewsReport indexers too, because the deleted index held their documents.");
+            }
+
             await EnsureSiblingPlayableIndexers(request);
+        }
+
+        if (plan.ResetSiblings)
+        {
+            // After EnsureSiblingPlayableIndexers, so every sibling exists before it is reset.
+            foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+            {
+                await searchIndexerClient.ResetIndexerAsync(source.IndexerName);
+                logger.LogInformation("Reset playable indexer '{IndexerName}' high-water mark.", source.IndexerName);
+            }
         }
 
         if (request.RunIndexer)
@@ -109,9 +122,9 @@ public partial class CreateSearchIndexProcessor(
                 throw ex;
             }
             await RunIndexerWithRetries(request, request.IndexerName);
-            if (request.AllPlayables && !string.IsNullOrWhiteSpace(request.IndexName))
+            if (plan.RunSiblings)
             {
-                foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName))
+                foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
                 {
                     await RunIndexerWithRetries(request, source.IndexerName);
                 }
@@ -684,11 +697,11 @@ public partial class CreateSearchIndexProcessor(
         return await searchIndexClient.CreateOrUpdateIndexAsync(index);
     }
 
-    private async Task TearDown(CreateSearchIndexRequest request)
+    private async Task TearDown(CreateSearchIndexRequest request, SearchIndexRebuildPlan plan)
     {
-        if (request.AllPlayables && !string.IsNullOrWhiteSpace(request.IndexName))
+        if (plan.TearDownSiblings)
         {
-            foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName))
+            foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
             {
                 await DeleteIndexerIfPresent(source.IndexerName);
                 await DeleteDataSourceIfPresent(source.DataSourceName);

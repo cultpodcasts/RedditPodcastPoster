@@ -5,4 +5,5 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film>
 {
     Task<Film?> GetFilm(Guid filmId);
+    Task Delete(Guid filmId);
 }

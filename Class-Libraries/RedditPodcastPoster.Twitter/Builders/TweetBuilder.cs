@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.SocialPosting.Factories;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;
@@ -78,17 +79,30 @@ public class TweetBuilder(
         var guestHandles = guestHandlesToAppend.Length > 0
             ? " " + string.Join(" ", guestHandlesToAppend)
             : string.Empty;
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
+        if (SocialPostKindTemplate.HasParentLine(podcastEpisode))
         {
-            tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}{guestHandles}");
+            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
+            {
+                tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}{guestHandles}");
+            }
+            else
+            {
+                tweetBuilder.AppendLine($"{podcastName}{guestHandles}");
+            }
         }
         else
         {
-            tweetBuilder.AppendLine($"{podcastName}{guestHandles}");
+            // Film: no parent name; the film's own handle and guests still get tagged.
+            var filmHandles = string.Join(" ",
+                new[] { podcastEpisode.Podcast.TwitterHandle }.Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Concat(guestHandlesToAppend));
+            if (!string.IsNullOrWhiteSpace(filmHandles))
+            {
+                tweetBuilder.AppendLine(filmHandles);
+            }
         }
 
-        tweetBuilder.AppendLine(
-            $"{podcastEpisode.Episode.ReleaseUtc.ToString(ReleaseFormat)} {podcastEpisode.Episode.Length.ToString(LengthFormat, CultureInfo.InvariantCulture)}");
+        tweetBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
         var endHashTags = string.Join(" ",
             episodeHashtags
@@ -107,7 +121,8 @@ public class TweetBuilder(
         var shortUrlOnly = hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage;
         var reserveSecondUrl = !shortUrlOnly
             && _twitterOptions.WithEpisodeUrl
-            && (podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
+            && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
+                podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
         var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveSecondUrl ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
@@ -126,7 +141,7 @@ public class TweetBuilder(
 
         if (shortUrlOnly && shortUrl != null)
         {
-            tweetBuilder.Append(shortUrl);
+            tweetBuilder.Append(shortUrl.AbsoluteUri);
             return tweetBuilder.ToString();
         }
 
@@ -141,10 +156,11 @@ public class TweetBuilder(
 
         tweetBuilder.Append(postUrl);
 
-        if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (podcastEpisode.HasMultipleServices() ||
+        if (shortUrl != null && _twitterOptions.WithEpisodeUrl && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
+                                                           podcastEpisode.HasMultipleServices() ||
                                                            podcastEpisode.Episode.Subjects.Any()))
         {
-            tweetBuilder.Append($"{Environment.NewLine}{shortUrl}");
+            tweetBuilder.Append($"{Environment.NewLine}{shortUrl.AbsoluteUri}");
         }
 
         return tweetBuilder.ToString();

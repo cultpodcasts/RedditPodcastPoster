@@ -4,10 +4,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Migration;
+using CatalogueMigrate.Tests.Fakes;
 using Xunit;
 
 namespace CatalogueMigrate.Tests.BusinessRules;
@@ -17,6 +20,7 @@ public class CatalogueMigrateProcessorRules
     private readonly DomainTestFixture _fixture = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
     private readonly InMemoryPodcastRepository _podcasts = new();
+    private readonly InMemoryCatalogueMigrateDestination _destination = new();
     private readonly AutoMocker _mocker;
 
     public CatalogueMigrateProcessorRules()
@@ -25,11 +29,19 @@ public class CatalogueMigrateProcessorRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
+        _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
+        _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);
+        _mocker.Use<ICatalogueMigrateDestination>(_destination);
+        _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
+        _mocker.Use<ICatalogueMigrateEvidenceStore>(new InMemoryCatalogueMigrateEvidenceStore());
+        _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.UtcNow));
+        _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
+        _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when --apply is set, then the tool exits 2 without planning, " +
-        "because --apply is always refused and writes are not implemented.")]
+        "Catalogue migrate: when --apply is set without --consent, then the tool exits 2 without planning, " +
+        "because writes need the exact human consent phrase.")]
     public async Task apply_is_refused()
     {
         // Arrange
@@ -217,6 +229,34 @@ public class CatalogueMigrateProcessorRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when a YouTube-only publisher named with the word News is scanned as NewsReport, then dry-run plans one move " +
+        "and does not write, because US stations often brand with News rather than four call letters.")]
+    public async Task news_scan_plans_youtube_only_news_word_name()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = $"{_fixture.CreateTitle()} News";
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.PlannedCount.Should().Be(1);
+        result.SearchDocumentCount.Should().Be(1);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when two stored iPlayer episode URLs exist, then TvShowEpisode dry-run without --podcast-id " +
         "plans one move, because stored identify can flag a series.")]
     public async Task tv_scan_plans_iplayer_series()
@@ -290,17 +330,61 @@ public class CatalogueMigrateProcessorRules
         _podcasts.SavedPodcasts.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "Catalogue migrate: when a publisher is a curator TV programme, then TvShowEpisode dry-run plans one move " +
+        "and NewsReport dry-run plans zero, because those rows are a TV show with a canonical episode page, not a news desk.")]
+    public async Task tv_scan_plans_youtube_tv_publisher_and_news_scan_skips_it()
+    {
+        // Arrange
+        var name = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = name;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var tv = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.TvShowEpisode });
+        var news = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        tv.ExitCode.Should().Be(0);
+        tv.PlannedCount.Should().Be(1);
+        tv.SearchDocumentCount.Should().Be(1);
+        news.ExitCode.Should().Be(0);
+        news.PlannedCount.Should().Be(0);
+        news.SearchDocumentCount.Should().Be(0);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
     private string CreateFourLetterName()
     {
         var seed = _fixture.Create<int>() & int.MaxValue;
-        return string.Create(4, seed, static (span, value) =>
+        for (var attempt = 0; attempt < 8; attempt++)
         {
-            var n = value;
-            for (var i = 0; i < span.Length; i++)
+            var name = string.Create(4, seed + attempt, static (span, value) =>
             {
-                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                n = HashCode.Combine(n, i);
+                var n = value;
+                for (var i = 0; i < span.Length; i++)
+                {
+                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                    n = HashCode.Combine(n, i);
+                }
+            });
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
+                && !CatalogueNewsOrganisationAllowlist.Contains(name))
+            {
+                return name;
             }
-        });
+        }
+
+        return "WXYZ";
     }
 }

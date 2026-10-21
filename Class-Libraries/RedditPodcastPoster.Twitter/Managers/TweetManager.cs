@@ -1,8 +1,6 @@
-using System.Globalization;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Twitter.Builders;
+using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Models;
 
@@ -13,10 +11,7 @@ public class TweetManager(
     ILogger<TweetManager> logger
 ) : ITweetManager
 {
-    public Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode) =>
-        RemoveTweet(SocialPostRemovalTarget.From(podcastEpisode));
-
-    public async Task<RemoveTweetState> RemoveTweet(SocialPostRemovalTarget target)
+    public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
     {
         var tweetsResponse = await twitterClient.GetTweets();
         if (tweetsResponse.State == GetTweetsState.Retrieved)
@@ -26,16 +21,20 @@ public class TweetManager(
                 return RemoveTweetState.Other;
             }
 
-            var matchingTweets = tweetsResponse.Tweets.Where(x => target.Matches(x.Text)).ToArray();
+            // Same pieces as the post template, so TV, news and film tweets are found too.
+            var fingerprint = SocialPostRemovalFingerprint.For(podcastEpisode);
+            var matchingTweets = tweetsResponse.Tweets
+                .Where(x => fingerprint.Matches(x.Text, x.ExpandedUrls()))
+                .ToArray();
             if (!matchingTweets.Any())
             {
                 return RemoveTweetState.NotFound;
             }
 
-            if (matchingTweets.Count() > 1)
+            if (matchingTweets.Length > 1)
             {
                 logger.LogError(
-                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Count(), target.Id);
+                    "Multiple tweets ({Count}) found matching episode-id '{EpisodeId}'", matchingTweets.Length, podcastEpisode.Episode.Id);
                 return RemoveTweetState.Other;
             }
 

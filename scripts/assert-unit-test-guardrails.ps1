@@ -183,7 +183,13 @@ function Test-FileGuardrails([string] $filePath) {
         }
     }
 
-    # Section comments: any public async?/Task|void test method should have Arrange nearby
+    # Section comments: any public async?/Task|void test method should have Arrange nearby.
+    # Test doubles under a Fakes/ folder (in-memory repositories, stores) are not test methods, so their
+    # public Task members are exempt from Arrange/Act/Assert. Every other rule above still applies to them.
+    if ($normalized -match '/Fakes/') {
+        return $violations
+    }
+
     $text = $lines -join "`n"
     $methodMatches = [regex]::Matches(
         $text,

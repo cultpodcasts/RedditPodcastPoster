@@ -26,7 +26,7 @@ public class PlayableSocialRetraction(
         RemovePostState result;
         try
         {
-            result = await blueskyPostManager.RemovePost(target);
+            result = await blueskyPostManager.RemovePost(target.Projection);
             if (result != RemovePostState.Deleted)
             {
                 logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.", result);
@@ -57,7 +57,7 @@ public class PlayableSocialRetraction(
         RemoveTweetState result;
         try
         {
-            result = await tweetManager.RemoveTweet(target);
+            result = await tweetManager.RemoveTweet(target.Projection);
             if (result != RemoveTweetState.Deleted)
             {
                 logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.", result);

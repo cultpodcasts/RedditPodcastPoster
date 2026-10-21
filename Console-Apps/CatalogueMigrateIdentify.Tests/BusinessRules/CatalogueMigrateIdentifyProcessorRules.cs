@@ -1,9 +1,13 @@
+using System.Globalization;
 using CatalogueMigrateIdentify;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -24,6 +28,21 @@ public class CatalogueMigrateIdentifyProcessorRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use(NullLogger<CatalogueMigrateIdentifyProcessor>.Instance);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string query, CancellationToken _) =>
+                new CatalogueAuthorityPreview(
+                    query,
+                    1,
+                    null,
+                    null,
+                    null,
+                    [query],
+                    Resolution: CatalogueAuthorityResolution.Unique));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewFilmAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string query, CancellationToken _) =>
+                new CatalogueAuthorityPreview(query, 0, null, null, null, []));
     }
 
     [Fact(DisplayName =
@@ -49,6 +68,7 @@ public class CatalogueMigrateIdentifyProcessorRules
         // Assert
         result.ExitCode.Should().Be(2);
         result.CandidateCount.Should().Be(0);
+        result.Authority.Should().BeEmpty();
         _podcasts.SavedPodcasts.Should().BeEmpty();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
@@ -76,6 +96,7 @@ public class CatalogueMigrateIdentifyProcessorRules
         // Assert
         result.ExitCode.Should().Be(0);
         result.CandidateCount.Should().Be(1);
+        result.Authority.Should().BeEmpty();
         _podcasts.SavedPodcasts.Should().BeEmpty();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
@@ -212,7 +233,7 @@ public class CatalogueMigrateIdentifyProcessorRules
 
     [Fact(DisplayName =
         "Catalogue migrate identify: when two stored iPlayer episode URLs exist and the publisher has no Spotify or Apple ids, " +
-        "then dry-run counts one TV candidate.")]
+        "then dry-run counts one TV candidate and checks that show, because signals select the TV and film rows that may be verified.")]
     public async Task two_iplayer_urls_are_a_dry_run_tv_candidate()
     {
         // Arrange
@@ -243,6 +264,339 @@ public class CatalogueMigrateIdentifyProcessorRules
         // Assert
         result.ExitCode.Should().Be(0);
         result.CandidateCount.Should().Be(1);
+        result.AuthorityLookupSkipped.Should().BeFalse();
+        var report = result.Authority.Should().ContainSingle().Subject;
+        report.PodcastId.Should().Be(podcast.Id);
+        report.ContentKind.Should().Be("TvShowEpisode");
+        report.Query.Should().Be(podcast.Name);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a news candidate sits beside one TV candidate, then only the TV candidate is checked, because news is not sent to TMDB or TheTVDB.")]
+    public async Task news_candidate_is_not_sent_to_tmdb_or_thetvdb()
+    {
+        // Arrange
+        var news = _fixture.CreatePodcast();
+        var newsEpisode = _fixture.CreateStoredEpisode(news);
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        SeedIplayerPair(show);
+        _podcasts.Seed(news);
+        _episodes.Seed(newsEpisode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.CandidateCount.Should().Be(2);
+        result.AuthorityLookupSkipped.Should().BeFalse();
+        result.Authority.Select(report => report.PodcastId).Should().Equal(show.Id);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when signal-identified TV and film candidates exceed the lookup limit, then none are sent to TMDB or TheTVDB, because a corpus-sized set must not be submitted.")]
+    public async Task too_many_signal_matches_are_not_sent_to_tmdb_or_thetvdb()
+    {
+        // Arrange
+        var overLimit = CatalogueMigrateIdentifyProcessor.MaxSignalAuthorityLookups + 1;
+        for (var i = 0; i < overLimit; i++)
+        {
+            var podcast = _fixture.CreatePodcast(p =>
+            {
+                p.SpotifyId = string.Empty;
+                p.AppleId = null;
+            });
+            SeedIplayerPair(podcast);
+        }
+
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("TMDB must not be called for a corpus-sized set."));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.CandidateCount.Should().Be(overLimit);
+        result.AuthorityLookupSkipped.Should().BeTrue();
+        result.Authority.Should().BeEmpty();
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a publisher matches several programmes, then each episode title is checked and the publisher film is not used, because a channel is not one programme.")]
+    public async Task several_programmes_are_checked_as_separate_episode_titles()
+    {
+        // Arrange
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var firstTitle = _fixture.CreateTitle();
+        var secondTitle = _fixture.CreateTitle();
+        var first = _fixture.CreateStoredEpisode(show, episode => episode.Title = firstTitle);
+        var second = _fixture.CreateStoredEpisode(show, episode => episode.Title = secondTitle);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        _podcasts.Seed(show);
+        _episodes.Seed(first, second);
+        var filmId = _fixture.CreateAppleId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                2,
+                null,
+                null,
+                null,
+                [firstTitle, secondTitle],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(
+                It.Is<string>(query => query != show.Name),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string query, CancellationToken _) =>
+                new CatalogueAuthorityPreview(
+                    query,
+                    0,
+                    null,
+                    null,
+                    null,
+                    [],
+                    Resolution: CatalogueAuthorityResolution.NotInAuthority));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewFilmAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                1,
+                ImdbId(),
+                (int)(filmId % 1_000_000_000L),
+                null,
+                [show.Name],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        result.Authority.Select(report => report.Query).Should().BeEquivalentTo(firstTitle, secondTitle);
+        result.Authority.Should().OnlyContain(report =>
+            report.ContentKind == "TvShowEpisode"
+            && report.Resolution == CatalogueAuthorityResolution.NotInAuthority
+            && report.ImdbId == null
+            && report.TmdbId == null);
+        result.Authority.Should().NotContain(report => report.Query == show.Name);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when several episodes on a non-unique publisher share a title brand, then that brand is the programme that is checked, because the channel name is not the show.")]
+    public async Task shared_episode_brand_is_the_programme_query()
+    {
+        // Arrange
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var brand = _fixture.CreateTitle(2);
+        var first = _fixture.CreateStoredEpisode(show, episode => episode.Title = $"{brand} - {_fixture.CreateTitle()}");
+        var second = _fixture.CreateStoredEpisode(show, episode => episode.Title = $"{brand} - {_fixture.CreateTitle()} - BBC One");
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        _podcasts.Seed(show);
+        _episodes.Seed(first, second);
+        var imdbId = ImdbId();
+        var tmdbId = (int)(_fixture.CreateAppleId() % 1_000_000_000L);
+        if (tmdbId == 0)
+        {
+            tmdbId = 1;
+        }
+
+        var tvdbId = _fixture.CreateAppleId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                2,
+                null,
+                null,
+                null,
+                [show.Name],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(brand, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                brand,
+                1,
+                imdbId,
+                tmdbId,
+                tvdbId,
+                [brand],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        var report = result.Authority.Should().ContainSingle().Subject;
+        report.Query.Should().Be(brand);
+        report.ContentKind.Should().Be("TvShowEpisode");
+        report.Resolution.Should().Be(CatalogueAuthorityResolution.Unique);
+        report.ImdbId.Should().Be(imdbId);
+        report.TmdbId.Should().Be(tmdbId);
+        report.TvdbId.Should().Be(tvdbId);
+        report.EpisodeIds.Should().BeEquivalentTo([first.Id, second.Id]);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a non-unique publisher has more programmes than the lookup limit, then those programmes are not sent to TMDB or TheTVDB, because a channel-sized set must not be submitted.")]
+    public async Task too_many_channel_programmes_are_not_sent()
+    {
+        // Arrange
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var overLimit = CatalogueMigrateIdentifyProcessor.MaxSignalAuthorityLookups + 1;
+        for (var i = 0; i < overLimit; i++)
+        {
+            var index = i;
+            var episode = _fixture.CreateStoredEpisode(
+                show,
+                stored => stored.Title = $"{_fixture.CreateTitle()} {index.ToString(CultureInfo.InvariantCulture)}");
+            if (i < 2)
+            {
+                EpisodeServicePresence.Upsert(
+                    episode,
+                    "bbcIplayer",
+                    new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+                    image: null);
+            }
+
+            _episodes.Seed(episode);
+        }
+
+        _podcasts.Seed(show);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                2,
+                null,
+                null,
+                null,
+                [show.Name],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(
+                It.Is<string>(query => query != show.Name),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("TMDB must not be called for programmes above the lookup limit."));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        var report = result.Authority.Should().ContainSingle().Subject;
+        report.Query.Should().Be(show.Name);
+        report.Resolution.Should().Be(CatalogueAuthorityResolution.SeveralProgrammes);
+        report.ImdbId.Should().BeNull();
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when a TV title is not in the TV authorities and the same title is one film, then the report is that film, because a curator title with no series can still be a one-off.")]
+    public async Task tv_title_missing_from_tv_authorities_uses_one_film()
+    {
+        // Arrange
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        SeedIplayerPair(show);
+        var imdbId = ImdbId();
+        var tmdbId = (int)(_fixture.CreateAppleId() % 1_000_000_000L);
+        if (tmdbId == 0)
+        {
+            tmdbId = 1;
+        }
+
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                0,
+                null,
+                null,
+                null,
+                [],
+                Resolution: CatalogueAuthorityResolution.NotInAuthority));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewFilmAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                1,
+                imdbId,
+                tmdbId,
+                null,
+                [show.Name],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        var report = result.Authority.Should().ContainSingle().Subject;
+        report.ContentKind.Should().Be("Film");
+        report.Resolution.Should().Be(CatalogueAuthorityResolution.Unique);
+        report.ImdbId.Should().Be(imdbId);
+        report.TmdbId.Should().Be(tmdbId);
+        report.TvdbId.Should().BeNull();
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+        _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -269,17 +623,96 @@ public class CatalogueMigrateIdentifyProcessorRules
         result.CandidateCount.Should().Be(0);
     }
 
+    [Fact(DisplayName =
+        "Catalogue migrate identify: when every episode is a part of the publisher title, then that title stays the programme and the part ids are kept, because the parts are one show.")]
+    public async Task part_titles_keep_the_publisher_query_and_episode_ids()
+    {
+        // Arrange
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var first = _fixture.CreateStoredEpisode(show, episode => episode.Title = $"{show.Name} (Part 1)");
+        var second = _fixture.CreateStoredEpisode(show, episode => episode.Title = $"{show.Name} (Part 2)");
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        _podcasts.Seed(show);
+        _episodes.Seed(first, second);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(previewer => previewer.PreviewTvShowAsync(show.Name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                show.Name,
+                0,
+                null,
+                null,
+                null,
+                [],
+                Resolution: CatalogueAuthorityResolution.NotInAuthority));
+        var sut = _mocker.CreateInstance<CatalogueMigrateIdentifyProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateIdentifyRequest());
+
+        // Assert
+        var report = result.Authority.Should().ContainSingle().Subject;
+        report.Query.Should().Be(show.Name);
+        report.Resolution.Should().Be(CatalogueAuthorityResolution.NotInAuthority);
+        report.ContentKind.Should().Be("TvShowEpisode");
+        report.EpisodeIds.Should().BeEquivalentTo([first.Id, second.Id]);
+        _podcasts.SavedPodcasts.Should().BeEmpty();
+    }
+
+    private void SeedIplayerPair(Podcast podcast)
+    {
+        var first = _fixture.CreateStoredEpisode(podcast);
+        var second = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            first,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        EpisodeServicePresence.Upsert(
+            second,
+            "bbcIplayer",
+            new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(first, second);
+    }
+
     private string CreateFourLetterName()
     {
         var seed = _fixture.Create<int>() & int.MaxValue;
-        return string.Create(4, seed, static (span, value) =>
+        for (var attempt = 0; attempt < 32; attempt++)
         {
-            var n = value;
-            for (var i = 0; i < span.Length; i++)
+            var name = string.Create(4, seed + attempt, static (span, value) =>
             {
-                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                n = HashCode.Combine(n, i);
+                var n = value;
+                for (var i = 0; i < span.Length; i++)
+                {
+                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
+                    n = HashCode.Combine(n, i);
+                }
+            });
+            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
+                && !CatalogueNewsOrganisationAllowlist.Contains(name))
+            {
+                return name;
             }
-        });
+        }
+
+        return "QZXJ";
     }
+
+    private string ImdbId() =>
+        "tt" + _fixture.CreateAppleId().ToString(CultureInfo.InvariantCulture);
 }

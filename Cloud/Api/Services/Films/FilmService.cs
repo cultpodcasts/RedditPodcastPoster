@@ -62,9 +62,8 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.NotFound);
             }
 
-            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
-            var target = SocialPostRemovalTarget.ForFilm(film.Id, film.Name, film.Release, film.ReleaseSort, film.Length,
-                film.BlueskyPost);
+            // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
+            var target = SocialPostRemovalTarget.For(film);
 
             if (!TryApply(film, request.Change, out var postStatus, out var fieldError))
             {

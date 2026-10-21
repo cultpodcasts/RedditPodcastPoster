@@ -46,7 +46,10 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
             "HourlyOrchestration indexer-operation-ids pass-1='{Pass1OperationId}' pass-2='{Pass2OperationId}' pass-3='{Pass3OperationId}' pass-4='{Pass4OperationId}'",
             indexPassOperationIs[0], indexPassOperationIs[1], indexPassOperationIs[2], indexPassOperationIs[3]);
 
-        var indexerContext = new IndexerContext(indexPassOperationIs, indexIds.PodcastIdBatches);
+        var indexerContext = new IndexerContext(indexPassOperationIs, indexIds.PodcastIdBatches)
+        {
+            CatalogueParentIndexIds = indexIds.CatalogueParentIdBatches
+        };
         for (var pass = firstPass; pass <= lastPass; pass++)
         {
             indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));

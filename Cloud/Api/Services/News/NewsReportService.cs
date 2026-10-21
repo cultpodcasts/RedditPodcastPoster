@@ -47,9 +47,8 @@ public class NewsReportService(
                 return new NewsReportUpdateResult(NewsReportUpdateStatus.NotFound);
             }
 
-            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
-            var target = SocialPostRemovalTarget.ForCatalogueChild(report.Id, report.NewsOrganisationName ?? string.Empty,
-                report.Release, report.ReleaseSort, report.Length, report.BlueskyPost);
+            // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
+            var target = SocialPostRemovalTarget.For(report);
 
             if (!PlayableChangeApplier.TryApply(report, request.Change, out var postStatus, out var error))
             {

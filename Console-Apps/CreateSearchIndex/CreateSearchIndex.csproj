@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\Cloud\Azure\Azure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CreateSearchIndex.Tests" />
+  </ItemGroup>
+
 </Project>

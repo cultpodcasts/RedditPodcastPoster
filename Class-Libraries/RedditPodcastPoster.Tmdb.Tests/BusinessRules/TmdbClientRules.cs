@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -137,6 +138,7 @@ public class TmdbClientRules
         var seriesId = CreateTmdbId();
         var name = _fixture.CreateTitle();
         var imdbId = "tt" + _fixture.CreateAppleId();
+        _options.ApiKey = string.Join('.', _fixture.CreateYouTubeId(), _fixture.CreateYouTubeId(), _fixture.CreateYouTubeId());
         _handler.Enqueue(HttpStatusCode.OK, DetailsJson(seriesId, name, imdbId, tvdbId: null, year: DomainTestFixture.UtcToday.Year));
         var sut = _mocker.CreateInstance<TmdbClient>();
 
@@ -153,6 +155,31 @@ public class TmdbClientRules
         request.RequestUri.Should().NotBeNull();
         request.RequestUri!.OriginalString.Should().NotContain(_options.ApiKey);
         request.RequestUri.Query.Should().NotContain("api_key");
+    }
+
+    [Fact(DisplayName =
+        "A TMDB v3 API key is sent as the api_key query parameter and not as a bearer token, because that key is not a read-access token.")]
+    public async Task v3_api_key_is_a_query_parameter()
+    {
+        // Arrange
+        var apiKey = Convert.ToHexString(BitConverter.GetBytes(_fixture.CreateAppleId()))
+            .PadRight(32, 'a')[..32]
+            .ToLowerInvariant();
+        _options.ApiKey = apiKey;
+        var name = _fixture.CreateTitle();
+        _handler.Enqueue(HttpStatusCode.OK, SearchJson(CreateTmdbId(), name, DomainTestFixture.UtcToday.Year));
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hits = await sut.SearchTvAsync(name);
+
+        // Assert
+        hits.Should().ContainSingle();
+        _handler.Requests.Should().ContainSingle();
+        var request = _handler.Requests[0];
+        request.Headers.Authorization.Should().BeNull();
+        request.RequestUri.Should().NotBeNull();
+        request.RequestUri!.Query.Should().Contain("api_key=" + apiKey);
     }
 
     [Fact(DisplayName =
@@ -190,6 +217,30 @@ public class TmdbClientRules
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*ApiKey*");
         _handler.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a TMDB call with a v3 API key fails, the error log and the exception name the path and status but never " +
+        "the key or the api_key parameter, because the key rides in the query string and must not leak into logs.")]
+    public async Task failed_call_never_logs_the_v3_key()
+    {
+        // Arrange
+        _handler.Enqueue(HttpStatusCode.InternalServerError, "{}");
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var act = () => sut.SearchTvAsync(_fixture.CreateTitle());
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<InvalidOperationException>();
+        thrown.Which.Message.Should().NotContain(_options.ApiKey).And.NotContain("api_key");
+        _handler.Requests.Single().RequestUri!.OriginalString.Should().Contain("api_key=");
+        var logged = _mocker.GetMock<ILogger<TmdbClient>>().Invocations
+            .Where(invocation => invocation.Method.Name == nameof(ILogger.Log))
+            .Select(invocation => invocation.Arguments[2]?.ToString() ?? string.Empty)
+            .ToList();
+        logged.Should().NotBeEmpty();
+        logged.Should().OnlyContain(message => !message.Contains(_options.ApiKey) && !message.Contains("api_key"));
     }
 
     private int CreateTmdbId()

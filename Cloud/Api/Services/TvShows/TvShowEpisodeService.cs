@@ -41,9 +41,8 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound);
             }
 
-            // Matched on the text the post was built from, so taken before the PATCH changes release or length.
-            var target = SocialPostRemovalTarget.ForCatalogueChild(episode.Id, episode.TvShowName ?? string.Empty,
-                episode.Release, episode.ReleaseSort, episode.Length, episode.BlueskyPost);
+            // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
+            var target = SocialPostRemovalTarget.For(episode);
 
             if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
             {

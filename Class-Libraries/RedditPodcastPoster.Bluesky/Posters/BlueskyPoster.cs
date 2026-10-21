@@ -7,6 +7,7 @@ using RedditPodcastPoster.Bluesky.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.SocialPosting.Episodes;
 
 namespace RedditPodcastPoster.Bluesky.Posters;
 
@@ -14,6 +15,7 @@ public class BlueskyPoster(
     IEpisodeRepository episodeRepository,
     IBlueskyEmbedCardPostFactory embedCardPostFactory,
     IBlueskyFeedClient blueSkyClient,
+    ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
     ILogger<BlueskyPoster> logger)
     : IBlueskyPoster
 {
@@ -76,7 +78,14 @@ public class BlueskyPoster(
         podcastEpisode.Episode.BlueskyPost = blueskyPostUri;
         try
         {
-            await episodeRepository.Save(podcastEpisode.Episode);
+            if (podcastEpisode.IsCataloguePlayable)
+            {
+                await cataloguePlayableSocialPosts.MarkBlueskyPosted(podcastEpisode, blueskyPostUri);
+            }
+            else
+            {
+                await episodeRepository.Save(podcastEpisode.Episode);
+            }
         }
         catch (Exception ex)
         {

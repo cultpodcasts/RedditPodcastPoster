@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
@@ -34,6 +35,28 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
+        "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
+        "because the public hub is the programme, not the channel we found it on.")]
+    public void tv_show_uses_canonical_programme_name()
+    {
+        // Arrange
+        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(publisherName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+
+        // Act
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+
+        // Assert
+        show.Name.Should().Be(showName);
+        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(showName));
+        playable.TvShowName.Should().Be(showName);
+        playable.Services.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
         "Mapping a podcast to a news organisation keeps the podcast id as the news organisation id.")]
     public void news_organisation_keeps_podcast_id()
     {
@@ -48,6 +71,29 @@ public class CatalogueParentKindMapperRules
         organisation.Name.Should().Be(podcast.Name);
         organisation.ModelType.Should().Be(ModelType.NewsOrganisation);
         organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(podcast.Name));
+    }
+
+    [Fact(DisplayName =
+        "Mapping an extra YouTube channel of a news organisation uses the canonical organisation name, " +
+        "because one outlet can have several YouTube channels and must not mint a second parent name.")]
+    public void extra_news_channel_uses_canonical_organisation_name()
+    {
+        // Arrange
+        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
+        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName);
+        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+
+        // Act
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+
+        // Assert
+        organisation.Id.Should().Be(podcast.Id);
+        organisation.Name.Should().Be(organisationName);
+        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(organisationName));
+        report.Id.Should().Be(episode.Id);
+        report.NewsOrganisationName.Should().Be(organisationName);
     }
 
     [Fact(DisplayName =
@@ -70,6 +116,30 @@ public class CatalogueParentKindMapperRules
         playable.ModelType.Should().Be(ModelType.TvShowEpisode);
         playable.Services.Should().NotBeNull();
         playable.Services!.ContainsKey(ServiceKeys.YouTube).Should().BeTrue();
+        playable.Imdb.Should().BeNull();
+        playable.Tvdb.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB URIs, " +
+        "because episode identity pages are per playable and must be set by the curator.")]
+    public void tv_show_episode_does_not_inherit_parent_canonical_uris()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        show.Imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        show.Tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+
+        // Act
+        var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+
+        // Assert
+        show.Imdb.Should().NotBeNull();
+        show.Tvdb.Should().NotBeNull();
+        playable.Imdb.Should().BeNull();
+        playable.Tvdb.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -177,5 +247,60 @@ public class CatalogueParentKindMapperRules
         publisherLanguage.Should().NotBeNullOrWhiteSpace();
         film.Language.Should().BeNull();
         film.ReleaseSort.Should().Be(episode.ReleaseSort);
+    }
+
+    [Fact(DisplayName =
+        "Mapping a podcast to a TV show or news organisation keeps its episode-discovery settings under indexing, " +
+        "because the hourly indexer must keep finding new playables for migrated parents.")]
+    public void parents_keep_discovery_settings()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.IndexAllEpisodes = true;
+        podcast.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        podcast.EpisodeIncludeTitleRegex = _fixture.Create<string>();
+        podcast.MinimumDuration = _fixture.CreateDuration();
+
+        // Act
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Assert
+        foreach (var indexing in new[] { show.Indexing, organisation.Indexing })
+        {
+            indexing.Should().NotBeNull();
+            indexing!.IsAutoIndexed.Should().BeTrue();
+            indexing.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+            indexing.YouTubePlaylistId.Should().Be(podcast.YouTubePlaylistId);
+            indexing.ReleaseAuthority.Should().Be(podcast.ReleaseAuthority);
+            indexing.EpisodeIncludeTitleRegex.Should().Be(podcast.EpisodeIncludeTitleRegex);
+            indexing.MinimumDuration.Should().Be(podcast.MinimumDuration);
+        }
+    }
+
+    [Fact(DisplayName =
+        "A parent's indexing settings round-trip through JSON with the podcast wire names under indexing, and a " +
+        "transient podcast built from them has the parent's id, because Cosmos stores them and discovery reads them.")]
+    public void indexing_settings_round_trip_and_build_a_transient_podcast()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.IndexAllEpisodes = true;
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+
+        // Act
+        var json = JsonSerializer.Serialize(show);
+        var restored = JsonSerializer.Deserialize<RedditPodcastPoster.Models.TvShows.TvShow>(json)!;
+        var transient = restored.Indexing!.ToTransientPodcast(restored);
+
+        // Assert
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("indexing").GetProperty("youTubeChannelId").GetString()
+            .Should().Be(podcast.YouTubeChannelId);
+        document.RootElement.GetProperty("indexing").GetProperty("indexAllEpisodes").GetBoolean().Should().BeTrue();
+        transient.Id.Should().Be(show.Id);
+        transient.Name.Should().Be(show.Name);
+        transient.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        transient.IndexAllEpisodes.Should().BeTrue();
     }
 }

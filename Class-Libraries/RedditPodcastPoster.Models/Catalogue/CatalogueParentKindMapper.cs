@@ -12,32 +12,40 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// Maps a Podcast (+ episodes) onto a TvShow or NewsOrganisation parent,
 /// or a one-off episode onto a Film (no parent). Parent id is the podcast id;
 /// each playable keeps its episode id. Film is never a parent.
+/// TV and News parents keep the podcast's discovery settings (<see cref="CatalogueIndexingSource"/>)
+/// so the hourly indexer can keep finding new playables.
 /// </summary>
 public static class CatalogueParentKindMapper
 {
     public static TvShow ToTvShow(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var show = new TvShow(podcast.Name)
+        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+        var show = new TvShow(showName)
         {
             Id = podcast.Id
         };
         CopyPublisher(podcast, show);
-        show.FileKey = FileKeyFactory.GetTvShowFileKey(podcast.Name);
+        show.Name = showName;
+        show.FileKey = FileKeyFactory.GetTvShowFileKey(showName);
         show.ModelType = ModelType.TvShow;
+        show.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return show;
     }
 
     public static NewsOrganisation ToNewsOrganisation(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var organisation = new NewsOrganisation(podcast.Name)
+        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+        var organisation = new NewsOrganisation(organisationName)
         {
             Id = podcast.Id
         };
         CopyPublisher(podcast, organisation);
-        organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(podcast.Name);
+        organisation.Name = organisationName;
+        organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(organisationName);
         organisation.ModelType = ModelType.NewsOrganisation;
+        organisation.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return organisation;
     }
 
@@ -103,6 +111,65 @@ public static class CatalogueParentKindMapper
         playable.SetNewsOrganisationProperties(organisation);
         playable.ModelType = ModelType.NewsReport;
         return playable;
+    }
+
+    /// <summary>
+    /// Read-only social-post projection of a TV episode: the show stands in for the podcast.
+    /// Never save the projection; posted state is written back to the TV episode.
+    /// </summary>
+    public static PodcastEpisode ToPostProjection(TvShowEpisode playable, TvShow tvShow) =>
+        ToPostProjection(playable, tvShow, nameof(ContentKinds.ContentKind.TvShowEpisode));
+
+    /// <summary>Read-only social-post projection of a news report: the organisation stands in for the podcast.</summary>
+    public static PodcastEpisode ToPostProjection(NewsReport playable, NewsOrganisation organisation) =>
+        ToPostProjection(playable, organisation, nameof(ContentKinds.ContentKind.NewsReport));
+
+    /// <summary>
+    /// Read-only social-post projection of a film. A film has no parent, so the film's own
+    /// publisher fields (handles, hashtags) stand in for the podcast and its name is the title.
+    /// </summary>
+    public static PodcastEpisode ToPostProjection(Film film)
+    {
+        ArgumentNullException.ThrowIfNull(film);
+        var podcast = new Podcast { Id = film.Id };
+        CopyPublisher(film, podcast);
+        var episode = new Episode
+        {
+            Id = film.Id,
+            Title = film.Name,
+            Description = film.Description,
+            Length = film.Length,
+            Explicit = film.Explicit,
+            Posted = film.Posted,
+            Tweeted = film.Tweeted,
+            OldBlueskyPosted = film.OldBlueskyPosted,
+            BlueskyPost = film.BlueskyPost,
+            Ignored = film.Ignored,
+            Removed = film.IsRemoved(),
+            Language = film.Language,
+            Subjects = [.. film.Subjects],
+            RemovedSubjects = [.. film.RemovedSubjects],
+            Matches = film.Matches.Select(CloneMatch).ToList(),
+            SearchTerms = film.SearchTerms,
+            HashTag = film.HashTag,
+            Services = CloneServices(film.Services),
+            Guests = CloneArray(film.Guests)
+        };
+        episode.SetRelease(film.Release);
+        episode.SetPodcastProperties(podcast);
+        return new PodcastEpisode(podcast, episode) { ContentKind = nameof(ContentKinds.ContentKind.Film) };
+    }
+
+    private static PodcastEpisode ToPostProjection(Playable playable, Publisher parent, string contentKind)
+    {
+        ArgumentNullException.ThrowIfNull(playable);
+        ArgumentNullException.ThrowIfNull(parent);
+        var podcast = new Podcast { Id = parent.Id };
+        CopyPublisher(parent, podcast);
+        var episode = new Episode { Id = playable.Id };
+        CopyPlayable(playable, episode);
+        episode.SetPodcastProperties(podcast);
+        return new PodcastEpisode(podcast, episode) { ContentKind = contentKind };
     }
 
     private static void CopyPublisher(Publisher source, Publisher target)

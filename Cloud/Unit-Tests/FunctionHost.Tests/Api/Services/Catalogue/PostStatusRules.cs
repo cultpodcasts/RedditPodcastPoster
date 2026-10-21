@@ -14,10 +14,13 @@ using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.SocialPosting.Templates;
+using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.Twitter.Managers;
 using RedditPodcastPoster.Twitter.Models;
 using Xunit;
@@ -35,7 +38,7 @@ public class PostStatusRules
     private readonly List<string> _calls = [];
     private NewsReport? _savedReport;
     private string? _blueskyPostAtSave;
-    private SocialPostRemovalTarget? _tweetTarget;
+    private SocialPostRemovalFingerprint? _tweetTarget;
 
     public PostStatusRules()
     {
@@ -45,14 +48,15 @@ public class PostStatusRules
         _mocker.Use(new SearchCleanupMock().Cleanup);
         _mocker.Use<IPlayableSocialRetraction>(new PlayableSocialRetraction(
             _tweets.Object, _bluesky.Object, NullLogger<PlayableSocialRetraction>.Instance));
-        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>()))
-            .Callback<SocialPostRemovalTarget>(target =>
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(projection =>
             {
                 _calls.Add("tweet");
-                _tweetTarget = target;
+                // The tweet manager matches with #1051's fingerprint of the projection it is given.
+                _tweetTarget = SocialPostRemovalFingerprint.For(projection);
             })
             .ReturnsAsync(RemoveTweetState.Deleted);
-        _bluesky.Setup(b => b.RemovePost(It.IsAny<SocialPostRemovalTarget>()))
+        _bluesky.Setup(b => b.RemovePost(It.IsAny<PodcastEpisode>()))
             .Callback(() => _calls.Add("bluesky"))
             .ReturnsAsync(RemovePostState.Deleted);
         _mocker.GetMock<INewsReportRepository>()
@@ -90,10 +94,10 @@ public class PostStatusRules
             : $"\"{title}\"\n{parentLine}\n{releaseLine}\n#Synthetic\nhttps://t.co/synthetic";
 
     private static string DateLine(DateTime releaseUtc) =>
-        releaseUtc.ToString(SocialPostRemovalTarget.ReleaseFormat, CultureInfo.InvariantCulture);
+        releaseUtc.ToString(SocialPostKindTemplate.ReleaseFormat, CultureInfo.InvariantCulture);
 
     private static string LengthText(TimeSpan length) =>
-        length.ToString(SocialPostRemovalTarget.LengthFormat, CultureInfo.InvariantCulture);
+        length.ToString(SocialPostKindTemplate.LengthFormat, CultureInfo.InvariantCulture);
 
     [Fact(DisplayName =
         "PATCH news report posted and tweeted=true set the flags with no social side effect, because the episode API only sets them.")]
@@ -182,7 +186,7 @@ public class PostStatusRules
     {
         // Arrange
         var report = CreateReport(r => r.Tweeted = true);
-        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>())).ReturnsAsync(state);
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ReturnsAsync(state);
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { Tweeted = false });
@@ -199,7 +203,7 @@ public class PostStatusRules
     {
         // Arrange
         var report = CreateReport(r => r.Tweeted = true);
-        _tweets.Setup(t => t.RemoveTweet(It.IsAny<SocialPostRemovalTarget>())).ThrowsAsync(new InvalidOperationException("synthetic"));
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ThrowsAsync(new InvalidOperationException("synthetic"));
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { Tweeted = false, Posted = true });
@@ -223,7 +227,7 @@ public class PostStatusRules
 
         // Assert
         _calls.Should().Equal("bluesky", "save");
-        _bluesky.Verify(b => b.RemovePost(It.Is<SocialPostRemovalTarget>(x => x.BlueskyPost == SyntheticAtUri)), Times.Once);
+        _bluesky.Verify(b => b.RemovePost(It.Is<PodcastEpisode>(x => x.Episode.BlueskyPost == SyntheticAtUri)), Times.Once);
         _blueskyPostAtSave.Should().BeNull();
         _savedReport!.BlueskyPosted.Should().BeFalse();
         result.Outcome!.BlueskyPostDeleted.Should().BeTrue();
@@ -237,7 +241,7 @@ public class PostStatusRules
     {
         // Arrange
         var report = CreateReport(r => r.BlueskyPost = SyntheticAtUri);
-        _bluesky.Setup(b => b.RemovePost(It.IsAny<SocialPostRemovalTarget>())).ReturnsAsync(state);
+        _bluesky.Setup(b => b.RemovePost(It.IsAny<PodcastEpisode>())).ReturnsAsync(state);
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { UnBluesky = true });
@@ -311,7 +315,7 @@ public class PostStatusRules
     }
 
     [Fact(DisplayName =
-        "PATCH film un-tweet finds the post by its re-cased title and year-only release with no parent line, sets posted, and publisher is editable, because film posts have no parent line and show a year-only release as the year.")]
+        "PATCH film un-tweet finds the post by its expanded site link with no parent line, sets posted, and publisher is editable, because film posts have no parent line and their title is re-cased, so only the site link identifies them.")]
     public async Task film_post_status_and_publisher()
     {
         // Arrange
@@ -324,6 +328,7 @@ public class PostStatusRules
             .Callback<Film>(f => saved = f).Returns(Task.CompletedTask);
         var post = PostText(film.Name.ToUpperInvariant(), null,
             film.Release!.Year.ToString(CultureInfo.InvariantCulture));
+        var siteLink = CataloguePlayableSiteLink.For(CatalogueParentKindMapper.ToPostProjection(film)).ToString();
 
         // Act
         var result = await _mocker.CreateInstance<FilmService>().UpdateAsync(
@@ -334,7 +339,9 @@ public class PostStatusRules
         // Assert
         result.Outcome!.TweetDeleted.Should().BeTrue();
         result.Outcome.BlueskyPostDeleted.Should().BeTrue();
-        _tweetTarget!.Matches(post).Should().BeTrue();
+        // Twitter returns the link as t.co in the text, so the film is found by its expanded site link.
+        _tweetTarget!.Matches(post, [siteLink]).Should().BeTrue();
+        _tweetTarget.Matches(post).Should().BeFalse();
         saved!.Posted.Should().BeTrue();
         saved.Tweeted.Should().BeFalse();
         saved.BlueskyPosted.Should().BeFalse();
