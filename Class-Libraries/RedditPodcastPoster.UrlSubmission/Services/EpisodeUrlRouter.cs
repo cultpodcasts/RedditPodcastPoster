@@ -43,7 +43,9 @@ public interface IEpisodeUrlRouter
     /// <summary>
     /// The news organisation / TV show that owns the URL's channel / show, resolving the owner ids when
     /// <paramref name="owner"/> is null. A lookup failure fails closed (<see cref="InvalidOperationException"/>):
-    /// with the owner unknown, going on would create a podcast for a channel a parent may own.
+    /// with the owner unknown, going on would create a podcast for a channel a parent may own. When no parent's
+    /// <c>indexing</c> holds the YouTube channel id, a single parent named like the channel title that claims no
+    /// channel gets it (logged as a Warning, so the curator can set its youTubeChannelId).
     /// </summary>
     Task<CatalogueParentMatch?> FindOwningParent(Uri url, EpisodeUrlOwner? owner, IndexingContext indexingContext);
 }
@@ -122,7 +124,29 @@ public class EpisodeUrlRouter(
         IndexingContext indexingContext)
     {
         owner ??= await TryGetEpisodeUrlOwner(url, indexingContext);
-        return owner == null ? null : await catalogueParentLookup.FindByOwner(owner.Ids);
+        if (owner == null)
+        {
+            return null;
+        }
+
+        var parent = await catalogueParentLookup.FindByOwner(owner.Ids);
+        if (parent != null || string.IsNullOrWhiteSpace(owner.Ids.YouTubeChannelId) ||
+            string.IsNullOrWhiteSpace(owner.Ids.YouTubeChannelTitle))
+        {
+            return parent;
+        }
+
+        // A parent moved before its indexing ids were kept (e.g. a news organisation transferred before #1050)
+        // has no youTubeChannelId, so the owner lookup misses it. Match it by the channel title instead.
+        parent = await catalogueParentLookup.FindUnclaimedByYouTubeChannelTitle(owner.Ids.YouTubeChannelTitle);
+        if (parent != null)
+        {
+            logger.LogWarning(
+                "'{Url}' routed by channel title; set youTubeChannelId on {Kind} '{ParentName}' ({ParentId}) to '{ChannelId}'.",
+                url, parent.Kind, parent.Parent.Name, parent.Parent.Id, owner.Ids.YouTubeChannelId);
+        }
+
+        return parent;
     }
 
     private async Task<EpisodeUrlOwner?> TryGetEpisodeUrlOwner(Uri url, IndexingContext indexingContext)

@@ -21,6 +21,14 @@ public interface ICatalogueParentLookup
     /// (no playlist, then the single auto-indexed one) → <see cref="AmbiguousParentNameException"/>.
     /// </summary>
     Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids);
+
+    /// <summary>
+    /// Fallback when no parent's <c>indexing</c> holds a YouTube channel id: the news organisation or TV show whose
+    /// name is the channel title (case-insensitive, exact) and which claims no YouTube channel yet (no
+    /// <c>indexing</c>, or an empty <c>youTubeChannelId</c>). Parents already claiming a channel are skipped.
+    /// Many → <see cref="AmbiguousParentNameException"/>.
+    /// </summary>
+    Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle);
 }
 
 /// <summary>
@@ -127,6 +135,23 @@ public class CatalogueParentLookup(
                 .GetAllBy(x => x.Indexing != null && x.Indexing.AppleId == appleId).ToListAsync())
             .Select(CatalogueParentMatch.For));
         return Single(matches, appleId.ToString());
+    }
+
+    public async Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle)
+    {
+        if (string.IsNullOrWhiteSpace(channelTitle))
+        {
+            return null;
+        }
+
+        var title = channelTitle.Trim();
+        var organisations = await PublisherNameAttachLookup.FindByName(newsOrganisations, title);
+        var shows = await PublisherNameAttachLookup.FindByName(tvShows, title);
+        var matches = organisations.Select(CatalogueParentMatch.For)
+            .Concat(shows.Select(CatalogueParentMatch.For))
+            .Where(x => string.IsNullOrWhiteSpace(x.Indexing?.YouTubeChannelId))
+            .ToList();
+        return Single(matches, title);
     }
 
     private CatalogueParentMatch? Single(IReadOnlyList<CatalogueParentMatch> matches, string key)
