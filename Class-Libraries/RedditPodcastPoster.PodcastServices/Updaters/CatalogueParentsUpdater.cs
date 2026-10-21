@@ -40,6 +40,8 @@ public class CatalogueParentsUpdater(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
+    IPodcastRepository podcastRepository,
+    IEpisodeRepository episodeRepository,
     IEpisodeProvider episodeProvider,
     IEpisodeMerger episodeMerger,
     IPodcastFilter podcastFilter,
@@ -209,15 +211,16 @@ public class CatalogueParentsUpdater(
         ApplyMinimumDuration(podcast, newEpisodes, indexingContext);
 
         var merge = episodeMerger.MergeEpisodes(podcast, existing, newEpisodes);
+        var addedEpisodes = await ExcludeSiblingPodcastVideos(parent, podcast, merge.AddedEpisodes, repositoryReleasedSince);
         if (podcast.HasIgnoreAllEpisodes())
         {
-            foreach (var added in merge.AddedEpisodes)
+            foreach (var added in addedEpisodes)
             {
                 added.Ignored = true;
             }
         }
 
-        var inScope = existing.Concat(merge.AddedEpisodes).ToList();
+        var inScope = existing.Concat(addedEpisodes).ToList();
         var eliminationTerms = (await eliminationTermsProviderInstance.GetAsync()).GetEliminationTerms();
         var filtered = podcastFilter.Filter(podcast, inScope, eliminationTerms.Terms);
 
@@ -240,7 +243,7 @@ public class CatalogueParentsUpdater(
             }
         }
 
-        foreach (var added in merge.AddedEpisodes)
+        foreach (var added in addedEpisodes)
         {
             changed[added.Id] = createPlayable(added);
         }
@@ -255,7 +258,7 @@ public class CatalogueParentsUpdater(
             parent.LastIndexed = timeProvider.GetUtcNow().UtcDateTime;
         }
 
-        var newest = merge.AddedEpisodes.Select(x => (DateTime?)x.ReleaseUtc)
+        var newest = addedEpisodes.Select(x => (DateTime?)x.ReleaseUtc)
             .Concat(merge.MergedEpisodes.Select(x => (DateTime?)x.Existing.ReleaseUtc))
             .Max();
         if (newest.HasValue && (parent.LatestReleased == null || newest > parent.LatestReleased))
@@ -267,10 +270,65 @@ public class CatalogueParentsUpdater(
         return new ParentIndexOutcome<TPlayable>(
             [.. changed.Values],
             ParentChanged: true,
-            merge.AddedEpisodes.Count,
+            addedEpisodes.Count,
             merge.MergedEpisodes.Count,
             filtered.FilteredEpisodes.Count,
             succeeded);
+    }
+
+    /// <summary>
+    /// A parent indexing a whole YouTube channel can share it with podcasts scoped to one playlist of that
+    /// channel (e.g. a news outlet and one of its shows). A video those podcasts already hold as an episode is
+    /// theirs, so it is not also saved as a NewsReport / TvShowEpisode. Only stored episodes are checked: a
+    /// video the podcast has not indexed yet can still be taken by the parent first (see PR notes).
+    /// </summary>
+    private async Task<List<Episode>> ExcludeSiblingPodcastVideos(
+        Publisher parent,
+        Podcast transient,
+        IList<Episode> added,
+        DateTime releasedSince)
+    {
+        var channelId = transient.YouTubeChannelId;
+        var addedYouTubeIds = added
+            .Select(EpisodeServicePresence.YouTubeEpisodeId)
+            .Where(id => id != null)
+            .ToHashSet();
+        if (string.IsNullOrWhiteSpace(channelId) || !string.IsNullOrWhiteSpace(transient.YouTubePlaylistId) ||
+            addedYouTubeIds.Count == 0)
+        {
+            return [.. added];
+        }
+
+        var siblings = await podcastRepository
+            .GetAllBy(x => x.YouTubeChannelId == channelId && x.YouTubePlaylistId != "")
+            .ToListAsync();
+        if (siblings.Count == 0)
+        {
+            return [.. added];
+        }
+
+        var held = new HashSet<string>();
+        foreach (var sibling in siblings)
+        {
+            await foreach (var episode in episodeRepository.GetByPodcastId(
+                               sibling.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(releasedSince)))
+            {
+                if (EpisodeServicePresence.YouTubeEpisodeId(episode) is { } id && addedYouTubeIds.Contains(id))
+                {
+                    held.Add(id);
+                }
+            }
+        }
+
+        if (held.Count == 0)
+        {
+            return [.. added];
+        }
+
+        logger.LogInformation(
+            "Catalogue parent '{ParentName}' ({ParentId}): skipped {Count} video(s) already held by playlist-scoped podcast(s) {PodcastIds} on channel '{ChannelId}'.",
+            parent.Name, parent.Id, held.Count, string.Join(", ", siblings.Select(x => x.Id)), channelId);
+        return added.Where(x => EpisodeServicePresence.YouTubeEpisodeId(x) is not { } id || !held.Contains(id)).ToList();
     }
 
     private void ApplyMinimumDuration(Podcast podcast, IList<Episode> newEpisodes, IndexingContext indexingContext)

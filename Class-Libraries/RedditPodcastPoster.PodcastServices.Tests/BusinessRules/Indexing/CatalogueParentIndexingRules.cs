@@ -42,6 +42,8 @@ public class CatalogueParentIndexingRules
     private Func<IList<Episode>, IList<Episode>, EpisodeMergeResult> _merge =
         (_, added) => new EpisodeMergeResult(added, added, [], []);
     private Func<IEnumerable<Episode>, FilterResult> _filter = _ => new FilterResult([]);
+    private readonly List<Podcast> _podcasts = [];
+    private readonly List<Episode> _podcastEpisodes = [];
 
     public CatalogueParentIndexingRules()
     {
@@ -96,6 +98,15 @@ public class CatalogueParentIndexingRules
         _mocker.GetMock<IPodcastFilter>()
             .Setup(x => x.Filter(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<List<string>>()))
             .Returns((Podcast _, IEnumerable<Episode> episodes, List<string> _) => _filter(episodes));
+
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
+            .Returns((Expression<Func<Podcast, bool>> predicate) =>
+                _podcasts.Where(predicate.Compile()).ToAsyncEnumerable());
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(x => x.GetByPodcastId(It.IsAny<Guid>(), It.IsAny<Expression<Func<Episode, bool>>>()))
+            .Returns((Guid id, Expression<Func<Episode, bool>> _) =>
+                _podcastEpisodes.Where(x => x.PodcastId == id).ToAsyncEnumerable());
 
         var terms = new Mock<IEliminationTermsProvider>();
         terms.Setup(x => x.GetEliminationTerms()).Returns(new EliminationTerms());
@@ -181,6 +192,62 @@ public class CatalogueParentIndexingRules
         saved.NewsOrganisationName.Should().Be(organisation.Name);
         _savedOrganisations.Should().ContainSingle();
         _savedTvEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation indexes a whole YouTube channel it shares with a " +
+        "podcast scoped to one playlist of that channel, then a video the podcast already holds is not also saved " +
+        "as a NewsReport, while other channel videos are, because the playlist's videos belong to the podcast.")]
+    public async Task shared_channel_video_held_by_playlist_podcast_is_not_a_news_report()
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        source.YouTubePlaylistId = string.Empty;
+        var organisation = SeedOrganisation(source);
+        var playlistShow = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = source.YouTubeChannelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        });
+        _podcasts.Add(playlistShow);
+        var inPlaylist = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        var channelOnly = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _podcastEpisodes.Add(_fixture.CreateStoredEpisode(playlistShow, e => e.Ids = new EpisodeIds { YouTube = inPlaylist.Ids!.YouTube }));
+        _discovered = [inPlaylist, channelOnly];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Id.Should().Be(channelOnly.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: a channel-wide podcast on the same channel does not exclude its videos from " +
+        "the parent, because only playlist-scoped podcasts carve videos out of a channel.")]
+    public async Task only_playlist_scoped_podcasts_exclude_videos()
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        source.YouTubePlaylistId = string.Empty;
+        var organisation = SeedOrganisation(source);
+        var channelWide = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = source.YouTubeChannelId;
+            p.YouTubePlaylistId = string.Empty;
+        });
+        _podcasts.Add(channelWide);
+        var video = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _podcastEpisodes.Add(_fixture.CreateStoredEpisode(channelWide, e => e.Ids = new EpisodeIds { YouTube = video.Ids!.YouTube }));
+        _discovered = [video];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Id.Should().Be(video.Id);
     }
 
     [Fact(DisplayName =
