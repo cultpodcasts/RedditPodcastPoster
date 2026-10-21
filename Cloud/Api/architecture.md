@@ -13,13 +13,14 @@ Azure Functions HTTP API for Cult Podcasts curation and related operations (`api
 | Principle | Detail |
 | --------- | ------ |
 | **Controller wires HTTP only** | Route, auth roles, deserialize body/query, call `HandleRequest` → handler. No business logic, no Cosmos, no `ToDto`. |
-| **Handler maps outcomes to HTTP** | Receives `IHandlerContext` + model + `CancellationToken`. Calls one service method, switches on `*Status` / `*Result`, returns responses via `ctx.Ok` / `ctx.NotFound` / … and `.ToDto()` for bodies. Does not take `HttpRequestData` or `ClientPrincipal`. |
+| **Handler maps outcomes to HTTP** | Receives `IHandlerContext` + model + `CancellationToken`. Calls one service method, switches on `*Status` / `*Result`. Queries return `entity.ToDto()` via `ctx.Ok`. Commands return `ctx.Accepted()` with no body, or a command-outcome body. Never the saved aggregate. Does not take `HttpRequestData` or `ClientPrincipal`. |
 | **Service owns use-case logic** | Returns `Api.Models` result/outcome types (and domain entities). **Must not** reference `Api.Dtos`, construct response DTOs, or touch `HttpResponseData`. |
 | **Models = internal + request shapes** | `*ChangeRequest`, `*Command`, wrappers, `*Result` / `*Outcome` / status enums. Mutation JSON bodies bind to Models (same pattern as `EpisodeChangeRequest`). |
 | **Dtos = response (and rare wire) JSON** | `*Dto`, response envelopes, `ApiErrorResponse`. Mapping lives in `Dtos/Extensions` (and `Dtos/Mapping` for non-trivial maps). |
 | **Folder = namespace** | `Controllers/PersonController.cs` → `Api.Controllers`. `Handlers/People/…` → `Api.Handlers.People`. Same for `Services/{Area}/`. See ADR 0001. |
 | **One verb, one handler, one service** | Prefer `GetPersonHandler` + `IPersonGetService` over multi-verb god types. |
 | **IHandlerContext at the HTTP edge** | `BaseHttpFunction` builds concrete `HandlerContext` from `HttpRequestData` + principal after auth. Handlers depend only on `IHandlerContext` (`Subject`, `Query`, status helpers). Cancellation tokens stay as separate `Handle` parameters — not on the context. |
+| **CQRS at the HTTP boundary** | A command changes state and returns an acknowledgement or a command outcome. It does not return the resource read model. A query returns the read model and changes nothing. See [CQRS](#cqrs). |
 
 ---
 
@@ -35,7 +36,7 @@ flowchart LR
     S[Service]
     Dom[(Domain repos / libs)]
     M[Models.*Result]
-    D[Dtos via ToDto]
+    D[Query ToDto or command ack]
 
     Client --> Ctrl --> Auth --> Ctx --> H --> S --> Dom
     S --> M --> H
@@ -44,9 +45,9 @@ flowchart LR
 
 1. **Controller** — `[Function]`, route, `[FromBody]` Models request (when mutating), required roles (`curate`, `admin`, `publish`, …).
 2. **Auth base** — `HandleRequest` / `HandlePublicRequest` enforce principal and roles; memory probe wraps execution; constructs `HandlerContext` and passes `IHandlerContext` to the handler.
-3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → `ctx.Ok` / `ctx.NotFound` / `ctx.InternalError(...)`.
+3. **Handler** — `service.XAsync(...)` → `switch (result.Status)` → queries `ctx.Ok(entity.ToDto())`; commands `ctx.Accepted()` with no body, or a command-outcome body; failures `ctx.NotFound` / `ctx.InternalError(...)`. Never the saved aggregate.
 4. **Service** — load/apply/persist via class libraries; return typed result (never DTOs).
-5. **Handler edge** — `entity.ToDto()` or outcome `.ToDto()` into `ctx.Ok` / `ctx.Accepted`; failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
+5. **Handler edge** — queries: `entity.ToDto()` into `ctx.Ok`. Commands: `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse.Failure(...)` via `ctx.InternalError`.
 
 ### Exemplar: GET person
 
@@ -58,17 +59,56 @@ PersonController.Get
       → NotFound → ctx.NotFound()
       → Failed  → await ctx.InternalError(ApiErrorResponse.Failure(...), ct)
 ```
-### Exemplar: PATCH/POST person
+### Exemplar: POST person (command)
 
 ```
 PersonController.Post
   → [FromBody] PersonChangeRequest          // Models
-  → PersonChangeRequestWrapper
-  → PostPersonHandler → IPersonUpdateService
-      → PersonChangeApplier.Apply(entity, change)  // Models only
-      → PersonUpdateResult
-  → handler maps status → HTTP (no DTO until response if returning entity)
+  → PutPersonHandler → IPersonCreateService
+      → PersonCreateResult                    // status only — not PersonDto
+  → Accepted → ctx.Accepted()                // 202, empty body
+  → client then GET /person/{name}           // PersonDto
 ```
+
+A command result carries status and command details. It does not carry the saved aggregate.
+
+## Podcast-episode resolver
+
+`PodcastEpisodeResolver` is the one place that turns an episode route into an episode and its podcast. Episode get, update, delete, publish and public get all use it. The route decides how the podcast is found.
+
+```mermaid
+flowchart TD
+    R[ResolvePodcast request] --> N{Route carries?}
+    N -- podcast name --> L[PodcastNameAttachLookup.FindByName<br/>case-insensitive, as in podcast get and name-only submit]
+    N -- podcast-id --> P[Point reads: episode and podcast by id]
+    N -- episode-id only --> I[Episode by id, then its podcast]
+    L -- 0 podcasts --> PNF[PodcastNotFound]
+    L -- 1 podcast --> U[Point read of the episode in that podcast<br/>missing = no episode, 404]
+    L -- several podcasts --> C[Get the episode by id<br/>log a warning with the podcast ids]
+    C -- no episode --> ENF[EpisodeNotFound, 404]
+    C -- episode podcast is one of them --> OK[Return the episode and that podcast]
+    C -- otherwise --> X[Throw PodcastEpisodeMismatchException]
+```
+
+- **Name first.** The podcast name narrows the search to one partition. A unique name never triggers a search across podcasts.
+- **Same name rule everywhere.** The name is matched case-insensitively with the shared `PodcastNameAttachLookup.FindByName`, the lookup podcast get and name-only submit use, so "which podcasts have this name" means the same on the episode, podcast and submit routes. Rename applies the same case-insensitive rule inline (`PodcastRenameService`).
+- **Conflict.** When several podcasts share the name, the episode-id (unique) decides. The episode's podcast must be one of the podcasts with the name; the resolver returns that podcast.
+- **Mismatch.** An episode whose podcast is not one of them, or whose podcast no longer exists, means the route and the data disagree. The resolver throws `PodcastEpisodeMismatchException`. The calling service's catch logs it with `LogError(ex, ...)` so it appears in App Insights exceptions, and the handler returns its failure status (500 for `GET episode/{podcast-name}/{episode-id}`), not 404.
+- **Unknown id** is a normal not-found (404).
+- **Podcast-id and episode-id-only routes** do not use the name lookup and never throw the mismatch exception.
+- Only `GET episode/{podcast-name}/{episode-id}` supplies a podcast name, so only it can reach the conflict path. The route name is normalised once, in `ToPodcastEpisodeResolverRequest`.
+
+## CQRS
+
+Standing HTTP standard for every client of this API: Azure Functions (`api-infra`), the Cloudflare Worker, and the Angular app.
+
+| Kind | HTTP | Body |
+| ---- | ---- | ---- |
+| **Command acknowledgement** | `ctx.Accepted()` → 202 | None. The client loads the resource with GET and binds that body. |
+| **Command outcome** | 200 or 202 | What the command did. Not the saved entity as a `*Dto`. |
+| **Query** | `ctx.Ok(entity.ToDto())` | The resource read model. The handler changes nothing. |
+
+A write that returns the resource read model is a CQRS breach. A query that changes state is a CQRS breach. Do not add a resource `*Dto` to a command to save a round trip.
 
 ---
 
@@ -86,7 +126,7 @@ Cloud/Api/
 ├── Extensions/             HTTP helpers + ApiAreaServiceCollectionExtensions (DI)
 ├── Handlers/
 │   ├── IHandlerContext.cs / HandlerContext.cs   HTTP edge for handlers (Subject, Query, status helpers)
-│   └── {Area}/         Api.Handlers.{Area} — status → HTTP + ToDto
+│   └── {Area}/         Api.Handlers.{Area} — status → HTTP; queries ToDto, commands acknowledge
 ├── Services/{Area}/        Api.Services.{Area} — use cases, appliers (IService + Service split files)
 ├── Models/                 Requests, commands, results, outcomes
 ├── Dtos/                   Response JSON types
@@ -118,8 +158,8 @@ Cloud/Api/
 
 | Kind | Namespace | Examples | Bound from HTTP? | Returned as JSON? |
 | ---- | --------- | -------- | ---------------- | ----------------- |
-| Change / create body | `Api.Models` | `EpisodeChangeRequest`, `PersonChangeRequest`, `PodcastChangeRequest`, `SubjectChangeRequest` | Yes (`[FromBody]`) | Only if you deliberately echo it (prefer `*Dto` for GET) |
-| Command / wrapper | `Api.Models` | `PodcastRenameCommand`, `EpisodePublishRequestWrapper`, `PersonChangeRequestWrapper` | Wrapper built in controller | No |
+| Change / create body | `Api.Dtos` | `EpisodeChangeRequest`, `PersonChangeRequest`, `PodcastRenameRequest` | Yes (`[FromBody]`) | No — controller maps to a Model |
+| Command / wrapper | `Api.Models` | `PodcastRenameCommand`, `EpisodeChangeRequest`, `PersonChangeRequestWrapper` | Built in the controller from the DTO | No |
 | Result / outcome | `Api.Models` | `PersonGetResult`, `EpisodeUpdateOutcome`, status enums | No | No — handler maps them |
 | Response DTO | `Api.Dtos` | `PersonDto`, `PodcastDto`, `SubjectDto`, `EpisodeDto`, `PublicEpisodeDto` | No | Yes via `ToDto` |
 | Error envelope | `Api.Dtos` | `ApiErrorResponse` | No | Yes on failure paths |
@@ -135,7 +175,7 @@ Cloud/Api/
 - Prefer flat projections over inheriting domain entities (especially `Episode`).
 - Never put `Dto` on a type that is only nested under another JSON root.
 
-**Rename:** wire JSON for rename body is `Api.Dtos.PodcastRenameRequest`; internal command is `Api.Models.PodcastRenameCommand`.
+**Rename and other split bodies:** wire JSON is an `Api.Dtos` request. The controller maps it to an `Api.Models` command or change request. `PodcastRenameRequest` becomes `PodcastRenameCommand`. A `[FromBody]` change request becomes the same-named type in `Api.Models` via `ToModel()`.
 
 ---
 
@@ -145,7 +185,7 @@ Cloud/Api/
 
 - [ ] Import only the handler area(s) you call (`using Api.Handlers.People;` — not every area).
 - [ ] Do not import a non-existent `Api.Handlers` namespace (types live in nested areas).
-- [ ] Deserialize mutations to **Models** change-request types.
+- [ ] Deserialize mutations to **Dtos** request types and map them to **Models** before the handler.
 - [ ] Pass thin wrappers (`*RequestWrapper`) into handlers when route ids + body must travel together.
 
 ### Handlers
@@ -153,7 +193,8 @@ Cloud/Api/
 - [ ] Depend on `I{Area}{Verb}Service` (or equivalent), not repositories directly (unless a rare pure map with no I/O).
 - [ ] Signature: `Handle(IHandlerContext ctx, …, CancellationToken ct)` — never `HttpRequestData` / `ClientPrincipal`.
 - [ ] Exhaustive `switch` on status; unexpected → log + `ctx.InternalError(ApiErrorResponse.Failure(...), ct)`.
-- [ ] Response mapping: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` / `ctx.Accepted`.
+- [ ] Queries: `using Api.Dtos.Extensions;` and `.ToDto()` into `ctx.Ok` only.
+- [ ] Commands: `ctx.Accepted()` with no body, or a command-outcome type. Never `entity.ToDto()` on a write.
 - [ ] Use `ctx.Subject` / `ctx.Query(...)` only when needed (most handlers ignore subject; auth already ran).
 - [ ] Keep orchestration light; query parsing and batch mapping belong in services / `Dtos/Mapping` (handlers stay status→HTTP).
 
@@ -174,9 +215,9 @@ Cloud/Api/
 ## Adding a new endpoint
 
 1. **Decide the area** (or add `Handlers/NewArea` + `Services/NewArea` with matching namespaces).
-2. **Models** — request body (if any) as `*ChangeRequest` or command; `*Result` + status enum for the service return.
+2. **Models** — command or change request the service applies (`*ChangeRequest` / `*Command`); `*Result` + status enum for the service return. The `[FromBody]` type is the matching `Dtos` request, mapped in the controller.
 3. **Service** — `IFooService` + `FooService` as separate files in `Services/{Area}/`; register via `AddApi{Area}()` in `Extensions/ApiAreaServiceCollectionExtensions.cs` (wired from `Ioc.cs`).
-4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`; map status → HTTP + `ToDto` / `ApiErrorResponse`.
+4. **Handler** — `IFooHandler` + `FooHandler` in `Handlers/{Area}/`. Queries map status to `ctx.Ok(entity.ToDto())`. Commands map status to `ctx.Accepted()` with no body, or a command-outcome body. Failures use `ApiErrorResponse`. Never the saved aggregate.
 5. **Dto** (if new response shape) — `Dtos/FooDto.cs` + `ToDto` extension in `Dtos/Extensions/` (no static factories on DTO types).
 6. **Controller** — one method under `Controllers/` (`Api.Controllers`): roles + `HandleRequest(..., handler.Handle, ...)`.
 7. **Tests** — at least: service status cases and/or handler status→HTTP matrix (see below).
@@ -227,7 +268,9 @@ Prefer mocking `IMemoryProbeOrchestrator.Start` → `IMemoryProbeScope` when exe
 | `HttpResponseData` in `Services/` | Return `*Result`; handler maps HTTP |
 | `HttpRequestData` / `ClientPrincipal` on handlers | `IHandlerContext` (+ separate `CancellationToken`) |
 | `CancellationToken` on `IHandlerContext` | Keep CT as a `Handle` parameter; pass into `ctx.Ok(body, ct)` |
-| `new PersonDto { ... }` inside a service | Return domain entity; handler `.ToDto()` |
+| `new PersonDto { ... }` inside a service | Return a status result; a query handler `.ToDto()` |
+| Command returns the resource `*Dto` (`ctx.Accepted(entity.ToDto())`) | `ctx.Accepted()`; client GETs the resource |
+| Command result carries the saved aggregate | Status and command details only |
 | Inheriting domain `Episode` for API JSON | Flat `EpisodeDto` projection |
 | Top-level entity DTO without `*Dto` suffix | `PublicEpisodeDto`, `IndexerStateDto`, … |
 | Shared nested type forced inner on one root | Sibling file when several roots use it |

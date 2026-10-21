@@ -116,7 +116,8 @@ public class SpotifyExpensiveQuerySideEffectRules
         public Task<FindEpisodeResponse> FindEpisode(
             FindSpotifyEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<SimpleEpisode, bool>? reducer = null) =>
+            Func<SimpleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult(new FindEpisodeResponse(FullEpisode: null, IsExpensiveQuery: isExpensiveQuery));
     }
 }

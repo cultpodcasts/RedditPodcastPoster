@@ -429,7 +429,8 @@ public class AppleEpisodeEnricherCatalogueRules
         public Task<AppleEpisode?> FindEpisode(
             FindAppleEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<AppleEpisode, bool>? reducer = null)
+            Func<AppleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             FindEpisodeInvoked = true;
             return Task.FromResult<AppleEpisode?>(null);
@@ -443,7 +444,8 @@ public class AppleEpisodeEnricherCatalogueRules
         public Task<AppleEpisode?> FindEpisode(
             FindAppleEpisodeRequest request,
             IndexingContext indexingContext,
-            Func<AppleEpisode, bool>? reducer = null)
+            Func<AppleEpisode, bool>? reducer = null,
+            CancellationToken cancellationToken = default)
         {
             var matches = episodes.AsEnumerable();
             if (reducer != null)

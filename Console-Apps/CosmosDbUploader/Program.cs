@@ -10,9 +10,8 @@ using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.PushSubscriptions.Extensions;
 using RedditPodcastPoster.Subjects.Extensions;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 

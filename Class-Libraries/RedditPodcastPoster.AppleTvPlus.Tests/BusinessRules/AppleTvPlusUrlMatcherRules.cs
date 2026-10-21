@@ -16,7 +16,7 @@ public class AppleTvPlusUrlMatcherRules
         // Arrange
         var storefronts = new[] { "us", "gb", "de", "fr" };
         var slug = _fixture.CreateYouTubeId();
-        var id = $"umc.cmc.{_fixture.CreateYouTubeId().ToLowerInvariant()}";
+        var id = CatalogueContentId();
 
         // Act / Assert
         foreach (var storefront in storefronts)
@@ -65,5 +65,24 @@ public class AppleTvPlusUrlMatcherRules
 
         // Assert
         matches.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Apple catalogue ids are <c>umc.cmc.</c> plus <c>[a-z0-9]+</c>.
+    /// <see cref="DomainTestFixture.CreateYouTubeId"/> also emits <c>-</c> and <c>_</c>, which the matcher rejects.
+    /// Draws are capped so a run of separator-bearing ids fails the test instead of hanging it.
+    /// </summary>
+    private string CatalogueContentId()
+    {
+        for (var attempt = 0; attempt < 32; attempt++)
+        {
+            var token = _fixture.CreateYouTubeId().ToLowerInvariant();
+            if (!token.Any(static c => c is '-' or '_'))
+            {
+                return $"umc.cmc.{token}";
+            }
+        }
+
+        throw new InvalidOperationException("Could not draw an Apple catalogue id token of [a-z0-9]+.");
     }
 }

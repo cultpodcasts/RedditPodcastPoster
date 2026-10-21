@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// UrlSubmission pipeline services. Registers People services required by
     /// <c>IPodcastProcessor</c> / <c>IPodcastAndEpisodeFactory</c> (<c>IEpisodeGuestEnricher</c>).
-    /// Does not register episodes domain — callers must call <c>AddEpisodesDomain()</c>
+    /// Does not register episodes domain — callers must call <c>AddEpisodesDomain().AddEpisodeLookup()</c>
     /// explicitly at the composition root (required for <c>IEpisodeEnricher</c> →
     /// <c>IPlatformEnrichmentApplicator</c>).
     /// </summary>

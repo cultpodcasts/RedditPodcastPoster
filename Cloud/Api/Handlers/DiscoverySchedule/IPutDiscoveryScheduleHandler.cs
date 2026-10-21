@@ -1,5 +1,4 @@
 using Microsoft.Azure.Functions.Worker.Http;
-using Api.Dtos;
 using Api.Models;
 
 namespace Api.Handlers.DiscoverySchedule;

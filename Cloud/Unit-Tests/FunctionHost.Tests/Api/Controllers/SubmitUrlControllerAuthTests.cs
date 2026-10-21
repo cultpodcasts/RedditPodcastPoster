@@ -79,7 +79,7 @@ public class SubmitUrlControllerAuthTests
         UsePermission("curate");
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -87,7 +87,10 @@ public class SubmitUrlControllerAuthTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
-            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.Is<SubmitUrlRequest>(mapped => mapped.Url == model.Url),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -108,7 +111,7 @@ public class SubmitUrlControllerAuthTests
             .ThrowsAsync(boom);
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -120,10 +123,10 @@ public class SubmitUrlControllerAuthTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Unhandled exception in") &&
-                    v.ToString()!.Contains("TestFunction") &&
-                    v.ToString()!.Contains(req.Object.Url.ToString()) &&
-                    v.ToString()!.Contains("POST")),
+                    v!.ToString()!.Contains("Unhandled exception in") &&
+                    v!.ToString()!.Contains("TestFunction") &&
+                    v!.ToString()!.Contains(req.Object.Url.ToString()) &&
+                    v!.ToString()!.Contains("POST")),
                 boom,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -131,7 +134,7 @@ public class SubmitUrlControllerAuthTests
             x => x.Log(
                 LogLevel.Error,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("HandleRequest failed")),
+                It.Is<It.IsAnyType>((v, _) => v!.ToString()!.Contains("HandleRequest failed")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
@@ -165,7 +168,7 @@ public class SubmitUrlControllerAuthTests
         _principal = null;
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -207,7 +210,7 @@ public class SubmitUrlControllerAuthTests
         UsePermission("submit");
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -215,7 +218,10 @@ public class SubmitUrlControllerAuthTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
-            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.Is<SubmitUrlRequest>(mapped => mapped.Url == model.Url),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

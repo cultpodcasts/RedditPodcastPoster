@@ -42,6 +42,15 @@ public class SpotifyPodcastEpisodesProvider(
 
         if (!indexingContext.SkipPodcastDiscovery && !string.IsNullOrWhiteSpace(request.PodcastName))
         {
+            if (!indexingContext.ReleasedSince.HasValue)
+            {
+                logger.LogWarning(
+                    "{nameofGetAllEpisodes} - Refusing full Spotify catalogue pagination for show '{showName}' because ReleasedSince is unset. A single-episode name match must not walk every episode.",
+                    nameof(GetAllEpisodes),
+                    request.PodcastName);
+                return new PodcastEpisodesResult([], expensiveQueryFound);
+            }
+
             var searchRequest = new SearchRequest(SearchRequest.Types.Show, request.PodcastName) {Market = market};
             var simpleShows = await spotifyClientWrapper.GetSimpleShows(searchRequest, indexingContext);
             if (simpleShows.Any())
@@ -70,38 +79,24 @@ public class SpotifyPodcastEpisodesProvider(
             {
                 if (paging.Episodes != null)
                 {
-                    var skipUnboundedPagination =
-                        indexingContext.SkipExpensiveSpotifyQueries &&
+                    if (indexingContext.SkipExpensiveSpotifyQueries &&
                         request.HasExpensiveSpotifyEpisodesQuery &&
-                        !indexingContext.ReleasedSince.HasValue;
-
-                    if (skipUnboundedPagination)
+                        indexingContext.ReleasedSince.HasValue)
                     {
                         logger.LogInformation(
-                            "{nameofGetAllEpisodes} - Skipping pagination of query results as {nameofSkipExpensiveSpotifyQueries} is set.",
-                            nameof(GetAllEpisodes), nameof(indexingContext.SkipExpensiveSpotifyQueries));
+                            "{nameofGetAllEpisodes} - Expensive Spotify query flagged with ReleasedSince; running bounded date-scoped pagination.",
+                            nameof(GetAllEpisodes));
                     }
-                    else
-                    {
-                        if (indexingContext.SkipExpensiveSpotifyQueries &&
-                            request.HasExpensiveSpotifyEpisodesQuery &&
-                            indexingContext.ReleasedSince.HasValue)
-                        {
-                            logger.LogInformation(
-                                "{nameofGetAllEpisodes} - Expensive Spotify query flagged with ReleasedSince; running bounded date-scoped pagination.",
-                                nameof(GetAllEpisodes));
-                        }
 
-                        var paginateEpisodeResponse =
-                            await spotifyQueryPaginator.PaginateEpisodes(
-                                paging.Episodes,
-                                WithSpotifyCatalogueFetchReleasedSince(indexingContext));
-                        var result = paginateEpisodeResponse.Episodes.GroupBy(x => x.Id).Select(x => x.First());
-                        allEpisodes.Add(result.ToList());
-                        expensiveQueryFound = MergeExpensiveQueryFound(
-                            expensiveQueryFound,
-                            paginateEpisodeResponse.ExpensiveQueryFound);
-                    }
+                    var paginateEpisodeResponse =
+                        await spotifyQueryPaginator.PaginateEpisodes(
+                            paging.Episodes,
+                            WithSpotifyCatalogueFetchReleasedSince(indexingContext));
+                    var result = paginateEpisodeResponse.Episodes.GroupBy(x => x.Id).Select(x => x.First());
+                    allEpisodes.Add(result.ToList());
+                    expensiveQueryFound = MergeExpensiveQueryFound(
+                        expensiveQueryFound,
+                        paginateEpisodeResponse.ExpensiveQueryFound);
                 }
                 else
                 {

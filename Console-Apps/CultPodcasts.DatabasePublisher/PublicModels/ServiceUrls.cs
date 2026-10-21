@@ -21,6 +21,6 @@ public class PublicServiceUrls
     public Uri? InternetArchive { get; set; }
 
     [JsonPropertyName("bbc")]
-    [JsonPropertyOrder(4)]
+    [JsonPropertyOrder(5)]
     public Uri? BBC { get; set; }
 }

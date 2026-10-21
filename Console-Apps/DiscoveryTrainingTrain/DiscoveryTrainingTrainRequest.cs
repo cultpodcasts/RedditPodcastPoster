@@ -28,7 +28,4 @@ public class DiscoveryTrainingTrainRequest
     [Option("skip-download", Required = false, Default = false,
         HelpText = "Skip downloading ONNX model if files already exist")]
     public bool SkipDownload { get; set; }
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

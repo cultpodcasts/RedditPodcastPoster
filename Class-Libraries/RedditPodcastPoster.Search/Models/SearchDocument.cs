@@ -8,14 +8,14 @@ public class SearchDocument
     [JsonPropertyName("id")]
     public Guid Id { get; set; }
 
-    [JsonPropertyName("podcastName")]
-    public string? PodcastName { get; set; }
+    [JsonPropertyName("seriesName")]
+    public string? SeriesName { get; set; }
 
-    [JsonPropertyName("episodeTitle")]
-    public string EpisodeTitle { get; set; } = null!;
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = null!;
 
-    [JsonPropertyName("episodeDescription")]
-    public string EpisodeDescription { get; set; } = null!;
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = null!;
 
     [JsonPropertyName("subjects")]
     public string[] Subjects { get; set; } = null!;
@@ -44,8 +44,8 @@ public class SearchDocument
         var episode = new Episode
         {
             Id = Id,
-            Title = EpisodeTitle,
-            Description = EpisodeDescription,
+            Title = Title,
+            Description = Description,
             Subjects = Subjects.ToList(),
             Length = length,
             ReleaseUtc = Release ?? DateTime.MinValue

@@ -231,6 +231,21 @@ public class CosmosDbSettingsValidatorTests
         result.FailureMessage.Should().Contain("DiscoveryContainer");
     }
 
+    [Fact(DisplayName = "Fails when DiscoverySubmissionsContainer is blank, because held supervised discovery submits need their own container")]
+    public void Fails_when_DiscoverySubmissionsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.DiscoverySubmissionsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("DiscoverySubmissionsContainer");
+    }
+
     [Fact(DisplayName = "Fails when LookUpsContainer is blank")]
     public void Fails_when_LookUpsContainer_is_blank()
     {
@@ -292,6 +307,7 @@ public class CosmosDbSettingsValidatorTests
         PeopleContainer = "people",
         ActivitiesContainer = "activities",
         DiscoveryContainer = "discovery",
+        DiscoverySubmissionsContainer = "discovery-submissions",
         LookUpsContainer = "lookups",
         TitleCasingRulesContainer = "titlecasingrules",
         PushSubscriptionsContainer = "push"

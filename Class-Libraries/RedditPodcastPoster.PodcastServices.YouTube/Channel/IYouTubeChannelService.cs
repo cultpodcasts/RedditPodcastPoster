@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Channel;
 
 public interface IYouTubeChannelService
 {
-    Task<Google.Apis.YouTube.v3.Data.Channel?> GetChannel(
+    Task<YouTubeChannelLookupResult> GetChannelLookup(
         YouTubeChannelId channelId,
         IndexingContext indexingContext,
         bool withSnippets = false,

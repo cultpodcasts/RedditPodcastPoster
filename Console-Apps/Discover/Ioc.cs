@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using iTunesSearch.Library;
 using RedditPodcastPoster.ContentPublisher.Extensions;
@@ -18,7 +19,7 @@ public static class Ioc
     public static void ConfigureServices(IServiceCollection services)
     {
         services
-            .AddEpisodesDomain()
+            .AddEpisodesDomain().AddEpisodeLookup()
             .AddRepositories()
             .AddDiscovery(ApplicationUsage.Cli)
             .AddContentPublishing()

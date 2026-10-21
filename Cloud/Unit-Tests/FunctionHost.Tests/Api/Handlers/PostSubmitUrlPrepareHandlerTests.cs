@@ -4,13 +4,13 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Moq;
 using Moq.AutoMock;
-using Api.Dtos;
 using Api.Handlers;
 using Api.Handlers.SubmitUrl;
 using Api.Models;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Xunit;
 using FunctionHost.Tests.Api;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -44,21 +44,18 @@ public class PostSubmitUrlPrepareHandlerTests
             .Setup(s => s.PrepareAsync(url, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubmitUrlPrepareResult(
                 SubmitUrlPrepareStatus.Ok,
-                new SubmitUrlPrepareResponse
-                {
-                    Service = StreamingServiceWire.ToKey(StreamingService.Itvx),
-                    PodcastName = showName,
-                    Title = title,
-                    Description = _fixture.Create<string>(),
-                    ShowName = showName
-                }));
+                StreamingService.Itvx,
+                new NonPodcastServiceItemMetaData(
+                    Title: title,
+                    Description: _fixture.Create<string>(),
+                    ShowName: showName)));
         var handler = _mocker.CreateInstance<PostSubmitUrlPrepareHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
         // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new SubmitUrlPrepareRequest { Url = url },
+            new global::Api.Models.SubmitUrlPrepareRequest { Url = url },
             CancellationToken.None);
 
         // Assert
@@ -82,19 +79,17 @@ public class PostSubmitUrlPrepareHandlerTests
             .Setup(s => s.ExtractAsync(url, html, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubmitUrlPrepareResult(
                 SubmitUrlPrepareStatus.Ok,
-                new SubmitUrlPrepareResponse
-                {
-                    Service = StreamingServiceWire.ToKey(StreamingService.Itvx),
-                    Title = title,
-                    Description = _fixture.Create<string>()
-                }));
+                StreamingService.Itvx,
+                new NonPodcastServiceItemMetaData(
+                    Title: title,
+                    Description: _fixture.Create<string>())));
         var handler = _mocker.CreateInstance<PostSubmitUrlExtractHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
         // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new SubmitUrlExtractRequest { Url = url, Html = html },
+            new global::Api.Models.SubmitUrlExtractRequest { Url = url, Html = html },
             CancellationToken.None);
 
         // Assert
@@ -102,5 +97,107 @@ public class PostSubmitUrlPrepareHandlerTests
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("service").GetString().Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
         body.GetProperty("title").GetString().Should().Be(title);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when prepare is rejected, then POST SubmitUrl/prepare responds 400 with the error, because an unsupported URL is a client error.")]
+    public async Task prepare_bad_request_returns_400()
+    {
+        // Arrange
+        var url = new Uri($"https://example.com/{_fixture.CreateGuid():N}");
+        var message = _fixture.Create<string>();
+        _mocker.GetMock<ISubmitUrlPrepareService>()
+            .Setup(s => s.PrepareAsync(url, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlPrepareResult(SubmitUrlPrepareStatus.BadRequest, Message: message));
+        var handler = _mocker.CreateInstance<PostSubmitUrlPrepareHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new global::Api.Models.SubmitUrlPrepareRequest { Url = url },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("error").GetString().Should().Be(message);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when prepare fails, then POST SubmitUrl/prepare responds 500 with the error, because an extract failure is not a client rejection.")]
+    public async Task prepare_failed_returns_500()
+    {
+        // Arrange
+        var url = new Uri($"https://example.com/{_fixture.CreateGuid():N}");
+        var message = _fixture.Create<string>();
+        _mocker.GetMock<ISubmitUrlPrepareService>()
+            .Setup(s => s.PrepareAsync(url, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlPrepareResult(SubmitUrlPrepareStatus.Failed, Message: message));
+        var handler = _mocker.CreateInstance<PostSubmitUrlPrepareHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new global::Api.Models.SubmitUrlPrepareRequest { Url = url },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("error").GetString().Should().Be(message);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when extract is rejected, then POST SubmitUrl/extract responds 400 with the error, because an unsupported HTML path is a client error.")]
+    public async Task extract_bad_request_returns_400()
+    {
+        // Arrange
+        var url = new Uri($"https://example.com/{_fixture.CreateGuid():N}");
+        var html = _fixture.Create<string>();
+        var message = _fixture.Create<string>();
+        _mocker.GetMock<ISubmitUrlPrepareService>()
+            .Setup(s => s.ExtractAsync(url, html, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlPrepareResult(SubmitUrlPrepareStatus.BadRequest, Message: message));
+        var handler = _mocker.CreateInstance<PostSubmitUrlExtractHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new global::Api.Models.SubmitUrlExtractRequest { Url = url, Html = html },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("error").GetString().Should().Be(message);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when extract fails, then POST SubmitUrl/extract responds 500 with the error, because an HTML extract failure is not a client rejection.")]
+    public async Task extract_failed_returns_500()
+    {
+        // Arrange
+        var url = new Uri($"https://example.com/{_fixture.CreateGuid():N}");
+        var html = _fixture.Create<string>();
+        var message = _fixture.Create<string>();
+        _mocker.GetMock<ISubmitUrlPrepareService>()
+            .Setup(s => s.ExtractAsync(url, html, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlPrepareResult(SubmitUrlPrepareStatus.Failed, Message: message));
+        var handler = _mocker.CreateInstance<PostSubmitUrlExtractHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new global::Api.Models.SubmitUrlExtractRequest { Url = url, Html = html },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("error").GetString().Should().Be(message);
     }
 }

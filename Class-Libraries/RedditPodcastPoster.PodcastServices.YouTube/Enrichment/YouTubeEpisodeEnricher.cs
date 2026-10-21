@@ -177,7 +177,13 @@ public class YouTubeEpisodeEnricher(
             var description = !string.IsNullOrWhiteSpace(request.Podcast.DescriptionRegex)
                 ? textSanitiser.SanitiseDescription(
                     rawDescription,
-                    new Regex(request.Podcast.DescriptionRegex))
+                    DescriptionRegexTokens.Create(
+                        request.Podcast.DescriptionRegex,
+                        request.Episode.Title,
+                        request.Podcast.Name,
+                        // Token-free patterns keep the options this enricher has always used (none), so existing
+                        // podcasts' YouTube descriptions are unchanged; token patterns use Podcast.DescriptionFlags.
+                        RegexOptions.None))
                 : rawDescription;
             EnrichmentApplicator.ApplyDescription(request.Episode, description);
         }

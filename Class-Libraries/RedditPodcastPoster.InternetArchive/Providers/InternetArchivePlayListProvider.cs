@@ -9,18 +9,17 @@ public class InternetArchivePlayListProvider : IInternetArchivePlayListProvider
     public IEnumerable<PlayListItem> GetPlayList(HtmlDocument document)
     {
         var playListNodes = document.DocumentNode.SelectNodes("//play-av");
-        var items = Enumerable.Empty<PlayListItem>();
-        if (playListNodes.Any())
+        if (playListNodes is not { Count: > 0 })
         {
-            var firstPlayListNode = playListNodes.First();
-            var playListAttribute = firstPlayListNode.Attributes["playlist"];
-            if (playListAttribute != null)
-            {
-                var playlistJson = playListAttribute.Value;
-                items = JsonSerializer.Deserialize<PlayListItem[]>(playlistJson);
-            }
+            return [];
         }
 
-        return items ?? Enumerable.Empty<PlayListItem>();
+        var playlistJson = playListNodes[0].Attributes["playlist"]?.Value;
+        if (string.IsNullOrWhiteSpace(playlistJson))
+        {
+            return [];
+        }
+
+        return JsonSerializer.Deserialize<PlayListItem[]>(playlistJson) ?? [];
     }
 }

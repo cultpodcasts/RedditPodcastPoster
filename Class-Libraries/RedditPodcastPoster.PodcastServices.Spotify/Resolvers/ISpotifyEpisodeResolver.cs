@@ -10,5 +10,6 @@ public interface ISpotifyEpisodeResolver
     Task<FindEpisodeResponse> FindEpisode(
         FindSpotifyEpisodeRequest request,
         IndexingContext indexingContext,
-        Func<SimpleEpisode, bool>? reducer = null);
+        Func<SimpleEpisode, bool>? reducer = null,
+        CancellationToken cancellationToken = default);
 }

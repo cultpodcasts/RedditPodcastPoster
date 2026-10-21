@@ -52,6 +52,47 @@ public class DiscoveryResultsRepository(
         return GetByIdsInternal(x => x.State == DiscoveryResultsDocumentState.Unprocessed);
     }
 
+    public IAsyncEnumerable<DiscoveryResultsDocument> GetAllPendingSupervisor()
+    {
+        return GetByIdsInternal(x => x.State == DiscoveryResultsDocumentState.PendingSupervisor);
+    }
+
+    public async Task<bool> TryTransitionState(Guid documentId, DiscoveryResultsDocumentState from,
+        DiscoveryResultsDocumentState to, CancellationToken cancellationToken = default)
+    {
+        ItemResponse<DiscoveryResultsDocument> read;
+        try
+        {
+            read = await discoveryContainer.ReadItemAsync<DiscoveryResultsDocument>(documentId.ToString(),
+                new PartitionKey(documentId.ToString()), cancellationToken: cancellationToken);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
+        var document = read.Resource;
+        if (document.State != from)
+        {
+            return false;
+        }
+
+        document.State = to;
+        try
+        {
+            await discoveryContainer.ReplaceItemAsync(document, documentId.ToString(),
+                new PartitionKey(documentId.ToString()),
+                new ItemRequestOptions { IfMatchEtag = read.ETag }, cancellationToken);
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+        {
+            logger.LogWarning("{Method}: '{DocumentId}' changed concurrently; not moved to {State}.",
+                nameof(TryTransitionState), documentId, to);
+            return false;
+        }
+    }
+
     public async Task SetProcessed(IEnumerable<Guid> ids)
     {
         // Keep documents (State=Processed) so MAX(discoveryBegan) remains available for dynamic lookback.
@@ -71,6 +112,15 @@ public class DiscoveryResultsRepository(
 
                 if (document.State == DiscoveryResultsDocumentState.Processed)
                 {
+                    continue;
+                }
+
+                if (document.State == DiscoveryResultsDocumentState.PendingSupervisor)
+                {
+                    // Only a supervisor applying the held submission may promote a held report to Processed.
+                    logger.LogWarning(
+                        "{Method}: '{DocumentId}' is awaiting supervisor review; not marking processed.",
+                        nameof(SetProcessed), id);
                     continue;
                 }
 

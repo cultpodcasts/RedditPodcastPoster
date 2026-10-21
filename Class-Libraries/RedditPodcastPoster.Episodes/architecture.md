@@ -52,6 +52,15 @@ PodcastServices.Abstractions/
 ├── IEpisodeMatcher.cs · IEpisodeMerger.cs · EpisodeMergeResult
 └── IndexPodcastResult.cs
 
+EpisodeLookup/            Central clearing-house for Spotify/Apple catalogue lookups (see its README.md)
+├── Planning/            EpisodeLookupChains (per-use-case chains) · EpisodeLookupPlanner · EpisodeLookupOptions
+├── Execution/           CatalogueLookupExecutor · ICatalogueCandidateSource · ICatalogueShowEpisodeCounts
+├── Guards/              CatalogueRequestGuard (fixed request timeout + logging)
+└── EpisodeLookupUseCases.cs   ForIndex · ForSubmit · ForDiscovery · ForEnrich entry points
+   Depends on: Episodes (EpisodeLookupFlow, CatalogueLookup) + PodcastServices.Abstractions
+   Used by:    PodcastServices.Spotify · PodcastServices.Apple · PodcastServices (thin adapters)
+   Tests:      EpisodeLookup.BusinessRules.Tests (rules first) · EpisodeLookup.Tests (unit)
+
 PodcastServices.{Spotify,Apple,YouTube}/
 └── Finders / resolvers / categorisers   Platform API boundary (map API types → domain or UrlSubmission DTOs)
 
@@ -224,6 +233,12 @@ flowchart TB
         PP[PodcastProcessor]
     end
 
+    subgraph Lookup["EpisodeLookup (catalogue lookup planner)"]
+        ELU[EpisodeLookupUseCases]
+        ELP[EpisodeLookupPlanner + Chains]
+        ELX[CatalogueLookupExecutor + RequestGuard]
+    end
+
     subgraph PlatCat["Platform categorisers (boundary only)"]
         SP_CAT[SpotifyUrlCategoriser]
         AP_CAT[AppleUrlCategoriser]
@@ -256,6 +271,10 @@ flowchart TB
 
     EA --> AP
     MG --> AP
+
+    SP_P & AP_P --> ELU
+    ELU --> ELP --> ELX
+    ELP --> Domain
 ```
 
 
@@ -392,6 +411,48 @@ flowchart BT
 
 ---
 
+## Merge tie-break (several stored episodes match one incoming episode)
+
+`EpisodeMerger` asks `IEpisodePlatformMatcher.Classify` of every stored episode: `None`, `Certain` (same platform id,
+exact title, or the podcast's `EpisodeMatchRegex`) or `Heuristic` (fuzzy title + duration, or release + duration).
+
+**Single match.** A `Certain` match merges unscored, as before. A `Heuristic` match is scored (same model as below)
+and, when `ScoreSingleHeuristicMatches` is on (default), rejected below `SingleHeuristicMinScore` (36): it is then
+treated as no match, the incoming episode is added as new, and a Warning `Episode merge single heuristic match
+rejected ... score N` is logged. 36 is calibrated on the business rules: genuine single heuristic merges scored
+40-59, the Notes to Self 444 year-old lookalike scored 33 (`SingleHeuristicMatchRules`). Using `MinScore` (60) here
+would have rejected six genuine cross-platform merges in the existing rules.
+
+The margin (33 vs 40) is thin, and a wrongly rejected genuine match creates a duplicate episode rather than a
+merge failure. Watch the Warning after deploy:
+`AppTraces | where Message startswith "Episode merge single heuristic match rejected" | project TimeGenerated, Message`.
+Rollback without a deploy: app setting `episodeMergeTieBreak__ScoreSingleHeuristicMatches=false`.
+
+**Several matches.** When **more than one** stored episode matches, `IEpisodeMergeCandidateScorer`
+(`Matching/EpisodeMergeCandidateScorer.cs`) decides:
+
+1. `Enabled = false` -> fail (previous behaviour).
+2. Candidates sharing a Spotify/Apple/YouTube id (e.g. two rows with YouTube id `Wm-fDWIIZr0`) -> fail: data problem.
+3. A candidate already carrying the incoming platform id -> fail: identity beats fuzzy evidence.
+4. Otherwise each candidate gets a graded score (0-100 by default):
+   duration closeness (`DurationWeight`, linear to 0 at `DurationWindow`),
+   release proximity after the podcast's YouTube publication offset for YouTube/audio pairs (`ReleaseWeight`, linear to 0 at `ReleaseWindow`),
+   weighted fuzzy title ratio (`TitleWeight`), fuzzy description intro (`DescriptionWeight`, first `DescriptionCompareMaxChars`),
+   shared subjects (`SubjectWeight`, half for one shared subject; same filters as `CatalogueMatchScorer`).
+5. The leader must reach `MinScore` (60) **and** lead the runner-up by `MinMargin` (15); otherwise fail.
+
+A tie-break logs Information `Episode merge tie-broken: ... Candidate scores: ...`. A failure adds a
+`FailedEpisodeMerge` (incoming episode, every candidate with its score or `n/a`, reason) to
+`EpisodeMergeResult.FailedMerges`, and `FailedEpisodesReport()` names the incoming episode and candidate scores.
+
+Options: `EpisodeMergeTieBreakOptions`, section `episodeMergeTieBreak` (all optional; defaults in the class,
+validated on start). Real case: Notes to Self 444 (2026-10-14), `BusinessRules/Merging/MergeTieBreakRules.cs`.
+
+Release proximity is a scoring signal, not a hard gate on the fuzzy-title path: a back-catalogue episode first
+seen on a new platform months later still merges when its other signals clear the single-match minimum.
+
+Logging: `RedditPodcastPoster.PodcastServices.Merging` is raised to Information in `Cloud/Azure/ApplicationLogLevels.cs`
+and each function app's `host.json` so these lines reach App Insights.
 ## DI registration
 
 Hosts that need episode processing must call `**AddEpisodesDomain()`** explicitly. It is **not** nested inside `AddRepositories()`, `AddPodcastServices()`, or `AddUrlSubmission()`.
@@ -408,7 +469,7 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 | `AddSpotifyServices()` | Spotify provider, enricher, resolver, finder, side effect                                                                                                  |
 | `AddAppleServices()`   | Apple provider, enricher, resolver                                                                                                                        |
 | `AddYouTubeServices()` | YouTube provider, enricher, resolver, finders (does **not** register persistence stores — those come from `AddRepositories()`)                              |
-| `AddRepositories()`    | Cosmos repos (`IPodcastRepository`, `IEpisodeRepository`, `ILookupRepository`, `IActivityRepository`), known-terms / elimination-terms repos and provider factories (`Persistence/Lookups`), `IYouTubeQuotaUsageStateStore` / `IYouTubeIndexerKeyStateStore` adapters; no episode domain or merge orchestration |
+| `AddRepositories()`    | Cosmos repos (`IPodcastRepository`, `IEpisodeRepository`, `ILookupRepository`, `IActivityRepository`), known-terms / elimination-terms repos and provider factories (`Persistence/Lookups`), `IYouTubeQuotaUsageStateStore` / `IYouTubeIndexerKeyStateStore` / `IYouTubeThumbnailRecheckCursorStore` adapters; no episode domain or merge orchestration |
 | `AddEliminationTerms()`| Elimination-terms provider factory + async instance (call after `AddRepositories()` when hosts need elimination terms)                                     |
 | `AddUrlSubmission()`   | `IUrlCategoriser`, `ISpotifyUrlCategoriser` / `IAppleUrlCategoriser` / `IYouTubeUrlCategoriser` (implementations in platform assemblies), `IEpisodeEnricher`, `IPodcastProcessor`, submit/discovery pipeline (does **not** register Episodes domain) |
 
@@ -442,8 +503,8 @@ Import `RedditPodcastPoster.Episodes.Extensions` at the composition root (same p
 | DI (orchestration)          | `../RedditPodcastPoster.PodcastServices/Extensions/ServiceCollectionExtensions.cs`                 |
 | DI (UrlSubmission)          | `../RedditPodcastPoster.UrlSubmission/Extensions/ServiceCollectionExtensions.cs`                   |
 | DI (persistence)            | `../RedditPodcastPoster.Persistence/Extensions/ServiceCollectionExtensions.cs`                     |
-| YouTube state-store ports   | `../RedditPodcastPoster.PodcastServices.Abstractions/IYouTubeQuotaUsageStateStore.cs`, `IYouTubeIndexerKeyStateStore.cs` |
-| YouTube state-store adapters| `../RedditPodcastPoster.Persistence/Lookups/YouTubeQuotaUsageStateStore.cs`, `YouTubeIndexerKeyStateStore.cs` |
+| YouTube state-store ports   | `../RedditPodcastPoster.PodcastServices.Abstractions/IYouTubeQuotaUsageStateStore.cs`, `IYouTubeIndexerKeyStateStore.cs`, `Stores/IYouTubeThumbnailRecheckCursorStore.cs` |
+| YouTube state-store adapters| `../RedditPodcastPoster.Persistence/Lookups/YouTubeQuotaUsageStateStore.cs`, `YouTubeIndexerKeyStateStore.cs`, `YouTubeThumbnailRecheckCursorStore.cs` |
 
 
 ---

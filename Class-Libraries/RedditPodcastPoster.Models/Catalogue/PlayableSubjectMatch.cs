@@ -14,4 +14,12 @@ public class PlayableSubjectMatch
     [JsonPropertyName("source")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public SubjectMatchSource Source { get; set; }
+
+    public PlayableSubjectMatch Clone() =>
+        new()
+        {
+            Subject = Subject,
+            Term = Term,
+            Source = Source
+        };
 }

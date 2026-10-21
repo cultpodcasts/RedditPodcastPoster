@@ -25,7 +25,8 @@ public class SubjectEnrichmentOptionsFactory(
             podcast.IgnoredAssociatedSubjects,
             merged,
             podcast.DefaultSubject,
-            podcast.DescriptionRegex ?? string.Empty);
+            podcast.DescriptionRegex ?? string.Empty,
+            podcast.Name);
     }
 
     public static string[]? UnionIgnoreLists(

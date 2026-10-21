@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,11 @@ using RedditPodcastPoster.Twitter.Extensions;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -36,7 +42,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<PostProcessor>()
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddCatalogueServices()
     .AddSocialPostingServices()
@@ -60,25 +66,10 @@ builder.Services.AddDelayedYouTubePublication();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<PostRequest>(args)
-    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
-
-        return Task.FromResult(-1);
-    });
+    .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1));
 
 async Task<int> Run(PostRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var postProcessor = host.Services.GetService<PostProcessor>()!;
     await postProcessor.Process(request);
     return 0;

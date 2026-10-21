@@ -35,11 +35,20 @@ public class AddYouTubeChannelProcessor(
                 return false;
             }
 
-            var channel =
-                await youTubeChannelService.GetChannel(new YouTubeChannelId(match.Snippet.ChannelId),
+            var channelLookup =
+                await youTubeChannelService.GetChannelLookup(new YouTubeChannelId(match.Snippet.ChannelId),
                     indexOptions, withContentOwnerDetails: true);
+            if (channelLookup.Outcome != YouTubeChannelLookupOutcome.Found || channelLookup.Channel == null)
+            {
+                logger.LogError(
+                    "Could not obtain YouTube channel with channel-id '{SnippetChannelId}' (outcome '{Outcome}'). Podcast not created.",
+                    match.Snippet.ChannelId, channelLookup.Outcome);
+                return false;
+            }
+
+            var channel = channelLookup.Channel;
             var newPodcast = await podcastFactory.Create(match.Snippet.ChannelTitle);
-            newPodcast.PublisherName = channel?.ContentOwnerDetails.ContentOwner ?? string.Empty;
+            newPodcast.PublisherName = channel.ContentOwnerDetails?.ContentOwner ?? string.Empty;
             newPodcast.YouTubePublicationOffset = null;
             newPodcast.YouTubeChannelId = match.Snippet.ChannelId;
             newPodcast.ReleaseAuthority = Service.YouTube;

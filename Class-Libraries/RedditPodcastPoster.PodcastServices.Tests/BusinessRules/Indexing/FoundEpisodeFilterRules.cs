@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Catalogue.Episodes;
@@ -17,12 +18,14 @@ public class FoundEpisodeFilterRules
     {
         // Arrange
         var includeToken = _fixture.CreateTitle(1);
+        var include = new Regex(includeToken, Podcast.EpisodeIncludeTitleFlags);
+        var otherTitle = TitleThatDoesNotMatch(include);
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.EpisodeIncludeTitleRegex = includeToken;
         });
         var matching = _fixture.CreateStoredEpisode(podcast, e => e.Title = $"{includeToken} {_fixture.CreateTitle()}");
-        var other = _fixture.CreateStoredEpisode(podcast, e => e.Title = _fixture.CreateTitle());
+        var other = _fixture.CreateStoredEpisode(podcast, e => e.Title = otherTitle);
         var sut = new FoundEpisodeFilter(NullLogger<FoundEpisodeFilter>.Instance);
 
         // Act
@@ -54,5 +57,23 @@ public class FoundEpisodeFilterRules
 
         // Assert
         reduced.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Title specimens are drawn from one small word list, and the include pattern is an unanchored
+    /// case-insensitive regex. A one-word token such as "Story" also matches "History".
+    /// </summary>
+    private string TitleThatDoesNotMatch(Regex include)
+    {
+        for (var attempt = 0; attempt < 32; attempt++)
+        {
+            var title = _fixture.CreateTitle();
+            if (!include.IsMatch(title))
+            {
+                return title;
+            }
+        }
+
+        throw new InvalidOperationException("Could not draw a title specimen outside the include pattern.");
     }
 }

@@ -59,7 +59,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = null! };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = null! };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -80,7 +80,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri(string.Empty, UriKind.RelativeOrAbsolute) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri(string.Empty, UriKind.RelativeOrAbsolute) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -101,7 +101,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri("   ", UriKind.RelativeOrAbsolute) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri("   ", UriKind.RelativeOrAbsolute) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -122,7 +122,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest
+        var model = new global::Api.Dtos.SubmitUrlRequest
         {
             Url = new Uri($"https://example.com/{_fixture.CreateGuid():N}")
         };
@@ -133,7 +133,10 @@ public class SubmitUrlControllerBlankUrlTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
-            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.Is<SubmitUrlRequest>(mapped => mapped.Url == model.Url),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -145,7 +148,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest
+        var model = new global::Api.Dtos.SubmitUrlRequest
         {
             Url = new Uri($"http://example.com/{_fixture.CreateGuid():N}")
         };
@@ -156,7 +159,10 @@ public class SubmitUrlControllerBlankUrlTests
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
-            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.Is<SubmitUrlRequest>(mapped => mapped.Url == model.Url),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -168,7 +174,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest
+        var model = new global::Api.Dtos.SubmitUrlRequest
         {
             Url = new Uri($"HTTP://example.com/{_fixture.CreateGuid():N}")
         };
@@ -180,7 +186,10 @@ public class SubmitUrlControllerBlankUrlTests
         model.Url.Scheme.Should().Be(Uri.UriSchemeHttp);
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         _mocker.GetMock<IPostSubmitUrlHandler>().Verify(
-            h => h.Handle(It.IsAny<IHandlerContext>(), model, It.IsAny<CancellationToken>()),
+            h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.Is<SubmitUrlRequest>(mapped => mapped.Url == model.Url),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -192,7 +201,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri("/foo", UriKind.RelativeOrAbsolute) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri("/foo", UriKind.RelativeOrAbsolute) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -213,7 +222,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri("not-a-uri", UriKind.RelativeOrAbsolute) };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri("not-a-uri", UriKind.RelativeOrAbsolute) };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -234,7 +243,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri("ftp://example.com/episode") };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri("ftp://example.com/episode") };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);
@@ -255,7 +264,7 @@ public class SubmitUrlControllerBlankUrlTests
         // Arrange
         var sut = _mocker.CreateInstance<SubmitUrlController>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
-        var model = new SubmitUrlRequest { Url = new Uri("file:///tmp/episode") };
+        var model = new global::Api.Dtos.SubmitUrlRequest { Url = new Uri("file:///tmp/episode") };
 
         // Act
         var result = await sut.Post(req.Object, req.Object.FunctionContext, model, CancellationToken.None);

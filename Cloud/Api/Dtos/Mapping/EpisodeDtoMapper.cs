@@ -10,6 +10,7 @@ using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using DomainSubject = RedditPodcastPoster.Models.Subjects.Subject;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Dtos.Mapping;
@@ -48,9 +49,7 @@ public class EpisodeDtoMapper(
             ? null
             : new Regex(podcast.TitleRegex, RegexOptions.IgnoreCase);
 
-        var descriptionRegex = string.IsNullOrWhiteSpace(podcast.DescriptionRegex)
-            ? null
-            : new Regex(podcast.DescriptionRegex, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var descriptionRegex = DescriptionRegexTokens.Create(podcast.DescriptionRegex, episode.Title, podcast.Name);
 
         EpisodeServicePresence.NormalizeCatalog(episode);
         var dto = new EpisodeDto
@@ -71,20 +70,20 @@ public class EpisodeDtoMapper(
             SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,
             AppleId = EpisodeServicePresence.AppleEpisodeId(episode),
             YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode) ?? string.Empty,
-            Ids = episode.Ids,
-            Urls = EpisodeServicePresence.ToServiceUrls(episode),
-            Images = EpisodeServicePresence.ToEpisodeImages(episode),
-            Services = episode.Services,
+            Ids = episode.Ids.ToDto(),
+            Urls = EpisodeServicePresence.ToServiceUrls(episode).ToDto(),
+            Images = EpisodeServicePresence.ToEpisodeImages(episode).ToDto(),
+            Services = episode.Services.ToDtos(),
             Subjects = episode.Subjects,
             RemovedSubjects = episode.RemovedSubjects,
-            Matches = episode.Matches,
+            Matches = episode.Matches.ToDtos() ?? [],
             SearchTerms = episode.SearchTerms,
             HashTag = episode.HashTag,
             YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
             ApplePodcast = podcast.AppleId != null,
-            ReleaseAuthority = podcast.ReleaseAuthority,
-            PrimaryPostService = podcast.PrimaryPostService,
+            ReleaseAuthority = podcast.ReleaseAuthority.ToDto(),
+            PrimaryPostService = podcast.PrimaryPostService.ToDto(),
             Image =
                 EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
             Language = episode.Language,
@@ -121,13 +120,7 @@ public class EpisodeDtoMapper(
     {
         return new EpisodeDto.PersonMatch
         {
-            Person = new PersonDto
-            {
-                Id = match.Person.Id,
-                Name = match.Person.Name,
-                TwitterHandle = match.Person.TwitterHandle,
-                BlueskyHandle = match.Person.BlueskyHandle
-            },
+            Person = match.Person.ToDto(),
             MatchResults = match.MatchResults
                 .Select(x => new EpisodeDto.MatchResult { Term = x.Term, Matches = x.Matches })
                 .ToArray()

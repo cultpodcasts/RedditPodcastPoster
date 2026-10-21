@@ -32,19 +32,42 @@ public class YouTubeChannelVideosService(
             return new GetChannelVideosResponse(cachedVideos.Channel, cachedVideos.PlaylistItems);
         }
 
-        var channel =
-            await youTubeChannelService.GetChannel(channelId, indexingContext, true, true, withContentDetails: true);
+        var lookup =
+            await youTubeChannelService.GetChannelLookup(channelId, indexingContext, true, true, withContentDetails: true);
+        var channel = lookup.Channel;
         if (channel == null)
         {
-            logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.",
-                nameof(GetChannelVideos), channelId.ChannelId);
-            return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.NotFound);
+            switch (lookup.Outcome)
+            {
+                case YouTubeChannelLookupOutcome.Skipped:
+                    // YouTube is bypassed this pass and the channel is not in the pass cache: nothing was looked up.
+                    logger.LogDebug(
+                        "{GetChannelVideosName}: skipped for channel-id '{ChannelId}' as YouTube is bypassed this pass.",
+                        nameof(GetChannelVideos), channelId.ChannelId);
+                    return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.Skipped);
+                case YouTubeChannelLookupOutcome.QuotaExhausted:
+                    // The tolerant channel service already logged the error and set YouTubeQuotaExhausted.
+                    return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.QuotaExhausted);
+                case YouTubeChannelLookupOutcome.NotFound:
+                    logger.LogError("{GetChannelVideosName}: Unable to find channel with id '{ChannelIdChannelId}'.",
+                        nameof(GetChannelVideos), channelId.ChannelId);
+                    return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.NotFound);
+                default:
+                    logger.LogError("{GetChannelVideosName}: Failed to look up channel with id '{ChannelIdChannelId}' (outcome '{Outcome}').",
+                        nameof(GetChannelVideos), channelId.ChannelId, lookup.Outcome);
+                    return new GetChannelVideosResponse(null, null, YouTubePlaylistFetchFailure.ApiError);
+            }
         }
 
         var uploadsChannelId = channel.ContentDetails.RelatedPlaylists.Uploads;
         var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
             new YouTubePlaylistId(uploadsChannelId, YouTubePlaylistIdSource.ChannelUploads, channelId.ChannelId),
             indexingContext, expensivePlaylist: expensivePlaylist);
+        if (response.Failure == YouTubePlaylistFetchFailure.Skipped)
+        {
+            return new GetChannelVideosResponse(channel, null, YouTubePlaylistFetchFailure.Skipped);
+        }
+
         if (response.Result != null)
         {
             var playlistItems = response.Result.ToList();

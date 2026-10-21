@@ -13,7 +13,7 @@ public class PostSubmitUrlHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        SubmitUrlRequest submitUrlModel,
+        Api.Models.SubmitUrlRequest submitUrlModel,
         CancellationToken c)
     {
         var result = await submitUrlService.SubmitAsync(submitUrlModel, c);

@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
+using RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelVideos;
@@ -34,11 +36,17 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<ITolerantYouTubeVideoService, TolerantYouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
+            .AddScoped<IYouTubeSearchListExecutor, YouTubeSearchListExecutor>()
+            .AddScoped<IYouTubeChannelReleaseBandSearch, YouTubeChannelReleaseBandSearch>()
             .AddScoped<IYouTubeChannelService, YouTubeChannelService>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>
                 (IPodcastPassApiCacheSource)sp.GetRequiredService<IYouTubeChannelService>())
             .AddScoped<ITolerantYouTubeChannelService, TolerantYouTubeChannelService>()
-            .AddScoped<IYouTubeSearchResultFinder, YouTubeSearchResultFinder>()
+            .AddScoped<YouTubeSearchResultFinder>()
+            .AddScoped<IYouTubeSearchResultFinder, PreferringYouTubeSearchResultFinder>()
+            .AddScoped<YouTubeCandidatePreferenceApplier>()
+            .AddScoped<IYouTubeCandidatePreference, YouTubeCandidatePreference>()
+            .AddSingleton<IYouTubeThumbnailMotionDetector, YouTubeThumbnailMotionDetector>()
             .AddScoped<IYouTubeChannelResolver, YouTubeChannelResolver>()
             .AddScoped<ITolerantYouTubeChannelResolver, TolerantYouTubeChannelResolver>()
             .AddScoped<IYouTubeSearcher, YouTubeSearcher>()
@@ -62,10 +70,26 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICachedTolerantYouTubePlaylistService, CachedTolerantYouTubePlaylistService>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>
                 (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedTolerantYouTubePlaylistService>())
-            .AddScoped<IPlaylistItemFinder, PlaylistItemFinder>()
+            .AddScoped<PlaylistItemFinder>()
+            .AddScoped<IPlaylistItemFinder, PreferringPlaylistItemFinder>()
             .AddSingleton<IYouTubeChannelVideoRetrievalPolicy, YouTubeChannelVideoRetrievalPolicy>()
             .BindConfiguration<YouTubeSettings>("youtube")
-            .BindConfiguration<YouTubeChannelOptions>("youtubeChannel");
+            .BindConfiguration<YouTubeChannelOptions>("youtubeChannel")
+            .BindConfiguration<YouTubeCandidatePreferenceOptions>(YouTubeCandidatePreferenceOptions.SectionName)
+            .AddSingleton<IValidateOptions<YouTubeCandidatePreferenceOptions>, YouTubeCandidatePreferenceOptionsValidator>();
+
+        serviceCollection.AddOptions<YouTubeCandidatePreferenceOptions>().ValidateOnStart();
+        serviceCollection.AddHttpClient(
+                YouTubeThumbnailMotionDetector.HttpClientName,
+                (sp, client) => YouTubeThumbnailMotionDetector.ApplyClientLimits(
+                    client,
+                    sp.GetRequiredService<IOptions<YouTubeCandidatePreferenceOptions>>().Value))
+            .ConfigurePrimaryHttpMessageHandler(sp => YouTubeThumbnailMotionDetector.CreateThumbnailHandler(
+                sp.GetRequiredService<IOptions<YouTubeCandidatePreferenceOptions>>().Value));
+
+        serviceCollection.AddHttpClient(
+            YouTubeThumbnailResolver.HttpClientName,
+            client => client.Timeout = YouTubeThumbnailResolver.ProbeTimeout);
 
         if (usage == ApplicationUsage.Indexer)
         {

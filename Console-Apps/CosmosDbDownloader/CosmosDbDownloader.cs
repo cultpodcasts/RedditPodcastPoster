@@ -531,6 +531,7 @@ public class CosmosDbDownloader(
             await lookupRepository.GetYouTubeQuotaReport(),
             await lookupRepository.GetYouTubeIndexerKeyState(),
             await lookupRepository.GetYouTubeQuotaUsageState(),
+            await lookupRepository.GetYouTubeThumbnailRecheckCursor(),
         ];
 
         return candidates.OfType<CosmosSelector>().ToList();

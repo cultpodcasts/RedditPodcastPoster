@@ -65,6 +65,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup/RedditPodcastPoster.EpisodeLookup.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/RedditPodcastPoster.Episodes.TestSupport.csproj" />
 
@@ -154,6 +155,8 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.TheTvdb.Tests/RedditPodcastPoster.TheTvdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/RedditPodcastPoster.EpisodeLookup.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.InternetArchive.Tests/RedditPodcastPoster.InternetArchive.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Persistence.Tests/RedditPodcastPoster.Persistence.Tests.csproj" />
@@ -161,6 +164,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.People.Tests/RedditPodcastPoster.People.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.ContentPublisher.Tests/RedditPodcastPoster.ContentPublisher.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Configuration.Tests/RedditPodcastPoster.Configuration.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Netflix.Tests/RedditPodcastPoster.Netflix.Tests.csproj" />
 
@@ -174,6 +178,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Apple.Tests/RedditPodcastPoster.PodcastServices.Apple.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify.Tests/RedditPodcastPoster.PodcastServices.Spotify.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.CatalogueContract.Tests/RedditPodcastPoster.PodcastServices.CatalogueContract.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.PodcastServices.YouTube.Tests/RedditPodcastPoster.PodcastServices.YouTube.Tests.csproj" />
 
@@ -214,6 +219,7 @@
     <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />
 
     <Project Path="Console-Apps/AddSubjectToSearchMatches/AddSubjectToSearchMatches.csproj" />
+    <Project Path="Console-Apps/AddSubjectToSearchMatches.Tests/AddSubjectToSearchMatches.Tests.csproj" />
 
     <Project Path="Console-Apps/AddYouTubeChannelAsPodcast/AddYouTubeChannelAsPodcast.csproj" />
 
@@ -236,6 +242,7 @@
     <Project Path="Console-Apps/CreateSearchIndex/CreateSearchIndex.csproj" />
 
     <Project Path="Console-Apps/CultPodcasts.DatabasePublisher/CultPodcasts.DatabasePublisher.csproj" />
+    <Project Path="Console-Apps/CultPodcasts.DatabasePublisher.Tests/CultPodcasts.DatabasePublisher.Tests.csproj" />
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
 
@@ -274,6 +281,7 @@
     <Project Path="Console-Apps/PublishR2/PublishR2.csproj" />
 
     <Project Path="Console-Apps/RemoveEpisodes/RemoveEpisodes.csproj" />
+    <Project Path="Console-Apps/RemoveEpisodes.Tests/RemoveEpisodes.Tests.csproj" />
 
     <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
 

@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +17,11 @@ using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -31,7 +37,7 @@ builder.Configuration
 builder.Services
     .AddSingleton<Processor>()
     .AddLogging()
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddAppleServices()
     .AddYouTubeServices(ApplicationUsage.Cli)
@@ -48,25 +54,10 @@ using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<Request>(args)
     .MapResult(async request => await Run(request),
-        errs =>
-        {
-            if (errs.Any(x => x is VersionRequestedError))
-            {
-                VersionInfo.PrintVersion();
-                return Task.FromResult(0);
-            }
-
-            return Task.FromResult(-1);
-        });
+        errs => Task.FromResult(-1));
 
 async Task<int> Run(Request request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var processor = host.Services.GetService<Processor>()!;
     await processor.Run(request);
     return 0;

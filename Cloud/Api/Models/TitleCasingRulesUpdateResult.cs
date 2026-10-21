@@ -1,5 +1,3 @@
-using RedditPodcastPoster.Models.TitleCasing;
-
 namespace Api.Models;
 
 public enum TitleCasingRulesUpdateStatus
@@ -11,5 +9,4 @@ public enum TitleCasingRulesUpdateStatus
 
 public record TitleCasingRulesUpdateResult(
     TitleCasingRulesUpdateStatus Status,
-    TitleCasingRulesDocument? Document = null,
     string? Error = null);

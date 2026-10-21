@@ -104,7 +104,7 @@ For `--help` on CommandLineParser apps, pass `-- --help` after `dotnet run` (or 
 | `-y, --skip-youtube-url-enrichment` | Skip YouTube URL resolving |
 | `-a, --acknowledge-expensive-queries` | Allow expensive queries |
 | `-m, --match-other-services` | Match other services |
-| `-d, --dry-run` | Do not commit to database |
+| `-d, --dry-run` | Run matching, but do not write the database or the search index |
 | `-i, --no-index` | Do not reindex search index |
 | `-l, --is-internet-archive-playlist` | URL is an Internet Archive playlist |
 | `-c, --create-podcast` | Create new podcast |
@@ -173,7 +173,7 @@ MigrateConfig launch-settings Cloud/Indexer/Properties/launchSettings.json Index
 
 ### RemoveEpisodes
 
-**Purpose:** Mark matching search episodes as removed, or restore from a prior remove log. `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
+**Purpose:** Mark matching search episodes as removed (the search is limited to `Episode` documents; the index also holds TV show episodes, films and news reports, which are left alone), restore from a prior remove log, or undo an accidental podcast removal (`restore-podcast`). `restore` folds former `UnremoveEpisodes` via `RestoreRequest`/`RestoreProcessor`; remove uses `RemoveRequest`/`Processor`.
 
 **Run:** `dotnet run --project Console-Apps/RemoveEpisodes --` · PATH: `RemoveEpisodes`
 
@@ -199,6 +199,33 @@ RemoveEpisodes "some query" 10
 RemoveEpisodes remove "some query" --non-dry-run
 RemoveEpisodes restore removed-episodes-log.txt
 ```
+
+#### `restore-podcast` (undo an accidental podcast removal)
+
+Removing a podcast in the UI/API (`PodcastUpdateService`, `removed: true`) is a **soft delete**: it sets
+`podcast.removed = true`, stamps `parentRemoved = true` on every episode, deletes every episode's Azure Search
+document and deletes every episode's short-URL (Cloudflare KV) key. It does **not** change `episode.removed`.
+
+`restore-podcast` reverses that: `podcast.removed = false`, clears `parentRemoved` on its episodes, re-indexes the
+episodes that are not themselves `removed` (the indexer applies `EpisodeSearchIndexEligibility`), and re-writes
+their short-URL keys (existing keys are left alone). Episodes removed before or independently of the podcast stay
+removed. Dry run by default; idempotent, so re-run after a partial failure.
+
+| Option | Description |
+|---|---|
+| `-i`, `--podcast-id` | Podcast id(s), comma separated |
+| `-p`, `--podcast-name` | Exact podcast name(s), `\|` separated; each must match exactly one podcast (else exit 2) |
+| `--skip-shortner` | Do not re-create short-URL keys |
+| `-r`, `--non-dry-run` | Persist (Cosmos, search index, short URLs) |
+
+```bash
+RemoveEpisodes restore-podcast --podcast-name "Some Podcast"            # dry run: lists podcast + episode ids
+RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
+```
+
+**Exit codes / recovery:** `0` success · `1` Cosmos restored but a side effect (search re-index or short-URL write) failed for at least one podcast, or Ctrl+C mid-apply. Re-run the same command; it is idempotent: Cosmos saves are skipped once restored, search is re-indexed again and only missing short-URL keys are written (or `KVWriter --episode-guid <id>` for a single short URL) · `2` no/unknown/ambiguous target, nothing written.
+
+`restore-podcast --non-dry-run` needs the same secrets as `KVWriter` (Cosmos, search, Cloudflare `shortner`/KV) via user-secrets or `RedditPodcastPoster_` env vars.
 
 ---
 
@@ -408,7 +435,7 @@ Index --reindex-search -n "<PodcastName>"
 
 ### AddSubjectToSearchMatches
 
-**Purpose:** Add a subject to episodes matching a search query.
+**Purpose:** Add a subject to episodes matching a search query (the search is limited to `Episode` documents; the index also holds TV show episodes, films and news reports, which are left alone).
 
 **Run:** `dotnet run --project Console-Apps/AddSubjectToSearchMatches --` · PATH: `AddSubjectToSearchMatches`
 
@@ -515,9 +542,96 @@ CosmosDbDownloader --skip episodes,discovery,pushsubscriptions
 
 ### CultPodcasts.DatabasePublisher
 
-**Purpose:** Publish a public-facing podcast/episode JSON dump from Cosmos. No CLI flags.
+**Purpose:** Publish the public JSON database from Cosmos into the current directory, one file per live item:
+
+| Kind | File key | Content |
+|------|----------|---------|
+| Podcast | `{slug}` | podcast with its episodes |
+| TV show | `tvshow-{slug}` | show with its episodes |
+| News organisation | `news-{slug}` | organisation with its reports |
+| Film | `film-{slug}` | the film itself (no children) |
+
+Removed items and removed episodes or reports are not published. A show, organisation or podcast with no episodes or reports at all gets no file; one whose episodes or reports are all flagged removed still gets a file with an empty list, exactly as podcasts always have (the check counts rows, removed or not). The podcast file shape and bytes are unchanged (pinned by a golden rule test). Children of TV shows and news organisations are listed newest first with ties broken by id, so the files do not change between runs; podcast episodes keep their existing ordering.
+
+The TV show, news and film files differ from the podcast file on purpose:
+
+- `release` is always a string that keeps the catalogue precision: `2019`, `2019-05-01` or `2019-05-01T12:00:00Z`. Podcast episodes always carry a full date-time.
+- `urls` is a map of catalogue service key to url for every service the item has (`spotify`, `apple`, `youtube`, and the streaming keys such as `bbcIplayer`, `bbcSounds`, `internetArchive`, `netflix`). Podcast episodes keep their fixed object (`spotify`, `apple`, `youtube`, `internetArchive`, `bbc`), where BBC iPlayer and BBC Sounds share the single `bbc` key.
+
+**A release keeps the text of the previous publish when it is the same instant.** A date-time is written with a trailing `Z` when its value is UTC and without one when it is not, and the same release has been stored both ways over the life of the catalogue, so formatting every release afresh would rewrite thousands of unchanged lines. A file therefore only changes for a real change:
+
+- **Kept:** an episode (or report) that is in the previous file with the same id, where the previous `release` and the new one are both full date-times (`yyyy-MM-ddTHH:mm:ss`, optionally with up to seven fractional digits and a `Z` or `+hh:mm` offset) for the same UTC instant, keeps the previous text exactly: `2026-08-17T00:00:00` stays `2026-08-17T00:00:00`, and `2026-08-17T10:30:15Z` stays as it is. Instants are compared as UTC, with text that has no zone read as UTC, so an offset or a different number of fractional digits is the same instant too.
+- **Not kept:** a different instant, an episode that is new to the file, or a previous text that is not a full date-time in that shape (a year, a bare date such as `2019-05-01`, words, an impossible date, a number, null) is written as it would be without a baseline: for a podcast episode the instant with a trailing `Z`, for a TV show episode or news report the catalogue's own precision. A year or a bare date is never held against a date-time, so a catalogue release that gains a time of day is published with it.
+- **The baseline:** the previous publish's file with the same file key and the same id or, for a file that is moved first (a rename, or a podcast that became a TV show or news organisation), the file it is moved from. A file with a different id is not used, and a new file has no baseline. This applies to podcast episodes, TV show episodes and news reports; a film is a single item with no previous text of its own.
+- **Reading:** the texts are read once, together with the baseline files at the start of the run, and are only ever read. A file that cannot be read at all (locked, no access) stops the run before anything is planned or changed, like any unreadable file in the folder (exit code 2); a file that is not JSON of the expected shape has no id, so the plan treats it as an unexplained removal (see the list below) that must be accepted knowingly.
+
+**The output folder is the baseline.** Run the publisher in the folder that holds the previous publish (the PublicDatabase checkout) and do not clear it first. Before touching any file it reads every top-level `*.json` there, reads the catalogue once, checks every file key and id, and plans the whole run:
+
+- a file whose item is still published under the same key and id is replaced in place;
+- a file whose item moved to another file name is **moved** to that name first (`File.Move`, no git needed) and then overwritten with the new content: a renamed podcast, a podcast transferred to a TV show (`tvshow-{slug}`) or news organisation (`news-{slug}`) with the same id, and a podcast whose only episode became a film (`film-{slug}`, found because the film takes the episode's id, which is listed in the old file). Each move is logged and listed in the migration manifest (below). A podcast whose episodes all became several films has its file deleted and the films created, with no move; a move never overwrites an existing file. A podcast file where only some of its episodes became films is not treated as migrated: the others are not accounted for, so it is unexplained (the message says how many) until accepted;
+- a file whose item is flagged removed is deleted;
+- any other file that would stop being published is **unexplained**: the item is gone from Cosmos (including a podcast file where only some episodes became films), still exists but has nothing to publish, has been replaced by another item under the same key (so two items swapping keys is unexplained too), or the file has no readable id. If there is any, nothing is written, moved or deleted, the list is printed and the run exits with 1. File keys are compared exactly, so a key that differs from the existing file only by case is a delete and a create;
+- new files are created; only planned files are ever created, replaced, moved or deleted.
+
+**Nothing is touched until all content is built.** After planning, every new file is first built from Cosmos into a staged `{key}.json.tmp` next to its target (same folder, so the final step is a rename), and the folder is checked to be unchanged since it was read (the same set of `*.json` files, each with the same length and last-write time; contents are not hashed). If `--migrations-out` was given, the manifest is written at this point too. Only then are the deletions and moves applied and each staged file swapped in. A Cosmos failure, an unwritable manifest path, or a folder that changed meanwhile, therefore leaves the folder exactly as it was (staged files are removed again; exit 3, or 2 for the changed folder). If the process dies while applying, the folder may be partly updated and the unswapped `*.json.tmp` files remain: the next run refuses (exit 2) and names them; check `git status`, then run again with `--discard-staging`, and the plan is made again from whatever the folder now holds. Repeat only the `--accept-removal` values whose files still exist: a file the first run already deleted is gone, so repeating its value blocks the run as an unused acceptance. Keep the first run's migration manifest (use a different `--migrations-out` path for the re-run): the re-run only knows what is left to do and writes the manifest of that. One window: a podcast whose only episode became a film is moved to the film's name before the film is swapped in, and that file still carries the podcast's id until then; if a crash lands exactly there, the next run reports it as replaced by another item, and `--accept-removal film-{slug}` resolves it.
+
+Git only sees the final tree and pairs an old and a new file by content similarity, however the new file got its name, so a move and a delete plus create are paired identically and there is no guarantee either way: a large change in content is recorded as a delete and an add. The move, the log and the manifest exist so the publisher can state exactly which file became which.
+
+**Migration manifest.** With `--migrations-out <path>` a successful publish writes `{ "version": 1, "migrations": [ { "id", "newId", "oldFile", "newFile", "kind", "reason" } ] }` there (indented, sorted by old then new file; an empty list when there were none; written after the content is staged and before the folder is changed, so it states what the plan intended even if applying then fails, and an unwritable path fails the run with the folder untouched; never when the plan is blocked). `oldFile` and `newFile` are file names relative to the output folder, `id` is the old file's item id, `newId` the new file's (a film has its episode's id), `kind` is the new kind (`podcast`, `tvShow`, `newsOrganisation`, `film`) and `reason` is `renamed` or `migrated`. It lists every renamed or migrated file the plan acted on, including one deleted rather than moved because its target already existed, and one entry per film for a podcast that became several. A tool can check each entry against `git diff --cached -M --name-status` after `git add -A` to report whether git saw a rename. The path must be outside the output folder (otherwise the run fails with exit 2 before changing anything), so the manifest can never be committed with the data; with no `--migrations-out` none is written. The check resolves symbolic links, junctions, short names and case for the parts of the path that exist; it does not see a link created after the check or a hard link to a file.
+
+| Option | Description |
+|--------|-------------|
+| `--initial` | There is no previous publish: the output folder holds no published files. Required for a first publish; an empty folder without it is refused (exit 2), and `--initial` with files present is refused too. |
+| `--accept-removal <file key or id>` | Repeatable. Accept one unexplained removal after checking it: that file is deleted and the run continues. An accepted value that matches no unexplained removal blocks the run, so a stale flag is not ignored. |
+| `--discard-staging` | Delete the `*.json.tmp` files an interrupted run left in the output folder before running. Without it, their presence refuses the run (exit 2). |
+| `--migrations-out <path>` | Write the migration manifest (above) to this path before the folder is changed. Must be outside the output folder. |
+| `--use-v2` | Ignored (legacy). |
+
+Exit codes: `0` published; `1` the data cannot be published consistently (a file-key or id problem, or unexplained removals, in which case nothing was changed); `2` the arguments or the output folder are unusable (a missing folder, one wrongly empty or populated, a `--migrations-out` path inside it), or staged files from an interrupted run are present (nothing was changed); `3` an unexpected failure (for example Cosmos or the disk): the folder is unchanged unless the message says it may be partly updated, in which case run `git status` and then `--discard-staging`.
+
+The check works on whole files by key and id (and on episode ids to recognise a podcast that became a film). It does not compare file contents, so an episode that disappears from inside a file that is still published is not detected. Two live films with the same title would share `film-{slug}.json`; the run fails naming both films, and one must be given a different stored `fileKey` in Cosmos (the policy for choosing one is tracked in cultpodcasts/RedditPodcastPoster#1041).
 
 **Run:** `dotnet run --project Console-Apps/CultPodcasts.DatabasePublisher` · PATH: `CultPodcasts.DatabasePublisher`
+
+#### `update.ps1`: publishing into the PublicDatabase repo
+
+`CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1` is the script that publishes the public database into the PublicDatabase repo (it replaced the old script that deleted every `*.json` first; the publisher now needs those files as its baseline). **The copy in this repo is the source of truth.** The script works on the folder it sits in, so it runs from a copy in the root of the PublicDatabase checkout:
+
+```powershell
+Copy-Item <RedditPodcastPoster>\Console-Apps\CultPodcasts.DatabasePublisher\PublicDatabaseScripts\update.ps1 <PublicDatabase>\update.ps1
+```
+
+**The PublicDatabase copy must be refreshed by copying again after every change to the script here.** On every run the script compares its own content (line endings ignored, since the repo stores LF and a Windows checkout has CRLF) with the script at the checked-out `HEAD` of the `-SourceRepo` clone and warns when they differ, so a stale copy is spotted without relying on anyone bumping a number; pull the clone first to compare with the latest `main`. The check only warns, and says so when it cannot compare (no clone, or no script at its `HEAD`). The `$ScriptVersion` line is a human-readable label printed at the start (`update.ps1 version X`); bump it with each change. Edit the script here, never in PublicDatabase.
+
+The script refuses to run from anywhere but the root of a git checkout that is not inside the `-SourceRepo` clone, so running the source copy here, or a copy in a sub-folder, stops at once with a message pointing back to this section.
+
+Before running it, publish the exe from a RedditPodcastPoster checkout that has the change you want: `pwsh scripts/publish-console-apps.ps1 -App CultPodcasts.DatabasePublisher` (to `artifacts\tools`). The script finds the exe and the clone through `-SourceRepo` and refuses an exe built before `--migrations-out` existed, by looking its commit up in that clone; `-PublisherExe` points it at an exe somewhere else, such as a temporary publish of a branch. The default `-SourceRepo` is a per-machine convention, not a requirement: with the checkout at `<repos>\PublicDatabase` it is `<repos>\cultpodcasts\RedditPodcastPoster` (a `cultpodcasts` folder beside the PublicDatabase checkout that holds the clone). Pass `-SourceRepo` when the clone is elsewhere. Relative `-SourceRepo`, `-WorkFolder` and `-PublisherExe` values are resolved against PowerShell's current location.
+
+The script is written for and tested with PowerShell (Windows PowerShell 5.1 and pwsh 7) on Windows. It builds paths with `Join-Path` and compares file keys case-sensitively, but pwsh on Linux or macOS is untested.
+
+```powershell
+.\update.ps1                                  # preview (the default): the repo is not touched
+.\update.ps1 -AcceptRemoval <id|file key>,... # after checking each unexplained removal the preview listed
+.\update.ps1 -Apply                           # copy the result in, stage, check renames, commit LOCALLY (never pushes)
+.\update.ps1 -Apply -CommitDate 2026-10-19    # commit message 'New episodes 19 October 2026' (default: today)
+#   ... review the commit (git show --stat HEAD); undo it with git reset --keep <sha printed by -Apply> ...
+.\update.ps1 -Push                            # push the reviewed commit(s), after the upstream checks below
+```
+
+A commit and a push never happen in the same run: a local commit can be undone, a push cannot. `-Apply` and `-Push` together are refused. `-SkipPush` (version 1.1) is gone, because `-Apply` no longer pushes; passing it fails at parameter binding rather than quietly meaning something else.
+
+```mermaid
+flowchart LR
+    P["update.ps1<br/>(preview)"] -->|review the lists,<br/>the work folder| A["update.ps1 -Apply<br/>(local commit)"]
+    A -->|review: git show --stat HEAD| R{happy?}
+    R -->|no| U["git reset --keep pre-sha<br/>(repo as before)"]
+    R -->|yes| S["update.ps1 -Push<br/>(checks, then push)"]
+```
+
+- **Preview** copies the repo's top-level `*.json` into a sibling working folder (`-WorkFolder`, default `..\PublicDatabase-publish`), runs the publisher there (it is the baseline, so nothing is deleted first) and prints what would be created, replaced, moved and deleted. It writes `PublicDatabase-publish.report.txt` (added, removed and changed files) and `PublicDatabase-publish.migrations.json` next to the working folder and, for each migration in the manifest (renamed, or moved to a TV show, news organisation or film), says whether git would see a rename or a delete plus an add. The repo's files, index and objects are not touched. A refused publish (exit 1) stops with the reason and a ready-to-paste `-AcceptRemoval` line per unexplained removal. If the checkout has modified or untracked top-level `*.json`, the preview warns: the added/removed/changed lists compare with the working-tree files but the git rename view compares with `HEAD`, so they can disagree (and `-Apply` would refuse).
+- **`-Apply`** first checks, before anything is copied: nothing staged and no modified or untracked top-level `*.json`, and a checked-out branch (not a detached `HEAD`). It records `HEAD` as the undo point. It then publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, and commits `New episodes <date>` (the date is `-CommitDate`, default today) **locally; it never pushes and does not contact the remote**. After the commit it shows `git show --stat HEAD` and the short stat against the undo point, and prints the review commands, the undo command (`git reset --keep <pre-sha>`, safe because nothing else was staged and the JSON was clean, and `--keep` refuses rather than discard unrelated edits such as `update.ps1` itself) and the next step (`.\update.ps1 -Push`). If the copy, the staging or the commit fails part way (an `index.lock`, no `user.name`/`user.email`, a hook), it prints how to put the repo back before rethrowing: `git reset --keep <pre-sha>` if a commit was made, otherwise `git restore --source=HEAD --staged --worktree -- ':(glob)*.json'` and `git clean -f -- ':(glob)*.json'`.
+- **`-Push`** is a separate run after the commit has been reviewed. It does not run the publisher or need the exe. It refuses if anything is staged or a top-level `*.json` is modified or untracked, if `HEAD` is detached, or if the branch has no upstream on a remote. It then runs `git fetch` and refuses if the branch is behind its upstream (printing how to undo the local publish, pull and apply again) or has nothing to push. It shows `git log --oneline @{u}..HEAD` and `git diff --stat -M @{u}..HEAD`, and warns about any commit to be pushed that is a merge, is not a `New episodes ...` commit, or changes anything other than top-level `*.json`; with any such warning it asks `Push anyway? [y/N]` and refuses unless the answer is yes. Finally it pushes explicitly with `git push <remote> HEAD:<upstream branch>` (never a bare `git push`).
+- It needs `git` and the publisher's own Cosmos access (the publisher reads its secrets as it always has).
 
 ## Ops utilities
 

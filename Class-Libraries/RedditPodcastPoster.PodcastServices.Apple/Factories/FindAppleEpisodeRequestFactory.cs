@@ -29,7 +29,8 @@ public static class FindAppleEpisodeRequestFactory
             episode.Description,
             podcast.DefaultSubject,
             podcast.IgnoredSubjects,
-            EpisodeLanguageResolution.ForEpisode(episode));
+            EpisodeLanguageResolution.ForEpisode(episode),
+            podcast.AppleEpisodeCount);
     }
 
     public static FindAppleEpisodeRequest Create(
@@ -60,7 +61,8 @@ public static class FindAppleEpisodeRequestFactory
             criteria.EpisodeDescription,
             podcast?.DefaultSubject,
             podcast?.IgnoredSubjects,
-            podcast?.Language);
+            podcast?.Language,
+            podcast?.AppleEpisodeCount ?? (applePodcast.EpisodeCount > 0 ? applePodcast.EpisodeCount : null));
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)

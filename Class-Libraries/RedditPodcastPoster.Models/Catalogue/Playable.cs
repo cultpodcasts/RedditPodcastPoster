@@ -91,7 +91,7 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// AT URI of the Bluesky post (<c>at://{did}/app.bsky.feed.post/{rkey}</c>).
     /// </summary>
     [JsonPropertyName("blueskyPost")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public string? BlueskyPost { get; set; }
 
     [JsonIgnore]
@@ -99,15 +99,15 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(44)]
+    [JsonPropertyOrder(45)]
     public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(45)]
+    [JsonPropertyOrder(46)]
     public string? Language { get; set; }
 
     [JsonPropertyName("subjects")]

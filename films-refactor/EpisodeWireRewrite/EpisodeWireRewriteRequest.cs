@@ -35,7 +35,4 @@ public sealed class EpisodeWireRewriteRequest
 
     [Option("ids", HelpText = "Comma-separated episode ids (optional; otherwise --all / --limit).")]
     public string? Ids { get; set; }
-
-    [Option("version", HelpText = "Print version and exit.")]
-    public bool Version { get; set; }
 }

@@ -17,7 +17,7 @@ public partial class SoundsPageMetaDataExtractor : ISoundsPageMetaDataExtractor
         document.Load(await pageResponse.Content.ReadAsStreamAsync());
 
         var scripts = document.DocumentNode.SelectNodes("//script");
-        var metaDataScript = scripts.FirstOrDefault(x =>
+        var metaDataScript = scripts?.FirstOrDefault(x =>
             x.Attributes["id"]?.Value == "__NEXT_DATA__" && x.Attributes["type"]?.Value == "application/json");
         if (metaDataScript != null)
         {

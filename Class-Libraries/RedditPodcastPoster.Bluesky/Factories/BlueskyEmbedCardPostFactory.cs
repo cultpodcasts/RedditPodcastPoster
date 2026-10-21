@@ -141,13 +141,16 @@ public class BlueskyEmbedCardPostFactory(
                 $"No url for podcast-id '${podcastEpisode.Podcast.Id}' and episode-id '${podcastEpisode.Episode.Id}'.");
         }
 
-        // Share-image shorts: card opens s.cultpodcasts.com; UrlService still drives thumb fetch.
+        // Share-image shorts: the card opens the short URL. PlatformUrl is the YouTube or Spotify
+        // URL the API card is built from. The short-url page is not fetched.
+        Uri? platformUrl = null;
         if (shortUrlOnly && shortUrl != null)
         {
+            platformUrl = url;
             url = shortUrl;
         }
 
         var tweet = postBuilder.ToString();
-        return new BlueskyEmbedCardPost(tweet, url, urlPodcastService);
+        return new BlueskyEmbedCardPost(tweet, url, urlPodcastService, platformUrl);
     }
 }

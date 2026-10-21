@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,11 @@ using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Configuration;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
@@ -35,7 +41,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<AddAudioPodcastProcessor>()
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddCatalogueServices()
     .AddPodcastServices()
@@ -59,25 +65,10 @@ using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<AddAudioPodcastRequest>(args)
     .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest),
-        errs =>
-        {
-            if (errs.Any(x => x is VersionRequestedError))
-            {
-                VersionInfo.PrintVersion();
-                return Task.FromResult(0);
-            }
-
-            return Task.FromResult(-1);
-        });
+        errs => Task.FromResult(-1));
 
 async Task<int> Run(AddAudioPodcastRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var podcastProcessor = host.Services.GetService<AddAudioPodcastProcessor>()!;
     await podcastProcessor.Create(request);
     return 0;

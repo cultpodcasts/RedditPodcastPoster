@@ -1,4 +1,3 @@
-using Api.Dtos;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
@@ -47,7 +46,8 @@ public class SubmitUrlPrepareService(
 
             return new SubmitUrlPrepareResult(
                 SubmitUrlPrepareStatus.Ok,
-                SubmitUrlPrepareResponse.From(url, meta, adapter.ResolveService(url)));
+                adapter.ResolveService(url),
+                meta);
         }
         catch (NotSupportedException ex)
         {

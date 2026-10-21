@@ -50,7 +50,7 @@ public class DiscoveryScheduleUpdateService(
             DiscoveryScheduleLogic.ResolveUkTimeZone(config.TimeZoneId);
 
             await lookupRepository.SaveDiscoveryScheduleConfig(config);
-            return new DiscoveryScheduleUpdateResult(DiscoveryScheduleUpdateStatus.Ok, config);
+            return new DiscoveryScheduleUpdateResult(DiscoveryScheduleUpdateStatus.Ok);
         }
         catch (Exception ex)
         {

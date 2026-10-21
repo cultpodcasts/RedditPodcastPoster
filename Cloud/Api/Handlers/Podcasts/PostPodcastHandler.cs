@@ -27,6 +27,8 @@ public class PostPodcastHandler(
                 ctx.Accepted(),
             PodcastUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = result.PodcastId }, c),
+            PodcastUpdateStatus.BadRequest =>
+                await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid podcast update"), c),
             PodcastUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update podcast"), c),
             _ => await LogAndFail(ctx, c)

@@ -15,7 +15,7 @@ public class PublicEpisodeDto
     public string PodcastName { get; set; } = "";
 
     [JsonPropertyName("title")]
-    [JsonPropertyOrder(30)]
+    [JsonPropertyOrder(31)]
     public string Title { get; set; } = "";
 
     [JsonPropertyName("description")]

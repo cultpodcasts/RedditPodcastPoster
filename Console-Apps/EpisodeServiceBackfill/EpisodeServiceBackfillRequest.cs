@@ -67,7 +67,4 @@ public class EpisodeServiceBackfillRequest
     [Option("since-ts", Required = false, Default = 0,
         HelpText = "SELECT * FROM c WHERE c._ts > this Unix-seconds value and classify NeedsBackfill. With --apply, patch those candidates (surgical services/ids). Does not overwrite episode-service-backfill-patches.jsonl.")]
     public long SinceTs { get; set; }
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

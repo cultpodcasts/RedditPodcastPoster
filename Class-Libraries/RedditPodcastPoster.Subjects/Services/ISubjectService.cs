@@ -13,5 +13,6 @@ public interface ISubjectService
         Episode episode,
         string[]? ignoredAssociatedSubjects = null,
         string[]? ignoredSubjects = null,
-        string? descriptionRegex = null);
+        string? descriptionRegex = null,
+        string? podcastName = null);
 }

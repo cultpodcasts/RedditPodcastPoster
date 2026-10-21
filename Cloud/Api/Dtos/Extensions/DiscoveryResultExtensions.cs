@@ -1,3 +1,4 @@
+using Api.Dtos.Mapping;
 using Api.Models;
 using RedditPodcastPoster.Discovery.Extensions;
 using RedditPodcastPoster.Models.Discovery;
@@ -24,7 +25,15 @@ public static class DiscoveryResultExtensions
                 .Select(x => x.ToDiscoveryResponseItem(podcastsLookup))
                 .OrderByDescending(x => x.AcceptProbability ?? -1f)
                 .ThenBy(x => x.Released),
-            HiddenCount = data.HiddenCount
+            HiddenCount = data.HiddenCount,
+            AwaitingReview = data.AwaitingReview
+                .Select(x => new DiscoveryAwaitingReviewDto
+                {
+                    Id = x.DocumentId,
+                    DiscoveryBegan = x.DiscoveryBegan,
+                    ResultCount = x.ResultCount
+                })
+                .ToArray()
         };
     }
 
@@ -33,7 +42,7 @@ public static class DiscoveryResultExtensions
         IDictionary<Guid, DiscoveryResponse.Item.MatchingPodcast> podcasts)
     {
         var result = new DiscoveryResponse.Item();
-        result.Urls = item.Urls;
+        result.Urls = item.Urls.ToDto();
         result.Released = item.Released;
         result.Description = item.Description;
         result.ShowDescription = item.ShowDescription;
@@ -59,6 +68,7 @@ public static class DiscoveryResultExtensions
         result.ContainsSyntheticMedia = item.ContainsSyntheticMedia;
         result.Guests = item.Guests;
         result.Subjects = item.Subjects;
+        result.SubjectMatches = item.SubjectMatches.ToDtos();
         result.Sources = item.Sources
             .Select(x =>
                 x.ConvertEnumByName<RedditPodcastPoster.Models.Discovery.DiscoverService, DiscoveryResponse.Item.DiscoverService>(true))

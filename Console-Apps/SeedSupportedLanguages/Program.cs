@@ -9,9 +9,8 @@ using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
 using SeedSupportedLanguages;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 
@@ -34,25 +33,10 @@ builder.Services
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<SeedSupportedLanguagesRequest>(args)
-    .MapResult(async request => await Run(request), errs =>
-    {
-        if (errs.Any(x => x is VersionRequestedError))
-        {
-            VersionInfo.PrintVersion();
-            return Task.FromResult(0);
-        }
-
-        return Task.FromResult(-1);
-    });
+    .MapResult(async request => await Run(request), errs => Task.FromResult(-1));
 
 async Task<int> Run(SeedSupportedLanguagesRequest request)
 {
-    if (request.Version)
-    {
-        VersionInfo.PrintVersion();
-        return 0;
-    }
-
     var urlSubmitter = host.Services.GetService<SeedSupportedLanguagesProcessor>()!;
     await urlSubmitter.Run(request);
     return 0;

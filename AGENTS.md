@@ -36,6 +36,14 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
 Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`docs/streaming-submit-orchestration.md`](docs/streaming-submit-orchestration.md). JSON copy under `docs/contracts/` must match Api fixture — `pwsh ./scripts/assert-streaming-submit-contract-copy.ps1`.
 
+## CQRS (HARD)
+
+A command changes state and returns an acknowledgement (empty 202) or a command outcome. It does not return the resource read model. A query returns the read model and changes nothing.
+
+After an acknowledgement, the client GETs the resource and binds that body. A write that returns the resource, or a query that changes state, is a CQRS breach. A command result carries status and command details, not the saved aggregate.
+
+Authoritative: [`Cloud/Api/architecture.md`](Cloud/Api/architecture.md) § CQRS.
+
 ## Episode language (HARD)
 
 `Episode.Language` **null = English**. Never read-time coalesce to `Podcast.Language`.
@@ -53,11 +61,32 @@ Before changing Spotify paginators, YouTube playlist walks, expensive-query flag
 `PlaylistOrder`, or `SkipExpensive*` gates, read:
 
 - [docs/catalogue-pagination.md](docs/catalogue-pagination.md) — Spotify + YouTube + Apple cold-start design, caps, flag lifecycle, test matrix
+- [Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md](Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md) — **clearing-house for every Spotify/Apple single-episode lookup** (index, submit, discovery, enrich). Any change must consider every use case and start with a business-rules test.
 - [docs/youtube-playlist-order.md](docs/youtube-playlist-order.md) — YouTube Arbitrary / curated depth
 
 Keep circuit-breaker and flag-flip **log message prefixes** stable (App Insights keys off them).
 Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` test whose
 `DisplayName` states the rule.
+
+## Domain conventions
+
+- Podcast `DescriptionRegex` is only compiled via `DescriptionRegexTokens.Create` (tokens `{episode-title}`, `{podcast-name}`, 2s match timeout); see [docs/description-regex-tokens.md](docs/description-regex-tokens.md).
+- YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
+- Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
+- Do not add Episode members for compact IDs. Use the existing Spotify, YouTube, and Apple IDs. Derive the Apple episode slug from the Apple URL.
+- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.
+- Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
+- Episode ID is globally unique. Azure Search indexing does not use soft-delete.
+- `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
+- Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
+- Cosmos settings bind to the `cosmosdb` configuration section.
+- `docs/migration` is historical. When persistence architecture changes, update `docs/migration/README.md` and `docs/post-migration/README.md`. Keep `docs/post-migration/cost-analysis.md` current and name the next step.
+- Do not change Reddit posting or Twitter posting while doing cost-reduction work unless that change is requested.
+- Indexer cost investigation must cover every activity in the orchestration, not only Indexer. Cost-probe logs are Warning or above. For the Indexer cost probe, log `updateMs` only.
+- Before judging an Azure Search indexer rerun, wait until the newly triggered run has started.
+- In duplicate-episode verification, do not modify backup files. A canonical episode must not be ignored or removed when any deleted duplicate had ignored or removed set to false.
+- Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
+- Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
 ## Cursor Cloud specific instructions
 

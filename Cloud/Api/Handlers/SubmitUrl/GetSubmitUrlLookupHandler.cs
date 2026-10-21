@@ -1,4 +1,5 @@
 using Microsoft.Azure.Functions.Worker.Http;
+using Api.Dtos.Extensions;
 using Api.Services.SubmitUrl;
 
 namespace Api.Handlers.SubmitUrl;
@@ -12,6 +13,6 @@ public class GetSubmitUrlLookupHandler(ISubmitUrlLookupService submitUrlLookupSe
         CancellationToken cancellationToken)
     {
         var body = await submitUrlLookupService.LookupAsync(url, cancellationToken);
-        return await ctx.Ok(body, cancellationToken);
+        return await ctx.Ok(body.ToDto(), cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Converters;
 
 
@@ -46,6 +47,20 @@ public class DiscoveryResult
     [JsonPropertyName("subjects")]
     [JsonPropertyOrder(100)]
     public IEnumerable<string> Subjects { get; set; } = [];
+
+    /// <summary>
+    /// Why each subject matched: the matched term (subject name, alias or associated subject)
+    /// and the field it matched in. Ordered like <see cref="Subjects"/>: grouped per subject
+    /// in the same sequence.
+    /// <para>
+    /// <c>null</c> means "not recorded": a historic document written before provenance existed
+    /// (key missing or null in Cosmos). An empty collection means provenance was recorded and
+    /// no subject had title/description evidence. Discovery always assigns a collection.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("subjectMatches")]
+    [JsonPropertyOrder(105)]
+    public IEnumerable<PlayableSubjectMatch>? SubjectMatches { get; set; }
 
     [JsonPropertyName("youTubeViews")]
     [JsonPropertyOrder(110)]

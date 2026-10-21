@@ -48,8 +48,123 @@ window; a backlog video added long after publication keeps added-at, which is th
 "new to this feed" signal. Playlist item requests therefore ask for `contentDetails` whenever
 `ReleasedSince` is set (same 1-unit page cost).
 
-MatchOtherServices / SubmitUrl narrows Spotify and Apple lookups with `ReleasedSince`
-derived from the authority release (YouTube → authority minus publishing delay).
+MatchOtherServices / SubmitUrl sets `ReleasedSince` from the authority release for catalogue-floor
+walks (Apple pages while the newest-first tail is still on or after that floor). A YouTube
+URL with no catalogue podcast still sets that floor from the default one-hour matching
+delay. Spotify episode matching does not read the floor. Name-search with no `ReleasedSince`
+does not paginate the show, even when the request carries an episode release: a single-episode
+match must not download the catalogue. An Apple published-before ceiling is a separate change.
+
+### Episode lookup planner (single-episode FindEpisode, Spotify + Apple)
+
+A single-episode lookup is planned by size and flow, and both platforms run the SAME plan through the shared
+`IEpisodeLookupPlanner` / `ICatalogueLookupExecutor` in the dedicated project `RedditPodcastPoster.EpisodeLookup`
+(read its [README](../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md): it serves every use case). The platform resolvers
+(`SpotifyEpisodeResolver`, `AppleEpisodeResolver`) are thin `ICatalogueCandidateSource` fetch/map adapters.
+
+**Inputs.** `CatalogueLookup.Flow` comes from `IndexingContext.LookupFlow`, which each caller sets through `EpisodeLookupUseCases.ForX`:
+
+| Caller | Flow |
+|--------|------|
+| `PodcastUpdater.Update` (Cloud indexer, Api `PodcastIndexService`, Index CLI) | `Index` |
+| URL submission / `SpotifyUrlCategoriser` / `AppleUrlCategoriser` / ImageUpdater (default) | `Submit` |
+| Discovery `SpotifyEnricher` / `AppleEnricher` | `Discovery` |
+| `EnrichExistingEpisodesFromPodcastServices` CLI | `Enrich` |
+
+Show size is the podcast document's per-platform count, never cross-used: `spotifyEpisodeCount` and
+`appleEpisodeCount` (nullable; historic records are null). Null means unknown. The executor then makes one cheap
+probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Total`; Apple makes one iTunes
+`/lookup?id=` call (`trackCount`, `AppleCatalogueLookup`). No long query is ever made just to count.
+
+**Strategy order** (declared in `EpisodeLookupChains`; fastest first; step 0, a known episode id, is fetched directly and a stale id falls through):
+
+| Show size | Flow | Release | Plan |
+|-----------|------|---------|------|
+| no show id (for that platform) | `Index` | any | nothing: no API call; logged `plan='none' stage='skipped-no-show'` (a search can't succeed and indexing never learns a show id from it) |
+| no show id | Submit / Discovery / Enrich | any | `title-search` |
+| known ≤ 200 (`FullShowReadMaxEpisodes`) | `Index` | any | `full-show-read` (unbudgeted) |
+| known ≤ 200 | Submit / Discovery / Enrich | any | `full-show-read` within `FullShowReadBudget` (20 s, reading + subject classification) → `title-search` (skipped when the full read completed) |
+| > 200 or unknown | `Index` | any | `newest-pages` until a page is older than min(window start, release − 14 d), cap `IndexMaxPages` (20); **no search** (1 page when neither date is known) |
+| > 200 or unknown | Submit / Discovery / Enrich | within `RecentWindow` (14 d) | `newest-pages` (1 page) → `title-search` → `bounded-walk` |
+| > 200 or unknown | Submit / Discovery / Enrich | older or undated | `title-search` → `bounded-walk` |
+
+- `bounded-walk`: newest pages down to the release band start (release − 14 d), capped per platform:
+  `SpotifyBoundedWalkPages` = 4 pages of 50, `AppleBoundedWalkPages` = 5 pages.
+  Then a clean `miss`. Oldest-first pages (Spotify "expensive" catalogues are read from the end using `Paging.Total`, so
+  this is rare) disable the date stop; the cap still applies.
+- `title-search`: Spotify one episode-title search (`Limit` 10, filtered to the show id or exact show name);
+  Apple one iTunes `/search?entity=podcastEpisode` (limit 50) filtered to `collectionId` = the show's Apple id.
+  Apple hits are hydrated through amp-api `GetEpisode` when possible.
+- Pages are read once per lookup and reused across steps, ids are tried once, and pages are pass-cached
+  (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`; both `IPodcastPassApiCacheSource`). Failed pages are not cached.
+- **Full-read budget** (non-Index): checked after each page is read and its new candidates are classified (a soft
+  cap: it can overshoot by one page, e.g. ~12 s for 50 YouTube-discovered Spotify candidates). When it is
+  spent the candidates already classified are still matched, then the plan moves to `title-search`, else a clean
+  `miss`. Logged at Information as `Catalogue episode lookup budget spent: platform=… flow=… stage='full-show-read'
+  budget-seconds=20 pages-read=…`. Real case: submission `4a7d8838` (apply 13 Oct 2026 22:57 BST) spent ~45 s per
+  platform per item on The Compendium (Spotify 185 / 4 pages, Apple 159 / 16 pages), twice, and the apply outlived
+  its client.
+- **Shared within one operation.** Show pages (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`) and candidate
+  subjects (`CatalogueSubjectClassifier`, keyed by candidate title/description/release and the subject options) are
+  scoped, so every lookup in one apply/submit batch or index pass reuses them. Subject classification (every subject's
+  terms over each candidate, only for YouTube-discovered episodes) was the dominant cost, not the page reads.
+- **Apple page size.** amp-api `/v1/catalog/us/podcasts/{id}/episodes` is called without `limit`, so Apple returns its
+  default of 10 episodes per page (159 episodes = 16 pages; RE3's 38 = 4). The endpoint accepts `limit` (third-party
+  reports: honoured up to 200, larger values silently capped at 200; `next` links carry the offset). Not changed here:
+  a larger page changes what `AppleBoundedWalkPages` (5 pages = 50 episodes) and `IndexMaxPages` mean and must be
+  verified live against amp-api first; tracked as a follow-up.
+- The `newest-pages` stage does not use the incoming title, so a YouTube title that differs from the audio title
+  still matches (Steve Hassan / Ben McKenzie, 12 Oct 2026: podcast `186529ba-…`, Spotify show `3fy5dEPagR2T8MPeS7ieAM`,
+  Apple `1603773245`, 255 episodes).
+
+**Timeout guard.** Every Spotify and Apple catalogue request goes through `ICatalogueRequestGuard`: a fixed
+10 s per request (`RequestTimeout`, the same in every flow). When it fires it logs
+`Catalogue request timeout guard fired: platform=… operation=… timeout-seconds=10` (Warning) and the request
+counts as missing (a clean miss, never an exception). Caller cancellation is still propagated.
+
+**Counts refresh.** Observed sizes are kept per scope in `ICatalogueShowEpisodeCounts`. Spotify records every
+`Paging.Total` seen; Apple records only the iTunes `trackCount` or a completed full read. `PodcastUpdater`
+writes them onto `spotifyEpisodeCount` / `appleEpisodeCount` when they change (no backfill job; historic
+records fill in as the indexer runs).
+
+**Logging.** One line per lookup: `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=…`.
+Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk` and `miss`
+(`CatalogueLookupExecutor.StageMiss`).
+
+**Options** (`episodeLookup` section, validated at startup with `ValidateOnStart`): `FullShowReadMaxEpisodes`
+(default 200, 0..1000), `FullShowReadMaxPages` (default 20, 1..100), `RecentWindow` (default 14 days, > 0), `IndexMaxPages` (default 20, 1..100),
+`SpotifyBoundedWalkPages` (4) and `AppleBoundedWalkPages` (5) (1..20), `RequestTimeout` (10 s, 1..120 s).
+
+**History.** PR #1017 (7 Oct 2026) replaced the Spotify show walk in `SpotifyEpisodeResolver` with a title search
+in every flow, including the indexer's enrichment; a recent episode whose YouTube title differed from its audio
+title (Ben McKenzie) then missed. The planner restores the newest-pages read for the Index flow and recent lookups
+while keeping old-episode lookups on large shows bounded.
+
+Each stage classifies subjects (`ICatalogueSubjectClassifier`, real implementation in Subjects) and
+matches through `ICatalogueEpisodeMatcher`: candidates inside `EpisodeReleaseTolerance.GetSubmitMatchBand`
+(release ±14 days) are tried first, others are the weaker second pass. Duration-aware matching is used
+when the lookup has a length and YouTube authority or YouTube enrichment; otherwise release-date matching.
+
+Rules: `EpisodeLookup.BusinessRules.Tests` (planner matrix, chains per use case, executor), `EpisodeLookup.Tests` (options, guard, counts),
+`Episodes.Tests/BusinessRules/Matching/Candidates/*` (matcher),
+`PodcastServices.CatalogueContract.Tests` (same cases and request profile through the real Spotify and Apple
+resolvers, including Ben McKenzie in Index and Submit flows), `Spotify.Tests/BusinessRules/Providers/SpotifyShowEpisodePagesRules.cs`,
+`Spotify.Tests/BusinessRules/Resolvers/SpotifyEpisodeResolverRules.cs`, `Apple.Tests/BusinessRules/Providers/AppleCatalogueLookupRules.cs`,
+`PodcastServices.Tests/BusinessRules/Indexing/IndexingEpisodeLookupFlowRules.cs`, `Discovery.Tests/BusinessRules/Enrichers/DiscoveryLookupFlowRules.cs`.
+The indexer's own episode-provider catalogue walks (sections 3 and 5) are unchanged.
+
+The other direction uses the same band. When a Spotify or Apple submit already knows a
+YouTube channel and Search.List is allowed, `YouTubeUrlCategoriser` searches that channel
+with both `publishedAfter` and `publishedBefore` (`YouTubeChannelReleaseBandSearch`: at most
+2 pages of 50; account-delegation forbidden throws `YouTubeChannelSearchForbiddenException`).
+Expected publish is the audio release plus the podcast's YouTube publishing delay. If
+`GetUploadsPlaylistReason` is set, or Search.List is account-delegation forbidden, the
+categoriser does not keep calling Search.List. It reads the stored playlist when one exists,
+otherwise the channel uploads playlist, sets the walk floor to the band start (a years-old
+forbidden channel still pages back to that date, and the categoriser logs the date), and drops
+items newer than the band end. The forbidden result is stored on
+`Podcast.YouTubeChannelSearchForbidden`. No channel means no YouTube search. Indexer playlist
+and uploads walks, and `GetLatestChannelVideoSnippets`, are unchanged.
 
 ### Expensive-query flags (podcast document)
 
@@ -116,7 +231,8 @@ Probe: releases monotonically non-increasing?
         └─ <2       → ExpensiveQueryFound = null  → flag unchanged; treat as reverse for walk
         │
         ▼
-ReleasedSince == null?  → PaginateAll (full catalogue; rare for indexer)
+ReleasedSince == null?  → known show id: PaginateAll (full catalogue; rare for indexer).
+                          Name-search: refuse. Single-episode match must not walk every episode.
 ReleasedSince set       → date-scoped strategy above
         │
         ▼
@@ -176,6 +292,10 @@ non-primary passes must not start catalogue walks even when discovery would.
 | Discovery persists flag | `.../SpotifyEpisodeRetrievalHandlerRules.cs` |
 | Enrichment side-effect | `.../Enrichers/SpotifyExpensiveQuerySideEffectRules.cs` |
 | Categoriser hard-skip (no ReleasedSince carve-out) | `.../Categorisers/SpotifyUrlCategoriserRules.cs` |
+| Single-episode title search (one page, one show, no catalogue walk) | `.../Search/SpotifyEpisodeTitleSearchRules.cs` |
+| In-band match before out-of-band on that page | `.../Resolvers/SpotifyEpisodeResolverRules.cs` |
+| Submit-match band width (recent and years-old) | `Episodes.Tests/BusinessRules/Matching/SubmitMatchBandRules.cs` |
+| Name-search refuses a catalogue walk when `ReleasedSince` is unset, even if the episode release is set | `.../Providers/SpotifyNameMatchCatalogueLimitRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 
 ---
@@ -280,6 +400,8 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
 | `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
+| Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |
+| Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 
 ---
@@ -384,8 +506,12 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
 | `Apple pagination circuit-breaker tripped:` | Error | `ApplePodcastService` via `AppleCataloguePagination` |
+| `Catalogue episode lookup:` | Info | `CatalogueLookupExecutor` (one line per single-episode lookup) |
+| `Catalogue request timeout guard fired:` | Warning | `CatalogueRequestGuard` (Spotify + Apple, 10 s) |
 
-KQL: [indexing-app-insights-queries.md](indexing-app-insights-queries.md).
+KQL: [indexing-app-insights-queries.md](indexing-app-insights-queries.md) (§11 for the episode lookup lines).
+
+Function apps cap `RedditPodcastPoster` at Warning. The Info `Catalogue episode lookup:` line reaches App Insights only through the `RedditPodcastPoster.EpisodeLookup` = Information override in `Cloud/Azure/ApplicationLogLevels.cs` and each function app's `host.json` (pinned by `FunctionHost.Tests` `EpisodeLookupLogLevelRules`). Keep it when changing log levels.
 
 ---
 
@@ -399,6 +525,7 @@ Before changing pagination, order probes, flags, or `PlaylistOrder`:
 - [ ] Do not invent a third Spotify order mode without an end-jump or hard cap
 - [ ] Do not remove Arbitrary's `MaxPages` cap (or Apple's unordered `MaxPages` when `ReleasedSince` is set)
 - [ ] Do not make expensive-query flags sticky-true-only
+- [ ] Keep single-episode lookups on the shared planner: no platform-specific strategy, every page read bounded
 - [ ] Do not treat equal Apple release timestamps as “not newest-first”
 - [ ] If changing hourly gates, update `IndexingStrategy` tests / cost-analysis notes
 - [ ] Run `dotnet test` on affected `*Tests` projects + `pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged`

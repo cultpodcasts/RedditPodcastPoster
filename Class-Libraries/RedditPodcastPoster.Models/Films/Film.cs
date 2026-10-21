@@ -71,7 +71,7 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     public bool? OldBlueskyPosted { get; set; }
 
     [JsonPropertyName("blueskyPost")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public string? BlueskyPost { get; set; }
 
     [JsonIgnore]
@@ -79,7 +79,7 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
         OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("subjects")]

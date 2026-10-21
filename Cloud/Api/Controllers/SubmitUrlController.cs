@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
 using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers;
@@ -29,12 +30,12 @@ public class SubmitUrlController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] SubmitUrlRequest submitUrlModel,
+        [FromBody] Dtos.SubmitUrlRequest submitUrlModel,
         CancellationToken ct
     ) => HandleRequest(
             req,
             ["curate", "submit"],
-            submitUrlModel,
+            submitUrlModel.ToModel(),
             Handle,
             Unauthorised,
             ct);
@@ -57,12 +58,12 @@ public class SubmitUrlController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SubmitUrl/prepare")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] SubmitUrlPrepareRequest prepareRequest,
+        [FromBody] Dtos.SubmitUrlPrepareRequest prepareRequest,
         CancellationToken ct
     ) => HandleRequest(
             req,
             ["curate", "submit"],
-            prepareRequest,
+            prepareRequest.ToModel(),
             HandlePrepare,
             Unauthorised,
             ct);
@@ -72,19 +73,19 @@ public class SubmitUrlController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "SubmitUrl/extract")]
         HttpRequestData req,
         FunctionContext executionContext,
-        [FromBody] SubmitUrlExtractRequest extractRequest,
+        [FromBody] Dtos.SubmitUrlExtractRequest extractRequest,
         CancellationToken ct
     ) => HandleRequest(
             req,
             ["curate", "submit"],
-            extractRequest,
+            extractRequest.ToModel(),
             HandleExtract,
             Unauthorised,
             ct);
 
     private Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        SubmitUrlRequest submitUrlModel,
+        Models.SubmitUrlRequest submitUrlModel,
         CancellationToken c)
     {
         if (!submitUrlModel.HasUsableHttpUrl())
@@ -101,7 +102,7 @@ public class SubmitUrlController(
         IHandlerContext ctx,
         CancellationToken c)
     {
-        if (!SubmitUrlRequest.TryParseUsableHttpUrl(ctx.Query("url"), out var parsed))
+        if (!Models.SubmitUrlRequest.TryParseUsableHttpUrl(ctx.Query("url"), out var parsed))
         {
             return ctx.BadRequest(
                 ApiErrorResponse.Failure("Url must be an absolute http or https URL"),
@@ -113,7 +114,7 @@ public class SubmitUrlController(
 
     private Task<HttpResponseData> HandlePrepare(
         IHandlerContext ctx,
-        SubmitUrlPrepareRequest prepareRequest,
+        Models.SubmitUrlPrepareRequest prepareRequest,
         CancellationToken c)
     {
         if (!prepareRequest.HasUsableHttpUrl())
@@ -128,7 +129,7 @@ public class SubmitUrlController(
 
     private Task<HttpResponseData> HandleExtract(
         IHandlerContext ctx,
-        SubmitUrlExtractRequest extractRequest,
+        Models.SubmitUrlExtractRequest extractRequest,
         CancellationToken c)
     {
         if (!extractRequest.HasUsableHttpUrl())

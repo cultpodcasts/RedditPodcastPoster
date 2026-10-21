@@ -76,8 +76,8 @@ public class SpotifyUrlCategoriserUrlAuthorityRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
-            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?>(
-                (request, _, _) => captured = request)
+            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?, CancellationToken>(
+                (request, _, _, _) => captured = request)
             .ReturnsAsync(new FindEpisodeResponse(fullEpisode));
         var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
         var expectedDirectIdRequest = FindSpotifyEpisodeRequestFactory.Create(episodeId);
@@ -196,8 +196,8 @@ public class SpotifyUrlCategoriserUrlAuthorityRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
-            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?>(
-                (request, _, _) => captured = request)
+            .Callback<FindSpotifyEpisodeRequest, IndexingContext, Func<SimpleEpisode, bool>?, CancellationToken>(
+                (request, _, _, _) => captured = request)
             .ReturnsAsync(new FindEpisodeResponse(null));
         var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
 

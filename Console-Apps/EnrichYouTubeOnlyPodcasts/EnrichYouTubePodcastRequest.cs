@@ -22,7 +22,4 @@ public class EnrichYouTubePodcastRequest
 
     [Option('s', "include-shorts", HelpText = "Include Short videos")]
     public bool IncludeShort { get; set; }
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

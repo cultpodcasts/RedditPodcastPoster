@@ -145,6 +145,13 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `YouTube expensive-query flag flipped:` | `YouTubeExpensiveQueryFlag` | Warning — conclusive playlist-order probe changed `YouTubePlaylistQueryIsExpensive` |
 | `YouTube playlist id changed:` | `YouTubePlaylistIdChange` | Warning — stored `youTubePlaylistId` changed (API curator / URL submit); re-check Arbitrary / expensive order |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | `ArbitraryYouTubePlaylistWalk` / `YouTubePlaylistService` | **Error** — Arbitrary playlist walk hit `MaxPages`; in-window episodes may be missing — reclassify or shrink the playlist |
+| `YouTubeThumbnailRecheck summary.` | `Indexer.Activities.YouTubeThumbnailRecheck` | Information - one per run: `duration-ms`, `candidates`, `eligible`, `probed`, `still-usable`, `replaced`, `unresolved`, `failed`, `deferred`, `cursor-episode-id`, `cursor-release` ([youtube-thumbnails.md](youtube-thumbnails.md)). Replaces the former Warning `YouTubeThumbnailRecheck complete.` |
+| `YouTubeThumbnailRecheck probe failed.` | `RecentYouTubeThumbnailRechecker` | Warning - stored-image probe timed out (`ProbeTimeoutSeconds`) or errored; counted `failed`, never re-resolved |
+| `Episode merge tie-broken:` | `EpisodeMerger` (`RedditPodcastPoster.PodcastServices.Merging`, raised to Information) | Information - several stored episodes matched; winner plus every candidate score |
+| `Episode merge single heuristic match rejected:` | `EpisodeMerger` (`RedditPodcastPoster.PodcastServices.Merging`) | Warning - a single fuzzy-title/release+duration match scored below `episodeMergeTieBreak:SingleHeuristicMinScore`; incoming added as new, with `score` |
+| `YouTubeThumbnailRecheck replaced withdrawn image.` | `RecentYouTubeThumbnailRechecker` | Warning — stored `maxresdefault`/`hq720` withdrawn by YouTube; `old-image` → `new-image` saved |
+| `YouTubeThumbnailRecheck kept withdrawn image` | `RecentYouTubeThumbnailRechecker` | Warning — withdrawn but no usable replacement; stored image kept (never cleared) |
+| `YouTubeThumbnailRecheck skipped` | `RecentYouTubeThumbnailRechecker` | Warning — YouTube resolving unavailable this run (non-YouTube hour, quota, or error) |
 
 Design reference for order modes, caps, and flag lifecycle: [catalogue-pagination.md](catalogue-pagination.md).
 
@@ -970,6 +977,47 @@ AppTraces
 AppTraces
 | where TimeGenerated > ago(7d)
 | where Message startswith "YouTube playlist id changed:"
+| project TimeGenerated, AppRoleName, Message, OperationId
+| order by TimeGenerated desc
+```
+
+---
+
+## 11. Episode lookup planner — per-lookup outcome and request guard
+
+`CatalogueLookupExecutor` logs one Information line per Spotify/Apple single-episode lookup (`Catalogue episode lookup:`). `CatalogueRequestGuard` logs `Catalogue request timeout guard fired:` at Warning. The Information line reaches App Insights only because function apps raise `RedditPodcastPoster.EpisodeLookup` to Information: in `Cloud/Azure/ApplicationLogLevels.cs` (the worker filter) and in each app's `host.json`. `FunctionHost.Tests` `EpisodeLookupLogLevelRules` pins this. `stage` is the strategy that matched, `miss`, or `skipped-no-show` (Index lookup for a podcast with no show id on that platform: `plan='none'`, `pages-read=0`, no API call). Design: [catalogue-pagination.md](catalogue-pagination.md), [EpisodeLookup README](../Class-Libraries/RedditPodcastPoster.EpisodeLookup/README.md).
+
+### A. Outcomes by platform / flow / stage (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "Catalogue episode lookup:"
+| extend Platform = extract(@"platform='([^']*)'", 1, Message),
+         Flow = extract(@"flow='([^']*)'", 1, Message),
+         Stage = extract(@"stage='([^']*)'", 1, Message),
+         PagesRead = toint(extract(@"pages-read=(\d+)", 1, Message))
+| summarize Lookups = count(), AvgPages = avg(PagesRead), MaxPages = max(PagesRead) by AppRoleName, Platform, Flow, Stage
+| order by Lookups desc
+```
+
+### B. One podcast or episode (24h)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where Message startswith "Catalogue episode lookup:"
+| where Message has "<podcast name or episode title fragment>"
+| project TimeGenerated, AppRoleName, Message, OperationId
+| order by TimeGenerated desc
+```
+
+### C. Request guard timeouts (7d)
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where Message startswith "Catalogue request timeout guard fired:"
 | project TimeGenerated, AppRoleName, Message, OperationId
 | order by TimeGenerated desc
 ```

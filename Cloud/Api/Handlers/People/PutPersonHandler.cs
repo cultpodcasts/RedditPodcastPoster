@@ -1,7 +1,6 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.People;
 
@@ -13,7 +12,7 @@ public class PutPersonHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        PersonChangeRequest person,
+        Api.Models.PersonChangeRequest person,
         CancellationToken ct)
     {
         var result = await personCreateService.CreateAsync(person, ct);
@@ -21,7 +20,7 @@ public class PutPersonHandler(
         return result.Status switch
         {
             PersonCreateStatus.Accepted =>
-                await ctx.Accepted(result.Person!.ToDto(), ct),
+                ctx.Accepted(),
             PersonCreateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, ct),
             PersonCreateStatus.Conflict =>

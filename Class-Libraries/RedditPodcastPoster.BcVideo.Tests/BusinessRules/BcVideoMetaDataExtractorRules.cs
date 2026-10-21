@@ -419,7 +419,7 @@ public class BcVideoMetaDataExtractorRules
             x => x.Log(
                 level,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(fragment)),
+                It.Is<It.IsAnyType>((state, _) => state!.ToString()!.Contains(fragment)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);

@@ -114,7 +114,7 @@ function Add-Violation(
 
 function Test-FileGuardrails([string] $filePath) {
     $violations = [System.Collections.Generic.List[object]]::new()
-    $lines = Get-Content -LiteralPath $filePath
+    $lines = @(Get-Content -LiteralPath $filePath)
     $rel = $filePath
     try {
         $root = (git rev-parse --show-toplevel 2>$null)

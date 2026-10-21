@@ -10,6 +10,11 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
 using RedditPodcastPoster.Persistence.Extensions;
 
+if (VersionInfo.TryHandleVersionRequest(args))
+{
+    return 0;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
 builder.Configuration
@@ -37,12 +42,6 @@ using var host = builder.Build();
 return await Parser.Default.ParseArguments<EpisodeWireRewriteRequest>(args)
     .MapResult(async request =>
     {
-        if (request.Version)
-        {
-            VersionInfo.PrintVersion();
-            return 0;
-        }
-
         var runner = host.Services.GetRequiredService<EpisodeWireRewriteHost>();
         return await runner.Run(request);
     },

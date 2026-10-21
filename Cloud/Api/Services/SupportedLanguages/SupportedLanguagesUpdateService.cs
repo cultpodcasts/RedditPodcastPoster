@@ -75,6 +75,6 @@ public class SupportedLanguagesUpdateService(
             return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Failed);
         }
 
-        return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok, existing);
+        return new SupportedLanguagesUpdateResult(SupportedLanguagesUpdateStatus.Ok);
     }
 }

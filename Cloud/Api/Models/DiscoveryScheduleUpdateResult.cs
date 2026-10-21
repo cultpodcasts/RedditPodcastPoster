@@ -1,5 +1,3 @@
-using RedditPodcastPoster.Models.Discovery;
-
 namespace Api.Models;
 
 public enum DiscoveryScheduleUpdateStatus
@@ -11,5 +9,4 @@ public enum DiscoveryScheduleUpdateStatus
 
 public record DiscoveryScheduleUpdateResult(
     DiscoveryScheduleUpdateStatus Status,
-    DiscoveryScheduleConfig? Config = null,
     string? Error = null);

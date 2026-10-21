@@ -71,9 +71,25 @@ public class Podcast : Publisher
     [JsonPropertyOrder(110)]
     public bool? SpotifyEpisodesQueryIsExpensive { get; set; }
 
+    /// <summary>
+    /// Spotify show size (<c>total_episodes</c> / <c>Paging.Total</c>), refreshed free from pages already fetched.
+    /// Null (all historic records) means unknown, treated as a large show. Never used for Apple.
+    /// </summary>
+    [JsonPropertyName("spotifyEpisodeCount")]
+    [JsonPropertyOrder(111)]
+    public int? SpotifyEpisodeCount { get; set; }
+
     [JsonPropertyName("appleId")]
     [JsonPropertyOrder(120)]
     public long? AppleId { get; set; }
+
+    /// <summary>
+    /// Apple show size, refreshed only from a completed full read or a quick catalogue lookup (iTunes trackCount).
+    /// Null (all historic records) means unknown, treated as a large show. Never used for Spotify.
+    /// </summary>
+    [JsonPropertyName("appleEpisodeCount")]
+    [JsonPropertyOrder(121)]
+    public int? AppleEpisodeCount { get; set; }
 
     [JsonPropertyName("youTubeChannelId")]
     [JsonPropertyOrder(130)]

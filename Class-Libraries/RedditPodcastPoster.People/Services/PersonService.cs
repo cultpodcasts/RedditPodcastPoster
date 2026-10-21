@@ -5,13 +5,11 @@ using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.People.Repositories;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.People.Services;
 
 public class PersonService(
-    IPersonRepository personRepository,
-    ITextSanitiser textSanitiser) : IPersonService
+    IPersonRepository personRepository) : IPersonService
 {
     public async Task<Person?> Match(string nameOrAlias)
     {
@@ -41,7 +39,7 @@ public class PersonService(
         var people = await personRepository.GetAll().ToListAsync();
         return people
             .Select(person => new PersonMatch(
-                ToMatchPerson(person),
+                person,
                 MatchTerms(episode, person, withDescription)))
             .Where(x => x.MatchResults.Length > 0)
             .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches))
@@ -84,11 +82,6 @@ public class PersonService(
             .ToArray();
     }
 
-    private static PersonMatchPerson ToMatchPerson(Person person)
-    {
-        return new PersonMatchPerson(person.Id, person.Name, person.TwitterHandle, person.BlueskyHandle);
-    }
-
     private PersonMatchResult[] MatchTerms(Episode episode, Person person, bool withDescription)
     {
         var matches = new List<PersonMatchResult>();
@@ -98,8 +91,7 @@ public class PersonService(
             matchCount += CountMatches(term, WebUtility.HtmlDecode(episode.Title));
             if (withDescription)
             {
-                var description = textSanitiser.ExtractDescription(episode.Description, string.Empty);
-                matchCount += CountMatches(term, WebUtility.HtmlDecode(description));
+                matchCount += CountMatches(term, WebUtility.HtmlDecode(episode.Description));
             }
 
             if (matchCount > 0)

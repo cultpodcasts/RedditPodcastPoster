@@ -1,5 +1,8 @@
 using System.Net;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -83,6 +86,76 @@ public class PublicControllerAuthTests
         var result = await controller.GetByEpisodeId(req.Object, Guid.NewGuid(), null!, CancellationToken.None);
 
         result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when the public podcast-episode route is called, then the podcast-id in the route reaches the handler as the podcast-id of the request and no podcast name, because the route carries a podcast-id and the episode must be found in that podcast.")]
+    public async Task Public_podcast_episode_get_passes_route_podcast_id_to_handler()
+    {
+        // Arrange
+        var podcastId = Guid.NewGuid();
+        var episodeId = Guid.NewGuid();
+        var principal = new ClientPrincipal
+        {
+            Claims = [new ClientPrincipalClaim { Type = "permissions", Value = "submit" }]
+        };
+        var factory = new Mock<IClientPrincipalFactory>();
+        factory.Setup(f => f.CreateAsync(It.IsAny<HttpRequestData>())).ReturnsAsync(principal);
+
+        PodcastEpisodeRequestWrapper? received = null;
+        var handler = new Mock<IGetPublicEpisodeHandler>();
+        handler.Setup(h => h.Handle(
+                It.IsAny<IHandlerContext>(),
+                It.IsAny<PodcastEpisodeRequestWrapper>(),
+                It.IsAny<CancellationToken>()))
+            .Callback((IHandlerContext _, PodcastEpisodeRequestWrapper wrapper, CancellationToken _) =>
+                received = wrapper)
+            .ReturnsAsync((IHandlerContext ctx, PodcastEpisodeRequestWrapper _, CancellationToken _) => ctx.Ok());
+
+        var controller = new global::Api.Controllers.PublicController(
+            handler.Object,
+            NullLogger<global::Api.Controllers.EpisodeController>.Instance,
+            factory.Object,
+            Options.Create(new HostingOptions { TestMode = false, UserRoles = [] }),
+            CreateMemoryProbeOrchestrator());
+
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await controller.Get(req.Object, podcastId, episodeId, null!, CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        received.Should().NotBeNull();
+        received!.PodcastId.Should().Be(podcastId);
+        received.PodcastName.Should().BeNull();
+        received.EpisodeId.Should().Be(episodeId);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when the public podcast-episode function is bound, then every non-infrastructure parameter is a placeholder of its route, because a parameter that is not in the route is never bound.")]
+    public void Public_podcast_episode_get_parameters_are_all_route_placeholders()
+    {
+        // Arrange
+        var method = typeof(global::Api.Controllers.PublicController)
+            .GetMethod(nameof(global::Api.Controllers.PublicController.Get))!;
+        var route = method.GetParameters()
+            .Select(p => p.GetCustomAttribute<HttpTriggerAttribute>())
+            .Single(a => a != null)!.Route!;
+        var placeholders = Regex.Matches(route, @"\{(?<name>\w+)(:[^}]*)?\}")
+            .Select(m => m.Groups["name"].Value)
+            .ToArray();
+
+        // Act
+        var bound = method.GetParameters()
+            .Where(p => p.ParameterType != typeof(HttpRequestData) &&
+                        p.ParameterType != typeof(FunctionContext) &&
+                        p.ParameterType != typeof(CancellationToken))
+            .Select(p => p.Name!)
+            .ToArray();
+
+        // Assert
+        bound.Should().BeEquivalentTo(placeholders);
     }
 
     private static IMemoryProbeOrchestrator CreateMemoryProbeOrchestrator()

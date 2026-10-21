@@ -7,6 +7,18 @@
       it is replaced with a thin HttpClient wrapper around the iTunes lookup/search API.
     -->
     <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <!--
+      InformationalVersion is the full version block printed by the version request (version, git hash, build time, dirty flag).
+      The SDK would append "+<commit>" to its last line, corrupting the Dirty value and repeating the Git Hash line.
+    -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!--
+      Pathspec for the "Dirty" flag: any change in the working tree counts, including untracked files (a new source
+      file is compiled into the build), except Markdown documentation (*.md, *.mdx), which is never a build input.
+      Every other file type, JSON contracts and coverage baselines included, still counts. The pathspec is rooted at
+      the repository top so it behaves the same from any project directory.
+    -->
+    <GitDirtyPathspec>&quot;:/&quot; &quot;:(top,exclude)*.md&quot; &quot;:(top,exclude)*.mdx&quot;</GitDirtyPathspec>
   </PropertyGroup>
 
   <!--
@@ -32,7 +44,7 @@
     <Exec Command="git rev-parse HEAD" ConsoleToMSBuild="true" StandardOutputImportance="Low" IgnoreExitCode="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitHash" />
     </Exec>
-    <Exec Command="git status --porcelain" ConsoleToMSBuild="true" StandardOutputImportance="Low" IgnoreExitCode="true">
+    <Exec Command="git status --porcelain -- $(GitDirtyPathspec)" ConsoleToMSBuild="true" StandardOutputImportance="Low" IgnoreExitCode="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="GitStatus" />
     </Exec>
     <PropertyGroup>

@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Subjects.Matching;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.DependencyInjection;
@@ -15,6 +16,8 @@ using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.PodcastServices.Apple.Tests.Fakes;
+
+using RedditPodcastPoster.PodcastServices.Apple.Tests.Support;
 
 namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
@@ -65,12 +68,7 @@ public class AppleEpisodeResolverTests
             TimeSpan.FromHours(1),
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            EpisodeDomainTestServices.CreatePlatformMatcher(),
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(
@@ -132,12 +130,7 @@ public class AppleEpisodeResolverTests
             ReleaseUtc = lookupRelease
         };
 
-        var sut = new AppleEpisodeResolver(
-            new StubApplePodcastService(appleEpisodes),
-            matcher,
-            new StubSubjectMatcher(),
-            EmptyTitleCasingProvider(),
-            NullLogger<AppleEpisodeResolver>.Instance);
+        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), matcher).Resolver;
 
         // Act
         var result = await sut.FindEpisode(
@@ -161,20 +154,36 @@ public class AppleEpisodeResolverTests
         request.Released.Should().Be(lookupRelease);
     }
 
-    private sealed class StubApplePodcastService(IEnumerable<AppleEpisode> episodes) : ICachedApplePodcastService
+    [Fact(DisplayName =
+        "When a stored Apple episode id is not in the show feed, FindEpisode falls through to the shared catalogue match " +
+        "instead of returning null, because a stale or invalid stored id must not block matching (same rule as Spotify).")]
+    public async Task FindEpisode_KnownEpisodeIdMissing_FallsThroughToCatalogueMatch()
     {
-        public Task<AppleEpisode?> SingleUseGetEpisode(
-            ApplePodcastId podcastId,
-            long episodeId,
-            IndexingContext indexingContext) =>
-            GetEpisode(podcastId, episodeId, indexingContext);
+        // Arrange
+        const string title = "Lantern Harbour Night Stories With A Guest From The Archive";
+        var release = DomainTestFixture.UtcDateDaysAgo(2);
+        var matchId = _fixture.CreateAppleId();
+        var appleEpisodes = new[]
+        {
+            new AppleEpisode(matchId, title, release, TimeSpan.FromMinutes(44),
+                new Uri($"https://podcasts.apple.com/us/podcast/episode/id1?i={matchId}"), string.Empty, false)
+        };
+        var request = new FindAppleEpisodeRequest(
+            _fixture.CreateAppleId(), _fixture.CreateTitle(), _fixture.CreateAppleId(), title,
+            release, null, TimeSpan.FromMinutes(44), null);
+        var sut = CreateSut(appleEpisodes);
 
-        public Task<AppleEpisode?> GetEpisode(ApplePodcastId podcastId, long episodeId, IndexingContext indexingContext) =>
-            Task.FromResult(episodes.FirstOrDefault(x => x.Id == episodeId));
+        // Act
+        var result = await sut.FindEpisode(request, new IndexingContext());
 
-        public Task<IEnumerable<AppleEpisode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext) =>
-            Task.FromResult<IEnumerable<AppleEpisode>?>(episodes);
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(matchId);
     }
+
+    private static AppleEpisodeResolver CreateSut(IEnumerable<AppleEpisode> appleEpisodes) =>
+        AppleResolverHarness.Create(appleEpisodes).Resolver;
+
     private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>
         new StubAsyncInstance<ITitleCasingRulesProvider>(
             new TitleCasingRulesProvider(

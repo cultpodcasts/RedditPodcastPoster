@@ -27,6 +27,24 @@ public class DiscoveryResultsService(
             ? allResults
             : allResults.Where(x => !x.AutoHidden);
         var results = visibleResults.ToList();
+        var podcastsLookup = await GetPodcastInfo(results, c);
+        var awaitingReview = await discoveryResultsRepository.GetAllPendingSupervisor()
+            .Select(x => new DiscoveryAwaitingReview(x.Id, x.DiscoveryBegan, x.DiscoveryResults.Count()))
+            .ToListAsync(c);
+        var result = new DiscoveryCurationData(
+            documents.Select(x => x.Id),
+            results,
+            podcastsLookup,
+            hiddenCount,
+            awaitingReview);
+        logger.LogInformation("{Method} gathered {ResultCount} results ({HiddenCount} auto-hidden).",
+            nameof(Get), result.Results.Count, hiddenCount);
+        return result;
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, DiscoveryPodcastInfo>> GetPodcastInfo(
+        IEnumerable<DiscoveryResult> results, CancellationToken c)
+    {
         var podcastIds = results.SelectMany(x => x.MatchingPodcastIds).Distinct().ToArray();
 
         IReadOnlyList<(Guid id, string name, bool isVisible)> referencedPodcasts = podcastIds.Length == 0
@@ -50,22 +68,19 @@ public class DiscoveryResultsService(
             }
         }
 
-        logger.LogInformation($"{nameof(Get)} Obtained matching podcasts.");
-        var podcastsLookup = referencedPodcasts
+        logger.LogInformation("{Method} obtained matching podcasts.", nameof(GetPodcastInfo));
+        return referencedPodcasts
             .ToDictionary(
                 pd => pd.id,
                 pd => new DiscoveryPodcastInfo(
                     pd.name,
                     pd.isVisible,
                     visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0));
-        var result = new DiscoveryCurationData(
-            documents.Select(x => x.Id),
-            results,
-            podcastsLookup,
-            hiddenCount);
-        logger.LogInformation("{Method} gathered {ResultCount} results ({HiddenCount} auto-hidden).",
-            nameof(Get), result.Results.Count, hiddenCount);
-        return result;
+    }
+
+    public async Task<IReadOnlyList<DiscoveryResultsDocument>> GetDocuments(IEnumerable<Guid> documentIds)
+    {
+        return await discoveryResultsRepository.GetByIds(documentIds).ToListAsync();
     }
 
     public async Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest)
@@ -89,6 +104,98 @@ public class DiscoveryResultsService(
         }
     }
 
+    public async Task ReleaseClaim(Guid[] documentIds)
+    {
+        foreach (var id in documentIds.Distinct())
+        {
+            await discoveryResultsRepository.TryTransitionState(id,
+                DiscoveryResultsDocumentState.Processed, DiscoveryResultsDocumentState.Unprocessed,
+                CancellationToken.None);
+        }
+    }
+
+    public Task<IReadOnlyList<Guid>> TryClaimForProcessing(Guid[] documentIds,
+        CancellationToken cancellationToken = default) =>
+        TryClaim(DiscoveryResultsDocumentState.Unprocessed, documentIds, cancellationToken);
+
+    public Task<IReadOnlyList<Guid>> TryClaimHeldForProcessing(Guid[] documentIds,
+        CancellationToken cancellationToken = default) =>
+        TryClaim(DiscoveryResultsDocumentState.PendingSupervisor, documentIds, cancellationToken);
+
+    public async Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds)
+    {
+        foreach (var documentId in documentIds.Distinct())
+        {
+            var document = await discoveryResultsRepository.GetById(documentId);
+            if (document is not { State: DiscoveryResultsDocumentState.Processed })
+            {
+                logger.LogWarning("{Method}: '{DocumentId}' is missing or not Processed; not restamping.",
+                    nameof(UpdateResultStates), documentId);
+                continue;
+            }
+
+            var changed = false;
+            foreach (var result in document.DiscoveryResults)
+            {
+                if (succeededResultIds.Contains(result.Id))
+                {
+                    result.State = DiscoveryResultState.Accepted;
+                    changed = true;
+                }
+                else if (erroredResultIds.Contains(result.Id))
+                {
+                    result.State = DiscoveryResultState.AcceptError;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await discoveryResultsRepository.Save(document);
+            }
+        }
+    }
+
+    public async Task ReleaseHeldClaim(Guid[] documentIds)
+    {
+        foreach (var id in documentIds.Distinct())
+        {
+            if (!await discoveryResultsRepository.TryTransitionState(id, DiscoveryResultsDocumentState.Processed,
+                    DiscoveryResultsDocumentState.PendingSupervisor, CancellationToken.None))
+            {
+                logger.LogError("Failure returning report '{DocumentId}' to PendingSupervisor after failed apply.", id);
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<Guid>> TryClaim(DiscoveryResultsDocumentState fromState, Guid[] documentIds,
+        CancellationToken cancellationToken)
+    {
+        var claimed = new List<Guid>();
+        foreach (var documentId in documentIds.Distinct())
+        {
+            if (await discoveryResultsRepository.TryTransitionState(documentId,
+                    fromState, DiscoveryResultsDocumentState.Processed,
+                    cancellationToken))
+            {
+                claimed.Add(documentId);
+                continue;
+            }
+
+            if (fromState == DiscoveryResultsDocumentState.PendingSupervisor)
+            {
+                await ReleaseHeldClaim(claimed.ToArray());
+            }
+            else
+            {
+                await ReleaseClaim(claimed.ToArray());
+            }
+            return [documentId];
+        }
+
+        return [];
+    }
+
     public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds)
     {
         foreach (var documentId in documentIds)
@@ -99,14 +206,16 @@ public class DiscoveryResultsService(
                 logger.LogError("No {DiscoveryResultsDocumentName} with id '{DocumentId}'.",
                     nameof(DiscoveryResultsDocument), documentId);
             }
-            else if (document.State != DiscoveryResultsDocumentState.Unprocessed)
+            else if (document.State == DiscoveryResultsDocumentState.PendingSupervisor)
             {
+                // Only a supervisor applying the held submission may promote a held report.
                 logger.LogWarning(
-                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is not in unprocessed-state. Has state '{DiscoveryResultsDocumentState}'.",
-                    nameof(DiscoveryResultsDocument), documentId, document.State);
+                    "{DiscoveryResultsDocumentName} with id '{DocumentId}' is awaiting supervisor review; not stamping.",
+                    nameof(DiscoveryResultsDocument), documentId);
             }
-            else if (document.State == DiscoveryResultsDocumentState.Unprocessed)
+            else
             {
+                // Report was claimed (Unprocessed -> Processed) by TryClaimForProcessing; stamp result states.
                 document.State = DiscoveryResultsDocumentState.Processed;
 
                 foreach (var documentDiscoveryResult in document.DiscoveryResults)

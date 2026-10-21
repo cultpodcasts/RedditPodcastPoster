@@ -71,5 +71,11 @@ public enum ModelType
     NewsOrganisation = 22,
 
     [JsonPropertyName(nameof(NewsReport))]
-    NewsReport = 23
+    NewsReport = 23,
+
+    [JsonPropertyName(nameof(DiscoverySubmission))]
+    DiscoverySubmission = 24,
+
+    [JsonPropertyName(nameof(YouTubeThumbnailRecheckCursor))]
+    YouTubeThumbnailRecheckCursor = 25
 }

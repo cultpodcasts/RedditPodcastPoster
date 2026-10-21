@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
@@ -14,9 +15,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 
-if (args.Contains("--version"))
+if (VersionInfo.TryHandleVersionRequest(args))
 {
-    VersionInfo.PrintVersion();
     return 0;
 }
 
@@ -33,7 +33,7 @@ builder.Configuration
 
 builder.Services
     .AddLogging()
-    .AddEpisodesDomain()
+    .AddEpisodesDomain().AddEpisodeLookup()
     .AddRepositories()
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddHttpClient();

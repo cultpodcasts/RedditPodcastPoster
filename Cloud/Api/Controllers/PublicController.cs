@@ -41,7 +41,7 @@ public class PublicController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get",
             Route = "public/podcast/episode/{podcastId:guid}/{episodeId:guid}")]
         HttpRequestData req,
-        String podcastName,
+        Guid podcastId,
         Guid episodeId,
         FunctionContext executionContext,
         CancellationToken ct
@@ -49,7 +49,7 @@ public class PublicController(
     {
         return HandlePublicRequest(
             req,
-            new PodcastEpisodeRequestWrapper(podcastName, episodeId),
+            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
             getPublicEpisodeHandler.Handle,
             Unauthorised,
             ct);

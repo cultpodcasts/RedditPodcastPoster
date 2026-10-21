@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
-using Api.Dtos;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -67,7 +67,8 @@ public class SubmitUrlPrepareServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.BadRequest);
         result.Message.Should().Be("Url is not a supported streaming extract destination");
-        result.Response.Should().BeNull();
+        result.Meta.Should().BeNull();
+        result.Service.Should().BeNull();
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>()), Times.Never);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>(), It.IsAny<string>()), Times.Never);
     }
@@ -91,14 +92,15 @@ public class SubmitUrlPrepareServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.BadRequest);
         result.Message.Should().Be(message);
-        result.Response.Should().BeNull();
+        result.Meta.Should().BeNull();
+        result.Service.Should().BeNull();
         _adapter.Verify(a => a.ExtractMetaData(url, html), Times.Once);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When live prepare succeeds, the service returns Ok with SubmitUrlPrepareResponse.From fields " +
-        "so Worker can cache service and series name without a second scrape.")]
+        "When live prepare succeeds, the service returns Ok with the adapter streaming service and extracted metadata, " +
+        "and ToDto maps the ServiceKeys value and series name so Worker can cache them without a second scrape.")]
     public async Task prepare_ok_returns_from_response_fields()
     {
         // Arrange
@@ -118,19 +120,20 @@ public class SubmitUrlPrepareServiceTests
 
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
-        result.Response.Should().BeEquivalentTo(
-            SubmitUrlPrepareResponse.From(url, _liveMeta, StreamingService.Itvx));
-        result.Response!.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
-        result.Response.Title.Should().Be(title);
-        result.Response.ShowName.Should().Be(showName);
-        result.Response.PodcastName.Should().Be(showName);
+        result.Service.Should().Be(StreamingService.Itvx);
+        result.Meta.Should().BeEquivalentTo(_liveMeta);
+        var dto = result.Meta!.ToDto(result.Service!.Value);
+        dto.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
+        dto.Title.Should().Be(title);
+        dto.ShowName.Should().Be(showName);
+        dto.PodcastName.Should().Be(showName);
         _adapter.Verify(a => a.ExtractMetaData(url), Times.Once);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When HTML extract succeeds, the service returns Ok with SubmitUrlPrepareResponse.From fields " +
-        "so Browser Rendering HTML maps without a second Azure live fetch.")]
+        "When HTML extract succeeds, the service returns Ok with the adapter streaming service and extracted metadata, " +
+        "and ToDto maps the ServiceKeys value so Browser Rendering HTML needs no second Azure live fetch.")]
     public async Task extract_ok_returns_from_response_fields()
     {
         // Arrange
@@ -149,10 +152,11 @@ public class SubmitUrlPrepareServiceTests
 
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
-        result.Response.Should().BeEquivalentTo(
-            SubmitUrlPrepareResponse.From(url, _liveMeta, StreamingService.Itvx));
-        result.Response!.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
-        result.Response.Title.Should().Be(title);
+        result.Service.Should().Be(StreamingService.Itvx);
+        result.Meta.Should().BeEquivalentTo(_liveMeta);
+        var dto = result.Meta!.ToDto(result.Service!.Value);
+        dto.Service.Should().Be(StreamingServiceWire.ToKey(StreamingService.Itvx));
+        dto.Title.Should().Be(title);
         _adapter.Verify(a => a.ExtractMetaData(url, html), Times.Once);
         _adapter.Verify(a => a.ExtractMetaData(It.IsAny<Uri>()), Times.Never);
     }
@@ -173,7 +177,8 @@ public class SubmitUrlPrepareServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlPrepareStatus.Failed);
         result.Message.Should().Be("Failure");
-        result.Response.Should().BeNull();
+        result.Meta.Should().BeNull();
+        result.Service.Should().BeNull();
     }
 
     private Uri ItvxUrl() =>

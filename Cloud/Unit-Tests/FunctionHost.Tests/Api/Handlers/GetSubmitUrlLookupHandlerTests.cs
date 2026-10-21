@@ -4,7 +4,6 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Moq;
 using Moq.AutoMock;
-using Api.Dtos;
 using Api.Handlers;
 using Api.Handlers.SubmitUrl;
 using Api.Services.SubmitUrl;
@@ -42,13 +41,11 @@ public class GetSubmitUrlLookupHandlerTests
         var url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
         _mocker.GetMock<ISubmitUrlLookupService>()
             .Setup(s => s.LookupAsync(url, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlLookupResponse
-            {
-                Known = true,
-                Kind = UrlMembershipLookupKinds.PodcastService,
-                PodcastId = podcastId,
-                PodcastName = podcastName
-            });
+            .ReturnsAsync(new UrlMembershipLookupResult(
+                Known: true,
+                Kind: UrlMembershipLookupKinds.PodcastService,
+                PodcastId: podcastId,
+                PodcastName: podcastName));
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
@@ -79,14 +76,12 @@ public class GetSubmitUrlLookupHandlerTests
         var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
         _mocker.GetMock<ISubmitUrlLookupService>()
             .Setup(s => s.LookupAsync(url, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlLookupResponse
-            {
-                Known = false,
-                Kind = UrlMembershipLookupKinds.Streaming,
-                Ambiguous = true,
-                PodcastIds = [first, second],
-                Service = StreamingServiceWire.ToKey(StreamingService.BbcSounds)
-            });
+            .ReturnsAsync(new UrlMembershipLookupResult(
+                Known: false,
+                Kind: UrlMembershipLookupKinds.Streaming,
+                Ambiguous: true,
+                PodcastIds: [first, second],
+                Service: StreamingServiceWire.ToKey(StreamingService.BbcSounds)));
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
@@ -115,12 +110,10 @@ public class GetSubmitUrlLookupHandlerTests
         var url = new Uri($"https://www.bbc.co.uk/sounds/play/{_fixture.CreateYouTubeId()}");
         _mocker.GetMock<ISubmitUrlLookupService>()
             .Setup(s => s.LookupAsync(url, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlLookupResponse
-            {
-                Known = false,
-                Kind = UrlMembershipLookupKinds.Streaming,
-                Service = StreamingServiceWire.ToKey(StreamingService.BbcSounds)
-            });
+            .ReturnsAsync(new UrlMembershipLookupResult(
+                Known: false,
+                Kind: UrlMembershipLookupKinds.Streaming,
+                Service: StreamingServiceWire.ToKey(StreamingService.BbcSounds)));
         var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 

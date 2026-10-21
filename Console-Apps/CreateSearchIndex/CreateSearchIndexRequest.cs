@@ -42,7 +42,4 @@ public class CreateSearchIndexRequest
 
     [Option(shortName: 'w', "run-indexer-max-wait-seconds", Required = false, Default = 200, HelpText = "Maximum seconds to wait for a single indexer run before treating it as a retryable stall")]
     public int RunIndexerMaxWaitSeconds { get; set; } = 200;
-
-    [Option("version", HelpText = "Display version information")]
-    public bool Version { get; set; }
 }

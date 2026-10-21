@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Converters;
-using RedditPodcastPoster.Models.Discovery;
 
 namespace Api.Dtos;
 
@@ -14,6 +13,10 @@ public class DiscoveryResponse
 
     [JsonPropertyName("hiddenCount")]
     public int HiddenCount { get; set; }
+
+    /// <summary>Reports held for supervisor review. Their results are excluded from <see cref="Results"/>.</summary>
+    [JsonPropertyName("awaitingReview")]
+    public IEnumerable<DiscoveryAwaitingReviewDto> AwaitingReview { get; set; } = [];
 
     public class Item
     {
@@ -34,7 +37,7 @@ public class DiscoveryResponse
         public string? Description { get; set; }
 
         [JsonPropertyName("showDescription")]
-        [JsonPropertyOrder(40)]
+        [JsonPropertyOrder(41)]
         public string? ShowDescription { get; set; }
 
         [JsonPropertyName("released")]
@@ -47,11 +50,19 @@ public class DiscoveryResponse
 
         [JsonPropertyName("urls")]
         [JsonPropertyOrder(70)]
-        public DiscoveryResultUrls Urls { get; set; } = new();
+        public DiscoveryResultUrlsDto Urls { get; set; } = new();
 
         [JsonPropertyName("subjects")]
         [JsonPropertyOrder(80)]
         public IEnumerable<string> Subjects { get; set; } = [];
+
+        [JsonPropertyName("subjectMatches")]
+        [JsonPropertyOrder(85)]
+        /// <summary>
+        /// Why each subject matched. <c>null</c> for historic results recorded before provenance
+        /// existed (serialised as <c>"subjectMatches": null</c>); <c>[]</c> when recorded but empty.
+        /// </summary>
+        public IEnumerable<SubjectMatchDto>? SubjectMatches { get; set; }
 
         [JsonPropertyName("youTubeViews")]
         [JsonPropertyOrder(90)]

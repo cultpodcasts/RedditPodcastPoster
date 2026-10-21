@@ -238,6 +238,7 @@ var cosmosdb= {
     cosmosdb__PeopleContainer: 'People'
     cosmosdb__ActivitiesContainer: 'Activity'
     cosmosdb__DiscoveryContainer: 'Discovery'
+    cosmosdb__DiscoverySubmissionsContainer: 'DiscoverySubmissions'
     cosmosdb__LookUpsContainer: 'LookUps'
     cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'

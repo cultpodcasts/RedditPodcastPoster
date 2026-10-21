@@ -1,6 +1,5 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Services.SupportedLanguages;
 
@@ -19,9 +18,7 @@ public class PostSupportedLanguagesHandler(
         return result.Status switch
         {
             SupportedLanguagesUpdateStatus.Ok =>
-                await ctx.Ok(
-                    SupportedLanguagesResponseBuilder.Build(result.Config!, isDefault: false),
-                    c),
+                ctx.Accepted(),
             SupportedLanguagesUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { error = result.Error }, c),
             SupportedLanguagesUpdateStatus.Failed =>

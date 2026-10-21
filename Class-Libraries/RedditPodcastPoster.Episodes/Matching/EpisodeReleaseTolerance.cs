@@ -105,6 +105,25 @@ public static class EpisodeReleaseTolerance
             : 1;
 
     /// <summary>
+    /// Band around the expected release of the service being matched. A submit looks here
+    /// instead of paging from that date through to now.
+    /// </summary>
+    public static (DateTime Start, DateTime End) GetSubmitMatchBand(DateTime expectedRelease)
+    {
+        var day = expectedRelease.Date;
+        return (
+            day.Subtract(YouTubeAuthorityToAudioReleaseConsiderationThreshold),
+            day.Add(YouTubeReleaseAuthorityEnrichmentLookahead));
+    }
+
+    public static bool IsInSubmitMatchBand(DateTime candidateRelease, DateTime expectedRelease)
+    {
+        var band = GetSubmitMatchBand(expectedRelease);
+        var day = candidateRelease.Date;
+        return day >= band.Start && day <= band.End;
+    }
+
+    /// <summary>
     /// Spotify catalogue releases are date-only (midnight UTC) and often land one or more calendar days
     /// before the indexing <paramref name="indexingReleasedSince"/> floor derived from YouTube publish.
     /// Widen the Spotify fetch window to match <see cref="GetToleranceTicks"/> acceptance so enrichment

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
 using Api;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Factories;
 using Api.Handlers.DiscoverySchedule;
@@ -40,12 +41,12 @@ public class DiscoveryScheduleController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = Route)]
         HttpRequestData req,
         FunctionContext _,
-        [FromBody] DiscoveryScheduleUpdateRequest body,
+        [FromBody] Dtos.DiscoveryScheduleUpdateRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["admin"],
-            body,
+            body.ToModel(),
             putDiscoveryScheduleHandler.Handle,
             Unauthorised,
             ct);

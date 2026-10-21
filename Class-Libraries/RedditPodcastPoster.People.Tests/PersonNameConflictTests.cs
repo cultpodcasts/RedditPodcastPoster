@@ -1,54 +1,76 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.People.Factories;
 using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Text;
-using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.People.Tests;
 
 public class PersonNameConflictTests
 {
-    [Fact]
+    private readonly AutoMocker _mocker = new();
+    private readonly string _name;
+    private Person[] _people = [];
+
+    public PersonNameConflictTests()
+    {
+        _name = $"Name{Guid.NewGuid():N}"[..12] + " Surname" + Guid.NewGuid().ToString("N")[..6];
+        _mocker.GetMock<IPersonRepository>()
+            .Setup(x => x.GetAll())
+            .Returns(() => _people.ToAsyncEnumerable());
+    }
+
+    [Fact(DisplayName =
+        "Person repository lookups by name use the lower-cased normalised name key, so a differently-cased name " +
+        "finds the same person.")]
     public async Task GetByName_UsesNormalizedKey_CaseInsensitive()
     {
-        var existing = new PersonFactory().Create("Ada Example");
-        var repository = new Mock<IPersonRepository>();
+        // Arrange
+        var existing = new PersonFactory().Create(_name);
+        var key = _name.ToLowerInvariant();
+        var repository = _mocker.GetMock<IPersonRepository>();
         repository
-            .Setup(x => x.GetByName("ada example"))
-            .ReturnsAsync(existing);
+            .Setup(x => x.GetByName(key))
+            .ReturnsAsync(() => existing);
 
-        var result = await repository.Object.GetByName("ada example");
+        // Act
+        var result = await repository.Object.GetByName(key);
 
+        // Assert
         result.Should().BeSameAs(existing);
-        repository.Verify(x => x.GetByName("ada example"), Times.Once);
+        repository.Verify(x => x.GetByName(key), Times.Once);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Person matching by name ignores case, so a lower-cased name finds the existing person.")]
     public async Task Match_FindsPerson_WhenCaseDiffers()
     {
-        var existing = new PersonFactory().Create("Ada Example");
-        var repository = new Mock<IPersonRepository>();
-        repository
-            .Setup(x => x.GetAll())
-            .Returns(new[] { existing }.ToAsyncEnumerable());
+        // Arrange
+        var existing = new PersonFactory().Create(_name);
+        _people = [existing];
+        var sut = _mocker.CreateInstance<PersonService>();
 
-        var sut = new PersonService(repository.Object, Mock.Of<ITextSanitiser>());
+        // Act
+        var result = await sut.Match(_name.ToLowerInvariant());
 
-        var result = await sut.Match("ada example");
-
+        // Assert
         result.Should().BeSameAs(existing);
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "Person name keys conflict when names differ only by case, and do not conflict for different names.")]
     public void ConflictingNameKeys_AreDetected()
     {
-        var existingKey = Person.NormalizeNameKey("Ada Example");
-        var incomingKey = Person.NormalizeNameKey("ada example");
-        var selfKey = Person.NormalizeNameKey("Someone Else");
+        // Arrange
+        var otherName = $"Other{Guid.NewGuid():N}"[..12];
 
+        // Act
+        var existingKey = Person.NormalizeNameKey(_name);
+        var incomingKey = Person.NormalizeNameKey(_name.ToLowerInvariant());
+        var selfKey = Person.NormalizeNameKey(otherName);
+
+        // Assert
         (existingKey == incomingKey).Should().BeTrue();
         (existingKey == selfKey).Should().BeFalse();
     }

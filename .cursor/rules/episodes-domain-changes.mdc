@@ -1,6 +1,6 @@
 ---
 description: Business-rules-first decision process for RedditPodcastPoster.Episodes production changes
-globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,Class-Libraries/RedditPodcastPoster.Common/Episodes/**,Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/BusinessRules/Indexing/**"
+globs: "Class-Libraries/RedditPodcastPoster.Episodes/**,Class-Libraries/RedditPodcastPoster.Episodes.Tests/**,Class-Libraries/RedditPodcastPoster.Episodes.TestSupport/**,Class-Libraries/RedditPodcastPoster.Common/Episodes/**,Class-Libraries/RedditPodcastPoster.PodcastServices.Tests/BusinessRules/Indexing/**,Class-Libraries/RedditPodcastPoster.EpisodeLookup/**,Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/**,Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/**"
 alwaysApply: false
 ---
 

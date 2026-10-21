@@ -2,7 +2,9 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.Text.Models;
 using RedditPodcastPoster.Text.TitleCasing;
@@ -10,7 +12,8 @@ using RedditPodcastPoster.Text.TitleCasing;
 namespace RedditPodcastPoster.Text.Sanitisers;
 
 public partial class TextSanitiser(
-    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance)
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProviderInstance,
+    ILogger<TextSanitiser> logger)
     : ITextSanitiser
 {
     private static readonly ConcurrentDictionary<string, Regex> BoundaryWordCache = new(StringComparer.Ordinal);
@@ -95,11 +98,15 @@ public partial class TextSanitiser(
         return description;
     }
 
-    public string ExtractDescription(string episodeDescription, string descriptionRegex)
+    public string ExtractDescription(
+        string episodeDescription,
+        string descriptionRegex,
+        string? episodeTitle,
+        string? podcastName)
     {
-        if (!string.IsNullOrWhiteSpace(descriptionRegex))
+        var regex = DescriptionRegexTokens.Create(descriptionRegex, episodeTitle, podcastName);
+        if (regex != null)
         {
-            var regex = new Regex(descriptionRegex!, RegexOptions.IgnoreCase | RegexOptions.Singleline);
             return ExtractDescription(episodeDescription, regex);
         }
 
@@ -191,7 +198,21 @@ public partial class TextSanitiser(
 
     internal string ExtractBody(string body, Regex regex)
     {
-        var match = regex.Match(body);
+        Match match;
+        try
+        {
+            match = regex.Match(body);
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            // A pathological description regex (see DescriptionRegexTokens.MatchTimeout) leaves the description
+            // unchanged rather than failing the caller. Log the pattern (never the description) so it can be found.
+            logger.LogWarning(ex,
+                "Description regex match timed out after {MatchTimeout}; description left unchanged. Pattern: {Pattern}",
+                regex.MatchTimeout, regex.ToString());
+            return body;
+        }
+
         if (match.Success)
         {
             return match.Result("${body}");
@@ -221,8 +242,8 @@ public partial class TextSanitiser(
     {
         var doc = new HtmlDocument();
         doc.LoadHtml("<body>" + text + "</body>");
-        var innerText = doc.DocumentNode.SelectSingleNode("//body").InnerText;
-        return innerText.Trim();
+        var innerText = doc.DocumentNode.SelectSingleNode("//body")?.InnerText;
+        return (innerText ?? text).Trim();
     }
 
     private string FixCharacters(string title)

@@ -1,8 +1,11 @@
 # Short-URL-only social posts (share image)
 
 When shortener KV metadata includes a share image, X/Bluesky can post **only**
-the `s.cultpodcasts.com` short URL (no YouTube/Spotify/Apple link). Bluesky still
-keeps platform `UrlService` for thumb fetch.
+the `s.cultpodcasts.com` short URL (no YouTube/Spotify/Apple link in the post text).
+The Bluesky card still opens that short URL. The original YouTube or Spotify URL is
+kept as `PlatformUrl` so the card title, description, and image come from those APIs.
+The short-url page is not fetched. Image candidates are tried largest-first until one
+is a real image within the 1MB thumb cap. `UrlService` stays YouTube or Spotify.
 
 ## Config gates (default OFF)
 

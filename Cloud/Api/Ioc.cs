@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EpisodeLookup.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Api.Configuration;
@@ -43,7 +44,7 @@ public static class Ioc
     public static void ConfigureServices(IServiceCollection serviceCollection)
     {
         serviceCollection
-            .AddEpisodesDomain()
+            .AddEpisodesDomain().AddEpisodeLookup()
             .AddRepositories()
             .AddTitleCasingRulesWarmup()
             .AddTextSanitiser()
@@ -61,6 +62,7 @@ public static class Ioc
             .AddPeopleServices()
             .AddUrlSubmission()
             .AddDiscoveryRepository()
+            .AddDiscoverySubmissionsRepository()
             .AddSingleton<IDiscoveryResultDeduplicator, DiscoveryResultDeduplicator>()
             .AddScoped<IDiscoveryResultsService, DiscoveryResultsService>()
             .AddIndexer()

@@ -45,7 +45,7 @@ public class SubjectCreateService(
             logger.LogInformation("Created subject '{subjectName}' with subject-id '{subjectId}'.",
                 subject.Name, subject.Id);
 
-            return new SubjectCreateResult(SubjectCreateStatus.Accepted, entity);
+            return new SubjectCreateResult(SubjectCreateStatus.Accepted);
         }
         catch (Exception ex)
         {

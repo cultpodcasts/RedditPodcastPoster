@@ -91,6 +91,12 @@ public class CosmosDbSettingsValidator : IValidateOptions<CosmosDbSettings>
                 $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.DiscoveryContainer)} must not be null or empty (config key: cosmosdb__DiscoveryContainer).");
         }
 
+        if (string.IsNullOrWhiteSpace(options.DiscoverySubmissionsContainer))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(CosmosDbSettings)}.{nameof(CosmosDbSettings.DiscoverySubmissionsContainer)} must not be null or empty (config key: cosmosdb__DiscoverySubmissionsContainer).");
+        }
+
         if (string.IsNullOrWhiteSpace(options.LookUpsContainer))
         {
             return ValidateOptionsResult.Fail(

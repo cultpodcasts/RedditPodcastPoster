@@ -28,7 +28,7 @@ public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Cosmos repositories. Does not register episodes domain or merge orchestration â€” callers that
-        /// resolve matcher, merger, or UrlSubmission enrichers must call <c>AddEpisodesDomain()</c> and
+        /// resolve matcher, merger, or UrlSubmission enrichers must call <c>AddEpisodesDomain()</c>, <c>AddEpisodeLookup()</c> and
         /// <c>AddPodcastServices()</c> explicitly at the composition root.
         /// </summary>
         public IServiceCollection AddRepositories()
@@ -109,6 +109,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IEliminationTermsRepository, EliminationTermsRepository>()
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
+                .AddSingleton<IYouTubeThumbnailRecheckCursorStore, YouTubeThumbnailRecheckCursorStore>()
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();

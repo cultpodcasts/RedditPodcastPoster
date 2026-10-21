@@ -3,6 +3,7 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Subjects.Matching;
 
 namespace RedditPodcastPoster.Discovery.Adapters;
@@ -57,8 +58,13 @@ public class EnrichedEpisodeResultAdapter(
             discoveryResult.Length = episode.EpisodeResult.Length;
         }
 
-        discoveryResult.Subjects = subjects.OrderByDescending(x => x.MatchResults.Sum(y => y.Matches))
-            .Select(x => x.Subject.Name);
+        var orderedSubjects = subjects
+            .OrderByDescending(x => x.MatchResults.Sum(y => y.Matches))
+            .ToArray();
+        discoveryResult.Subjects = orderedSubjects.Select(x => x.Subject.Name).ToArray();
+        discoveryResult.SubjectMatches = orderedSubjects
+            .SelectMany(x => x.ToPlayableSubjectMatches())
+            .ToList();
 
         if (episode.EpisodeResult.ViewCount.HasValue || episode.EpisodeResult.MemberCount.HasValue)
         {
