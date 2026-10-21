@@ -11,7 +11,7 @@ public class CatalogueNewsOrganisationAllowlistRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "S-008 is the frozen NewsOrganisation apply allowlist of 317 publisher names, " +
+        "S-008 is the frozen NewsOrganisation apply allowlist of 308 publisher names, " +
         "because News migrate apply must not use the Identify name heuristic alone.")]
     public void frozen_count_matches_the_name_set()
     {
@@ -21,7 +21,47 @@ public class CatalogueNewsOrganisationAllowlistRules
 
         // Assert
         names.Count.Should().Be(CatalogueNewsOrganisationAllowlist.FrozenCount);
-        names.Count.Should().Be(317);
+        names.Count.Should().Be(308);
+    }
+
+    [Theory(DisplayName =
+        "Curator-removed S-008 publishers are not on the allowlist, " +
+        "because the 21 Oct 2026 review found they are not news outlets.")]
+    [InlineData("BOOS")]
+    [InlineData("FIVE MINUTE NEWS")]
+    [InlineData("Internet Ready News")]
+    [InlineData("KQED")]
+    [InlineData("News 12 Originals")]
+    [InlineData("Ritz")]
+    [InlineData("The Georgia Gazette")]
+    [InlineData("WNFJ")]
+    [InlineData("ARTE")]
+    public void curator_removed_publishers_are_not_allowlisted(string publisher)
+    {
+        // Arrange
+        // Act
+        var allowlisted = CatalogueNewsOrganisationAllowlist.Contains(publisher);
+
+        // Assert
+        allowlisted.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "Curator-confirmed news outlets stay on the S-008 allowlist, " +
+        "because the 21 Oct 2026 review kept them as news.")]
+    [InlineData("Re: News")]
+    [InlineData("TIME")]
+    [InlineData("VICE")]
+    [InlineData("EWTN")]
+    [InlineData("Entertainment News")]
+    public void curator_confirmed_outlets_stay_allowlisted(string publisher)
+    {
+        // Arrange
+        // Act
+        var allowlisted = CatalogueNewsOrganisationAllowlist.Contains(publisher);
+
+        // Assert
+        allowlisted.Should().BeTrue();
     }
 
     [Fact(DisplayName =

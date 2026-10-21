@@ -4,12 +4,13 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// S-008 NewsOrganisation apply allowlist. Frozen 2 Oct 2026 from YouTube-only
 /// Identify name-heuristic keep (newspapers, 24/7, affiliate+digit, News word,
 /// four-letter), minus non-outlet four-letter / DeFranco News Clips.
-/// Dry-run identify still uses heuristics. CatalogueMigrate apply stays refused in this checkout.
+/// Curator review 21 Oct 2026 removed 9 non-outlets (317 → 308).
+/// Dry-run identify still uses heuristics. CatalogueMigrate --apply moves News only for these names.
 /// Bio-likely compact brands are not on this list until named.
 /// </summary>
 public static class CatalogueNewsOrganisationAllowlist
 {
-    public const int FrozenCount = 317;
+    public const int FrozenCount = 308;
 
     public static readonly IReadOnlySet<string> Names =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -47,7 +48,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "APTN News",
         "Arirang News",
         "Arizona’s Family (3TV / CBS 5)",
-        "ARTE",
         "Atlanta News First",
         "Bahari News Kenya",
         "BBC News",
@@ -62,7 +62,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "Belfast Telegraph",
         "BILD",
         "Bilyonaryo News Channel",
-        "BOOS",
         "Boston 25 News",
         "BreakThrough News",
         "Brut",
@@ -108,7 +107,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "Eyewitness News ABC7NY",
         "Eyewitness News WTVO WQRF (MyStateline)",
         "Fayn",
-        "FIVE MINUTE NEWS",
         "FOX 10 Phoenix",
         "FOX 11 Los Angeles",
         "FOX 13 News Utah",
@@ -148,7 +146,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "ILTV Israel News",
         "IndiaTV News English",
         "INQUIRER-net",
-        "Internet Ready News",
         "Iowa's News Now",
         "Irish Times",
         "ISH News",
@@ -178,7 +175,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "KOKH - FOX 25",
         "KOMO News",
         "KPIX | CBS NEWS BAY AREA",
-        "KQED",
         "KRCR News Channel 7",
         "KREM 2 News",
         "KREX News 5",
@@ -218,7 +214,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "NET25 News and Information",
         "News 11 Yuma",
         "News 12",
-        "News 12 Originals",
         "News 24",
         "News 3 Las Vegas",
         "News 4 Tucson KVOA-TV",
@@ -238,7 +233,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "PIX11 News",
         "Queen City News",
         "Re: News",
-        "Ritz",
         "Rob Wolchek-Investigative News Reporter",
         "Roya News English",
         "RTÉ News",
@@ -254,7 +248,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "The Daily Guardian",
         "The Daily Telegraph",
         "The Economic Times",
-        "The Georgia Gazette",
         "The Guardian",
         "The Manila Times",
         "The New York Times",
@@ -308,7 +301,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "WLUK-TV FOX 11",
         "WLWT",
         "WMAR-2 News",
-        "WNFJ",
         "WNYC",
         "WPBF 25 News",
         "WPRI",
