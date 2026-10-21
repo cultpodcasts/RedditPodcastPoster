@@ -8,20 +8,17 @@ using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.Apple;
-using RedditPodcastPoster.PodcastServices.Spotify;
-using RedditPodcastPoster.PodcastServices.YouTube;
 
 namespace RedditPodcastPoster.UrlSubmission.Submitters;
 
 public class UrlSubmitter(
     IPodcastRepository podcastRepository,
-    IPodcastService podcastService,
     IUrlCategoriser urlCategoriser,
     ICategorisedItemProcessor categorisedItemProcessor,
     ILogger<UrlSubmitter> logger,
     ICatalogueParentLookup catalogueParentLookup,
     ICatalogueParentSubmitter catalogueParentSubmitter,
+    IEpisodeUrlRouter episodeUrlRouter,
     IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
@@ -49,6 +46,7 @@ public class UrlSubmitter(
             Podcast? podcast = null;
             CatalogueParentMatch? parent = null;
             EpisodeUrlOwner? owner = null;
+            var ownerRouted = false;
             var routesToParents = IsPodcastPlatformUrl(url);
             if (!submitOptions.CreatePodcast)
             {
@@ -94,13 +92,12 @@ public class UrlSubmitter(
                 }
                 else
                 {
-                    owner = await podcastService.GetEpisodeUrlOwner(url, indexingContext);
-                    podcast = owner?.Podcast;
-                    if (podcast != null && routesToParents && owner != null)
-                    {
-                        (podcast, parent) = await PreferParentOverPlaylistScopedPodcast(
-                            podcast, owner.Ids, url, indexingContext);
-                    }
+                    // Same channel-owner rule as discovery (IEpisodeUrlRouter).
+                    var route = await episodeUrlRouter.RouteByOwner(url, indexingContext);
+                    owner = route.Owner;
+                    podcast = route.Podcast;
+                    parent = route.Parent;
+                    ownerRouted = true;
                 }
 
                 if (podcast != null && podcast.IsRemoved())
@@ -110,14 +107,10 @@ public class UrlSubmitter(
                 }
             }
 
-            if (podcast == null && parent == null && routesToParents)
+            if (podcast == null && parent == null && routesToParents && !ownerRouted)
             {
                 // Never create a podcast for a channel / show a news organisation or TV show owns.
-                owner ??= await TryGetEpisodeUrlOwner(url, indexingContext);
-                if (owner != null)
-                {
-                    parent = await catalogueParentLookup.FindByOwner(owner.Ids);
-                }
+                parent = await episodeUrlRouter.FindOwningParent(url, owner, indexingContext);
             }
 
             if (parent != null)
@@ -221,75 +214,8 @@ public class UrlSubmitter(
         }
     }
 
-    /// <summary>
-    /// A podcast matched only by YouTube channel, scoped to one playlist of that channel (e.g. a show on a news
-    /// outlet's channel), keeps the URL only when the video is in its playlist. Otherwise the news organisation
-    /// or TV show that owns the channel gets it. With no owning parent the podcast keeps it (unchanged).
-    /// </summary>
-    private async Task<(Podcast? Podcast, CatalogueParentMatch? Parent)> PreferParentOverPlaylistScopedPodcast(
-        Podcast podcast,
-        EpisodeUrlOwnerIds ids,
-        Uri url,
-        IndexingContext indexingContext)
-    {
-        if (string.IsNullOrWhiteSpace(ids.YouTubeChannelId) ||
-            string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId) ||
-            podcast.YouTubeChannelId != ids.YouTubeChannelId)
-        {
-            return (podcast, null);
-        }
-
-        var channelOwner = await catalogueParentLookup.FindByOwner(ids);
-        if (channelOwner == null)
-        {
-            return (podcast, null);
-        }
-
-        var inPlaylist = await podcastService.IsVideoInPodcastPlaylist(podcast, url, indexingContext);
-        if (inPlaylist == true)
-        {
-            return (podcast, null);
-        }
-
-        if (inPlaylist == null)
-        {
-            throw new InvalidOperationException(
-                $"Could not check whether '{url}' is in the playlist of podcast '{podcast.Name}', which shares its channel with {channelOwner.Kind} '{channelOwner.Parent.Name}'. Retry, or submit with the podcast or {channelOwner.Kind} name.");
-        }
-
-        logger.LogInformation(
-            "Video '{Url}' is not in playlist '{PlaylistId}' of podcast '{PodcastName}' ({PodcastId}); routing to channel owner {Kind} '{ParentName}' ({ParentId}).",
-            url, podcast.YouTubePlaylistId, podcast.Name, podcast.Id, channelOwner.Kind, channelOwner.Parent.Name,
-            channelOwner.Parent.Id);
-        return (null, channelOwner);
-    }
-
     /// <summary>Spotify, YouTube or Apple Podcasts: the URLs that can be routed to a news organisation or TV show.</summary>
-    public static bool IsPodcastPlatformUrl(Uri url) =>
-        SpotifyPodcastServiceMatcher.IsMatch(url) ||
-        YouTubePodcastServiceMatcher.IsMatch(url) ||
-        ApplePodcastServiceMatcher.IsMatch(url);
-
-    /// <summary>
-    /// Owner ids for the name and create-podcast paths, which did not resolve them before. A lookup failure fails
-    /// the submit (closed): with the owner unknown, going on would create a podcast for a channel / show a news
-    /// organisation or TV show may own.
-    /// </summary>
-    private async Task<EpisodeUrlOwner?> TryGetEpisodeUrlOwner(Uri url, IndexingContext indexingContext)
-    {
-        try
-        {
-            return await podcastService.GetEpisodeUrlOwner(url, indexingContext);
-        }
-        catch (Exception e) when (e is ArgumentException or InvalidOperationException or HttpRequestException)
-        {
-            logger.LogError(e,
-                "Could not resolve the channel / show of '{Url}'; refusing to create a podcast it might not own.", url);
-            throw new InvalidOperationException(
-                $"Could not check which podcast, news organisation or TV show owns '{url}'. Retry, or submit with a podcast, news organisation or TV show.",
-                e);
-        }
-    }
+    public static bool IsPodcastPlatformUrl(Uri url) => EpisodeUrlRouter.IsPodcastPlatformUrl(url);
 
     /// <summary>
     /// The curator chose the news organisation / TV show (by id). No podcast lookup, no owner routing, and never a

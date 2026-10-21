@@ -71,6 +71,7 @@ public class CatalogueParentRoutingRules
             .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
             .Returns((Guid id) => ToAsync(_tvEpisodes.Where(x => x.TvShowId == id)));
         _mocker.Use<ICatalogueParentLookup>(_mocker.CreateInstance<CatalogueParentLookup>());
+        _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
     }
 
     private Uri YouTubeUrl() => new($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");

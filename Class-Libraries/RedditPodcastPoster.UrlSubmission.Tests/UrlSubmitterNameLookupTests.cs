@@ -23,6 +23,7 @@ public class UrlSubmitterNameLookupTests
 
     public UrlSubmitterNameLookupTests()
     {
+        _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
         _mocker.GetMock<IPodcastRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
             .Returns((Expression<Func<Podcast, bool>> predicate) =>
