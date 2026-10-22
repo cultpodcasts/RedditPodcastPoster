@@ -1,3 +1,4 @@
+using RedditPodcastPoster.ContentPublisher.ApiCache;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 
 namespace PublishR2;
@@ -7,11 +8,13 @@ public class R2PublishProcessor(
     IPeoplePublisher peoplePublisher,
     ISearchSuggestionsPublisher searchSuggestionsPublisher,
     ISubjectsPublisher subjectsPublisher,
-    IHomepagePublisher homepagePublisher)
+    IHomepagePublisher homepagePublisher,
+    IApiCachePurgeCommandBuilder apiCachePurgeCommandBuilder)
 {
-    public async Task<bool> Process(R2PublishRequest request)
+    public async Task<R2PublishResult> Process(R2PublishRequest request)
     {
         var success = true;
+        var published = new List<ApiCachedContent>();
 
         if (request.Target is R2PublishTarget.Languages or R2PublishTarget.Lookups or R2PublishTarget.All)
         {
@@ -28,6 +31,7 @@ public class R2PublishProcessor(
             try
             {
                 await searchSuggestionsPublisher.PublishSearchSuggestions();
+                published.Add(ApiCachedContent.SearchSuggestions);
             }
             catch
             {
@@ -45,8 +49,12 @@ public class R2PublishProcessor(
         {
             var homepageResult = await homepagePublisher.PublishHomepage();
             success = homepageResult.HomepagePublished;
+            if (homepageResult.HomepagePublished)
+            {
+                published.Add(ApiCachedContent.Homepage);
+            }
         }
 
-        return success;
+        return new R2PublishResult(success, apiCachePurgeCommandBuilder.Build(published));
     }
 }
