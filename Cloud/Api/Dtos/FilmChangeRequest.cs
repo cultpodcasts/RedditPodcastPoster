@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos;
 
@@ -12,6 +13,28 @@ public class FilmChangeRequest : PublisherFieldsChangeRequest
 {
     [JsonPropertyName("imdb")]
     public string? Imdb { get; set; }
+
+    /// <summary>IMDb title id <c>tt</c> + 7 to 10 digits. <c>""</c> clears; anything else is a 400.</summary>
+    [JsonPropertyName("imdbId")]
+    public string? ImdbId { get; set; }
+
+    /// <summary>TMDB movie id. <c>0</c> clears; negative is a 400.</summary>
+    [JsonPropertyName("tmdbId")]
+    public int? TmdbId { get; set; }
+
+    /// <summary>
+    /// Per-key link patch, as the episode edit API: a blank <c>url</c> and <c>image</c> removes the key; otherwise the
+    /// key is resolved from the URL (so a YouTube URL lands under <c>youtube</c>). A URL must be absolute http(s).
+    /// </summary>
+    [JsonPropertyName("services")]
+    public Dictionary<string, ServiceLink>? Services { get; set; }
+
+    /// <summary>
+    /// The trailers to keep, in display order, each with an optional new title. Trailers left out are removed;
+    /// [] removes all. An id the film does not have is a 400. Trailers are added by POST episode/.../trailer.
+    /// </summary>
+    [JsonPropertyName("trailers")]
+    public FilmTrailerChangeRequest[]? Trailers { get; set; }
 
     /// <summary>A year <c>yyyy</c> or a calendar date <c>yyyy-MM-dd</c>. Anything else is a 400.</summary>
     [JsonPropertyName("release")]

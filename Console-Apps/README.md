@@ -432,6 +432,9 @@ CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcas
 Index --reindex-search -n "<PodcastName>"
 ```
 
+`--update-existing` is also how a new `EpisodeSearchRecord` field reaches the live index without a teardown (for
+example the film `trailers` field, see [docs/film-trailers.md](../docs/film-trailers.md)).
+
 Free-tier full rebuild (for example after changing `Constants.DescriptionSize`), with the Hourly indexer paused:
 
 ```powershell

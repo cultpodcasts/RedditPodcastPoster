@@ -10,4 +10,10 @@ public interface IShortnerService
     Task<KVRecord?> Read(string requestKey);
     Task<DeleteResult> Delete(PodcastEpisode podcastEpisode);
     Task<DeleteResult> Delete(IEnumerable<PodcastEpisode> podcastEpisodes);
+
+    /// <summary>
+    /// Points the episode's short link at another site path (for example <c>/film/{name}/{shortId}</c> after the
+    /// episode became a film trailer). Writes the record even when one exists, keeping the episode's share metadata.
+    /// </summary>
+    Task<WriteResult> Redirect(PodcastEpisode podcastEpisode, string sitePath);
 }

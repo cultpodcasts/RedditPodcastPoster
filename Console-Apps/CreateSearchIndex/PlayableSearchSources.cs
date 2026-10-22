@@ -6,7 +6,7 @@ using RedditPodcastPoster.Search.Models;
 namespace CreateSearchIndex;
 
 /// <summary>
-/// Cosmos pull queries for playables other than Episodes. Film omits series fields.
+/// Cosmos pull queries for playables other than Episodes. Film omits series fields and adds <c>trailers</c>.
 /// <c>title</c>, <c>seriesName</c>, and <c>description</c> are the only title fields.
 /// </summary>
 internal static class PlayableSearchSources
@@ -23,7 +23,7 @@ internal static class PlayableSearchSources
         return
         [
             Build(SearchContentKind.TvShowEpisode, settings.TvShowEpisodesContainer, indexName, "c.title", "c.tvShowName", includeSeries: true),
-            Build(SearchContentKind.Film, settings.FilmsContainer, indexName, "c.name", seriesNameExpr: null, includeSeries: false),
+            Build(SearchContentKind.Film, settings.FilmsContainer, indexName, "c.name", seriesNameExpr: null, includeSeries: false, includeTrailers: true),
             Build(SearchContentKind.NewsReport, settings.NewsReportsContainer, indexName, "c.title", "c.newsOrganisationName", includeSeries: true)
         ];
     }
@@ -34,11 +34,12 @@ internal static class PlayableSearchSources
         string indexName,
         string titleExpr,
         string? seriesNameExpr,
-        bool includeSeries)
+        bool includeSeries,
+        bool includeTrailers = false)
     {
         var slug = contentKind.ToLowerInvariant();
         var query = PlayableSearchSql.SiblingQuery(
-            new PlayableSearchSql.SiblingProjection(contentKind, titleExpr, seriesNameExpr, includeSeries),
+            new PlayableSearchSql.SiblingProjection(contentKind, titleExpr, seriesNameExpr, includeSeries, includeTrailers),
             StreamingServiceCatalog.SearchEncodedKeys,
             StreamingServiceCatalog.ImageCoalesceOrder);
         return new Source(

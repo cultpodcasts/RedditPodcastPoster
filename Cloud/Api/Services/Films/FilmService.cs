@@ -64,6 +64,7 @@ public class FilmService(
 
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(film);
+            var hadTrailers = film.Trailers is { Count: > 0 };
 
             if (!TryApply(film, request.Change, out var postStatus, out var fieldError))
             {
@@ -87,7 +88,11 @@ public class FilmService(
             // As the episode API: removed=true always deletes the search document and the short link (the film
             // indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
             outcome.SearchIndexer = await searchSync.AfterSave(
-                film, target.Projection, request.Change.Removed == true, cancellationToken);
+                film,
+                target.Projection,
+                request.Change.Removed == true,
+                cancellationToken,
+                trailersCleared: hadTrailers && film.Trailers is not { Count: > 0 });
 
             return new FilmUpdateResult(FilmUpdateStatus.Accepted, Outcome: outcome);
         }
@@ -100,7 +105,8 @@ public class FilmService(
 
     /// <summary>
     /// Publisher fields (shared with news organisations and TV shows), then the playable fields a film has.
-    /// Release may be a year or a date. Validates first, so a 400 leaves the film untouched.
+    /// Release may be a year or a date. Ids, links and trailers are <see cref="FilmLinkChangeApplier"/>.
+    /// Validates first, so a 400 leaves the film untouched.
     /// </summary>
     internal static bool TryApply(
         Film film,
@@ -110,10 +116,14 @@ public class FilmService(
     {
         postStatus = PostStatusChange.None;
         if (!PlayableChangeApplier.TryParseRelease(change.Release, allowYear: true, out var release, out error) ||
-            !PlayableChangeApplier.TryParseDuration(change.Duration, out var length, out error))
+            !PlayableChangeApplier.TryParseDuration(change.Duration, out var length, out error) ||
+            !FilmLinkChangeApplier.TryValidate(film, change, out error))
         {
             return false;
         }
+
+        // IMDb / TMDB ids, links and trailers.
+        FilmLinkChangeApplier.Apply(film, change);
 
         // Publisher fields include publisher, description and removed.
         PublisherChangeApplier.Apply(film, change);

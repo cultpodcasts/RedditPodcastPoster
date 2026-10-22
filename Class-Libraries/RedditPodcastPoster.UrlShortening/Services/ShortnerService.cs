@@ -101,6 +101,22 @@ public class ShortnerService(
         return await kvClient.Delete(podcastEpisodes.Select(x => x.Episode.Id.ToBase64()), _shortnerOptions.KVShortnerNamespaceId);
     }
 
+    public async Task<WriteResult> Redirect(PodcastEpisode podcastEpisode, string sitePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sitePath);
+        if (!sitePath.StartsWith('/'))
+        {
+            throw new ArgumentException("A redirect is a root-relative site path.", nameof(sitePath));
+        }
+
+        var record = CreateRecord(podcastEpisode);
+        record.Value = sitePath;
+        logger.LogInformation(
+            "{Method}. Pointing shortner key '{Key}' at '{SitePath}'.", nameof(Redirect), record.Key, sitePath);
+        var result = await kvClient.Write(record, _shortnerOptions.KVShortnerNamespaceId);
+        return result.Success ? result with { Url = new Uri($"{_shortnerOptions.ShortnerUrl}{record.Key}") } : result;
+    }
+
     private static KVRecord CreateRecord(PodcastEpisode podcastEpisode)
     {
         var item = new ShortUrlRecord(

@@ -116,11 +116,23 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
+    /// <summary>
+    /// Trailers, teasers and clips of this film, in display order. Omitted when there are none.
+    /// Each one is a whole video of its own, unlike <see cref="Services"/>, which holds one link per platform.
+    /// </summary>
+    [JsonPropertyName("trailers")]
+    [JsonPropertyOrder(152)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<FilmTrailer>? Trailers { get; set; }
+
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
 
     public void SetRelease(CatalogueRelease? release) => Release = release;
+
+    /// <summary>True when a trailer came from the episode with this id.</summary>
+    public bool HasTrailer(Guid episodeId) => Trailers?.Any(trailer => trailer.Id == episodeId) == true;
 
     /// <summary>Same curator subject rule as <see cref="Playable.ApplyUserSubjects"/>.</summary>
     public bool ApplyUserSubjects(IEnumerable<string> newSubjects)
