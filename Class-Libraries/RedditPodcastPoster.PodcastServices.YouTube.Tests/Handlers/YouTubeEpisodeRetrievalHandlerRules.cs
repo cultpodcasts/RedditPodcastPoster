@@ -76,10 +76,9 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
-            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?, bool>(
-                (_, _, _, _, _, playlistOrder, _, _) => forwardedOrder = playlistOrder)
+                It.IsAny<IEnumerable<string>?>()))
+            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?>(
+                (_, _, _, _, _, playlistOrder, _) => forwardedOrder = playlistOrder)
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: true));
         var sut = mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
@@ -115,8 +114,7 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: null));
         var sut = mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
@@ -136,8 +134,7 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 PlaylistOrder.Arbitrary,
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()),
+                It.IsAny<IEnumerable<string>?>()),
             Times.Once);
     }
 
@@ -185,10 +182,9 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
-            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?, bool>(
-                (_, _, _, _, expensivePlaylist, _, _, _) => requestedExpensiveFlags.Add(expensivePlaylist))
+                It.IsAny<IEnumerable<string>?>()))
+            .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?>(
+                (_, _, _, _, expensivePlaylist, _, _) => requestedExpensiveFlags.Add(expensivePlaylist))
             .ReturnsAsync(() => new GetPlaylistEpisodesResponse([], remainingProbes.Dequeue()));
 
         return mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();

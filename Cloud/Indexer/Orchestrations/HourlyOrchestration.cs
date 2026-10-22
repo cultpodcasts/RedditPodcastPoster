@@ -60,8 +60,9 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
             catch (TaskFailedException ex)
             {
                 // An Indexer activity that fails (e.g. killed at the function timeout) must not cost the hour its
-                // publish: log it, hold back posts that need fresh index data (as HalfHourlyOrchestration does) and
-                // carry on. The orchestration still ends Failed below so the health check reports the hour.
+                // homepage publish: log it and carry on with the remaining passes, Categoriser, the thumbnail
+                // re-check (with YouTube flagged errored, so it re-resolves nothing) and Publisher. Poster, Tweet and
+                // Bluesky are skipped. The orchestration still ends Failed below so the health check reports the hour.
                 failedPasses.Add(pass);
                 logger.LogError(
                     IndexerPassFailedMessagePrefix +
@@ -105,18 +106,36 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         indexerContext = await context.CallYouTubeThumbnailRecheckAsync(indexerContext);
         logger.LogInformation("{nameofYouTubeThumbnailRecheck} complete.", nameof(YouTubeThumbnailRecheck));
 
-        indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
-        logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
+        var postingSkipped = failedPasses.Count > 0;
+        if (postingSkipped)
+        {
+            // After a failed Indexer pass only the homepage publish runs. Reddit (Poster), X (Tweet) and Bluesky are
+            // skipped entirely, exactly as before this change, because posting after an indexer failure was never
+            // approved (AGENTS.md: no posting behaviour change during cost-reduction work).
+            logger.LogWarning(
+                IndexerPassFailedMessagePrefix +
+                " posting-skipped hour-utc='{HourUtc}' failed-passes='{FailedPasses}' skipped='Poster,Tweet,Bluesky'.",
+                hourUtc, string.Join(",", failedPasses));
+        }
+        else
+        {
+            indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
+            logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
+        }
 
         indexerContext =
             await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPublisher} complete.", nameof(Publisher));
 
-        indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
-        logger.LogInformation("{nameofTweet} complete.", nameof(Tweet));
+        if (!postingSkipped)
+        {
+            indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
+            logger.LogInformation("{nameofTweet} complete.", nameof(Tweet));
 
-        indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
-        logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
+            indexerContext =
+                await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
+            logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
+        }
 
         if (failedPasses.Count > 0)
         {
@@ -130,8 +149,8 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
     public const string IndexerPassFailedMessagePrefix = "HourlyOrchestration indexer-pass-failed";
 
     /// <summary>
-    /// After a failed pass the hour's YouTube/Spotify state is unknown: flag both as errored so Tweet, Bluesky and the
-    /// thumbnail re-check only act on items that do not need this hour's index (the HalfHourlyOrchestration hold-back).
+    /// After a failed pass the hour's YouTube/Spotify state is unknown: flag both as errored so the thumbnail re-check
+    /// makes no YouTube call (Poster, Tweet and Bluesky do not run at all after a failed pass).
     /// </summary>
     public static IndexerContext WithPostingHeldBack(IndexerContext indexerContext) =>
         indexerContext with

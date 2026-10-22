@@ -14,8 +14,7 @@ public interface IYouTubePlaylistService
         IndexingContext indexingContext,
         bool withContentDetails = false,
         bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null,
-        bool firstPageOnlyUnlessNewestFirst = false);
+        PlaylistOrder? playlistOrder = null);
 
     Task<GetPlaylistInfoResponse> GetPlaylistInfo(
         IYouTubeServiceWrapper youTubeServiceWrapper,

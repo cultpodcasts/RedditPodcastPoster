@@ -11,6 +11,5 @@ public interface ICachedTolerantYouTubePlaylistService
         IndexingContext indexingContext,
         bool withContentDetails = false,
         bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null,
-        bool firstPageOnlyUnlessNewestFirst = false);
+        PlaylistOrder? playlistOrder = null);
 }

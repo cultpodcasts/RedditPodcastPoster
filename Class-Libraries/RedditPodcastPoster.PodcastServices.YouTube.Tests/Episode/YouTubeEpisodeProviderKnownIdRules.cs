@@ -36,8 +36,7 @@ public class YouTubeEpisodeProviderKnownIdRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<PlaylistOrder?>(),
-                It.IsAny<bool>()))
+                It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(() => new GetPlaylistVideoSnippetsResponse(_playlistItems));
         _mocker.GetMock<ITolerantYouTubeVideoService>()
             .Setup(x => x.GetVideoContentDetails(
@@ -96,6 +95,7 @@ public class YouTubeEpisodeProviderKnownIdRules
 
         // Assert
         response.Results.Should().BeEmpty();
+        response.KnownSkipped.Should().Be(1);
         _mocker.GetMock<ITolerantYouTubeVideoService>().Verify(
             x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),

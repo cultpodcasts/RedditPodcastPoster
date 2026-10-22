@@ -25,8 +25,8 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            var items = spotifyClient.Paginate(firstPage, paginator, cancel);
-            results = await items.ToListAsync(cancel);
+            var items = spotifyClient.Paginate(firstPage, paginator, Token(cancel, indexingContext));
+            results = await items.ToListAsync(Token(cancel, indexingContext));
         }
         catch (APITooManyRequestsException ex)
         {
@@ -43,7 +43,7 @@ public class SpotifyClientWrapper(
                 nameof(Paginate), ex.Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, "{nameofPaginate} Failure with Spotify-API.", nameof(Paginate));
             return null;
@@ -77,7 +77,7 @@ public class SpotifyClientWrapper(
                 nameof(PaginateAll), ex.Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, "{nameofPaginateAll} Failure with Spotify-API.", nameof(PaginateAll));
             return null;
@@ -113,7 +113,7 @@ public class SpotifyClientWrapper(
                     .Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, $"{nameof(PaginateAll)} Failure with Spotify-API.");
             return null;
@@ -132,7 +132,7 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            results = await spotifyClient.Shows.GetEpisodes(showId, request, cancel);
+            results = await spotifyClient.Shows.GetEpisodes(showId, request, Token(cancel, indexingContext));
         }
         catch (APITooManyRequestsException ex)
         {
@@ -156,7 +156,7 @@ public class SpotifyClientWrapper(
                 nameof(GetShowEpisodes), showId, ex.Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, "{nameofGetShowEpisodes} Failure with Spotify-API. Show-id: '{showId}'.",
                 nameof(GetShowEpisodes), showId);
@@ -193,7 +193,7 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            results = await spotifyClient.Search.Item(request, cancel);
+            results = await spotifyClient.Search.Item(request, Token(cancel, indexingContext));
         }
         catch (APITooManyRequestsException ex)
         {
@@ -210,7 +210,7 @@ public class SpotifyClientWrapper(
                     GetSearchResponse), ex.Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex,
                 "{GetSearchResponseName} Failure with Spotify-API. Search-query: '{RequestQuery}'.", nameof(
@@ -231,7 +231,7 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            results = await spotifyClient.Shows.Get(showId, request, cancel);
+            results = await spotifyClient.Shows.Get(showId, request, Token(cancel, indexingContext));
         }
         catch (APITooManyRequestsException ex)
         {
@@ -248,7 +248,7 @@ public class SpotifyClientWrapper(
                     .Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex,
                 "{GetFullShowName} Failure with Spotify-API. Show-id: '{ShowId}'.", nameof(GetFullShow), showId);
@@ -268,7 +268,7 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            results = await spotifyClient.Episodes.Get(episodeId, request, cancel);
+            results = await spotifyClient.Episodes.Get(episodeId, request, Token(cancel, indexingContext));
         }
         catch (APITooManyRequestsException ex)
         {
@@ -294,7 +294,7 @@ public class SpotifyClientWrapper(
 
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, "{method} Failure with Spotify-API. Episode-id: '{episodeId}'.",
                 nameof(GetFullEpisode), episodeId);
@@ -317,7 +317,7 @@ public class SpotifyClientWrapper(
             // relies on this batch hydration; migration path is per-id GET /episodes/{id} (GetFullEpisode).
             // Failures are already caught below and surface as a null response.
 #pragma warning disable CS0618
-            results = await spotifyClient.Episodes.GetSeveral(request, cancel);
+            results = await spotifyClient.Episodes.GetSeveral(request, Token(cancel, indexingContext));
 #pragma warning restore CS0618
         }
         catch (APITooManyRequestsException ex)
@@ -335,7 +335,7 @@ public class SpotifyClientWrapper(
                     .Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex, $"{nameof(GetSeveral)} Failure with Spotify-API.");
             return null;
@@ -353,7 +353,7 @@ public class SpotifyClientWrapper(
         try
         {
             var spotifyClient = await spotifyClientProvider.GetAsync().ConfigureAwait(false);
-            var response = await spotifyClient.Search.Item(request, cancel);
+            var response = await spotifyClient.Search.Item(request, Token(cancel, indexingContext));
             results = response.Episodes;
         }
         catch (APITooManyRequestsException ex)
@@ -371,7 +371,7 @@ public class SpotifyClientWrapper(
                     .Response?.Body ?? "<null>");
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsBudgetCancellation(ex, indexingContext))
         {
             logger.LogError(ex,
                 "{FindEpisodesName} Failure with Spotify-API. Search-query '{RequestQuery}'.", nameof(FindEpisodes),
@@ -381,4 +381,18 @@ public class SpotifyClientWrapper(
 
         return results;
     }
+
+    /// <summary>
+    /// The caller's token when it passed one, else the indexer's per-podcast budget token carried on the context, so a
+    /// slow Spotify call is cancelled with the podcast's update instead of being abandoned.
+    /// </summary>
+    private static CancellationToken Token(CancellationToken cancel, IndexingContext indexingContext) =>
+        cancel.CanBeCanceled ? cancel : indexingContext.CancellationToken;
+
+    /// <summary>
+    /// Budget cancellation propagates (the indexer loop logs it); it is not a Spotify failure, so it must not be logged
+    /// as one or set <see cref="IndexingContext.SkipSpotifyUrlResolving"/>.
+    /// </summary>
+    private static bool IsBudgetCancellation(Exception ex, IndexingContext indexingContext) =>
+        ex is OperationCanceledException && indexingContext.CancellationToken.IsCancellationRequested;
 }

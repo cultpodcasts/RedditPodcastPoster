@@ -15,6 +15,8 @@ public class PodcastUpdateBudgetOptions
 
     public const int DefaultAbandonGraceSeconds = 15;
 
+    public const int DefaultExpensivePassBudgetMultiplier = 3;
+
     /// <summary>Seconds one podcast's update may run before it is cancelled. Zero or less disables the budget.</summary>
     public int PerPodcastBudgetSeconds { get; set; } = DefaultPerPodcastBudgetSeconds;
 
@@ -24,8 +26,25 @@ public class PodcastUpdateBudgetOptions
     /// </summary>
     public int AbandonGraceSeconds { get; set; } = DefaultAbandonGraceSeconds;
 
+    /// <summary>
+    /// Multiplies the budget on a pass that allows expensive YouTube or Spotify queries (the 00 UTC primary pass), where
+    /// a podcast may legitimately walk a whole catalogue. Zero or less disables the budget on those passes.
+    /// </summary>
+    public int ExpensivePassBudgetMultiplier { get; set; } = DefaultExpensivePassBudgetMultiplier;
+
     public TimeSpan? PerPodcastBudget =>
         PerPodcastBudgetSeconds > 0 ? TimeSpan.FromSeconds(PerPodcastBudgetSeconds) : null;
+
+    /// <summary>The budget for a pass: <see cref="PerPodcastBudget"/>, scaled on a pass that allows expensive queries.</summary>
+    public TimeSpan? BudgetFor(bool expensivePass)
+    {
+        if (!expensivePass || PerPodcastBudget is not { } budget)
+        {
+            return PerPodcastBudget;
+        }
+
+        return ExpensivePassBudgetMultiplier > 0 ? budget * ExpensivePassBudgetMultiplier : null;
+    }
 
     public TimeSpan AbandonGrace => TimeSpan.FromSeconds(Math.Max(0, AbandonGraceSeconds));
 }

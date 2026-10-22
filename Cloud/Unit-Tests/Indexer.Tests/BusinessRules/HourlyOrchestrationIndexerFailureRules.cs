@@ -13,7 +13,8 @@ namespace Indexer.Tests.BusinessRules;
 
 /// <summary>
 /// An Indexer activity that fails (e.g. killed at the function timeout while one podcast hung) used to fail the whole
-/// hourly orchestration, so Publisher, Poster, Tweet and Bluesky never ran for that hour.
+/// hourly orchestration, so the homepage was not published that hour. Posting after a failed pass is unchanged: Poster,
+/// Tweet and Bluesky still do not run.
 /// </summary>
 public class HourlyOrchestrationIndexerFailureRules
 {
@@ -41,9 +42,9 @@ public class HourlyOrchestrationIndexerFailureRules
     }
 
     [Fact(DisplayName =
-        "When an Indexer pass fails, the hour still runs the remaining pass, Publisher, Poster, Tweet and Bluesky, " +
-        "because one stuck podcast must not cost the hour its publish.")]
-    public async Task failed_indexer_pass_does_not_stop_the_pipeline()
+        "When an Indexer pass fails, the hour still runs the remaining pass, Categoriser, the thumbnail re-check and " +
+        "Publisher, because one stuck podcast must not cost the hour its homepage publish.")]
+    public async Task failed_indexer_pass_still_publishes()
     {
         // Arrange
         var sut = new HourlyOrchestration();
@@ -57,14 +58,13 @@ public class HourlyOrchestrationIndexerFailureRules
         await act.Should().ThrowAsync<IndexerPassesFailedException>();
         _passesRun.Should().Equal(firstPass, lastPass);
         _activities.Should().ContainInOrder(
-            nameof(LoadRecentCandidates), nameof(Categoriser), nameof(YouTubeThumbnailRecheck),
-            nameof(Poster), nameof(Publisher), nameof(Tweet), nameof(Bluesky));
+            nameof(LoadRecentCandidates), nameof(Categoriser), nameof(YouTubeThumbnailRecheck), nameof(Publisher));
     }
 
     [Fact(DisplayName =
-        "After a failed Indexer pass, Tweet, Bluesky and the thumbnail re-check see YouTube and Spotify as errored, " +
-        "because posts that need this hour's index must be held back exactly as the half-hourly run does.")]
-    public async Task failed_indexer_pass_holds_back_posts_that_need_fresh_index_data()
+        "After a failed Indexer pass, Poster (Reddit), Tweet and Bluesky do not run at all, because posting after an " +
+        "indexer failure was never approved and must stay exactly as before.")]
+    public async Task failed_indexer_pass_skips_all_posting()
     {
         // Arrange
         var sut = new HourlyOrchestration();
@@ -76,12 +76,26 @@ public class HourlyOrchestrationIndexerFailureRules
 
         // Assert
         await act.Should().ThrowAsync<IndexerPassesFailedException>();
-        foreach (var activity in new[] { nameof(YouTubeThumbnailRecheck), nameof(Tweet), nameof(Bluesky) })
-        {
-            _activityInputs[activity].Should().Match<IndexerContext>(context =>
-                context.YouTubeError == true && context.SpotifyError == true && context.Success == false,
-                activity);
-        }
+        _activities.Should().NotContain([nameof(Poster), nameof(Tweet), nameof(Bluesky)]);
+    }
+
+    [Fact(DisplayName =
+        "After a failed Indexer pass, the thumbnail re-check sees YouTube and Spotify as errored, because it must not " +
+        "make YouTube calls on an hour whose index state is unknown.")]
+    public async Task failed_indexer_pass_flags_youtube_errored_for_the_recheck()
+    {
+        // Arrange
+        var sut = new HourlyOrchestration();
+        var (firstPass, _) = HourlyIndexingPassSelector.SelectPasses(_now.Hour);
+        _failingPasses.Add(firstPass);
+
+        // Act
+        var act = () => sut.RunAsync(_context.Object, null);
+
+        // Assert
+        await act.Should().ThrowAsync<IndexerPassesFailedException>();
+        _activityInputs[nameof(YouTubeThumbnailRecheck)].Should().Match<IndexerContext>(context =>
+            context.YouTubeError == true && context.SpotifyError == true && context.Success == false);
     }
 
     [Fact(DisplayName =
@@ -103,7 +117,8 @@ public class HourlyOrchestrationIndexerFailureRules
     }
 
     [Fact(DisplayName =
-        "When every Indexer pass succeeds, the orchestration completes normally and posts are not held back.")]
+        "When every Indexer pass succeeds, the orchestration completes normally and Poster, Tweet and Bluesky run " +
+        "with posts not held back.")]
     public async Task successful_passes_complete_normally()
     {
         // Arrange
@@ -114,6 +129,7 @@ public class HourlyOrchestrationIndexerFailureRules
 
         // Assert
         result.Should().NotBeNull();
+        _activities.Should().ContainInOrder(nameof(Poster), nameof(Publisher), nameof(Tweet), nameof(Bluesky));
         _activityInputs[nameof(Tweet)].YouTubeError.Should().BeFalse();
         _activityInputs[nameof(Tweet)].SpotifyError.Should().BeFalse();
     }

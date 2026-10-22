@@ -29,6 +29,5 @@ public interface IYouTubeEpisodeProvider
         IndexingContext indexingContext, 
         bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null,
-        IEnumerable<string>? knownIds = null,
-        bool firstPageOnlyUnlessNewestFirst = false);
+        IEnumerable<string>? knownIds = null);
 }

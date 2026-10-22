@@ -1,10 +1,23 @@
 using System.Net.Http.Headers;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 
-public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IYouTubeThumbnailResolver
+public class YouTubeThumbnailResolver(
+    IHttpClientFactory httpClientFactory,
+    ILogger<YouTubeThumbnailResolver> logger) : IYouTubeThumbnailResolver
 {
+    /// <summary>Stable log prefix when a probe hits the probe client's own timeout.</summary>
+    public const string ProbeTimeoutMessagePrefix = "YouTubeThumbnailProbeTimeout";
+
+    private enum ProbeResult
+    {
+        Usable,
+        Unusable,
+        TimedOut
+    }
+
     /// <summary>Named HttpClient used to probe thumbnail URLs. Registered with <see cref="ProbeTimeout"/>.</summary>
     public const string HttpClientName = nameof(YouTubeThumbnailResolver);
 
@@ -30,8 +43,20 @@ public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IY
                 continue;
             }
 
-            if (await IsUsableThumbnailAsync(candidate.Url, candidate.IsDefaultTier, cancellationToken))
+            var result = await ProbeAsync(candidate.Url, candidate.IsDefaultTier, cancellationToken);
+            if (result == ProbeResult.Usable)
             {
+                return candidate.Url;
+            }
+
+            if (result == ProbeResult.TimedOut)
+            {
+                // A slow CDN says nothing about the tier: keep the API-listed candidate (its height already passed)
+                // rather than storing a lower tier for good. The recent-thumbnail re-check verifies high-res tiers later.
+                logger.LogWarning(
+                    ProbeTimeoutMessagePrefix +
+                    " video-id='{VideoId}' url='{Url}' timeout-seconds='{TimeoutSeconds}' action='kept-api-candidate'",
+                    video?.Id, candidate.Url, ProbeTimeout.TotalSeconds);
                 return candidate.Url;
             }
         }
@@ -47,12 +72,20 @@ public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IY
             .ToArray();
     }
 
-    public Task<bool> IsStoredImageUsableAsync(Uri imageUrl, CancellationToken cancellationToken = default)
+    public async Task<bool> IsStoredImageUsableAsync(Uri imageUrl, CancellationToken cancellationToken = default)
     {
-        return IsUsableThumbnailAsync(
+        var result = await ProbeAsync(
             imageUrl,
             YouTubeThumbnailUrls.IsDefaultTier(imageUrl),
             cancellationToken);
+        if (result == ProbeResult.TimedOut)
+        {
+            // Never report a timeout as "withdrawn": the re-check would re-resolve on a slow CDN.
+            throw new TimeoutException(
+                $"{ProbeTimeoutMessagePrefix}: probe of '{imageUrl}' exceeded {ProbeTimeout.TotalSeconds}s.");
+        }
+
+        return result == ProbeResult.Usable;
     }
 
     private static bool HasUsableApiHeight(ThumbnailCandidate candidate)
@@ -61,7 +94,7 @@ public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IY
                (candidate.IsDefaultTier || candidate.Height > YouTubeThumbnailValidation.PlaceholderMaxHeight);
     }
 
-    private async Task<bool> IsUsableThumbnailAsync(
+    private async Task<ProbeResult> ProbeAsync(
         Uri url,
         bool isDefaultTier,
         CancellationToken cancellationToken)
@@ -78,26 +111,28 @@ public class YouTubeThumbnailResolver(IHttpClientFactory httpClientFactory) : IY
             if (!response.IsSuccessStatusCode)
             {
                 // A withdrawn tier answers 404 with a decodable placeholder body; never trust it.
-                return false;
+                return ProbeResult.Unusable;
             }
 
             var bytes = await ReadPrefixAsync(response.Content, cancellationToken);
             if (!JpegDimensionsReader.TryGetDimensions(bytes, out var width, out var height))
             {
-                return false;
+                return ProbeResult.Unusable;
             }
 
-            return YouTubeThumbnailValidation.IsUsableThumbnail(width, height, isDefaultTier);
+            return YouTubeThumbnailValidation.IsUsableThumbnail(width, height, isDefaultTier)
+                ? ProbeResult.Usable
+                : ProbeResult.Unusable;
         }
         catch (HttpRequestException)
         {
-            return false;
+            return ProbeResult.Unusable;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // The probe's own timeout fired (HttpClient.Timeout). A slow tier is unusable, not a reason to abort
-            // the caller: the next candidate is tried. A cancelled caller still propagates.
-            return false;
+            // The probe's own timeout fired (HttpClient.Timeout): the tier's state is unknown, not "unusable".
+            // A cancelled caller still propagates.
+            return ProbeResult.TimedOut;
         }
     }
 

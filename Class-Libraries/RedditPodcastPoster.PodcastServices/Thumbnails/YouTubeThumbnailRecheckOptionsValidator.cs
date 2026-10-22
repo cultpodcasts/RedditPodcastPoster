@@ -24,10 +24,10 @@ public class YouTubeThumbnailRecheckOptionsValidator : IValidateOptions<YouTubeT
         }
 
         if (options.ProbeTimeoutSeconds <= 0 ||
-            options.ProbeTimeoutSeconds > YouTubeThumbnailResolver.ProbeTimeout.TotalSeconds)
+            options.ProbeTimeoutSeconds >= YouTubeThumbnailResolver.ProbeTimeout.TotalSeconds)
         {
             failures.Add(
-                $"{nameof(YouTubeThumbnailRecheckOptions)}.{nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds)} must be > 0 and <= {YouTubeThumbnailResolver.ProbeTimeout.TotalSeconds} (the probe HTTP client timeout) " +
+                $"{nameof(YouTubeThumbnailRecheckOptions)}.{nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds)} must be > 0 and < {YouTubeThumbnailResolver.ProbeTimeout.TotalSeconds} (strictly below the probe HTTP client timeout, so the re-check's own timeout always wins and a timeout is never read as \"withdrawn\") " +
                 $"(config key: {YouTubeThumbnailRecheckOptions.SectionName}__{nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds)}).");
         }
 

@@ -22,17 +22,13 @@ public class YouTubePlaylistService(
     private const int MaxSearchResults = 5;
     private const string PrivateVideoTitle = "Private video";
 
-    /// <summary>Stable log prefix when a skip-expensive pass stops an unordered playlist after its first page.</summary>
-    public const string FirstPageOnlyMessagePrefix = "YouTubePlaylistFirstPageOnly";
-
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         IYouTubeServiceWrapper youTubeServiceWrapper,
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false,
         bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null,
-        bool firstPageOnlyUnlessNewestFirst = false)
+        PlaylistOrder? playlistOrder = null)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
@@ -80,18 +76,6 @@ public class YouTubePlaylistService(
             (firstRun || (knownToBeInReverseOrder && result.Any() && result.Last().Snippet.PublishedAtDateTimeOffset
                 .ReleasedSinceDate(indexingContext.ReleasedSince)) || !knownToBeInReverseOrder))
         {
-            // A pass that skips expensive YouTube queries reads only the head of a playlist that is not newest-first
-            // (or whose order is unknown): walking it end-to-end is the expensive query, deferred to the pass that
-            // allows it. A newest-first playlist still pages while its items are inside the window.
-            if (firstPageOnlyUnlessNewestFirst && !arbitraryOrder && !firstRun && !knownToBeInReverseOrder)
-            {
-                logger.LogWarning(
-                    FirstPageOnlyMessagePrefix +
-                    " playlist-id='{PlaylistId}' pages-fetched='{PagesFetched}' items='{Items}' released-since='{ReleasedSince:O}'",
-                    playlistId.PlaylistId, pagesFetched, result.Count, indexingContext.ReleasedSince);
-                break;
-            }
-
             if (arbitraryOrder &&
                 ArbitraryYouTubePlaylistWalk.ShouldTripCircuitBreaker(pagesFetched, nextPageToken))
             {

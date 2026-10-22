@@ -17,6 +17,8 @@ public class PodcastsUpdater(
     IPodcastRepository podcastRepository,
     IPodcastPassApiCache passApiCache,
     IOptions<PodcastUpdateBudgetOptions> budgetOptions,
+    IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
+    PodcastUpdateBudgetCutTracker budgetCutTracker,
     TimeProvider timeProvider,
     ILogger<PodcastsUpdater> logger)
     : IPodcastsUpdater
@@ -24,7 +26,13 @@ public class PodcastsUpdater(
     /// <summary>Stable log prefix for a podcast cut off by its time budget (App Insights keys off it).</summary>
     public const string BudgetExceededMessagePrefix = "IndexerPodcastBudgetExceeded";
 
+    /// <summary>Stable log prefix when an abandoned update finally finishes in the background.</summary>
+    public const string AbandonedCompletedMessagePrefix = "IndexerPodcastAbandonedCompleted";
+
     private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
+
+    private readonly PodcastIndexingStageLogOptions _stageLogOptions =
+        stageLogOptions.Value ?? new PodcastIndexingStageLogOptions();
 
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
@@ -44,6 +52,8 @@ public class PodcastsUpdater(
             .ThenBy(x => x.Id)
             .ToArray();
 
+        // A pass that allows expensive queries (00 UTC primary pass) may legitimately walk whole catalogues.
+        var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         logger.LogInformation("{nameofUpdatePodcasts} Indexing Starting.", nameof(UpdatePodcasts));
         foreach (var (podcastId, podcast) in orderedPodcasts)
         {
@@ -62,8 +72,9 @@ public class PodcastsUpdater(
                 // performAutoIndex requires podcast != null; capture for catch (flow analysis does not carry in).
                 var podcastToUpdate = podcast!;
                 var stageLog = new PodcastIndexingStageLog(
-                    podcastToUpdate.Id, podcastToUpdate.Name, logger, timeProvider);
-                var budget = _budget.PerPodcastBudget;
+                    podcastToUpdate.Id, podcastToUpdate.Name, logger, timeProvider, _stageLogOptions);
+                var budget = _budget.BudgetFor(expensivePass);
+                Task<IndexPodcastResult>? updateTask = null;
                 using var budgetCts = budget.HasValue
                     ? new CancellationTokenSource(budget.Value, timeProvider)
                     : new CancellationTokenSource();
@@ -75,11 +86,12 @@ public class PodcastsUpdater(
                         CancellationToken = budgetCts.Token,
                         StageReporter = stageLog
                     };
-                    var updateTask = podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
+                    updateTask = podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
                     var result = budget.HasValue
                         ? await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider)
                         : await updateTask;
                     stageLog.Stage("complete");
+                    budgetCutTracker.RecordCompleted(podcastToUpdate.Id);
                     batchBypassState = indexingContext.AbsorbPodcastPass(
                         podcastIndexingContext,
                         batchBypassState);
@@ -123,12 +135,19 @@ public class PodcastsUpdater(
                                            ex is OperationCanceledException or TimeoutException)
                 {
                     // TimeoutException: the update ignored its cancelled token and was abandoned after the grace period.
+                    var abandoned = ex is TimeoutException;
+                    var consecutiveCuts = budgetCutTracker.RecordCut(podcastToUpdate.Id);
                     logger.LogError(
                         BudgetExceededMessagePrefix +
-                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' stage='{Stage}' detail='{Detail}' elapsed-ms='{ElapsedMs}' budget-seconds='{BudgetSeconds}' abandoned='{Abandoned}'. Continuing with the next podcast.",
+                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' stage='{Stage}' detail='{Detail}' elapsed-ms='{ElapsedMs}' budget-seconds='{BudgetSeconds}' expensive-pass='{ExpensivePass}' abandoned='{Abandoned}' consecutive-cuts='{ConsecutiveCuts}'. Continuing with the next podcast.",
                         podcastToUpdate.Id, podcastToUpdate.Name, stageLog.CurrentStage,
                         stageLog.CurrentStageDetail ?? string.Empty, stageLog.ElapsedMilliseconds,
-                        _budget.PerPodcastBudgetSeconds, ex is TimeoutException);
+                        (int) budget!.Value.TotalSeconds, expensivePass, abandoned, consecutiveCuts);
+                    if (abandoned && updateTask != null)
+                    {
+                        ObserveAbandonedUpdate(updateTask, podcastToUpdate, stageLog);
+                    }
+
                     success = false;
                 }
                 catch (Exception ex)
@@ -168,5 +187,27 @@ public class PodcastsUpdater(
     {
         var podcastIds = indexablePodcastIdProvider.GetIndexablePodcastIds();
         return await UpdatePodcasts(await podcastIds.ToArrayAsync(), indexingContext);
+    }
+
+    /// <summary>
+    /// An abandoned update keeps running in the background. Observe it so its outcome (including a late fault or a write
+    /// that started before cancellation) is logged instead of becoming an unobserved task exception. The update's own
+    /// cancelled token stops it before any further Cosmos write (<see cref="PodcastUpdater"/> checks it before each one).
+    /// </summary>
+    private void ObserveAbandonedUpdate(Task<IndexPodcastResult> updateTask, Podcast podcast,
+        PodcastIndexingStageLog stageLog)
+    {
+        updateTask.ContinueWith(task =>
+            {
+                var error = task.Exception?.GetBaseException();
+                logger.LogWarning(
+                    AbandonedCompletedMessagePrefix +
+                    " podcast-id='{PodcastId}' podcast-name='{PodcastName}' status='{Status}' last-stage='{Stage}' elapsed-ms='{ElapsedMs}' error-type='{ErrorType}'",
+                    podcast.Id, podcast.Name, task.Status, stageLog.CurrentStage, stageLog.ElapsedMilliseconds,
+                    error?.GetType().Name ?? string.Empty);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 }

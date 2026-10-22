@@ -62,8 +62,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()),
+                It.IsAny<IEnumerable<string>?>()),
             Times.Never);
     }
 
@@ -96,8 +95,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 indexingContext,
                 false,
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(expectedEpisodes));
 
         // Act
@@ -114,8 +112,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 indexingContext,
                 false,
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()),
+                It.IsAny<IEnumerable<string>?>()),
             Times.Once);
     }
 
@@ -144,8 +141,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 indexingContext,
                 true,
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([]));
 
         // Act
@@ -160,8 +156,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 indexingContext,
                 true,
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()),
+                It.IsAny<IEnumerable<string>?>()),
             Times.Once);
     }
 
@@ -187,8 +182,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(
                 null,
                 Failure: YouTubePlaylistFetchFailure.NotFound));

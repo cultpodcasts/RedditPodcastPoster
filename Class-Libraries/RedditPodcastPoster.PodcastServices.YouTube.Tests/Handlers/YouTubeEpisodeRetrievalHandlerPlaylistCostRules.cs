@@ -15,8 +15,8 @@ using Xunit;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Handlers;
 
 /// <summary>
-/// Playlist discovery cost on the hourly indexer: skip-expensive passes read the playlist head only, and stored videos
-/// are not re-fetched, the same as channel discovery.
+/// Playlist discovery cost on the hourly indexer: stored videos are not re-fetched (the same rule as channel discovery),
+/// unless merge would still fill something in on them; every non-arbitrary playlist still pages as before.
 /// </summary>
 public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
 {
@@ -25,7 +25,7 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
     private readonly RecordingLogger<YouTubeEpisodeRetrievalHandler> _logger = new();
     private readonly Podcast _podcast;
     private IEnumerable<string>? _knownIds;
-    private bool? _firstPageOnly;
+    private GetPlaylistEpisodesResponse _response = new([]);
 
     public YouTubeEpisodeRetrievalHandlerPlaylistCostRules()
     {
@@ -43,21 +43,17 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
-                It.IsAny<IEnumerable<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<IEnumerable<string>?>()))
             .Callback<Podcast, YouTubePlaylistId, YouTubeChannelId?, IndexingContext, bool, PlaylistOrder?,
-                IEnumerable<string>?, bool>((_, _, _, _, _, _, knownIds, firstPageOnly) =>
-            {
-                _knownIds = knownIds;
-                _firstPageOnly = firstPageOnly;
-            })
-            .ReturnsAsync(new GetPlaylistEpisodesResponse([]));
+                IEnumerable<string>?>((_, _, _, _, _, _, knownIds) => _knownIds = knownIds)
+            .ReturnsAsync(() => _response);
     }
 
     [Fact(DisplayName =
-        "On a pass that skips expensive YouTube queries, playlist discovery asks for the head only and logs the " +
-        "'playlist-head-only' path, because the label must say what the pass actually reads.")]
-    public async Task skip_expensive_pass_reads_head_only()
+        "On a pass that skips expensive YouTube queries a non-arbitrary playlist is still paginated and logged as " +
+        "'playlist-paginated', because reading only the head would never find new uploads at the tail of an " +
+        "oldest-first playlist.")]
+    public async Task skip_expensive_pass_still_paginates()
     {
         // Arrange
         var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true);
@@ -67,32 +63,13 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
         await sut.GetEpisodes(_podcast, [], context);
 
         // Assert
-        _firstPageOnly.Should().BeTrue();
         _logger.Entries.Should().Contain(entry =>
-            entry.Message.StartsWith("YouTubeDiscoveryPath") && entry.Message.Contains("path='playlist-head-only'"));
+            entry.Message.StartsWith("YouTubeDiscoveryPath") && entry.Message.Contains("path='playlist-paginated'"));
     }
 
     [Fact(DisplayName =
-        "On a pass that allows expensive YouTube queries, playlist discovery may walk the playlist and logs the " +
-        "'playlist-paginated' path.")]
-    public async Task expensive_pass_may_paginate()
-    {
-        // Arrange
-        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: false);
-        var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
-
-        // Act
-        await sut.GetEpisodes(_podcast, [], context);
-
-        // Assert
-        _firstPageOnly.Should().BeFalse();
-        _logger.Entries.Should().Contain(entry => entry.Message.Contains("path='playlist-paginated'"));
-    }
-
-    [Fact(DisplayName =
-        "A playlist declared arbitrary-order is never limited to its head, because its capped full walk is the only " +
-        "correct read of a curated playlist.")]
-    public async Task arbitrary_playlist_is_not_limited()
+        "An arbitrary-order playlist logs the 'playlist-arbitrary-full-walk' path.")]
+    public async Task arbitrary_playlist_logs_full_walk()
     {
         // Arrange
         _podcast.YouTubePlaylistOrder = PlaylistOrder.Arbitrary;
@@ -103,18 +80,17 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
         await sut.GetEpisodes(_podcast, [], context);
 
         // Assert
-        _firstPageOnly.Should().BeFalse();
+        _logger.Entries.Should().Contain(entry => entry.Message.Contains("path='playlist-arbitrary-full-walk'"));
     }
 
     [Fact(DisplayName =
-        "Playlist discovery passes the YouTube ids of stored in-window episodes as known ids, because videos the " +
-        "podcast already has must not be looked up again (the same rule as channel discovery).")]
-    public async Task stored_in_window_youtube_ids_are_known()
+        "Playlist discovery passes the YouTube id of a complete stored episode as known, because videos the podcast " +
+        "already has must not be looked up again (the same rule as channel discovery).")]
+    public async Task complete_stored_episode_is_known()
     {
         // Arrange
-        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true);
-        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(_podcast);
-        stored.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var stored = CompleteStoredEpisode(DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()));
         var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
         // Act
@@ -122,5 +98,96 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
 
         // Assert
         _knownIds.Should().Contain(EpisodeServicePresence.YouTubeEpisodeId(stored));
+    }
+
+    [Fact(DisplayName =
+        "A stored episode released before the window (but returned by the release-scoped repository read) is still " +
+        "known, because playlist items are windowed on the later of added-at and published-at, so an old video newly " +
+        "added to the playlist must not be re-fetched on every pass.")]
+    public async Task stored_episode_released_before_window_is_known()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var stored = CompleteStoredEpisode(DomainTestFixture.UtcAtTime(-30, _fixture.CreateNonMidnightTimeOfDay()));
+        var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
+
+        // Act
+        await sut.GetEpisodes(_podcast, [stored], context);
+
+        // Assert
+        _knownIds.Should().Contain(EpisodeServicePresence.YouTubeEpisodeId(stored));
+    }
+
+    [Fact(DisplayName =
+        "A stored playlist episode missing its YouTube image is not treated as known, so discovery re-fetches it and " +
+        "merge fills the image in, because enrichment does not fill an image on an episode that already has its " +
+        "YouTube id.")]
+    public async Task stored_episode_missing_youtube_image_is_not_known()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var stored = CompleteStoredEpisode(
+            DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()), withYouTubeImage: false);
+        var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
+
+        // Act
+        await sut.GetEpisodes(_podcast, [stored], context);
+
+        // Assert
+        _knownIds.Should().NotContain(EpisodeServicePresence.YouTubeEpisodeId(stored));
+    }
+
+    [Fact(DisplayName =
+        "A stored playlist episode with a date-only (midnight) release is not treated as known, so discovery re-fetches " +
+        "it and merge backfills the release time from YouTube.")]
+    public async Task stored_episode_with_date_only_release_is_not_known()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var stored = CompleteStoredEpisode(DomainTestFixture.UtcDaysAgo(1));
+        var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
+
+        // Act
+        await sut.GetEpisodes(_podcast, [stored], context);
+
+        // Assert
+        _knownIds.Should().NotContain(EpisodeServicePresence.YouTubeEpisodeId(stored));
+    }
+
+    [Fact(DisplayName =
+        "The playlist discovery path log reports the known videos it skipped alongside the new ones found, because " +
+        "episodes-found now counts only new videos and in-window = episodes-found + known-skipped.")]
+    public async Task discovery_path_log_reports_known_skipped()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var knownSkipped = _fixture.CreateDuration().Minutes + 1;
+        _response = new GetPlaylistEpisodesResponse([], KnownSkipped: knownSkipped);
+        var sut = _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
+
+        // Act
+        await sut.GetEpisodes(_podcast, [], context);
+
+        // Assert
+        _logger.Entries.Should().Contain(entry =>
+            entry.Message.StartsWith("YouTubeDiscoveryPath") &&
+            entry.Message.Contains("episodes-found='0'") &&
+            entry.Message.Contains($"known-skipped='{knownSkipped}'"));
+    }
+
+    private RedditPodcastPoster.Models.Episodes.Episode CompleteStoredEpisode(
+        DateTime release,
+        bool withYouTubeImage = true)
+    {
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(_podcast, release);
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(stored)!;
+        if (withYouTubeImage)
+        {
+            EpisodeServicePresence.Upsert(stored, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(youTubeId),
+                new Uri($"https://i.ytimg.com/vi/{youTubeId}/maxresdefault.jpg"));
+        }
+
+        stored.Description = _fixture.CreateTitle();
+        return stored;
     }
 }

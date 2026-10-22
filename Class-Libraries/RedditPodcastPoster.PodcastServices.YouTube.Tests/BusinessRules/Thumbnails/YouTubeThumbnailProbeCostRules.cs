@@ -1,8 +1,10 @@
 using System.Net;
 using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
@@ -20,12 +22,14 @@ public class YouTubeThumbnailProbeCostRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly YouTubeThumbnailHttpStub _http = new();
+    private readonly RecordingLogger<YouTubeThumbnailResolver> _logger = new();
     private readonly string _youTubeId;
     private TimeSpan _clientTimeout = TimeSpan.FromSeconds(30);
 
     public YouTubeThumbnailProbeCostRules()
     {
         _youTubeId = _fixture.CreateYouTubeId();
+        _mocker.Use<ILogger<YouTubeThumbnailResolver>>(_logger);
         _mocker.GetMock<IHttpClientFactory>()
             .Setup(factory => factory.CreateClient(YouTubeThumbnailResolver.HttpClientName))
             .Returns(() => new HttpClient(_http, disposeHandler: false) { Timeout = _clientTimeout });
@@ -71,9 +75,10 @@ public class YouTubeThumbnailProbeCostRules
     }
 
     [Fact(DisplayName =
-        "When a thumbnail tier does not answer within the probe timeout, it counts as unusable and the next tier wins, " +
-        "because a slow image host must not abort the episode or the podcast's index run.")]
-    public async Task probe_timeout_falls_through_to_next_tier()
+        "When a thumbnail tier does not answer within the probe timeout, the API-listed tier is kept and a Warning names " +
+        "the video, because a slow image host says nothing about the tier and storing a lower tier would downgrade the " +
+        "image for good (the recent-thumbnail re-check verifies high-res tiers later).")]
+    public async Task probe_timeout_keeps_the_api_candidate_and_warns()
     {
         // Arrange
         _clientTimeout = TimeSpan.FromMilliseconds(50);
@@ -86,7 +91,29 @@ public class YouTubeThumbnailProbeCostRules
             Thumbnail(StandardTier, StandardHeight)));
 
         // Assert
-        image.Should().Be(Url(_youTubeId, StandardTier));
+        image.Should().Be(Url(_youTubeId, MaxresTier));
+        _http.Requested.Should().NotContain(Url(_youTubeId, StandardTier));
+        _logger.Entries.Should().ContainSingle(entry =>
+            entry.Level == LogLevel.Warning &&
+            entry.Message.StartsWith(YouTubeThumbnailResolver.ProbeTimeoutMessagePrefix) &&
+            entry.Message.Contains($"video-id='{_youTubeId}'"));
+    }
+
+    [Fact(DisplayName =
+        "When a stored image's probe hits the probe client's own timeout, the check throws instead of answering " +
+        "'withdrawn', because the re-check must never re-resolve an image on a slow CDN.")]
+    public async Task stored_image_probe_timeout_is_not_reported_as_withdrawn()
+    {
+        // Arrange
+        _clientTimeout = TimeSpan.FromMilliseconds(50);
+        _http.Hang(Url(_youTubeId, MaxresTier));
+        var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
+
+        // Act
+        var act = () => sut.IsStoredImageUsableAsync(Url(_youTubeId, MaxresTier));
+
+        // Assert
+        await act.Should().ThrowAsync<TimeoutException>();
     }
 
     [Fact(DisplayName =

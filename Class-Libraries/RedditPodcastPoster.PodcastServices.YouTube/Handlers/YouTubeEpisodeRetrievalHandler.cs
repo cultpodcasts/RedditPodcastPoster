@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -24,7 +25,7 @@ public class YouTubeEpisodeRetrievalHandler(
         IList<EpisodeModel> newEpisodes = new List<EpisodeModel>();
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
         {
-            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0);
+            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0, null);
             return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
         }
 
@@ -32,14 +33,11 @@ public class YouTubeEpisodeRetrievalHandler(
         {
             var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
             var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
-            // Skip-expensive passes read only the playlist head unless it is newest-first (then they page while
-            // items are inside the window); the full walk of an unordered playlist waits for the expensive pass.
-            var firstPageOnlyUnlessNewestFirst = !arbitraryOrder && indexingContext.SkipExpensiveYouTubeQueries;
+            // Every non-arbitrary playlist pages (until it leaves the window when newest-first, to the end otherwise);
+            // the expensive-query flag only changes the page size. The old "playlist-single-page" label was misleading.
             var discoveryPath = arbitraryOrder
                 ? "playlist-arbitrary-full-walk"
-                : firstPageOnlyUnlessNewestFirst
-                    ? "playlist-head-only"
-                    : "playlist-paginated";
+                : "playlist-paginated";
             if (!arbitraryOrder && podcast.HasExpensiveYouTubePlaylistQuery() &&
                 indexingContext.SkipExpensiveYouTubeQueries)
             {
@@ -55,8 +53,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 playlistId,
                 new YouTubeChannelId(podcast.YouTubeChannelId),
                 indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
-                KnownYouTubeIds(episodes, indexingContext),
-                firstPageOnlyUnlessNewestFirst);
+                KnownPlaylistYouTubeIds(episodes));
             if (getPlaylistEpisodesResult.Results != null)
             {
                 newEpisodes = getPlaylistEpisodesResult.Results;
@@ -76,7 +73,8 @@ public class YouTubeEpisodeRetrievalHandler(
                     logger);
             }
 
-            LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count);
+            LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count,
+                getPlaylistEpisodesResult.KnownSkipped);
         }
         else
         {
@@ -87,7 +85,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 newEpisodes = foundEpisodes;
             }
 
-            LogDiscoveryPath(podcast, "channel", indexingContext, newEpisodes.Count);
+            LogDiscoveryPath(podcast, "channel", indexingContext, newEpisodes.Count, null);
         }
 
         handled = true;
@@ -96,7 +94,7 @@ public class YouTubeEpisodeRetrievalHandler(
     }
 
     /// <summary>
-    /// YouTube ids of stored episodes inside the window; discovery skips them on both the channel and playlist paths.
+    /// YouTube ids of stored episodes inside the window; the channel path skips them (unchanged behaviour).
     /// </summary>
     private static IReadOnlyCollection<string> KnownYouTubeIds(
         IEnumerable<EpisodeModel> episodes,
@@ -108,21 +106,43 @@ public class YouTubeEpisodeRetrievalHandler(
         return scoped.Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty).ToArray();
     }
 
-    private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)
+    /// <summary>
+    /// YouTube ids the playlist path may skip. Built from every stored episode passed in (the repository already scopes
+    /// them to the release window), because the playlist results are windowed on the later of added-at and
+    /// video-published-at: an old video recently added to the playlist must still count as known.
+    /// A stored episode that merge would still improve stays out of the set, so it is re-fetched and merged as before
+    /// the skip existed: <see cref="EpisodePlatformMerger"/> fills a missing YouTube url, image or description
+    /// (<c>ApplyFillMissing(ToYouTubePatch())</c>) and <c>YouTubeTimeBackfillMergePolicy</c> backfills a date-only
+    /// (midnight) release time. Enrichment does not do either for an episode that already has its YouTube id.
+    /// </summary>
+    internal static IReadOnlyCollection<string> KnownPlaylistYouTubeIds(IEnumerable<EpisodeModel> episodes)
     {
-        if (podcast.DependsOnYouTubeForEpisodeDiscovery())
-        {
-            logger.LogWarning(
-                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
-                podcast.Id, discoveryPath, true,
-                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
-        }
-        else
-        {
-            logger.LogInformation(
-                "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}'",
-                podcast.Id, discoveryPath, false,
-                indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound);
-        }
+        return episodes
+            .Where(x => !MergeWouldFillMissingYouTubeData(x))
+            .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToArray();
+    }
+
+    internal static bool MergeWouldFillMissingYouTubeData(EpisodeModel episode)
+    {
+        return EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) == null ||
+               EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube) == null ||
+               string.IsNullOrWhiteSpace(episode.Description) ||
+               episode.ReleaseUtc.TimeOfDay == TimeSpan.Zero;
+    }
+
+    private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext,
+        int episodesFound, int? knownSkipped)
+    {
+        // episodes-found counts new (not yet stored) episodes on both paths. known-skipped (playlist path only) counts
+        // in-window items dropped because they are already stored; in-window = episodes-found + known-skipped.
+        var level = podcast.DependsOnYouTubeForEpisodeDiscovery() ? LogLevel.Warning : LogLevel.Information;
+        logger.Log(level,
+            "YouTubeDiscoveryPath podcast-id='{PodcastId}' path='{DiscoveryPath}' youtube-authority='{YouTubeAuthority}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' episodes-found='{EpisodesFound}' known-skipped='{KnownSkipped}'",
+            podcast.Id, discoveryPath, level == LogLevel.Warning,
+            indexingContext.SkipYouTubeUrlResolving, indexingContext.SkipExpensiveYouTubeQueries, episodesFound,
+            knownSkipped?.ToString() ?? "n/a");
     }
 }

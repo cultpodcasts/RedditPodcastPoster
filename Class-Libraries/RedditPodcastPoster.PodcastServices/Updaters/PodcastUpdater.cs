@@ -161,7 +161,9 @@ public class PodcastUpdater(
         indexingContext.ReportStage("enrich", $"episodes={episodes.Count}");
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(
             podcast, enrichmentEpisodeContext, episodes, indexingContext);
-        // Past the budget, stop before any write rather than half-saving; the next pass repeats the work.
+        // Past the budget, stop before any write; the next pass repeats the work. Each write below re-checks the token,
+        // so an update abandoned by the indexer loop (still running in the background) never starts a Cosmos write
+        // after its cancellation, even if a call ahead of the write ignored the token.
         cancellationToken.ThrowIfCancellationRequested();
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
@@ -172,12 +174,14 @@ public class PodcastUpdater(
         // Persist enriched episodes
         if (enrichmentResult.UpdatedEpisodes.Any())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await episodeRepository.Save(enrichmentResult.UpdatedEpisodes.Select(x => x.Episode));
         }
 
         // Persist filtered episodes (marked as removed)
         if (filterResult.FilteredEpisodes.Any())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await episodeRepository.Save(filterResult.FilteredEpisodes.Select(x => x.Episode));
         }
 
@@ -185,6 +189,7 @@ public class PodcastUpdater(
         if (mergeResult.MergedEpisodes.Any())
         {
             // Save the in-place merged existing episodes
+            cancellationToken.ThrowIfCancellationRequested();
             await episodeRepository.Save(mergeResult.MergedEpisodes.Select(x => x.Existing));
         }
         
@@ -203,6 +208,7 @@ public class PodcastUpdater(
                     caller: "PodcastUpdater.Update");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             await episodeRepository.Save(mergeResult.AddedEpisodes);
 
             if (podcast.AlwaysPromoteAsHero == true)
@@ -239,6 +245,7 @@ public class PodcastUpdater(
                         EpisodeCreationSource.Indexer,
                         podcast.Id,
                         heroIds);
+                    cancellationToken.ThrowIfCancellationRequested();
                     await heroEpisodePromoter.PromoteAsync(heroIds);
                 }
             }
@@ -337,6 +344,7 @@ public class PodcastUpdater(
             }
 
             indexingContext.ReportStage("save-podcast");
+            cancellationToken.ThrowIfCancellationRequested();
             await podcastRepository.Save(podcast);
         }
 

@@ -146,9 +146,8 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<PlaylistOrder?>(),
-                It.IsAny<bool>()))
-            .ReturnsAsync((IYouTubeServiceWrapper w, YouTubePlaylistId id, IndexingContext ic, bool b1, bool b2, PlaylistOrder? po, bool b3) =>
+                It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync((IYouTubeServiceWrapper w, YouTubePlaylistId id, IndexingContext ic, bool b1, bool b2, PlaylistOrder? po) =>
             {
                 seenApps.Add(w.CurrentApplication);
                 if (seenApps.Count == 1)
