@@ -41,6 +41,7 @@ public partial class CreateSearchIndexProcessor(
     public async Task Process(CreateSearchIndexRequest request)
     {
         var plan = SearchIndexRebuildPlan.For(request);
+        await EnsureSiblingQuotaFits(request, plan);
         if (request.TearDownIndex)
         {
             if (request.UpdateExisting)
@@ -501,6 +502,30 @@ public partial class CreateSearchIndexProcessor(
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         })
     };
+
+    /// <summary>
+    /// Fails before any teardown when the service cannot hold the episode indexer plus every scheduled
+    /// sibling at once (the Free tier allows three data sources and three indexers; this needs four).
+    /// Without this, a teardown deletes the index and then stops on the last sibling create.
+    /// </summary>
+    private async Task EnsureSiblingQuotaFits(CreateSearchIndexRequest request, SearchIndexRebuildPlan plan)
+    {
+        if (!plan.EnsureSiblings)
+        {
+            return;
+        }
+
+        var counters = (await searchIndexClient.GetServiceStatisticsAsync())?.Value?.Counters;
+        var needed = 1 + PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!).Count;
+        var dataSourceQuota = counters?.DataSourceCounter?.Quota;
+        var indexerQuota = counters?.IndexerCounter?.Quota;
+        if (dataSourceQuota < needed || indexerQuota < needed)
+        {
+            throw new InvalidOperationException(
+                $"The search service allows {dataSourceQuota} data sources and {indexerQuota} indexers, but the episode indexer plus scheduled TV, film and news siblings needs {needed} of each. " +
+                "Re-run with --run-indexer --transient-playables to load the siblings one at a time.");
+        }
+    }
 
     /// <summary>
     /// <c>--transient-playables</c>: for each sibling (TV, film, news) create its data source and indexer,

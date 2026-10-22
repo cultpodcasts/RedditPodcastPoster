@@ -3,6 +3,7 @@ using Azure;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
+using Azure.Search.Documents.Models;
 using CreateSearchIndex;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -311,5 +312,34 @@ public class CreateSearchIndexProcessorSiblingRules
             .Verify(x => x.DeleteIndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<SearchIndexerClient>()
             .Verify(x => x.DeleteIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a teardown would recreate scheduled siblings on a service that allows only three data sources and three indexers, then it stops before deleting anything and points at --transient-playables, because the fourth create would fail after the index was already gone.")]
+    public async Task teardown_on_free_tier_without_transient_playables_stops_before_deleting()
+    {
+        // Arrange
+        var free = SearchModelFactory.SearchResourceCounter(1, 3);
+        var counters = SearchModelFactory.SearchServiceCounters(
+            SearchModelFactory.SearchResourceCounter(0, 0), SearchModelFactory.SearchResourceCounter(1, null),
+            free, free, free, SearchModelFactory.SearchResourceCounter(1, 52428800),
+            SearchModelFactory.SearchResourceCounter(0, 3), SearchModelFactory.SearchResourceCounter(0, 3),
+            SearchModelFactory.SearchResourceCounter(0, null));
+        _mocker.GetMock<SearchIndexClient>()
+            .Setup(x => x.GetServiceStatisticsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(SearchModelFactory.SearchServiceStatistics(counters, null!), Status(200)));
+        var request = new CreateSearchIndexRequest { IndexName = IndexName, TearDownIndex = true, RunIndexer = true };
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var act = () => sut.Process(request);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*--transient-playables*");
+        _mocker.GetMock<SearchIndexClient>()
+            .Verify(x => x.DeleteIndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<SearchIndexerClient>()
+            .Verify(x => x.DeleteIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _createdOrUpdatedIndexers.Should().BeEmpty();
     }
 }
