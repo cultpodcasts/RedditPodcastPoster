@@ -16,7 +16,8 @@ public static class DiscoverySubmitResponseExtension
                 EpisodeId = x.EpisodeId,
                 PodcastId = x.PodcastId,
                 Message = x.Message,
-                Error = x.Error
+                Error = x.Error,
+                ContentKind = x.ContentKind
             }).ToArray(),
             SearchIndexerState = outcome.SearchIndexer.ToDto()
         };

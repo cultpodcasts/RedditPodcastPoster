@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Api.Models;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.Discovery.Services;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -11,6 +12,10 @@ public class DiscoveryResultsService(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
+    ITvShowRepository tvShowRepository,
+    INewsReportRepository newsReportRepository,
+    ITvShowEpisodeRepository tvShowEpisodeRepository,
     IDiscoveryResultDeduplicator discoveryResultDeduplicator,
     IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     ILogger<DiscoveryResultsService> logger) : IDiscoveryResultsService
@@ -69,13 +74,47 @@ public class DiscoveryResultsService(
         }
 
         logger.LogInformation("{Method} obtained matching podcasts.", nameof(GetPodcastInfo));
-        return referencedPodcasts
+        var info = referencedPodcasts
             .ToDictionary(
                 pd => pd.id,
                 pd => new DiscoveryPodcastInfo(
                     pd.name,
                     pd.isVisible,
                     visibleEpisodeCounts.TryGetValue(pd.id, out var count) ? count : 0));
+        var parentIds = podcastIds.Where(id => !info.ContainsKey(id)).ToArray();
+        if (parentIds.Length > 0)
+        {
+            await AddCatalogueParentInfo(parentIds, info, c);
+        }
+
+        return info;
+    }
+
+    /// <summary>
+    /// Matched ids that are not podcasts: news organisations / TV shows (a migrated podcast keeps its id). Visible
+    /// items are the parent's reports / episodes that are not removed.
+    /// </summary>
+    private async Task AddCatalogueParentInfo(Guid[] ids, Dictionary<Guid, DiscoveryPodcastInfo> info,
+        CancellationToken c)
+    {
+        await foreach (var organisation in newsOrganisationRepository
+                           .GetAllBy(x => Enumerable.Contains(ids, x.Id)).WithCancellation(c))
+        {
+            var reports = await newsReportRepository.GetByNewsOrganisationId(organisation.Id)
+                .CountAsync(x => !x.Removed, c);
+            info[organisation.Id] = new DiscoveryPodcastInfo(organisation.Name, !organisation.IsRemoved(), reports,
+                nameof(CatalogueParentKind.NewsOrganisation));
+        }
+
+        await foreach (var show in tvShowRepository
+                           .GetAllBy(x => Enumerable.Contains(ids, x.Id)).WithCancellation(c))
+        {
+            var episodes = await tvShowEpisodeRepository.GetByTvShowId(show.Id).CountAsync(x => !x.Removed, c);
+            info[show.Id] = new DiscoveryPodcastInfo(show.Name, !show.IsRemoved(), episodes,
+                nameof(CatalogueParentKind.TvShow));
+        }
+
+        logger.LogInformation("{Method} obtained matching news organisations / TV shows.", nameof(GetPodcastInfo));
     }
 
     public async Task<IReadOnlyList<DiscoveryResultsDocument>> GetDocuments(IEnumerable<Guid> documentIds)

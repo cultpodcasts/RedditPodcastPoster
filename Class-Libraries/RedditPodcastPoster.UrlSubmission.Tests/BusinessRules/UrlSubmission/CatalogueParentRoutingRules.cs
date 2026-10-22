@@ -71,6 +71,7 @@ public class CatalogueParentRoutingRules
             .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
             .Returns((Guid id) => ToAsync(_tvEpisodes.Where(x => x.TvShowId == id)));
         _mocker.Use<ICatalogueParentLookup>(_mocker.CreateInstance<CatalogueParentLookup>());
+        _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
     }
 
     private Uri YouTubeUrl() => new($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");
@@ -143,6 +144,162 @@ public class CatalogueParentRoutingRules
         result.Should().Be(expected);
         VerifyRoutedTo(organisation.Id, Times.Once());
         VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "A news organisation with no indexing block, or an indexing block with no YouTube channel id, gets a URL whose channel title is its name (any case) and nothing goes to the podcast pipeline.")]
+    public async Task unclaimed_parent_named_like_channel_title_gets_url()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var organisation = AddOrganisation(name: name);
+        var otherName = "Synthetic Drama " + _fixture.CreateTitle();
+        var show = AddShow(i => i.SpotifyId = _fixture.CreateSpotifyId(), otherName);
+        var organisationUrl = YouTubeUrl();
+        var showUrl = YouTubeUrl();
+        OwnerIs(organisationUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(),
+                YouTubeChannelTitle: name.ToUpperInvariant()));
+        OwnerIs(showUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(),
+                YouTubeChannelTitle: " " + otherName + " "));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(organisationUrl, new IndexingContext(), new SubmitOptions(null, true));
+        await sut.Submit(showUrl, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Once());
+        VerifyRoutedTo(show.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+        organisation.Indexing.Should().BeNull("the fallback only routes; the curator sets the channel id");
+    }
+
+    [Fact(DisplayName =
+        "A parent named like the channel title but claiming a different YouTube channel is skipped: the URL goes to the podcast pipeline.")]
+    public async Task parent_claiming_another_channel_is_skipped_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var organisation = AddOrganisation(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(), name);
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Never());
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                null, url, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Two unclaimed parents named like the channel title are ambiguous (a parent claiming another channel is left out), and nothing is stored.")]
+    public async Task many_unclaimed_parents_by_title_are_ambiguous()
+    {
+        // Arrange
+        var name = "Synthetic Shared " + _fixture.CreateTitle();
+        var organisation = AddOrganisation(name: name);
+        var show = AddShow(i => i.YouTubeChannelId = string.Empty, name.ToLowerInvariant());
+        AddShow(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(), name);
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        var act = () => sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<AmbiguousParentNameException>();
+        ex.Which.ParentIds.Should().BeEquivalentTo([organisation.Id, show.Id]);
+        VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "A TV show whose indexing has an empty-string YouTube channel id counts as unclaimed and gets a URL whose channel title is its name.")]
+    public async Task parent_with_empty_channel_id_gets_url_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Drama " + _fixture.CreateTitle();
+        var show = AddShow(i => i.YouTubeChannelId = string.Empty, name);
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(show.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+    }
+
+    [Fact(DisplayName =
+        "A removed parent named like the channel title is not matched by title: the active namesake gets the URL, and with none the URL goes to the podcast pipeline.")]
+    public async Task removed_parent_is_skipped_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var removed = AddOrganisation(name: name);
+        removed.Removed = true;
+        var active = AddShow(name: name);
+        var activeUrl = YouTubeUrl();
+        OwnerIs(activeUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var lonelyName = "Synthetic Gone " + _fixture.CreateTitle();
+        var lonelyRemoved = AddOrganisation(name: lonelyName);
+        lonelyRemoved.Removed = true;
+        var lonelyUrl = YouTubeUrl();
+        OwnerIs(lonelyUrl, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(),
+                YouTubeChannelTitle: lonelyName));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(activeUrl, new IndexingContext(), new SubmitOptions(null, true));
+        var lonelyResult = await sut.Submit(lonelyUrl, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(active.Id, Times.Once());
+        VerifyRoutedTo(removed.Id, Times.Never());
+        VerifyRoutedTo(lonelyRemoved.Id, Times.Never());
+        lonelyResult.PodcastResult.Should().NotBe(SubmitResultState.PodcastRemoved);
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                null, lonelyUrl, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A podcast that owns the channel still gets the URL even when an unclaimed parent is named like the channel title.")]
+    public async Task podcast_owner_wins_over_title_fallback()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var organisation = AddOrganisation(name: name);
+        var podcast = _fixture.CreatePodcast(p => p.YouTubeChannelId = channelId);
+        var url = YouTubeUrl();
+        OwnerIs(url, podcast, new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Never());
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast?>(p => p != null && p.Id == podcast.Id), url, It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -580,6 +737,52 @@ public class CatalogueParentRoutingRules
         dryRun.EpisodeResult.Should().Be(SubmitResultState.Created);
         dryRun.CatalogueSearchSource.Should().BeNull();
         _reports.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "With enrich-only set, a URL that matches no stored playable creates nothing and returns no item, because discovery's extra URLs may only enrich the item the first URL stored, never add a second one.")]
+    public async Task parent_submitter_enrich_only_never_creates()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true, EnrichOnly: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        result.PlayableId.Should().BeNull();
+        result.CatalogueSearchSource.Should().BeNull();
+        _reports.Should().BeEmpty();
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "With enrich-only set, a URL the processor matches to a stored report still enriches and saves that report and returns its id, because enrich-only blocks only creation, not adding links to the discovered item.")]
+    public async Task parent_submitter_enrich_only_still_enriches_matched_report()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var stored = StoreReport(organisation, YouTubeUrl());
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var merged = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        merged.Services![ServiceKeys.Spotify] = new ServiceLink { Url = spotifyUrl };
+        ProcessorReturns(new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: merged));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), spotifyUrl, new IndexingContext(),
+            new SubmitOptions(null, true, EnrichOnly: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.PlayableId.Should().Be(stored.Id);
+        result.CatalogueSearchSource!.Episode.Id.Should().Be(stored.Id);
+        _reports.Should().ContainSingle();
+        _savedReports.Should().ContainSingle().Which.Should().BeSameAs(stored);
+        stored.Services![ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
     }
 
     [Fact(DisplayName =

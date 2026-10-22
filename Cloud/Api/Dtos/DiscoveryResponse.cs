@@ -127,6 +127,14 @@ public class DiscoveryResponse
 
             [JsonPropertyName("visibleEpisodes")]
             public required int VisibleEpisodes { get; set; }
+
+            /// <summary>
+            /// <c>NewsOrganisation</c> or <c>TvShow</c> when the channel belongs to a catalogue parent (then
+            /// <see cref="VisibleEpisodes"/> counts its reports / episodes). Omitted for a podcast.
+            /// </summary>
+            [JsonPropertyName("kind")]
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public string? Kind { get; set; }
         }
     }
 }

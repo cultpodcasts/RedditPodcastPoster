@@ -89,6 +89,17 @@ public class CatalogueParentSubmitter(
                 PlayableId: existingId);
         }
 
+        if (submitOptions.EnrichOnly)
+        {
+            logger.LogWarning(
+                "Submit of '{Url}' to {Kind} '{ParentName}' ({ParentId}) matched no stored item; enrich-only, so nothing is created.",
+                url, parent.Kind, parent.Parent.Name, parent.Parent.Id);
+            return new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: parent.ContentKind);
+        }
+
         Playable playable = parent.Parent switch
         {
             NewsOrganisation organisation => CatalogueParentKindMapper.ToNewsReport(episode, organisation),

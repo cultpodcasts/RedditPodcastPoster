@@ -11,7 +11,7 @@ namespace Api.Services.Films;
 
 public class FilmService(
     IFilmRepository filmRepository,
-    EpisodeSearchIndexCleanup searchIndexCleanup,
+    CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
     ILogger<FilmService> logger) : IFilmService
 {
@@ -84,12 +84,10 @@ public class FilmService(
             };
             await filmRepository.Save(film);
 
-            // As the episode API: removed=true always deletes the search document (the film indexer never deletes),
-            // so a retry finishes the job.
-            if (request.Change.Removed == true)
-            {
-                await searchIndexCleanup.DeleteSearchEntry(film.Name, film.Id, cancellationToken);
-            }
+            // As the episode API: removed=true always deletes the search document and the short link (the film
+            // indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
+            outcome.SearchIndexer = await searchSync.AfterSave(
+                film, target.Projection, request.Change.Removed == true, cancellationToken);
 
             return new FilmUpdateResult(FilmUpdateStatus.Accepted, Outcome: outcome);
         }

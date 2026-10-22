@@ -217,6 +217,15 @@ public sealed class DiscoverySubmissionItemOutcome
     [JsonPropertyName("lastAttemptAt")]
     [JsonPropertyOrder(80)]
     public DateTime? LastAttemptAt { get; set; }
+
+    /// <summary>
+    /// <c>NewsReport</c> or <c>TvShowEpisode</c> when the result was stored under a news organisation / TV show
+    /// (<see cref="EpisodeId"/> / <see cref="PodcastId"/> are then the item and its parent). Null for a podcast.
+    /// </summary>
+    [JsonPropertyName("contentKind")]
+    [JsonPropertyOrder(90)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ContentKind { get; set; }
 }
 
 public sealed class DiscoverySubmissionItemComment

@@ -28,7 +28,7 @@ public class GetEpisodeHandler(
                         result.Episode!,
                         result.Podcast!,
                         result.Subjects!,
-                        includeGuestSuggestions: true),
+                        includeGuestSuggestions: true).WithKindAsync(result.Kind),
                     c),
             EpisodeGetStatus.EpisodeNotFound =>
                 await ctx.NotFound(new { message = "Episode not found." }, c),

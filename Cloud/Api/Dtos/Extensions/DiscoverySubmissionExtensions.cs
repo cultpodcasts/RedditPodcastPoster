@@ -53,7 +53,8 @@ public static class DiscoverySubmissionExtensions
             Message = x.Message,
             Error = x.Error,
             Attempts = x.Attempts,
-            LastAttemptAt = x.LastAttemptAt
+            LastAttemptAt = x.LastAttemptAt,
+            ContentKind = x.ContentKind
         }).ToArray();
 
     public static DiscoverySubmissionRetryRequest ToModel(this DiscoverySubmissionRetryRequestDto dto) => new()

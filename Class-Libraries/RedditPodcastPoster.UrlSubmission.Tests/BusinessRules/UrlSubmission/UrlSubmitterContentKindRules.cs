@@ -8,6 +8,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 using Xunit;
 
@@ -17,6 +18,11 @@ public class UrlSubmitterContentKindRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+
+    public UrlSubmitterContentKindRules()
+    {
+        _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
+    }
 
     [Fact(DisplayName =
         "When the submit content-type flag is on, a BBC /news/ URL returns an unpersisted NewsReport " +

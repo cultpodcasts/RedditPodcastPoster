@@ -112,7 +112,7 @@ Items with no score (`acceptProbability: null`) sort last (treated as `-1` inter
 | `discoverService` | string[] | Source services: `ListenNotes`, `Spotify`, `YouTube`, `Taddy` |
 | `enrichedTimeFromApple` | boolean | |
 | `enrichedUrlFromSpotify` | boolean | |
-| `matchingPodcasts` | array? | `{ name, visible, visibleEpisodes }` for known catalogue matches |
+| `matchingPodcasts` | array? | `{ name, visible, visibleEpisodes, kind? }` for known catalogue matches. `kind` is `NewsOrganisation` or `TvShow` when the channel / show belongs to a catalogue parent (then `visibleEpisodes` counts its not-removed reports / episodes); omitted for podcasts. A migrated podcast keeps its id, so `matchingPodcastIds` on stored results resolves to the parent |
 | **`acceptProbability`** | number? | **0.0–1.0** ML estimate that a curator would accept this episode. `null` if not scored (legacy reports). |
 | **`autoHidden`** | boolean | **`true`** when `acceptProbability < 0.05` (production threshold). Hidden from default GET. |
 
@@ -164,7 +164,17 @@ Hidden items can still be accepted: load them with `includeHidden=true`, include
 |-------|-------------|
 | `errorsOccurred` | `true` if any submit threw; those items get `AcceptError` state |
 | `results[].message` | Url submission outcome enum name (e.g. `CreatedEpisode`, `EpisodeAlreadyExists`, `Error`) |
-| `searchIndexerState` | Azure Search indexing outcome for created/updated episodes |
+| `results[].contentKind` | `NewsReport` or `TvShowEpisode` when the result's channel / show belongs to a news organisation / TV show: it was stored under that parent (no podcast is created) and `episodeId` / `podcastId` are the item and the parent. Omitted for podcast episodes. Same field on submission `itemOutcomes[]` |
+| `searchIndexerState` | Azure Search indexing outcome for created/updated podcast episodes (news reports / TV episodes are indexed at submit) |
+
+Routing: each URL goes through the toolbar submit's channel-owner rule (`IEpisodeUrlRouter`, RPP #1054): the owning
+podcast, unless a news organisation / TV show owns the channel / show (or the podcast is playlist-scoped and the video
+is not in its playlist). If no parent's `indexing` holds the YouTube channel id, a single news organisation / TV show
+named like the channel title (case-insensitive) that claims no YouTube channel and is not removed gets the URL, with a Warning asking the
+curator to set its `youTubeChannelId`. URLs owned by different podcasts / parents give `DifferentPodcasts`; a removed owning parent
+fails the item. For a parent, the first owned URL stores (or matches) the item; the other URLs it owns are submitted
+enrich-only, so they can add links to that item but never create a second news report / TV episode. If no owned URL
+produces an item, the item fails with an error naming the parent.
 
 HTTP **500** on catastrophic failure with `{ "message": "Failure" }`.
 
