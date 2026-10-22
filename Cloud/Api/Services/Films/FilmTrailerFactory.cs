@@ -8,9 +8,16 @@ namespace Api.Services.Films;
 /// <summary>Builds a <see cref="FilmTrailer"/> from the podcast episode being attached.</summary>
 public static class FilmTrailerFactory
 {
+    private static readonly HashSet<string> AudioOnlyKeys = new(StringComparer.Ordinal)
+    {
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple
+    };
+
     /// <summary>
-    /// The trailer plays from the episode's YouTube link when it has one, otherwise from its first other link
-    /// (by service key, so the choice is stable). Null when the episode has no link at all.
+    /// The trailer plays from the episode's YouTube link when it has one, otherwise from its first video link (any
+    /// key but the audio-only Spotify and Apple Podcasts), otherwise from an audio link; ties go by service key, so
+    /// the choice is stable. Null when the episode has no link at all.
     /// </summary>
     public static FilmTrailer? From(Episode episode, string? title)
     {
@@ -46,7 +53,8 @@ public static class FilmTrailerFactory
 
         return services
             .Where(x => x.Value.Url is not null)
-            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .OrderBy(x => AudioOnlyKeys.Contains(x.Key))
+            .ThenBy(x => x.Key, StringComparer.Ordinal)
             .Select(x => x.Value.Url)
             .FirstOrDefault();
     }
