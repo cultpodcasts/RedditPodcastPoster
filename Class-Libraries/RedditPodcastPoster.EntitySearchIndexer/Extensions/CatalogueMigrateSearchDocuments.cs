@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -34,6 +35,13 @@ public static class CatalogueMigrateSearchDocuments
         var documents = new List<EpisodeSearchRecord>();
         foreach (var episode in episodes)
         {
+            // Same rule as the episode indexer: a removed episode, or one on a removed podcast, has no document.
+            // Kind transfer passes every episode, including removed ones that must stay out of the index.
+            if (EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+            {
+                continue;
+            }
+
             var record = new PodcastEpisode(podcast, episode)
                 .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
             record.ContentKind = contentKind;

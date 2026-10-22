@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Api.Models;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -165,15 +166,21 @@ public class PodcastKindTransferService(
             throw;
         }
 
-        var indexed = await SwapSearch(podcast, episodes, searchContentKind, cancellationToken);
-        await DeletePodcastRows(podcast, episodes);
+        var swap = await SwapSearch(podcast, episodes, searchContentKind, cancellationToken);
+        // A failed delete of a removed key cannot be retried once the source row is gone: the pull indexer
+        // never sees a removed destination playable, and this index has no soft-delete. An empty excluded
+        // set still drops the source, because a kept id can be healed by the next pull.
+        if (swap.DeleteSourceRows)
+        {
+            await DeletePodcastRows(podcast, episodes);
+        }
 
         return new PodcastKindTransferResult(
             PodcastKindTransferStatus.Accepted,
             podcast.Id,
             targetKind,
             playables.Count,
-            FailureIndexingPlayables: !indexed);
+            FailureIndexingPlayables: !swap.Indexed);
     }
 
     private async Task CompensateDest(
@@ -219,14 +226,28 @@ public class PodcastKindTransferService(
         }
     }
 
-    private async Task<bool> SwapSearch(
+    private readonly record struct SearchSwapResult(bool Indexed, bool DeleteSourceRows);
+
+    private async Task<SearchSwapResult> SwapSearch(
         Podcast podcast,
         IReadOnlyList<Episode> episodes,
         string contentKind,
         CancellationToken cancellationToken)
     {
+        var excluded = episodes
+            .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+            .Select(episode => episode.Id)
+            .ToList();
         var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
-        return await searchSwap.UploadAsync(documents, cancellationToken);
+        var uploaded = await searchSwap.UploadAsync(documents, cancellationToken);
+        if (excluded.Count == 0)
+        {
+            return new SearchSwapResult(uploaded, DeleteSourceRows: true);
+        }
+
+        // A removed episode may already be in the index. Do not rewrite it as the new kind; drop that key.
+        var deleted = await searchSwap.DeleteAsync(excluded, cancellationToken);
+        return new SearchSwapResult(uploaded && deleted, DeleteSourceRows: deleted);
     }
 
     private async Task DeletePodcastRows(Podcast podcast, IReadOnlyList<Episode> episodes)

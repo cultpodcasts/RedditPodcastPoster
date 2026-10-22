@@ -356,7 +356,7 @@ public class EpisodeTvShowMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "A removed episode cannot be moved to a TV show, because the migrator only moves active episodes.")]
+        "A removed episode cannot be moved to a TV show, because the migrator only moves active episodes, and the search swap receives no upload.")]
     public async Task removed_episode_is_bad_request()
     {
         // Arrange
@@ -369,6 +369,7 @@ public class EpisodeTvShowMoveServiceRules
         // Assert
         result.Status.Should().Be(EpisodeTvShowMoveStatus.BadRequest);
         _savedTvEpisodes.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
     }
 

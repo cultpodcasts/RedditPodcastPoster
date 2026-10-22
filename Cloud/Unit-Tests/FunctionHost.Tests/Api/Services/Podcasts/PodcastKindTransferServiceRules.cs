@@ -28,8 +28,11 @@ public class PodcastKindTransferServiceRules
     private TvShowEpisode? _savedTvEpisode;
     private NewsOrganisation? _savedOrganisation;
     private NewsReport? _savedReport;
+    private readonly List<NewsReport> _savedReports = [];
     private IReadOnlyList<EpisodeSearchRecord>? _uploadedSearchDocuments;
+    private IReadOnlyList<Guid>? _deletedSearchIds;
     private bool _searchUploadSucceeds = true;
+    private bool _searchDeleteSucceeds = true;
     private readonly List<Guid> _deletedTvShowIds = [];
     private readonly List<(Guid ParentId, Guid PlayableId)> _deletedTvEpisodeIds = [];
 
@@ -68,7 +71,11 @@ public class PodcastKindTransferServiceRules
             .Returns(Task.CompletedTask);
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.Save(It.IsAny<NewsReport>()))
-            .Callback<NewsReport>(report => _savedReport = report)
+            .Callback<NewsReport>(report =>
+            {
+                _savedReport = report;
+                _savedReports.Add(report);
+            })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
@@ -78,6 +85,10 @@ public class PodcastKindTransferServiceRules
             .Callback<IReadOnlyList<EpisodeSearchRecord>, CancellationToken>(
                 (documents, _) => _uploadedSearchDocuments = documents)
             .ReturnsAsync(() => _searchUploadSucceeds);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.DeleteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyList<Guid>, CancellationToken>((ids, _) => _deletedSearchIds = ids)
+            .ReturnsAsync(() => _searchDeleteSucceeds);
         _mocker.GetMock<ILogger<PodcastKindTransferService>>();
     }
 
@@ -367,6 +378,36 @@ public class PodcastKindTransferServiceRules
     }
 
     [Fact(DisplayName =
+        "Transferring a podcast to a news organisation keeps a removed episode removed in Cosmos and does not upload it, " +
+        "because a removed report must stay out of the search index.")]
+    public async Task transfer_to_news_omits_removed_episode_from_search()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var kept = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var removed = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        removed.Removed = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(kept, removed);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        result.FailureIndexingPlayables.Should().BeFalse();
+        _savedReports.Should().HaveCount(2);
+        _savedReports.Should().Contain(report => report.Id == removed.Id && report.Removed);
+        _savedReports.Should().Contain(report => report.Id == kept.Id && !report.Removed);
+        _uploadedSearchDocuments.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+        _deletedSearchIds.Should().ContainSingle().Which.Should().Be(removed.Id);
+    }
+
+    [Fact(DisplayName =
         "When search swap UploadAsync returns false, transfer is Accepted with FailureIndexingPlayables because dest writes already succeeded.")]
     public async Task search_swap_failure_sets_failure_indexing_playables()
     {
@@ -388,6 +429,68 @@ public class PodcastKindTransferServiceRules
         result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
         result.FailureIndexingPlayables.Should().BeTrue();
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When deleting a removed episode's search key fails, the transfer is Accepted with FailureIndexingPlayables, " +
+        "the removed report stays saved with Removed, and the source episode remains, because a later transfer must be able to retry that delete.")]
+    public async Task failed_removed_key_delete_keeps_source_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var kept = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var removed = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        removed.Removed = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(kept, removed);
+        _searchDeleteSucceeds = false;
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        result.FailureIndexingPlayables.Should().BeTrue();
+        _savedReports.Should().Contain(report => report.Id == removed.Id && report.Removed);
+        _uploadedSearchDocuments.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+        _deletedSearchIds.Should().ContainSingle().Which.Should().Be(removed.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        (await _episodes.GetEpisode(podcast.Id, removed.Id)).Should().NotBeNull();
+        (await _episodes.GetEpisode(podcast.Id, kept.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When every episode is removed and deleting those search keys fails, the transfer is Accepted with FailureIndexingPlayables " +
+        "and the source podcast remains, because an empty kept-document upload cannot heal a removed key the delete did not drop.")]
+    public async Task failed_delete_of_all_removed_publisher_keeps_source()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var removed = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        removed.Removed = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(removed);
+        _searchDeleteSucceeds = false;
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        result.FailureIndexingPlayables.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Removed.Should().BeTrue();
+        _uploadedSearchDocuments.Should().BeEmpty();
+        _deletedSearchIds.Should().ContainSingle().Which.Should().Be(removed.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        (await _episodes.GetEpisode(podcast.Id, removed.Id)).Should().NotBeNull();
     }
 
     [Fact(DisplayName =

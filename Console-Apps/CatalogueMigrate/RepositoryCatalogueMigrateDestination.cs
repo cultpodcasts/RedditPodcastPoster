@@ -65,4 +65,7 @@ public sealed class RepositoryCatalogueMigrateDestination(
 
     public Task<bool> UploadSearch(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken) =>
         searchSwap.UploadAsync(documents, cancellationToken);
+
+    public Task<bool> DeleteSearch(IReadOnlyList<Guid> ids, CancellationToken cancellationToken) =>
+        searchSwap.DeleteAsync(ids, cancellationToken);
 }

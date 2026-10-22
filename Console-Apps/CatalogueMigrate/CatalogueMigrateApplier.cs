@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -90,6 +91,18 @@ public class CatalogueMigrateApplier(
             if (!await destination.UploadSearch(documents, cancellationToken))
             {
                 return await Fail(Record, podcast.Id, kind, "Search swap failed. Source rows kept; re-run resumes.");
+            }
+
+            // MoveEpisodes the document builder skips (removed, or on a removed podcast) may already be indexed.
+            // Drop those keys before the source row the episode indexer would use to delete them is gone.
+            var excludedIds = unit.MoveEpisodes
+                .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+                .Select(episode => episode.Id)
+                .ToList();
+            if (excludedIds.Count > 0 &&
+                !await destination.DeleteSearch(excludedIds, cancellationToken))
+            {
+                return await Fail(Record, podcast.Id, kind, "Search delete failed. Source rows kept; re-run resumes.");
             }
 
             await Record(CatalogueMigrateEvidenceEvent.SearchSwapped, $"documents={documents.Count}");

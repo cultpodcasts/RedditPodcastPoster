@@ -24,4 +24,9 @@ public interface ICatalogueMigrateDestination : ICatalogueMigrateDestinationRead
     Task DeleteParent(string kind, Guid parentId);
 
     Task<bool> UploadSearch(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes search documents by id. An id that was never indexed succeeds, so a retry is safe.
+    /// </summary>
+    Task<bool> DeleteSearch(IReadOnlyList<Guid> ids, CancellationToken cancellationToken);
 }

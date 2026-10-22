@@ -17,9 +17,13 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
     public Dictionary<Guid, Film> Films { get; } = new();
     public Dictionary<string, EpisodeSearchRecord> Search { get; } = new();
     public int SearchUploadCalls { get; private set; }
+    public List<Guid> DeletedSearchIds { get; } = [];
 
     /// <summary>When set, the next search uploads fail (returns false).</summary>
     public bool FailSearch { get; set; }
+
+    /// <summary>When set, search deletes of removed keys fail (returns false) after recording the ids.</summary>
+    public bool FailSearchDelete { get; set; }
 
     /// <summary>Runs after a successful search upload: something else writing the source mid-move.</summary>
     public Func<Task>? AfterSearchUpload { get; set; }
@@ -125,5 +129,21 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
         }
 
         return true;
+    }
+
+    public Task<bool> DeleteSearch(IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
+    {
+        DeletedSearchIds.AddRange(ids);
+        if (FailSearchDelete)
+        {
+            return Task.FromResult(false);
+        }
+
+        foreach (var id in ids)
+        {
+            Search.Remove(id.ToString());
+        }
+
+        return Task.FromResult(true);
     }
 }
