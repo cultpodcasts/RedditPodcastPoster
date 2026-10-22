@@ -117,10 +117,13 @@ public class CatalogueMigrateProcessor(
             var podcasts = await EnumeratePodcasts(request.PodcastId).ToListAsync(cancellationToken);
             foreach (var listed in podcasts)
             {
-                // Plan from a fresh read, not the list buffered at the start: a long run can cross an Hourly pass (or a
-                // curator edit), and the stale copy would be the destination's settings, the evidence snapshot a
-                // rollback restores, and the baseline the pre-delete re-check compares against.
-                var podcast = request.PodcastId is null ? await podcastRepository.GetPodcast(listed.Id) : listed;
+                // Apply plans from a fresh read, not the list buffered at the start: a long run can cross an Hourly pass
+                // (or a curator edit), and the stale copy would be the destination's settings, the evidence snapshot a
+                // rollback restores, and the baseline the pre-delete re-check compares against. A dry run writes
+                // nothing, so it keeps the buffered copy and costs no extra reads.
+                var podcast = apply && request.PodcastId is null
+                    ? await podcastRepository.GetPodcast(listed.Id)
+                    : listed;
                 if (podcast is null)
                 {
                     logger.LogWarning(
