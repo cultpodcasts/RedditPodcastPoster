@@ -254,7 +254,17 @@ public static class CatalogueMigrateIdentify
             "Ari Melber, Journalist & Attorney",
             "XENU TV",
             "Owen Report",
-            "Nancy Mace"
+            "Nancy Mace",
+            // Curator review 22 Oct 2026: news-commentary podcasts that stay podcasts.
+            "Fayn",
+            "Mail News",
+            "Re: News",
+            "Rob Wolchek-Investigative News Reporter",
+            "Daily Cast News",
+            "Touch Breaking News",
+            "On Demand News",
+            "National and World News",
+            "Times Radio Tech"
         };
 
     /// <summary>
