@@ -247,6 +247,9 @@
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
 
+    <Project Path="Console-Apps/FilmSearchPusher/FilmSearchPusher.csproj" />
+    <Project Path="Console-Apps/FilmSearchPusher.Tests/FilmSearchPusher.Tests.csproj" />
+
     <Project Path="Console-Apps/Discover/Discover.csproj" />
 
     <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />

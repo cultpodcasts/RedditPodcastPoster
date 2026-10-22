@@ -21,7 +21,7 @@ The new index is live, search cards use the new field names, and a soak hour sho
 | 1 | Ship the website and Api that read `title`, `seriesName`, and `description`. Do not point them at production until step 4 is finished, or ship them and accept empty cards until the index is back. |
 | 2 | Pause writers. Disable Indexer timers `Hourly` and `HourlyCatchUp` on `indexer-infra`. Pause Azure Search indexer `cultpodcasts-indexer` so it stops pulling. |
 | 3 | Backup the current search definition and a handful of documents. |
-| 4 | Tear down and recreate `cultpodcasts` with CreateSearchIndex so the index has only the new names. The teardown also deletes and recreates the TvShowEpisode, Film and NewsReport indexers and data sources (with `-r` it runs them too), so the expected document count is the ~86k episodes **plus** every active TV episode, film and news report, not episodes alone. Run the indexers until that count is back. |
+| 4 | Tear down and recreate `cultpodcasts` with CreateSearchIndex so the index has only the new names. The teardown also deletes and recreates the TvShowEpisode and NewsReport indexers and data sources (with `-r` it runs them too). Films have no indexer: run `FilmSearchPusher` after the indexers to push every film. The expected document count is the ~86k episodes **plus** every active TV episode, film and news report, not episodes alone. Run the indexers and the film push until that count is back. |
 | 5 | Confirm the website and Api are the builds from step 1. |
 | 6 | Turn `Hourly` and `HourlyCatchUp` back on. Resume `cultpodcasts-indexer`. |
 | 7 | Soak. Watch one hourly slot in `AppRequests` (`orchestration:HourlyOrchestration`, `activity:Indexer`) and check search cards, a podcast page, and removed shows stay hidden. |
