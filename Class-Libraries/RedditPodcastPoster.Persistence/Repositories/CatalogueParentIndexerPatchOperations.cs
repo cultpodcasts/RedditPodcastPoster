@@ -46,6 +46,50 @@ public static class CatalogueParentIndexerPatchOperations
         return operations.Chunk(MaxOperationsPerPatch).Select(chunk => (IReadOnlyList<PatchOperation>) chunk).ToList();
     }
 
+    /// <summary>
+    /// Cosmos patch filter that only lets a <c>/latestReleased</c> raise through when the stored value is missing,
+    /// null or older, so a concurrent writer that already raised it is never lowered again. The value is written with
+    /// the container's own serialiser options, so it compares against the stored wire shape.
+    /// </summary>
+    public static string LatestReleasedOlderThanFilter(DateTime latestReleased, JsonSerializerOptions? serializerOptions)
+    {
+        var wire = JsonSerializer.SerializeToElement(latestReleased, serializerOptions).GetString()
+                   ?? throw new InvalidOperationException("latestReleased did not serialise to a JSON string.");
+        return "FROM c WHERE NOT IS_DEFINED(c.latestReleased) OR IS_NULL(c.latestReleased) " +
+               $"OR c.latestReleased < '{wire.Replace("'", "\\'")}'";
+    }
+
+    /// <summary>
+    /// Sets <c>/latestReleased</c> only when the stored value is missing or older (one conditional patch). A failed
+    /// condition (412) means it is already as new or newer, which counts as done. Returns false when the parent no
+    /// longer exists.
+    /// </summary>
+    internal static async Task<bool> RaiseLatestReleased(Container container, Guid id, DateTime latestReleased)
+    {
+        var options = container.Database.Client.ClientOptions.UseSystemTextJsonSerializerWithOptions;
+        try
+        {
+            await container.PatchItemAsync<JsonObject>(
+                id.ToString(), new PartitionKey(id.ToString()),
+                [PatchOperation.Set("/latestReleased", latestReleased)],
+                new PatchItemRequestOptions
+                {
+                    EnableContentResponseOnWrite = false,
+                    FilterPredicate = LatestReleasedOlderThanFilter(latestReleased, options)
+                });
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+        {
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Applies the patch. Returns false when the parent no longer exists (deleted mid-pass).</summary>
     internal static async Task<bool> Apply(Container container, Guid id, CatalogueParentIndexerPatch patch)
     {

@@ -39,12 +39,18 @@ claims no YouTube channel. The BBC / BBC Three podcasts keep their channel ids a
    Failure: 500, episode kept.
 3. Re-read the show and the TV episode. If either was deleted concurrently: 500, episode kept.
 4. Delete the episode row. The source podcast is never changed, even when it is left empty.
-5. Raise the show's `latestReleased` with a field patch (`PatchIndexerState`, only `/latestReleased`), so a
-   concurrent curator edit of the show is never overwritten. Best effort.
-6. Point the episode's short link at `/tv/{show}/{prefixed short id}` (best effort), as the trailer attach does.
+5. Raise the show's `latestReleased` with a conditional field patch (`ITvShowRepository.RaiseLatestReleased`: only
+   `/latestReleased`, filter `NOT IS_DEFINED OR IS_NULL OR c.latestReleased < new`), so a concurrent curator edit of
+   the show is never overwritten and a value another move or writer already raised is never lowered (a failed
+   condition counts as done). Best effort.
+6. Delete the episode's short-link record (best effort), as Move to film does. The Shortner's KV-miss path looks the
+   id up in search (now ContentKind `TvShowEpisode`, `seriesName` = the show name) and redirects to
+   `/tv/{show}/{t-short id}`, so old episode links follow a later show rename.
 
 Re-sending resumes: a TV episode with the episode id in the target show while the episode row exists is reused, not
 saved twice. After a completed move a re-send to the same show is accepted again; to another show it is a 409.
+A by-name re-send is matched against the show's **current** name (by the TV episode's show id), so a rename between
+attempts is not a false 409. Resuming into a show removed since the first attempt is a 400, as for a new move.
 
 As with Move to film, an episode released in the last few days may be re-added to the podcast by the Indexer
 (#1068); the website warns.

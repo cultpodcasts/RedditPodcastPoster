@@ -34,6 +34,9 @@ public class TvShowRepository(
     public Task<bool> PatchIndexerState(Guid tvShowId, CatalogueParentIndexerPatch patch) =>
         CatalogueParentIndexerPatchOperations.Apply(tvShowsContainer, tvShowId, patch);
 
+    public Task<bool> RaiseLatestReleased(Guid tvShowId, DateTime latestReleased) =>
+        CatalogueParentIndexerPatchOperations.RaiseLatestReleased(tvShowsContainer, tvShowId, latestReleased);
+
     public async Task Delete(Guid tvShowId)
     {
         try

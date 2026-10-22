@@ -33,12 +33,13 @@ public class EpisodeTvShowMoveServiceRules
     private readonly List<TvShowEpisode> _tvEpisodes = [];
     private readonly List<TvShowEpisode> _savedTvEpisodes = [];
     private readonly List<Film> _films = [];
-    private readonly List<(Guid ShowId, CatalogueParentIndexerPatch Patch)> _patches = [];
+    private readonly List<(Guid ShowId, DateTime LatestReleased)> _raises = [];
     private readonly List<IReadOnlyList<EpisodeSearchRecord>> _uploads = [];
     private bool _searchUploadSucceeds = true;
     private Action? _afterSearchUpload;
-    private readonly List<(Guid EpisodeId, string Path)> _redirects = [];
-    private Func<WriteResult> _redirectResult = () => new WriteResult(true);
+    private readonly List<Guid> _shortLinkDeletes = [];
+    private Func<DeleteResult> _shortLinkDeleteResult = () => new DeleteResult(true);
+    private int _tvEpisodeSaveFailures;
 
     public EpisodeTvShowMoveServiceRules()
     {
@@ -60,9 +61,9 @@ public class EpisodeTvShowMoveServiceRules
             })
             .Returns(Task.CompletedTask);
         shows
-            .Setup(r => r.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
-            .Callback<Guid, CatalogueParentIndexerPatch>((id, patch) => _patches.Add((id, patch)))
-            .ReturnsAsync((Guid id, CatalogueParentIndexerPatch _) => _shows.Any(show => show.Id == id));
+            .Setup(r => r.RaiseLatestReleased(It.IsAny<Guid>(), It.IsAny<DateTime>()))
+            .Callback<Guid, DateTime>((id, released) => _raises.Add((id, released)))
+            .ReturnsAsync((Guid id, DateTime _) => _shows.Any(show => show.Id == id));
         var tvEpisodes = _mocker.GetMock<ITvShowEpisodeRepository>();
         tvEpisodes
             .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
@@ -74,12 +75,18 @@ public class EpisodeTvShowMoveServiceRules
                 _tvEpisodes.SingleOrDefault(item => item.TvShowId == showId && item.Id == id));
         tvEpisodes
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
-            .Callback<TvShowEpisode>(item =>
+            .Returns((TvShowEpisode item) =>
             {
+                if (_tvEpisodeSaveFailures > 0)
+                {
+                    _tvEpisodeSaveFailures--;
+                    throw new InvalidOperationException(_fixture.Create<string>());
+                }
+
                 _savedTvEpisodes.Add(item);
                 _tvEpisodes.Add(item);
-            })
-            .Returns(Task.CompletedTask);
+                return Task.CompletedTask;
+            });
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _films.SingleOrDefault(film => film.Id == id));
@@ -92,9 +99,9 @@ public class EpisodeTvShowMoveServiceRules
             })
             .ReturnsAsync(() => _searchUploadSucceeds);
         _mocker.GetMock<IShortnerService>()
-            .Setup(s => s.Redirect(It.IsAny<PodcastEpisode>(), It.IsAny<string>()))
-            .Callback<PodcastEpisode, string>((target, path) => _redirects.Add((target.Episode.Id, path)))
-            .ReturnsAsync(() => _redirectResult());
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(target => _shortLinkDeletes.Add(target.Episode.Id))
+            .ReturnsAsync(() => _shortLinkDeleteResult());
         _mocker.GetMock<ILogger<EpisodeTvShowMoveService>>();
     }
 
@@ -417,8 +424,8 @@ public class EpisodeTvShowMoveServiceRules
         result.Status.Should().Be(EpisodeTvShowMoveStatus.Failed);
         result.FailureIndexing.Should().BeTrue();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
-        _redirects.Should().BeEmpty();
-        _patches.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
+        _raises.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -559,7 +566,7 @@ public class EpisodeTvShowMoveServiceRules
         result.Status.Should().Be(EpisodeTvShowMoveStatus.Failed);
         result.FailureIndexing.Should().BeTrue();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
-        _redirects.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -580,7 +587,7 @@ public class EpisodeTvShowMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "A move of an episode newer than the show's latest release patches only latestReleased on the show, so a concurrent curator edit of the show is never overwritten.")]
+        "A move of an episode newer than the show's latest release raises only latestReleased on the show with the conditional patch, so a concurrent curator edit is never overwritten and a value raised meanwhile is never lowered.")]
     public async Task newer_episode_patches_latest_released_only()
     {
         // Arrange
@@ -591,11 +598,11 @@ public class EpisodeTvShowMoveServiceRules
         await MoveToShow(podcast.Id, episode.Id, show.Id);
 
         // Assert
-        var (showId, patch) = _patches.Should().ContainSingle().Subject;
+        var (showId, released) = _raises.Should().ContainSingle().Subject;
         showId.Should().Be(show.Id);
-        patch.LatestReleased.Should().Be(_savedTvEpisodes.Single().ReleaseSort);
-        patch.LastIndexed.Should().BeNull();
-        patch.ChangedIndexingProperties.Should().BeEmpty();
+        released.Should().Be(_savedTvEpisodes.Single().ReleaseSort);
+        _mocker.GetMock<ITvShowRepository>().Verify(
+            r => r.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()), Times.Never);
         _savedShows.Should().BeEmpty();
     }
 
@@ -611,13 +618,13 @@ public class EpisodeTvShowMoveServiceRules
         await MoveToShow(podcast.Id, episode.Id, show.Id);
 
         // Assert
-        _patches.Should().BeEmpty();
+        _raises.Should().BeEmpty();
         _savedShows.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "After a move the episode's short link points at the TV episode page /tv/{show}/{prefixed short id}, so old episode links open the TV episode.")]
-    public async Task move_redirects_short_link_to_tv_page()
+        "After a move the episode's short-link record is deleted, as in Move to film, so the Shortner resolves the id from search to /tv/{current show name}/{t-short id} and old links follow a show rename.")]
+    public async Task move_deletes_short_link_record()
     {
         // Arrange
         var show = SeedShow();
@@ -627,21 +634,21 @@ public class EpisodeTvShowMoveServiceRules
         await MoveToShow(podcast.Id, episode.Id, show.Id);
 
         // Assert
-        var redirect = _redirects.Should().ContainSingle().Subject;
-        redirect.EpisodeId.Should().Be(episode.Id);
-        redirect.Path.Should().Be(
-            CatalogueShortId.PlayablePath(show.Name, episode.Id, CatalogueShortId.TvShowEpisode));
-        redirect.Path.Should().StartWith("/tv/");
+        _shortLinkDeletes.Should().ContainSingle().Which.Should().Be(episode.Id);
+        _mocker.GetMock<IShortnerService>().Verify(
+            s => s.Redirect(It.IsAny<PodcastEpisode>(), It.IsAny<string>()), Times.Never);
+        _uploads.Single().Single().ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
+        _uploads.Single().Single().SeriesName.Should().Be(show.Name);
     }
 
     [Fact(DisplayName =
-        "A short-link redirect failure does not fail the move, because the TV episode, search and episode row are already done.")]
+        "A short-link delete failure does not fail the move, because the TV episode, search and episode row are already done.")]
     public async Task short_link_failure_still_accepts()
     {
         // Arrange
         var show = SeedShow();
         var (podcast, episode) = SeedEpisode();
-        _redirectResult = () => throw new InvalidOperationException(_fixture.Create<string>());
+        _shortLinkDeleteResult = () => throw new InvalidOperationException(_fixture.Create<string>());
 
         // Act
         var result = await MoveToShow(podcast.Id, episode.Id, show.Id);
@@ -649,5 +656,119 @@ public class EpisodeTvShowMoveServiceRules
         // Assert
         result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A create interrupted after the show is saved but before the TV episode is saved fails with the episode row kept, and the re-send joins that show by name instead of creating a second one.")]
+    public async Task create_interrupted_before_tv_episode_save_resend_joins_show()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var request = new EpisodeTvShowMoveRequest
+        {
+            TvShowName = _fixture.CreateTitle(), CreateShow = true, Publisher = _fixture.Create<string>()
+        };
+        _tvEpisodeSaveFailures = 1;
+        var first = await Move(podcast.Id, episode.Id, request);
+        var created = _savedShows.Should().ContainSingle().Subject;
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id, request);
+
+        // Assert
+        first.Status.Should().Be(EpisodeTvShowMoveStatus.Failed);
+        first.TvShowId.Should().BeNull();
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        result.CreatedShow.Should().BeFalse();
+        result.TvShowId.Should().Be(created.Id);
+        _savedShows.Should().ContainSingle();
+        _savedTvEpisodes.Should().ContainSingle().Which.TvShowId.Should().Be(created.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "An unexpected error mid-move returns Failed with no ids and keeps the episode row, so the curator can re-send.")]
+    public async Task unexpected_error_is_failed_and_keeps_episode_row()
+    {
+        // Arrange
+        var show = SeedShow();
+        var (podcast, episode) = SeedEpisode();
+        _tvEpisodeSaveFailures = 1;
+
+        // Act
+        var result = await MoveToShow(podcast.Id, episode.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Failed);
+        result.TvShowId.Should().BeNull();
+        result.FailureIndexing.Should().BeFalse();
+        _uploads.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Resuming an interrupted move into a show that was removed since is a bad request with the episode row kept, the same as a new move into a removed show.")]
+    public async Task resume_into_removed_show_is_bad_request()
+    {
+        // Arrange
+        var show = SeedShow();
+        var (podcast, episode) = SeedEpisode();
+        _searchUploadSucceeds = false;
+        await MoveToShow(podcast.Id, episode.Id, show.Id);
+        _searchUploadSucceeds = true;
+        show.Removed = true;
+
+        // Act
+        var result = await MoveToShow(podcast.Id, episode.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.BadRequest);
+        _uploads.Should().ContainSingle();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Resuming by name after the show was renamed between attempts matches the show's current name, so the re-send resumes instead of a false conflict.")]
+    public async Task resume_by_new_name_after_rename_resumes()
+    {
+        // Arrange
+        var show = SeedShow();
+        var (podcast, episode) = SeedEpisode();
+        _searchUploadSucceeds = false;
+        await Move(podcast.Id, episode.Id, new EpisodeTvShowMoveRequest { TvShowName = show.Name });
+        _searchUploadSucceeds = true;
+        show.Name = _fixture.CreateTitle();
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id, new EpisodeTvShowMoveRequest { TvShowName = show.Name });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        result.TvShowId.Should().Be(show.Id);
+        _savedTvEpisodes.Should().ContainSingle();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A re-send by name after a completed move and a show rename is accepted for the show's current name, and the old name is a conflict, because the target is the show as it is now.")]
+    public async Task resend_after_completed_move_matches_current_show_name()
+    {
+        // Arrange
+        var show = SeedShow();
+        var (podcast, episode) = SeedEpisode();
+        var oldName = show.Name;
+        await MoveToShow(podcast.Id, episode.Id, show.Id);
+        show.Name = _fixture.CreateTitle();
+
+        // Act
+        var byNewName = await Move(podcast.Id, episode.Id, new EpisodeTvShowMoveRequest { TvShowName = show.Name });
+        var byOldName = await Move(podcast.Id, episode.Id, new EpisodeTvShowMoveRequest { TvShowName = oldName });
+
+        // Assert
+        byNewName.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        byNewName.TvShowId.Should().Be(show.Id);
+        byOldName.Status.Should().Be(EpisodeTvShowMoveStatus.Conflict);
+        _savedTvEpisodes.Should().ContainSingle();
     }
 }

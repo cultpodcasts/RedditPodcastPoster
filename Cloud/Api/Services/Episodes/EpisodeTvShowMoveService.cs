@@ -26,12 +26,17 @@ namespace Api.Services.Episodes;
 /// <item>Swap the search document under the same id to ContentKind TvShowEpisode. On failure the episode is kept.</item>
 /// <item>Re-read the TV episode and the show; if either is gone (a concurrent delete), stop with the episode kept.</item>
 /// <item>Delete the episode row.</item>
-/// <item>Raise the show's <c>latestReleased</c> with a field patch (no full-document save, so a concurrent curator edit
-/// of the show is never overwritten; best effort).</item>
-/// <item>Point the episode's short link at <c>/tv/{show}/{shortId}</c> (best effort).</item>
+/// <item>Raise the show's <c>latestReleased</c> with a conditional field patch (no full-document save, so a concurrent
+/// curator edit of the show is never overwritten, and a value another writer already raised is never lowered; best
+/// effort).</item>
+/// <item>Delete the episode's short-link record, as Move to film does (best effort). The Shortner then looks the id up
+/// in search (now ContentKind TvShowEpisode) and redirects to <c>/tv/{current show name}/{t-shortId}</c>, which
+/// follows show renames.</item>
 /// </list>
 /// Re-sending resumes: a TV episode with the episode id in the target show while the episode row exists is the
 /// interrupted move, so it is not saved twice; with the episode row gone, a re-send is accepted again for that show.
+/// The target of a re-send is matched against the show the TV episode is in now (by id, or by its current name), so
+/// a show renamed between attempts is not a false conflict.
 /// The source podcast is never deleted or changed, even when it has no episodes left.
 /// </summary>
 public class EpisodeTvShowMoveService(
@@ -64,6 +69,7 @@ public class EpisodeTvShowMoveService(
 
             var episode = await episodeRepository.GetEpisode(command.PodcastId, command.EpisodeId);
             var existing = await tvShowEpisodeRepository.GetBy(item => item.Id == command.EpisodeId);
+            var existingShow = existing is null ? null : await tvShowRepository.GetTvShow(existing.TvShowId);
             if (episode is null)
             {
                 // A re-send after a completed move (double click, or a lost 202): the TV episode has the episode id.
@@ -72,7 +78,7 @@ public class EpisodeTvShowMoveService(
                     return NotFound("Episode not found");
                 }
 
-                if (!Targets(request, existing))
+                if (!Targets(request, existing, existingShow))
                 {
                     return Conflict(existing, "The episode was already moved to another TV show");
                 }
@@ -88,7 +94,7 @@ public class EpisodeTvShowMoveService(
                 return BadRequest("A removed episode cannot be moved to a TV show");
             }
 
-            if (existing is not null && !Targets(request, existing))
+            if (existing is not null && !Targets(request, existing, existingShow))
             {
                 return Conflict(existing, "The episode id is already a TV episode of another show");
             }
@@ -104,7 +110,7 @@ public class EpisodeTvShowMoveService(
             }
 
             var (show, created, stop) = existing is not null
-                ? await ResumeShow(existing)
+                ? ResumeShow(existingShow)
                 : await ResolveShow(request, cancellationToken);
             if (stop is not null)
             {
@@ -166,7 +172,7 @@ public class EpisodeTvShowMoveService(
                 "Moved episode '{episodeId}' from podcast '{podcastId}' to TV show '{tvShowName}' ('{tvShowId}').",
                 episode.Id, podcast.Id, currentShow.Name, currentShow.Id);
             await RaiseLatestReleased(currentShow, currentEpisode);
-            await RedirectShortLink(podcast, episode, currentShow);
+            await DeleteShortLink(podcast, episode);
             return Accepted(currentShow.Id, currentShow.Name, currentEpisode.Id, created);
         }
         catch (Exception ex)
@@ -205,19 +211,25 @@ public class EpisodeTvShowMoveService(
         return null;
     }
 
-    /// <summary>True when the request names the show the TV episode is in (by id, or by name case-insensitively).</summary>
-    private static bool Targets(EpisodeTvShowMoveRequest request, TvShowEpisode existing) =>
+    /// <summary>
+    /// True when the request names the show the TV episode is in: by id, or by the show's <b>current</b> name
+    /// case-insensitively (the TV episode's denormalised name only when the show is gone), so a rename between
+    /// attempts is not a false conflict.
+    /// </summary>
+    private static bool Targets(EpisodeTvShowMoveRequest request, TvShowEpisode existing, TvShow? existingShow) =>
         request.TvShowId is { } id && id != Guid.Empty
             ? existing.TvShowId == id
-            : string.Equals(existing.TvShowName?.Trim(), request.TvShowName!.Trim(), StringComparison.OrdinalIgnoreCase);
+            : string.Equals((existingShow?.Name ?? existing.TvShowName)?.Trim(), request.TvShowName!.Trim(),
+                StringComparison.OrdinalIgnoreCase);
 
-    private async Task<(TvShow? Show, bool Created, EpisodeTvShowMoveResult? Stop)> ResumeShow(TvShowEpisode existing)
-    {
-        var show = await tvShowRepository.GetTvShow(existing.TvShowId);
-        return show is null
-            ? (null, false, NotFound("TV show not found"))
-            : (show, false, null);
-    }
+    /// <summary>The show an interrupted move already saved the TV episode into, with the same rules as a new target.</summary>
+    private static (TvShow? Show, bool Created, EpisodeTvShowMoveResult? Stop) ResumeShow(TvShow? existingShow) =>
+        existingShow switch
+        {
+            null => (null, false, NotFound("TV show not found")),
+            { Removed: true } => (null, false, BadRequest("A removed TV show cannot take episodes")),
+            _ => (existingShow, false, null)
+        };
 
     private async Task<(TvShow? Show, bool Created, EpisodeTvShowMoveResult? Stop)> ResolveShow(
         EpisodeTvShowMoveRequest request,
@@ -277,8 +289,10 @@ public class EpisodeTvShowMoveService(
     }
 
     /// <summary>
-    /// Patches only <c>/latestReleased</c> (the Indexer-owned field), so the show's curator fields are never written.
-    /// The move has already succeeded, so a failure is logged and does not fail the request.
+    /// Patches only <c>/latestReleased</c> (the Indexer-owned field), so the show's curator fields are never written,
+    /// and only when the stored value is still older (a conditional patch), so a second move into the same show or
+    /// another writer that raised it meanwhile is never lowered. The move has already succeeded, so a failure is
+    /// logged and does not fail the request.
     /// </summary>
     private async Task RaiseLatestReleased(TvShow show, TvShowEpisode tvEpisode)
     {
@@ -290,12 +304,7 @@ public class EpisodeTvShowMoveService(
 
         try
         {
-            var patch = new CatalogueParentIndexerPatch(
-                LastIndexed: null,
-                LatestReleased: released,
-                Indexing: show.Indexing ?? new CatalogueIndexingSource(),
-                ChangedIndexingProperties: []);
-            if (!await tvShowRepository.PatchIndexerState(show.Id, patch))
+            if (!await tvShowRepository.RaiseLatestReleased(show.Id, released))
             {
                 logger.LogWarning("{method}: TV show '{tvShowId}' was not found to patch latestReleased.",
                     nameof(RaiseLatestReleased), show.Id);
@@ -309,27 +318,27 @@ public class EpisodeTvShowMoveService(
     }
 
     /// <summary>
-    /// The short-link key is the episode id (base 64), which the TV episode keeps. The record is pointed at the TV
-    /// episode page with its kind-prefixed short id, as the trailer attach does for films. The move has already
-    /// succeeded, so a failure is logged and does not fail the request.
+    /// The short-link key is the episode id (base 64), which the TV episode keeps. As in Move to film, the record is
+    /// deleted: with no record the Shortner looks the id up in search (now ContentKind TvShowEpisode, seriesName = the
+    /// show name) and redirects to <c>/tv/{show}/{t-shortId}</c>, so the link follows a later show rename. The move
+    /// has already succeeded, so a failure is logged and does not fail the request.
     /// </summary>
-    private async Task RedirectShortLink(Podcast podcast, Episode episode, TvShow show)
+    private async Task DeleteShortLink(Podcast podcast, Episode episode)
     {
         try
         {
-            var path = CatalogueShortId.PlayablePath(show.Name.Trim(), episode.Id, CatalogueShortId.TvShowEpisode);
-            var result = await shortnerService.Redirect(new PodcastEpisode(podcast, episode), path);
+            var result = await shortnerService.Delete(new PodcastEpisode(podcast, episode));
             if (!result.Success)
             {
                 logger.LogWarning(
-                    "{method}: Short link for '{episodeId}' was not pointed at TV show '{tvShowId}'.",
-                    nameof(RedirectShortLink), episode.Id, show.Id);
+                    "{method}: Short-link record for '{episodeId}' was not deleted (absent, or the KV delete failed).",
+                    nameof(DeleteShortLink), episode.Id);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{method}: Short-link redirect failed for moved episode '{episodeId}'.",
-                nameof(RedirectShortLink), episode.Id);
+            logger.LogError(ex, "{method}: Short-link delete failed for moved episode '{episodeId}'.",
+                nameof(DeleteShortLink), episode.Id);
         }
     }
 
