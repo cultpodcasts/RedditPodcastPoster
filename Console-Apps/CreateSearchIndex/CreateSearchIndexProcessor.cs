@@ -95,10 +95,16 @@ public partial class CreateSearchIndexProcessor(
             if (!request.AllPlayables)
             {
                 logger.LogWarning(
-                    "--teardown-index recreates the TvShowEpisode, Film and NewsReport indexers too, because the deleted index held their documents.");
+                    "--teardown-index recreates the TvShowEpisode and NewsReport indexers too, because the deleted index held their documents.");
             }
 
             await EnsureSiblingPlayableIndexers(request);
+        }
+
+        if (plan.TearDownSiblings)
+        {
+            logger.LogWarning(
+                "The recreated index has no film documents. Run 'FilmSearchPusher' (it detects the empty index and pushes every film) or 'FilmSearchPusher --full'.");
         }
 
         if (plan.ResetSiblings)
@@ -123,10 +129,6 @@ public partial class CreateSearchIndexProcessor(
                 throw ex;
             }
             await RunIndexerWithRetries(request, request.IndexerName);
-            if (plan.TransientSiblings)
-            {
-                await RunTransientSiblings(request, indexerName => RunIndexerWithRetries(request, indexerName));
-            }
 
             if (plan.RunSiblings)
             {
@@ -504,9 +506,11 @@ public partial class CreateSearchIndexProcessor(
     };
 
     /// <summary>
-    /// Fails before any teardown when the service cannot hold the episode indexer plus every scheduled
-    /// sibling at once (the Free tier allows three data sources and three indexers; this needs four).
-    /// Without this, a teardown deletes the index and then stops on the last sibling create.
+    /// Fails before any change when the service cannot hold the result: the episode, TV and news pairs need three
+    /// data sources and three indexers (the Free-tier limit), and anything else already on the service (counted in
+    /// its usage, and not one of the pairs this run deletes or re-creates) still takes a slot. A leftover Film pair is
+    /// deleted before the siblings are created, so it does not count. Without this, a teardown would delete the
+    /// index and then stop on the last sibling create.
     /// </summary>
     private async Task EnsureSiblingQuotaFits(CreateSearchIndexRequest request, SearchIndexRebuildPlan plan)
     {
@@ -516,44 +520,95 @@ public partial class CreateSearchIndexProcessor(
         }
 
         var counters = (await searchIndexClient.GetServiceStatisticsAsync())?.Value?.Counters;
-        var needed = 1 + PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!).Count;
+        var siblings = PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!);
+        var needed = 1 + siblings.Count;
         var dataSourceQuota = counters?.DataSourceCounter?.Quota;
         var indexerQuota = counters?.IndexerCounter?.Quota;
         if (dataSourceQuota < needed || indexerQuota < needed)
         {
             throw new InvalidOperationException(
-                $"The search service allows {dataSourceQuota} data sources and {indexerQuota} indexers, but the episode indexer plus scheduled TV, film and news siblings needs {needed} of each. " +
-                "Re-run with --run-indexer --transient-playables to load the siblings one at a time.");
+                $"The search service allows {dataSourceQuota} data sources and {indexerQuota} indexers, but the episode, TV and news indexers need {needed} of each. Nothing was changed.");
+        }
+
+        var (filmDataSource, filmIndexer) = PlayableSearchSources.RetiredFilm(request.IndexName!);
+        var projectedDataSources = await ProjectedCount(
+            counters?.DataSourceCounter?.Usage,
+            siblings.Select(x => x.DataSourceName).Append(filmDataSource),
+            request.DataSourceName,
+            TryGetDataSource,
+            siblings.Count);
+        var projectedIndexers = await ProjectedCount(
+            counters?.IndexerCounter?.Usage,
+            siblings.Select(x => x.IndexerName).Append(filmIndexer),
+            request.IndexerName,
+            TryGetIndexer,
+            siblings.Count);
+        if (projectedDataSources > dataSourceQuota || projectedIndexers > indexerQuota)
+        {
+            throw new InvalidOperationException(
+                $"After this run the search service would hold {projectedDataSources} data sources and {projectedIndexers} indexers, but it allows {dataSourceQuota} and {indexerQuota}. " +
+                "Something other than the episode, TV, news and retired Film pairs is using a slot. Nothing was changed.");
         }
     }
 
     /// <summary>
-    /// <c>--transient-playables</c>: for each sibling (TV, film, news) create its data source and indexer,
-    /// run it to completion, then delete both before the next one. The delete runs even when the run
-    /// fails, so a Free-tier service never holds more than the episode pair plus one sibling pair.
+    /// Usage after the run: current usage, minus the managed items that exist now (each is deleted or re-created),
+    /// plus the items the run leaves behind (the siblings, and the episode item when it is named).
     /// </summary>
-    internal async Task RunTransientSiblings(CreateSearchIndexRequest request, Func<string, Task> runIndexer)
+    private static async Task<long?> ProjectedCount<T>(
+        long? usage,
+        IEnumerable<string> managedNames,
+        string? episodeName,
+        Func<string, Task<T?>> tryGet,
+        int siblingCount) where T : class
     {
-        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        if (usage is null)
         {
-            await EnsureSiblingPlayableIndexer(request, source);
-            try
+            return null;
+        }
+
+        var names = managedNames.ToList();
+        if (!string.IsNullOrWhiteSpace(episodeName))
+        {
+            names.Add(episodeName);
+        }
+
+        var existing = 0;
+        foreach (var name in names.Distinct(StringComparer.Ordinal))
+        {
+            if (await tryGet(name) != null)
             {
-                await runIndexer(source.IndexerName);
-            }
-            finally
-            {
-                await DeleteIndexerIfPresent(source.IndexerName);
-                await DeleteDataSourceIfPresent(source.DataSourceName);
-                logger.LogInformation(
-                    "Transient playable sibling for {ContentKind} removed after its run.",
-                    source.ContentKind);
+                existing++;
             }
         }
+
+        return usage.Value - existing + siblingCount + (string.IsNullOrWhiteSpace(episodeName) ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Deletes the Film data source and indexer an earlier version scheduled. Films are pushed by FilmSearchPusher, and
+    /// on a Free-tier service the Film pair would take the slot the TV or news sibling needs.
+    /// </summary>
+    private async Task RetireFilmPullIndexer(string indexName)
+    {
+        var (dataSourceName, indexerName) = PlayableSearchSources.RetiredFilm(indexName);
+        var hadIndexer = await TryGetIndexer(indexerName) != null;
+        var hadDataSource = await TryGetDataSource(dataSourceName) != null;
+        if (!hadIndexer && !hadDataSource)
+        {
+            return;
+        }
+
+        await DeleteIndexerIfPresent(indexerName);
+        await DeleteDataSourceIfPresent(dataSourceName);
+        logger.LogWarning(
+            "Deleted the retired Film pull indexer '{IndexerName}' / data source '{DataSourceName}'. Film documents already in the index stay; FilmSearchPusher keeps them current.",
+            indexerName, dataSourceName);
     }
 
     private async Task EnsureSiblingPlayableIndexers(CreateSearchIndexRequest request)
     {
+        await RetireFilmPullIndexer(request.IndexName!);
         foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
         {
             await EnsureSiblingPlayableIndexer(request, source);
