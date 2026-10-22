@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Paging;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -25,10 +26,12 @@ public class YouTubeChannelVideoSnippetsService(
         IndexingContext indexingContext)
     {
         var result = new List<SearchResult>();
-        var nextPageToken = "";
+        string? nextPageToken = "";
+        var walkGuard = new YouTubePageWalkGuard(MaxSearchResults);
 
         while (nextPageToken != null)
         {
+            var requestedPageToken = nextPageToken;
             SearchListResponse response;
             try
             {
@@ -84,10 +87,30 @@ public class YouTubeChannelVideoSnippetsService(
                 return result;
             }
 
-            var responseItems = response.Items.Where(x =>
+            var pageItems = response.Items ?? [];
+            var responseItems = pageItems.Where(x =>
                 x.Snippet.LiveBroadcastContent != "upcoming" && x.Snippet.LiveBroadcastContent != "live");
             result.AddRange(responseItems);
             nextPageToken = response.NextPageToken;
+
+            // search.list costs 100 units a page, so a repeating or empty-page token is expensive.
+            // Its totalResults is an estimate, so the page cap is not applied here.
+            var stop = walkGuard.Observe(
+                requestedPageToken,
+                pageItems.Select(x => x?.Id?.VideoId).ToList(),
+                nextPageToken,
+                totalResults: null);
+            if (stop != YouTubePageWalkStopReason.None)
+            {
+                // search.list is known to repeat results across pages, and these pages hold only 5
+                // items, so a page of nothing but already-seen ids (NoNewItems) can happen without
+                // YouTube looping. It is accepted here as a cost stop (another page is 100 units),
+                // not a fault, so it logs at Warning rather than Error.
+                walkGuard.LogStop(logger, stop, "channel-search", channelId.ChannelId,
+                    null, null, result.Count,
+                    stop == YouTubePageWalkStopReason.NoNewItems ? LogLevel.Warning : null);
+                break;
+            }
         }
 
         return result;

@@ -329,19 +329,20 @@ Set manually (or via future known-ID probe). See [youtube-playlist-order.md](you
 ### Decision flow (null order — probed)
 
 ```
-playlistItems.list (small first page)
+playlistItems.list (every page maxResults = 50)
         │
         ▼
-Sample ≥ 2 dated items?
+Sample ≥ 2 dated items among the first 3?
         │
-        ├─ IsReverseDateOrdered → newest-first early-stop (batch 1 or 10)
+        ├─ IsReverseDateOrdered → newest-first early-stop
         │                         IsExpensiveQuery = false
-        └─ else                  → ascending full walk (batch 10)
+        └─ else                  → full walk
                                   IsExpensiveQuery = true
         │
         ▼
 Continue while nextPageToken != null
   AND (not reverse-chrono OR last item still in ReleasedSince window)
+  AND YouTubePageWalkGuard says go on (see "Page-walk guards")
         │
         ▼
 Filter results by ReleasedSince (later of added-at and video-published-at)
@@ -368,15 +369,36 @@ newest-first — the main reason `Arbitrary` exists.
 HasExpensiveYouTubePlaylistQuery() && !SkipExpensiveYouTubeQueries
 ```
 
-Passed as `expensivePlaylist` into the service. Affects **batch size after a reverse-chrono
-probe** (1 vs 10).
+Passed as `expensivePlaylist` into the service. It no longer changes the request: every
+playlist walk uses `YouTubePlaylistService.PlaylistPageSize` = 50, the YouTube maximum
+(playlistItems.list is 1 unit per page whatever its size, so the old 1 / 3 / 5 / 10 sizes only
+added calls).
 
 Every non-arbitrary playlist pages on every pass (until it leaves the window when newest-first,
-to the end otherwise); `expensivePlaylist` only changes the batch size. The handler logs this as
+to the end otherwise). The handler logs this as
 `playlist-paginated` (the old `playlist-single-page` label was misleading and is gone). A cheap
 correct read for oldest-first playlists (uploads head + `playlistItems.list(videoId=…)`
 membership checks) is a follow-up; a head-only read was tried and dropped because new uploads
 sit at the tail of an oldest-first playlist and would never be found.
+
+### Page-walk guards
+
+YouTube can keep returning a `nextPageToken` after the last item. On some playlists (Kelly
+R. Minter's, 143 items) the token points at an empty page whose own `nextPageToken` is the same
+token, so a walk that only stops on a null token re-fetches that page until the function
+times out. `YouTubePageWalkGuard` (playlistItems walks and the channel `search.list` walk)
+stops a walk, keeps the items already gathered, and logs `YouTube page walk stopped:` with
+the reason, id, source, pages fetched, `totalResults` and page size (never the token):
+
+| Reason | When | Level |
+|--------|------|-------|
+| `RepeatedPageToken` | next token equals the token just requested | Warning on an empty page once ≥ `totalResults - 2` distinct ids are read (or no total), e.g. Kelly; otherwise Error |
+| `EmptyPage` | a page has 0 items but a new next token, and ≥ `totalResults - 2` distinct ids are read (or no total). Short of that the walk keeps going | Information |
+| `NoNewItems` | every video id on the page was already seen in this walk | Error (Warning on the channel `search.list` walk, where repeats across 5-item pages are a known cost stop) |
+| `PageCapExceeded` | pages fetched reach `ceil(totalResults / 50) + 2` with a token left | Error |
+
+The cap uses `pageInfo.totalResults` and is not applied to `search.list`, whose total is an
+estimate. Arbitrary-order walks keep their own `MaxPages = 20` breaker as well.
 
 ### Known-id skip on playlist discovery
 

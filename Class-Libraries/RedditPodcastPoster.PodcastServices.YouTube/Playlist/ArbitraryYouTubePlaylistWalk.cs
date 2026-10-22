@@ -12,7 +12,7 @@ public static class ArbitraryYouTubePlaylistWalk
     /// <summary>
     /// Full-walk page size — the YouTube API maximum. playlistItems.list costs 1 quota unit per page.
     /// </summary>
-    public const int BatchSize = 50;
+    public const int BatchSize = YouTubePlaylistService.PlaylistPageSize;
 
     /// <summary>
     /// Maximum pages an arbitrary-order walk may fetch. Beyond this, stop and LogError so an
