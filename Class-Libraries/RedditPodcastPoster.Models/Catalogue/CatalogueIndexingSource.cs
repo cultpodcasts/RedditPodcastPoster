@@ -231,8 +231,7 @@ public sealed class CatalogueIndexingSource
         };
     }
 
-    /// <summary>Null for null, empty or whitespace; otherwise the value unchanged.</summary>
-    public static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static List<YouTubePlaylistIdHistoryEntry>? CloneHistory(List<YouTubePlaylistIdHistoryEntry>? history) =>
         history?.Select(entry => new YouTubePlaylistIdHistoryEntry { Id = entry.Id, ReplacedAt = entry.ReplacedAt }).ToList();

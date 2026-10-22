@@ -73,7 +73,8 @@ public class YouTubeEpisodeRetrievalHandlerFetchFailureRules
                 It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<PlaylistOrder?>()))
+                It.IsAny<PlaylistOrder?>(),
+                It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(null, Failure: failure));
         return _mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
     }

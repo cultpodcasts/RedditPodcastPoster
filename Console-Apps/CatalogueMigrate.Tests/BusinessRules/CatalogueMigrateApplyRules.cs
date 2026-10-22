@@ -305,11 +305,241 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when the podcast is auto-indexed, then apply is blocked and the plan line says why, " +
-        "because Film, TV, and News parents are not indexed and new episodes would stop arriving.")]
-    public async Task auto_indexed_podcast_is_blocked()
+        "Catalogue migrate: when an auto-indexed S-008 News podcast is applied outside the indexer window, then the news " +
+        "organisation carries its indexing settings (index-all, include and title regexes, channel, expensive flag) and the " +
+        "podcast is moved, because the hourly indexer keeps indexing news organisations from those settings (#1050).")]
+    public async Task auto_indexed_news_podcast_moves_with_its_indexing_settings()
     {
         // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p =>
+        {
+            p.EpisodeIncludeTitleRegex = _fixture.CreateShortTitle();
+            p.TitleRegex = _fixture.CreateShortTitle();
+            p.YouTubePlaylistQueryIsExpensive = true;
+        });
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.AppliedCount.Should().Be(1);
+        var indexing = _destination.NewsOrganisations[podcast.Id].Indexing!;
+        indexing.IsAutoIndexed.Should().BeTrue();
+        indexing.IndexAllEpisodes.Should().BeTrue();
+        indexing.EpisodeIncludeTitleRegex.Should().Be(podcast.EpisodeIncludeTitleRegex);
+        indexing.TitleRegex.Should().Be(podcast.TitleRegex);
+        indexing.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        indexing.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an auto-indexed TV podcast has blank text settings, then the TV show stores them as null, " +
+        "not empty strings, while the include regex and channel still carry over, because blank indexing values are absent " +
+        "rather than empty in Cosmos.")]
+    public async Task auto_indexed_tv_podcast_saves_blank_indexing_text_as_null()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = CreateYouTubeOnlyPodcast(_fixture.CreateShortTitle());
+        podcast.EpisodeIncludeTitleRegex = _fixture.CreateShortTitle();
+        podcast.TitleRegex = string.Empty;
+        podcast.DescriptionRegex = " ";
+        podcast.EpisodeMatchRegex = string.Empty;
+        podcast.YouTubePlaylistId = string.Empty;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, podcastId: podcast.Id));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var indexing = _destination.TvShows[podcast.Id].Indexing!;
+        indexing.IsAutoIndexed.Should().BeTrue();
+        indexing.EpisodeIncludeTitleRegex.Should().Be(podcast.EpisodeIncludeTitleRegex);
+        indexing.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
+        indexing.TitleRegex.Should().BeNull();
+        indexing.DescriptionRegex.Should().BeNull();
+        indexing.EpisodeMatchRegex.Should().BeNull();
+        indexing.YouTubePlaylistId.Should().BeNull();
+        indexing.SpotifyId.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "Catalogue migrate: when an auto-indexed podcast would be applied while the hourly indexer may be running " +
+        "(before :15 or from :55), then it is skipped with a reason and stays a podcast, because a pass that read it " +
+        "before the move would save it again and re-create the deleted row.")]
+    [InlineData(3)]
+    [InlineData(14)]
+    [InlineData(55)]
+    public async Task auto_indexed_podcast_is_not_moved_while_the_indexer_may_run(int minute)
+    {
+        // Arrange
+        _clock.Now = AtMinute(minute);
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.IndexerMayBeRunning);
+        _destination.NewsOrganisations.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: a podcast that is not auto-indexed is moved at any minute, because the hourly indexer never " +
+        "reads or saves it.")]
+    public async Task podcast_not_auto_indexed_ignores_the_indexer_window()
+    {
+        // Arrange
+        _clock.Now = AtMinute(CatalogueMigrateIndexerWindow.SafeFromMinute - 1);
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        _destination.NewsOrganisations.Should().ContainKey(podcast.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: a dry run of an auto-indexed podcast inside the indexer window still plans it as apply-eligible, " +
+        "because the window is checked at apply time only.")]
+    public async Task dry_run_ignores_the_indexer_window()
+    {
+        // Arrange
+        _clock.Now = AtMinute(CatalogueMigrateIndexerWindow.SafeUntilMinute);
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        var line = result.PlanLines.Single();
+        line.PodcastId.Should().Be(podcast.Id);
+        line.Accepted.Should().BeTrue();
+        line.BlockReason.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an episode arrives on the podcast during the move, then the source is not deleted and the " +
+        "run stops with exit 3, because deleting would lose that episode and a re-run moves it.")]
+    public async Task episode_arriving_mid_move_keeps_the_source()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var arrived = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _destination.AfterSearchUpload = () =>
+        {
+            _episodes.Seed(arrived);
+            return Task.CompletedTask;
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        result.AppliedCount.Should().Be(0);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        (await _episodes.GetByPodcastId(podcast.Id).ToListAsync()).Should().HaveCount(2);
+        _evidence.Records(result.Evidence.Single()).Select(record => record.Event).Should()
+            .Contain(CatalogueMigrateEvidenceEvent.Failed)
+            .And.NotContain(CatalogueMigrateEvidenceEvent.SourceDeleted);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when the hourly indexer saves the podcast during the move, then the source is not deleted and " +
+        "the run stops with exit 3, because the destination was written from settings the indexer has since changed.")]
+    public async Task podcast_indexed_mid_move_keeps_the_source()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p => p.LastIndexed = DomainTestFixture.UtcDaysAgo(1));
+        _destination.AfterSearchUpload = async () =>
+        {
+            var indexed = (await _podcasts.GetPodcast(podcast.Id))!;
+            indexed.LastIndexed = DomainTestFixture.UtcToday;
+            await _podcasts.Save(indexed);
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        (await _episodes.GetByPodcastId(podcast.Id).ToListAsync()).Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when a failed indexer pass saves the podcast during the move with changed discovery bookmarks " +
+        "but the same lastIndexed, then the source is not deleted and the run stops with exit 3, because the parent was " +
+        "written with the old settings.")]
+    public async Task indexing_settings_changed_mid_move_keeps_the_source()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        _destination.AfterSearchUpload = async () =>
+        {
+            var saved = (await _podcasts.GetPodcast(podcast.Id))!;
+            saved.YouTubePlaylistQueryIsExpensive = true;
+            await _podcasts.Save(saved);
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Theory(DisplayName =
+        "Catalogue migrate indexer window: minutes :15 to :54 are clear and :00 to :14 and :55 to :59 may overlap the " +
+        "hourly indexer, because Hourly starts at :03 and HourlyCatchUp at :08.")]
+    [InlineData(0, true)]
+    [InlineData(14, true)]
+    [InlineData(15, false)]
+    [InlineData(54, false)]
+    [InlineData(55, true)]
+    [InlineData(59, true)]
+    public void indexer_window_edges(int minute, bool indexerMayBeRunning)
+    {
+        // Arrange
+        var now = AtMinute(minute);
+
+        // Act
+        var result = CatalogueMigrateIndexerWindow.IndexerMayBeRunning(now);
+
+        // Assert
+        result.Should().Be(indexerMayBeRunning);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when a Film podcast is auto-indexed, then Film apply is blocked and the plan line says why, " +
+        "because a Film has no parent to keep indexing and new episodes would stop arriving.")]
+    public async Task auto_indexed_film_podcast_is_blocked()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
         var podcast = _fixture.CreatePodcast(p => p.IndexAllEpisodes = true);
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         _podcasts.Seed(podcast);
@@ -317,12 +547,12 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, podcastId: podcast.Id));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.Film, podcastId: podcast.Id));
 
         // Assert
         result.AppliedCount.Should().Be(0);
-        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.AutoIndexed);
-        _destination.TvShows.Should().BeEmpty();
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.FilmAutoIndexed);
+        _destination.Films.Should().BeEmpty();
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
 
@@ -491,6 +721,11 @@ public class CatalogueMigrateApplyRules
         _destination.NewsOrganisations.Should().ContainKey(podcast.Id);
     }
 
+    private static DateTimeOffset AtMinute(int minute) =>
+        new DateTimeOffset(DomainTestFixture.UtcToday, TimeSpan.Zero).AddHours(12).AddMinutes(minute);
+
+    private static DateTimeOffset OutsideIndexerWindow() => AtMinute(CatalogueMigrateIndexerWindow.SafeFromMinute);
+
     private CatalogueMigrateRequest ApplyRequest(
         string kind,
         string? consentKind = null,
@@ -523,6 +758,15 @@ public class CatalogueMigrateApplyRules
             IsYouTubeOnlyNewsCandidate(candidate)
             && !_podcasts.GetAll().ToBlockingEnumerable().Any(existing => existing.Name == candidate));
         return SeedYouTubeOnlyPodcast(name, activeEpisodes, removedEpisodes);
+    }
+
+    private Podcast SeedAutoIndexedAllowlistedNewsPodcast(Action<Podcast>? configure = null)
+    {
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        podcast.IndexAllEpisodes = true;
+        configure?.Invoke(podcast);
+        _podcasts.Seed(podcast);
+        return podcast;
     }
 
     private Podcast SeedHeuristicNewsPodcastOffAllowlist()

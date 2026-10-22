@@ -41,6 +41,7 @@ public partial class CreateSearchIndexProcessor(
     public async Task Process(CreateSearchIndexRequest request)
     {
         var plan = SearchIndexRebuildPlan.For(request);
+        await EnsureSiblingQuotaFits(request, plan);
         if (request.TearDownIndex)
         {
             if (request.UpdateExisting)
@@ -94,10 +95,16 @@ public partial class CreateSearchIndexProcessor(
             if (!request.AllPlayables)
             {
                 logger.LogWarning(
-                    "--teardown-index recreates the TvShowEpisode, Film and NewsReport indexers too, because the deleted index held their documents.");
+                    "--teardown-index recreates the TvShowEpisode and NewsReport indexers too, because the deleted index held their documents.");
             }
 
             await EnsureSiblingPlayableIndexers(request);
+        }
+
+        if (plan.TearDownSiblings)
+        {
+            logger.LogWarning(
+                "The recreated index has no film documents. Run 'FilmSearchPusher' (it detects the empty index and pushes every film) or 'FilmSearchPusher --full'.");
         }
 
         if (plan.ResetSiblings)
@@ -122,6 +129,7 @@ public partial class CreateSearchIndexProcessor(
                 throw ex;
             }
             await RunIndexerWithRetries(request, request.IndexerName);
+
             if (plan.RunSiblings)
             {
                 foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
@@ -497,49 +505,156 @@ public partial class CreateSearchIndexProcessor(
         })
     };
 
+    /// <summary>
+    /// Fails before any change when the service cannot hold the result: the episode, TV and news pairs need three
+    /// data sources and three indexers (the Free-tier limit), and anything else already on the service (counted in
+    /// its usage, and not one of the pairs this run deletes or re-creates) still takes a slot. A leftover Film pair is
+    /// deleted before the siblings are created, so it does not count. Without this, a teardown would delete the
+    /// index and then stop on the last sibling create.
+    /// </summary>
+    private async Task EnsureSiblingQuotaFits(CreateSearchIndexRequest request, SearchIndexRebuildPlan plan)
+    {
+        if (!plan.EnsureSiblings)
+        {
+            return;
+        }
+
+        var counters = (await searchIndexClient.GetServiceStatisticsAsync())?.Value?.Counters;
+        var siblings = PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!);
+        var needed = 1 + siblings.Count;
+        var dataSourceQuota = counters?.DataSourceCounter?.Quota;
+        var indexerQuota = counters?.IndexerCounter?.Quota;
+        if (dataSourceQuota < needed || indexerQuota < needed)
+        {
+            throw new InvalidOperationException(
+                $"The search service allows {dataSourceQuota} data sources and {indexerQuota} indexers, but the episode, TV and news indexers need {needed} of each. Nothing was changed.");
+        }
+
+        var (filmDataSource, filmIndexer) = PlayableSearchSources.RetiredFilm(request.IndexName!);
+        var projectedDataSources = await ProjectedCount(
+            counters?.DataSourceCounter?.Usage,
+            siblings.Select(x => x.DataSourceName).Append(filmDataSource),
+            request.DataSourceName,
+            TryGetDataSource,
+            siblings.Count);
+        var projectedIndexers = await ProjectedCount(
+            counters?.IndexerCounter?.Usage,
+            siblings.Select(x => x.IndexerName).Append(filmIndexer),
+            request.IndexerName,
+            TryGetIndexer,
+            siblings.Count);
+        if (projectedDataSources > dataSourceQuota || projectedIndexers > indexerQuota)
+        {
+            throw new InvalidOperationException(
+                $"After this run the search service would hold {projectedDataSources} data sources and {projectedIndexers} indexers, but it allows {dataSourceQuota} and {indexerQuota}. " +
+                "Something other than the episode, TV, news and retired Film pairs is using a slot. Nothing was changed.");
+        }
+    }
+
+    /// <summary>
+    /// Usage after the run: current usage, minus the managed items that exist now (each is deleted or re-created),
+    /// plus the items the run leaves behind (the siblings, and the episode item when it is named).
+    /// </summary>
+    private static async Task<long?> ProjectedCount<T>(
+        long? usage,
+        IEnumerable<string> managedNames,
+        string? episodeName,
+        Func<string, Task<T?>> tryGet,
+        int siblingCount) where T : class
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        var names = managedNames.ToList();
+        if (!string.IsNullOrWhiteSpace(episodeName))
+        {
+            names.Add(episodeName);
+        }
+
+        var existing = 0;
+        foreach (var name in names.Distinct(StringComparer.Ordinal))
+        {
+            if (await tryGet(name) != null)
+            {
+                existing++;
+            }
+        }
+
+        return usage.Value - existing + siblingCount + (string.IsNullOrWhiteSpace(episodeName) ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Deletes the Film data source and indexer an earlier version scheduled. Films are pushed by FilmSearchPusher, and
+    /// on a Free-tier service the Film pair would take the slot the TV or news sibling needs.
+    /// </summary>
+    private async Task RetireFilmPullIndexer(string indexName)
+    {
+        var (dataSourceName, indexerName) = PlayableSearchSources.RetiredFilm(indexName);
+        var hadIndexer = await TryGetIndexer(indexerName) != null;
+        var hadDataSource = await TryGetDataSource(dataSourceName) != null;
+        if (!hadIndexer && !hadDataSource)
+        {
+            return;
+        }
+
+        await DeleteIndexerIfPresent(indexerName);
+        await DeleteDataSourceIfPresent(dataSourceName);
+        logger.LogWarning(
+            "Deleted the retired Film pull indexer '{IndexerName}' / data source '{DataSourceName}'. Film documents already in the index stay; FilmSearchPusher keeps them current.",
+            indexerName, dataSourceName);
+    }
+
     private async Task EnsureSiblingPlayableIndexers(CreateSearchIndexRequest request)
+    {
+        await RetireFilmPullIndexer(request.IndexName!);
+        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        {
+            await EnsureSiblingPlayableIndexer(request, source);
+        }
+    }
+
+    private async Task EnsureSiblingPlayableIndexer(CreateSearchIndexRequest request, PlayableSearchSources.Source source)
     {
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
-        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        var hadDataSource = await TryGetDataSource(source.DataSourceName) != null;
+        var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
+        var dataSource = new SearchIndexerDataSourceConnection(
+            source.DataSourceName,
+            SearchIndexerDataSourceType.CosmosDb,
+            connectionString,
+            container)
         {
-            var hadDataSource = await TryGetDataSource(source.DataSourceName) != null;
-            var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
-            var dataSource = new SearchIndexerDataSourceConnection(
-                source.DataSourceName,
-                SearchIndexerDataSourceType.CosmosDb,
-                connectionString,
-                container)
-            {
-                DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
-            };
-            await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
-            logger.LogInformation(
-                "{Action} playable data source '{DataSourceName}' for {ContentKind}.",
-                hadDataSource ? "Updated" : "Created",
-                source.DataSourceName,
-                source.ContentKind);
+            DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+        };
+        await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
+        logger.LogInformation(
+            "{Action} playable data source '{DataSourceName}' for {ContentKind}.",
+            hadDataSource ? "Updated" : "Created",
+            source.DataSourceName,
+            source.ContentKind);
 
-            var hadIndexer = await TryGetIndexer(source.IndexerName) != null;
-            var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
-            var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+        var hadIndexer = await TryGetIndexer(source.IndexerName) != null;
+        var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
+        var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+        {
+            Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
+            Description = source.ContentKind,
+            Parameters = new IndexingParameters
             {
-                Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
-                Description = source.ContentKind,
-                Parameters = new IndexingParameters
-                {
-                    MaxFailedItems = 0,
-                    MaxFailedItemsPerBatch = 0,
-                    Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
-                }
-            };
-            await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
-            logger.LogInformation(
-                "{Action} playable indexer '{IndexerName}' for {ContentKind}.",
-                hadIndexer ? "Updated" : "Created",
-                source.IndexerName,
-                source.ContentKind);
-        }
+                MaxFailedItems = 0,
+                MaxFailedItemsPerBatch = 0,
+                Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
+            }
+        };
+        await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
+        logger.LogInformation(
+            "{Action} playable indexer '{IndexerName}' for {ContentKind}.",
+            hadIndexer ? "Updated" : "Created",
+            source.IndexerName,
+            source.ContentKind);
     }
 
     private async Task<Azure.Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)

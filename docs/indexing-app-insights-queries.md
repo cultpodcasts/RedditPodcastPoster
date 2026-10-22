@@ -135,6 +135,13 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `IndexIdProvider batch-4-summary` | `IndexIdProvider` | Podcast count in batch 4 |
 | `YouTubeDiscoveryPath` | `YouTubeEpisodeRetrievalHandler` | Warning when YouTube-authority; Info otherwise |
 | `YouTubeAuthorityPodcastAudit` | `PodcastsUpdater` | Per YouTube-authority podcast |
+| `IndexerPodcastStage` | `PodcastIndexingStageLog` (via `PodcastsUpdater`) | **Information by default (not shipped).** One line at the start of each stage of a podcast's update (`start`, `cosmos-read-episodes`, `discover-youtube` / `-spotify` / `-apple`, `youtube-playlist-page`, `youtube-videos-list`, `youtube-thumbnail`, `merge`, `cosmos-read-platform-identified`, `enrich`, `save-episodes`, `save-podcast`, `complete`) with `podcast-id`, `podcast-name`, `detail`, `elapsed-ms`, `previous-stage`, `previous-stage-ms`, `traced`, `slow-previous-stage`. **Warning** (shipped) when the podcast is on `indexerStageLog:WarningPodcastIds` (every line, so the last start line before a stall names the hung call) or the previous stage took ≥ `indexerStageLog:SlowStageWarningSeconds` (default 10) |
+| `IndexerPodcastBudgetExceeded` | `PodcastsUpdater` | **Error** — a podcast's update hit `podcastUpdateBudget:PerPodcastBudgetSeconds` (default 60; × `ExpensivePassBudgetMultiplier`, default 3, on a pass that allows expensive queries); names the `stage` it was in; `expensive-pass`; `abandoned='True'` when the call ignored cancellation and was left behind after `AbandonGraceSeconds`; `consecutive-cuts` (per host process, reset on a completed update). The loop continues with the next podcast |
+| `IndexerPodcastAbandonedCompleted` | `PodcastsUpdater` | Warning — an abandoned update finally finished in the background: `status` (RanToCompletion / Faulted / Canceled), `last-stage`, `elapsed-ms`, `error-type` |
+| `IndexerCatalogueParentBudgetExceeded` | `CatalogueParentsUpdater` | **Error** — a migrated TV show's or news organisation's index hit the same `podcastUpdateBudget` budget as podcasts. Fields: `kind` (TvShow / NewsOrganisation), `parent-id`, `parent-name`, `stage`, `detail`, `elapsed-ms`, `budget-seconds`, `expensive-pass`, `abandoned`, `consecutive-cuts`. Nothing more is written for that parent; the loop continues. Its stage lines are `IndexerPodcastStage` with the parent id in `podcast-id` (`start` detail `catalogue-parent-kind=…`, `cosmos-read-playables`, `discover-episodes`, `merge`, `sibling-podcast-check`, `filter`, `save-playables`, `patch-parent`, `complete`) |
+| `IndexerCatalogueParentAbandonedCompleted` | `CatalogueParentsUpdater` | Warning — an abandoned parent index finally finished in the background: `kind`, `parent-id`, `status`, `last-stage`, `elapsed-ms`, `error-type` |
+| `YouTubeThumbnailProbeTimeout` | `YouTubeThumbnailResolver` | Warning — a thumbnail probe hit the 15 s client timeout; the API-listed tier was kept (`action='kept-api-candidate'`) instead of storing a lower tier |
+| `HourlyOrchestration indexer-pass-failed` | `HourlyOrchestration` | **Error** — an Indexer activity failed; the run continued with the remaining passes, Categoriser, the thumbnail re-check (YouTube flagged errored) and Publisher. A `posting-skipped` Warning follows: Poster, Tweet and Bluesky do not run (unchanged posting behaviour). The instance then ends Failed (`IndexerPassesFailedException`) |
 | `YouTubeAuthorityIndexingAudit` | `PodcastsUpdater` | Batch-level YouTube-authority summary |
 | `Spotify enrich miss:` | `SpotifyEpisodeEnricher` | Warning — no Spotify candidate matched, with rejection context |
 | `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — dropped; Spotify returned `restrictions.reason=market` |
@@ -1035,3 +1042,20 @@ az monitor log-analytics query -w $workspaceId --analytics-query $query -o json 
 ---
 
 *Created Jun 2026 for indexing investigation handoff.*
+
+### Podcasts repeatedly cut by the per-podcast budget
+
+```kusto
+traces
+| where timestamp > ago(2d)
+| where message startswith "IndexerPodcastBudgetExceeded"
+| extend podcastId = extract(@"podcast-id='([^']+)'", 1, message),
+         podcastName = extract(@"podcast-name='([^']*)'", 1, message),
+         stage = extract(@"stage='([^']*)'", 1, message),
+         expensivePass = extract(@"expensive-pass='([^']*)'", 1, message)
+| summarize cuts = count(), lastCut = max(timestamp), stages = make_set(stage, 5),
+            expensive = countif(expensivePass == "True") by podcastId, podcastName
+| where cuts >= 2
+| order by cuts desc
+```
+

@@ -97,12 +97,19 @@ public class YouTubePlaylistService(
                 playlistRequest.MaxResults = batchSize;
                 playlistRequest.PageToken = nextPageToken;
 
-                playlistItemsListResponse = await playlistRequest.ExecuteAsync();
+                indexingContext.ReportStage("youtube-playlist-page",
+                    $"playlist-id={playlistId.PlaylistId} page={pagesFetched + 1} batch-size={batchSize}");
+                playlistItemsListResponse = await playlistRequest.ExecuteAsync(indexingContext.CancellationToken);
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
                     YouTubeQuotaOperation.PlaylistItemsList,
                     YouTubeQuotaCosts.PlaylistItemsList);
+            }
+            catch (OperationCanceledException) when (indexingContext.CancellationToken.IsCancellationRequested)
+            {
+                // The podcast's time budget elapsed; let the indexer loop log the stage and move on.
+                throw;
             }
             catch (GoogleApiException ex)
             {

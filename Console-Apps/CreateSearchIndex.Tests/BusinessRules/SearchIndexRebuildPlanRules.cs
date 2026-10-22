@@ -8,7 +8,7 @@ public class SearchIndexRebuildPlanRules
     private const string IndexName = "synthetic-index";
 
     [Fact(DisplayName =
-        "When the index is torn down without --all-playables, then the TV, film and news siblings are torn down and recreated, because the deleted index held their documents and stale high-water marks would never re-push them.")]
+        "When the index is torn down without --all-playables, then the TV and news siblings are torn down and recreated, because the deleted index held their documents and stale high-water marks would never re-push them.")]
     public void teardown_without_all_playables_rebuilds_siblings()
     {
         // Arrange
@@ -69,7 +69,7 @@ public class SearchIndexRebuildPlanRules
     }
 
     [Fact(DisplayName =
-        "When --update-existing --reset-indexer --all-playables is given, then the siblings are reset too, because otherwise existing TV, film and news documents never pick up new fields.")]
+        "When --update-existing --reset-indexer --all-playables is given, then the siblings are reset too, because otherwise existing TV and news documents never pick up new fields.")]
     public void reset_with_all_playables_resets_siblings()
     {
         // Arrange

@@ -236,7 +236,7 @@ public static class CatalogueMigrateIdentify
     }
 
     /// <summary>
-    /// Curator: partisan, advocacy, news-satire, or one-person host channels stay
+    /// Curator: partisan, advocacy, news-satire, news-commentary, or one-person host channels stay
     /// podcasts even when the name or YouTube About looks like a news organisation.
     /// News Central TV, BreakThrough News, Newsmax, Democracy Now!, Redacted,
     /// Le Média, and Law&amp;Crime are outlets and are not on this list.
@@ -254,7 +254,17 @@ public static class CatalogueMigrateIdentify
             "Ari Melber, Journalist & Attorney",
             "XENU TV",
             "Owen Report",
-            "Nancy Mace"
+            "Nancy Mace",
+            // Curator review 22 Oct 2026: news-commentary podcasts that stay podcasts.
+            "Fayn",
+            "Mail News",
+            "Re: News",
+            "Rob Wolchek-Investigative News Reporter",
+            "Daily Cast News",
+            "Touch Breaking News",
+            "On Demand News",
+            "National and World News",
+            "Times Radio Tech"
         };
 
     /// <summary>

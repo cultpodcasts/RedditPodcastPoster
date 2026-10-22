@@ -10,6 +10,7 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
 {
     private readonly Dictionary<Uri, (HttpStatusCode Status, byte[] Body)> _responses = new();
     private readonly List<Uri> _requested = [];
+    private readonly List<System.Net.Http.Headers.RangeHeaderValue?> _requestedRanges = [];
     private readonly HashSet<Uri> _failing = [];
     private readonly HashSet<Uri> _hanging = [];
 
@@ -17,6 +18,9 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
     public Action<Uri>? OnRequest { get; set; }
 
     public IReadOnlyList<Uri> Requested => _requested;
+
+    /// <summary>The Range header sent with each request, in request order (null when none was sent).</summary>
+    public IReadOnlyList<System.Net.Http.Headers.RangeHeaderValue?> RequestedRanges => _requestedRanges;
 
     public YouTubeThumbnailHttpStub Serve(Uri url, HttpStatusCode status, byte[] body)
     {
@@ -44,6 +48,7 @@ public sealed class YouTubeThumbnailHttpStub : HttpMessageHandler
     {
         var url = request.RequestUri!;
         _requested.Add(url);
+        _requestedRanges.Add(request.Headers.Range);
         OnRequest?.Invoke(url);
         if (_hanging.Contains(url))
         {

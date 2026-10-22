@@ -137,7 +137,7 @@ SubmitUrl -r `
 |------|--------|
 | `languages` | `R2PublishProcessor` — languages list to R2 |
 | `people` | `R2PublishProcessor` — People register to R2 |
-| `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 |
+| `search-suggestions` | `R2PublishProcessor` — typeahead match index to R2 (subjects, podcasts, TV shows, news organisations, films; films carry `id`) |
 | `subjects` | `R2PublishProcessor` — subjects name list to R2 |
 | `homepage` | `R2PublishProcessor` — homepage JSON to R2 |
 | `lookups` | languages + people + search-suggestions + subjects, then flairs (**not** homepage / feed) |
@@ -308,9 +308,11 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CatalogueMigrate
 
-**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, frozen 2 Oct 2026; 308 names after the 21 Oct 2026 curator review). Dry-run still discovers via Identify heuristics and logs `onAllowlist`. Podcasts with auto-indexing (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) are blocked. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
+**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, frozen 2 Oct 2026; 299 names after the 21 and 22 Oct 2026 curator reviews). Dry-run still discovers via Identify heuristics and logs `onAllowlist`. Auto-indexed podcasts (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) move to News and TV with their discovery settings in the parent's `indexing` block (blank text stored as null), and the hourly indexer keeps indexing them. Only Film refuses an auto-indexed podcast. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
 
 `--apply` writes **only** with `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, otherwise it exits 2. Each podcast: destination upsert → verify count → same-id Search swap (`contentKind`) → delete episodes → delete podcast. Evidence goes to one JSONL per batch, with full before-snapshots. Re-running resumes. `--rollback <file>` previews a restore. Add `--apply --consent "I approve CatalogueMigrate rollback of <file name> in production"` to restore. Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 a podcast failed (run stopped, source kept). Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Ops: [`docs/catalogue-run/gate-5.md`](../docs/catalogue-run/gate-5.md).
+
+**Indexer window (auto-indexed podcasts only):** the Indexer's `Hourly` run starts at :03 and `HourlyCatchUp` at :08. A pass that read a podcast before the move would save it again after the move and re-create the deleted row. So `--apply` skips an auto-indexed podcast at minutes :00–:14 and :55–:59 (plan line `block=` says so; the run carries on with other podcasts). Re-run between :15 and :54 to move it. Dry-run is not affected. Separately, just before deleting the source, apply re-reads it: if the podcast was indexed (`lastIndexed` changed) or an episode arrived during the move, the source is kept and the run stops with exit 3, and a re-run moves the current rows.
 
 **Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
 
@@ -318,7 +320,7 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 |--------|-------------|
 | `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required unless `--rollback`) |
 | `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
-| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
+| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2. Auto-indexed podcasts move only at minutes :15–:54 |
 | `--consent` | Human approval phrase (see above). Never default it or script it |
 | `--batch-size` | Podcasts per evidence file (default 25, max 500) |
 | `--limit` | Stop after this many eligible podcasts |
@@ -405,14 +407,16 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 **Purpose:** Create / tear down Azure AI Search index, data source, and indexer; optionally run the indexer.
 
+**Standard layout (fits the Free tier: 3 data sources / 3 indexers / 3 indexes):** one index, `cultpodcasts`, fed by three pull indexers: episodes (`--datasource` / `--indexer`, e.g. `cultpodcasts-ds` / `cultpodcasts-indexer`), TV show episodes (`<index>-tvshowepisode-ds` / `-indexer`) and news reports (`<index>-newsreport-ds` / `-indexer`). **Films have no pull indexer**; [FilmSearchPusher](#filmsearchpusher) pushes them by Cosmos `_ts`. Any run that sets up the siblings deletes a leftover `<index>-film-ds` / `<index>-film-indexer` pair from earlier versions.
+
 **Run:** `dotnet run --project Console-Apps/CreateSearchIndex --` · PATH: `CreateSearchIndex`
 
 | Option | Description |
 |--------|-------------|
 | `-i, --index` | Index name |
-| `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode, Film and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well |
+| `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well. Film documents are not restored by this; run `FilmSearchPusher` afterwards (it sees the empty index and pushes every film) |
 | `--update-existing` | Keep index; upsert Cosmos datasource SQL from current `SearchEncodedKeys`. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. Does not copy `episodeTitle` / `podcastName` / `episodeDescription` onto a new index. **Not** a recreate |
-| `--all-playables` | CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer`. With `--update-existing --reset-indexer`, each sibling indexer is reset too |
+| `--all-playables` | CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index **without a teardown** (adds them to an index that has only the episode pair), and delete a leftover Film pair. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer`. With `--update-existing --reset-indexer`, each sibling indexer is reset too. A teardown or `--all-playables` stops before changing anything when the service allows fewer than three data sources or indexers |
 | `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
 | `-d, --datasource` | Data-source name |
 | `-x, --indexer` | Indexer name |
@@ -427,6 +431,46 @@ After adding a streaming plugin (see add-streaming-service skill §8):
 ```powershell
 CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds
 Index --reindex-search -n "<PodcastName>"
+```
+
+Add the scheduled TV and news indexers to the existing index (no teardown; they first run at the next :15 / :45, or add `--run-indexer` to run now):
+
+```powershell
+CreateSearchIndex --index cultpodcasts --all-playables
+```
+
+Full rebuild (for example after changing `Constants.DescriptionSize`), with the Hourly indexer paused, then put films back:
+
+```powershell
+CreateSearchIndex --index cultpodcasts --datasource cultpodcasts-ds --indexer cultpodcasts-indexer --teardown-index --run-indexer
+FilmSearchPusher
+```
+
+`--transient-playables` (one-at-a-time TV / Film / News loads) was removed: TV and news are now permanent indexers, and a transient Film indexer would need a fourth data source on the Free tier.
+
+### FilmSearchPusher
+
+**Purpose:** Push film search documents from the Cosmos `Films` container into the search index, in place of a Film pull indexer (the Free tier's three data sources are used by episodes, TV and news). Run locally, once a day.
+
+**Run:** `dotnet run --project Console-Apps/FilmSearchPusher --` · PATH: `FilmSearchPusher`
+
+| Option | Description |
+|--------|-------------|
+| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`; each is re-read before deletion so a film created mid-run is kept), ignoring the watermark |
+| `-n, --dry-run` | Read and plan only: logs what would be pushed and deleted. No search writes, no watermark save |
+| `-b, --batch-size` | Documents per index request, 1–1000 (default `500`) |
+
+How it works:
+
+- **Incremental (default):** reads films with `_ts >=` the saved watermark (the boundary second is re-pushed so a film saved later in that second is not missed), merge-or-uploads each document built by `CataloguePlayableSearchDocument.For(Film)` (the curator edit's document, description cut to `Constants.DescriptionSize`), and deletes the document of any film marked removed.
+- **Becomes a full push** when `--full` is given, when no watermark has been saved, or when the index holds no film documents (straight after a teardown).
+- **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed incremental run is retried; a failed full run clears it, so the next run is full again. Exit code `1` on any failure.
+- Curator film edits and Move to film still push their document straight away; this run catches anything else (CatalogueMigrate film applies, rebuilds) within a day.
+
+```powershell
+FilmSearchPusher --dry-run   # what would change
+FilmSearchPusher             # daily incremental push
+FilmSearchPusher --full      # push all films and remove orphaned film documents
 ```
 
 ### DeleteSearchDocument

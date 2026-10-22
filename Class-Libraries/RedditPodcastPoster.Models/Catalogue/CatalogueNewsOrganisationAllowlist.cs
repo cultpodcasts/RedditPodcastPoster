@@ -5,12 +5,13 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// Identify name-heuristic keep (newspapers, 24/7, affiliate+digit, News word,
 /// four-letter), minus non-outlet four-letter / DeFranco News Clips.
 /// Curator review 21 Oct 2026 removed 9 non-outlets (317 → 308).
+/// Curator review 22 Oct 2026 removed 9 news-commentary podcasts that stay podcasts (308 → 299).
 /// Dry-run identify still uses heuristics. CatalogueMigrate --apply moves News only for these names.
 /// Bio-likely compact brands are not on this list until named.
 /// </summary>
 public static class CatalogueNewsOrganisationAllowlist
 {
-    public const int FrozenCount = 308;
+    public const int FrozenCount = 299;
 
     public static readonly IReadOnlySet<string> Names =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -85,7 +86,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "CMN-NEWS",
         "CTV News",
         "DAE News Philippines",
-        "Daily Cast News",
         "Dakota News Now",
         "Deccan Herald",
         "DRM News",
@@ -106,7 +106,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "EWTN News",
         "Eyewitness News ABC7NY",
         "Eyewitness News WTVO WQRF (MyStateline)",
-        "Fayn",
         "FOX 10 Phoenix",
         "FOX 11 Los Angeles",
         "FOX 13 News Utah",
@@ -199,12 +198,10 @@ public static class CatalogueNewsOrganisationAllowlist
         "KXAN",
         "LBC News",
         "Louisiana First News",
-        "Mail News",
         "Manchester Evening News",
         "Manila Bulletin Online",
         "MBN News",
         "Miami Herald",
-        "National and World News",
         "NBC 10 WJAR",
         "NBC 15",
         "NBC 6 South Florida",
@@ -227,13 +224,10 @@ public static class CatalogueNewsOrganisationAllowlist
         "news.com.au",
         "News.de",
         "Observator News",
-        "On Demand News",
         "One News PH",
         "Philstar News",
         "PIX11 News",
         "Queen City News",
-        "Re: News",
-        "Rob Wolchek-Investigative News Reporter",
         "Roya News English",
         "RTÉ News",
         "SABC News",
@@ -267,8 +261,6 @@ public static class CatalogueNewsOrganisationAllowlist
         "Times Originals",
         "Times Radio",
         "Times Radio Politics",
-        "Times Radio Tech",
-        "Touch Breaking News",
         "Touch Digital News",
         "TVC News Nigeria",
         "UNTV News and Rescue",

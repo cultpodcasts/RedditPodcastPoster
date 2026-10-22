@@ -109,7 +109,8 @@ public class ServiceIdsRules
     }
 
     [Fact(DisplayName =
-        "Like the podcast edit API, \"\" clears youTubeChannelId and spotifyId (stored as null, not \"\"), and nullAppleId: true clears appleId even when appleId is also sent.")]
+        "Like the podcast edit API, \"\" clears youTubeChannelId and spotifyId (stored as null, never an empty string, " +
+        "because blank indexing values are absent in Cosmos), and nullAppleId: true clears appleId even when appleId is also sent.")]
     public async Task clears_follow_podcast_rules()
     {
         // Arrange

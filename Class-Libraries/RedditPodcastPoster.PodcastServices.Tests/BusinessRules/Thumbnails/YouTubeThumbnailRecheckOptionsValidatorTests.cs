@@ -60,4 +60,23 @@ public class YouTubeThumbnailRecheckOptionsValidatorTests
         result.FailureMessage.Should().Contain(
             $"{YouTubeThumbnailRecheckOptions.SectionName}__{nameof(YouTubeThumbnailRecheckOptions.ProbeTimeoutSeconds)}");
     }
+
+    [Fact(DisplayName =
+        "A per-probe timeout equal to the probe HTTP client's own timeout fails validation, because the client's " +
+        "timeout could win the race and a timed-out probe must never read as 'withdrawn'.")]
+    public void probe_timeout_equal_to_client_timeout_fails()
+    {
+        // Arrange
+        var options = new YouTubeThumbnailRecheckOptions
+        {
+            ProbeTimeoutSeconds = (int)RedditPodcastPoster.PodcastServices.YouTube.Thumbnails.YouTubeThumbnailResolver
+                .ProbeTimeout.TotalSeconds
+        };
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+    }
 }

@@ -33,9 +33,23 @@ public static class CatalogueMigratePlanner
     public const string PartialNews =
         "Only some episodes are News. A curator must split this podcast before News apply.";
 
-    public const string AutoIndexed =
-        "Podcast is auto-indexed (IndexAllEpisodes or EpisodeIncludeTitleRegex). Film, TV, and News parents are not indexed, " +
-        "so moving it would stop new episodes. A curator must turn auto-index off first.";
+    /// <summary>
+    /// Only Film refuses an auto-indexed podcast. A TV show or news organisation keeps the podcast's discovery
+    /// settings (<see cref="CatalogueIndexingSource"/>) and the hourly indexer keeps indexing it (#1050), so
+    /// auto-indexed News and TV podcasts move like any other.
+    /// </summary>
+    public const string FilmAutoIndexed =
+        "Film podcast is auto-indexed (IndexAllEpisodes or EpisodeIncludeTitleRegex). A Film has no parent to keep " +
+        "indexing, so moving it would stop new episodes. A curator must turn auto-index off first.";
+
+    /// <summary>
+    /// Apply-time only (never in a dry run): an auto-indexed podcast is not moved while the hourly indexer may be
+    /// indexing it, because a pass that read the podcast before the move would save it again after the move and
+    /// re-create the deleted row. See <see cref="CatalogueMigrateIndexerWindow"/>.
+    /// </summary>
+    public const string IndexerMayBeRunning =
+        "Podcast is auto-indexed and the hourly indexer may be running (outside minutes :15-:54 of the hour). " +
+        "Re-run between :15 and :54.";
 
     public const string FilmHasOtherEpisodes =
         "Film podcast has other (removed) episodes. A curator must clear them before Film apply.";
@@ -108,13 +122,12 @@ public static class CatalogueMigratePlanner
                 {
                     block = FilmHasOtherEpisodes;
                 }
+                else if (IsAutoIndexed(podcast))
+                {
+                    block = FilmAutoIndexed;
+                }
 
                 break;
-        }
-
-        if (block is null && (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex)))
-        {
-            block = AutoIndexed;
         }
 
         if (block is null && DestinationParent(podcast, kind) is { } parent &&
@@ -133,6 +146,10 @@ public static class CatalogueMigratePlanner
             onAllowlist,
             block);
     }
+
+    /// <summary>Same rule as the hourly indexer: index all episodes, or only titles matching the include regex.</summary>
+    public static bool IsAutoIndexed(Podcast podcast) =>
+        podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex);
 
     /// <summary>The TV show / news organisation the writer would store for this podcast; null for Film.</summary>
     public static Publisher? DestinationParent(Podcast podcast, string kind) => kind switch

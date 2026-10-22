@@ -65,7 +65,9 @@ public class YouTubeVideoService(
                     var request = youTubeService.YouTubeService.Videos.List(contentDetails);
                     request.Id = string.Join(",", batchVideoIds);
                     request.MaxResults = MaxSearchResults;
-                    response = await request.ExecuteAsync();
+                    indexingContext?.ReportStage("youtube-videos-list",
+                        $"batch={batch + 1} video-count={batchVideoIds.Count()}");
+                    response = await request.ExecuteAsync(indexingContext?.CancellationToken ?? CancellationToken.None);
                     await quotaUsageTracker.RecordQuotaConsumedAsync(
                         youTubeService.CurrentApplication,
                         youTubeService.Usage,
@@ -84,6 +86,11 @@ public class YouTubeVideoService(
                         youTubeService.Usage,
                         YouTubeQuotaOperation.VideosList);
                     throw new YouTubeQuotaException();
+                }
+                catch (OperationCanceledException) when (indexingContext?.CancellationToken.IsCancellationRequested == true)
+                {
+                    // The podcast's time budget elapsed; let the indexer loop log the stage and move on.
+                    throw;
                 }
                 catch (Exception ex)
                 {

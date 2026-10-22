@@ -66,6 +66,8 @@ public static class ApiAreaServiceCollectionExtensions
                     : inner;
             })
             .AddScoped<IEpisodePublishService, EpisodePublishService>()
+            .AddScoped<IEpisodeFilmMoveService, EpisodeFilmMoveService>()
+            .AddScoped<IPostEpisodeFilmMoveHandler, PostEpisodeFilmMoveHandler>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
