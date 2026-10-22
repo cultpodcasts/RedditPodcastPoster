@@ -214,12 +214,39 @@ public class YouTubeEpisodeProvider(
             if (playlistQueryResponse.Failure != null)
             {
                 logger.LogPlaylistFetchFailure(podcast, playlistQueryResponse.Failure, youTubePlaylistId);
+                return new GetPlaylistEpisodesResponse(null, isExpensiveQuery, playlistQueryResponse.Failure);
             }
 
-            return new GetPlaylistEpisodesResponse(null, isExpensiveQuery, playlistQueryResponse.Failure);
+            // Nothing in the window: no episodes to build, so the walk's outcome stands (a complete walk of a large
+            // playlist with nothing new still refreshes the YouTube indexing hints).
+            return new GetPlaylistEpisodesResponse(null, isExpensiveQuery,
+                TotalResults: playlistQueryResponse.TotalResults,
+                WalkOutcome: playlistQueryResponse.Result == null
+                    ? YouTubePlaylistWalkOutcome.Incomplete
+                    : playlistQueryResponse.WalkOutcome);
         }
 
-        var results = playlistQueryResponse.Result;
+        var built = await BuildPlaylistEpisodes(podcast, youTubeChannelId, indexingContext,
+            playlistQueryResponse.Result, knownIds);
+        return built with
+        {
+            IsExpensiveQuery = isExpensiveQuery,
+            TotalResults = playlistQueryResponse.TotalResults,
+            // Hints may only move past items that were actually built.
+            WalkOutcome = built.Results != null
+                ? playlistQueryResponse.WalkOutcome
+                : YouTubePlaylistWalkOutcome.Incomplete
+        };
+    }
+
+    public async Task<GetPlaylistEpisodesResponse> BuildPlaylistEpisodes(
+        Podcast podcast,
+        YouTubeChannelId? youTubeChannelId,
+        IndexingContext indexingContext,
+        IList<PlaylistItem> playlistItems,
+        IEnumerable<string>? knownIds = null)
+    {
+        IList<PlaylistItem> results = playlistItems;
         if (indexingContext.ReleasedSince.HasValue)
         {
             results = results.Where(x =>
@@ -242,7 +269,7 @@ public class YouTubeEpisodeProvider(
 
         if (!results.Any())
         {
-            return new GetPlaylistEpisodesResponse([], isExpensiveQuery, KnownSkipped: knownSkipped);
+            return new GetPlaylistEpisodesResponse([], KnownSkipped: knownSkipped);
         }
 
         var videoDetails =
@@ -281,7 +308,7 @@ public class YouTubeEpisodeProvider(
                         indexingContext));
                 }
 
-                return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery, KnownSkipped: knownSkipped);
+                return new GetPlaylistEpisodesResponse(reducedResults, KnownSkipped: knownSkipped);
             }
             catch (Exception e) when (e is not OperationCanceledException ||
                                       !indexingContext.CancellationToken.IsCancellationRequested)
@@ -292,7 +319,7 @@ public class YouTubeEpisodeProvider(
             }
         }
 
-        return new GetPlaylistEpisodesResponse(null, isExpensiveQuery);
+        return new GetPlaylistEpisodesResponse(null);
     }
 
     private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)

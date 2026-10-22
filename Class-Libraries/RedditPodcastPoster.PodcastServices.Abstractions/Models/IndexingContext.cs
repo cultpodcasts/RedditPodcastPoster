@@ -25,6 +25,14 @@ public record IndexingContext(
     public EpisodeLookupFlow LookupFlow { get; set; } = EpisodeLookupFlow.Submit;
 
     /// <summary>
+    /// Lets YouTube discovery read a large playlist from the channel's uploads head when its stored indexing hints
+    /// allow it (docs/catalogue-pagination.md "YouTube indexing hints"). Only the hourly Cloud indexer sets this:
+    /// curator re-index (Api) and backfills (Index console app) always walk the playlist in full, so they can recover
+    /// an in-window episode the uploads check would not offer again. A full walk still refreshes the hints.
+    /// </summary>
+    public bool UseYouTubeIndexingHints { get; init; }
+
+    /// <summary>
     /// Cancels the current podcast's update. The indexer sets this per podcast from its time budget
     /// (<c>PodcastsUpdater</c>); outside that loop it is <see cref="CancellationToken.None"/>.
     /// </summary>
@@ -52,7 +60,8 @@ public record IndexingContext(
         var skipPodcastDiscovery = $"skip-podcast-discovery: '{SkipPodcastDiscovery}'";
         var skipShortEpisodes = $"skip-short-episodes: '{SkipShortEpisodes}'";
         var lookupFlow = $"lookup-flow: '{LookupFlow}'";
+        var useYouTubeIndexingHints = $"use-youtube-indexing-hints: '{UseYouTubeIndexingHints}'";
         return
-            $"{nameof(IndexingContext)} Indexing with options {string.Join(", ", releasedSince, indexSpotify, bypassSpotify, bypassYouTube, bypassExpensiveSpotify, bypassExpensiveYouTube, skipPodcastDiscovery, skipShortEpisodes, lookupFlow)}.";
+            $"{nameof(IndexingContext)} Indexing with options {string.Join(", ", releasedSince, indexSpotify, bypassSpotify, bypassYouTube, bypassExpensiveSpotify, bypassExpensiveYouTube, skipPodcastDiscovery, skipShortEpisodes, lookupFlow, useYouTubeIndexingHints)}.";
     }
 }

@@ -578,4 +578,62 @@ public class CatalogueParentIndexingRules
         // Assert
         success.Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: YouTube indexing hints the pass refreshed on the transient podcast are patched as " +
+        "/indexing/youTubeIndexingHints alone, because they live in the parent's indexing block and only the indexer " +
+        "writes them.")]
+    public async Task refreshed_youtube_indexing_hints_are_patched()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var hints = new YouTubeIndexingHints
+        {
+            PlaylistId = _fixture.CreateYouTubePlaylistId(),
+            LastFullWalk = DomainTestFixture.UtcDaysAgo(0),
+            PlaylistItemCount = 400
+        };
+        _mocker.GetMock<IEpisodeProvider>()
+            .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .Callback((Podcast p, IEnumerable<Episode> _, IndexingContext _) => p.YouTubeIndexingHints = hints)
+            .ReturnsAsync([]);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
+        patch.ChangedIndexingProperties.Should().Equal("youTubeIndexingHints");
+        patch.Indexing.YouTubeIndexingHints.Should().Be(hints);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a found episode fails to merge, the parent keeps its previous YouTube " +
+        "indexing hints and the patch does not write them, so the next pass offers that episode again.")]
+    public async Task failed_merge_keeps_previous_youtube_indexing_hints()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var previous = new YouTubeIndexingHints
+        {
+            PlaylistId = _fixture.CreateYouTubePlaylistId(),
+            LastFullWalk = DomainTestFixture.UtcDaysAgo(1),
+            PlaylistItemCount = 400
+        };
+        organisation.Indexing!.YouTubeIndexingHints = previous.Copy();
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode()];
+        _merge = (_, incoming) => new EpisodeMergeResult([], [], [], [incoming]);
+        _mocker.GetMock<IEpisodeProvider>()
+            .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .Callback((Podcast p, IEnumerable<Episode> _, IndexingContext _) =>
+                p.YouTubeIndexingHints = previous with { PlaylistItemCount = 401 })
+            .ReturnsAsync(() => _discovered.ToList());
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("youTubeIndexingHints");
+    }
 }

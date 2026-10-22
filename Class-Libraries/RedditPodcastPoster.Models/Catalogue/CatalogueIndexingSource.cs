@@ -14,7 +14,7 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// stored <c>indexing</c> block only holds the values that are actually set (the Cosmos serializer omits nulls).
 /// </para>
 /// </summary>
-public sealed class CatalogueIndexingSource
+public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
 {
     private string? _spotifyId;
     private string? _youTubeChannelId;
@@ -96,6 +96,11 @@ public sealed class CatalogueIndexingSource
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
 
+    /// <summary>Indexer-owned hints for large YouTube playlists (<c>indexing.youTubeIndexingHints</c>). Omitted when null.</summary>
+    [JsonPropertyName("youTubeIndexingHints")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeIndexingHints? YouTubeIndexingHints { get; set; }
+
     [JsonPropertyName("youTubeChannelSearchForbidden")]
     public bool? YouTubeChannelSearchForbidden { get; set; }
 
@@ -169,6 +174,7 @@ public sealed class CatalogueIndexingSource
         YouTubePlaylistOrder = podcast.YouTubePlaylistOrder;
         YouTubePublicationOffset = podcast.YouTubePublicationOffset;
         YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive;
+        YouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy();
         YouTubeChannelSearchForbidden = podcast.YouTubeChannelSearchForbidden;
         SkipEnrichingFromYouTube = podcast.SkipEnrichingFromYouTube;
         TitleRegex = podcast.TitleRegex;
@@ -222,6 +228,7 @@ public sealed class CatalogueIndexingSource
             YouTubePlaylistOrder = YouTubePlaylistOrder,
             YouTubePublicationOffset = YouTubePublicationOffset,
             YouTubePlaylistQueryIsExpensive = YouTubePlaylistQueryIsExpensive,
+            YouTubeIndexingHints = YouTubeIndexingHints?.Copy(),
             YouTubeChannelSearchForbidden = YouTubeChannelSearchForbidden,
             SkipEnrichingFromYouTube = SkipEnrichingFromYouTube,
             TitleRegex = TitleRegex ?? string.Empty,

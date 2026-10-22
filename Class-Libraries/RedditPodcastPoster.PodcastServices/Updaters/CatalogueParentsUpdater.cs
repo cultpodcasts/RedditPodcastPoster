@@ -376,6 +376,7 @@ public class CatalogueParentsUpdater(
         // CatalogueIndexingSource reads a legacy blank id/regex as null, so blank-to-null alone never counts as a
         // change the pass writes back (it would overwrite a curator edit saved mid-pass).
         var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
+        var youTubeIndexingHintsBefore = source.YouTubeIndexingHints?.Copy();
         var cancellationToken = indexingContext.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;
         var latestReleasedBefore = parent.LatestReleased;
@@ -446,6 +447,16 @@ public class CatalogueParentsUpdater(
         }
 
         source.CaptureFrom(podcast);
+        if (merge.FailedEpisodes.Any() && !Equals(youTubeIndexingHintsBefore, source.YouTubeIndexingHints))
+        {
+            // Same rule as PodcastUpdater: a failed merge keeps the previous hints, so the next pass offers the
+            // failed episode again instead of the patch moving the watermark and count past it.
+            logger.LogInformation(
+                "YouTubeIndexingHints kept previous hints: parent-id='{ParentId}' failed-episodes='{FailedEpisodes}'.",
+                parent.Id, merge.FailedEpisodes.Count());
+            source.YouTubeIndexingHints = youTubeIndexingHintsBefore;
+        }
+
         var bypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving ||
                        initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving ||
                        podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);

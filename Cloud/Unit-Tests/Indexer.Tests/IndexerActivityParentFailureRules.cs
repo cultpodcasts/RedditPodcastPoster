@@ -106,4 +106,29 @@ public class IndexerActivityParentFailureRules
         _parentsUpdated.Should().BeTrue();
         result.Success.Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "Indexer pass: the podcast and TV/News parent batches run with UseYouTubeIndexingHints, because the hourly " +
+        "indexer is the only caller allowed to read large YouTube playlists from the uploads head.")]
+    public async Task hourly_pass_opts_in_to_youtube_indexing_hints()
+    {
+        // Arrange
+        IndexingContext? podcastContext = null;
+        IndexingContext? parentContext = null;
+        _mocker.GetMock<IPodcastsUpdater>()
+            .Setup(x => x.UpdatePodcasts(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
+            .Callback<Guid[], IndexingContext>((_, context) => podcastContext = context)
+            .ReturnsAsync(true);
+        _mocker.GetMock<ICatalogueParentsUpdater>()
+            .Setup(x => x.UpdateParents(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
+            .Callback<Guid[], IndexingContext>((_, context) => parentContext = context)
+            .ReturnsAsync(true);
+
+        // Act
+        await Run();
+
+        // Assert
+        podcastContext!.UseYouTubeIndexingHints.Should().BeTrue();
+        parentContext!.UseYouTubeIndexingHints.Should().BeTrue();
+    }
 }

@@ -69,6 +69,52 @@ public class TolerantYouTubePlaylistService(
         return result;
     }
 
+    public async Task<GetPlaylistHeadResponse> GetPlaylistHead(
+        YouTubePlaylistId playlistId,
+        int maxResults,
+        IndexingContext indexingContext)
+    {
+        if (indexingContext.SkipYouTubeUrlResolving)
+        {
+            return new GetPlaylistHeadResponse(null, Failure: YouTubePlaylistFetchFailure.Skipped);
+        }
+
+        var rotationExcepted = false;
+        while (youTubeService.CanRotate && !rotationExcepted)
+        {
+            try
+            {
+                await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
+                return await youTubePlaylistService.GetPlaylistHead(youTubeService, playlistId, maxResults,
+                    indexingContext);
+            }
+            catch (YouTubeQuotaException)
+            {
+                logger.LogInformation("Quota exceeded observed. Rotating api-key.");
+                await quotaUsageTracker.RecordQuotaHitAsync(
+                    youTubeService.CurrentApplication,
+                    youTubeService.Usage,
+                    YouTubeQuotaOperation.PlaylistItemsList);
+                try
+                {
+                    youTubeService.Rotate();
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error rotating api.");
+                    await quotaUsageTracker.RecordRingExhaustionAsync();
+                    rotationExcepted = true;
+                }
+            }
+        }
+
+        indexingContext.MarkYouTubeQuotaExhausted();
+        logger.LogError(
+            "Unable to read the head of playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+            playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
+        return new GetPlaylistHeadResponse(null, Failure: YouTubePlaylistFetchFailure.QuotaExhausted);
+    }
+
     public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(YouTubePlaylistId playlistId,
         IndexingContext indexingContext)
     {

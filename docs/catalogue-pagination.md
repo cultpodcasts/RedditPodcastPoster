@@ -396,9 +396,63 @@ the reason, id, source, pages fetched, `totalResults` and page size (never the t
 | `EmptyPage` | a page has 0 items but a new next token, and ≥ `totalResults - 2` distinct ids are read (or no total). Short of that the walk keeps going | Information |
 | `NoNewItems` | every video id on the page was already seen in this walk | Error (Warning on the channel `search.list` walk, where repeats across 5-item pages are a known cost stop) |
 | `PageCapExceeded` | pages fetched reach `ceil(totalResults / 50) + 2` with a token left | Error |
+| `ConsecutiveEmptyPages` | a 2nd empty page in a row (each with a new next token) while short of `totalResults - 2` distinct ids, so a chain of empty pages cannot run all the way to the cap | Error |
 
 The cap uses `pageInfo.totalResults` and is not applied to `search.list`, whose total is an
 estimate. Arbitrary-order walks keep their own `MaxPages = 20` breaker as well.
+
+### YouTube indexing hints (uploads-head check)
+
+An oldest-first playlist (no window stop) costs `ceil(totalResults / 50)` units every pass. For
+playlists over `youTubeIndexingHints:UploadsHeadMinimumPlaylistItems` items (default **150**),
+a complete full walk stores hints so the next passes can check the channel's uploads instead:
+
+| Field | Meaning |
+|-------|---------|
+| `playlistId` | playlist the hints describe; hints for any other id are ignored (`CurrentYouTubeIndexingHints`) |
+| `lastFullWalk` | UTC start of the last complete full walk |
+| `playlistItemCount` | `pageInfo.totalResults` at the last full walk or successful check |
+| `uploadsCheckedThrough` / `uploadsCheckedThroughVideoId` | newest upload (window date) already checked; the video id is informational |
+
+Stored as `youTubeIndexingHints` on a podcast and `indexing.youTubeIndexingHints` on a TV show
+or news organisation (`IYouTubeIndexingSettings`, reached through `IHasYouTubeIndexingSettings`).
+Null members are omitted, so documents without hints are unchanged. Only the indexer writes them:
+podcasts through `PodcastUpdater` (a hints-only change still saves), parents through the
+`/indexing/youTubeIndexingHints` patch. Curator saves load and save the stored hints unchanged.
+
+`YouTubeIndexingHintsPlanner` picks **uploads-head** only when the caller opted in
+(`IndexingContext.UseYouTubeIndexingHints`), the hints match the playlist, `playlistItemCount` >
+threshold, `lastFullWalk` is younger than `FullWalkInterval` less `FullWalkSlack` (defaults **24h**
+and **1h**, so the daily walk is due after 23h and start-time jitter cannot slip it a pass) and there
+is a `ReleasedSince` window. Otherwise it runs the normal full walk (`not-opted-in`, `skip-youtube`,
+`playlist-changed`, `full-walk-due`, `no-window`, …).
+
+**Opt-in:** only the hourly Cloud indexer (`Cloud/Indexer/Activities/Indexer.cs`) sets
+`UseYouTubeIndexingHints`. Api "index podcast" (curator re-index) and the Index console app
+(`--released-since` backfills) always walk in full, so they recover an in-window episode the uploads
+check would never offer again (an earlier failed pass, or a window wider than the watermark). Their
+complete walks still refresh the hints.
+`YouTubeUploadsHeadCheck` then:
+
+1. reads the playlist head (`maxResults=1`, 1 unit) for `totalResults`;
+2. reads the newest 50 channel uploads (`UU…`, 1 unit) and keeps those newer than the watermark
+   (later of `lastFullWalk` / `uploadsCheckedThrough`, strict `>`);
+3. `delta = total - playlistItemCount`. 0 → nothing new (the watermark moves on). Otherwise each
+   newer upload is checked with `playlistItems.list?videoId=` (1 unit each), and the members found
+   must equal `delta`.
+
+Any doubt falls back to the full walk, which rewrites the hints: `no-uploads-playlist`,
+`playlist-count-failed`, `uploads-read-failed`, `uploads-gap` (a full page of 50 with no dated
+upload at or before the watermark; undated uploads prove nothing),
+`playlist-count-changed` (removals, or members ≠ delta), `full-walk-cheaper`, `membership-unknown`,
+`build-failed`. Quota exhausted stops with no full walk. Hints are cleared (null) when a complete
+walk finds ≤ threshold items or a walk stopped at the window (newest-first); an incomplete walk
+(Error guard stop, circuit breaker, failure, failed build) leaves them as they were. A pass where a
+found episode failed to merge keeps the previous hints (`PodcastUpdater`, `CatalogueParentsUpdater`;
+logged `YouTubeIndexingHints kept previous hints`), so the next pass offers that episode again; an
+episode save failure aborts the pass before anything is saved. A net-zero add + remove is
+picked up by the daily full walk. Log prefix `YouTubeIndexingHints`; path log
+`playlist-uploads-head`.
 
 ### Known-id skip on playlist discovery
 
@@ -444,6 +498,10 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |
 | Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
+| Page-walk guards incl. two consecutive empty pages | `YouTube.Tests/Paging/YouTubePlaylistServicePagingRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeConsecutiveEmptyPagesRules.cs` |
+| Indexing hints: planner (opt-in, skip-YouTube, slack), uploads-head check (quota per path, strict `>` watermark, count drop, full-walk-cheaper, undated gap, window/known filters), walk outcome (circuit breaker, failed build), handler | `YouTube.Tests/BusinessRules/IndexingHints/*.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderBuildPlaylistEpisodesRules.cs` |
+| Indexing hints: only the hourly indexer opts in; curator re-index does not | `Indexer.Tests/IndexerActivityParentFailureRules.cs`, `FunctionHost.Tests/Api/Services/Podcasts/PodcastIndexServiceYouTubeIndexingHintsRules.cs` |
+| Indexing hints: storage, patch, hints-only save, failed merge keeps previous hints, curator saves keep them | `Persistence.Tests/BusinessRules/YouTubeIndexingHintsPersistenceRules.cs`, `PodcastServices.Tests/BusinessRules/Indexing/YouTubeIndexingHintsSaveRules.cs`, `CatalogueParentIndexingRules.cs`, `FunctionHost.Tests/Api/Services/Catalogue/CuratorSaveKeepsYouTubeIndexingHintsRules.cs` |
 
 ---
 
@@ -532,7 +590,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | YouTube episode public today but not indexed, and its playlist item was added days ago | Scheduled upload — added-at is outside the window, video-published-at is inside | `contentDetails.videoPublishedAt` vs `snippet.publishedAt` on the playlist item |
 | SubmitUrl `-m` pages entire Apple catalogue | Broken newest-first probe (fixed: equal dates) or missing `ReleasedSince`; or unordered head hit MaxPages | Apple circuit-breaker Error; MatchOtherServices ReleasedSince |
 | Expensive flag stuck `true` forever | Probe never returned conclusive newest-first (should not happen — Apply clears) | Flag-flip Warning history |
-| Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass |
+| Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass; `YouTubeIndexingHints` fallback reasons |
 
 ---
 
@@ -546,6 +604,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps; former id kept on `youTubePlaylistIdHistory`) |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
+| `YouTubeIndexingHints` | Info | `YouTubeEpisodeRetrievalHandler` (uploads-head result, fallback reason, hints written / cleared); `PodcastUpdater` / `CatalogueParentsUpdater` (previous hints kept after a failed merge) |
 | `Apple pagination circuit-breaker tripped:` | Error | `ApplePodcastService` via `AppleCataloguePagination` |
 | `Catalogue episode lookup:` | Info | `CatalogueLookupExecutor` (one line per single-episode lookup) |
 | `Catalogue request timeout guard fired:` | Warning | `CatalogueRequestGuard` (Spotify + Apple, 10 s) |

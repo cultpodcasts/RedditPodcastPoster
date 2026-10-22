@@ -6,7 +6,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Podcasts;
 
 [CosmosSelector(ModelType.Podcast)]
-public class Podcast : Publisher
+public class Podcast : Publisher, IYouTubeIndexingSettings, IHasYouTubeIndexingSettings
 {
     [JsonIgnore]
     public static readonly RegexOptions DescriptionFlags = RegexOptions.IgnoreCase | RegexOptions.Singleline;
@@ -127,6 +127,18 @@ public class Podcast : Publisher
     [JsonPropertyName("youTubeChannelSearchForbidden")]
     [JsonPropertyOrder(161)]
     public bool? YouTubeChannelSearchForbidden { get; set; }
+
+    /// <summary>
+    /// Indexer-owned hints for large YouTube playlists (see <see cref="Podcasts.YouTubeIndexingHints"/>). Omitted when null.
+    /// </summary>
+    [JsonPropertyName("youTubeIndexingHints")]
+    [JsonPropertyOrder(165)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeIndexingHints? YouTubeIndexingHints { get; set; }
+
+    /// <summary>A podcast is its own YouTube indexing settings.</summary>
+    [JsonIgnore]
+    public IYouTubeIndexingSettings YouTubeIndexing => this;
 
     [JsonPropertyName("skipEnrichingFromYouTube")]
     [JsonPropertyOrder(170)]

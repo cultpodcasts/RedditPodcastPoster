@@ -34,4 +34,17 @@ public interface IYouTubeEpisodeProvider
         bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null,
         IEnumerable<string>? knownIds = null);
+
+    /// <summary>
+    /// The playlist path's build step on items already fetched: date window, known-id skip, videos.list, then the
+    /// deleted / other-channel / members-only filters and <c>BuildEpisodeAsync</c>. The full walk and the YouTube
+    /// indexing hints uploads check both use it, so both filter identically. Results is null when videos.list or a
+    /// build failed.
+    /// </summary>
+    Task<GetPlaylistEpisodesResponse> BuildPlaylistEpisodes(
+        Podcast podcast,
+        YouTubeChannelId? youTubeChannelId,
+        IndexingContext indexingContext,
+        IList<PlaylistItem> playlistItems,
+        IEnumerable<string>? knownIds = null);
 }

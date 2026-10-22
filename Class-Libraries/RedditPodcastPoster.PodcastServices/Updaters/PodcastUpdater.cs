@@ -52,6 +52,7 @@ public class PodcastUpdater(
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
         var knownYouTubeChannelSearchForbidden = podcast.HasYouTubeChannelSearchForbidden();
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
+        var knownYouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy();
         IList<Episode> episodes;
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
@@ -296,6 +297,20 @@ public class PodcastUpdater(
         // episode lookup planner. A successful index pass saves the podcast anyway (LastIndexed), so this rarely adds a write.
         var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
 
+        // The YouTube handler refreshes the hints after a full walk or uploads check; a bypassed pass still saves them.
+        // A pass where an episode failed to merge keeps the previous hints, so the next pass offers that episode again
+        // (moving the watermark and count past it would hide it from the uploads check until the daily full walk).
+        if (mergeResult.FailedEpisodes.Any() &&
+            !Equals(knownYouTubeIndexingHints, podcast.YouTubeIndexingHints))
+        {
+            logger.LogInformation(
+                "YouTubeIndexingHints kept previous hints: podcast-id='{PodcastId}' failed-episodes='{FailedEpisodes}'.",
+                podcast.Id, mergeResult.FailedEpisodes.Count());
+            podcast.YouTubeIndexingHints = knownYouTubeIndexingHints;
+        }
+
+        var youTubeIndexingHintsChanged = !Equals(knownYouTubeIndexingHints, podcast.YouTubeIndexingHints);
+
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;
         var youTubeBypassed = initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving;
         var youTubeDiscoveryBypassed = podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
@@ -314,7 +329,7 @@ public class PodcastUpdater(
                              discoveredYouTubeExpensiveQuery || clearedYouTubeExpensiveQuery ||
                              discoveredYouTubeChannelSearchForbidden ||
                              discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery ||
-                             showEpisodeCountsChanged;
+                             showEpisodeCountsChanged || youTubeIndexingHintsChanged;
 
         if (indexSucceeded)
         {

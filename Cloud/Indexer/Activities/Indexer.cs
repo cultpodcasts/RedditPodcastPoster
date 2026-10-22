@@ -70,7 +70,9 @@ public class Indexer(
             SkipYouTubeUrlResolving = !youTubeEnabledThisPass,
             SkipExpensiveYouTubeQueries = !isPrimaryPass || !indexingStrategy.ExpensiveYouTubeQueries(),
             SkipExpensiveSpotifyQueries = !isPrimaryPass || !indexingStrategy.ExpensiveSpotifyQueries(),
-            SkipPodcastDiscovery = true
+            SkipPodcastDiscovery = true,
+            // Only the hourly indexer may read large playlists from the uploads head; every other caller full-walks.
+            UseYouTubeIndexingHints = true
         };
 
         logger.LogInformation(

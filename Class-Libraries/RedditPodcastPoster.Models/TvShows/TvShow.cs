@@ -1,11 +1,12 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Models.TvShows;
 
 [CosmosSelector(ModelType.TvShow)]
-public sealed class TvShow : Publisher, ITvCanonical
+public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSettings
 {
     public TvShow()
     {
@@ -58,4 +59,8 @@ public sealed class TvShow : Publisher, ITvCanonical
     [JsonPropertyOrder(300)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CatalogueIndexingSource? Indexing { get; set; }
+
+    /// <summary>The YouTube discovery settings and hints live on <see cref="Indexing"/>.</summary>
+    [JsonIgnore]
+    public IYouTubeIndexingSettings? YouTubeIndexing => Indexing;
 }
