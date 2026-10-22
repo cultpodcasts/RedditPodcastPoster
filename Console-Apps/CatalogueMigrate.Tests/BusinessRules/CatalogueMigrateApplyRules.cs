@@ -68,8 +68,8 @@ public class CatalogueMigrateApplyRules
 
     [Fact(DisplayName =
         "Catalogue migrate: when News is applied with consent for an S-008 publisher, then the organisation and every report keep " +
-        "their ids, removed episodes stay removed, search swaps only active rows to NewsReport, and the podcast rows are deleted, " +
-        "because migrate moves rather than copies (S-006).")]
+        "their ids, removed episodes stay removed, search swaps only active rows to NewsReport, the removed episode's search key " +
+        "is deleted, and the podcast rows are deleted, because migrate moves rather than copies (S-006).")]
     public async Task news_apply_moves_allowlisted_publisher_keeping_ids()
     {
         // Arrange
@@ -87,6 +87,7 @@ public class CatalogueMigrateApplyRules
         _destination.NewsReports.Values.Count(report => report.Removed).Should().Be(1);
         _destination.Search.Values.Should().HaveCount(2)
             .And.OnlyContain(document => document.ContentKind == SearchContentKind.NewsReport);
+        _destination.DeletedSearchIds.Should().BeEquivalentTo(episodes.Where(episode => episode.Removed).Select(episode => episode.Id));
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
         (await _episodes.GetByPodcastId(podcast.Id).ToListAsync()).Should().BeEmpty();
     }
@@ -184,6 +185,30 @@ public class CatalogueMigrateApplyRules
         resumed.AppliedCount.Should().Be(1);
         _destination.NewsReports.Should().HaveCount(episodes.Count);
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: a removed episode is saved on the destination and left out of the search upload, its id is in the " +
+        "delete keys, and a failed delete keeps the source episode, because the episode indexer can no longer clear that key " +
+        "once the source row is gone.")]
+    public async Task removed_episode_delete_failure_keeps_source()
+    {
+        // Arrange
+        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 1, removedEpisodes: 1);
+        var removed = episodes.Single(episode => episode.Removed);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+        _destination.FailSearchDelete = true;
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        _destination.NewsReports.Values.Should().Contain(report => report.Id == removed.Id && report.Removed);
+        _destination.Search.Keys.Should().NotContain(removed.Id.ToString());
+        _destination.DeletedSearchIds.Should().ContainSingle().Which.Should().Be(removed.Id);
+        (await _episodes.GetEpisode(podcast.Id, removed.Id)).Should().NotBeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
 
     [Fact(DisplayName =

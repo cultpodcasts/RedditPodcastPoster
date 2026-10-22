@@ -222,7 +222,7 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "A removed episode cannot be moved to a film, because the migrator only moves active episodes.")]
+        "A removed episode cannot be moved to a film, because the migrator only moves active episodes, and the search swap receives no upload.")]
     public async Task removed_episode_is_bad_request()
     {
         // Arrange
@@ -238,6 +238,7 @@ public class EpisodeFilmMoveServiceRules
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
         _savedFilms.Should().BeEmpty();
+        _uploadedSearchDocuments.Should().BeNull();
     }
 
     [Fact(DisplayName =
