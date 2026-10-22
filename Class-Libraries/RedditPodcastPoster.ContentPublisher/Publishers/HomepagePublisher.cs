@@ -86,7 +86,11 @@ public class HomepagePublisher(
         var homePageCache = await ResolveHomePageCache(Task.WhenAll(recentEpisodesTask, recentCatalogueTask), ct);
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
 
-        var recentEpisodes = recentEpisodesTask.Result;
+        var recentCatalogue = recentCatalogueTask.Result;
+        // While a catalogue migration unit is mid-flight (or stopped after writing its destination), the same
+        // playable GUID can be in Episodes and in its new container. Keep the catalogue row only.
+        var catalogueIds = recentCatalogue.Select(x => x.Id).ToHashSet();
+        var recentEpisodes = recentEpisodesTask.Result.Where(x => !catalogueIds.Contains(x.EpisodeId)).ToList();
         var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
@@ -111,7 +115,7 @@ public class HomepagePublisher(
                     Language = episode.Language
                 };
             })
-            .Concat(recentCatalogueTask.Result.Select(ToPodcastResult))
+            .Concat(recentCatalogue.Select(ToPodcastResult))
             .OrderByDescending(x => x.Release)
             .ToList();
 

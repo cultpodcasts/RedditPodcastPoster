@@ -174,6 +174,28 @@ public class HomepagePublisherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "Homepage: when a playable is in Episodes and in its catalogue container at once (a migration unit " +
+        "mid-flight or stopped after writing its destination), it is published once, as the catalogue row.")]
+    public async Task playable_in_both_containers_is_published_once_as_catalogue_row()
+    {
+        // Arrange
+        var moved = Item("NewsReport", "Synthetic Desk", "Moved item", DateTime.UtcNow.AddDays(-2)) with
+        {
+            Id = _podcastEpisode.Id
+        };
+        GivenCatalogue(moved);
+
+        // Act
+        await Sut().PublishHomepage();
+
+        // Assert
+        var row = PublishedEpisodes().Should().ContainSingle().Subject;
+        row.GetProperty("id").GetGuid().Should().Be(_podcastEpisode.Id);
+        row.GetProperty("contentKind").GetString().Should().Be("NewsReport");
+        row.GetProperty("podcastName").GetString().Should().Be("Synthetic Desk");
+    }
+
+    [Fact(DisplayName =
         "Homepage: a podcast episode has no contentKind key at all, so podcast rows are unchanged and an absent " +
         "contentKind still means a podcast episode to older clients.")]
     public async Task podcast_episode_omits_content_kind()
