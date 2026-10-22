@@ -13,13 +13,11 @@ public static class PlayableSearchSql
 {
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
 
-    /// <param name="IncludeTrailers">Film only: project <c>trailers</c> (<see cref="FilmTrailerSearchToken"/>).</param>
     public readonly record struct SiblingProjection(
         string ContentKind,
         string TitleExpression,
         string? SeriesNameExpression,
-        bool IncludeSeries,
-        bool IncludeTrailers = false);
+        bool IncludeSeries);
 
     /// <summary>
     /// Replacement columns for the rebuilt index. <c>title</c> replaces
@@ -57,9 +55,6 @@ public static class PlayableSearchSql
         var release = SearchIndexCosmosSql.ReleaseSortOrRelease(documentAlias);
         var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
         var svc = SearchIndexCosmosSql.SvcProjection(svcKeys, documentAlias);
-        var trailersSelect = projection.IncludeTrailers
-            ? $"{FilmTrailerSearchToken.CosmosSql(documentAlias)} as trailers,"
-            : string.Empty;
         var query = $"""
             SELECT
                 {documentAlias}.id,
@@ -73,7 +68,6 @@ public static class PlayableSearchSql
                 "" as internetArchive,
                 {svc} as svc,
                 {image} as image,
-                {trailersSelect}
                 {documentAlias}.subjects as subjects,
                 {documentAlias}.publisherSearchTerms as publisherSearchTerms,
                 {documentAlias}.searchTerms as episodeSearchTerms,

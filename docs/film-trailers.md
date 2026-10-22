@@ -20,9 +20,10 @@ A film can list trailers, teasers and clips. Each one is a whole video of its ow
 
 Trailers get **no search documents of their own** (the index is at the Free-tier quota). The film's document carries
 a retrievable, non-searchable `trailers` string list, one `{duration}|{url}|{title}` token per trailer
-(`FilmTrailerSearchToken`). The title is last, so a reader splits on the first two `|` only. The push path
-(`CataloguePlayableSearchDocument.For(Film)`) and the film pull query (`PlayableSearchSql`, `IncludeTrailers`)
-produce the same text.
+(`FilmTrailerSearchToken`). The title is last, so a reader splits on the first two `|` only. Films are pushed, not
+pulled: the curator edit / attach and the FilmSearchPusher console (#1081) all build the document with
+`CataloguePlayableSearchDocument.For(Film)`, which sets `trailers`. There is no film data source or indexer, so no
+Cosmos query change.
 
 A film with no trailers omits the field, so films keep pushing before the index has it. Removing a film's last
 trailer pushes `[]` to clear it (merge-or-upload ignores an omitted field).
@@ -34,9 +35,7 @@ CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcas
 ```
 
 `--update-existing` adds any `EpisodeSearchRecord` field the index lacks and keeps every document. Do **not** add
-`--all-playables` on the Free tier: that would leave the TV, film and news datasources and indexers in place. The
-film pull query picks up `trailers` the next time the transient siblings run (`--transient-playables`); until then the
-push paths keep film documents current.
+`--all-playables` on the Free tier. Once the field exists, a FilmSearchPusher run (or any film save) fills it.
 
 Run this **before** the first attach. If the field is missing, the attach's film push fails and the attach stops
 before the episode is deleted, so nothing is lost; re-send after adding the field.

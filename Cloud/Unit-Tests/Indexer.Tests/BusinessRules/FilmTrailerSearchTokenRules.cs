@@ -2,10 +2,7 @@ using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
-using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Search.Formatting;
-using RedditPodcastPoster.Search.Indexing;
-using RedditPodcastPoster.Search.Models;
 using Xunit;
 
 namespace Indexer.Tests.BusinessRules;
@@ -70,32 +67,5 @@ public class FilmTrailerSearchTokenRules
         // Assert
         document.Trailers.Should().Equal(FilmTrailerSearchToken.Format(first), FilmTrailerSearchToken.Format(second));
         bare.Trailers.Should().BeNull();
-    }
-
-    [Fact(DisplayName =
-        "Only the film pull query projects trailers, with the same duration trim as the push path, so TV and news documents never get the field.")]
-    public void only_film_sql_projects_trailers()
-    {
-        // Arrange
-        var keys = StreamingServiceCatalog.SearchEncodedKeys;
-        var images = StreamingServiceCatalog.ImageCoalesceOrder;
-
-        // Act
-        var film = PlayableSearchSql.SiblingQuery(
-            new PlayableSearchSql.SiblingProjection(
-                SearchContentKind.Film, "c.name", null, IncludeSeries: false, IncludeTrailers: true),
-            keys,
-            images);
-        var tv = PlayableSearchSql.SiblingQuery(
-            new PlayableSearchSql.SiblingProjection(
-                SearchContentKind.TvShowEpisode, "c.title", "c.tvShowName", IncludeSeries: true),
-            keys,
-            images);
-
-        // Assert
-        film.Should().Contain($"{FilmTrailerSearchToken.CosmosSql("c")} as trailers");
-        film.Should().Contain("FROM t IN c.trailers");
-        film.Should().Contain("\".0000000\"");
-        tv.Should().NotContain("trailers");
     }
 }
