@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -19,6 +20,7 @@ public class YouTubeUploadsHeadCheckRules
     private const int StoredCount = 200;
 
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
     private readonly FakeYouTubeHintsApi _api = new();
     private readonly IYouTubeServiceWrapper _wrapper;
     private readonly TolerantYouTubePlaylistService _playlistService;
@@ -26,7 +28,7 @@ public class YouTubeUploadsHeadCheckRules
     private readonly YouTubePlaylistId _playlistId;
     private readonly string _uploadsId;
     private readonly YouTubeIndexingHints _hints;
-    private readonly IndexingContext _context = new(DomainTestFixture.UtcDaysAgo(3));
+    private readonly IndexingContext _context = new(DomainTestFixture.UtcDaysAgo(3)) { UseYouTubeIndexingHints = true };
     private readonly List<FakeYouTubeVideo> _playlist;
     private readonly List<FakeYouTubeVideo> _olderUploads;
 
@@ -51,18 +53,18 @@ public class YouTubeUploadsHeadCheckRules
             .ToList();
         _olderUploads = Enumerable.Range(0, 10).Select(i => Video(DomainTestFixture.UtcDaysAgo(5 + i))).ToList();
         _wrapper = _api.Wrapper();
-        var inner = new YouTubePlaylistService(_api.QuotaTracker.Object, NullLogger<YouTubePlaylistService>.Instance);
-        _playlistService = new TolerantYouTubePlaylistService(_wrapper, inner, _api.QuotaTracker.Object,
-            NullLogger<TolerantYouTubePlaylistService>.Instance);
+        // The real playlist, tolerant and membership services over the fake API, wired by AutoMocker.
+        _mocker.Use(_api.QuotaTracker.Object);
+        _mocker.Use(_wrapper);
+        _mocker.Use<IYouTubePlaylistService>(_mocker.CreateInstance<YouTubePlaylistService>());
+        _playlistService = _mocker.CreateInstance<TolerantYouTubePlaylistService>();
+        _mocker.Use<ITolerantYouTubePlaylistService>(_playlistService);
+        _mocker.Use<IYouTubePlaylistMembership>(_mocker.CreateInstance<YouTubePlaylistMembership>());
     }
 
     private FakeYouTubeVideo Video(DateTime publishedUtc) => new(_fixture.CreateYouTubeId(), publishedUtc);
 
-    private YouTubeUploadsHeadCheck CreateSut() =>
-        new(_playlistService,
-            new YouTubePlaylistMembership(_api.QuotaTracker.Object, NullLogger<YouTubePlaylistMembership>.Instance),
-            _wrapper,
-            NullLogger<YouTubeUploadsHeadCheck>.Instance);
+    private YouTubeUploadsHeadCheck CreateSut() => _mocker.CreateInstance<YouTubeUploadsHeadCheck>();
 
     private void Serve(IEnumerable<FakeYouTubeVideo> newUploadsNewestFirst, IEnumerable<FakeYouTubeVideo> addedToPlaylist)
     {
@@ -70,8 +72,9 @@ public class YouTubeUploadsHeadCheckRules
         _api.Playlist(_uploadsId, newUploadsNewestFirst.Concat(_olderUploads));
     }
 
-    private Task<YouTubeUploadsHeadResult> Check(IReadOnlyCollection<string>? knownIds = null) =>
-        CreateSut().Check(_podcast, _hints, _playlistId, knownIds ?? [], _context);
+    private Task<YouTubeUploadsHeadResult> Check(IReadOnlyCollection<string>? knownIds = null,
+        IndexingContext? context = null) =>
+        CreateSut().Check(_podcast, _hints, _playlistId, knownIds ?? [], context ?? _context);
 
     [Fact(DisplayName =
         "A new upload that is in the playlist is found for 3 quota units (count, uploads, one membership check) and " +
@@ -223,5 +226,104 @@ public class YouTubeUploadsHeadCheckRules
         // Assert
         result.FallbackReason.Should().Be(YouTubeUploadsHeadCheck.NoUploadsPlaylist);
         _api.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "An upload published exactly at the watermark is not checked again (strictly newer only), because the last " +
+        "check already counted it; only the upload after it is checked and returned.")]
+    public async Task upload_at_the_watermark_is_not_checked_again()
+    {
+        // Arrange
+        var mark = DomainTestFixture.UtcDaysAgo(1);
+        _hints.UploadsCheckedThrough = mark;
+        _hints.PlaylistItemCount = StoredCount + 1;
+        var atMark = Video(mark);
+        var member = Video(mark.AddHours(2));
+        Serve([member, atMark], [atMark, member]);
+
+        // Act
+        var result = await Check();
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Members.Select(x => x.Snippet.ResourceId.VideoId).Should().Equal(member.Id);
+        result.UploadsChecked.Should().Be(1);
+    }
+
+    [Fact(DisplayName =
+        "A playlist count below the stored count (an item was removed) falls back to a full walk with no membership " +
+        "check, because the count no longer says how many uploads joined.")]
+    public async Task lower_count_falls_back_without_membership_checks()
+    {
+        // Arrange
+        var upload = Video(DomainTestFixture.UtcDaysAgo(1));
+        _api.Playlist(_podcast.YouTubePlaylistId, _playlist.Skip(2).Append(upload));
+        _api.Playlist(_uploadsId, new[] { upload }.Concat(_olderUploads));
+
+        // Act
+        var result = await Check();
+
+        // Assert
+        result.FallbackReason.Should().Be(YouTubeUploadsHeadCheck.PlaylistCountChanged);
+        _api.Requests.Should().NotContain(r => r.VideoId != null);
+    }
+
+    [Fact(DisplayName =
+        "When checking every new upload would cost at least as many calls as walking the playlist, the check falls " +
+        "back to a full walk before any membership check, because the full walk is then the cheaper path.")]
+    public async Task full_walk_cheaper_falls_back_without_membership_checks()
+    {
+        // Arrange
+        var uploads = Enumerable.Range(0, 5).Select(i => Video(DomainTestFixture.UtcDaysAgo(1).AddMinutes(-i)))
+            .ToList();
+        Serve(uploads, [uploads[0]]);
+
+        // Act
+        var result = await Check();
+
+        // Assert
+        result.FallbackReason.Should().Be(YouTubeUploadsHeadCheck.FullWalkCheaper);
+        _api.Requests.Should().NotContain(r => r.VideoId != null);
+    }
+
+    [Fact(DisplayName =
+        "A full uploads page whose only unread-by-the-watermark item is undated is still a gap, because an undated " +
+        "upload does not prove older uploads were checked.")]
+    public async Task full_page_with_an_undated_upload_is_a_gap()
+    {
+        // Arrange
+        var uploads = Enumerable.Range(0, YouTubeUploadsHeadCheck.UploadsPageSize - 1)
+            .Select(i => Video(DomainTestFixture.UtcDaysAgo(1).AddMinutes(-i)))
+            .Append(new FakeYouTubeVideo(_fixture.CreateYouTubeId(), null))
+            .ToList();
+        _api.Playlist(_podcast.YouTubePlaylistId, _playlist);
+        _api.Playlist(_uploadsId, uploads);
+
+        // Act
+        var result = await Check();
+
+        // Assert
+        result.FallbackReason.Should().Be(YouTubeUploadsHeadCheck.UploadsGap);
+    }
+
+    [Fact(DisplayName =
+        "Members already stored or outside the pass's window count towards the playlist count but are not returned, " +
+        "so only a new in-window member is built.")]
+    public async Task known_and_out_of_window_members_are_not_returned()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(1)) { UseYouTubeIndexingHints = true };
+        var known = Video(DomainTestFixture.UtcDaysAgo(0).AddHours(-12));
+        var outOfWindow = Video(DomainTestFixture.UtcDaysAgo(1).AddHours(-12));
+        var member = Video(DomainTestFixture.UtcDaysAgo(0).AddHours(-6));
+        Serve([member, known, outOfWindow], [outOfWindow, known, member]);
+
+        // Act
+        var result = await Check([known.Id], context);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Members.Select(x => x.Snippet.ResourceId.VideoId).Should().Equal(member.Id);
+        result.UploadsChecked.Should().Be(3);
     }
 }

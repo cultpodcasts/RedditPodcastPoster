@@ -104,4 +104,26 @@ public class YouTubePlaylistWalkOutcomeRules
         response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.StoppedAtWindow);
         _api.Requests.Should().HaveCount(1);
     }
+
+    [Fact(DisplayName =
+        "An arbitrary-order walk the circuit breaker stops at MaxPages is Incomplete, because the unread pages may " +
+        "hold items and the hints must not move past them.")]
+    public async Task circuit_breaker_stop_is_incomplete()
+    {
+        // Arrange
+        const int total = 2000;
+        var pages = ArbitraryYouTubePlaylistWalk.MaxPages + 1;
+        for (var page = 0; page < pages; page++)
+        {
+            _api.Page(page == 0 ? "" : $"t{page}",
+                new FakeYouTubePage(FakeYouTubePagingApi.Ids("v", page * 50, 50), $"t{page + 1}", total));
+        }
+
+        // Act
+        var response = await Walk(order: PlaylistOrder.Arbitrary);
+
+        // Assert
+        response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.Incomplete);
+        _api.Requests.Should().HaveCount(ArbitraryYouTubePlaylistWalk.MaxPages);
+    }
 }

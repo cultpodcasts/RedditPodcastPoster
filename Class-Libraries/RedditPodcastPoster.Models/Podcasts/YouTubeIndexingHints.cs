@@ -39,7 +39,10 @@ public sealed record YouTubeIndexingHints
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTime? UploadsCheckedThrough { get; set; }
 
-    /// <summary>The video id of the upload at <see cref="UploadsCheckedThrough"/> (a tie-break for equal times).</summary>
+    /// <summary>
+    /// The video id of the upload at <see cref="UploadsCheckedThrough"/>. Informational only (for reading the stored
+    /// hints and the logs): nothing reads it, and the uploads check compares publish times alone.
+    /// </summary>
     [JsonPropertyName("uploadsCheckedThroughVideoId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? UploadsCheckedThroughVideoId { get; set; }

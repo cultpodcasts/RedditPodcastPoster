@@ -26,7 +26,8 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
     private readonly RecordingLogger<YouTubeEpisodeRetrievalHandler> _logger = new();
     private readonly YouTubeIndexingHintsOptions _options = new();
     private readonly DateTime _now = DomainTestFixture.UtcDaysAgo(0).AddHours(12);
-    private readonly IndexingContext _context = new(DomainTestFixture.UtcDaysAgo(2));
+    private readonly IndexingContext _context =
+        new(DomainTestFixture.UtcDaysAgo(2)) { UseYouTubeIndexingHints = true };
     private readonly Podcast _podcast;
     private GetPlaylistEpisodesResponse _walk = new([]);
     private YouTubeUploadsHeadResult _uploadsHead;
@@ -152,7 +153,8 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
             WalkOutcome: YouTubePlaylistWalkOutcome.Complete);
 
         // Act
-        await Run(new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true));
+        await Run(new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true)
+            { UseYouTubeIndexingHints = true });
 
         // Assert
         VerifyFullWalk(Times.Once());
@@ -249,5 +251,24 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
         // Assert
         VerifyFullWalk(Times.Once());
         _podcast.YouTubeIndexingHints.Should().Be(before);
+    }
+
+    [Fact(DisplayName =
+        "A curator re-index or backfill (no UseYouTubeIndexingHints) walks the playlist in full with no uploads check " +
+        "even when the hints are fresh, and the complete walk still refreshes the hints.")]
+    public async Task caller_that_did_not_opt_in_walks_in_full()
+    {
+        // Arrange
+        _walk = new GetPlaylistEpisodesResponse([], TotalResults: _options.UploadsHeadMinimumPlaylistItems + 60,
+            WalkOutcome: YouTubePlaylistWalkOutcome.Complete);
+
+        // Act
+        await Run(new IndexingContext(DomainTestFixture.UtcDaysAgo(30)));
+
+        // Assert
+        VerifyFullWalk(Times.Once());
+        _mocker.GetMock<IYouTubeUploadsHeadCheck>().VerifyNoOtherCalls();
+        _podcast.YouTubeIndexingHints!.LastFullWalk.Should().Be(_now);
+        _podcast.YouTubeIndexingHints.PlaylistItemCount.Should().Be(_options.UploadsHeadMinimumPlaylistItems + 60);
     }
 }

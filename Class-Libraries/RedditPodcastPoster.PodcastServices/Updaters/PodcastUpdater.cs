@@ -298,6 +298,17 @@ public class PodcastUpdater(
         var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
 
         // The YouTube handler refreshes the hints after a full walk or uploads check; a bypassed pass still saves them.
+        // A pass where an episode failed to merge keeps the previous hints, so the next pass offers that episode again
+        // (moving the watermark and count past it would hide it from the uploads check until the daily full walk).
+        if (mergeResult.FailedEpisodes.Any() &&
+            !Equals(knownYouTubeIndexingHints, podcast.YouTubeIndexingHints))
+        {
+            logger.LogInformation(
+                "YouTubeIndexingHints kept previous hints: podcast-id='{PodcastId}' failed-episodes='{FailedEpisodes}'.",
+                podcast.Id, mergeResult.FailedEpisodes.Count());
+            podcast.YouTubeIndexingHints = knownYouTubeIndexingHints;
+        }
+
         var youTubeIndexingHintsChanged = !Equals(knownYouTubeIndexingHints, podcast.YouTubeIndexingHints);
 
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;

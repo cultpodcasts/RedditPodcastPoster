@@ -420,9 +420,18 @@ Null members are omitted, so documents without hints are unchanged. Only the ind
 podcasts through `PodcastUpdater` (a hints-only change still saves), parents through the
 `/indexing/youTubeIndexingHints` patch. Curator saves load and save the stored hints unchanged.
 
-`YouTubeIndexingHintsPlanner` picks **uploads-head** only when the hints match the playlist,
-`playlistItemCount` > threshold, `lastFullWalk` is less than `FullWalkInterval` (default **24h**)
-old and there is a `ReleasedSince` window. Otherwise it runs the normal full walk.
+`YouTubeIndexingHintsPlanner` picks **uploads-head** only when the caller opted in
+(`IndexingContext.UseYouTubeIndexingHints`), the hints match the playlist, `playlistItemCount` >
+threshold, `lastFullWalk` is younger than `FullWalkInterval` less `FullWalkSlack` (defaults **24h**
+and **1h**, so the daily walk is due after 23h and start-time jitter cannot slip it a pass) and there
+is a `ReleasedSince` window. Otherwise it runs the normal full walk (`not-opted-in`, `skip-youtube`,
+`playlist-changed`, `full-walk-due`, `no-window`, …).
+
+**Opt-in:** only the hourly Cloud indexer (`Cloud/Indexer/Activities/Indexer.cs`) sets
+`UseYouTubeIndexingHints`. Api "index podcast" (curator re-index) and the Index console app
+(`--released-since` backfills) always walk in full, so they recover an in-window episode the uploads
+check would never offer again (an earlier failed pass, or a window wider than the watermark). Their
+complete walks still refresh the hints.
 `YouTubeUploadsHeadCheck` then:
 
 1. reads the playlist head (`maxResults=1`, 1 unit) for `totalResults`;
@@ -433,11 +442,15 @@ old and there is a `ReleasedSince` window. Otherwise it runs the normal full wal
    must equal `delta`.
 
 Any doubt falls back to the full walk, which rewrites the hints: `no-uploads-playlist`,
-`playlist-count-failed`, `uploads-read-failed`, `uploads-gap` (all 50 uploads are newer),
+`playlist-count-failed`, `uploads-read-failed`, `uploads-gap` (a full page of 50 with no dated
+upload at or before the watermark; undated uploads prove nothing),
 `playlist-count-changed` (removals, or members ≠ delta), `full-walk-cheaper`, `membership-unknown`,
 `build-failed`. Quota exhausted stops with no full walk. Hints are cleared (null) when a complete
 walk finds ≤ threshold items or a walk stopped at the window (newest-first); an incomplete walk
-(Error guard stop, circuit breaker, failure) leaves them as they were. A net-zero add + remove is
+(Error guard stop, circuit breaker, failure, failed build) leaves them as they were. A pass where a
+found episode failed to merge keeps the previous hints (`PodcastUpdater`, `CatalogueParentsUpdater`;
+logged `YouTubeIndexingHints kept previous hints`), so the next pass offers that episode again; an
+episode save failure aborts the pass before anything is saved. A net-zero add + remove is
 picked up by the daily full walk. Log prefix `YouTubeIndexingHints`; path log
 `playlist-uploads-head`.
 
@@ -486,8 +499,9 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 | Page-walk guards incl. two consecutive empty pages | `YouTube.Tests/Paging/YouTubePlaylistServicePagingRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeConsecutiveEmptyPagesRules.cs` |
-| Indexing hints: planner, uploads-head check (quota per path), walk outcome, handler | `YouTube.Tests/BusinessRules/IndexingHints/*.cs` |
-| Indexing hints: storage, patch, hints-only save, curator saves keep them | `Persistence.Tests/BusinessRules/YouTubeIndexingHintsPersistenceRules.cs`, `PodcastServices.Tests/BusinessRules/Indexing/YouTubeIndexingHintsSaveRules.cs`, `CatalogueParentIndexingRules.cs`, `FunctionHost.Tests/Api/Services/Catalogue/CuratorSaveKeepsYouTubeIndexingHintsRules.cs` |
+| Indexing hints: planner (opt-in, skip-YouTube, slack), uploads-head check (quota per path, strict `>` watermark, count drop, full-walk-cheaper, undated gap, window/known filters), walk outcome (circuit breaker, failed build), handler | `YouTube.Tests/BusinessRules/IndexingHints/*.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderBuildPlaylistEpisodesRules.cs` |
+| Indexing hints: only the hourly indexer opts in; curator re-index does not | `Indexer.Tests/IndexerActivityParentFailureRules.cs`, `FunctionHost.Tests/Api/Services/Podcasts/PodcastIndexServiceYouTubeIndexingHintsRules.cs` |
+| Indexing hints: storage, patch, hints-only save, failed merge keeps previous hints, curator saves keep them | `Persistence.Tests/BusinessRules/YouTubeIndexingHintsPersistenceRules.cs`, `PodcastServices.Tests/BusinessRules/Indexing/YouTubeIndexingHintsSaveRules.cs`, `CatalogueParentIndexingRules.cs`, `FunctionHost.Tests/Api/Services/Catalogue/CuratorSaveKeepsYouTubeIndexingHintsRules.cs` |
 
 ---
 
@@ -590,7 +604,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | `YouTube playlist id changed:` | Warning | `YouTubePlaylistIdChange` (API / URL-submit playlist swaps; former id kept on `youTubePlaylistIdHistory`) |
 | `YouTube arbitrary-playlist walk circuit-breaker tripped:` | Error | `YouTubePlaylistService` via `ArbitraryYouTubePlaylistWalk` |
 | `YouTubeDiscoveryPath` | Info / Warning | `YouTubeEpisodeRetrievalHandler` |
-| `YouTubeIndexingHints` | Info / Warning | `YouTubeEpisodeRetrievalHandler` (uploads-head result, fallback reason, hints written / cleared) |
+| `YouTubeIndexingHints` | Info | `YouTubeEpisodeRetrievalHandler` (uploads-head result, fallback reason, hints written / cleared); `PodcastUpdater` / `CatalogueParentsUpdater` (previous hints kept after a failed merge) |
 | `Apple pagination circuit-breaker tripped:` | Error | `ApplePodcastService` via `AppleCataloguePagination` |
 | `Catalogue episode lookup:` | Info | `CatalogueLookupExecutor` (one line per single-episode lookup) |
 | `Catalogue request timeout guard fired:` | Warning | `CatalogueRequestGuard` (Spotify + Apple, 10 s) |

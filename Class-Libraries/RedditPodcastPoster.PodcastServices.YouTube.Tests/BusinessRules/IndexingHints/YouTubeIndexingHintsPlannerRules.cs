@@ -16,7 +16,8 @@ public class YouTubeIndexingHintsPlannerRules
     private readonly YouTubeIndexingHintsOptions _options = new();
     private readonly Podcast _podcast;
     private readonly DateTime _now = DomainTestFixture.UtcDaysAgo(0).AddHours(12);
-    private readonly IndexingContext _context = new(DomainTestFixture.UtcDaysAgo(2));
+    private readonly IndexingContext _context =
+        new(DomainTestFixture.UtcDaysAgo(2)) { UseYouTubeIndexingHints = true };
 
     public YouTubeIndexingHintsPlannerRules()
     {
@@ -72,7 +73,8 @@ public class YouTubeIndexingHintsPlannerRules
     {
         // Arrange
         _podcast.YouTubeIndexingHints!.LastFullWalk = _now - _options.FullWalkInterval;
-        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true);
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipExpensiveYouTubeQueries: true)
+            { UseYouTubeIndexingHints = true };
 
         // Act
         var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, context, _options, _now);
@@ -103,7 +105,7 @@ public class YouTubeIndexingHintsPlannerRules
     public void no_window_walks_in_full()
     {
         // Arrange
-        var context = new IndexingContext();
+        var context = new IndexingContext { UseYouTubeIndexingHints = true };
 
         // Act
         var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, context, _options, _now);
@@ -187,5 +189,71 @@ public class YouTubeIndexingHintsPlannerRules
         // Assert
         later.Should().Be(hints.LastFullWalk.Value.AddMinutes(30));
         walked.Should().Be(hints.LastFullWalk);
+    }
+
+    [Fact(DisplayName =
+        "A caller that did not opt in (Api 'index podcast', the Index console app) always walks the playlist in full, " +
+        "even with fresh hints, because a curator re-index or a wide backfill must be able to recover an in-window " +
+        "episode the uploads check would never offer again.")]
+    public void caller_that_did_not_opt_in_walks_in_full()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(30));
+
+        // Act
+        var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.FullWalk);
+        reason.Should().Be(YouTubeIndexingHintsPlanner.NotOptedIn);
+    }
+
+    [Fact(DisplayName =
+        "A pass that skips YouTube plans a full walk (which then does not run), because an uploads check would spend " +
+        "quota the pass was told not to spend.")]
+    public void skipped_youtube_does_not_use_the_uploads_head()
+    {
+        // Arrange
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(2), SkipYouTubeUrlResolving: true)
+            { UseYouTubeIndexingHints = true };
+
+        // Act
+        var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.FullWalk);
+        reason.Should().Be(YouTubeIndexingHintsPlanner.SkipYouTube);
+    }
+
+    [Fact(DisplayName =
+        "The daily full walk is due one hour early (23 hours by default), because passes run at the same minute each " +
+        "day and a walk a few seconds short of 24 hours old must not slip to the next YouTube pass.")]
+    public void daily_full_walk_is_due_within_the_slack()
+    {
+        // Arrange
+        _podcast.YouTubeIndexingHints!.LastFullWalk = _now - _options.FullWalkInterval + TimeSpan.FromSeconds(5);
+
+        // Act
+        var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, _context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.FullWalk);
+        reason.Should().Be(YouTubeIndexingHintsPlanner.FullWalkDue);
+    }
+
+    [Fact(DisplayName =
+        "A full walk younger than the interval less the slack is still trusted, so the hourly passes in between use " +
+        "the uploads head.")]
+    public void walk_younger_than_the_slack_is_trusted()
+    {
+        // Arrange
+        _podcast.YouTubeIndexingHints!.LastFullWalk =
+            _now - _options.FullWalkDueAfter + TimeSpan.FromMinutes(1);
+
+        // Act
+        var (plan, _) = YouTubeIndexingHintsPlanner.Plan(_podcast, _context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.UploadsHead);
     }
 }

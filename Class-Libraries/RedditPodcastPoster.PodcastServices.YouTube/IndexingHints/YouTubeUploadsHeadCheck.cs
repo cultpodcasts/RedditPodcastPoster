@@ -98,9 +98,11 @@ public class YouTubeUploadsHeadCheck(
             .Select(item => (Item: item, Date: item.GetIndexingWindowDate()?.UtcDateTime))
             .Where(x => x.Date.HasValue && (watermark == null || x.Date > watermark))
             .ToList();
-        if (uploads.Items.Count >= UploadsPageSize && newer.Count == uploads.Items.Count)
+        var dated = uploads.Items.Count(item => item.GetIndexingWindowDate() != null);
+        if (uploads.Items.Count >= UploadsPageSize && newer.Count == dated)
         {
-            // Every upload on the page is newer than the watermark: older unchecked uploads may lie beyond it.
+            // No upload on the full page is known to be at or before the watermark (every dated one is newer; an
+            // undated one proves nothing): older unchecked uploads may lie beyond it.
             return YouTubeUploadsHeadResult.Fallback(UploadsGap);
         }
 

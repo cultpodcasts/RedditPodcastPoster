@@ -7,6 +7,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using VideoModel = Google.Apis.YouTube.v3.Data.Video;
 
@@ -78,5 +79,29 @@ public class YouTubeEpisodeProviderBuildPlaylistEpisodesRules
 
         // Assert
         response.Results.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A complete playlist walk whose build fails (videos.list returned nothing) is Incomplete, because the hints " +
+        "may only move past items that were actually built.")]
+    public async Task complete_walk_with_failed_build_is_incomplete()
+    {
+        // Arrange
+        var playlistId = new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId());
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(playlistId, It.IsAny<IndexingContext>(), It.IsAny<bool>(),
+                It.IsAny<bool>(), It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse([Item(_fixture.CreateYouTubeId())], TotalResults: 400,
+                WalkOutcome: YouTubePlaylistWalkOutcome.Complete));
+        var sut = _mocker.CreateInstance<YouTubeEpisodeProvider>();
+
+        // Act
+        var response = await sut.GetPlaylistEpisodes(_fixture.CreatePodcast(), playlistId,
+            new YouTubeChannelId(_fixture.CreateYouTubeChannelId()), _indexingContext);
+
+        // Assert
+        response.Results.Should().BeNull();
+        response.TotalResults.Should().Be(400);
+        response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.Incomplete);
     }
 }

@@ -26,13 +26,16 @@ public static class YouTubeIndexingHintsPlanner
     public const string FullWalkDue = "full-walk-due";
     public const string NoWindow = "no-window";
     public const string SkipYouTube = "skip-youtube";
+    public const string NotOptedIn = "not-opted-in";
     public const string HintsUsable = "hints-usable";
 
     /// <summary>
-    /// Uploads-head only when every condition holds: hints exist for the current playlist, the stored count is above
-    /// <see cref="YouTubeIndexingHintsOptions.UploadsHeadMinimumPlaylistItems"/>, the last full walk is younger than
-    /// <see cref="YouTubeIndexingHintsOptions.FullWalkInterval"/>, the pass has a date window, and YouTube is not
-    /// skipped. Otherwise a full walk (with the reason).
+    /// Uploads-head only when every condition holds: YouTube is not skipped, the caller opted in
+    /// (<see cref="IndexingContext.UseYouTubeIndexingHints"/>, the hourly indexer only), hints exist for the current
+    /// playlist, the stored count is above <see cref="YouTubeIndexingHintsOptions.UploadsHeadMinimumPlaylistItems"/>,
+    /// the last full walk is younger than <see cref="YouTubeIndexingHintsOptions.FullWalkInterval"/> less
+    /// <see cref="YouTubeIndexingHintsOptions.FullWalkSlack"/>, and the pass has a date window. Otherwise a full walk
+    /// (with the reason).
     /// </summary>
     public static (YouTubePlaylistDiscoveryPlan Plan, string Reason) Plan(
         IYouTubeIndexingSettings settings,
@@ -43,6 +46,11 @@ public static class YouTubeIndexingHintsPlanner
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             return (YouTubePlaylistDiscoveryPlan.FullWalk, SkipYouTube);
+        }
+
+        if (!indexingContext.UseYouTubeIndexingHints)
+        {
+            return (YouTubePlaylistDiscoveryPlan.FullWalk, NotOptedIn);
         }
 
         if (settings.YouTubeIndexingHints == null)
@@ -66,7 +74,7 @@ public static class YouTubeIndexingHintsPlanner
             return (YouTubePlaylistDiscoveryPlan.FullWalk, BelowThreshold);
         }
 
-        if (hints.LastFullWalk is not { } lastFullWalk || utcNow - lastFullWalk >= options.FullWalkInterval)
+        if (hints.LastFullWalk is not { } lastFullWalk || utcNow - lastFullWalk >= options.FullWalkDueAfter)
         {
             return (YouTubePlaylistDiscoveryPlan.FullWalk, FullWalkDue);
         }

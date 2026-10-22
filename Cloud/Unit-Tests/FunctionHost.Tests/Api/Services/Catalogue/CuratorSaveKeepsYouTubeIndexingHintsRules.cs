@@ -106,7 +106,7 @@ public class CuratorSaveKeepsYouTubeIndexingHintsRules
         var podcast = _fixture.CreatePodcast(p => p.YouTubePlaylistId = _hints.PlaylistId!);
         podcast.YouTubeIndexingHints = _hints.Copy();
         var request = new PodcastChangeRequest { YouTubePlaylistId = _fixture.CreateYouTubePlaylistId() };
-        var applier = new PodcastChangeApplier(NullLogger<PodcastChangeApplier>.Instance);
+        var applier = _mocker.CreateInstance<PodcastChangeApplier>();
 
         // Act
         applier.Apply(podcast, request);

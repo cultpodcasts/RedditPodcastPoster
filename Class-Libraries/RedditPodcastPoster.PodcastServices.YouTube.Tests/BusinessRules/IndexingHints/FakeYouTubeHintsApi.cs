@@ -12,8 +12,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.IndexingHints;
 
-/// <summary>A synthetic video in a fake playlist.</summary>
-public sealed record FakeYouTubeVideo(string Id, DateTime PublishedUtc);
+/// <summary>A synthetic video in a fake playlist; a null publish time serves the item with no dates.</summary>
+public sealed record FakeYouTubeVideo(string Id, DateTime? PublishedUtc);
 
 /// <summary>
 /// Fake YouTube Data API for the indexing hints: serves synthetic playlistItems.list responses by <c>playlistId</c>
@@ -42,7 +42,7 @@ public sealed class FakeYouTubeHintsApi
     /// <summary>When set, the videoId-filtered membership check fails with HTTP 500.</summary>
     public bool MembershipFails { get; set; }
 
-    public Mock<IYouTubeQuotaUsageTracker> QuotaTracker { get; } = new();
+    public Mock<IYouTubeQuotaUsageTracker> QuotaTracker { get; } = new AutoMocker().GetMock<IYouTubeQuotaUsageTracker>();
 
     /// <summary>Quota units recorded by the services under test.</summary>
     public int QuotaUnits { get; private set; }
@@ -109,7 +109,7 @@ public sealed class FakeYouTubeHintsApi
             },
             ["items"] = page.Select(x =>
             {
-                var published = x.PublishedUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                var published = x.PublishedUtc?.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
                 return new
                 {
                     kind = "youtube#playlistItem",
