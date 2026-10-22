@@ -1,14 +1,18 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using RedditPodcastPoster.PodcastServices.Apple.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Providers;
-using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Caches;
@@ -20,106 +24,91 @@ public class PodcastPassApiCacheComponentRules
 {
     private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private readonly ApplePodcastId _appleId;
+    private readonly CachedApplePodcastService _cachedApple;
+
+    public PodcastPassApiCacheComponentRules()
+    {
+        _appleId = new ApplePodcastId(_fixture.CreateAppleId());
+        _mocker.Use<ILogger<CachedApplePodcastService>>(NullLogger<CachedApplePodcastService>.Instance);
+        _mocker.Use<ILogger<PodcastPassApiCache>>(NullLogger<PodcastPassApiCache>.Instance);
+        _mocker.Use<ILogger<PodcastsUpdater>>(NullLogger<PodcastsUpdater>.Instance);
+        _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(new PodcastUpdateBudgetOptions()));
+        _mocker.Use<TimeProvider>(TimeProvider.System);
+        _mocker.GetMock<IApplePodcastService>()
+            .Setup(x => x.GetEpisodes(_appleId, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(() => [CreateAppleEpisode()]);
+        _cachedApple = _mocker.CreateInstance<CachedApplePodcastService>();
+        _mocker.Use<IEnumerable<IPodcastPassApiCacheSource>>([_cachedApple]);
+        _mocker.Use<IPodcastPassApiCache>(_mocker.CreateInstance<PodcastPassApiCache>());
+    }
 
     [Fact(DisplayName =
         "CachedApplePodcastService returns a cached episode list on a second fetch with the same key.")]
     public async Task CachedApple_resolves_already_fetched_episodes_without_rehit()
     {
-        var appleId = new ApplePodcastId(42);
+        // Arrange
         var indexingContext = new IndexingContext(ReleasedSince);
-        var underlying = new Mock<IApplePodcastService>();
-        underlying
-            .Setup(x => x.GetEpisodes(appleId, indexingContext))
-            .ReturnsAsync([CreateAppleEpisode(1)]);
 
-        var cached = new CachedApplePodcastService(
-            underlying.Object,
-            NullLogger<CachedApplePodcastService>.Instance);
+        // Act
+        var first = await _cachedApple.GetEpisodes(_appleId, indexingContext);
+        var second = await _cachedApple.GetEpisodes(_appleId, indexingContext);
 
-        var first = await cached.GetEpisodes(appleId, indexingContext);
-        var second = await cached.GetEpisodes(appleId, indexingContext);
-
+        // Assert
         first.Should().BeEquivalentTo(second);
-        underlying.Verify(x => x.GetEpisodes(appleId, indexingContext), Times.Once);
+        _mocker.GetMock<IApplePodcastService>().Verify(x => x.GetEpisodes(_appleId, indexingContext), Times.Once);
     }
 
     [Fact(DisplayName =
         "PodcastPassApiCache.Clear forces CachedApplePodcastService to refetch after a hit.")]
     public async Task Clear_forces_CachedApple_to_refetch()
     {
-        var appleId = new ApplePodcastId(42);
+        // Arrange
         var indexingContext = new IndexingContext(ReleasedSince);
-        var underlying = new Mock<IApplePodcastService>();
-        underlying
-            .Setup(x => x.GetEpisodes(appleId, indexingContext))
-            .ReturnsAsync([CreateAppleEpisode(1)]);
+        await _cachedApple.GetEpisodes(_appleId, indexingContext);
+        await _cachedApple.GetEpisodes(_appleId, indexingContext);
 
-        var cached = new CachedApplePodcastService(
-            underlying.Object,
-            NullLogger<CachedApplePodcastService>.Instance);
-        var passCache = new PodcastPassApiCache(
-            [cached],
-            NullLogger<PodcastPassApiCache>.Instance);
+        // Act
+        _mocker.Get<IPodcastPassApiCache>().Clear();
+        await _cachedApple.GetEpisodes(_appleId, indexingContext);
 
-        await cached.GetEpisodes(appleId, indexingContext);
-        await cached.GetEpisodes(appleId, indexingContext);
-        underlying.Verify(x => x.GetEpisodes(appleId, indexingContext), Times.Once);
-
-        passCache.Clear();
-
-        await cached.GetEpisodes(appleId, indexingContext);
-        underlying.Verify(x => x.GetEpisodes(appleId, indexingContext), Times.Exactly(2));
+        // Assert
+        _mocker.GetMock<IApplePodcastService>()
+            .Verify(x => x.GetEpisodes(_appleId, indexingContext), Times.Exactly(2));
     }
 
     [Fact(DisplayName =
         "PodcastsUpdater clears pass caches between podcasts so within-podcast hits do not leak across podcasts.")]
     public async Task UpdatePodcasts_clears_between_podcasts_while_preserving_within_podcast_hits()
     {
+        // Arrange
         var podcast1 = AutoIndexPodcast();
         var podcast2 = AutoIndexPodcast();
         var repository = new InMemoryPodcastRepository();
         repository.Seed(podcast1);
         repository.Seed(podcast2);
-
-        var appleId = new ApplePodcastId(99);
-        var indexingContext = new IndexingContext(ReleasedSince);
-        var underlying = new Mock<IApplePodcastService>();
-        underlying
-            .Setup(x => x.GetEpisodes(appleId, It.IsAny<IndexingContext>()))
-            .ReturnsAsync([CreateAppleEpisode(7)]);
-
-        var cachedApple = new CachedApplePodcastService(
-            underlying.Object,
-            NullLogger<CachedApplePodcastService>.Instance);
-        var passCache = new PodcastPassApiCache(
-            [cachedApple],
-            NullLogger<PodcastPassApiCache>.Instance);
-
-        var podcastUpdater = new Mock<IPodcastUpdater>();
-        podcastUpdater
+        _mocker.Use<IPodcastRepository>(repository);
+        _mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .Returns(async (Podcast podcast, bool _, IndexingContext podcastCtx) =>
             {
                 // Simulate discovery + enrichment both needing Apple episodes (within-podcast hit).
-                await cachedApple.GetEpisodes(appleId, podcastCtx);
-                await cachedApple.GetEpisodes(appleId, podcastCtx);
+                await _cachedApple.GetEpisodes(_appleId, podcastCtx);
+                await _cachedApple.GetEpisodes(_appleId, podcastCtx);
                 return SuccessResult(podcast);
             });
+        var updater = _mocker.CreateInstance<PodcastsUpdater>();
 
-        var updater = new PodcastsUpdater(
-            Mock.Of<IIndexablePodcastIdProvider>(),
-            podcastUpdater.Object,
-            repository,
-            passCache,
-            NullLogger<PodcastsUpdater>.Instance);
+        // Act
+        await updater.UpdatePodcasts([podcast1.Id, podcast2.Id], new IndexingContext(ReleasedSince));
 
-        await updater.UpdatePodcasts([podcast1.Id, podcast2.Id], indexingContext);
-
+        // Assert
         // Two podcasts × one underlying fetch each (second call per podcast is a cache hit).
-        underlying.Verify(
-            x => x.GetEpisodes(appleId, It.IsAny<IndexingContext>()),
+        _mocker.GetMock<IApplePodcastService>().Verify(
+            x => x.GetEpisodes(_appleId, It.IsAny<IndexingContext>()),
             Times.Exactly(2));
-        podcastUpdater.Verify(
+        _mocker.GetMock<IPodcastUpdater>().Verify(
             x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()),
             Times.Exactly(2));
     }
@@ -131,15 +120,18 @@ public class PodcastPassApiCacheComponentRules
         return podcast;
     }
 
-    private static AppleEpisode CreateAppleEpisode(long id) =>
-        new(
+    private AppleEpisode CreateAppleEpisode()
+    {
+        var id = _fixture.CreateAppleId();
+        return new AppleEpisode(
             id,
-            Title: $"Episode {id}",
+            Title: _fixture.CreateTitle(),
             Release: ReleasedSince.AddDays(1),
-            Duration: TimeSpan.FromMinutes(30),
-            Url: new Uri($"https://example.com/apple/{id}"),
-            Description: "desc",
+            Duration: _fixture.CreateDuration(),
+            Url: new Uri($"https://podcasts.apple.com/us/podcast/episode/id{id}"),
+            Description: _fixture.CreateTitle(),
             Explicit: false);
+    }
 
     private static IndexPodcastResult SuccessResult(Podcast podcast) =>
         new(

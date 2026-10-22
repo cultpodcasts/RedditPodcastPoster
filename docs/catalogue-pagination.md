@@ -369,10 +369,28 @@ HasExpensiveYouTubePlaylistQuery() && !SkipExpensiveYouTubeQueries
 ```
 
 Passed as `expensivePlaylist` into the service. Affects **batch size after a reverse-chrono
-probe** (1 vs 10). If the live head probe says ascending, the service still walks until
-`nextPageToken` is null even when `expensivePlaylist` is false — the handler's
-`"playlist-single-page"` label means “this pass did not request expensive batch sizing,”
-not a hard one-page stop inside `YouTubePlaylistService`.
+probe** (1 vs 10).
+
+Every non-arbitrary playlist pages on every pass (until it leaves the window when newest-first,
+to the end otherwise); `expensivePlaylist` only changes the batch size. The handler logs this as
+`playlist-paginated` (the old `playlist-single-page` label was misleading and is gone). A cheap
+correct read for oldest-first playlists (uploads head + `playlistItems.list(videoId=…)`
+membership checks) is a follow-up; a head-only read was tried and dropped because new uploads
+sit at the tail of an oldest-first playlist and would never be found.
+
+### Known-id skip on playlist discovery
+
+Discovery passes the YouTube ids of the stored episodes it already read (the repository scopes
+them to the release window) as `knownIds` (`YouTubeEpisodeProvider.GetPlaylistEpisodes`), so
+known videos skip `videos.list`, the thumbnail probe and episode building — the same rule as
+channel discovery. The set is **not** re-filtered on `ReleaseUtc`, because playlist items are
+windowed on the later of added-at and video-published-at (an old video newly added to the
+playlist stays known). A stored episode that merge would still improve is left out of the set
+and re-fetched as before: no YouTube url, no YouTube image or no description
+(`EpisodePlatformMerger` → `ApplyFillMissing(ToYouTubePatch())`), or a date-only (midnight)
+release (`YouTubeTimeBackfillMergePolicy`). Enrichment does not fill these on an episode that
+already has its YouTube id. `YouTubeDiscoveryPath` logs `known-skipped` next to `episodes-found`
+(which counts new videos only; in-window = `episodes-found + known-skipped`).
 
 ### Discovery vs enrichment
 
@@ -381,7 +399,7 @@ not a hard one-page stop inside `YouTubePlaylistService`.
 | Entry | `YouTubeEpisodeRetrievalHandler` | `YouTubeItemResolver` |
 | Forwards `YouTubePlaylistOrder` | Yes | Yes |
 | Applies expensive flag | **Yes** (unless Arbitrary) | **No** |
-| Path log | `YouTubeDiscoveryPath` (`playlist-arbitrary-full-walk` / `playlist-paginated` / `playlist-single-page` / `channel`) | Match via `PlaylistItemFinder` |
+| Path log | `YouTubeDiscoveryPath` (`playlist-arbitrary-full-walk` / `playlist-paginated` / `channel`; `playlist-paginated` replaced the misleading `playlist-single-page`; `known-skipped` added) | Match via `PlaylistItemFinder` |
 
 ### YouTube API cost reminder
 
@@ -398,6 +416,7 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Flag Apply set / clear / inconclusive | `YouTube.Tests/Playlist/YouTubeExpensiveQueryFlagRules.cs` |
 | Discovery flag round-trip + Arbitrary | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerRules.cs` |
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
+| Playlist discovery skips known video ids (window-aligned; incomplete stored episodes stay re-fetched); path labels | `YouTube.Tests/Episode/YouTubeEpisodeProviderKnownIdRules.cs`, `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerPlaylistCostRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
 | `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
 | Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |

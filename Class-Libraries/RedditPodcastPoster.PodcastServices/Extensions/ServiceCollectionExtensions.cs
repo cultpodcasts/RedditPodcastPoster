@@ -69,6 +69,9 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
                 .AddScoped<IImageUpdater, ImageUpdater>()
                 .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>()
+                .BindConfiguration<PodcastUpdateBudgetOptions>(PodcastUpdateBudgetOptions.SectionName)
+                .BindConfiguration<PodcastIndexingStageLogOptions>(PodcastIndexingStageLogOptions.SectionName)
+                .AddSingleton<PodcastUpdateBudgetCutTracker>()
                 .AddYouTubeThumbnailRecheck();
         }
 

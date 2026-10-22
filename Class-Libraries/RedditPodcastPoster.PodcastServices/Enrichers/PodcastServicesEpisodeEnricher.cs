@@ -28,8 +28,11 @@ public class PodcastServicesEpisodeEnricher(
     )
     {
         var results = new List<EnrichmentResult>();
+        var cancellationToken = indexingContext.CancellationToken;
         foreach (var episode in newEpisodes)
         {
+            // The indexer's per-podcast budget: stop between calls so a slow enrichment is cancelled, not abandoned.
+            cancellationToken.ThrowIfCancellationRequested();
             var enrichmentContext = new EnrichmentContext();
             var enrichmentRequest = new EnrichmentRequest(podcast, episodes, episode);
 
@@ -42,6 +45,7 @@ public class PodcastServicesEpisodeEnricher(
             if (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple) == null ||
                 EpisodeServicePresence.AppleEpisodeId(episode) is null or 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await appleEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
 
@@ -50,6 +54,7 @@ public class PodcastServicesEpisodeEnricher(
                 (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) == null ||
                  string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode))))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
 
@@ -72,6 +77,7 @@ public class PodcastServicesEpisodeEnricher(
                         string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(delayedEpisode)));
                 foreach (var delayedEpisode in delayedEpisodes)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var enrichmentContext = new EnrichmentContext();
                     var enrichmentRequest = new EnrichmentRequest(podcast, episodes, delayedEpisode);
                     await youTubeEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);

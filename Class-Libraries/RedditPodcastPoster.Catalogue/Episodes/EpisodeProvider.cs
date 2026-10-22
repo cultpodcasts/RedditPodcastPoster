@@ -32,6 +32,7 @@ public class EpisodeProvider(
         if (indexingContext.IndexSpotify && podcast.ReleaseAuthority is null or Service.Spotify &&
             !string.IsNullOrWhiteSpace(podcast.SpotifyId))
         {
+            indexingContext.ReportStage("discover-spotify");
             (newEpisodes, handled) = await spotifyEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
             {
@@ -43,6 +44,7 @@ public class EpisodeProvider(
 
         if (!handled && podcast.ReleaseAuthority != Service.YouTube && podcast.AppleId != null)
         {
+            indexingContext.ReportStage("discover-apple");
             (newEpisodes, handled) = await appleEpisodeRetrievalHandler.GetEpisodes(podcast, indexingContext);
             if (handled)
             {
@@ -86,6 +88,7 @@ public class EpisodeProvider(
         IList<Episode>? existingEpisodes)
 
     {
+        indexingContext.ReportStage("discover-youtube");
         var (youTubeEpisodes, youTubeHandled) =
             await youTubeEpisodeRetrievalHandler.GetEpisodes(podcast, episodes, indexingContext);
         if (!youTubeHandled)

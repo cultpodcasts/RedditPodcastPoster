@@ -11,4 +11,9 @@ public record GetPlaylistEpisodesResponse(
     /// <summary>
     /// Set when Results is null because the YouTube playlist API call failed (e.g. playlist gone).
     /// </summary>
-    YouTubePlaylistFetchFailure? Failure = null);
+    YouTubePlaylistFetchFailure? Failure = null,
+    /// <summary>
+    /// In-window playlist items dropped because the podcast already stores them (known-id skip). In-window items found
+    /// = <c>Results.Count + KnownSkipped</c>.
+    /// </summary>
+    int KnownSkipped = 0);
