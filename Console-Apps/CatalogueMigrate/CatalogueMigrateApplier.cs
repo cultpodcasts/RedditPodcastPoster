@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Models.Catalogue;
@@ -217,6 +219,13 @@ public class CatalogueMigrateApplier(
             return $"Podcast was indexed during the move (lastIndexed {podcast.LastIndexed:O} -> {current.LastIndexed:O}).";
         }
 
+        // A failed or bypassed pass saves without moving lastIndexed but can still change the discovery bookmarks
+        // (expensive-query flags, show counts, playlist history) the parent copied.
+        if (current is not null && !IndexingSettingsEqual(podcast, current))
+        {
+            return "Podcast indexing settings changed during the move.";
+        }
+
         var planned = unit.MoveEpisodes.Select(episode => episode.Id).ToHashSet();
         var arrived = 0;
         await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(cancellationToken))
@@ -229,6 +238,11 @@ public class CatalogueMigrateApplier(
 
         return arrived > 0 ? $"{arrived} episode(s) arrived during the move." : null;
     }
+
+    private static bool IndexingSettingsEqual(Podcast planned, Podcast current) =>
+        JsonNode.DeepEquals(
+            JsonSerializer.SerializeToNode(CatalogueIndexingSource.FromPodcast(planned)),
+            JsonSerializer.SerializeToNode(CatalogueIndexingSource.FromPodcast(current)));
 
     private async Task<bool> HasSiblingParent(string kind, Guid podcastId) => kind switch
     {

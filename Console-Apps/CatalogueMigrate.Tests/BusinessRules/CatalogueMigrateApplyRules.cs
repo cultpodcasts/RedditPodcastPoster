@@ -488,6 +488,52 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when a failed indexer pass saves the podcast during the move with changed discovery bookmarks " +
+        "but the same lastIndexed, then the source is not deleted and the run stops with exit 3, because the parent was " +
+        "written with the old settings.")]
+    public async Task indexing_settings_changed_mid_move_keeps_the_source()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        _destination.AfterSearchUpload = async () =>
+        {
+            var saved = (await _podcasts.GetPodcast(podcast.Id))!;
+            saved.YouTubePlaylistQueryIsExpensive = true;
+            await _podcasts.Save(saved);
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Theory(DisplayName =
+        "Catalogue migrate indexer window: minutes :15 to :54 are clear and :00 to :14 and :55 to :59 may overlap the " +
+        "hourly indexer, because Hourly starts at :03 and HourlyCatchUp at :08.")]
+    [InlineData(0, true)]
+    [InlineData(14, true)]
+    [InlineData(15, false)]
+    [InlineData(54, false)]
+    [InlineData(55, true)]
+    [InlineData(59, true)]
+    public void indexer_window_edges(int minute, bool indexerMayBeRunning)
+    {
+        // Arrange
+        var now = AtMinute(minute);
+
+        // Act
+        var result = CatalogueMigrateIndexerWindow.IndexerMayBeRunning(now);
+
+        // Assert
+        result.Should().Be(indexerMayBeRunning);
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when a Film podcast is auto-indexed, then Film apply is blocked and the plan line says why, " +
         "because a Film has no parent to keep indexing and new episodes would stop arriving.")]
     public async Task auto_indexed_film_podcast_is_blocked()
