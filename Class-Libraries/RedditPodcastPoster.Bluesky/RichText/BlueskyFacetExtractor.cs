@@ -5,8 +5,9 @@ namespace RedditPodcastPoster.Bluesky.RichText;
 
 /// <summary>
 /// Wraps idunno's default extractor. Mentions with dashed handles get the full handle, and hashtags
-/// follow <see cref="HashtagScanner"/> (Bluesky's rule, plus tags after opening quotes or brackets)
-/// instead of the default tag pattern, which only accepts '#' after whitespace.
+/// follow <see cref="HashtagScanner"/> (tags may follow opening quotes or brackets, and end at the
+/// first non-word character such as a dash or apostrophe) instead of the default tag pattern, which
+/// only accepts '#' after whitespace and runs the tag on to the next whitespace.
 /// </summary>
 public sealed class BlueskyFacetExtractor : IFacetExtractor
 {
