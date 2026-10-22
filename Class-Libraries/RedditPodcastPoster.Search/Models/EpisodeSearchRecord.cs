@@ -95,6 +95,16 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public string? Image { get; set; }
 
+    /// <summary>
+    /// Film only: its trailers as <c>{duration}|{url}|{title}</c> (<see cref="Formatting.FilmTrailerSearchToken"/>).
+    /// Trailers get no documents of their own. Retrievable, not searchable, so it costs no index terms.
+    /// Null is omitted from the upload, so other kinds (and films with no trailers) never send it; an empty array
+    /// clears it (Azure Search merge ignores null). Added to a live index with <c>CreateSearchIndex --update-existing</c>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public string[]? Trailers { get; set; }
+
     // Retrievable so flix/search cards and episode pages can show language flags.
     // Still filterable+facetable for subject language chips (English ≈ null).
     [SimpleField(IsFilterable = true, IsFacetable = true)]

@@ -20,6 +20,17 @@ public static class FilmExtension
             BlueskyPosted = film.BlueskyPosted,
             Subjects = [.. film.Subjects],
             Guests = film.Guests,
-            Services = film.Services.ToDtos()
+            Services = film.Services.ToDtos(),
+            Trailers = film.Trailers is { Count: > 0 } trailers
+                ? trailers.Select(trailer => new FilmTrailerDto
+                {
+                    Id = trailer.Id,
+                    Title = trailer.Title,
+                    Url = trailer.Url,
+                    Image = trailer.Image,
+                    Release = trailer.Release,
+                    Duration = CatalogueDtoMapping.FormatDuration(trailer.Length)
+                }).ToArray()
+                : null
         }.WithPublisherFields(film);
 }

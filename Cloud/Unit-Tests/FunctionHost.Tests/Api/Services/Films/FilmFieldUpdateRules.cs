@@ -23,6 +23,7 @@ public class FilmFieldUpdateRules
 
     public FilmFieldUpdateRules()
     {
+        _mocker.GetMock<IFilmRepository>().ReplaceThroughSave();
         _mocker.Use(NullLogger<FilmService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IFilmRepository>()

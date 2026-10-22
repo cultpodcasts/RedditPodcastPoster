@@ -46,4 +46,9 @@ public class FilmDto : PublisherFieldsDto
 
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
+
+    /// <summary>In display order; omitted when the film has none.</summary>
+    [JsonPropertyName("trailers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FilmTrailerDto[]? Trailers { get; set; }
 }

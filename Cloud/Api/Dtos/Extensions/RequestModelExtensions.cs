@@ -101,6 +101,10 @@ public static class RequestModelExtensions
         request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
         {
             Imdb = request.Imdb,
+            ImdbId = request.ImdbId,
+            TmdbId = request.TmdbId,
+            Services = request.Services,
+            Trailers = request.Trailers?.Select(trailer => new Models.FilmTrailerChange(trailer.Id, trailer.Title)).ToArray(),
             Release = request.Release,
             Duration = request.Duration,
             Explicit = request.Explicit,

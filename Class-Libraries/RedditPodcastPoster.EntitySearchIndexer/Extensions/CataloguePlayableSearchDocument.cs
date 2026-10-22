@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Search.Models;
@@ -50,6 +51,7 @@ public static class CataloguePlayableSearchDocument
         record.ContentKind = SearchContentKind.Film;
         record.SeriesName = null;
         record.PublisherSearchTerms = string.Empty;
+        record.Trailers = FilmTrailerSearchToken.For(film);
         return record;
     }
 

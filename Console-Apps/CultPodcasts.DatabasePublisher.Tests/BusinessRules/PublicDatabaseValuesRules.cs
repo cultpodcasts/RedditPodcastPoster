@@ -5,6 +5,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -135,6 +136,46 @@ public sealed class PublicDatabaseValuesRules : IDisposable
         published["imdbId"]!.GetValue<string>().Should().Be(film.ImdbId);
         published["tmdbId"]!.GetValue<int>().Should().Be(film.TmdbId!.Value);
         published["urls"]![ServiceKeys.Apple]!.GetValue<string>().Should().Be(url.OriginalString);
+    }
+
+    [Fact(DisplayName =
+        "Public database: when a film has trailers, then each is published in order with its title, url, release " +
+        "date and duration, and a film with none has no trailers field, because trailers are part of the film file.")]
+    public async Task film_trailers_are_published_in_order()
+    {
+        // Arrange
+        var released = DomainTestFixture.UtcToday.AddDays(-3);
+        var first = new FilmTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = _fixture.Create<Uri>(),
+            Release = released,
+            Length = _fixture.CreateDuration()
+        };
+        var second = new FilmTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = _fixture.Create<Uri>(),
+            Length = _fixture.CreateDuration()
+        };
+        var film = _scenario.GivenFilm(releasedDaysAgo: 6, f => f.Trailers = [first, second]);
+        var bare = _scenario.GivenFilm(releasedDaysAgo: 5);
+
+        // Act
+        await _scenario.PublishFirstTime();
+
+        // Assert
+        var trailers = Published(film.FileKey)["trailers"]!.AsArray();
+        trailers.Select(t => t!["title"]!.GetValue<string>()).Should().Equal(first.Title, second.Title);
+        trailers[0]!["url"]!.GetValue<string>().Should().Be(first.Url.OriginalString);
+        trailers[0]!["release"]!.GetValue<string>()
+            .Should().Be(released.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        trailers[0]!["duration"]!.GetValue<string>().Should().Be(first.Length.ToString());
+        trailers[1]!.AsObject().ContainsKey("release").Should().BeFalse();
+        trailers[0]!.AsObject().ContainsKey("id").Should().BeFalse();
+        Published(bare.FileKey).ContainsKey("trailers").Should().BeFalse();
     }
 
     [Theory(DisplayName =

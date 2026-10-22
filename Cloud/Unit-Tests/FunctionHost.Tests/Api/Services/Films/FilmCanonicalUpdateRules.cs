@@ -21,6 +21,7 @@ public class FilmCanonicalUpdateRules
 
     public FilmCanonicalUpdateRules()
     {
+        _mocker.GetMock<IFilmRepository>().ReplaceThroughSave();
         _mocker.Use(NullLogger<FilmService>.Instance);
         _mocker.Use(new SearchCleanupMock().Cleanup);
         _mocker.GetMock<IFilmRepository>()
