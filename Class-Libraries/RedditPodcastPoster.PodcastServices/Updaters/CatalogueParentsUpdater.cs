@@ -243,10 +243,12 @@ public class CatalogueParentsUpdater(
     /// and both are auto-indexed. Indexing the parent too would save each new video twice (an Episode on the podcast
     /// and a NewsReport / TvShowEpisode on the parent), and a re-run of the move would then hold both. The podcast stays
     /// the indexed source until the move finishes or is rolled back, so the parent is skipped (not a failure).
+    /// A same-id podcast the podcast pass would not index (removed, or not auto-indexed) does not defer the parent:
+    /// skipping then would leave nothing indexed.
     /// </summary>
     private async Task<bool> SourcePodcastStillExists(string kind, Publisher parent)
     {
-        if (await podcastRepository.GetPodcast(parent.Id) is null)
+        if (await podcastRepository.GetPodcast(parent.Id) is not { } podcast || !IsIndexedByPodcastPass(podcast))
         {
             return false;
         }
@@ -257,6 +259,11 @@ public class CatalogueParentsUpdater(
             kind, parent.Id, parent.Name);
         return true;
     }
+
+    /// <summary>Same selection as <c>IndexIdProvider</c>'s podcast pass.</summary>
+    private static bool IsIndexedByPodcastPass(Podcast podcast) =>
+        !podcast.IsRemoved() &&
+        (podcast.IndexAllEpisodes || !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex));
 
     private static bool IsIndexable(Publisher parent) =>
         !parent.IsRemoved() && IndexingOf(parent) is { IsAutoIndexed: true };

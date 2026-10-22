@@ -318,6 +318,27 @@ public class FilmSearchPusherRules
     }
 
     [Fact(DisplayName =
+        "When a full run's index request throws and clearing the watermark also fails, then the index failure is the one that surfaces, because it is the cause the operator has to act on.")]
+    public async Task full_run_that_throws_surfaces_the_push_failure_when_the_watermark_save_fails()
+    {
+        // Arrange
+        CreateStoredFilm(timestamp: 100);
+        GivenWatermark(5_000);
+        _mocker.GetMock<IFilmSearchPushWatermarkStore>()
+            .Setup(x => x.SaveAsync(It.IsAny<FilmSearchPushWatermark>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TimeoutException("synthetic store failure"));
+        _mocker.GetMock<IFilmSearchIndexGateway>()
+            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
+
+        // Act
+        var act = () => Push(full: true);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("synthetic request failure");
+    }
+
+    [Fact(DisplayName =
         "When an incremental run's index request throws, then the watermark is not saved, because the next run retries from the same watermark.")]
     public async Task incremental_run_that_throws_keeps_watermark()
     {

@@ -131,7 +131,18 @@ public sealed class FilmSearchPusher(
             // full: clear the watermark first, then let the failure surface.
             logger.LogError(ex,
                 "Film search push: a full run failed part-way; clearing the watermark so the next run is full again.");
-            await ClearWatermark(saved);
+            try
+            {
+                await ClearWatermark(saved);
+            }
+            catch (Exception clearEx)
+            {
+                // Keep the push failure as the one that surfaces; the store failure is logged so the operator knows
+                // the watermark is stale.
+                logger.LogError(clearEx,
+                    "Film search push: the watermark could not be cleared after the failed full run; run with --full next.");
+            }
+
             throw;
         }
 

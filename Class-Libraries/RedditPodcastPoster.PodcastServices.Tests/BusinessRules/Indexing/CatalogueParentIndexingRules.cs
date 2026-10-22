@@ -224,6 +224,31 @@ public class CatalogueParentIndexingRules
             Times.Never);
     }
 
+    [Theory(DisplayName =
+        "Catalogue parent indexing: when a podcast with the news organisation's id still exists but the podcast pass " +
+        "would not index it (removed, or not auto-indexed), then the organisation is indexed, because skipping it would " +
+        "leave nothing indexing the outlet.")]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task same_id_podcast_not_indexed_by_podcast_pass_does_not_defer_the_parent(bool removed, bool indexAll)
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(source);
+        source.Removed = removed;
+        source.IndexAllEpisodes = indexAll;
+        source.EpisodeIncludeTitleRegex = string.Empty;
+        _podcasts.Add(source);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
+    }
+
     [Fact(DisplayName =
         "Catalogue parent indexing: when the podcast a TV show was migrated from still exists under the same id, then " +
         "the show is skipped and the next parent is still indexed, because only the half-moved parent defers to its podcast.")]
