@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -111,6 +112,8 @@ public class PodcastPassApiCacheComponentRules
             podcastUpdater.Object,
             repository,
             passCache,
+            Options.Create(new PodcastUpdateBudgetOptions()),
+            TimeProvider.System,
             NullLogger<PodcastsUpdater>.Instance);
 
         await updater.UpdatePodcasts([podcast1.Id, podcast2.Id], indexingContext);

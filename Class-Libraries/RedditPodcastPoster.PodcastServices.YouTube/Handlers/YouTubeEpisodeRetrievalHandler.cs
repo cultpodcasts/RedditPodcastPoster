@@ -32,11 +32,14 @@ public class YouTubeEpisodeRetrievalHandler(
         {
             var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
             var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
+            // Skip-expensive passes read only the playlist head unless it is newest-first (then they page while
+            // items are inside the window); the full walk of an unordered playlist waits for the expensive pass.
+            var firstPageOnlyUnlessNewestFirst = !arbitraryOrder && indexingContext.SkipExpensiveYouTubeQueries;
             var discoveryPath = arbitraryOrder
                 ? "playlist-arbitrary-full-walk"
-                : runExpensivePagination
-                    ? "playlist-paginated"
-                    : "playlist-single-page";
+                : firstPageOnlyUnlessNewestFirst
+                    ? "playlist-head-only"
+                    : "playlist-paginated";
             if (!arbitraryOrder && podcast.HasExpensiveYouTubePlaylistQuery() &&
                 indexingContext.SkipExpensiveYouTubeQueries)
             {
@@ -51,7 +54,9 @@ public class YouTubeEpisodeRetrievalHandler(
                 podcast,
                 playlistId,
                 new YouTubeChannelId(podcast.YouTubeChannelId),
-                indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder);
+                indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
+                KnownYouTubeIds(episodes, indexingContext),
+                firstPageOnlyUnlessNewestFirst);
             if (getPlaylistEpisodesResult.Results != null)
             {
                 newEpisodes = getPlaylistEpisodesResult.Results;
@@ -75,19 +80,8 @@ public class YouTubeEpisodeRetrievalHandler(
         }
         else
         {
-            IEnumerable<string> knownIds;
-            if (indexingContext.ReleasedSince.HasValue)
-            {
-                knownIds = episodes.Where(x => x.ReleaseUtc >= indexingContext.ReleasedSince)
-                    .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty);
-            }
-            else
-            {
-                knownIds = episodes.Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty);
-            }
-
             var foundEpisodes = await youTubeEpisodeProvider.GetEpisodes(
-                podcast, indexingContext, knownIds);
+                podcast, indexingContext, KnownYouTubeIds(episodes, indexingContext));
             if (foundEpisodes != null)
             {
                 newEpisodes = foundEpisodes;
@@ -99,6 +93,19 @@ public class YouTubeEpisodeRetrievalHandler(
         handled = true;
 
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+    }
+
+    /// <summary>
+    /// YouTube ids of stored episodes inside the window; discovery skips them on both the channel and playlist paths.
+    /// </summary>
+    private static IReadOnlyCollection<string> KnownYouTubeIds(
+        IEnumerable<EpisodeModel> episodes,
+        IndexingContext indexingContext)
+    {
+        var scoped = indexingContext.ReleasedSince.HasValue
+            ? episodes.Where(x => x.ReleaseUtc >= indexingContext.ReleasedSince)
+            : episodes;
+        return scoped.Select(x => EpisodeServicePresence.YouTubeEpisodeId(x) ?? string.Empty).ToArray();
     }
 
     private void LogDiscoveryPath(Podcast podcast, string discoveryPath, IndexingContext indexingContext, int episodesFound)

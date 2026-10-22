@@ -179,8 +179,9 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<PlaylistOrder?>()))
-            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((_, ctx, _, _, _) =>
+                It.IsAny<PlaylistOrder?>(),
+                It.IsAny<bool>()))
+            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?, bool>((_, ctx, _, _, _, _) =>
                 capturedContext = ctx)
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
             [
@@ -247,8 +248,9 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<PlaylistOrder?>()))
-            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((id, _, _, _, _) =>
+                It.IsAny<PlaylistOrder?>(),
+                It.IsAny<bool>()))
+            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?, bool>((id, _, _, _, _, _) =>
                 capturedPlaylist = id)
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
             [

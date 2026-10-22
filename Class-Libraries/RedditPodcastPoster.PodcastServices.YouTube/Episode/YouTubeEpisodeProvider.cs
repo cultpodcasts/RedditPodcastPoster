@@ -164,7 +164,8 @@ public class YouTubeEpisodeProvider(
                 continue;
             }
 
-            episodes.Add(await GetEpisodeAsync(playlistItemVideo.PlaylistItem.Snippet, playlistItemVideo.VideoDetails));
+            episodes.Add(await BuildEpisodeAsync(
+                playlistItemVideo.PlaylistItem.Snippet, playlistItemVideo.VideoDetails, indexingContext));
         }
 
         return episodes;
@@ -180,10 +181,20 @@ public class YouTubeEpisodeProvider(
         return episodeFromCandidateFactory.Create(candidate, isExplicit);
     }
 
-    public async Task<EpisodeModel> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
+    public Task<EpisodeModel> GetEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails)
     {
-        var image = await youTubeThumbnailResolver.GetImageUrlAsync(videoDetails);
+        return BuildEpisodeAsync(playlistItemSnippet, videoDetails, null);
+    }
+
+    private async Task<EpisodeModel> BuildEpisodeAsync(PlaylistItemSnippet playlistItemSnippet,
+        Google.Apis.YouTube.v3.Data.Video videoDetails,
+        IndexingContext? indexingContext)
+    {
+        indexingContext?.ReportStage("youtube-thumbnail", $"video-id={videoDetails.Id}");
+        var image = await youTubeThumbnailResolver.GetImageUrlAsync(
+            videoDetails,
+            indexingContext?.CancellationToken ?? CancellationToken.None);
         var candidate = youTubeEpisodeAdapter.Adapt(
             playlistItemSnippet.ToCatalogueInput(videoDetails, image));
         var isExplicit = videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted";
@@ -192,11 +203,13 @@ public class YouTubeEpisodeProvider(
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(Podcast podcast, YouTubePlaylistId youTubePlaylistId,
         YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null)
+        PlaylistOrder? playlistOrder = null, IEnumerable<string>? knownIds = null,
+        bool firstPageOnlyUnlessNewestFirst = false)
     {
         var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
             youTubePlaylistId, indexingContext,
-            expensivePlaylist: expensivePlaylist, playlistOrder: playlistOrder);
+            expensivePlaylist: expensivePlaylist, playlistOrder: playlistOrder,
+            firstPageOnlyUnlessNewestFirst: firstPageOnlyUnlessNewestFirst);
         var isExpensiveQuery = playlistQueryResponse.IsExpensiveQuery;
         if (playlistQueryResponse.Result == null || !playlistQueryResponse.Result.Any())
         {
@@ -213,6 +226,22 @@ public class YouTubeEpisodeProvider(
         {
             results = results.Where(x =>
                 x.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
+        }
+
+        // Same as the channel path: a video already stored for this podcast is not re-fetched (videos.list),
+        // re-probed (thumbnails) or re-built; discovery only needs the new ones.
+        if (knownIds != null)
+        {
+            var known = knownIds.Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.Ordinal);
+            if (known.Count > 0)
+            {
+                results = results.Where(x => !known.Contains(x.Snippet.ResourceId.VideoId)).ToList();
+            }
+        }
+
+        if (!results.Any())
+        {
+            return new GetPlaylistEpisodesResponse([], isExpensiveQuery);
         }
 
         var videoDetails =
@@ -245,14 +274,16 @@ public class YouTubeEpisodeProvider(
                         continue;
                     }
 
-                    reducedResults.Add(await GetEpisodeAsync(
+                    reducedResults.Add(await BuildEpisodeAsync(
                         playlistItemVideo.PlaylistItem.Snippet,
-                        playlistItemVideo.VideoDetails));
+                        playlistItemVideo.VideoDetails,
+                        indexingContext));
                 }
 
                 return new GetPlaylistEpisodesResponse(reducedResults, isExpensiveQuery);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException ||
+                                      !indexingContext.CancellationToken.IsCancellationRequested)
             {
                 logger.LogError(e,
                     "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}'.",

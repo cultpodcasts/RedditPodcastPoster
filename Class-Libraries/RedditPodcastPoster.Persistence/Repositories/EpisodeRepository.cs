@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Net;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -118,7 +119,19 @@ public class EpisodeRepository(
         }
     }
 
-    public async IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId, Expression<Func<Episode, bool>> selector)
+    /// <remarks>
+    /// The interface has no token parameter; a consumer's token (<c>ToListAsync(ct)</c> / <c>WithCancellation(ct)</c>)
+    /// reaches each Cosmos page read through <see cref="EnumeratorCancellationAttribute"/>.
+    /// </remarks>
+    public IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId, Expression<Func<Episode, bool>> selector)
+    {
+        return GetByPodcastIdCore(podcastId, selector);
+    }
+
+    private async IAsyncEnumerable<Episode> GetByPodcastIdCore(
+        Guid podcastId,
+        Expression<Func<Episode, bool>> selector,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var query = container
             .GetItemLinqQueryable<Episode>(requestOptions: new QueryRequestOptions
@@ -134,7 +147,7 @@ public class EpisodeRepository(
             FeedResponse<Episode> response;
             try
             {
-                response = await items.ReadNextAsync();
+                response = await items.ReadNextAsync(cancellationToken);
             }
             catch (Exception ex)
             {

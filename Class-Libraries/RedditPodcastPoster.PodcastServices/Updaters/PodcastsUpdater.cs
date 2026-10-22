@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -15,9 +16,16 @@ public class PodcastsUpdater(
     IPodcastUpdater podcastUpdater,
     IPodcastRepository podcastRepository,
     IPodcastPassApiCache passApiCache,
+    IOptions<PodcastUpdateBudgetOptions> budgetOptions,
+    TimeProvider timeProvider,
     ILogger<PodcastsUpdater> logger)
     : IPodcastsUpdater
 {
+    /// <summary>Stable log prefix for a podcast cut off by its time budget (App Insights keys off it).</summary>
+    public const string BudgetExceededMessagePrefix = "IndexerPodcastBudgetExceeded";
+
+    private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
+
     public async Task<bool> UpdatePodcasts(Guid[] podcastIds, IndexingContext indexingContext)
     {
         var success = true;
@@ -53,10 +61,25 @@ public class PodcastsUpdater(
             {
                 // performAutoIndex requires podcast != null; capture for catch (flow analysis does not carry in).
                 var podcastToUpdate = podcast!;
+                var stageLog = new PodcastIndexingStageLog(
+                    podcastToUpdate.Id, podcastToUpdate.Name, logger, timeProvider);
+                var budget = _budget.PerPodcastBudget;
+                using var budgetCts = budget.HasValue
+                    ? new CancellationTokenSource(budget.Value, timeProvider)
+                    : new CancellationTokenSource();
                 try
                 {
-                    var podcastIndexingContext = indexingContext.ForPodcastUpdate();
-                    var result = await podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
+                    stageLog.Stage("start");
+                    var podcastIndexingContext = indexingContext.ForPodcastUpdate() with
+                    {
+                        CancellationToken = budgetCts.Token,
+                        StageReporter = stageLog
+                    };
+                    var updateTask = podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
+                    var result = budget.HasValue
+                        ? await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider)
+                        : await updateTask;
+                    stageLog.Stage("complete");
                     batchBypassState = indexingContext.AbsorbPodcastPass(
                         podcastIndexingContext,
                         batchBypassState);
@@ -95,6 +118,18 @@ public class PodcastsUpdater(
                     }
 
                     success &= result.Success;
+                }
+                catch (Exception ex) when (budgetCts.IsCancellationRequested &&
+                                           ex is OperationCanceledException or TimeoutException)
+                {
+                    // TimeoutException: the update ignored its cancelled token and was abandoned after the grace period.
+                    logger.LogError(
+                        BudgetExceededMessagePrefix +
+                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' stage='{Stage}' detail='{Detail}' elapsed-ms='{ElapsedMs}' budget-seconds='{BudgetSeconds}' abandoned='{Abandoned}'. Continuing with the next podcast.",
+                        podcastToUpdate.Id, podcastToUpdate.Name, stageLog.CurrentStage,
+                        stageLog.CurrentStageDetail ?? string.Empty, stageLog.ElapsedMilliseconds,
+                        _budget.PerPodcastBudgetSeconds, ex is TimeoutException);
+                    success = false;
                 }
                 catch (Exception ex)
                 {

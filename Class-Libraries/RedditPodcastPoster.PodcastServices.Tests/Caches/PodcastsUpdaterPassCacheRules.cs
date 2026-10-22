@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -99,5 +100,7 @@ public class PodcastsUpdaterPassCacheRules
             podcastUpdater,
             repository,
             passApiCache,
+            Options.Create(new PodcastUpdateBudgetOptions()),
+            TimeProvider.System,
             NullLogger<PodcastsUpdater>.Instance);
 }

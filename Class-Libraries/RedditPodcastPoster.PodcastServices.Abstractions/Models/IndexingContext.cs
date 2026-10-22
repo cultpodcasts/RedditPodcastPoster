@@ -24,6 +24,21 @@ public record IndexingContext(
     /// </summary>
     public EpisodeLookupFlow LookupFlow { get; set; } = EpisodeLookupFlow.Submit;
 
+    /// <summary>
+    /// Cancels the current podcast's update. The indexer sets this per podcast from its time budget
+    /// (<c>PodcastsUpdater</c>); outside that loop it is <see cref="CancellationToken.None"/>.
+    /// </summary>
+    public CancellationToken CancellationToken { get; init; }
+
+    /// <summary>Per-podcast stage reporter set by the indexer loop; <c>null</c> elsewhere.</summary>
+    public IPodcastIndexingStageReporter? StageReporter { get; init; }
+
+    /// <summary>Reports a stage on <see cref="StageReporter"/> when one is attached.</summary>
+    public void ReportStage(string stage, string? detail = null)
+    {
+        StageReporter?.Stage(stage, detail);
+    }
+
     public override string ToString()
     {
         var releasedSince = ReleasedSince.HasValue

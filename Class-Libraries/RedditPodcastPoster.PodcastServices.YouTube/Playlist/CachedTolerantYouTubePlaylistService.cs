@@ -21,9 +21,13 @@ public class CachedTolerantYouTubePlaylistService(
         IndexingContext indexingContext,
         bool withContentDetails = false,
         bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null)
+        PlaylistOrder? playlistOrder = null,
+        bool firstPageOnlyUnlessNewestFirst = false)
     {
-        if (_cache.TryGetValue(playlistId.PlaylistId + withContentDetails, out var playlistItems))
+        // A first-page-only read is partial: keep it apart from full reads so a later caller in the same pass
+        // (e.g. enrichment) never mistakes it for the whole playlist.
+        var cacheKey = $"{playlistId.PlaylistId}|{withContentDetails}|{firstPageOnlyUnlessNewestFirst}";
+        if (_cache.TryGetValue(cacheKey, out var playlistItems))
         {
             return new GetPlaylistVideoSnippetsResponse(playlistItems);
         }
@@ -37,11 +41,12 @@ public class CachedTolerantYouTubePlaylistService(
         }
 
         var result = await tolerantYouTubePlaylistService.GetPlaylistVideoSnippets(
-            playlistId, indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
+            playlistId, indexingContext, withContentDetails, expensivePlaylist, playlistOrder,
+            firstPageOnlyUnlessNewestFirst);
 
         if (result?.Result != null)
         {
-            _cache[playlistId.PlaylistId + withContentDetails] = result.Result;
+            _cache[cacheKey] = result.Result;
         }
 
         return result ?? new GetPlaylistVideoSnippetsResponse(null);

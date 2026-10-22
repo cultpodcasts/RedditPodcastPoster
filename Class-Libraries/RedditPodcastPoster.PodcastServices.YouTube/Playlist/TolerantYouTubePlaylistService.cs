@@ -18,14 +18,15 @@ public class TolerantYouTubePlaylistService(
 {
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
         YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false,
-        bool expensivePlaylist = false, PlaylistOrder? playlistOrder = null)
+        bool expensivePlaylist = false, PlaylistOrder? playlistOrder = null,
+        bool firstPageOnlyUnlessNewestFirst = false)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {
             // YouTube is bypassed this pass: the inner service makes no API call and returns Skipped, so no quota
             // call is recorded and key rotation does not apply.
             return await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
-                indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
+                indexingContext, withContentDetails, expensivePlaylist, playlistOrder, firstPageOnlyUnlessNewestFirst);
         }
         var result = new GetPlaylistVideoSnippetsResponse(null);
         var success = false;
@@ -36,7 +37,7 @@ public class TolerantYouTubePlaylistService(
             {
                 await quotaUsageTracker.RecordCallAsync(youTubeService.CurrentApplication, youTubeService.Usage);
                 result = await youTubePlaylistService.GetPlaylistVideoSnippets(youTubeService, playlistId,
-                    indexingContext, withContentDetails, expensivePlaylist, playlistOrder);
+                    indexingContext, withContentDetails, expensivePlaylist, playlistOrder, firstPageOnlyUnlessNewestFirst);
                 success = true;
             }
             catch (YouTubeQuotaException)

@@ -73,13 +73,17 @@ public class PodcastUpdater(
 
         logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", 
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
+        var cancellationToken = indexingContext.CancellationToken;
         if (!enrichOnly)
         {
+            indexingContext.ReportStage("cosmos-read-episodes");
             var releaseScopedEpisodes = await episodeRepository
                 .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
+            indexingContext.ReportStage("discover-episodes", $"stored-in-window={releaseScopedEpisodes.Count}");
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
+            cancellationToken.ThrowIfCancellationRequested();
             // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
             var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
             var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
@@ -106,7 +110,8 @@ public class PodcastUpdater(
                 }
             }
 
-            episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes);
+            indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
+            episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
 
             // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
@@ -118,9 +123,10 @@ public class PodcastUpdater(
         }
         else
         {
+            indexingContext.ReportStage("cosmos-read-episodes");
             episodes = await episodeRepository
                 .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             episodes = episodes
                 .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
@@ -142,21 +148,27 @@ public class PodcastUpdater(
             }
         }
 
+        indexingContext.ReportStage("cosmos-read-platform-identified");
         var episodesWithAssignedPlatformIds = await episodeRepository
             .GetByPodcastId(
                 podcast.Id,
                 x => (x.Ids != null && x.Ids.Apple != null && x.Ids.Apple > 0) ||
                      (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         var enrichmentEpisodeContext =
             BuildEnrichmentEpisodeContext(episodes, episodesWithAssignedPlatformIds);
 
+        indexingContext.ReportStage("enrich", $"episodes={episodes.Count}");
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(
             podcast, enrichmentEpisodeContext, episodes, indexingContext);
+        // Past the budget, stop before any write rather than half-saving; the next pass repeats the work.
+        cancellationToken.ThrowIfCancellationRequested();
         var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
 
+        indexingContext.ReportStage("save-episodes",
+            $"enriched={enrichmentResult.UpdatedEpisodes.Count} filtered={filterResult.FilteredEpisodes.Count} merged={mergeResult.MergedEpisodes.Count} added={mergeResult.AddedEpisodes.Count}");
         // Persist enriched episodes
         if (enrichmentResult.UpdatedEpisodes.Any())
         {
@@ -324,6 +336,7 @@ public class PodcastUpdater(
                 }
             }
 
+            indexingContext.ReportStage("save-podcast");
             await podcastRepository.Save(podcast);
         }
 
@@ -375,7 +388,8 @@ public class PodcastUpdater(
 
     private async Task<IList<Episode>> IncludePlatformIdentifiedEpisodesForMerge(
         Guid podcastId,
-        IList<Episode> releaseScopedEpisodes)
+        IList<Episode> releaseScopedEpisodes,
+        CancellationToken cancellationToken)
     {
         var platformIdentifiedEpisodes = await episodeRepository
             .GetByPodcastId(
@@ -384,7 +398,7 @@ public class PodcastUpdater(
                      (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty) ||
                      (x.Ids != null && x.Ids.YouTube != null && x.Ids.YouTube != string.Empty) ||
                      (x.Services != null && x.Services[ServiceKeys.Spotify].Url != null))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (platformIdentifiedEpisodes.Count == 0)
         {

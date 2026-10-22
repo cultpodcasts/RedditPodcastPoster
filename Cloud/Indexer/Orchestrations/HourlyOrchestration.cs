@@ -50,9 +50,28 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         {
             CatalogueParentIndexIds = indexIds.CatalogueParentIdBatches
         };
+        var failedPasses = new List<int>();
         for (var pass = firstPass; pass <= lastPass; pass++)
         {
-            indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));
+            try
+            {
+                indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));
+            }
+            catch (TaskFailedException ex)
+            {
+                // An Indexer activity that fails (e.g. killed at the function timeout) must not cost the hour its
+                // publish: log it, hold back posts that need fresh index data (as HalfHourlyOrchestration does) and
+                // carry on. The orchestration still ends Failed below so the health check reports the hour.
+                failedPasses.Add(pass);
+                logger.LogError(
+                    IndexerPassFailedMessagePrefix +
+                    " pass='{Pass}' hour-utc='{HourUtc}' operation-id='{OperationId}' error-type='{ErrorType}' error='{ErrorMessage}'. Continuing to publish.",
+                    pass, hourUtc, indexerContext.IndexerPassOperationIds?[pass - 1],
+                    ex.FailureDetails?.ErrorType, ex.FailureDetails?.ErrorMessage);
+                indexerContext = indexerContext with { Success = false };
+                continue;
+            }
+
             var batchPodcastCount = indexerContext.IndexIds?[pass - 1]?.Length ?? 0;
             var operationId = indexerContext.IndexerPassOperationIds?[pass - 1];
             logger.LogWarning(
@@ -69,6 +88,11 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
             }
 
             logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(Indexer), pass);
+        }
+
+        if (failedPasses.Count > 0)
+        {
+            indexerContext = WithPostingHeldBack(indexerContext);
         }
 
         indexerContext = await context.CallLoadRecentCandidatesAsync(indexerContext);
@@ -94,6 +118,36 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
         logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
 
+        if (failedPasses.Count > 0)
+        {
+            throw new IndexerPassesFailedException(failedPasses);
+        }
+
         return indexerContext;
     }
+
+    /// <summary>Stable log prefix for an Indexer activity failure the orchestration continued past.</summary>
+    public const string IndexerPassFailedMessagePrefix = "HourlyOrchestration indexer-pass-failed";
+
+    /// <summary>
+    /// After a failed pass the hour's YouTube/Spotify state is unknown: flag both as errored so Tweet, Bluesky and the
+    /// thumbnail re-check only act on items that do not need this hour's index (the HalfHourlyOrchestration hold-back).
+    /// </summary>
+    public static IndexerContext WithPostingHeldBack(IndexerContext indexerContext) =>
+        indexerContext with
+        {
+            Success = false,
+            YouTubeError = true,
+            SpotifyError = true
+        };
+}
+
+/// <summary>
+/// Thrown at the end of an hourly run whose Indexer pass(es) failed after the rest of the pipeline ran, so the
+/// instance is recorded as Failed (and reported by <see cref="HourlyOrchestrationHealthChecker"/>).
+/// </summary>
+public class IndexerPassesFailedException(IReadOnlyList<int> failedPasses)
+    : Exception($"Indexer pass(es) {string.Join(", ", failedPasses)} failed; the rest of the hourly pipeline ran.")
+{
+    public IReadOnlyList<int> FailedPasses { get; } = failedPasses;
 }

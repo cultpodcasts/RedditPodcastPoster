@@ -28,5 +28,7 @@ public interface IYouTubeEpisodeProvider
         YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext, 
         bool expensivePlaylist = false,
-        PlaylistOrder? playlistOrder = null);
+        PlaylistOrder? playlistOrder = null,
+        IEnumerable<string>? knownIds = null,
+        bool firstPageOnlyUnlessNewestFirst = false);
 }
