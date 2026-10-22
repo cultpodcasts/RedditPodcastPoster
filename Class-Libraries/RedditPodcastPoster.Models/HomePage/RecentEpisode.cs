@@ -54,4 +54,15 @@ public class RecentEpisode
     /// </summary>
     [JsonPropertyName("language")]
     public string? Language { get; set; }
+
+    /// <summary>
+    /// Playable kind: <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c> (same names as the API's
+    /// <c>contentKind</c>). Omitted for a podcast episode, so podcast rows are byte-for-byte unchanged and an
+    /// absent value means <c>Episode</c>. For the other kinds <see cref="PodcastName"/> carries the news
+    /// organisation or TV show name (a film has no parent: its own name), and <see cref="EpisodeId"/> /
+    /// <see cref="Id"/> is the playable's GUID, from which the website builds its short-id page link.
+    /// </summary>
+    [JsonPropertyName("contentKind")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ContentKind { get; set; }
 }
