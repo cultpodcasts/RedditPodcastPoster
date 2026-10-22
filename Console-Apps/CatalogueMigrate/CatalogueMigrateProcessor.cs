@@ -115,8 +115,23 @@ public class CatalogueMigrateProcessor(
         {
             // Buffer the podcast list first: apply deletes source rows while the run walks the corpus.
             var podcasts = await EnumeratePodcasts(request.PodcastId).ToListAsync(cancellationToken);
-            foreach (var podcast in podcasts)
+            foreach (var listed in podcasts)
             {
+                // Apply plans from a fresh read, not the list buffered at the start: a long run can cross an Hourly pass
+                // (or a curator edit), and the stale copy would be the destination's settings, the evidence snapshot a
+                // rollback restores, and the baseline the pre-delete re-check compares against. A dry run writes
+                // nothing, so it keeps the buffered copy and costs no extra reads.
+                var podcast = apply && request.PodcastId is null
+                    ? await podcastRepository.GetPodcast(listed.Id)
+                    : listed;
+                if (podcast is null)
+                {
+                    logger.LogWarning(
+                        "Catalogue migrate podcast {PodcastId} no longer exists (deleted or moved since the run started). Skipped.",
+                        listed.Id);
+                    continue;
+                }
+
                 var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync(cancellationToken);
                 var unit = CatalogueMigratePlanner.PlanUnit(podcast, episodes, request.Kind, request.PodcastId is not null);
                 if (unit is null)

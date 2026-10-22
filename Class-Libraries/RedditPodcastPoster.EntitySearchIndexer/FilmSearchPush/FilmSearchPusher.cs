@@ -112,14 +112,38 @@ public sealed class FilmSearchPusher(
                 toDelete.Count, failed, false);
         }
 
-        foreach (var batch in toPush.Chunk(request.BatchSize))
+        try
         {
-            failed += (await searchIndex.MergeOrUpload(batch, cancellationToken)).Count;
-        }
+            foreach (var batch in toPush.Chunk(request.BatchSize))
+            {
+                failed += (await searchIndex.MergeOrUpload(batch, cancellationToken)).Count;
+            }
 
-        foreach (var batch in toDelete.Chunk(request.BatchSize))
+            foreach (var batch in toDelete.Chunk(request.BatchSize))
+            {
+                failed += (await searchIndex.Delete(batch, cancellationToken)).Count;
+            }
+        }
+        catch (Exception ex) when (full && saved?.HighWaterMark is not null)
         {
-            failed += (await searchIndex.Delete(batch, cancellationToken)).Count;
+            // A whole request failing (quota, network, cancellation) throws instead of returning failed keys. Earlier
+            // batches may already be in the index, so the empty-index check would no longer promote the next run to
+            // full: clear the watermark first, then let the failure surface.
+            logger.LogError(ex,
+                "Film search push: a full run failed part-way; clearing the watermark so the next run is full again.");
+            try
+            {
+                await ClearWatermark(saved);
+            }
+            catch (Exception clearEx)
+            {
+                // Keep the push failure as the one that surfaces; the store failure is logged so the operator knows
+                // the watermark is stale.
+                logger.LogError(clearEx,
+                    "Film search push: the watermark could not be cleared after the failed full run; run with --full next.");
+            }
+
+            throw;
         }
 
         if (failed > 0)
@@ -129,9 +153,7 @@ public sealed class FilmSearchPusher(
                 // A partly-failed full run (for example straight after a teardown) leaves some film documents in the
                 // index, so the empty-index check would no longer catch it. Clearing the watermark makes the next
                 // run full again instead of incremental from a watermark older films sit below.
-                saved.HighWaterMark = null;
-                saved.UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime;
-                await watermarkStore.SaveAsync(saved, cancellationToken);
+                await ClearWatermark(saved);
                 logger.LogError(
                     "Film search push: {FailedCount} document(s) failed in a full run; watermark cleared so the next run is full again.",
                     failed);
@@ -157,6 +179,14 @@ public sealed class FilmSearchPusher(
             toPush.Count, toDelete.Count, previous?.ToString() ?? "none", next?.ToString() ?? "none");
         return new FilmSearchPushResult(true, full, false, previous, next, films.Count, toPush.Count, toDelete.Count,
             0, true);
+    }
+
+    /// <summary>Not cancellable: it runs on the failure path, where the run's token may already be cancelled.</summary>
+    private async Task ClearWatermark(FilmSearchPushWatermark saved)
+    {
+        saved.HighWaterMark = null;
+        saved.UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime;
+        await watermarkStore.SaveAsync(saved, CancellationToken.None);
     }
 
     private async Task<bool> DecideFull(FilmSearchPushRequest request, long? previous, CancellationToken cancellationToken)

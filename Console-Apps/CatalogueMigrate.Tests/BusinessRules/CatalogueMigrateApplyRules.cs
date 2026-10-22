@@ -512,6 +512,46 @@ public class CatalogueMigrateApplyRules
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
 
+    [Fact(DisplayName =
+        "Catalogue migrate: when the hourly indexer saves a later podcast while an earlier one in the same run is being " +
+        "moved, then the later podcast is planned from a fresh read, moves cleanly, and its news organisation carries the " +
+        "settings the indexer saved, because planning from the list read at the start would copy stale settings and make " +
+        "the pre-delete re-check stop the run after the destination was already written.")]
+    public async Task later_podcast_is_planned_from_a_fresh_read()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var first = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        var second = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        var indexedLater = false;
+        _destination.AfterSearchUpload = async () =>
+        {
+            if (indexedLater)
+            {
+                return;
+            }
+
+            indexedLater = true;
+            var later = _destination.NewsOrganisations.ContainsKey(first.Id) ? second : first;
+            var saved = (await _podcasts.GetPodcast(later.Id))!;
+            saved.LastIndexed = DomainTestFixture.UtcToday;
+            saved.YouTubePlaylistQueryIsExpensive = true;
+            await _podcasts.Save(saved);
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.AppliedCount.Should().Be(2);
+        (await _podcasts.GetPodcast(first.Id)).Should().BeNull();
+        (await _podcasts.GetPodcast(second.Id)).Should().BeNull();
+        _destination.NewsOrganisations.Values.Should()
+            .ContainSingle(organisation => organisation.Indexing!.YouTubePlaylistQueryIsExpensive == true);
+    }
+
     [Theory(DisplayName =
         "Catalogue migrate indexer window: minutes :15 to :54 are clear and :00 to :14 and :55 to :59 may overlap the " +
         "hourly indexer, because Hourly starts at :03 and HourlyCatchUp at :08.")]

@@ -103,6 +103,9 @@ public class CatalogueParentIndexingRules
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
             .Returns((Expression<Func<Podcast, bool>> predicate) =>
                 _podcasts.Where(predicate.Compile()).ToAsyncEnumerable());
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(x => x.GetPodcast(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => _podcasts.SingleOrDefault(x => x.Id == id));
         _mocker.GetMock<IEpisodeRepository>()
             .Setup(x => x.GetByPodcastId(It.IsAny<Guid>(), It.IsAny<Expression<Func<Episode, bool>>>()))
             .Returns((Guid id, Expression<Func<Episode, bool>> _) =>
@@ -195,6 +198,76 @@ public class CatalogueParentIndexingRules
         saved.NewsOrganisationName.Should().Be(organisation.Name);
         _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(organisation.Id);
         _savedTvEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when the podcast a news organisation was migrated from still exists under the same " +
+        "id (a move that stopped before deleting the source), then the organisation is skipped with a warning and " +
+        "nothing is saved for it, because the podcast is still indexed and indexing both would save each video twice.")]
+    public async Task half_moved_news_organisation_is_not_indexed()
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(source);
+        _podcasts.Add(source);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue("a half-finished move is not an indexing failure");
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Catalogue parent indexing: when a podcast with the news organisation's id still exists but the podcast pass " +
+        "would not index it (removed, or not auto-indexed), then the organisation is indexed, because skipping it would " +
+        "leave nothing indexing the outlet.")]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task same_id_podcast_not_indexed_by_podcast_pass_does_not_defer_the_parent(bool removed, bool indexAll)
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(source);
+        source.Removed = removed;
+        source.IndexAllEpisodes = indexAll;
+        source.EpisodeIncludeTitleRegex = string.Empty;
+        _podcasts.Add(source);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when the podcast a TV show was migrated from still exists under the same id, then " +
+        "the show is skipped and the next parent is still indexed, because only the half-moved parent defers to its podcast.")]
+    public async Task half_moved_tv_show_is_skipped_and_next_parent_indexed()
+    {
+        // Arrange
+        var halfMovedSource = AutoIndexedYouTubePodcast();
+        var halfMoved = SeedTvShow(halfMovedSource);
+        _podcasts.Add(halfMovedSource);
+        var moved = SeedTvShow(AutoIndexedYouTubePodcast());
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var success = await Sut.UpdateParents([halfMoved.Id, moved.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedTvEpisodes.Should().ContainSingle().Which.TvShowId.Should().Be(moved.Id);
+        _showPatches.Select(patch => patch.Id).Should().Equal(moved.Id);
     }
 
     [Fact(DisplayName =
