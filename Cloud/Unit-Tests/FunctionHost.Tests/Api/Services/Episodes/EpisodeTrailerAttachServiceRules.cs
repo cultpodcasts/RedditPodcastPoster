@@ -384,7 +384,7 @@ public class EpisodeTrailerAttachServiceRules
     }
 
     [Fact(DisplayName =
-        "When a stale film write drops the new trailer before the episode is deleted, the attach fails and keeps the episode, and a re-send finishes it.")]
+        "When a stale film write drops the new trailer before the episode is deleted, the attach fails as an indexing failure and keeps the episode, and a re-send finishes it.")]
     public async Task dropped_trailer_keeps_episode_and_resend_finishes()
     {
         // Arrange
@@ -404,6 +404,7 @@ public class EpisodeTrailerAttachServiceRules
 
         // Assert
         first.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        first.FailureIndexing.Should().BeTrue();
         episodeAfterFirst.Should().NotBeNull();
         resent.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
         Stored(film.Id)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);

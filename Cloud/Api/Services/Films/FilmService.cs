@@ -84,7 +84,10 @@ public class FilmService(
                 BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target),
                 TweetDeleted = await socialRetraction.RemoveTweet(postStatus, film, target)
             };
-            await SaveKeepingAttachedTrailers(film, readTrailerIds);
+            if (!await SaveKeepingAttachedTrailers(film, readTrailerIds))
+            {
+                return new FilmUpdateResult(FilmUpdateStatus.NotFound);
+            }
 
             // As the episode API: removed=true always deletes the search document and the short link (the film
             // indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
@@ -110,18 +113,20 @@ public class FilmService(
     /// Saves the edited film without dropping a trailer that "Attach as trailer" added after this request read it: that
     /// trailer's episode row is already deleted, so overwriting it would lose it. The save is ETag-guarded against the
     /// latest film; any trailer the latest film has and this request never saw is carried over (this edit cannot have
-    /// meant to remove it). Other fields keep last-writer-wins, as before. With no stored film to compare (deleted
-    /// concurrently), falls back to the plain upsert this method replaced.
+    /// meant to remove it). Other fields keep last-writer-wins, as before. False when the film was deleted after this
+    /// request read it: nothing is saved, so the edit does not re-create it.
     /// </summary>
-    private async Task SaveKeepingAttachedTrailers(Film film, IReadOnlySet<Guid> readTrailerIds)
+    private async Task<bool> SaveKeepingAttachedTrailers(Film film, IReadOnlySet<Guid> readTrailerIds)
     {
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
         {
             var latest = await filmRepository.GetFilmForUpdate(film.Id);
             if (latest is null)
             {
-                await filmRepository.Save(film);
-                return;
+                logger.LogWarning(
+                    "{method}: Film '{filmId}' was deleted during the edit; not saved.",
+                    nameof(SaveKeepingAttachedTrailers), film.Id);
+                return false;
             }
 
             var attached = latest.Film.Trailers?
@@ -138,7 +143,7 @@ public class FilmService(
 
             if (await filmRepository.TryReplace(film, latest.ETag))
             {
-                return;
+                return true;
             }
         }
 

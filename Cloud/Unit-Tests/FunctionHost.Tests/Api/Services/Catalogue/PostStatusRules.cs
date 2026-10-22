@@ -8,6 +8,7 @@ using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Films;
+using FunctionHost.Tests.Api.Services.Films;
 using Api.Services.News;
 using Api.Services.TvShows;
 using RedditPodcastPoster.Bluesky.Managers;
@@ -42,6 +43,7 @@ public class PostStatusRules
 
     public PostStatusRules()
     {
+        _mocker.GetMock<IFilmRepository>().ReplaceThroughSave();
         _mocker.Use(NullLogger<NewsReportService>.Instance);
         _mocker.Use(NullLogger<TvShowEpisodeService>.Instance);
         _mocker.Use(NullLogger<FilmService>.Instance);

@@ -51,12 +51,14 @@ before the episode is deleted, so nothing is lost; re-send after adding the fiel
    the film since it was read, re-read and add again (3 attempts); otherwise 500, episode kept.
 2. Push the film search document. Failure: 500 with `failureIndexing`, episode kept.
 3. Delete the episode search document. Failure: 500 with `failureIndexing`, episode kept.
-4. Re-read the film. If a concurrent write dropped the trailer, 500 with the episode kept (re-send re-adds it).
+4. Re-read the film. If a concurrent write dropped the trailer, 500 with `failureIndexing` and the episode kept
+   (search already changed; re-send re-adds the trailer and puts search back in step).
 5. Delete the episode row. The source podcast is never changed.
 6. Point the episode's short link at `/film/{name}/{shortId}` (best effort).
 
 The film PATCH saves ETag-guarded too, and carries over any trailer attached after it read the film, so an edit
-never drops a trailer whose episode row is already gone.
+never drops a trailer whose episode row is already gone. A film deleted after the PATCH read it is a 404 and is
+not re-created.
 
 Re-sending resumes an interrupted attach without adding the trailer twice; after a completed attach a re-send is
 accepted again. A removed episode, a removed film, an episode with no link, or the film's own id is a 400.

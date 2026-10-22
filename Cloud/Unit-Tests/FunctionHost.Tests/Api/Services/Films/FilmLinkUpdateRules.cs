@@ -24,6 +24,7 @@ public class FilmLinkUpdateRules
 
     public FilmLinkUpdateRules()
     {
+        _mocker.GetMock<IFilmRepository>().ReplaceThroughSave();
         _mocker.Use(NullLogger<FilmService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IFilmRepository>()
@@ -253,5 +254,24 @@ public class FilmLinkUpdateRules
         saved.Trailers![0].Title.Should().Be(renamed);
         _saved.Should().BeNull();
         _uploads.Should().ContainSingle().Which.Trailers.Should().HaveCount(2);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film on a film deleted after the request read it is not found and saves nothing, so an edit never re-creates a deleted film.")]
+    public async Task patch_of_film_deleted_during_the_edit_is_not_found()
+    {
+        // Arrange
+        var film = CreateFilm();
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilmForUpdate(film.Id))
+            .ReturnsAsync((FilmVersion?)null);
+
+        // Act
+        var result = await Update(film, new FilmChangeRequest { TmdbId = 7 });
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.NotFound);
+        _saved.Should().BeNull();
+        _uploads.Should().BeEmpty();
     }
 }

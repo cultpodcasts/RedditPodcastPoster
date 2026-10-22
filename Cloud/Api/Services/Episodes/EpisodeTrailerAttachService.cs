@@ -137,7 +137,9 @@ public class EpisodeTrailerAttachService(
                 logger.LogError(
                     "{method}: Film '{filmId}' no longer holds trailer '{episodeId}' (changed concurrently). Episode row kept; re-send to resume.",
                     nameof(AttachAsync), film.Id, episode.Id);
-                return new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed, film.Id, film.Name);
+                // Search already lists the trailer on the film and no longer has the episode, so report it as an
+                // indexing failure: the client prompts a re-send, which puts both back in step.
+                return Failed(film);
             }
 
             await episodeRepository.Delete(podcast.Id, episode.Id);
