@@ -31,6 +31,7 @@ public class HomepagePublisher(
     IAmazonS3 client,
     IOptions<ContentOptions> contentOptions,
     ILookupRepository lookupRepository,
+    IHomepageCataloguePlayables cataloguePlayables,
     ILogger<HomepagePublisher> logger)
     : IHomepagePublisher
 {
@@ -80,8 +81,9 @@ public class HomepagePublisher(
             .AsTask();
 
         var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
+        var recentCatalogueTask = cataloguePlayables.GetRecent(recentCutoff, ct);
 
-        var homePageCache = await ResolveHomePageCache(recentEpisodesTask, ct);
+        var homePageCache = await ResolveHomePageCache(Task.WhenAll(recentEpisodesTask, recentCatalogueTask), ct);
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
 
         var recentEpisodes = recentEpisodesTask.Result;
@@ -109,6 +111,7 @@ public class HomepagePublisher(
                     Language = episode.Language
                 };
             })
+            .Concat(recentCatalogueTask.Result.Select(ToPodcastResult))
             .OrderByDescending(x => x.Release)
             .ToList();
 
@@ -121,6 +124,30 @@ public class HomepagePublisher(
             TotalDuration = homePageCache.TotalDuration
         };
     }
+
+    /// <summary>
+    /// News reports, TV show episodes and films share the podcast pipeline: the parent (news organisation or
+    /// TV show) stands in for the podcast, so its name fills <c>podcastName</c> and its title/description
+    /// regexes and known terms sanitise the item. A film has no parent, so its own name is used and it has no regexes.
+    /// </summary>
+    internal static PodcastResult ToPodcastResult(HomepageCataloguePlayable item) => new()
+    {
+        ContentKind = item.ContentKind,
+        PodcastName = item.ParentName,
+        TitleRegex = item.TitleRegex,
+        DescriptionRegex = item.DescriptionRegex,
+        EpisodeId = item.Id,
+        EpisodeTitle = item.Title,
+        EpisodeDescription = item.Description,
+        Release = item.Release,
+        Ids = item.Ids,
+        Services = item.Services,
+        Length = item.Length,
+        Subjects = item.Subjects.Count > 0 ? item.Subjects.ToArray() : null,
+        Images = item.Images,
+        KnownTerms = item.KnownTerms,
+        Language = item.Language
+    };
 
     private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
         Task<List<PodcastEntry>> recentPodcastsTask,
@@ -177,6 +204,8 @@ public class HomepagePublisher(
 
         Task<List<TimeSpan>>? durationEpisodesTask = null;
         Task<List<Guid>>? countEpisodesTask = null;
+        Task<IReadOnlyList<TimeSpan>>? durationCatalogueTask = null;
+        Task<int>? countCatalogueTask = null;
 
         if (shouldRefreshDuration)
         {
@@ -188,6 +217,7 @@ public class HomepagePublisher(
                     x => x.Length)
                 .ToListAsync(ct)
                 .AsTask();
+            durationCatalogueTask = cataloguePlayables.GetActiveDurations(ct);
         }
 
         if (shouldRefreshCount)
@@ -200,23 +230,30 @@ public class HomepagePublisher(
                     x => x.Id)
                 .ToListAsync(ct)
                 .AsTask();
+            countCatalogueTask = cataloguePlayables.CountActive(ct);
         }
 
         await Task.WhenAll(
             [
                 recentEpisodesTask,
                 durationEpisodesTask ?? Task.CompletedTask,
-                countEpisodesTask ?? Task.CompletedTask
+                countEpisodesTask ?? Task.CompletedTask,
+                durationCatalogueTask ?? Task.CompletedTask,
+                countCatalogueTask ?? Task.CompletedTask
             ]);
 
+        // Episode count and total duration cover every playable kind: podcast episodes plus news reports,
+        // TV show episodes and films (which the catalogue migration moves out of the Episodes container).
         if (durationEpisodesTask != null)
         {
-            homePageCache.TotalDuration = TimeSpan.FromTicks(durationEpisodesTask.Result.Sum(x => x.Ticks));
+            homePageCache.TotalDuration = TimeSpan.FromTicks(
+                durationEpisodesTask.Result.Sum(x => x.Ticks) +
+                (durationCatalogueTask?.Result.Sum(x => x.Ticks) ?? 0));
         }
 
         if (countEpisodesTask != null)
         {
-            homePageCache.ActiveEpisodeCount = countEpisodesTask.Result.Count;
+            homePageCache.ActiveEpisodeCount = countEpisodesTask.Result.Count + (countCatalogueTask?.Result ?? 0);
         }
 
         if (durationEpisodesTask != null || countEpisodesTask != null)
@@ -227,7 +264,7 @@ public class HomepagePublisher(
         return homePageCache;
     }
 
-    private static RecentEpisode ToRecentEpisode(PodcastResult x)
+    internal static RecentEpisode ToRecentEpisode(PodcastResult x)
     {
         return new RecentEpisode
         {
@@ -235,6 +272,7 @@ public class HomepagePublisher(
             EpisodeDescription = WebUtility.HtmlDecode(x.EpisodeDescription),
             EpisodeTitle = WebUtility.HtmlDecode(x.EpisodeTitle),
             PodcastName = x.PodcastName,
+            ContentKind = x.ContentKind,
             Release = x.Release,
             Ids = x.Ids,
             Services = x.Services,

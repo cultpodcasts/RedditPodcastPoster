@@ -49,4 +49,11 @@ public class PodcastResult
 
     [JsonPropertyName("language")]
     public string? Language { get; set; }
+
+    /// <summary>
+    /// <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>; null for a podcast episode.
+    /// <see cref="PodcastName"/> then holds the news organisation or TV show name (a film's own name).
+    /// </summary>
+    [JsonPropertyName("contentKind")]
+    public string? ContentKind { get; set; }
 }

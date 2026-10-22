@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddPeopleServices()
             .AddScoped<ISearchSuggestionsIndexBuilder, SearchSuggestionsIndexBuilder>()
+            .AddScoped<IHomepageCataloguePlayables, HomepageCataloguePlayables>()
             .AddScoped<HomepagePublisher>()
             .AddScoped<IHomepagePublisher>(sp =>
             {
