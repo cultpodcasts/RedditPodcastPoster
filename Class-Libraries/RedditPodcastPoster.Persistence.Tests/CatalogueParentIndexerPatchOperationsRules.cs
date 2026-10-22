@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Providers;
 using RedditPodcastPoster.Persistence.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Tests;
@@ -94,5 +95,26 @@ public class CatalogueParentIndexerPatchOperationsRules
         names.Count.Should().BeGreaterThan(CatalogueParentIndexerPatchOperations.MaxOperationsPerPatch);
         chunks.Should().OnlyContain(x => x.Count <= CatalogueParentIndexerPatchOperations.MaxOperationsPerPatch);
         chunks.SelectMany(x => x).Should().HaveCount(names.Count + 2);
+    }
+
+    [Fact(DisplayName =
+        "latestReleased raise: the patch filter only matches a missing, null or older stored value, written in the " +
+        "container's own wire shape, because a value another writer already raised must never be lowered again.")]
+    public void latest_released_filter_only_matches_missing_or_older_values()
+    {
+        // Arrange
+        var options = new JsonSerializerOptionsProvider().GetJsonSerializerOptions();
+        var released = DomainTestFixture.UtcDaysAgo(1);
+        var wire = JsonSerializer.SerializeToElement(released, options).GetString();
+
+        // Act
+        var filter = CatalogueParentIndexerPatchOperations.LatestReleasedOlderThanFilter(released, options);
+
+        // Assert
+        filter.Should().StartWith("FROM c WHERE ");
+        filter.Should().Contain("NOT IS_DEFINED(c.latestReleased)");
+        filter.Should().Contain("IS_NULL(c.latestReleased)");
+        filter.Should().EndWith($"c.latestReleased < '{wire}'");
+        wire.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2}T");
     }
 }

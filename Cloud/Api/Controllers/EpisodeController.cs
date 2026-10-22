@@ -20,6 +20,7 @@ public class EpisodeController(
     IDeleteEpisodeHandler deleteEpisodeHandler,
     IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
     IPostEpisodeTrailerAttachHandler postEpisodeTrailerAttachHandler,
+    IPostEpisodeTvShowMoveHandler postEpisodeTvShowMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -34,6 +35,7 @@ public class EpisodeController(
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
     private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
     private const string? TrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/trailer";
+    private const string? TvShowMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/tvshow";
 
 
     [Function("PodcastNameEpisodeGet")]
@@ -212,6 +214,31 @@ public class EpisodeController(
             ["curate"],
             new EpisodeFilmMoveCommand(podcastId, episodeId, request.ToModel()),
             postEpisodeFilmMoveHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>
+    /// Moves one podcast episode into a TV show as a TV episode (same id). Body: <c>tvShowId</c> or <c>tvShowName</c>,
+    /// optional <c>createShow</c> + <c>publisher</c> (new show by name), optional <c>title</c>.
+    /// </summary>
+    [Function("PodcastEpisodeMoveToTvShow")]
+    public Task<HttpResponseData> MoveToTvShow(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = TvShowMoveRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeTvShowMoveRequest? request,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeTvShowMoveCommand(podcastId, episodeId, request.ToModel()),
+            postEpisodeTvShowMoveHandler.Handle,
             Unauthorised,
             ct);
     }
