@@ -9,13 +9,21 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// <see cref="Podcast"/>, so the hourly indexer can run the podcast discovery pipeline on a
 /// transient podcast built from the parent. Film has no parent and is never indexed.
 /// <para>
-/// Text members are null when blank (never <c>""</c>): <see cref="CaptureFrom"/> stores a blank podcast value as
-/// null, and Cosmos omits nulls on write. <see cref="ToTransientPodcast"/> hands the podcast pipeline <c>""</c>
-/// again, because <see cref="Podcast"/> text members are non-null.
+/// The string ids and regexes are null when unset: a blank or whitespace value (from a curator clear, a podcast
+/// default of <c>""</c>, or a document saved before this rule) is read and set as null and never written, so the
+/// stored <c>indexing</c> block only holds the values that are actually set (the Cosmos serializer omits nulls).
 /// </para>
 /// </summary>
 public sealed class CatalogueIndexingSource
 {
+    private string? _spotifyId;
+    private string? _youTubeChannelId;
+    private string? _youTubePlaylistId;
+    private string? _titleRegex;
+    private string? _descriptionRegex;
+    private string? _episodeMatchRegex;
+    private string? _episodeIncludeTitleRegex;
+
     [JsonPropertyName("hasBundledEpisodes")]
     public bool Bundles { get; set; }
 
@@ -40,7 +48,11 @@ public sealed class CatalogueIndexingSource
     public Service? PrimaryPostService { get; set; }
 
     [JsonPropertyName("spotifyId")]
-    public string? SpotifyId { get; set; }
+    public string? SpotifyId
+    {
+        get => _spotifyId;
+        set => _spotifyId = NullIfBlank(value);
+    }
 
     [JsonPropertyName("spotifyMarket")]
     public string? SpotifyMarket { get; set; }
@@ -58,10 +70,18 @@ public sealed class CatalogueIndexingSource
     public int? AppleEpisodeCount { get; set; }
 
     [JsonPropertyName("youTubeChannelId")]
-    public string? YouTubeChannelId { get; set; }
+    public string? YouTubeChannelId
+    {
+        get => _youTubeChannelId;
+        set => _youTubeChannelId = NullIfBlank(value);
+    }
 
     [JsonPropertyName("youTubePlaylistId")]
-    public string? YouTubePlaylistId { get; set; }
+    public string? YouTubePlaylistId
+    {
+        get => _youTubePlaylistId;
+        set => _youTubePlaylistId = NullIfBlank(value);
+    }
 
     [JsonPropertyName("youTubePlaylistIdHistory")]
     public List<YouTubePlaylistIdHistoryEntry>? YouTubePlaylistIdHistory { get; set; }
@@ -83,16 +103,32 @@ public sealed class CatalogueIndexingSource
     public bool? SkipEnrichingFromYouTube { get; set; }
 
     [JsonPropertyName("titleRegex")]
-    public string? TitleRegex { get; set; }
+    public string? TitleRegex
+    {
+        get => _titleRegex;
+        set => _titleRegex = NullIfBlank(value);
+    }
 
     [JsonPropertyName("descriptionRegex")]
-    public string? DescriptionRegex { get; set; }
+    public string? DescriptionRegex
+    {
+        get => _descriptionRegex;
+        set => _descriptionRegex = NullIfBlank(value);
+    }
 
     [JsonPropertyName("episodeMatchRegex")]
-    public string? EpisodeMatchRegex { get; set; }
+    public string? EpisodeMatchRegex
+    {
+        get => _episodeMatchRegex;
+        set => _episodeMatchRegex = NullIfBlank(value);
+    }
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
-    public string? EpisodeIncludeTitleRegex { get; set; }
+    public string? EpisodeIncludeTitleRegex
+    {
+        get => _episodeIncludeTitleRegex;
+        set => _episodeIncludeTitleRegex = NullIfBlank(value);
+    }
 
     /// <summary>Same rule as the podcast indexer: index all episodes, or only titles matching the include regex.</summary>
     [JsonIgnore]
@@ -139,22 +175,6 @@ public sealed class CatalogueIndexingSource
         DescriptionRegex = podcast.DescriptionRegex;
         EpisodeMatchRegex = podcast.EpisodeMatchRegex;
         EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex;
-        NormalizeBlankText();
-    }
-
-    /// <summary>
-    /// Stores blank text members (ids and regexes) as null. Idempotent. The indexer calls this before it snapshots a
-    /// parent's settings, so a normalisation alone never counts as a change it writes back.
-    /// </summary>
-    public void NormalizeBlankText()
-    {
-        SpotifyId = NullIfBlank(SpotifyId);
-        YouTubeChannelId = NullIfBlank(YouTubeChannelId);
-        YouTubePlaylistId = NullIfBlank(YouTubePlaylistId);
-        TitleRegex = NullIfBlank(TitleRegex);
-        DescriptionRegex = NullIfBlank(DescriptionRegex);
-        EpisodeMatchRegex = NullIfBlank(EpisodeMatchRegex);
-        EpisodeIncludeTitleRegex = NullIfBlank(EpisodeIncludeTitleRegex);
     }
 
     /// <summary>

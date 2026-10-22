@@ -325,9 +325,8 @@ public class CatalogueParentsUpdater(
         IndexingContext indexingContext)
         where TPlayable : Playable
     {
-        // Normalise before the snapshot so blank-to-null alone never counts as a change the pass writes back
-        // (it would overwrite a curator edit saved mid-pass).
-        source.NormalizeBlankText();
+        // CatalogueIndexingSource reads a legacy blank id/regex as null, so blank-to-null alone never counts as a
+        // change the pass writes back (it would overwrite a curator edit saved mid-pass).
         var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
         var cancellationToken = indexingContext.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;

@@ -16,6 +16,8 @@ namespace Api.Services.Catalogue;
 /// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears (stored as null). The podcast DTO accepts it but its applier never
 /// stores it. Here it is stored, because it is what URL submission matches a YouTube channel on.</item>
 /// </list>
+/// A cleared value is stored as null (omitted), never <c>""</c>; <see cref="CatalogueIndexingSource"/> normalises blanks,
+/// so a new block holds only the ids actually set, not empty regexes and ids.
 /// The block is created only when a value is actually set. It is then not auto-indexed (<c>indexAllEpisodes</c>
 /// false, no include regex), so the hourly indexer from #1050 leaves the parent alone until discovery is configured.
 /// </summary>

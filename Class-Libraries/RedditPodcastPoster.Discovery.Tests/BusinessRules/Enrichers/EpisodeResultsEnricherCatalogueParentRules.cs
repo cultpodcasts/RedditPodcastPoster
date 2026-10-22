@@ -198,6 +198,32 @@ public class EpisodeResultsEnricherCatalogueParentRules
             r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()), Times.Once);
     }
 
+    [Theory(DisplayName =
+        "A discovered result with a blank Spotify show id or YouTube channel id matches no owner, because a blank id is " +
+        "no id and must not pick a podcast (whose unset ids are \"\"), news organisation or TV show whose id is unset.")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, "")]
+    [InlineData(null, "   ")]
+    public async Task blank_ids_match_no_owner(string? spotifyId, string? youTubeChannelId)
+    {
+        // Arrange
+        _podcasts.Add(new Podcast { Id = _fixture.Create<Guid>(), Name = _fixture.Create<string>(), IndexAllEpisodes = true });
+        AddOrganisation(i => i.IndexAllEpisodes = true);
+        AddShow(i => i.IndexAllEpisodes = true);
+        var result = CreateEpisodeResult(ids =>
+        {
+            ids.Spotify = spotifyId;
+            ids.YouTube = youTubeChannelId;
+        });
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        enriched.Single().PodcastResults.Should().BeEmpty();
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())
