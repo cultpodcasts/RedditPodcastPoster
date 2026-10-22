@@ -113,6 +113,10 @@ public class BlueskyEmbedCardPostFactory(
 
         postBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
+        // Bluesky tags are case-insensitive, and two stored tags can write the same tag text ("#Some-Tag" and
+        // "#SomeTag"), so an end-of-post tag is skipped when the title or an earlier end tag already links it.
+        var linkedTags = new HashSet<string>(
+            HashtagScanner.Find(episodeTitle).Select(x => x.Tag), StringComparer.OrdinalIgnoreCase);
         var endHashTags = string.Join(" ",
             episodeHashtags
                 .Where(x => x.MatchingText == null)
@@ -121,7 +125,7 @@ public class BlueskyEmbedCardPostFactory(
                 .Where(x => !hashtagsAdded.Contains(x))
                 .Select(HashtagScanner.ToTagText)
                 .OfType<string>()
-                .Distinct()
+                .Where(linkedTags.Add)
                 .Select(x => $"#{x}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {

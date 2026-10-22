@@ -59,17 +59,32 @@ public class CataloguePlayableSearchSync(
             shortLinkTarget,
             cancellationToken);
 
+    /// <param name="trailersCleared">
+    /// True when the edit removed the film's last trailer. A film with no trailers omits <c>trailers</c> (so films
+    /// keep pushing before the index has the field), and merge-or-upload ignores an omitted field, so this sends
+    /// <c>[]</c> to clear the stale list.
+    /// </param>
     public Task<EntitySearchIndexerResponse?> AfterSave(
         Film film,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        bool trailersCleared = false) =>
         AfterSave(
             film.Id,
             film.Name,
             removedByChange,
             CataloguePlayableSearchDocument.ShouldExcludeFromSearch(film),
-            () => CataloguePlayableSearchDocument.For(film),
+            () =>
+            {
+                var document = CataloguePlayableSearchDocument.For(film);
+                if (trailersCleared && document.Trailers is null)
+                {
+                    document.Trailers = [];
+                }
+
+                return document;
+            },
             shortLinkTarget,
             cancellationToken);
 

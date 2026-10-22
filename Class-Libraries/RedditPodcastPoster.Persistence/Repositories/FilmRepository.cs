@@ -31,6 +31,43 @@ public class FilmRepository(
         await filmsContainer.UpsertItemAsync(film, new PartitionKey(film.Id.ToString()));
     }
 
+    public async Task<FilmVersion?> GetFilmForUpdate(Guid filmId)
+    {
+        try
+        {
+            var response = await filmsContainer.ReadItemAsync<Film>(
+                filmId.ToString(),
+                new PartitionKey(filmId.ToString()));
+            return new FilmVersion(response.Resource, response.ETag);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> TryReplace(Film film, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        try
+        {
+            await filmsContainer.ReplaceItemAsync(
+                film,
+                film.Id.ToString(),
+                new PartitionKey(film.Id.ToString()),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is System.Net.HttpStatusCode.PreconditionFailed
+                                             or System.Net.HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: film '{filmId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), film.Id, ex.StatusCode);
+            return false;
+        }
+    }
+
     public async Task Delete(Guid filmId)
     {
         try

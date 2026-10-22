@@ -6,6 +6,7 @@ using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Films;
+using FunctionHost.Tests.Api.Services.Films;
 using Api.Services.News;
 using Api.Services.TvShows;
 using RedditPodcastPoster.Cloudflare.Models;
@@ -33,6 +34,7 @@ public class CatalogueEditSearchParityRules
 
     public CatalogueEditSearchParityRules()
     {
+        _mocker.GetMock<IFilmRepository>().ReplaceThroughSave();
         _mocker.Use(NullLogger<NewsReportService>.Instance);
         _mocker.Use(NullLogger<TvShowEpisodeService>.Instance);
         _mocker.Use(NullLogger<FilmService>.Instance);

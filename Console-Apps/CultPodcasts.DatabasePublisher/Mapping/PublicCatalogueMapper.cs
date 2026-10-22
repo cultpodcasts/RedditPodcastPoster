@@ -1,3 +1,4 @@
+using System.Globalization;
 using CultPodcasts.DatabasePublisher.PublicModels;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
@@ -81,7 +82,16 @@ public static class PublicCatalogueMapper
             ImdbId = NullIfBlank(film.ImdbId),
             TmdbId = film.TmdbId,
             Subjects = NullIfEmpty(film.Subjects),
-            Urls = ToUrls(film.Services)
+            Urls = ToUrls(film.Services),
+            Trailers = film.Trailers is { Count: > 0 } trailers
+                ? trailers.Select(trailer => new PublicFilmTrailer
+                {
+                    Title = trailer.Title,
+                    Url = trailer.Url,
+                    Release = trailer.Release?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    Length = trailer.Length
+                }).ToList()
+                : null
         };
 
     private static IEnumerable<T> NewestFirst<T>(IEnumerable<T> playables) where T : Playable =>

@@ -19,6 +19,7 @@ public class EpisodeController(
     IPublishEpisodeHandler publishEpisodeHandler,
     IDeleteEpisodeHandler deleteEpisodeHandler,
     IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
+    IPostEpisodeTrailerAttachHandler postEpisodeTrailerAttachHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -32,6 +33,7 @@ public class EpisodeController(
     private const string? PodcastIdentifierCatchAllRoute = "episode/{*podcastAndEpisode}";
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
     private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
+    private const string? TrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/trailer";
 
 
     [Function("PodcastNameEpisodeGet")]
@@ -210,6 +212,31 @@ public class EpisodeController(
             ["curate"],
             new EpisodeFilmMoveCommand(podcastId, episodeId, request.ToModel()),
             postEpisodeFilmMoveHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>
+    /// Attaches one podcast episode to an existing Film as a trailer; the episode row is then deleted.
+    /// Body: <c>filmId</c>, optional <c>title</c>.
+    /// </summary>
+    [Function("PodcastEpisodeAttachAsTrailer")]
+    public Task<HttpResponseData> AttachAsTrailer(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = TrailerAttachRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeTrailerAttachRequest? request,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeTrailerAttachCommand(podcastId, episodeId, request.ToModel()),
+            postEpisodeTrailerAttachHandler.Handle,
             Unauthorised,
             ct);
     }
