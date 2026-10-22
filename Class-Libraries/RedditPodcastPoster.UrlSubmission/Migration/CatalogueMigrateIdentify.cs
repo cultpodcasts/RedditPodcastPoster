@@ -236,7 +236,7 @@ public static class CatalogueMigrateIdentify
     }
 
     /// <summary>
-    /// Curator: partisan, advocacy, news-satire, or one-person host channels stay
+    /// Curator: partisan, advocacy, news-satire, news-commentary, or one-person host channels stay
     /// podcasts even when the name or YouTube About looks like a news organisation.
     /// News Central TV, BreakThrough News, Newsmax, Democracy Now!, Redacted,
     /// Le Média, and Law&amp;Crime are outlets and are not on this list.

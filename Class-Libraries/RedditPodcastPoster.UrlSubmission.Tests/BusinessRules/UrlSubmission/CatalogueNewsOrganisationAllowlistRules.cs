@@ -111,7 +111,7 @@ public class CatalogueNewsOrganisationAllowlistRules
 
     [Fact(DisplayName =
         "Stay-podcast publisher names are not on S-008, " +
-        "because partisan, advocacy, and news-satire rows remain podcasts.")]
+        "because partisan, advocacy, news-satire, and news-commentary rows remain podcasts.")]
     public void stay_podcast_names_are_not_allowlisted()
     {
         // Arrange

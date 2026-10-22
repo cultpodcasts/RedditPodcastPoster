@@ -525,7 +525,7 @@ public class CatalogueMigrateIdentifyRules
 
     [Theory(DisplayName =
         "A YouTube-only publisher whose exact name is on the stay-podcast list stays Episode, " +
-        "because partisan, advocacy, news-satire, and one-person host rows remain podcasts.")]
+        "because partisan, advocacy, news-satire, news-commentary, and one-person host rows remain podcasts.")]
     [MemberData(nameof(StayPodcastPublisherNameRows))]
     public void stay_podcast_publisher_name_stays_episode(string name)
     {
