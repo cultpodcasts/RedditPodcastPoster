@@ -18,6 +18,7 @@ public class EpisodeController(
     IPostEpisodeHandler postEpisodeHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
     IDeleteEpisodeHandler deleteEpisodeHandler,
+    IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -30,6 +31,7 @@ public class EpisodeController(
     // extra segments and miss PodcastIdentifierRoute (see #9290).
     private const string? PodcastIdentifierCatchAllRoute = "episode/{*podcastAndEpisode}";
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
+    private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
 
 
     [Function("PodcastNameEpisodeGet")]
@@ -186,6 +188,28 @@ public class EpisodeController(
             ["admin"],
             new PodcastEpisodeRequestWrapper(podcastId, episodeId),
             deleteEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>Moves one podcast episode into a new Film (same id). Body: optional <c>title</c>.</summary>
+    [Function("PodcastEpisodeMoveToFilm")]
+    public Task<HttpResponseData> MoveToFilm(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = FilmMoveRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeFilmMoveRequest? request,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeFilmMoveCommand(podcastId, episodeId, request.ToModel()),
+            postEpisodeFilmMoveHandler.Handle,
             Unauthorised,
             ct);
     }
