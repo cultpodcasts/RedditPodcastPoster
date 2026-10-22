@@ -12,6 +12,9 @@ public sealed record FakeYouTubePage(IReadOnlyList<string> VideoIds, string? Nex
 {
     /// <summary>Newest-first publish times, one minute apart, ending at <paramref name="newest"/>.</summary>
     public DateTimeOffset? Newest { get; init; }
+
+    /// <summary>Explicit per-item publish times (overrides <see cref="Newest"/>); a null entry has no date.</summary>
+    public IReadOnlyList<DateTimeOffset?>? Dates { get; init; }
 }
 
 /// <summary>
@@ -61,7 +64,20 @@ public sealed class FakeYouTubePagingApi
         var newest = page.Newest ?? new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var items = page.VideoIds.Select((id, i) =>
         {
-            var published = newest.AddMinutes(-i).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            var date = page.Dates != null ? page.Dates[i] : newest.AddMinutes(-i);
+            var published = date?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            var snippet = new Dictionary<string, object?>
+            {
+                ["title"] = $"Synthetic {id}",
+                ["resourceId"] = new { kind = "youtube#video", videoId = id }
+            };
+            var contentDetails = new Dictionary<string, object?> { ["videoId"] = id };
+            if (published != null)
+            {
+                snippet["publishedAt"] = published;
+                contentDetails["videoPublishedAt"] = published;
+            }
+
             return isSearch
                 ? (object) new
                 {
@@ -73,13 +89,8 @@ public sealed class FakeYouTubePagingApi
                 {
                     kind = "youtube#playlistItem",
                     id = $"item-{id}",
-                    snippet = new
-                    {
-                        title = $"Synthetic {id}",
-                        publishedAt = published,
-                        resourceId = new { kind = "youtube#video", videoId = id }
-                    },
-                    contentDetails = new { videoId = id, videoPublishedAt = published }
+                    snippet,
+                    contentDetails
                 };
         }).ToList();
         var body = new Dictionary<string, object?>

@@ -11,13 +11,18 @@ public enum YouTubePageWalkStopReason
     /// <summary>The response's next-page token equals the token just requested: following it would loop forever.</summary>
     RepeatedPageToken,
 
-    /// <summary>A page returned zero items but still carried a next-page token.</summary>
+    /// <summary>
+    /// A page returned zero items but still carried a new next-page token, and the walk has already
+    /// seen at least <c>totalResults - 2</c> distinct ids (or YouTube gave no total).
+    /// </summary>
     EmptyPage,
 
     /// <summary>Every item on the page had already been seen in this walk.</summary>
     NoNewItems,
 
-    /// <summary>The walk fetched more pages than <c>ceil(totalResults / pageSize) + 2</c>.</summary>
+    /// <summary>
+    /// The walk reached <c>ceil(totalResults / pageSize) + 2</c> pages and YouTube still returned a next-page token.
+    /// </summary>
     PageCapExceeded
 }
 
@@ -57,6 +62,19 @@ public sealed class YouTubePageWalkGuard
     /// <summary>The latest <c>pageInfo.totalResults</c> reported by the API, when present.</summary>
     public int? TotalResults { get; private set; }
 
+    /// <summary>Distinct non-empty item ids seen so far in this walk.</summary>
+    public int DistinctIdsSeen => _seenIds.Count;
+
+    /// <summary>Item count of the most recent page.</summary>
+    public int LastPageItemCount { get; private set; }
+
+    /// <summary>
+    /// True when the walk has read (nearly) everything YouTube says the list holds: at least
+    /// <c>totalResults - 2</c> distinct ids, or no total was reported. The slack covers items
+    /// YouTube counts but does not return (e.g. the 143-of-144 Kelly R. Minter playlist).
+    /// </summary>
+    public bool ReadToEnd => TotalResults is not { } total || DistinctIdsSeen >= total - PageCapSlack;
+
     /// <summary><c>ceil(totalResults / pageSize) + 2</c>, or null when the API has not reported a total.</summary>
     public int? PageCap => TotalResults is { } total
         ? (int) Math.Ceiling(Math.Max(total, 0) / (double) PageSize) + PageCapSlack
@@ -77,6 +95,7 @@ public sealed class YouTubePageWalkGuard
         int? totalResults)
     {
         PagesFetched++;
+        LastPageItemCount = itemIds.Count;
         if (totalResults.HasValue)
         {
             TotalResults = totalResults;
@@ -99,10 +118,14 @@ public sealed class YouTubePageWalkGuard
 
         if (itemIds.Count == 0)
         {
-            return YouTubePageWalkStopReason.EmptyPage;
+            // An empty page with a new token is not a loop. Only stop once the walk has read to the
+            // end; when clearly short, keep following it and let the cap or the repeated-token check end it.
+            if (ReadToEnd)
+            {
+                return YouTubePageWalkStopReason.EmptyPage;
+            }
         }
-
-        if (allSeen)
+        else if (allSeen)
         {
             return YouTubePageWalkStopReason.NoNewItems;
         }
@@ -116,17 +139,25 @@ public sealed class YouTubePageWalkGuard
     }
 
     /// <summary>
-    /// True for stop reasons that point at a YouTube paging fault worth an operator's attention.
-    /// <see cref="YouTubePageWalkStopReason.EmptyPage"/> is a tidy end of a finished walk.
+    /// The log level for a stop.
+    /// <list type="bullet">
+    /// <item><see cref="YouTubePageWalkStopReason.EmptyPage"/>: Information (a tidy end of a finished walk).</item>
+    /// <item><see cref="YouTubePageWalkStopReason.RepeatedPageToken"/> on an empty page after <see cref="ReadToEnd"/>:
+    /// Warning. This is the Kelly R. Minter shape: every item was read and YouTube's last token points back at itself.</item>
+    /// <item>Otherwise Error, because the walk stopped clearly short of <c>totalResults</c> or YouTube replayed or
+    /// over-served pages, so items may be missing.</item>
+    /// </list>
     /// </summary>
-    public static bool IsError(YouTubePageWalkStopReason reason) =>
-        reason is YouTubePageWalkStopReason.RepeatedPageToken
-            or YouTubePageWalkStopReason.NoNewItems
-            or YouTubePageWalkStopReason.PageCapExceeded;
+    public LogLevel LevelFor(YouTubePageWalkStopReason reason) => reason switch
+    {
+        YouTubePageWalkStopReason.None => LogLevel.None,
+        YouTubePageWalkStopReason.EmptyPage => LogLevel.Information,
+        YouTubePageWalkStopReason.RepeatedPageToken when LastPageItemCount == 0 && ReadToEnd => LogLevel.Warning,
+        _ => LogLevel.Error
+    };
 
     /// <summary>
-    /// Logs a stop at Error for <see cref="IsError"/> reasons and at Information for
-    /// <see cref="YouTubePageWalkStopReason.EmptyPage"/>. The page token is not logged.
+    /// Logs a stop at <see cref="LevelFor"/> (or <paramref name="level"/> when given). The page token is not logged.
     /// </summary>
     public void LogStop(
         ILogger logger,
@@ -135,7 +166,8 @@ public sealed class YouTubePageWalkGuard
         string walkId,
         string? source,
         string? sourceIdentifier,
-        int itemsCollected)
+        int itemsCollected,
+        LogLevel? level = null)
     {
         if (reason == YouTubePageWalkStopReason.None)
         {
@@ -143,7 +175,7 @@ public sealed class YouTubePageWalkGuard
         }
 
         logger.Log(
-            IsError(reason) ? LogLevel.Error : LogLevel.Information,
+            level ?? LevelFor(reason),
             StoppedMessageTemplate,
             reason,
             walk,

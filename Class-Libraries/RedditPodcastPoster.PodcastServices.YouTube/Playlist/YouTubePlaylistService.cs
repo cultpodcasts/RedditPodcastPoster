@@ -59,7 +59,7 @@ public class YouTubePlaylistService(
 
         // Every walk pages at the YouTube maximum. `expensivePlaylist` used to pick 10 vs 1 items per
         // page after a newest-first probe; playlistItems.list is 1 unit per page regardless of size, so
-        // 50 is never more calls than 10 or 1 and the flag no longer changes the request.
+        // 50 is never more calls than 10 or 1 and the flag no longer changes the request (removal: #1104).
         const int batchSize = PlaylistPageSize;
 
         var result = new List<PlaylistItem>();

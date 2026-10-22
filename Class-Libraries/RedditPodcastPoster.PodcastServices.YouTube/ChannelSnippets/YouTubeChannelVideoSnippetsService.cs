@@ -102,8 +102,13 @@ public class YouTubeChannelVideoSnippetsService(
                 totalResults: null);
             if (stop != YouTubePageWalkStopReason.None)
             {
+                // search.list is known to repeat results across pages, and these pages hold only 5
+                // items, so a page of nothing but already-seen ids (NoNewItems) can happen without
+                // YouTube looping. It is accepted here as a cost stop (another page is 100 units),
+                // not a fault, so it logs at Warning rather than Error.
                 walkGuard.LogStop(logger, stop, "channel-search", channelId.ChannelId,
-                    null, null, result.Count);
+                    null, null, result.Count,
+                    stop == YouTubePageWalkStopReason.NoNewItems ? LogLevel.Warning : null);
                 break;
             }
         }

@@ -22,6 +22,10 @@ public interface IYouTubeEpisodeProvider
         PlaylistItemSnippet playlistItemSnippet,
         Google.Apis.YouTube.v3.Data.Video videoDetails);
 
+    /// <param name="expensivePlaylist">
+    /// Ignored: every playlist walk pages at <see cref="Playlist.YouTubePlaylistService.PlaylistPageSize"/>.
+    /// Kept for call-site compatibility; removal is tracked in #1104.
+    /// </param>
     Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
         Podcast podcast,
         YouTubePlaylistId youTubePlaylistId,

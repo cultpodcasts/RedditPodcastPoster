@@ -392,9 +392,9 @@ the reason, id, source, pages fetched, `totalResults` and page size (never the t
 
 | Reason | When | Level |
 |--------|------|-------|
-| `RepeatedPageToken` | next token equals the token just requested | Error |
-| `EmptyPage` | a page has 0 items but a (new) next token | Information |
-| `NoNewItems` | every video id on the page was already seen in this walk | Error |
+| `RepeatedPageToken` | next token equals the token just requested | Warning on an empty page once ≥ `totalResults - 2` distinct ids are read (or no total), e.g. Kelly; otherwise Error |
+| `EmptyPage` | a page has 0 items but a new next token, and ≥ `totalResults - 2` distinct ids are read (or no total). Short of that the walk keeps going | Information |
+| `NoNewItems` | every video id on the page was already seen in this walk | Error (Warning on the channel `search.list` walk, where repeats across 5-item pages are a known cost stop) |
 | `PageCapExceeded` | pages fetched reach `ceil(totalResults / 50) + 2` with a token left | Error |
 
 The cap uses `pageInfo.totalResults` and is not applied to `search.list`, whose total is an
