@@ -369,10 +369,22 @@ HasExpensiveYouTubePlaylistQuery() && !SkipExpensiveYouTubeQueries
 ```
 
 Passed as `expensivePlaylist` into the service. Affects **batch size after a reverse-chrono
-probe** (1 vs 10). If the live head probe says ascending, the service still walks until
-`nextPageToken` is null even when `expensivePlaylist` is false — the handler's
-`"playlist-single-page"` label means “this pass did not request expensive batch sizing,”
-not a hard one-page stop inside `YouTubePlaylistService`.
+probe** (1 vs 10).
+
+### Head-only reads on skip-expensive passes (`firstPageOnlyUnlessNewestFirst`)
+
+Discovery passes `firstPageOnlyUnlessNewestFirst = SkipExpensiveYouTubeQueries` (never for
+`Arbitrary`). When set and the head probe does **not** say newest-first (ascending, or
+inconclusive), `YouTubePlaylistService` stops after the **first page** and logs Warning
+`YouTubePlaylistFirstPageOnly`. A newest-first playlist still pages while its last item is
+inside the window. The end-to-end walk of an unordered playlist runs only on a pass that
+allows expensive YouTube queries (midnight UTC primary pass), logged as `playlist-paginated`.
+Other callers (enrichment, submit, channel uploads) do not pass the flag and keep the full
+walk; the pass cache keys head-only reads separately so they never stand in for a full read.
+
+Discovery also passes the YouTube ids of stored in-window episodes as `knownIds`
+(`YouTubeEpisodeProvider.GetPlaylistEpisodes`), so known videos skip `videos.list`, the
+thumbnail probe and episode building — the same rule as channel discovery.
 
 ### Discovery vs enrichment
 
@@ -381,7 +393,7 @@ not a hard one-page stop inside `YouTubePlaylistService`.
 | Entry | `YouTubeEpisodeRetrievalHandler` | `YouTubeItemResolver` |
 | Forwards `YouTubePlaylistOrder` | Yes | Yes |
 | Applies expensive flag | **Yes** (unless Arbitrary) | **No** |
-| Path log | `YouTubeDiscoveryPath` (`playlist-arbitrary-full-walk` / `playlist-paginated` / `playlist-single-page` / `channel`) | Match via `PlaylistItemFinder` |
+| Path log | `YouTubeDiscoveryPath` (`playlist-arbitrary-full-walk` / `playlist-paginated` / `playlist-head-only` / `channel`; `playlist-head-only` replaced `playlist-single-page`) | Match via `PlaylistItemFinder` |
 
 ### YouTube API cost reminder
 
@@ -398,6 +410,8 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Flag Apply set / clear / inconclusive | `YouTube.Tests/Playlist/YouTubeExpensiveQueryFlagRules.cs` |
 | Discovery flag round-trip + Arbitrary | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerRules.cs` |
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
+| Head-only read on skip-expensive passes; cancelled budget propagates | `YouTube.Tests/Playlist/YouTubePlaylistHeadOnlyRules.cs`, `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerPlaylistCostRules.cs` |
+| Playlist discovery skips known video ids | `YouTube.Tests/Episode/YouTubeEpisodeProviderKnownIdRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
 | `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
 | Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |

@@ -135,6 +135,10 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `IndexIdProvider batch-4-summary` | `IndexIdProvider` | Podcast count in batch 4 |
 | `YouTubeDiscoveryPath` | `YouTubeEpisodeRetrievalHandler` | Warning when YouTube-authority; Info otherwise |
 | `YouTubeAuthorityPodcastAudit` | `PodcastsUpdater` | Per YouTube-authority podcast |
+| `IndexerPodcastStage` | `PodcastIndexingStageLog` (via `PodcastsUpdater`) | Warning — one line per stage of each podcast's update (`start`, `cosmos-read-episodes`, `discover-youtube` / `-spotify` / `-apple`, `youtube-playlist-page`, `youtube-videos-list`, `youtube-thumbnail`, `merge`, `cosmos-read-platform-identified`, `enrich`, `save-episodes`, `save-podcast`, `complete`) with `podcast-id`, `podcast-name`, `detail`, `elapsed-ms`, `previous-stage`, `previous-stage-ms`. The last line before a stall names the call that hung |
+| `IndexerPodcastBudgetExceeded` | `PodcastsUpdater` | **Error** — a podcast's update hit `podcastUpdateBudget:PerPodcastBudgetSeconds` (default 60); names the `stage` it was in; `abandoned='True'` when the call ignored cancellation and was left behind after `AbandonGraceSeconds`. The loop continues with the next podcast |
+| `YouTubePlaylistFirstPageOnly` | `YouTubePlaylistService` | Warning — skip-expensive pass stopped an unordered playlist after its first page ([catalogue-pagination.md](catalogue-pagination.md)) |
+| `HourlyOrchestration indexer-pass-failed` | `HourlyOrchestration` | **Error** — an Indexer activity failed; the run continued to Publisher/Poster/Tweet/Bluesky with YouTube/Spotify posts held back, then ended Failed (`IndexerPassesFailedException`) |
 | `YouTubeAuthorityIndexingAudit` | `PodcastsUpdater` | Batch-level YouTube-authority summary |
 | `Spotify enrich miss:` | `SpotifyEpisodeEnricher` | Warning — no Spotify candidate matched, with rejection context |
 | `Spotify episode not available in market:` | `SpotifyNonPlayableSkipLogger` | **Error** — dropped; Spotify returned `restrictions.reason=market` |

@@ -4,7 +4,11 @@
 
 `YouTubeThumbnailResolver.GetImageUrlAsync` (YouTube library) is the single place a YouTube episode
 image is chosen: enrich, episode provider, searcher, URL categoriser and `ImageUpdater` all call it.
-It walks the API's thumbnail candidates largest-first and downloads each one. A candidate is usable
+It walks the API's thumbnail candidates largest-first. A non-default tier the API already reports at or
+below 90 px is skipped without a request. Each remaining candidate is probed with a ranged GET for its first
+`YouTubeThumbnailResolver.ProbeMaxBytes` (32 KB, enough for the JPEG dimensions; the read is capped even if the
+CDN ignores the range). A probe that times out (`ProbeTimeout`, 15 s) counts as unusable and the next tier is
+tried; only the caller's own cancellation (e.g. the indexer's per-podcast budget) propagates. A candidate is usable
 only when:
 
 1. the response is a **success status** (a withdrawn tier answers **404** with a decodable placeholder body), and

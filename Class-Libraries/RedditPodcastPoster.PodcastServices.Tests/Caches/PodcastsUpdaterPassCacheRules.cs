@@ -1,14 +1,16 @@
-using Microsoft.Extensions.Options;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
-using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Caches;
@@ -17,36 +19,43 @@ public class PodcastsUpdaterPassCacheRules
 {
     private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private readonly InMemoryPodcastRepository _repository = new();
+
+    public PodcastsUpdaterPassCacheRules()
+    {
+        _mocker.Use<IPodcastRepository>(_repository);
+        _mocker.Use<ILogger<PodcastsUpdater>>(NullLogger<PodcastsUpdater>.Instance);
+        _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(new PodcastUpdateBudgetOptions()));
+        _mocker.Use<TimeProvider>(TimeProvider.System);
+    }
 
     [Fact(DisplayName =
         "UpdatePodcasts clears the pass API cache once per auto-indexed podcast.")]
     public async Task UpdatePodcasts_clears_pass_cache_once_per_auto_indexed_podcast()
     {
+        // Arrange
         var podcast1 = AutoIndexPodcast();
         var podcast2 = AutoIndexPodcast();
         var skipped = AutoIndexPodcast();
         skipped.IndexAllEpisodes = false;
         skipped.EpisodeIncludeTitleRegex = string.Empty;
-
-        var repository = new InMemoryPodcastRepository();
-        repository.Seed(podcast1);
-        repository.Seed(podcast2);
-        repository.Seed(skipped);
-
-        var podcastUpdater = new Mock<IPodcastUpdater>();
-        podcastUpdater
+        _repository.Seed(podcast1);
+        _repository.Seed(podcast2);
+        _repository.Seed(skipped);
+        _mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .ReturnsAsync((Podcast podcast, bool _, IndexingContext _) => SuccessResult(podcast));
+        var updater = _mocker.CreateInstance<PodcastsUpdater>();
 
-        var passApiCache = new Mock<IPodcastPassApiCache>();
-        var updater = CreateUpdater(repository, podcastUpdater.Object, passApiCache.Object);
-
+        // Act
         await updater.UpdatePodcasts(
             [podcast1.Id, podcast2.Id, skipped.Id],
             new IndexingContext(ReleasedSince));
 
-        passApiCache.Verify(x => x.Clear(), Times.Exactly(2));
-        podcastUpdater.Verify(
+        // Assert
+        _mocker.GetMock<IPodcastPassApiCache>().Verify(x => x.Clear(), Times.Exactly(2));
+        _mocker.GetMock<IPodcastUpdater>().Verify(
             x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()),
             Times.Exactly(2));
     }
@@ -55,24 +64,22 @@ public class PodcastsUpdaterPassCacheRules
         "UpdatePodcasts clears the pass API cache when podcast update throws.")]
     public async Task UpdatePodcasts_clears_pass_cache_when_update_throws()
     {
+        // Arrange
         var podcast = AutoIndexPodcast();
-        var repository = new InMemoryPodcastRepository();
-        repository.Seed(podcast);
-
-        var podcastUpdater = new Mock<IPodcastUpdater>();
-        podcastUpdater
+        _repository.Seed(podcast);
+        _mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
-            .ThrowsAsync(new InvalidOperationException("update failed"));
+            .ThrowsAsync(new InvalidOperationException(_fixture.CreateTitle()));
+        var updater = _mocker.CreateInstance<PodcastsUpdater>();
 
-        var passApiCache = new Mock<IPodcastPassApiCache>();
-        var updater = CreateUpdater(repository, podcastUpdater.Object, passApiCache.Object);
-
+        // Act
         var success = await updater.UpdatePodcasts(
             [podcast.Id],
             new IndexingContext(ReleasedSince));
 
+        // Assert
         success.Should().BeFalse();
-        passApiCache.Verify(x => x.Clear(), Times.Once);
+        _mocker.GetMock<IPodcastPassApiCache>().Verify(x => x.Clear(), Times.Once);
     }
 
     private Podcast AutoIndexPodcast()
@@ -90,17 +97,4 @@ public class PodcastsUpdaterPassCacheRules
             new EnrichmentResults([]),
             SpotifyBypassed: false,
             YouTubeBypassed: false);
-
-    private static PodcastsUpdater CreateUpdater(
-        InMemoryPodcastRepository repository,
-        IPodcastUpdater podcastUpdater,
-        IPodcastPassApiCache passApiCache) =>
-        new(
-            Mock.Of<IIndexablePodcastIdProvider>(),
-            podcastUpdater,
-            repository,
-            passApiCache,
-            Options.Create(new PodcastUpdateBudgetOptions()),
-            TimeProvider.System,
-            NullLogger<PodcastsUpdater>.Instance);
 }
