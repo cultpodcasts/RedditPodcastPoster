@@ -21,6 +21,9 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
     /// <summary>When set, the next search uploads fail (returns false).</summary>
     public bool FailSearch { get; set; }
 
+    /// <summary>Runs after a successful search upload: something else writing the source mid-move.</summary>
+    public Func<Task>? AfterSearchUpload { get; set; }
+
     public Task<bool> HasTvShow(Guid tvShowId) => Task.FromResult(TvShows.ContainsKey(tvShowId));
 
     public Task<bool> HasNewsOrganisation(Guid newsOrganisationId) =>
@@ -103,12 +106,12 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
         return Task.CompletedTask;
     }
 
-    public Task<bool> UploadSearch(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken)
+    public async Task<bool> UploadSearch(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken)
     {
         SearchUploadCalls++;
         if (FailSearch)
         {
-            return Task.FromResult(false);
+            return false;
         }
 
         foreach (var document in documents)
@@ -116,6 +119,11 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
             Search[document.Id] = document;
         }
 
-        return Task.FromResult(true);
+        if (AfterSearchUpload is { } after)
+        {
+            await after();
+        }
+
+        return true;
     }
 }

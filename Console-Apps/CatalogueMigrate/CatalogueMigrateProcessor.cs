@@ -135,6 +135,11 @@ public class CatalogueMigrateProcessor(
                 }
 
                 unit = await BlockDuplicateParent(unit);
+                if (apply)
+                {
+                    unit = BlockWhileIndexerMayBeRunning(unit);
+                }
+
                 if (unit.ApplyEligible && request.Limit is { } limit && eligibleCount >= limit)
                 {
                     logger.LogInformation("Catalogue migrate --limit {Limit} reached. Re-run to continue.", limit);
@@ -316,6 +321,34 @@ public class CatalogueMigrateProcessor(
             parent.Name,
             existing);
         return unit with { ApplyBlockReason = CatalogueMigratePlanner.ParentNameExists };
+    }
+
+    /// <summary>
+    /// Apply only: an auto-indexed podcast is skipped (not failed) while the hourly indexer may be running, so the
+    /// run carries on with the other podcasts and a re-run in the safe window moves it.
+    /// </summary>
+    private CatalogueMigrateUnit BlockWhileIndexerMayBeRunning(CatalogueMigrateUnit unit)
+    {
+        if (!unit.ApplyEligible || !CatalogueMigratePlanner.IsAutoIndexed(unit.Podcast))
+        {
+            return unit;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        if (!CatalogueMigrateIndexerWindow.IndexerMayBeRunning(now))
+        {
+            return unit;
+        }
+
+        logger.LogWarning(
+            "Catalogue migrate {PodcastId} {Kind}: auto-indexed and the hourly indexer may be running (minute {Minute}). " +
+            "Skipped; re-run between :{From} and :{Until}.",
+            unit.Podcast.Id,
+            unit.Kind,
+            now.Minute,
+            CatalogueMigrateIndexerWindow.SafeFromMinute,
+            CatalogueMigrateIndexerWindow.SafeUntilMinute - 1);
+        return unit with { ApplyBlockReason = CatalogueMigratePlanner.IndexerMayBeRunning };
     }
 
     private CatalogueMigratePlanLine LogPlan(CatalogueMigrateUnit unit)
