@@ -208,4 +208,108 @@ public class CreateSearchIndexProcessorSiblingRules
             reset.Should().BeGreaterThan(ensured, "sibling '{0}' must exist before it is reset", name);
         }
     }
+
+    [Fact(DisplayName =
+        "When transient siblings run, then each of TV, film and news is created, run and deleted before the next starts, so no more than one sibling pair exists at a time on a Free-tier service.")]
+    public async Task transient_siblings_create_run_and_delete_one_at_a_time()
+    {
+        // Arrange
+        var request = new CreateSearchIndexRequest
+        {
+            IndexName = IndexName, TearDownIndex = true, RunIndexer = true, TransientPlayables = true
+        };
+        var events = new List<string>();
+        var live = new HashSet<string>();
+        var maxLive = 0;
+        var indexer = _mocker.GetMock<SearchIndexerClient>();
+        indexer.Setup(x => x.GetIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string name, CancellationToken _) => live.Contains(name)
+                ? Response.FromValue(new SearchIndexer(name, "ds", IndexName), Status(200))
+                : throw new RequestFailedException((int)HttpStatusCode.NotFound, "not found"));
+        indexer.Setup(x => x.GetDataSourceConnectionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string name, CancellationToken _) => live.Contains(name)
+                ? Response.FromValue(new SearchIndexerDataSourceConnection(name, SearchIndexerDataSourceType.CosmosDb,
+                    "cs", new SearchIndexerDataContainer("c")), Status(200))
+                : throw new RequestFailedException((int)HttpStatusCode.NotFound, "not found"));
+        indexer.Setup(x => x.CreateOrUpdateIndexerAsync(It.IsAny<SearchIndexer>(), It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback((SearchIndexer i, bool _, CancellationToken _) =>
+            {
+                live.Add(i.Name);
+                maxLive = Math.Max(maxLive, live.Count(n => n.EndsWith("-indexer")));
+                events.Add($"create {i.Name}");
+            })
+            .ReturnsAsync((SearchIndexer i, bool _, CancellationToken _) => Response.FromValue(i, Status(200)));
+        indexer.Setup(x => x.CreateOrUpdateDataSourceConnectionAsync(It.IsAny<SearchIndexerDataSourceConnection>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback((SearchIndexerDataSourceConnection d, bool _, CancellationToken _) => live.Add(d.Name))
+            .ReturnsAsync((SearchIndexerDataSourceConnection d, bool _, CancellationToken _) =>
+                Response.FromValue(d, Status(200)));
+        indexer.Setup(x => x.DeleteIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback((string name, CancellationToken _) =>
+            {
+                live.Remove(name);
+                events.Add($"delete {name}");
+            })
+            .ReturnsAsync(Status(204));
+        indexer.Setup(x => x.DeleteDataSourceConnectionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback((string name, CancellationToken _) => live.Remove(name))
+            .ReturnsAsync(Status(204));
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        await sut.RunTransientSiblings(request, name =>
+        {
+            events.Add($"run {name}");
+            return Task.CompletedTask;
+        });
+
+        // Assert
+        events.Should().Equal(SiblingIndexers.SelectMany(name =>
+            new[] { $"create {name}", $"run {name}", $"delete {name}" }));
+        maxLive.Should().Be(1);
+        live.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a transient sibling run fails, then its indexer and data source are still deleted, so a failed rebuild does not leave the Free-tier quota full.")]
+    public async Task transient_sibling_is_deleted_when_its_run_fails()
+    {
+        // Arrange
+        var request = new CreateSearchIndexRequest
+        {
+            IndexName = IndexName, TearDownIndex = true, RunIndexer = true, TransientPlayables = true
+        };
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var act = () => sut.RunTransientSiblings(request, _ => throw new InvalidOperationException("synthetic run failure"));
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("synthetic run failure");
+        var indexer = _mocker.GetMock<SearchIndexerClient>();
+        indexer.Verify(x => x.DeleteIndexerAsync(SiblingIndexers[0], It.IsAny<CancellationToken>()), Times.Once);
+        indexer.Verify(x => x.DeleteDataSourceConnectionAsync(SiblingDataSources[0], It.IsAny<CancellationToken>()),
+            Times.Once);
+        _createdOrUpdatedIndexers.Should().Equal(SiblingIndexers[0]);
+    }
+
+    [Fact(DisplayName =
+        "When a teardown asks for --transient-playables without --run-indexer, then nothing is deleted, because the plan is refused before any teardown.")]
+    public async Task transient_without_run_indexer_deletes_nothing()
+    {
+        // Arrange
+        var request = new CreateSearchIndexRequest { IndexName = IndexName, TearDownIndex = true, TransientPlayables = true };
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var act = () => sut.Process(request);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _mocker.GetMock<SearchIndexClient>()
+            .Verify(x => x.DeleteIndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<SearchIndexerClient>()
+            .Verify(x => x.DeleteIndexerAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

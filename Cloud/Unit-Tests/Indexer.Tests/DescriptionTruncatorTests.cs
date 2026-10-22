@@ -116,4 +116,36 @@ public class DescriptionTruncatorTests
 
         truncated.Should().Be("\u2026"[..maxLength]);
     }
+
+    [Fact(DisplayName =
+        "The search description cap is 50 characters, because cap 100 filled the Free-tier 50 MB index (22 Oct 2026).")]
+    public void Description_cap_is_50_for_the_free_tier_index()
+    {
+        Constants.DescriptionSize.Should().Be(50);
+    }
+
+    [Fact(DisplayName =
+        "A long description is cut to at most 50 characters at the last word boundary, with an ellipsis.")]
+    public void Truncates_long_description_to_fifty_characters_at_a_word_boundary()
+    {
+        const string description =
+            "Former members describe life inside the compound and the years it took to leave.";
+
+        var truncated = DescriptionTruncator.TruncateForSearch(description);
+
+        truncated.Should().Be("Former members describe life inside the compound\u2026");
+        truncated.Length.Should().BeLessThanOrEqualTo(50);
+    }
+
+    [Fact(DisplayName =
+        "The Cosmos SQL cut uses the same 50 cap as the push path: keep up to 50, else a 49-character slice plus an ellipsis, preferring a space past the halfway point.")]
+    public void Cosmos_sql_uses_the_fifty_character_cap()
+    {
+        var sql = DescriptionTruncator.CosmosSql("e.description");
+
+        sql.Should().Contain("LENGTH(LTRIM(RTRIM(e.description))) <= 50");
+        sql.Should().Contain("SUBSTRING(LTRIM(RTRIM(e.description)), 0, 49)");
+        sql.Should().Contain(") > 24,");
+        sql.Should().NotContain("<= 100");
+    }
 }

@@ -310,7 +310,7 @@ public class PodcastKindTransferServiceRules
     }
 
     [Fact(DisplayName =
-        "Search swap uploads the same episode guid with ContentKind TvShowEpisode, description capped at 100, and no seriesDescription.")]
+        "Search swap uploads the same episode guid with ContentKind TvShowEpisode, description capped at Constants.DescriptionSize, and no seriesDescription.")]
     public async Task search_swap_uploads_tv_show_episode_kind_same_guid_no_series_description()
     {
         // Arrange

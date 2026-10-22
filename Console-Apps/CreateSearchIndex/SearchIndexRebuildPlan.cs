@@ -9,12 +9,18 @@ namespace CreateSearchIndex;
 /// never re-pushes them. A teardown therefore always deletes and recreates the siblings, even
 /// without <c>--all-playables</c>, so the recreated index gets every playable back.
 /// </para>
+/// <para>
+/// <see cref="TransientSiblings"/> (<c>--transient-playables</c>) creates, runs and deletes one sibling
+/// at a time after the episode indexer, so a Free-tier service (three data sources and three indexers)
+/// never needs more than two of each. Nothing is left scheduled for the siblings afterwards.
+/// </para>
 /// </summary>
 public readonly record struct SearchIndexRebuildPlan(
     bool TearDownSiblings,
     bool EnsureSiblings,
     bool ResetSiblings,
-    bool RunSiblings)
+    bool RunSiblings,
+    bool TransientSiblings = false)
 {
     public static SearchIndexRebuildPlan For(CreateSearchIndexRequest request)
     {
@@ -22,6 +28,28 @@ public readonly record struct SearchIndexRebuildPlan(
         var hasIndex = !string.IsNullOrWhiteSpace(request.IndexName);
         var tearDown = hasIndex && request.TearDownIndex;
         var ensure = hasIndex && (request.AllPlayables || tearDown);
+        if (request.TransientPlayables)
+        {
+            if (request.UpdateExisting)
+            {
+                throw new InvalidOperationException(
+                    "Refusing --transient-playables together with --update-existing (transient siblings are deleted after their run).");
+            }
+
+            if (!ensure || !request.RunIndexer)
+            {
+                throw new InvalidOperationException(
+                    "--transient-playables needs --index, --run-indexer and either --teardown-index or --all-playables.");
+            }
+
+            return new SearchIndexRebuildPlan(
+                TearDownSiblings: tearDown,
+                EnsureSiblings: false,
+                ResetSiblings: false,
+                RunSiblings: false,
+                TransientSiblings: true);
+        }
+
         return new SearchIndexRebuildPlan(
             TearDownSiblings: tearDown,
             EnsureSiblings: ensure,
