@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -12,6 +13,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Providers;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
@@ -107,7 +109,7 @@ public class ServiceIdsRules
     }
 
     [Fact(DisplayName =
-        "Like the podcast edit API, \"\" clears youTubeChannelId and spotifyId, and nullAppleId: true clears appleId even when appleId is also sent.")]
+        "Like the podcast edit API, \"\" clears youTubeChannelId and spotifyId (stored as null, not \"\"), and nullAppleId: true clears appleId even when appleId is also sent.")]
     public async Task clears_follow_podcast_rules()
     {
         // Arrange
@@ -120,9 +122,80 @@ public class ServiceIdsRules
 
         // Assert
         var indexing = _savedOrganisation!.Indexing!;
-        indexing.YouTubeChannelId.Should().BeEmpty();
-        indexing.SpotifyId.Should().BeEmpty();
+        indexing.YouTubeChannelId.Should().BeNull();
+        indexing.SpotifyId.Should().BeNull();
         indexing.AppleId.Should().BeNull();
+    }
+
+    private static JsonObject StoredIndexing(CatalogueIndexingSource indexing) =>
+        (JsonObject) JsonSerializer.SerializeToNode(
+            indexing, new JsonSerializerOptionsProvider().GetJsonSerializerOptions())!;
+
+    [Fact(DisplayName =
+        "Setting only youTubeChannelId on an outlet with no indexing block stores only that id: no \"\" spotifyId, " +
+        "youTubePlaylistId or regexes are written, because unset ids and regexes are omitted like any other unset field.")]
+    public async Task new_block_holds_only_the_set_id()
+    {
+        // Arrange
+        var organisation = Organisation();
+
+        // Act
+        await Patch(organisation, new NewsOrganisationChangeRequest { YouTubeChannelId = ChannelId });
+
+        // Assert
+        var stored = StoredIndexing(_savedOrganisation!.Indexing!);
+        stored.Select(pair => pair.Key).Should()
+            .BeEquivalentTo("hasBundledEpisodes", "indexAllEpisodes", "youTubeChannelId");
+        stored["youTubeChannelId"]!.GetValue<string>().Should().Be(ChannelId);
+    }
+
+    [Fact(DisplayName =
+        "A whitespace youTubeChannelId, spotifyId or youTubePlaylistId clears the stored value (null, omitted), " +
+        "and the other ids are kept.")]
+    public async Task whitespace_clears_to_null()
+    {
+        // Arrange
+        var organisation = Organisation(new CatalogueIndexingSource
+            { YouTubeChannelId = ChannelId, SpotifyId = SpotifyShowId, YouTubePlaylistId = PlaylistId, AppleId = 42 });
+
+        // Act
+        await Patch(organisation, new NewsOrganisationChangeRequest
+            { YouTubeChannelId = "   ", SpotifyId = "\t", YouTubePlaylistId = " " });
+
+        // Assert
+        var indexing = _savedOrganisation!.Indexing!;
+        indexing.YouTubeChannelId.Should().BeNull();
+        indexing.SpotifyId.Should().BeNull();
+        indexing.YouTubePlaylistId.Should().BeNull();
+        indexing.YouTubePlaylistIdHistory.Should().ContainSingle().Which.Id.Should().Be(PlaylistId);
+        var stored = StoredIndexing(indexing);
+        stored.ContainsKey("youTubeChannelId").Should().BeFalse();
+        stored.ContainsKey("spotifyId").Should().BeFalse();
+        stored.ContainsKey("youTubePlaylistId").Should().BeFalse();
+        stored["appleId"]!.GetValue<long>().Should().Be(42);
+    }
+
+    [Fact(DisplayName =
+        "An outlet saved with \"\" ids and regexes (before blanks were normalised) is cleaned on the next PATCH: " +
+        "the blanks are dropped and only the set values are written.")]
+    public async Task legacy_blank_values_are_dropped_on_save()
+    {
+        // Arrange
+        var legacy = JsonSerializer.Deserialize<CatalogueIndexingSource>(
+            """
+            {"hasBundledEpisodes":false,"indexAllEpisodes":false,"spotifyId":"","youTubeChannelId":"",
+             "youTubePlaylistId":"","titleRegex":"","descriptionRegex":"","episodeMatchRegex":"",
+             "episodeIncludeTitleRegex":""}
+            """,
+            new JsonSerializerOptionsProvider().GetJsonSerializerOptions())!;
+        var organisation = Organisation(legacy);
+
+        // Act
+        await Patch(organisation, new NewsOrganisationChangeRequest { YouTubeChannelId = ChannelId });
+
+        // Assert
+        StoredIndexing(_savedOrganisation!.Indexing!).Select(pair => pair.Key).Should()
+            .BeEquivalentTo("hasBundledEpisodes", "indexAllEpisodes", "youTubeChannelId");
     }
 
     [Fact(DisplayName =
@@ -187,6 +260,8 @@ public class ServiceIdsRules
         // Assert
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
         _savedShow!.Indexing!.YouTubeChannelId.Should().Be(ChannelId);
+        StoredIndexing(_savedShow.Indexing).Select(pair => pair.Key).Should().BeEquivalentTo(
+            "hasBundledEpisodes", "indexAllEpisodes", "youTubeChannelId", "spotifyId", "appleId");
         var dto = _savedShow.ToDto();
         dto.YouTubeChannelId.Should().Be(ChannelId);
         dto.SpotifyId.Should().Be(SpotifyShowId);

@@ -33,7 +33,7 @@ public class EpisodeResultsEnricher(
         {
             var podcasts = new List<Podcast>();
             var parents = new List<CatalogueOwner>();
-            if (episodeResult.PodcastIds.Spotify is { } spotifyId)
+            if (episodeResult.PodcastIds.Spotify is { } spotifyId && !string.IsNullOrWhiteSpace(spotifyId))
             {
                 Add(podcasts, GetCurrentIndexed(
                     await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync()));
@@ -49,7 +49,7 @@ public class EpisodeResultsEnricher(
                 Add(parents, FindParent(catalogueOwners, x => x.AppleId == appleId));
             }
 
-            if (episodeResult.PodcastIds.YouTube is { } channelId)
+            if (episodeResult.PodcastIds.YouTube is { } channelId && !string.IsNullOrWhiteSpace(channelId))
             {
                 Add(podcasts, GetCurrentIndexed(
                     await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channelId).ToArrayAsync()));

@@ -9,13 +9,15 @@ namespace Api.Services.Catalogue;
 /// Applies the curator's service ids to a news organisation's or TV show's <c>indexing</c> block, with the podcast
 /// edit API rules from <c>PodcastChangeApplier</c>:
 /// <list type="bullet">
-/// <item><c>spotifyId</c>: set; <c>""</c> clears.</item>
+/// <item><c>spotifyId</c>: trimmed; <c>""</c> or whitespace clears.</item>
 /// <item><c>appleId</c> / <c>nullAppleId</c>: <c>nullAppleId: true</c> clears, otherwise <c>appleId</c> sets.</item>
 /// <item><c>youTubePlaylistId</c>: the <c>YouTubePlaylistIdChange</c> rule. Whitespace clears, the value is
 /// trimmed, a replaced non-empty id is appended to <c>youTubePlaylistIdHistory</c>, and a Warning is logged.</item>
-/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears. The podcast DTO accepts it but its applier never
+/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> or whitespace clears. The podcast DTO accepts it but its applier never
 /// stores it. Here it is stored, because it is what URL submission matches a YouTube channel on.</item>
 /// </list>
+/// A cleared value is stored as null (omitted), never <c>""</c>; <see cref="CatalogueIndexingSource"/> normalises blanks,
+/// so a new block holds only the ids actually set, not empty regexes and ids.
 /// The block is created only when a value is actually set. It is then not auto-indexed (<c>indexAllEpisodes</c>
 /// false, no include regex), so the hourly indexer from #1050 leaves the parent alone until discovery is configured.
 /// </summary>
@@ -39,13 +41,13 @@ public static class ServiceIdsApplier
         if (change.YouTubeChannelId != null)
         {
             source.YouTubeChannelId = change.YouTubeChannelId.Trim();
-            setsSomething |= source.YouTubeChannelId.Length > 0;
+            setsSomething |= source.YouTubeChannelId != null;
         }
 
         if (change.SpotifyId != null)
         {
             source.SpotifyId = change.SpotifyId.Trim();
-            setsSomething |= source.SpotifyId.Length > 0;
+            setsSomething |= source.SpotifyId != null;
         }
 
         if (change.NullAppleId == true)
