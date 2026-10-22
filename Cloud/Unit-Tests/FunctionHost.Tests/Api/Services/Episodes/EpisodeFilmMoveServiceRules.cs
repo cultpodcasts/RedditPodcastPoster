@@ -5,13 +5,17 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Cloudflare.Models;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Episodes;
@@ -26,6 +30,8 @@ public class EpisodeFilmMoveServiceRules
     private readonly List<Film> _savedFilms = [];
     private IReadOnlyList<EpisodeSearchRecord>? _uploadedSearchDocuments;
     private bool _searchUploadSucceeds = true;
+    private readonly List<Guid> _deletedShortLinks = [];
+    private Func<DeleteResult> _shortLinkDelete = () => new DeleteResult(true);
 
     public EpisodeFilmMoveServiceRules()
     {
@@ -51,6 +57,10 @@ public class EpisodeFilmMoveServiceRules
             .Callback<IReadOnlyList<EpisodeSearchRecord>, CancellationToken>(
                 (documents, _) => _uploadedSearchDocuments = documents)
             .ReturnsAsync(() => _searchUploadSucceeds);
+        _mocker.GetMock<IShortnerService>()
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(target => _deletedShortLinks.Add(target.Episode.Id))
+            .ReturnsAsync(() => _shortLinkDelete());
         _mocker.GetMock<ILogger<EpisodeFilmMoveService>>();
     }
 
@@ -290,5 +300,102 @@ public class EpisodeFilmMoveServiceRules
         _savedFilms.Should().ContainSingle();
         _uploadedSearchDocuments.Should().ContainSingle().Which.Title.Should().Be(title);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "The search document is the same one the film edit and the film pull indexer write, so the next pull run does not rewrite it.")]
+    public async Task search_document_matches_film_edit_shape()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        await Move(podcast.Id, episode.Id);
+
+        // Assert
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        _uploadedSearchDocuments.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(CataloguePlayableSearchDocument.For(film));
+    }
+
+    [Fact(DisplayName =
+        "After a move the episode's short-link record is deleted, so the Shortner finds the film in search and redirects the old short link straight to the film page.")]
+    public async Task move_deletes_short_link()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        await Move(podcast.Id, episode.Id);
+
+        // Assert
+        _deletedShortLinks.Should().ContainSingle().Which.Should().Be(episode.Id);
+    }
+
+    [Fact(DisplayName =
+        "When the search swap fails the short-link record is kept, because the old link must still reach the episode that has not moved yet.")]
+    public async Task search_failure_keeps_short_link()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _searchUploadSucceeds = false;
+
+        // Act
+        await Move(podcast.Id, episode.Id);
+
+        // Assert
+        _deletedShortLinks.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A short-link delete failure does not fail the move, because the film, search and episode row are already done.")]
+    public async Task short_link_failure_still_accepts()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _shortLinkDelete = () => throw new InvalidOperationException("synthetic KV failure");
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Re-sending after a completed move is accepted for the same film without writing again, so a double click or a lost response is not an error.")]
+    public async Task resend_after_completed_move_is_accepted()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var title = _fixture.CreateTitle();
+        await Move(podcast.Id, episode.Id, title);
+        _uploadedSearchDocuments = null;
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.FilmId.Should().Be(episode.Id);
+        result.Name.Should().Be(title);
+        _savedFilms.Should().ContainSingle();
+        _uploadedSearchDocuments.Should().BeNull();
     }
 }

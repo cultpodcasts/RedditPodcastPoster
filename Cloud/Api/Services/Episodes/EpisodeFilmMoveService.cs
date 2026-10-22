@@ -6,7 +6,8 @@ using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Episodes;
@@ -22,14 +23,17 @@ namespace Api.Services.Episodes;
 /// As in the migrator, a failed search swap stops before the source row is deleted. Re-sending the request then
 /// resumes: a film with the episode id while the episode row still exists is the interrupted move, so the film is
 /// reused rather than reported as a conflict.
-/// The source podcast is never deleted or changed, even when it has no episodes left. The episode's short link is
-/// left alone: it still points at <c>/podcast/{name}/{id}</c>, which the site redirects to the film from search.
+/// After the episode row is deleted, the episode's short-link record is deleted (best effort), as catalogue edits do,
+/// so the Shortner falls back to search and redirects the old short link straight to the film page. Re-sending after
+/// a completed move (episode row gone, film with the episode id present) is accepted again for that film.
+/// The source podcast is never deleted or changed, even when it has no episodes left.
 /// </summary>
 public class EpisodeFilmMoveService(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     IFilmRepository filmRepository,
     IPlayableSearchDocumentSwap searchSwap,
+    IShortnerService shortnerService,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -40,9 +44,24 @@ public class EpisodeFilmMoveService(
             var episode = podcast is null
                 ? null
                 : await episodeRepository.GetEpisode(command.PodcastId, command.EpisodeId);
-            if (podcast is null || episode is null)
+            if (podcast is null)
             {
                 return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.NotFound);
+            }
+
+            if (episode is null)
+            {
+                // A re-send after a completed move (double click, or a lost 202): the film has the episode id.
+                var moved = await filmRepository.GetFilm(command.EpisodeId);
+                if (moved is null)
+                {
+                    return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.NotFound);
+                }
+
+                logger.LogInformation(
+                    "{method}: Episode '{episodeId}' was already moved to film '{filmId}'; accepting the re-send.",
+                    nameof(MoveAsync), command.EpisodeId, moved.Id);
+                return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Accepted, moved.Id, moved.Name);
             }
 
             if (episode.Removed)
@@ -96,7 +115,8 @@ public class EpisodeFilmMoveService(
                 await filmRepository.Save(film);
             }
 
-            var documents = SearchDocuments(podcast, episode, film);
+            // Same document shape as the film PATCH and the film pull indexer, so the next pull run does not rewrite it.
+            var documents = new[] { CataloguePlayableSearchDocument.For(film) };
             if (!await searchSwap.UploadAsync(documents, cancellationToken))
             {
                 logger.LogError(
@@ -109,6 +129,7 @@ public class EpisodeFilmMoveService(
             logger.LogInformation(
                 "Moved episode '{episodeId}' from podcast '{podcastId}' to film '{filmName}'.",
                 episode.Id, podcast.Id, film.Name);
+            await DeleteShortLink(podcast, episode);
             return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Accepted, film.Id, film.Name);
         }
         catch (Exception ex)
@@ -119,18 +140,29 @@ public class EpisodeFilmMoveService(
         }
     }
 
-    private static IReadOnlyList<EpisodeSearchRecord> SearchDocuments(
+    /// <summary>
+    /// The short-link key is the episode id (base 64), which the film keeps. With no record the Shortner looks the id up
+    /// in search (now ContentKind Film) and redirects to <c>/film/{name}/{shortId}</c>. The move has already succeeded,
+    /// so a failure is logged and does not fail the request.
+    /// </summary>
+    private async Task DeleteShortLink(
         RedditPodcastPoster.Models.Podcasts.Podcast podcast,
-        RedditPodcastPoster.Models.Episodes.Episode episode,
-        Film film)
+        RedditPodcastPoster.Models.Episodes.Episode episode)
     {
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, [episode], SearchContentKind.Film);
-        foreach (var document in documents)
+        try
         {
-            // The film page slug and search card use the film name, which may differ from the episode title.
-            document.Title = film.Name;
+            var result = await shortnerService.Delete(new PodcastEpisode(podcast, episode));
+            if (!result.Success)
+            {
+                logger.LogWarning(
+                    "{method}: Short-link record for '{episodeId}' was not deleted (absent, or the KV delete failed).",
+                    nameof(DeleteShortLink), episode.Id);
+            }
         }
-
-        return documents;
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Short-link delete failed for moved episode '{episodeId}'.",
+                nameof(DeleteShortLink), episode.Id);
+        }
     }
 }
