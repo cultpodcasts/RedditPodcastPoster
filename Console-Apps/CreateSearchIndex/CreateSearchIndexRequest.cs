@@ -19,12 +19,8 @@ public class CreateSearchIndexRequest
     public bool ResetIndexer { get; set; }
 
     [Option("all-playables", Required = false, Default = false,
-        HelpText = "CreateOrUpdate TvShowEpisode, Film, and NewsReport datasources and indexers into the same index (both a fresh run and --update-existing). With --run-indexer, run each sibling through the same retry monitor. Episode datasource stays --datasource.")]
+        HelpText = "CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index without a teardown (both a fresh run and --update-existing), and delete a leftover Film pair. With --run-indexer, run each sibling through the same retry monitor. Episode datasource stays --datasource. Films are pushed by FilmSearchPusher.")]
     public bool AllPlayables { get; set; }
-
-    [Option("transient-playables", Required = false, Default = false,
-        HelpText = "With --run-indexer and a teardown or --all-playables: create, run and then delete each TvShowEpisode, Film and NewsReport sibling one at a time, so at most two data sources and two indexers exist (Free tier allows three of each). Refuses --update-existing.")]
-    public bool TransientPlayables { get; set; }
 
     [Option('d', "datasource", Required = false, Default = null, HelpText = "Data-source name")]
     public string? DataSourceName { get; set; }

@@ -8,7 +8,7 @@ public class SearchIndexRebuildPlanRules
     private const string IndexName = "synthetic-index";
 
     [Fact(DisplayName =
-        "When the index is torn down without --all-playables, then the TV, film and news siblings are torn down and recreated, because the deleted index held their documents and stale high-water marks would never re-push them.")]
+        "When the index is torn down without --all-playables, then the TV and news siblings are torn down and recreated, because the deleted index held their documents and stale high-water marks would never re-push them.")]
     public void teardown_without_all_playables_rebuilds_siblings()
     {
         // Arrange
@@ -69,7 +69,7 @@ public class SearchIndexRebuildPlanRules
     }
 
     [Fact(DisplayName =
-        "When --update-existing --reset-indexer --all-playables is given, then the siblings are reset too, because otherwise existing TV, film and news documents never pick up new fields.")]
+        "When --update-existing --reset-indexer --all-playables is given, then the siblings are reset too, because otherwise existing TV and news documents never pick up new fields.")]
     public void reset_with_all_playables_resets_siblings()
     {
         // Arrange
@@ -114,69 +114,5 @@ public class SearchIndexRebuildPlanRules
 
         // Assert
         plan.Should().Be(new SearchIndexRebuildPlan(false, false, false, false));
-    }
-
-    [Fact(DisplayName =
-        "When a teardown runs the indexer with --transient-playables, then the siblings are torn down and run one at a time instead of being created together, because a Free-tier service allows only three data sources and three indexers.")]
-    public void teardown_with_transient_playables_runs_siblings_one_at_a_time()
-    {
-        // Arrange
-        var request = new CreateSearchIndexRequest
-        {
-            IndexName = IndexName, TearDownIndex = true, RunIndexer = true, TransientPlayables = true
-        };
-
-        // Act
-        var plan = SearchIndexRebuildPlan.For(request);
-
-        // Assert
-        plan.Should().Be(new SearchIndexRebuildPlan(
-            TearDownSiblings: true, EnsureSiblings: false, ResetSiblings: false, RunSiblings: false,
-            TransientSiblings: true));
-    }
-
-    [Fact(DisplayName =
-        "When --transient-playables is given without --run-indexer, then the plan is refused, because a transient sibling is deleted straight after its run and would otherwise never load anything.")]
-    public void transient_playables_without_run_indexer_is_refused()
-    {
-        // Arrange
-        var request = new CreateSearchIndexRequest { IndexName = IndexName, TearDownIndex = true, TransientPlayables = true };
-
-        // Act
-        var act = () => SearchIndexRebuildPlan.For(request);
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>().WithMessage("*--run-indexer*");
-    }
-
-    [Fact(DisplayName =
-        "When --transient-playables is given with --update-existing, then the plan is refused, because an in-place update keeps scheduled siblings rather than deleting them.")]
-    public void transient_playables_with_update_existing_is_refused()
-    {
-        // Arrange
-        var request = new CreateSearchIndexRequest
-        {
-            IndexName = IndexName, UpdateExisting = true, AllPlayables = true, RunIndexer = true, TransientPlayables = true
-        };
-
-        // Act
-        var act = () => SearchIndexRebuildPlan.For(request);
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>().WithMessage("*--update-existing*");
-    }
-
-    [Fact(DisplayName =
-        "When --transient-playables is given without a teardown or --all-playables, then the plan is refused, because there are no siblings to run.")]
-    public void transient_playables_without_siblings_is_refused()
-    {
-        // Arrange
-        var request = new CreateSearchIndexRequest { IndexName = IndexName, RunIndexer = true, TransientPlayables = true };
-
-        // Act
-        var act = () => SearchIndexRebuildPlan.For(request);
-
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
     }
 }

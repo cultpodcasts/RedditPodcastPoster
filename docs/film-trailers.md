@@ -34,8 +34,10 @@ trailer pushes `[]` to clear it (merge-or-upload ignores an omitted field).
 CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds
 ```
 
-`--update-existing` adds any `EpisodeSearchRecord` field the index lacks and keeps every document. Do **not** add
-`--all-playables` on the Free tier. Once the field exists, a FilmSearchPusher run (or any film save) fills it.
+`--update-existing` adds any `EpisodeSearchRecord` field the index lacks and keeps every document. The episode, TV
+and news indexers need no change (they never project `trailers`). Once the field exists, a FilmSearchPusher run (or
+any film save) fills it. FilmSearchPusher merge-or-uploads, so a film whose last trailer was removed outside the
+curator edit keeps its old tokens until its next curator save (the edit pushes `[]`).
 
 Run this **before** the first attach. If the field is missing, the attach's film push fails and the attach stops
 before the episode is deleted, so nothing is lost; re-send after adding the field.

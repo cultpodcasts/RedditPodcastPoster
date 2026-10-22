@@ -77,5 +77,8 @@ public enum ModelType
     DiscoverySubmission = 24,
 
     [JsonPropertyName(nameof(YouTubeThumbnailRecheckCursor))]
-    YouTubeThumbnailRecheckCursor = 25
+    YouTubeThumbnailRecheckCursor = 25,
+
+    [JsonPropertyName(nameof(FilmSearchPushWatermark))]
+    FilmSearchPushWatermark = 26
 }
