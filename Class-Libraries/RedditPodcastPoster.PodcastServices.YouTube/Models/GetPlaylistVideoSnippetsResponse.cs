@@ -8,7 +8,11 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 /// <param name="Result">The list of playlist items, or null if the API call failed.</param>
 /// <param name="IsExpensiveQuery">Indicates if the query was expensive (oldest-first), null if inconclusive.</param>
 /// <param name="Failure">The failure details, or null if the API call succeeded.</param>
+/// <param name="TotalResults">The playlist's latest <c>pageInfo.totalResults</c>, when YouTube reported one.</param>
+/// <param name="WalkOutcome">How the walk ended (only a complete walk refreshes YouTube indexing hints).</param>
 public record GetPlaylistVideoSnippetsResponse(
     IList<PlaylistItem>? Result,
     bool? IsExpensiveQuery = null,
-    YouTubePlaylistFetchFailure? Failure = null);
+    YouTubePlaylistFetchFailure? Failure = null,
+    int? TotalResults = null,
+    YouTubePlaylistWalkOutcome WalkOutcome = YouTubePlaylistWalkOutcome.Incomplete);

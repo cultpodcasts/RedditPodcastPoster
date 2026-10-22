@@ -52,6 +52,7 @@ public class PodcastUpdater(
         var knownYouTubeExpensiveQuery = podcast.HasExpensiveYouTubePlaylistQuery();
         var knownYouTubeChannelSearchForbidden = podcast.HasYouTubeChannelSearchForbidden();
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
+        var knownYouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy();
         IList<Episode> episodes;
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
@@ -296,6 +297,9 @@ public class PodcastUpdater(
         // episode lookup planner. A successful index pass saves the podcast anyway (LastIndexed), so this rarely adds a write.
         var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
 
+        // The YouTube handler refreshes the hints after a full walk or uploads check; a bypassed pass still saves them.
+        var youTubeIndexingHintsChanged = !Equals(knownYouTubeIndexingHints, podcast.YouTubeIndexingHints);
+
         var spotifyBypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving;
         var youTubeBypassed = initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving;
         var youTubeDiscoveryBypassed = podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
@@ -314,7 +318,7 @@ public class PodcastUpdater(
                              discoveredYouTubeExpensiveQuery || clearedYouTubeExpensiveQuery ||
                              discoveredYouTubeChannelSearchForbidden ||
                              discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery ||
-                             showEpisodeCountsChanged;
+                             showEpisodeCountsChanged || youTubeIndexingHintsChanged;
 
         if (indexSucceeded)
         {

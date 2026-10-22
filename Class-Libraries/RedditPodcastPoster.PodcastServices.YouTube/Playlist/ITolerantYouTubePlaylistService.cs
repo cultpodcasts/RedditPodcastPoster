@@ -18,6 +18,15 @@ public interface ITolerantYouTubePlaylistService
         bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null);
 
+    /// <summary>
+    /// <see cref="IYouTubePlaylistService.GetPlaylistHead"/> with api-key rotation on quota. When every key is spent the
+    /// response has <see cref="YouTubePlaylistFetchFailure.QuotaExhausted"/>.
+    /// </summary>
+    public Task<GetPlaylistHeadResponse> GetPlaylistHead(
+        YouTubePlaylistId playlistId,
+        int maxResults,
+        IndexingContext indexingContext);
+
     public Task<GetPlaylistInfoResponse> GetPlaylistInfo(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext);

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -34,7 +35,7 @@ public class YouTubePlaylistServicePagingRules
 
     private IYouTubeServiceWrapper Wrapper()
     {
-        var wrapper = new Mock<IYouTubeServiceWrapper>();
+        var wrapper = new AutoMocker().GetMock<IYouTubeServiceWrapper>();
         wrapper.SetupGet(x => x.YouTubeService).Returns(_api.CreateService());
         return wrapper.Object;
     }
@@ -134,26 +135,27 @@ public class YouTubePlaylistServicePagingRules
     }
 
     [Fact(DisplayName =
-        "A chain of empty pages with new tokens short of totalResults is ended by the page cap at Error, " +
-        "because following new tokens must still be bounded.")]
-    public async Task Empty_pages_short_of_total_end_at_page_cap()
+        "A chain of empty pages with new tokens short of totalResults stops after two empty pages in a row at Error, " +
+        "because an over-reported total (5,000 here) would otherwise let the page cap allow about 100 empty calls.")]
+    public async Task Empty_pages_short_of_total_stop_after_two_in_a_row()
     {
-        // Arrange: totalResults 100 => cap ceil(100/50) + 2 = 4 pages.
-        _api.Page("", new FakeYouTubePage(FakeYouTubePagingApi.Ids("v", 0, 10), "t1", 100));
+        // Arrange: totalResults 5,000 => page cap ceil(5000/50) + 2 = 102 pages.
+        _api.Page("", new FakeYouTubePage(FakeYouTubePagingApi.Ids("v", 0, 10), "t1", 5000));
         for (var page = 1; page < 10; page++)
         {
-            _api.Page($"t{page}", new FakeYouTubePage([], $"t{page + 1}", 100));
+            _api.Page($"t{page}", new FakeYouTubePage([], $"t{page + 1}", 5000));
         }
 
         // Act
         var response = await CreateSut().GetPlaylistVideoSnippets(Wrapper(), PlaylistId, new IndexingContext());
 
         // Assert
-        _api.Requests.Should().HaveCount(4);
+        _api.Requests.Select(r => r.PageToken).Should().Equal("", "t1", "t2");
         response.Result.Should().HaveCount(10);
+        response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.Incomplete);
         var stop = StopLogs.Should().ContainSingle().Subject;
         stop.Level.Should().Be(LogLevel.Error);
-        stop.Message.Should().Contain(nameof(YouTubePageWalkStopReason.PageCapExceeded));
+        stop.Message.Should().Contain(nameof(YouTubePageWalkStopReason.ConsecutiveEmptyPages));
     }
 
     [Fact(DisplayName =

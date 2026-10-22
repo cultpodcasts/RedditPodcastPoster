@@ -68,6 +68,8 @@ public class YouTubePlaylistService(
         var knownToBeInReverseOrder = false;
         bool? isExpensiveQuery = null;
         var walkGuard = new YouTubePageWalkGuard(batchSize);
+        var stopReason = YouTubePageWalkStopReason.None;
+        var circuitBreakerTripped = false;
         // contentDetails is free on playlistItems.list (1 unit per page regardless of parts) and carries
         // videoPublishedAt, which the ReleasedSince filter below needs to window scheduled uploads on
         // their public release rather than the earlier added-to-playlist time.
@@ -92,6 +94,7 @@ public class YouTubePlaylistService(
                     ArbitraryYouTubePlaylistWalk.MaxPages,
                     indexingContext.ReleasedSince,
                     nextPageToken);
+                circuitBreakerTripped = true;
                 break;
             }
 
@@ -201,6 +204,7 @@ public class YouTubePlaylistService(
                 playlistItemsListResponse.PageInfo?.TotalResults);
             if (stop != YouTubePageWalkStopReason.None)
             {
+                stopReason = stop;
                 walkGuard.LogStop(logger, stop, "playlist-items", playlistId.PlaylistId,
                     playlistId.Source.ToString(), playlistId.SourceIdentifier, result.Count);
                 break;
@@ -213,7 +217,102 @@ public class YouTubePlaylistService(
                 x.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince)).ToList();
         }
 
-        return new GetPlaylistVideoSnippetsResponse(result, isExpensiveQuery);
+        var walkOutcome = WalkOutcome(walkGuard, stopReason, circuitBreakerTripped, nextPageToken);
+        return new GetPlaylistVideoSnippetsResponse(result, isExpensiveQuery,
+            TotalResults: walkGuard.TotalResults, WalkOutcome: walkOutcome);
+    }
+
+    /// <summary>
+    /// Complete when YouTube stopped returning a next-page token, or the guard stopped on an empty page after the walk
+    /// had read (nearly) every item (<see cref="YouTubePageWalkGuard.ReadToEnd"/>): an empty-page stop, or the
+    /// repeated-token empty tail. Any other guard stop and the arbitrary-order page cap are Incomplete. A loop that
+    /// ended with a token still in hand stopped because a newest-first playlist left the date window.
+    /// </summary>
+    internal static YouTubePlaylistWalkOutcome WalkOutcome(
+        YouTubePageWalkGuard walkGuard,
+        YouTubePageWalkStopReason stopReason,
+        bool circuitBreakerTripped,
+        string? nextPageToken)
+    {
+        if (circuitBreakerTripped)
+        {
+            return YouTubePlaylistWalkOutcome.Incomplete;
+        }
+
+        if (stopReason != YouTubePageWalkStopReason.None)
+        {
+            // The guard logs a finished walk's tidy tail below Error (EmptyPage: Information; the repeated-token empty
+            // tail after ReadToEnd: Warning). Every Error stop may have missed items.
+            return walkGuard.LevelFor(stopReason) < LogLevel.Error
+                ? YouTubePlaylistWalkOutcome.Complete
+                : YouTubePlaylistWalkOutcome.Incomplete;
+        }
+
+        return string.IsNullOrEmpty(nextPageToken)
+            ? YouTubePlaylistWalkOutcome.Complete
+            : YouTubePlaylistWalkOutcome.StoppedAtWindow;
+    }
+
+    public async Task<GetPlaylistHeadResponse> GetPlaylistHead(
+        IYouTubeServiceWrapper youTubeServiceWrapper,
+        YouTubePlaylistId playlistId,
+        int maxResults,
+        IndexingContext indexingContext)
+    {
+        if (indexingContext.SkipYouTubeUrlResolving)
+        {
+            return new GetPlaylistHeadResponse(null, Failure: YouTubePlaylistFetchFailure.Skipped);
+        }
+
+        try
+        {
+            // contentDetails is free and carries videoPublishedAt, which the indexing window reads.
+            var request = youTubeServiceWrapper.YouTubeService.PlaylistItems.List("snippet,contentDetails");
+            request.PlaylistId = playlistId.PlaylistId;
+            request.MaxResults = Math.Clamp(maxResults, 1, PlaylistPageSize);
+            indexingContext.ReportStage("youtube-playlist-head",
+                $"playlist-id={playlistId.PlaylistId} max-results={request.MaxResults}");
+            var response = await request.ExecuteAsync(indexingContext.CancellationToken);
+            await quotaUsageTracker.RecordQuotaConsumedAsync(
+                youTubeServiceWrapper.CurrentApplication,
+                youTubeServiceWrapper.Usage,
+                YouTubeQuotaOperation.PlaylistItemsList,
+                YouTubeQuotaCosts.PlaylistItemsList);
+            var items = (response.Items ?? [])
+                .Where(x => x?.Snippet?.ResourceId?.VideoId != null && x.Snippet.Title != PrivateVideoTitle)
+                .ToList();
+            return new GetPlaylistHeadResponse(items, response.PageInfo?.TotalResults);
+        }
+        catch (OperationCanceledException) when (indexingContext.CancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                            ex.Message.Contains("exceeded") && ex.Message.Contains("quota"))
+        {
+            logger.LogWarning(ex, "Exceeded Quota occurred.");
+            await quotaUsageTracker.RecordQuotaHitAsync(
+                youTubeServiceWrapper.CurrentApplication,
+                youTubeServiceWrapper.Usage,
+                YouTubeQuotaOperation.PlaylistItemsList);
+            throw new YouTubeQuotaException();
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
+        {
+            logger.LogError(ex,
+                "YouTube playlist '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}) was not found (HTTP NotFound) reading its head.",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
+            await quotaUsageTracker.RecordNonQuotaErrorAsync();
+            return new GetPlaylistHeadResponse(null, Failure: YouTubePlaylistFetchFailure.NotFound);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to read the head of playlist-id '{playlistId}' (source: {Source}, identifier: {SourceIdentifier}).",
+                playlistId.PlaylistId, playlistId.Source, playlistId.SourceIdentifier);
+            await quotaUsageTracker.RecordNonQuotaErrorAsync();
+            return new GetPlaylistHeadResponse(null, Failure: YouTubePlaylistFetchFailure.ApiError);
+        }
     }
 
     public async Task<GetPlaylistInfoResponse> GetPlaylistInfo(IYouTubeServiceWrapper youTubeServiceWrapper,

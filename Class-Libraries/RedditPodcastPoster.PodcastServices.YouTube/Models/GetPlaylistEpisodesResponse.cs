@@ -1,4 +1,4 @@
-﻿using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Models;
 
@@ -16,4 +16,11 @@ public record GetPlaylistEpisodesResponse(
     /// In-window playlist items dropped because the podcast already stores them (known-id skip). In-window items found
     /// = <c>Results.Count + KnownSkipped</c>.
     /// </summary>
-    int KnownSkipped = 0);
+    int KnownSkipped = 0,
+    /// <summary>The playlist's <c>pageInfo.totalResults</c> from the walk, when YouTube reported one.</summary>
+    int? TotalResults = null,
+    /// <summary>
+    /// How the walk ended. <see cref="YouTubePlaylistWalkOutcome.Complete"/> only when the walk read to the end AND the
+    /// episodes were built (a videos.list or build failure reports Incomplete), so hints never move past unbuilt items.
+    /// </summary>
+    YouTubePlaylistWalkOutcome WalkOutcome = YouTubePlaylistWalkOutcome.Incomplete);

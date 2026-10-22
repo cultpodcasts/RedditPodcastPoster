@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -14,6 +15,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Handlers;
+using RedditPodcastPoster.PodcastServices.YouTube.IndexingHints;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -34,6 +36,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IYouTubeItemResolver, YouTubeItemResolver>()
             .AddScoped<IYouTubePlaylistService, YouTubePlaylistService>()
             .AddScoped<IYouTubePlaylistMembership, YouTubePlaylistMembership>()
+            .AddScoped<IYouTubeUploadsHeadCheck, YouTubeUploadsHeadCheck>()
             .AddScoped<IYouTubeVideoService, YouTubeVideoService>()
             .AddScoped<ITolerantYouTubeVideoService, TolerantYouTubeVideoService>()
             .AddScoped<IYouTubeChannelVideoSnippetsService, YouTubeChannelVideoSnippetsService>()
@@ -76,9 +79,11 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IYouTubeChannelVideoRetrievalPolicy, YouTubeChannelVideoRetrievalPolicy>()
             .BindConfiguration<YouTubeSettings>("youtube")
             .BindConfiguration<YouTubeChannelOptions>("youtubeChannel")
+            .BindConfiguration<YouTubeIndexingHintsOptions>(YouTubeIndexingHintsOptions.SectionName)
             .BindConfiguration<YouTubeCandidatePreferenceOptions>(YouTubeCandidatePreferenceOptions.SectionName)
             .AddSingleton<IValidateOptions<YouTubeCandidatePreferenceOptions>, YouTubeCandidatePreferenceOptionsValidator>();
 
+        serviceCollection.TryAddSingleton(TimeProvider.System);
         serviceCollection.AddOptions<YouTubeCandidatePreferenceOptions>().ValidateOnStart();
         serviceCollection.AddHttpClient(
                 YouTubeThumbnailMotionDetector.HttpClientName,

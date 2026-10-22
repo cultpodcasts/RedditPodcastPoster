@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Episodes.Merging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.YouTube.Episode;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.IndexingHints;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.Abstractions.Handlers;
@@ -16,9 +18,18 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Handlers;
 
 public class YouTubeEpisodeRetrievalHandler(
     IYouTubeEpisodeProvider youTubeEpisodeProvider,
+    IYouTubeUploadsHeadCheck uploadsHeadCheck,
+    IOptions<YouTubeIndexingHintsOptions> hintsOptions,
+    TimeProvider timeProvider,
     ILogger<YouTubeEpisodeRetrievalHandler> logger)
     : IYouTubeEpisodeRetrievalHandler
 {
+    public const string UploadsHeadDiscoveryPath = "playlist-uploads-head";
+
+    public const string HintsMessagePrefix = "YouTubeIndexingHints";
+
+    private readonly YouTubeIndexingHintsOptions _hintsOptions = hintsOptions?.Value ?? new YouTubeIndexingHintsOptions();
+
     public async Task<EpisodeRetrievalHandlerResponse> GetEpisodes(Podcast podcast, IEnumerable<EpisodeModel> episodes, IndexingContext indexingContext)
     {
         var handled = false;
@@ -48,12 +59,36 @@ public class YouTubeEpisodeRetrievalHandler(
 
             var playlistId = new YouTubePlaylistId(podcast.YouTubePlaylistId,
                 YouTubePlaylistIdSource.PodcastEntity, podcast.Id.ToString());
+            var knownPlaylistIds = KnownPlaylistYouTubeIds(episodes);
+            var startedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            var (plan, planReason) =
+                YouTubeIndexingHintsPlanner.Plan(podcast, indexingContext, _hintsOptions, startedUtc);
+            if (plan == YouTubePlaylistDiscoveryPlan.UploadsHead)
+            {
+                var uploadsHead = await TryUploadsHead(podcast, playlistId, knownPlaylistIds, indexingContext);
+                if (uploadsHead.Episodes != null)
+                {
+                    LogDiscoveryPath(podcast, UploadsHeadDiscoveryPath, indexingContext, uploadsHead.Episodes.Count,
+                        null);
+                    return new EpisodeRetrievalHandlerResponse(uploadsHead.Episodes, true);
+                }
+
+                if (uploadsHead.FallbackReason == YouTubeUploadsHeadCheck.QuotaExhausted)
+                {
+                    // Every key is spent; a full walk could not run either. Hints stay as they were.
+                    LogDiscoveryPath(podcast, UploadsHeadDiscoveryPath, indexingContext, 0, null);
+                    return new EpisodeRetrievalHandlerResponse(newEpisodes, true);
+                }
+
+                planReason = uploadsHead.FallbackReason!;
+            }
+
             var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
                 podcast,
                 playlistId,
                 new YouTubeChannelId(podcast.YouTubeChannelId),
                 indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
-                KnownPlaylistYouTubeIds(episodes));
+                knownPlaylistIds);
             if (getPlaylistEpisodesResult.Results != null)
             {
                 newEpisodes = getPlaylistEpisodesResult.Results;
@@ -73,6 +108,7 @@ public class YouTubeEpisodeRetrievalHandler(
                     logger);
             }
 
+            ApplyFullWalkHints(podcast, getPlaylistEpisodesResult, startedUtc, planReason);
             LogDiscoveryPath(podcast, discoveryPath, indexingContext, newEpisodes.Count,
                 getPlaylistEpisodesResult.KnownSkipped);
         }
@@ -91,6 +127,69 @@ public class YouTubeEpisodeRetrievalHandler(
         handled = true;
 
         return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
+    }
+
+    private async Task<(IList<EpisodeModel>? Episodes, string? FallbackReason)> TryUploadsHead(
+        Podcast podcast,
+        YouTubePlaylistId playlistId,
+        IReadOnlyCollection<string> knownPlaylistIds,
+        IndexingContext indexingContext)
+    {
+        var hints = podcast.CurrentYouTubeIndexingHints()!;
+        var check = await uploadsHeadCheck.Check(podcast, hints, playlistId, knownPlaylistIds, indexingContext);
+        if (!check.Succeeded)
+        {
+            logger.LogInformation(
+                HintsMessagePrefix +
+                " podcast-id='{PodcastId}' playlist-id='{PlaylistId}' uploads-head fell back to a full walk: reason='{Reason}' uploads-checked='{UploadsChecked}'.",
+                podcast.Id, playlistId.PlaylistId, check.FallbackReason, check.UploadsChecked);
+            return (null, check.FallbackReason);
+        }
+
+        var built = check.Members.Count == 0
+            ? new GetPlaylistEpisodesResponse([])
+            : await youTubeEpisodeProvider.BuildPlaylistEpisodes(
+                podcast, new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, check.Members,
+                knownPlaylistIds);
+        if (built.Results == null)
+        {
+            const string buildFailed = "build-failed";
+            logger.LogInformation(
+                HintsMessagePrefix +
+                " podcast-id='{PodcastId}' playlist-id='{PlaylistId}' uploads-head fell back to a full walk: reason='{Reason}' uploads-checked='{UploadsChecked}'.",
+                podcast.Id, playlistId.PlaylistId, buildFailed, check.UploadsChecked);
+            return (null, buildFailed);
+        }
+
+        podcast.YouTubeIndexingHints = YouTubeIndexingHintsPlanner.AfterUploadsHead(hints, check);
+        logger.LogInformation(
+            HintsMessagePrefix +
+            " podcast-id='{PodcastId}' playlist-id='{PlaylistId}' uploads-head: count='{Count}' uploads-checked='{UploadsChecked}' members-new='{MembersNew}' checked-through='{CheckedThrough:O}'.",
+            podcast.Id, playlistId.PlaylistId, check.TotalResults, check.UploadsChecked, check.Members.Count,
+            podcast.YouTubeIndexingHints.UploadsCheckedThrough);
+        return (built.Results, null);
+    }
+
+    private void ApplyFullWalkHints(
+        Podcast podcast,
+        GetPlaylistEpisodesResponse walk,
+        DateTime startedUtc,
+        string planReason)
+    {
+        var before = podcast.YouTubeIndexingHints;
+        var after = YouTubeIndexingHintsPlanner.AfterFullWalk(podcast, walk.WalkOutcome, walk.TotalResults,
+            startedUtc, _hintsOptions);
+        if (Equals(before, after))
+        {
+            return;
+        }
+
+        podcast.YouTubeIndexingHints = after;
+        logger.LogInformation(
+            HintsMessagePrefix +
+            " podcast-id='{PodcastId}' full walk ({PlanReason}) outcome='{Outcome}' count='{Count}': hints {Change}.",
+            podcast.Id, planReason, walk.WalkOutcome, walk.TotalResults,
+            after == null ? "cleared" : "recorded");
     }
 
     /// <summary>

@@ -23,7 +23,14 @@ public enum YouTubePageWalkStopReason
     /// <summary>
     /// The walk reached <c>ceil(totalResults / pageSize) + 2</c> pages and YouTube still returned a next-page token.
     /// </summary>
-    PageCapExceeded
+    PageCapExceeded,
+
+    /// <summary>
+    /// <see cref="YouTubePageWalkGuard.MaxConsecutiveEmptyPages"/> pages in a row returned zero items with a new
+    /// next-page token while the walk was still short of <c>totalResults</c>. Without this the chain is bounded only by
+    /// the page cap, which grows with an over-reported total (about 100 calls for a total of 5,000).
+    /// </summary>
+    ConsecutiveEmptyPages
 }
 
 /// <summary>
@@ -38,6 +45,12 @@ public sealed class YouTubePageWalkGuard
 {
     /// <summary>Extra pages allowed over <c>ceil(totalResults / pageSize)</c> before the cap trips.</summary>
     public const int PageCapSlack = 2;
+
+    /// <summary>
+    /// Empty pages in a row (each with a new token, short of the total) before the walk stops. One empty page followed
+    /// by real items still walks on.
+    /// </summary>
+    public const int MaxConsecutiveEmptyPages = 2;
 
     public const string StoppedMessagePrefix = "YouTube page walk stopped:";
 
@@ -68,6 +81,9 @@ public sealed class YouTubePageWalkGuard
     /// <summary>Item count of the most recent page.</summary>
     public int LastPageItemCount { get; private set; }
 
+    /// <summary>Pages in a row, ending with the latest, that returned zero items.</summary>
+    public int ConsecutiveEmptyPages { get; private set; }
+
     /// <summary>
     /// True when the walk has read (nearly) everything YouTube says the list holds: at least
     /// <c>totalResults - 2</c> distinct ids, or no total was reported. The slack covers items
@@ -96,6 +112,7 @@ public sealed class YouTubePageWalkGuard
     {
         PagesFetched++;
         LastPageItemCount = itemIds.Count;
+        ConsecutiveEmptyPages = itemIds.Count == 0 ? ConsecutiveEmptyPages + 1 : 0;
         if (totalResults.HasValue)
         {
             TotalResults = totalResults;
@@ -123,6 +140,11 @@ public sealed class YouTubePageWalkGuard
             if (ReadToEnd)
             {
                 return YouTubePageWalkStopReason.EmptyPage;
+            }
+
+            if (ConsecutiveEmptyPages >= MaxConsecutiveEmptyPages)
+            {
+                return YouTubePageWalkStopReason.ConsecutiveEmptyPages;
             }
         }
         else if (allSeen)

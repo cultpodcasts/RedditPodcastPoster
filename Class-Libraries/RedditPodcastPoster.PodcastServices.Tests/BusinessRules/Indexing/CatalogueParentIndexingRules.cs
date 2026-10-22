@@ -578,4 +578,32 @@ public class CatalogueParentIndexingRules
         // Assert
         success.Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: YouTube indexing hints the pass refreshed on the transient podcast are patched as " +
+        "/indexing/youTubeIndexingHints alone, because they live in the parent's indexing block and only the indexer " +
+        "writes them.")]
+    public async Task refreshed_youtube_indexing_hints_are_patched()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var hints = new YouTubeIndexingHints
+        {
+            PlaylistId = _fixture.CreateYouTubePlaylistId(),
+            LastFullWalk = DomainTestFixture.UtcDaysAgo(0),
+            PlaylistItemCount = 400
+        };
+        _mocker.GetMock<IEpisodeProvider>()
+            .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .Callback((Podcast p, IEnumerable<Episode> _, IndexingContext _) => p.YouTubeIndexingHints = hints)
+            .ReturnsAsync([]);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
+        patch.ChangedIndexingProperties.Should().Equal("youTubeIndexingHints");
+        patch.Indexing.YouTubeIndexingHints.Should().Be(hints);
+    }
 }
