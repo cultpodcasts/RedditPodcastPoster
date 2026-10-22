@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Api.Models;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -225,8 +226,20 @@ public class PodcastKindTransferService(
         string contentKind,
         CancellationToken cancellationToken)
     {
+        var excluded = episodes
+            .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+            .Select(episode => episode.Id)
+            .ToList();
         var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
-        return await searchSwap.UploadAsync(documents, cancellationToken);
+        var uploaded = await searchSwap.UploadAsync(documents, cancellationToken);
+        if (excluded.Count == 0)
+        {
+            return uploaded;
+        }
+
+        // A removed episode may already be in the index. Do not rewrite it as the new kind; drop that key.
+        var deleted = await searchSwap.DeleteAsync(excluded, cancellationToken);
+        return uploaded && deleted;
     }
 
     private async Task DeletePodcastRows(Podcast podcast, IReadOnlyList<Episode> episodes)

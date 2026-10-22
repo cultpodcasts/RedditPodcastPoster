@@ -143,4 +143,45 @@ public class CatalogueMigrateSearchDocumentsRules
         // Assert
         documents.Should().BeEmpty();
     }
+
+    [Fact(DisplayName =
+        "A removed episode is left out of the News, TV and Film search-swap documents, because a transfer must not " +
+        "put a removed playable into the index.")]
+    public void removed_episode_is_omitted_from_news_tv_and_film_documents()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var kept = _fixture.CreateStoredEpisode(podcast);
+        var removed = _fixture.CreateStoredEpisode(podcast, episode => episode.Removed = true);
+
+        // Act
+        var news = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast, [kept, removed], SearchContentKind.NewsReport);
+        var tv = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast, [kept, removed], SearchContentKind.TvShowEpisode);
+        var film = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast, [kept, removed], SearchContentKind.Film);
+
+        // Assert
+        news.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+        tv.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+        film.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Episodes of a removed podcast are left out of the search-swap documents, because the episode indexer " +
+        "already keeps a removed publisher out of the index.")]
+    public void removed_podcast_yields_no_search_swap_documents()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.Removed = true);
+        var episode = _fixture.CreateStoredEpisode(podcast);
+
+        // Act
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast, [episode], SearchContentKind.NewsReport);
+
+        // Assert
+        documents.Should().BeEmpty();
+    }
 }
