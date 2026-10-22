@@ -456,7 +456,7 @@ FilmSearchPusher
 
 | Option | Description |
 |--------|-------------|
-| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`), ignoring the watermark |
+| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`; each is re-read before deletion so a film created mid-run is kept), ignoring the watermark |
 | `-n, --dry-run` | Read and plan only: logs what would be pushed and deleted. No search writes, no watermark save |
 | `-b, --batch-size` | Documents per index request, 1–1000 (default `500`) |
 
@@ -464,7 +464,7 @@ How it works:
 
 - **Incremental (default):** reads films with `_ts >=` the saved watermark (the boundary second is re-pushed so a film saved later in that second is not missed), merge-or-uploads each document built by `CataloguePlayableSearchDocument.For(Film)` (the curator edit's document, description cut to `Constants.DescriptionSize`), and deletes the document of any film marked removed.
 - **Becomes a full push** when `--full` is given, when no watermark has been saved, or when the index holds no film documents (straight after a teardown).
-- **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed run is retried in full. Exit code `1` on any failure.
+- **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed incremental run is retried; a failed full run clears it, so the next run is full again. Exit code `1` on any failure.
 - Curator film edits and Move to film still push their document straight away; this run catches anything else (CatalogueMigrate film applies, rebuilds) within a day.
 
 ```powershell

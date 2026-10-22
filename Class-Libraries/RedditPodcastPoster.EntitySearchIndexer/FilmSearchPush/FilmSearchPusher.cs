@@ -17,7 +17,8 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <item>A removed film's document is deleted; any other film is merge-or-uploaded with
 /// <see cref="CataloguePlayableSearchDocument.For(Film)"/>, the same document the curator edit pushes.</item>
 /// <item>The watermark advances to the highest <c>_ts</c> read only after every push and delete succeeded, so a
-/// failed run is retried in full next time. A dry run writes nothing.</item>
+/// failed incremental run is retried next time. A failed full run clears the watermark, so the next run is full
+/// again. A dry run writes nothing.</item>
 /// </list>
 /// </summary>
 public sealed class FilmSearchPusher(
@@ -80,9 +81,17 @@ public sealed class FilmSearchPusher(
         if (full)
         {
             var existing = films.Select(film => film.Id.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var orphans = (await searchIndex.GetFilmDocumentIds(cancellationToken))
-                .Where(id => !existing.Contains(id))
-                .ToList();
+            var orphans = new List<string>();
+            foreach (var id in (await searchIndex.GetFilmDocumentIds(cancellationToken)).Where(id => !existing.Contains(id)))
+            {
+                // Re-read before deleting: a film created (for example by Move to film) after the films were read
+                // already has its document, and must not be removed as an orphan.
+                if (Guid.TryParse(id, out var filmId) && await filmRepository.GetFilm(filmId) is null)
+                {
+                    orphans.Add(id);
+                }
+            }
+
             if (orphans.Count > 0)
             {
                 logger.LogInformation(
@@ -115,6 +124,21 @@ public sealed class FilmSearchPusher(
 
         if (failed > 0)
         {
+            if (full && saved?.HighWaterMark is not null)
+            {
+                // A partly-failed full run (for example straight after a teardown) leaves some film documents in the
+                // index, so the empty-index check would no longer catch it. Clearing the watermark makes the next
+                // run full again instead of incremental from a watermark older films sit below.
+                saved.HighWaterMark = null;
+                saved.UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime;
+                await watermarkStore.SaveAsync(saved, cancellationToken);
+                logger.LogError(
+                    "Film search push: {FailedCount} document(s) failed in a full run; watermark cleared so the next run is full again.",
+                    failed);
+                return new FilmSearchPushResult(false, full, false, previous, null, films.Count, toPush.Count,
+                    toDelete.Count, failed, true);
+            }
+
             logger.LogError(
                 "Film search push: {FailedCount} document(s) failed; watermark kept at {Watermark} so the next run retries them.",
                 failed, previous?.ToString() ?? "none");

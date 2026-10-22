@@ -20,6 +20,7 @@ public class FilmSearchPusherRules
     private readonly AutoMocker _mocker = new();
     private readonly FakeTimeProvider _time = new();
     private readonly List<Film> _films = [];
+    private readonly List<Film> _filmsCreatedDuringRun = [];
     private readonly List<string> _indexFilmIds = [];
     private readonly List<EpisodeSearchRecord> _pushed = [];
     private readonly List<string> _deleted = [];
@@ -40,6 +41,8 @@ public class FilmSearchPusherRules
                 _fullReadUsed = true;
                 return _films.ToAsyncEnumerable();
             });
+        films.Setup(x => x.GetFilm(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => _films.Concat(_filmsCreatedDuringRun).SingleOrDefault(f => f.Id == id));
         films.Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .Returns((Expression<Func<Film, bool>> selector) =>
             {
@@ -216,6 +219,23 @@ public class FilmSearchPusherRules
     }
 
     [Fact(DisplayName =
+        "When a film document is missing from the films read at the start of a full run but the film exists by the time orphans are checked, then it is not deleted, because a film created during the run (for example by Move to film) already has a valid document.")]
+    public async Task full_run_keeps_document_of_film_created_during_run()
+    {
+        // Arrange
+        CreateStoredFilm(timestamp: 10);
+        var createdLater = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        _filmsCreatedDuringRun.Add(createdLater);
+        _indexFilmIds.Add(createdLater.Id.ToString());
+
+        // Act
+        await Push(full: true);
+
+        // Assert
+        _deleted.Should().NotContain(createdLater.Id.ToString());
+    }
+
+    [Fact(DisplayName =
         "When an incremental run is made, then film documents missing from Cosmos are not looked up or deleted, because only a full run reconciles the whole index.")]
     public async Task incremental_run_does_not_reconcile_orphans()
     {
@@ -253,6 +273,26 @@ public class FilmSearchPusherRules
         result.Failed.Should().Be(1);
         result.NewWatermark.Should().Be(200);
         _savedWatermarks.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a full run partly fails, then the watermark is cleared, because the index now holds some film documents and an incremental run from the old watermark would leave older films out of search.")]
+    public async Task failed_full_run_clears_watermark()
+    {
+        // Arrange
+        var good = CreateStoredFilm(timestamp: 100);
+        var bad = CreateStoredFilm(timestamp: 200);
+        GivenWatermark(5_000);
+        _failingKeys.Add(bad.Id.ToString());
+
+        // Act
+        var result = await Push(full: true);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.NewWatermark.Should().BeNull();
+        _savedWatermarks.Should().ContainSingle().Which.HighWaterMark.Should().BeNull();
+        _pushed.Select(d => d.Id).Should().Contain(good.Id.ToString());
     }
 
     [Fact(DisplayName =
