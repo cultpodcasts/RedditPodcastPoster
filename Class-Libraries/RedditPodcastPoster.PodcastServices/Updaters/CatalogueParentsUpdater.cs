@@ -40,6 +40,13 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// <see cref="CatalogueParentIndexerPatch"/>, so curator edits, renames and removals saved during the
 /// pass survive, and an unchanged parent costs no write.
 /// </para>
+/// <para>
+/// Each parent runs under the same per-podcast time budget as <see cref="PodcastsUpdater"/>
+/// (<see cref="PodcastUpdateBudgetOptions"/>, #1070): its <see cref="IndexingContext.CancellationToken"/> is cancelled when
+/// the budget elapses, every Cosmos write re-checks the token, and an update that ignores cancellation is abandoned
+/// after the grace period. A slow news organisation therefore cannot hang the indexer activity. Stage lines use
+/// <see cref="PodcastIndexingStageLog"/> (prefix <c>IndexerPodcastStage</c>, the parent id in <c>podcast-id</c>).
+/// </para>
 /// </summary>
 public class CatalogueParentsUpdater(
     ITvShowRepository tvShowRepository,
@@ -54,22 +61,38 @@ public class CatalogueParentsUpdater(
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
     IPodcastPassApiCache passApiCache,
+    IOptions<PodcastUpdateBudgetOptions> budgetOptions,
+    IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
+    PodcastUpdateBudgetCutTracker budgetCutTracker,
     TimeProvider timeProvider,
     ILogger<CatalogueParentsUpdater> logger) : ICatalogueParentsUpdater
 {
+    /// <summary>Stable log prefix for a parent cut off by its time budget (App Insights keys off it).</summary>
+    public const string BudgetExceededMessagePrefix = "IndexerCatalogueParentBudgetExceeded";
+
+    /// <summary>Stable log prefix when an abandoned parent update finally finishes in the background.</summary>
+    public const string AbandonedCompletedMessagePrefix = "IndexerCatalogueParentAbandonedCompleted";
+
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
+
+    private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
+
+    private readonly PodcastIndexingStageLogOptions _stageLogOptions =
+        stageLogOptions.Value ?? new PodcastIndexingStageLogOptions();
 
     public async Task<Guid[]> GetIndexableParentIds()
     {
         var tvShows = await tvShowRepository
             .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            x.Indexing != null &&
-                           (x.Indexing.IndexAllEpisodes || x.Indexing.EpisodeIncludeTitleRegex != ""))
+                           (x.Indexing.IndexAllEpisodes ||
+                            (x.Indexing.EpisodeIncludeTitleRegex != null && x.Indexing.EpisodeIncludeTitleRegex != "")))
             .ToListAsync();
         var organisations = await newsOrganisationRepository
             .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            x.Indexing != null &&
-                           (x.Indexing.IndexAllEpisodes || x.Indexing.EpisodeIncludeTitleRegex != ""))
+                           (x.Indexing.IndexAllEpisodes ||
+                            (x.Indexing.EpisodeIncludeTitleRegex != null && x.Indexing.EpisodeIncludeTitleRegex != "")))
             .ToListAsync();
 
         return tvShows.Where(IsIndexable).Select(x => x.Id)
@@ -87,6 +110,8 @@ public class CatalogueParentsUpdater(
             throw new InvalidOperationException("Cannot index catalogue parents without a released-since.");
         }
 
+        // A pass that allows expensive queries (00 UTC primary pass) gets the scaled budget, as for podcasts.
+        var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         var success = true;
         foreach (var parentId in parentIds)
         {
@@ -97,7 +122,8 @@ public class CatalogueParentsUpdater(
                 {
                     if (IsIndexable(tvShow))
                     {
-                        await IndexTvShow(tvShow, indexingContext.ForPodcastUpdate());
+                        success &= await IndexWithinBudget("TvShow", tvShow,
+                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
                     }
 
                     continue;
@@ -106,7 +132,8 @@ public class CatalogueParentsUpdater(
                 var organisation = await newsOrganisationRepository.GetNewsOrganisation(parentId);
                 if (organisation is not null && IsIndexable(organisation))
                 {
-                    await IndexNewsOrganisation(organisation, indexingContext.ForPodcastUpdate());
+                    success &= await IndexWithinBudget("NewsOrganisation", organisation,
+                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
                 }
             }
             catch (Exception ex)
@@ -121,6 +148,86 @@ public class CatalogueParentsUpdater(
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Runs one parent's index under its time budget. Returns false when the budget cut it off; other failures
+    /// propagate to the caller's per-parent catch.
+    /// </summary>
+    private async Task<bool> IndexWithinBudget(
+        string kind,
+        Publisher parent,
+        Func<IndexingContext, Task> index,
+        IndexingContext indexingContext,
+        bool expensivePass)
+    {
+        var stageLog = new PodcastIndexingStageLog(parent.Id, parent.Name, logger, timeProvider, _stageLogOptions);
+        var budget = _budget.BudgetFor(expensivePass);
+        Task? updateTask = null;
+        using var budgetCts = budget.HasValue
+            ? new CancellationTokenSource(budget.Value, timeProvider)
+            : new CancellationTokenSource();
+        try
+        {
+            stageLog.Stage("start", $"catalogue-parent-kind={kind}");
+            var parentContext = indexingContext.ForPodcastUpdate() with
+            {
+                CancellationToken = budgetCts.Token,
+                StageReporter = stageLog
+            };
+            updateTask = index(parentContext);
+            if (budget.HasValue)
+            {
+                await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider);
+            }
+            else
+            {
+                await updateTask;
+            }
+
+            stageLog.Stage("complete");
+            budgetCutTracker.RecordCompleted(parent.Id);
+            return true;
+        }
+        catch (Exception ex) when (budgetCts.IsCancellationRequested &&
+                                   ex is OperationCanceledException or TimeoutException)
+        {
+            // TimeoutException: the update ignored its cancelled token and was abandoned after the grace period.
+            var abandoned = ex is TimeoutException;
+            var consecutiveCuts = budgetCutTracker.RecordCut(parent.Id);
+            logger.LogError(
+                BudgetExceededMessagePrefix +
+                " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' stage='{Stage}' detail='{Detail}' elapsed-ms='{ElapsedMs}' budget-seconds='{BudgetSeconds}' expensive-pass='{ExpensivePass}' abandoned='{Abandoned}' consecutive-cuts='{ConsecutiveCuts}'. Continuing with the next parent.",
+                kind, parent.Id, parent.Name, stageLog.CurrentStage, stageLog.CurrentStageDetail ?? string.Empty,
+                stageLog.ElapsedMilliseconds, (int) budget!.Value.TotalSeconds, expensivePass, abandoned,
+                consecutiveCuts);
+            if (abandoned && updateTask != null)
+            {
+                ObserveAbandonedUpdate(updateTask, kind, parent, stageLog);
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// An abandoned update keeps running in the background. Observe it so a late outcome is logged instead of becoming an
+    /// unobserved task exception. Its cancelled token stops it before any further Cosmos write.
+    /// </summary>
+    private void ObserveAbandonedUpdate(Task updateTask, string kind, Publisher parent, PodcastIndexingStageLog stageLog)
+    {
+        updateTask.ContinueWith(task =>
+            {
+                var error = task.Exception?.GetBaseException();
+                logger.LogWarning(
+                    AbandonedCompletedMessagePrefix +
+                    " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' status='{Status}' last-stage='{Stage}' elapsed-ms='{ElapsedMs}' error-type='{ErrorType}'",
+                    kind, parent.Id, parent.Name, task.Status, stageLog.CurrentStage, stageLog.ElapsedMilliseconds,
+                    error?.GetType().Name ?? string.Empty);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static bool IsIndexable(Publisher parent) =>
@@ -138,19 +245,27 @@ public class CatalogueParentsUpdater(
         var outcome = await IndexParent(
             show,
             show.Indexing!,
-            since => tvShowEpisodeRepository
+            (since, cancellationToken) => tvShowEpisodeRepository
                 .GetByTvShowId(show.Id, PlayableCosmosFilters.ReleasedOnOrAfter<TvShowEpisode>(since))
-                .ToListAsync().AsTask(),
+                .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             context);
+        var cancellationToken = context.CancellationToken;
         if (outcome.ChangedPlayables.Count > 0)
         {
+            context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
+            cancellationToken.ThrowIfCancellationRequested();
             await tvShowEpisodeRepository.Save(outcome.ChangedPlayables);
         }
 
-        if (!outcome.ParentPatch.IsEmpty && !await tvShowRepository.PatchIndexerState(show.Id, outcome.ParentPatch))
+        if (!outcome.ParentPatch.IsEmpty)
         {
-            LogParentGone("TvShow", show);
+            context.ReportStage("patch-parent");
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!await tvShowRepository.PatchIndexerState(show.Id, outcome.ParentPatch))
+            {
+                LogParentGone("TvShow", show);
+            }
         }
 
         LogOutcome("TvShow", show, outcome);
@@ -161,20 +276,27 @@ public class CatalogueParentsUpdater(
         var outcome = await IndexParent(
             organisation,
             organisation.Indexing!,
-            since => newsReportRepository
+            (since, cancellationToken) => newsReportRepository
                 .GetByNewsOrganisationId(organisation.Id, PlayableCosmosFilters.ReleasedOnOrAfter<NewsReport>(since))
-                .ToListAsync().AsTask(),
+                .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation),
             context);
+        var cancellationToken = context.CancellationToken;
         if (outcome.ChangedPlayables.Count > 0)
         {
+            context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
+            cancellationToken.ThrowIfCancellationRequested();
             await newsReportRepository.Save(outcome.ChangedPlayables);
         }
 
-        if (!outcome.ParentPatch.IsEmpty &&
-            !await newsOrganisationRepository.PatchIndexerState(organisation.Id, outcome.ParentPatch))
+        if (!outcome.ParentPatch.IsEmpty)
         {
-            LogParentGone("NewsOrganisation", organisation);
+            context.ReportStage("patch-parent");
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!await newsOrganisationRepository.PatchIndexerState(organisation.Id, outcome.ParentPatch))
+            {
+                LogParentGone("NewsOrganisation", organisation);
+            }
         }
 
         LogOutcome("NewsOrganisation", organisation, outcome);
@@ -198,12 +320,16 @@ public class CatalogueParentsUpdater(
     private async Task<ParentIndexOutcome<TPlayable>> IndexParent<TPlayable>(
         Publisher parent,
         CatalogueIndexingSource source,
-        Func<DateTime, Task<List<TPlayable>>> loadPlayables,
+        Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadPlayables,
         Func<Episode, TPlayable> createPlayable,
         IndexingContext indexingContext)
         where TPlayable : Playable
     {
+        // Normalise before the snapshot so blank-to-null alone never counts as a change the pass writes back
+        // (it would overwrite a curator edit saved mid-pass).
+        source.NormalizeBlankText();
         var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
+        var cancellationToken = indexingContext.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;
         var latestReleasedBefore = parent.LatestReleased;
         var podcast = source.ToTransientPodcast(parent);
@@ -218,17 +344,23 @@ public class CatalogueParentsUpdater(
             ? releasedSince
             : releasedSince - youTubePublishingDelay;
 
-        var stored = await loadPlayables(repositoryReleasedSince);
+        indexingContext.ReportStage("cosmos-read-playables");
+        var stored = await loadPlayables(repositoryReleasedSince, cancellationToken);
         var storedById = stored.ToDictionary(x => x.Id);
         var existing = stored.Select(x => ToEpisode(x, podcast)).ToList();
 
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
+        indexingContext.ReportStage("discover-episodes", $"stored-in-window={stored.Count}");
         var newEpisodes = await episodeProvider.GetEpisodes(podcast, existing, indexingContext);
+        cancellationToken.ThrowIfCancellationRequested();
         ApplyMinimumDuration(podcast, newEpisodes, indexingContext);
 
+        indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
         var merge = episodeMerger.MergeEpisodes(podcast, existing, newEpisodes);
-        var addedEpisodes = await ExcludeSiblingPodcastVideos(parent, podcast, merge.AddedEpisodes, repositoryReleasedSince);
+        indexingContext.ReportStage("sibling-podcast-check", $"added={merge.AddedEpisodes.Count}");
+        var addedEpisodes = await ExcludeSiblingPodcastVideos(
+            parent, podcast, merge.AddedEpisodes, repositoryReleasedSince, cancellationToken);
         if (podcast.HasIgnoreAllEpisodes())
         {
             foreach (var added in addedEpisodes)
@@ -237,6 +369,7 @@ public class CatalogueParentsUpdater(
             }
         }
 
+        indexingContext.ReportStage("filter", $"added={addedEpisodes.Count}");
         var inScope = existing.Concat(addedEpisodes).ToList();
         var eliminationTerms = (await eliminationTermsProviderInstance.GetAsync()).GetEliminationTerms();
         var filtered = podcastFilter.Filter(podcast, inScope, eliminationTerms.Terms);
@@ -309,7 +442,8 @@ public class CatalogueParentsUpdater(
         Publisher parent,
         Podcast transient,
         IList<Episode> added,
-        DateTime releasedSince)
+        DateTime releasedSince,
+        CancellationToken cancellationToken)
     {
         var channelId = transient.YouTubeChannelId;
         var addedYouTubeIds = added
@@ -324,7 +458,7 @@ public class CatalogueParentsUpdater(
 
         var siblings = await podcastRepository
             .GetAllBy(x => x.YouTubeChannelId == channelId && x.YouTubePlaylistId != "")
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         if (siblings.Count == 0)
         {
             return [.. added];
@@ -334,7 +468,8 @@ public class CatalogueParentsUpdater(
         foreach (var sibling in siblings)
         {
             await foreach (var episode in episodeRepository.GetByPodcastId(
-                               sibling.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(releasedSince)))
+                               sibling.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(releasedSince))
+                               .WithCancellation(cancellationToken))
             {
                 if (EpisodeServicePresence.YouTubeEpisodeId(episode) is { } id && addedYouTubeIds.Contains(id))
                 {

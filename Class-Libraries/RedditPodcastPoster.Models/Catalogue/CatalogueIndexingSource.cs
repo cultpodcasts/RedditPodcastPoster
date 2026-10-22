@@ -8,6 +8,11 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// keeps from the podcast it was migrated from (JSON <c>indexing</c>). Wire names match
 /// <see cref="Podcast"/>, so the hourly indexer can run the podcast discovery pipeline on a
 /// transient podcast built from the parent. Film has no parent and is never indexed.
+/// <para>
+/// Text members are null when blank (never <c>""</c>): <see cref="CaptureFrom"/> stores a blank podcast value as
+/// null, and Cosmos omits nulls on write. <see cref="ToTransientPodcast"/> hands the podcast pipeline <c>""</c>
+/// again, because <see cref="Podcast"/> text members are non-null.
+/// </para>
 /// </summary>
 public sealed class CatalogueIndexingSource
 {
@@ -35,7 +40,7 @@ public sealed class CatalogueIndexingSource
     public Service? PrimaryPostService { get; set; }
 
     [JsonPropertyName("spotifyId")]
-    public string SpotifyId { get; set; } = string.Empty;
+    public string? SpotifyId { get; set; }
 
     [JsonPropertyName("spotifyMarket")]
     public string? SpotifyMarket { get; set; }
@@ -53,10 +58,10 @@ public sealed class CatalogueIndexingSource
     public int? AppleEpisodeCount { get; set; }
 
     [JsonPropertyName("youTubeChannelId")]
-    public string YouTubeChannelId { get; set; } = string.Empty;
+    public string? YouTubeChannelId { get; set; }
 
     [JsonPropertyName("youTubePlaylistId")]
-    public string YouTubePlaylistId { get; set; } = string.Empty;
+    public string? YouTubePlaylistId { get; set; }
 
     [JsonPropertyName("youTubePlaylistIdHistory")]
     public List<YouTubePlaylistIdHistoryEntry>? YouTubePlaylistIdHistory { get; set; }
@@ -78,16 +83,16 @@ public sealed class CatalogueIndexingSource
     public bool? SkipEnrichingFromYouTube { get; set; }
 
     [JsonPropertyName("titleRegex")]
-    public string TitleRegex { get; set; } = string.Empty;
+    public string? TitleRegex { get; set; }
 
     [JsonPropertyName("descriptionRegex")]
-    public string DescriptionRegex { get; set; } = string.Empty;
+    public string? DescriptionRegex { get; set; }
 
     [JsonPropertyName("episodeMatchRegex")]
-    public string EpisodeMatchRegex { get; set; } = string.Empty;
+    public string? EpisodeMatchRegex { get; set; }
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
-    public string EpisodeIncludeTitleRegex { get; set; } = string.Empty;
+    public string? EpisodeIncludeTitleRegex { get; set; }
 
     /// <summary>Same rule as the podcast indexer: index all episodes, or only titles matching the include regex.</summary>
     [JsonIgnore]
@@ -134,6 +139,22 @@ public sealed class CatalogueIndexingSource
         DescriptionRegex = podcast.DescriptionRegex;
         EpisodeMatchRegex = podcast.EpisodeMatchRegex;
         EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex;
+        NormalizeBlankText();
+    }
+
+    /// <summary>
+    /// Stores blank text members (ids and regexes) as null. Idempotent. The indexer calls this before it snapshots a
+    /// parent's settings, so a normalisation alone never counts as a change it writes back.
+    /// </summary>
+    public void NormalizeBlankText()
+    {
+        SpotifyId = NullIfBlank(SpotifyId);
+        YouTubeChannelId = NullIfBlank(YouTubeChannelId);
+        YouTubePlaylistId = NullIfBlank(YouTubePlaylistId);
+        TitleRegex = NullIfBlank(TitleRegex);
+        DescriptionRegex = NullIfBlank(DescriptionRegex);
+        EpisodeMatchRegex = NullIfBlank(EpisodeMatchRegex);
+        EpisodeIncludeTitleRegex = NullIfBlank(EpisodeIncludeTitleRegex);
     }
 
     /// <summary>
@@ -169,26 +190,28 @@ public sealed class CatalogueIndexingSource
             MinimumDuration = MinimumDuration,
             ReleaseAuthority = ReleaseAuthority,
             PrimaryPostService = PrimaryPostService,
-            SpotifyId = SpotifyId,
+            SpotifyId = SpotifyId ?? string.Empty,
             SpotifyMarket = SpotifyMarket,
             SpotifyEpisodesQueryIsExpensive = SpotifyEpisodesQueryIsExpensive,
             SpotifyEpisodeCount = SpotifyEpisodeCount,
             AppleId = AppleId,
             AppleEpisodeCount = AppleEpisodeCount,
-            YouTubeChannelId = YouTubeChannelId,
-            YouTubePlaylistId = YouTubePlaylistId,
+            YouTubeChannelId = YouTubeChannelId ?? string.Empty,
+            YouTubePlaylistId = YouTubePlaylistId ?? string.Empty,
             YouTubePlaylistIdHistory = CloneHistory(YouTubePlaylistIdHistory),
             YouTubePlaylistOrder = YouTubePlaylistOrder,
             YouTubePublicationOffset = YouTubePublicationOffset,
             YouTubePlaylistQueryIsExpensive = YouTubePlaylistQueryIsExpensive,
             YouTubeChannelSearchForbidden = YouTubeChannelSearchForbidden,
             SkipEnrichingFromYouTube = SkipEnrichingFromYouTube,
-            TitleRegex = TitleRegex,
-            DescriptionRegex = DescriptionRegex,
-            EpisodeMatchRegex = EpisodeMatchRegex,
-            EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex
+            TitleRegex = TitleRegex ?? string.Empty,
+            DescriptionRegex = DescriptionRegex ?? string.Empty,
+            EpisodeMatchRegex = EpisodeMatchRegex ?? string.Empty,
+            EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex ?? string.Empty
         };
     }
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static List<YouTubePlaylistIdHistoryEntry>? CloneHistory(List<YouTubePlaylistIdHistoryEntry>? history) =>
         history?.Select(entry => new YouTubePlaylistIdHistoryEntry { Id = entry.Id, ReplacedAt = entry.ReplacedAt }).ToList();

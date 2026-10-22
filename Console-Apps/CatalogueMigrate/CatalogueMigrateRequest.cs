@@ -17,7 +17,8 @@ public class CatalogueMigrateRequest
     public Guid? PodcastId { get; set; }
 
     [Option("apply", Required = false, Default = false,
-        HelpText = "Write Cosmos and swap Search. Refused (exit 2) unless --consent is the exact phrase in docs/catalogue-run/gate-5.md. Default is dry-run.")]
+        HelpText = "Write Cosmos and swap Search. Refused (exit 2) unless --consent is the exact phrase in docs/catalogue-run/gate-5.md. Default is dry-run. " +
+                   "Auto-indexed podcasts are moved only at minutes :15-:54 of the hour (the hourly indexer starts at :03 and :08); outside that they are skipped, so re-run in the window.")]
     public bool Apply { get; set; }
 
     [Option("consent", Required = false,

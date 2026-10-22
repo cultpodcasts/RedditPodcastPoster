@@ -9,11 +9,11 @@ namespace Api.Services.Catalogue;
 /// Applies the curator's service ids to a news organisation's or TV show's <c>indexing</c> block, with the podcast
 /// edit API rules from <c>PodcastChangeApplier</c>:
 /// <list type="bullet">
-/// <item><c>spotifyId</c>: set; <c>""</c> clears.</item>
+/// <item><c>spotifyId</c>: trimmed; <c>""</c> clears (stored as null).</item>
 /// <item><c>appleId</c> / <c>nullAppleId</c>: <c>nullAppleId: true</c> clears, otherwise <c>appleId</c> sets.</item>
 /// <item><c>youTubePlaylistId</c>: the <c>YouTubePlaylistIdChange</c> rule. Whitespace clears, the value is
 /// trimmed, a replaced non-empty id is appended to <c>youTubePlaylistIdHistory</c>, and a Warning is logged.</item>
-/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears. The podcast DTO accepts it but its applier never
+/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears (stored as null). The podcast DTO accepts it but its applier never
 /// stores it. Here it is stored, because it is what URL submission matches a YouTube channel on.</item>
 /// </list>
 /// The block is created only when a value is actually set. It is then not auto-indexed (<c>indexAllEpisodes</c>
@@ -38,14 +38,14 @@ public static class ServiceIdsApplier
 
         if (change.YouTubeChannelId != null)
         {
-            source.YouTubeChannelId = change.YouTubeChannelId.Trim();
-            setsSomething |= source.YouTubeChannelId.Length > 0;
+            source.YouTubeChannelId = NullIfBlank(change.YouTubeChannelId);
+            setsSomething |= source.YouTubeChannelId != null;
         }
 
         if (change.SpotifyId != null)
         {
-            source.SpotifyId = change.SpotifyId.Trim();
-            setsSomething |= source.SpotifyId.Length > 0;
+            source.SpotifyId = NullIfBlank(change.SpotifyId);
+            setsSomething |= source.SpotifyId != null;
         }
 
         if (change.NullAppleId == true)
@@ -71,7 +71,7 @@ public static class ServiceIdsApplier
                         { Id = previous, ReplacedAt = replacedAtUtc ?? DateTime.UtcNow });
                 }
 
-                source.YouTubePlaylistId = measured;
+                source.YouTubePlaylistId = measured.Length > 0 ? measured : null;
                 logger.LogWarning(
                     "YouTube playlist id changed: parent-id='{ParentId}' parent-name='{ParentName}' previous='{Previous}' measured='{Measured}'",
                     parent.Id, parent.Name, previous, measured);
@@ -81,5 +81,12 @@ public static class ServiceIdsApplier
         }
 
         return setsSomething ? source : indexing;
+    }
+
+    /// <summary>Trimmed value, or null when blank: indexing text members are never stored as <c>""</c>.</summary>
+    private static string? NullIfBlank(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length > 0 ? trimmed : null;
     }
 }

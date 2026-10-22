@@ -92,6 +92,12 @@ public class CatalogueMigrateApplier(
 
             await Record(CatalogueMigrateEvidenceEvent.SearchSwapped, $"documents={documents.Count}");
 
+            if (await SourceChangedDuringMove(unit, cancellationToken) is { } change)
+            {
+                return await Fail(Record, podcast.Id, kind,
+                    $"{change} Source rows kept; re-run moves the current podcast and episodes.");
+            }
+
             foreach (var episode in unit.MoveEpisodes)
             {
                 await episodeRepository.Delete(podcast.Id, episode.Id);
@@ -195,6 +201,33 @@ public class CatalogueMigrateApplier(
         logger.LogError("Catalogue migrate apply failed for {PodcastId} {Kind}: {Detail}", podcastId, kind, detail);
         await record(CatalogueMigrateEvidenceEvent.Failed, detail, false);
         return CatalogueMigrateApplyOutcome.Failed;
+    }
+
+    /// <summary>
+    /// Re-reads the source just before it is deleted. The hourly indexer (or a submit) may have saved the podcast or
+    /// added an episode since the plan read it; deleting then would lose that episode or leave the indexer to re-create
+    /// the podcast. Returns why the move must stop, or null when the source is as planned.
+    /// </summary>
+    private async Task<string?> SourceChangedDuringMove(CatalogueMigrateUnit unit, CancellationToken cancellationToken)
+    {
+        var podcast = unit.Podcast;
+        var current = await podcastRepository.GetPodcast(podcast.Id);
+        if (current is not null && current.LastIndexed != podcast.LastIndexed)
+        {
+            return $"Podcast was indexed during the move (lastIndexed {podcast.LastIndexed:O} -> {current.LastIndexed:O}).";
+        }
+
+        var planned = unit.MoveEpisodes.Select(episode => episode.Id).ToHashSet();
+        var arrived = 0;
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcast.Id).WithCancellation(cancellationToken))
+        {
+            if (!planned.Contains(episode.Id))
+            {
+                arrived++;
+            }
+        }
+
+        return arrived > 0 ? $"{arrived} episode(s) arrived during the move." : null;
     }
 
     private async Task<bool> HasSiblingParent(string kind, Guid podcastId) => kind switch
