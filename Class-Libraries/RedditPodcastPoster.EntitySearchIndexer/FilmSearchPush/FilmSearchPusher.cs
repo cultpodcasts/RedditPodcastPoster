@@ -131,17 +131,8 @@ public sealed class FilmSearchPusher(
             // full: clear the watermark first, then let the failure surface.
             logger.LogError(ex,
                 "Film search push: a full run failed part-way; clearing the watermark so the next run is full again.");
-            try
-            {
-                await ClearWatermark(saved);
-            }
-            catch (Exception clearEx)
-            {
-                // Keep the push failure as the one that surfaces; the store failure is logged so the operator knows
-                // the watermark is stale.
-                logger.LogError(clearEx,
-                    "Film search push: the watermark could not be cleared after the failed full run; run with --full next.");
-            }
+            // Keep the push failure as the one that surfaces; a store failure is only logged.
+            await TryClearWatermarkAfterFailedFullRun(saved);
 
             throw;
         }
@@ -153,12 +144,14 @@ public sealed class FilmSearchPusher(
                 // A partly-failed full run (for example straight after a teardown) leaves some film documents in the
                 // index, so the empty-index check would no longer catch it. Clearing the watermark makes the next
                 // run full again instead of incremental from a watermark older films sit below.
-                await ClearWatermark(saved);
+                // The clear is guarded like the throw path: a store failure is logged ("run with --full next") and
+                // the failed-documents outcome is still returned, rather than the store exception surfacing instead.
                 logger.LogError(
-                    "Film search push: {FailedCount} document(s) failed in a full run; watermark cleared so the next run is full again.",
+                    "Film search push: {FailedCount} document(s) failed in a full run; clearing the watermark so the next run is full again.",
                     failed);
-                return new FilmSearchPushResult(false, full, false, previous, null, films.Count, toPush.Count,
-                    toDelete.Count, failed, true);
+                var cleared = await TryClearWatermarkAfterFailedFullRun(saved);
+                return new FilmSearchPushResult(false, full, false, previous, cleared ? null : previous, films.Count,
+                    toPush.Count, toDelete.Count, failed, cleared);
             }
 
             logger.LogError(
@@ -179,6 +172,26 @@ public sealed class FilmSearchPusher(
             toPush.Count, toDelete.Count, previous?.ToString() ?? "none", next?.ToString() ?? "none");
         return new FilmSearchPushResult(true, full, false, previous, next, films.Count, toPush.Count, toDelete.Count,
             0, true);
+    }
+
+    /// <summary>
+    /// Clears the watermark after a full run failed (thrown or with failed documents). A store failure is logged, not
+    /// thrown, so the run's own failure is what the caller sees.
+    /// </summary>
+    /// <returns><c>true</c> if the watermark was cleared.</returns>
+    private async Task<bool> TryClearWatermarkAfterFailedFullRun(FilmSearchPushWatermark saved)
+    {
+        try
+        {
+            await ClearWatermark(saved);
+            return true;
+        }
+        catch (Exception clearEx)
+        {
+            logger.LogError(clearEx,
+                "Film search push: the watermark could not be cleared after the failed full run; run with --full next.");
+            return false;
+        }
     }
 
     /// <summary>Not cancellable: it runs on the failure path, where the run's token may already be cancelled.</summary>
