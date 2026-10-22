@@ -42,7 +42,7 @@ public class YouTubeEpisodeRetrievalHandler(
                 indexingContext.SkipExpensiveYouTubeQueries)
             {
                 logger.LogInformation(
-                    "Podcast '{PodcastId}' has known expensive playlist query; using single-page playlist fetch this pass.",
+                    "Podcast '{PodcastId}' has known expensive playlist query; expensive-sized pages are not used this pass (smaller batch size, playlist still paginated).",
                     podcast.Id);
             }
 

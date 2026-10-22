@@ -100,6 +100,28 @@ public class YouTubeThumbnailProbeCostRules
     }
 
     [Fact(DisplayName =
+        "When an sddefault tier times out, the next tier is tried instead of keeping it, because only maxresdefault and " +
+        "hq720 are covered by the recent-thumbnail re-check and sddefault is the tier most often served as the 120x90 " +
+        "placeholder, so keeping it unprobed could store a placeholder for good.")]
+    public async Task sd_tier_timeout_falls_through_to_next_tier()
+    {
+        // Arrange
+        _clientTimeout = TimeSpan.FromMilliseconds(50);
+        _http.Hang(Url(_youTubeId, StandardTier));
+        var sut = _mocker.CreateInstance<YouTubeThumbnailResolver>();
+
+        // Act
+        var image = await sut.GetImageUrlAsync(Video(
+            Thumbnail(StandardTier, StandardHeight),
+            Thumbnail(HighTier, HighHeight)));
+
+        // Assert
+        image.Should().Be(Url(_youTubeId, HighTier));
+        _logger.Entries.Should().NotContain(entry =>
+            entry.Message.StartsWith(YouTubeThumbnailResolver.ProbeTimeoutMessagePrefix));
+    }
+
+    [Fact(DisplayName =
         "When a stored image's probe hits the probe client's own timeout, the check throws instead of answering " +
         "'withdrawn', because the re-check must never re-resolve an image on a slow CDN.")]
     public async Task stored_image_probe_timeout_is_not_reported_as_withdrawn()

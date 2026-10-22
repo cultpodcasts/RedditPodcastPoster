@@ -14,7 +14,7 @@ using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Handlers;
 
 /// <summary>
-/// Handler wiring: SkipExpensiveYouTubeQueries must choose channel vs single-page vs paginated playlist paths.
+/// Handler wiring: SkipExpensiveYouTubeQueries must choose channel vs playlist paths and whether expensive-sized pages are used.
 /// </summary>
 public class YouTubeEpisodeRetrievalHandlerTests
 {
@@ -67,9 +67,10 @@ public class YouTubeEpisodeRetrievalHandlerTests
     }
 
     [Fact(DisplayName =
-        "When the playlist is marked expensive and SkipExpensiveYouTubeQueries is set, GetEpisodes uses a single-page playlist fetch " +
-        "because full playlist pagination must not run on that pass.")]
-    public async Task Expensive_playlist_uses_single_page_when_expensive_queries_skipped()
+        "When the playlist is marked expensive and SkipExpensiveYouTubeQueries is set, GetEpisodes does not request " +
+        "expensive-sized pages (the playlist is still paginated at the smaller batch size), because expensive sizing only " +
+        "runs on a pass that allows expensive queries.")]
+    public async Task Expensive_playlist_does_not_use_expensive_page_size_when_expensive_queries_skipped()
     {
         // Arrange
         var channelId = _fixture.CreateYouTubeChannelId();

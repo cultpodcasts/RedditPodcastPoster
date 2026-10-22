@@ -49,10 +49,12 @@ public class YouTubeThumbnailResolver(
                 return candidate.Url;
             }
 
-            if (result == ProbeResult.TimedOut)
+            if (result == ProbeResult.TimedOut && YouTubeThumbnailUrls.IsWithdrawableHighResolution(candidate.Url))
             {
-                // A slow CDN says nothing about the tier: keep the API-listed candidate (its height already passed)
-                // rather than storing a lower tier for good. The recent-thumbnail re-check verifies high-res tiers later.
+                // A slow CDN says nothing about the tier: keep the API-listed maxresdefault/hq720 candidate (its height
+                // already passed) rather than storing a lower tier for good. The recent-thumbnail re-check covers
+                // exactly these tiers and replaces one later found withdrawn. Any other tier (e.g. sddefault, often the
+                // 120x90 placeholder) is never re-checked, so a timeout there falls through to the next tier.
                 logger.LogWarning(
                     ProbeTimeoutMessagePrefix +
                     " video-id='{VideoId}' url='{Url}' timeout-seconds='{TimeoutSeconds}' action='kept-api-candidate'",
