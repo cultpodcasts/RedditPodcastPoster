@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 
@@ -6,11 +7,19 @@ namespace RedditPodcastPoster.Bluesky.RichText;
 public readonly record struct HashtagToken(string Tag, long ByteStart, long ByteEnd);
 
 /// <summary>
-/// Finds Bluesky hashtags using the official app rule: a <c>#</c> or <c>＃</c> at the start of
-/// text or after whitespace, trailing punctuation trimmed, at least one character that is not a
-/// digit or punctuation, and at most 64 characters. Opening quotes and brackets may also sit
-/// between that boundary and the <c>#</c>, so <c>"#OpusDei, …"</c> and <c>(#Cult)</c> link.
-/// A <c>#</c> inside a word or URL (<c>a#b</c>, <c>/#x</c>) is not a hashtag.
+/// Finds hashtags in our own Bluesky posts. A tag starts with <c>#</c> or <c>＃</c> at the start
+/// of text or after whitespace; opening quotes and brackets may sit between that boundary and the
+/// <c>#</c>, so <c>"#OpusDei, …"</c> and <c>(#Cult)</c> link. A <c>#</c> inside a word or URL
+/// (<c>a#b</c>, <c>/#x</c>) is not a hashtag.
+/// <para>
+/// The tag body is a run of letters, digits, combining marks and <c>_</c>, and it ends at the first
+/// other character. This deliberately differs from Bluesky's app rule, which only ends a tag at
+/// whitespace and trims trailing punctuation: that rule links <c>#Cult—and</c>, <c>#Cult's</c>
+/// and <c>#Cult🙏</c> whole. Our tags are inserted into titles as whole words (and enrichment
+/// tags have spaces, dots, apostrophes and hyphens removed), so the facet must cover only the
+/// inserted tag. A tag still needs one character that is not a digit or <c>_</c>, and at most 64
+/// characters.
+/// </para>
 /// </summary>
 public static class HashtagScanner
 {
@@ -30,9 +39,9 @@ public static class HashtagScanner
 
             var bodyStart = i + 1;
             var bodyEnd = bodyStart;
-            while (bodyEnd < text.Length && !IsTagTerminator(text[bodyEnd]))
+            while (bodyEnd < text.Length && TryReadTagRune(text, bodyEnd, out var width))
             {
-                bodyEnd++;
+                bodyEnd += width;
             }
 
             var trimmedEnd = bodyEnd;
@@ -72,10 +81,35 @@ public static class HashtagScanner
         CharUnicodeInfo.GetUnicodeCategory(c) is UnicodeCategory.OpenPunctuation
             or UnicodeCategory.InitialQuotePunctuation;
 
-    // Whitespace, plus the invisible characters Bluesky's tag rule treats as breaks
-    // (soft hyphen, word joiner, hair space, zero-width space/non-joiner/joiner, keycap).
-    private static bool IsTagTerminator(char c) =>
-        char.IsWhiteSpace(c) || c is '\u00AD' or '\u2060' or '\u200A' or '\u200B' or '\u200C' or '\u200D' or '\u20E2';
+    // A tag continues through letters, digits, '_' and combining marks (accents, Indic vowel signs),
+    // read as whole runes so letters outside the BMP count. Anything else ends it: dashes,
+    // apostrophes, quotes, punctuation, symbols and emoji, whitespace, and invisible breaks such as
+    // the zero-width joiner. Variation selectors (U+FE00–U+FE0F) also end it, as Bluesky's
+    // rule rejects U+FE0F.
+    private static bool TryReadTagRune(string text, int index, out int width)
+    {
+        if (Rune.DecodeFromUtf16(text.AsSpan(index), out var rune, out width) != OperationStatus.Done)
+        {
+            return false;
+        }
+
+        if (rune.Value == '_')
+        {
+            return true;
+        }
+
+        // U+02BC (modifier letter apostrophe) is a letter by category but reads as an apostrophe.
+        if (rune.Value is >= 0xFE00 and <= 0xFE0F or 0x02BC)
+        {
+            return false;
+        }
+
+        return Rune.GetUnicodeCategory(rune) is
+            UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or
+            UnicodeCategory.TitlecaseLetter or UnicodeCategory.ModifierLetter or
+            UnicodeCategory.OtherLetter or UnicodeCategory.DecimalDigitNumber or
+            UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark;
+    }
 
     private static bool IsValidTag(string tag)
     {
