@@ -70,6 +70,12 @@ public class CatalogueParentsUpdater(
     /// <summary>Stable log prefix for a parent cut off by its time budget (App Insights keys off it).</summary>
     public const string BudgetExceededMessagePrefix = "IndexerCatalogueParentBudgetExceeded";
 
+    /// <summary>
+    /// Stable log prefix for a parent skipped because the podcast it was migrated from (same id) still exists: a
+    /// half-finished CatalogueMigrate move (App Insights keys off it).
+    /// </summary>
+    public const string SourcePodcastExistsMessagePrefix = "IndexerCatalogueParentSourcePodcastExists";
+
     /// <summary>Stable log prefix when an abandoned parent update finally finishes in the background.</summary>
     public const string AbandonedCompletedMessagePrefix = "IndexerCatalogueParentAbandonedCompleted";
 
@@ -120,7 +126,7 @@ public class CatalogueParentsUpdater(
                 var tvShow = await tvShowRepository.GetTvShow(parentId);
                 if (tvShow is not null)
                 {
-                    if (IsIndexable(tvShow))
+                    if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
                         success &= await IndexWithinBudget("TvShow", tvShow,
                             context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
@@ -130,7 +136,8 @@ public class CatalogueParentsUpdater(
                 }
 
                 var organisation = await newsOrganisationRepository.GetNewsOrganisation(parentId);
-                if (organisation is not null && IsIndexable(organisation))
+                if (organisation is not null && IsIndexable(organisation) &&
+                    !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
                     success &= await IndexWithinBudget("NewsOrganisation", organisation,
                         context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
@@ -228,6 +235,27 @@ public class CatalogueParentsUpdater(
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// CatalogueMigrate keeps the podcast id for the parent and deletes the podcast last. If a move stopped after the
+    /// parent was written (search quota, verify, or the source changed mid-move), the podcast and the parent both exist
+    /// and both are auto-indexed. Indexing the parent too would save each new video twice (an Episode on the podcast
+    /// and a NewsReport / TvShowEpisode on the parent), and a re-run of the move would then hold both. The podcast stays
+    /// the indexed source until the move finishes or is rolled back, so the parent is skipped (not a failure).
+    /// </summary>
+    private async Task<bool> SourcePodcastStillExists(string kind, Publisher parent)
+    {
+        if (await podcastRepository.GetPodcast(parent.Id) is null)
+        {
+            return false;
+        }
+
+        logger.LogWarning(
+            SourcePodcastExistsMessagePrefix +
+            " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}'. The podcast with the same id still exists (CatalogueMigrate move not finished); the podcast is indexed instead. Re-run the move or roll it back.",
+            kind, parent.Id, parent.Name);
+        return true;
     }
 
     private static bool IsIndexable(Publisher parent) =>

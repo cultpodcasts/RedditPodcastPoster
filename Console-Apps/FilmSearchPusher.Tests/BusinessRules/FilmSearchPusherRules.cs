@@ -296,6 +296,48 @@ public class FilmSearchPusherRules
     }
 
     [Fact(DisplayName =
+        "When a full run's index request throws part-way (for example a storage-quota or network error), then the watermark is cleared before the error surfaces, because earlier batches are already in the index and the next run must still be full.")]
+    public async Task full_run_that_throws_part_way_clears_watermark()
+    {
+        // Arrange
+        CreateStoredFilm(timestamp: 100);
+        CreateStoredFilm(timestamp: 200);
+        GivenWatermark(5_000);
+        var calls = 0;
+        _mocker.GetMock<IFilmSearchIndexGateway>()
+            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
+                ++calls == 1 ? [] : throw new InvalidOperationException("synthetic request failure"));
+
+        // Act
+        var act = () => Push(full: true, batchSize: 1);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("synthetic request failure");
+        _savedWatermarks.Should().ContainSingle().Which.HighWaterMark.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When an incremental run's index request throws, then the watermark is not saved, because the next run retries from the same watermark.")]
+    public async Task incremental_run_that_throws_keeps_watermark()
+    {
+        // Arrange
+        var changed = CreateStoredFilm(timestamp: 300);
+        GivenIndexAlreadyHoldsFilms(changed);
+        GivenWatermark(200);
+        _mocker.GetMock<IFilmSearchIndexGateway>()
+            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
+
+        // Act
+        var act = () => Push();
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _savedWatermarks.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When a dry run is made, then nothing is pushed, deleted or saved, but the plan is reported, because a dry run must not touch the index or the watermark.")]
     public async Task dry_run_writes_nothing()
     {
