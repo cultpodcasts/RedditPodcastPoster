@@ -13,7 +13,7 @@ The URL list lives in one place: `Class-Libraries/RedditPodcastPoster.ContentPub
 
 | R2 key | Api route | Api source | Cache | Purged URLs |
 | --- | --- | --- | --- | --- |
-| `search-suggestions` | `GET /search-suggestions` | `src/searchSuggestions.ts` | `caches.default`, `max-age=3600`, header `X-Search-Suggestions-Cache: HIT/MISS` | `https://api.cultpodcasts.com/search-suggestions`, `https://api-preview.cultpodcasts.com/search-suggestions` |
+| `search-suggestions` | `GET /search-suggestions` | `src/searchSuggestions.ts` | `caches.default`, `max-age=3600` (edge copy ~1 h; browsers may see 14400, see below), header `X-Search-Suggestions-Cache: HIT/MISS` | `https://api.cultpodcasts.com/search-suggestions`, `https://api-preview.cultpodcasts.com/search-suggestions` |
 | `homepage` | `GET /homepage` | `src/homepage.ts` | `caches.default`, `max-age=300`, header `X-Homepage-Cache: HIT/MISS` | `https://api.cultpodcasts.com/homepage`, `https://api-preview.cultpodcasts.com/homepage` |
 | `languages`, `people`, `subjects`, `flairs`, `discovery-info`, `homepage-ssr` | `/languages`, `/people`, `/subjects`, `/flairs`, `/discovery-info`, `/homepage-ssr` | | streamed from R2 per request, not edge-cached | none |
 
@@ -37,4 +37,10 @@ Verify (printed with the command):
 curl.exe -s -D - -o NUL https://api.cultpodcasts.com/search-suggestions | Select-String 'X-Search-Suggestions-Cache'
 ```
 
-Expect `MISS` on the first request after the purge; `HIT` means the old copy is still cached.
+Expect `MISS` on the first request after the purge; `HIT` means the old copy is still cached. One `Verify:` line is printed per purged route (after `PublishR2 all`, both `/homepage` with `X-Homepage-Cache` and `/search-suggestions` with `X-Search-Suggestions-Cache`).
+
+## Edge copy vs browser copy (why clients see `max-age=14400`)
+
+- **Edge (Worker cache):** the Api `cache.put`s the response with its own `Cache-Control` (`max-age=3600` for `/search-suggestions`, `300` for `/homepage`), so the copy in `caches.default` lives at most that long. This is what the purge clears.
+- **Browser:** on a cached HIT, Cloudflare applies the zone **Browser Cache TTL** (default 4 h), which raises `max-age` to `14400` when the origin value is lower. Observed 22 Oct 2026, 19:15 BST: first request `MISS`, `cache-control: max-age=3600`; second request `cf-cache-status: HIT`, `X-Search-Suggestions-Cache: HIT`, `cache-control: max-age=14400`.
+- **Purging does not clear browser caches.** A browser that got a HIT may keep the old copy for up to 4 h, so hard-reload (Ctrl+Shift+R) to check, and other visitors may see the old list until their copy expires. The printed block ends with this caveat. Changing the zone setting (Browser Cache TTL "Respect Existing Headers", or a cache rule for `api.cultpodcasts.com`) is tracked separately: [cultpodcasts/Api#184](https://github.com/cultpodcasts/Api/issues/184)

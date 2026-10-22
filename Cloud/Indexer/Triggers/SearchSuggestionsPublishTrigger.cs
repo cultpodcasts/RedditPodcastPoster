@@ -40,7 +40,7 @@ public class SearchSuggestionsPublishTrigger(
             logger.LogInformation(
                 "SearchSuggestionsPublish Api cache purge command: {PurgeCommand} {VerifyNote}",
                 string.Join(" ; ", purge.Commands),
-                purge.VerifyNote);
+                string.Join(" ", purge.VerifyLines));
         }
     }
 }

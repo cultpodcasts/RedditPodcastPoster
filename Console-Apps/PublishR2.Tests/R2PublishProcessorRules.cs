@@ -116,4 +116,44 @@ public class R2PublishProcessorRules
         result.Success.Should().BeFalse();
         result.ApiCachePurge.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "When lookups throws in subjects after search-suggestions published, then the run fails but the /search-suggestions purge is still returned, because that new R2 object is live.")]
+    public async Task Lookups_SubjectsThrows_StillPurgesSearchSuggestions()
+    {
+        _mocker.GetMock<ISubjectsPublisher>().Setup(x => x.PublishSubjects())
+            .ThrowsAsync(new InvalidOperationException("synthetic subjects failure"));
+
+        var result = await Run(R2PublishTarget.Lookups);
+
+        result.Success.Should().BeFalse();
+        result.ApiCachePurge!.Urls.Should().OnlyContain(u => u.EndsWith("/search-suggestions")).And.HaveCount(2);
+        _mocker.GetMock<ISearchSuggestionsPublisher>()
+            .Verify(x => x.PublishSearchSuggestions(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When all throws while building the homepage after search-suggestions published, then the run fails but only the /search-suggestions purge is returned.")]
+    public async Task All_HomepageThrows_StillPurgesSearchSuggestions()
+    {
+        _mocker.GetMock<IHomepagePublisher>().Setup(x => x.PublishHomepage())
+            .ThrowsAsync(new InvalidOperationException("synthetic homepage model failure"));
+
+        var result = await Run(R2PublishTarget.All);
+
+        result.Success.Should().BeFalse();
+        result.ApiCachePurge!.Urls.Should().OnlyContain(u => u.EndsWith("/search-suggestions")).And.HaveCount(2);
+    }
+
+    [Fact(DisplayName = "When the homepage-only target throws, then the run fails and nothing is purged.")]
+    public async Task Homepage_Throws_NoPurge()
+    {
+        _mocker.GetMock<IHomepagePublisher>().Setup(x => x.PublishHomepage())
+            .ThrowsAsync(new InvalidOperationException("synthetic homepage model failure"));
+
+        var result = await Run(R2PublishTarget.Homepage);
+
+        result.Success.Should().BeFalse();
+        result.ApiCachePurge.Should().BeNull();
+    }
 }

@@ -10,6 +10,14 @@ public class ApiCachePurgeCommandBuilder : IApiCachePurgeCommandBuilder
     /// </summary>
     public const int MaxUrlsPerCommand = 30;
 
+    /// <summary>
+    /// The purge clears only Cloudflare's copy. The zone Browser Cache TTL (default 4 h) raises max-age to 14400
+    /// on cached HITs, so a browser that got a HIT may keep the old copy for up to 4 h.
+    /// </summary>
+    public const string BrowserCacheNote =
+        "Note: the purge does not clear browser caches. A browser that got a cached HIT may keep the old copy " +
+        "for up to 4 h (zone Browser Cache TTL), so hard-reload (Ctrl+Shift+R) to check in a browser.";
+
     public ApiCachePurgeInstructions? Build(IEnumerable<ApiCachedContent> published)
     {
         var contents = published.Distinct().Order().ToList();
@@ -20,12 +28,14 @@ public class ApiCachePurgeCommandBuilder : IApiCachePurgeCommandBuilder
 
         var urls = ApiCacheRoutes.UrlsFor(contents);
         var commands = BuildCommands(urls);
-        var first = contents[0];
-        var verifyUrl = ApiCacheRoutes.ApiOrigins[0] + ApiCacheRoutes.PathFor(first);
-        var verifyNote =
-            $"Verify: curl.exe -s -D - -o NUL {verifyUrl} | Select-String '{ApiCacheRoutes.CacheHeaderFor(first)}' " +
-            "- expect MISS on the first request after the purge (HIT means the old copy is still cached).";
-        return new ApiCachePurgeInstructions(urls, commands, verifyNote);
+        var verifyLines = contents
+            .Select(content =>
+                $"Verify: curl.exe -s -D - -o NUL {ApiCacheRoutes.ApiOrigins[0]}{ApiCacheRoutes.PathFor(content)} " +
+                $"| Select-String '{ApiCacheRoutes.CacheHeaderFor(content)}' " +
+                "- expect MISS on the first request after the purge (HIT means the old copy is still cached).")
+            .Append(BrowserCacheNote)
+            .ToList();
+        return new ApiCachePurgeInstructions(urls, commands, verifyLines);
     }
 
     public string Format(ApiCachePurgeInstructions instructions)
@@ -42,7 +52,10 @@ public class ApiCachePurgeCommandBuilder : IApiCachePurgeCommandBuilder
         }
 
         sb.AppendLine();
-        sb.AppendLine(instructions.VerifyNote);
+        foreach (var line in instructions.VerifyLines)
+        {
+            sb.AppendLine(line);
+        }
         sb.Append(rule);
         return sb.ToString();
     }

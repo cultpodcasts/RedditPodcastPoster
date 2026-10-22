@@ -31,7 +31,8 @@ public class SearchSuggestionsPublishTriggerRules
                 It.Is<It.IsAnyType>((state, _) =>
                     state.ToString()!.Contains(
                         "cf cache purge -z cultpodcasts.com --body '{\\\"files\\\":[\\\"https://api.cultpodcasts.com/search-suggestions\\\"") &&
-                    state.ToString()!.Contains("X-Search-Suggestions-Cache")),
+                    state.ToString()!.Contains("X-Search-Suggestions-Cache") &&
+                    state.ToString()!.Contains("does not clear browser caches")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             times);

@@ -78,19 +78,46 @@ public class ApiCachePurgeCommandBuilderRules
     }
 
     [Fact(DisplayName =
-        "When building the verify note, then it names the production URL and the route's X-…-Cache header and says to expect MISS.")]
-    public void VerifyNote()
+        "When only search-suggestions was published, then there is one verify line naming its production URL, X-Search-Suggestions-Cache and MISS, then the browser-cache caveat.")]
+    public void VerifyLines_Single()
     {
         var result = Sut().Build([ApiCachedContent.SearchSuggestions])!;
 
-        result.VerifyNote.Should()
-            .Contain("https://api.cultpodcasts.com/search-suggestions")
+        result.VerifyLines.Should().HaveCount(2);
+        result.VerifyLines[0].Should()
+            .StartWith("Verify: ")
+            .And.Contain("https://api.cultpodcasts.com/search-suggestions")
             .And.Contain("X-Search-Suggestions-Cache")
             .And.Contain("MISS");
+        result.VerifyLines[1].Should().Be(ApiCachePurgeCommandBuilder.BrowserCacheNote);
     }
 
     [Fact(DisplayName =
-        "When formatting for the console, then the block contains a clear ACTION banner, each command on its own line and the verify note.")]
+        "When both were published, then every purged route gets its own verify line with its own header, because checking only /homepage would miss the 22 Oct /search-suggestions case.")]
+    public void VerifyLines_EveryRoute()
+    {
+        var result = Sut().Build([ApiCachedContent.Homepage, ApiCachedContent.SearchSuggestions])!;
+
+        var verify = result.VerifyLines.Where(l => l.StartsWith("Verify: ")).ToList();
+        verify.Should().HaveCount(2);
+        verify.Should().ContainSingle(l =>
+            l.Contains("https://api.cultpodcasts.com/homepage ") && l.Contains("'X-Homepage-Cache'"));
+        verify.Should().ContainSingle(l =>
+            l.Contains("https://api.cultpodcasts.com/search-suggestions ") && l.Contains("'X-Search-Suggestions-Cache'"));
+        result.VerifyLines.Should().EndWith(ApiCachePurgeCommandBuilder.BrowserCacheNote);
+    }
+
+    [Fact(DisplayName =
+        "When building the browser-cache caveat, then it says the purge does not clear browser caches and mentions the 4 h zone Browser Cache TTL.")]
+    public void BrowserCacheNote_Content()
+    {
+        ApiCachePurgeCommandBuilder.BrowserCacheNote.Should()
+            .Contain("does not clear browser caches")
+            .And.Contain("4 h");
+    }
+
+    [Fact(DisplayName =
+        "When formatting for the console, then the block contains a clear ACTION banner, each command on its own line and every verify line.")]
     public void Format_Block()
     {
         var sut = Sut();
@@ -100,6 +127,6 @@ public class ApiCachePurgeCommandBuilderRules
 
         lines.Should().Contain(l => l.StartsWith("ACTION: purge the Api edge cache"));
         lines.Should().Contain(result.Commands[0]);
-        lines.Should().Contain(result.VerifyNote);
+        lines.Should().Contain(result.VerifyLines);
     }
 }
