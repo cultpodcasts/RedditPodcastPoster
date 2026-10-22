@@ -11,7 +11,7 @@ public class CatalogueNewsOrganisationAllowlistRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "S-008 is the frozen NewsOrganisation apply allowlist of 308 publisher names, " +
+        "S-008 is the frozen NewsOrganisation apply allowlist of 299 publisher names, " +
         "because News migrate apply must not use the Identify name heuristic alone.")]
     public void frozen_count_matches_the_name_set()
     {
@@ -21,7 +21,7 @@ public class CatalogueNewsOrganisationAllowlistRules
 
         // Assert
         names.Count.Should().Be(CatalogueNewsOrganisationAllowlist.FrozenCount);
-        names.Count.Should().Be(308);
+        names.Count.Should().Be(299);
     }
 
     [Theory(DisplayName =
@@ -47,13 +47,35 @@ public class CatalogueNewsOrganisationAllowlistRules
     }
 
     [Theory(DisplayName =
-        "Curator-confirmed news outlets stay on the S-008 allowlist, " +
-        "because the 21 Oct 2026 review kept them as news.")]
+        "News-commentary podcasts are not on the S-008 allowlist, " +
+        "because the 22 Oct 2026 curator review kept them as podcasts rather than news organisations.")]
+    [InlineData("Fayn")]
+    [InlineData("Mail News")]
     [InlineData("Re: News")]
+    [InlineData("Rob Wolchek-Investigative News Reporter")]
+    [InlineData("Daily Cast News")]
+    [InlineData("Touch Breaking News")]
+    [InlineData("On Demand News")]
+    [InlineData("National and World News")]
+    [InlineData("Times Radio Tech")]
+    public void news_commentary_podcasts_are_not_allowlisted(string publisher)
+    {
+        // Arrange
+        // Act
+        var allowlisted = CatalogueNewsOrganisationAllowlist.Contains(publisher);
+
+        // Assert
+        allowlisted.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "Curator-confirmed news outlets stay on the S-008 allowlist, " +
+        "because the 21 and 22 Oct 2026 reviews kept them as news organisations.")]
     [InlineData("TIME")]
     [InlineData("VICE")]
     [InlineData("EWTN")]
     [InlineData("Entertainment News")]
+    [InlineData("E! News")]
     public void curator_confirmed_outlets_stay_allowlisted(string publisher)
     {
         // Arrange
@@ -89,7 +111,7 @@ public class CatalogueNewsOrganisationAllowlistRules
 
     [Fact(DisplayName =
         "Stay-podcast publisher names are not on S-008, " +
-        "because partisan, advocacy, and news-satire rows remain podcasts.")]
+        "because partisan, advocacy, news-satire, and news-commentary rows remain podcasts.")]
     public void stay_podcast_names_are_not_allowlisted()
     {
         // Arrange
