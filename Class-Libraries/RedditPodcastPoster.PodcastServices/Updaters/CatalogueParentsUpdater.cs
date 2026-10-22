@@ -260,10 +260,23 @@ public class CatalogueParentsUpdater(
         return true;
     }
 
-    /// <summary>Same selection as <c>IndexIdProvider</c>'s podcast pass.</summary>
+    /// <summary>
+    /// Whether the hourly podcast pass would index <paramref name="podcast"/>: selected by <c>IndexIdProvider</c>
+    /// (<c>Removed</c> undefined or false, and <c>IndexAllEpisodes</c> or a title regex) and then indexed by
+    /// <c>PodcastsUpdater</c> (not removed, and <c>IndexAllEpisodes</c> or a non-blank regex). A whitespace-only regex is
+    /// blank, as in <c>PodcastsUpdater</c>, <c>CatalogueMigratePlanner.IsAutoIndexed</c> and
+    /// <c>CatalogueIndexingSource.IsAutoIndexed</c>.
+    /// <para>
+    /// <c>Removed == null</c> counts as not removed. In C# a podcast without a <c>removed</c> property (the case the hourly
+    /// query includes via <c>!Removed.IsDefined()</c>) and one with a stored <c>"removed": null</c> both read as null, so
+    /// they cannot be told apart here. Null is never written (<c>JsonSerializerOptionsProvider</c> uses
+    /// <c>WhenWritingNull</c>), so null here means "property absent", which the hourly query indexes. Treating null as
+    /// removed would stop deferring for every half-moved podcast and bring back the double indexing this check prevents.
+    /// </para>
+    /// </summary>
     private static bool IsIndexedByPodcastPass(Podcast podcast) =>
-        !podcast.IsRemoved() &&
-        (podcast.IndexAllEpisodes || !string.IsNullOrEmpty(podcast.EpisodeIncludeTitleRegex));
+        podcast.Removed != true &&
+        (podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex));
 
     private static bool IsIndexable(Publisher parent) =>
         !parent.IsRemoved() && IndexingOf(parent) is { IsAutoIndexed: true };

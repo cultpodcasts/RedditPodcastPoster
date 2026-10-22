@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Moq.AutoMock;
@@ -336,6 +337,37 @@ public class FilmSearchPusherRules
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("synthetic request failure");
+    }
+
+    [Fact(DisplayName =
+        "When a full run partly fails and clearing the watermark also fails, then the failed-documents result is still returned with the watermark not saved and a 'run with --full next' error is logged, because the run's own outcome is what the operator acts on and the stale watermark must be flagged.")]
+    public async Task failed_full_run_returns_its_outcome_when_the_watermark_save_fails()
+    {
+        // Arrange
+        CreateStoredFilm(timestamp: 100);
+        var bad = CreateStoredFilm(timestamp: 200);
+        GivenWatermark(5_000);
+        _failingKeys.Add(bad.Id.ToString());
+        _mocker.GetMock<IFilmSearchPushWatermarkStore>()
+            .Setup(x => x.SaveAsync(It.IsAny<FilmSearchPushWatermark>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TimeoutException("synthetic store failure"));
+
+        // Act
+        var result = await Push(full: true);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failed.Should().Be(1);
+        result.WatermarkSaved.Should().BeFalse();
+        result.NewWatermark.Should().Be(5_000);
+        _mocker.GetMock<ILogger<RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush.FilmSearchPusher>>().Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("run with --full next")),
+                It.IsAny<TimeoutException>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =

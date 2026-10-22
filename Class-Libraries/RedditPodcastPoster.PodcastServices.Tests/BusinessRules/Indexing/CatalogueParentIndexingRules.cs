@@ -226,18 +226,21 @@ public class CatalogueParentIndexingRules
 
     [Theory(DisplayName =
         "Catalogue parent indexing: when a podcast with the news organisation's id still exists but the podcast pass " +
-        "would not index it (removed, or not auto-indexed), then the organisation is indexed, because skipping it would " +
-        "leave nothing indexing the outlet.")]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task same_id_podcast_not_indexed_by_podcast_pass_does_not_defer_the_parent(bool removed, bool indexAll)
+        "would not index it (removed, not auto-indexed, or only a whitespace title regex), then the organisation is " +
+        "indexed, because skipping it would leave nothing indexing the outlet.")]
+    [InlineData(true, true, "")]
+    [InlineData(false, false, "")]
+    [InlineData(false, false, " ")]
+    [InlineData(null, false, " \t ")]
+    public async Task same_id_podcast_not_indexed_by_podcast_pass_does_not_defer_the_parent(
+        bool? removed, bool indexAll, string regex)
     {
         // Arrange
         var source = AutoIndexedYouTubePodcast();
         var organisation = SeedOrganisation(source);
         source.Removed = removed;
         source.IndexAllEpisodes = indexAll;
-        source.EpisodeIncludeTitleRegex = string.Empty;
+        source.EpisodeIncludeTitleRegex = regex;
         _podcasts.Add(source);
         _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
 
@@ -247,6 +250,35 @@ public class CatalogueParentIndexingRules
         // Assert
         success.Should().BeTrue();
         _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
+    }
+
+    [Theory(DisplayName =
+        "Catalogue parent indexing: when a podcast with the news organisation's id still exists and the podcast pass " +
+        "would index it (index-all, or a title regex only, with removed absent or false), then the organisation is " +
+        "skipped, because the podcast is still indexed and indexing both would save each video twice.")]
+    [InlineData(null, true, "")]
+    [InlineData(false, true, "")]
+    [InlineData(null, false, "Episode \\d+")]
+    [InlineData(false, false, "Episode \\d+")]
+    public async Task same_id_podcast_indexed_by_podcast_pass_defers_the_parent(
+        bool? removed, bool indexAll, string regex)
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(source);
+        source.Removed = removed;
+        source.IndexAllEpisodes = indexAll;
+        source.EpisodeIncludeTitleRegex = regex;
+        _podcasts.Add(source);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue("a half-finished move is not an indexing failure");
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
