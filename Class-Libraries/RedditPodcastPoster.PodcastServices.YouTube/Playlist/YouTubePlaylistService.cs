@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Paging;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
@@ -19,7 +20,18 @@ public class YouTubePlaylistService(
     ILogger<YouTubePlaylistService> logger)
     : IYouTubePlaylistService
 {
-    private const int MaxSearchResults = 5;
+    /// <summary>
+    /// Page size for every playlistItems.list walk: the YouTube maximum. The call costs 1 quota unit per
+    /// page whatever maxResults is, so smaller pages only add calls.
+    /// </summary>
+    public const int PlaylistPageSize = 50;
+
+    /// <summary>
+    /// Leading dated items used for the newest-first probe. Kept at the old first-page size (3) so the
+    /// move to 50-item pages does not change how playlists are classified (and so flip stored flags).
+    /// </summary>
+    public const int OrderProbeSampleSize = 3;
+
     private const string PrivateVideoTitle = "Private video";
 
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
@@ -40,28 +52,22 @@ public class YouTubePlaylistService(
         }
 
         // Curated playlists carry no date information in their positions: new items may appear at
-        // either end. Walk at max batch size (1 quota unit per 50 items) with a hard page cap
-        // (see ArbitraryYouTubePlaylistWalk.MaxPages) and rely on the ReleasedSince window
-        // filter below; skip the head-order probe entirely so the expensive-query flag is never
-        // flipped by a meaningless head sample.
+        // either end. Walk with a hard page cap (see ArbitraryYouTubePlaylistWalk.MaxPages) and rely
+        // on the ReleasedSince window filter below; skip the head-order probe entirely so the
+        // expensive-query flag is never flipped by a meaningless head sample.
         var arbitraryOrder = playlistOrder == PlaylistOrder.Arbitrary;
 
-        var batchSize = MaxSearchResults;
-        if (arbitraryOrder)
-        {
-            batchSize = ArbitraryYouTubePlaylistWalk.BatchSize;
-        }
-        else if (indexingContext.ReleasedSince.HasValue)
-        {
-            batchSize = 3;
-        }
+        // Every walk pages at the YouTube maximum. `expensivePlaylist` used to pick 10 vs 1 items per
+        // page after a newest-first probe; playlistItems.list is 1 unit per page regardless of size, so
+        // 50 is never more calls than 10 or 1 and the flag no longer changes the request.
+        const int batchSize = PlaylistPageSize;
 
         var result = new List<PlaylistItem>();
-        var nextPageToken = "";
+        string? nextPageToken = "";
         var firstRun = true;
         var knownToBeInReverseOrder = false;
         bool? isExpensiveQuery = null;
-        var pagesFetched = 0;
+        var walkGuard = new YouTubePageWalkGuard(batchSize);
         // contentDetails is free on playlistItems.list (1 unit per page regardless of parts) and carries
         // videoPublishedAt, which the ReleasedSince filter below needs to window scheduled uploads on
         // their public release rather than the earlier added-to-playlist time.
@@ -77,18 +83,19 @@ public class YouTubePlaylistService(
                 .ReleasedSinceDate(indexingContext.ReleasedSince)) || !knownToBeInReverseOrder))
         {
             if (arbitraryOrder &&
-                ArbitraryYouTubePlaylistWalk.ShouldTripCircuitBreaker(pagesFetched, nextPageToken))
+                ArbitraryYouTubePlaylistWalk.ShouldTripCircuitBreaker(walkGuard.PagesFetched, nextPageToken))
             {
                 logger.LogError(
                     ArbitraryYouTubePlaylistWalk.CircuitBreakerTrippedMessageTemplate,
                     playlistId.PlaylistId,
-                    pagesFetched,
+                    walkGuard.PagesFetched,
                     ArbitraryYouTubePlaylistWalk.MaxPages,
                     indexingContext.ReleasedSince,
                     nextPageToken);
                 break;
             }
 
+            var requestedPageToken = nextPageToken;
             PlaylistItemListResponse playlistItemsListResponse;
             try
             {
@@ -98,7 +105,7 @@ public class YouTubePlaylistService(
                 playlistRequest.PageToken = nextPageToken;
 
                 indexingContext.ReportStage("youtube-playlist-page",
-                    $"playlist-id={playlistId.PlaylistId} page={pagesFetched + 1} batch-size={batchSize}");
+                    $"playlist-id={playlistId.PlaylistId} page={walkGuard.PagesFetched + 1} batch-size={batchSize}");
                 playlistItemsListResponse = await playlistRequest.ExecuteAsync(indexingContext.CancellationToken);
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
@@ -167,43 +174,37 @@ public class YouTubePlaylistService(
                 else if (indexingContext.ReleasedSince.HasValue)
                 {
                     var sample = playlistItemsListResponse.Items?
+                        .Take(OrderProbeSampleSize)
                         .Where(x => x?.Snippet?.PublishedAtDateTimeOffset != null)
-                        .Take(YouTubeExpensiveQueryFlag.MinimumOrderSampleSize + 6)
                         .ToList() ?? [];
                     if (sample.Count >= YouTubeExpensiveQueryFlag.MinimumOrderSampleSize)
                     {
                         knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(sample);
                         isExpensiveQuery = !knownToBeInReverseOrder;
-                        if (knownToBeInReverseOrder)
-                        {
-                            batchSize = expensivePlaylist ? 10 : 1;
-                            logger.LogInformation(
-                                "Playlist '{playlistId}' appears to be in reverse-date order. Setting batch-size to '{batchSize}'.",
-                                playlistId.PlaylistId, batchSize);
-                        }
-                        else
-                        {
-                            batchSize = 10;
-                            logger.LogInformation(
-                                "Playlist '{playlistId}' is not in reverse-date order. Setting batch-size to '{batchSize}'.",
-                                playlistId.PlaylistId, batchSize);
-                        }
+                        logger.LogInformation(
+                            knownToBeInReverseOrder
+                                ? "Playlist '{playlistId}' appears to be in reverse-date order; stopping once items leave the window. Batch-size '{batchSize}'."
+                                : "Playlist '{playlistId}' is not in reverse-date order; walking to the end. Batch-size '{batchSize}'.",
+                            playlistId.PlaylistId, batchSize);
                     }
-                    else if (expensivePlaylist)
-                    {
-                        batchSize = 10;
-                    }
-                }
-                else if (expensivePlaylist)
-                {
-                    batchSize = 10;
                 }
             }
 
-            result.AddRange((playlistItemsListResponse.Items ?? [])
-                .Where(x => x.Snippet.Title != PrivateVideoTitle));
+            var pageItems = playlistItemsListResponse.Items ?? [];
+            result.AddRange(pageItems.Where(x => x.Snippet.Title != PrivateVideoTitle));
             nextPageToken = playlistItemsListResponse.NextPageToken;
-            pagesFetched++;
+
+            var stop = walkGuard.Observe(
+                requestedPageToken,
+                pageItems.Select(x => x?.Snippet?.ResourceId?.VideoId ?? x?.ContentDetails?.VideoId).ToList(),
+                nextPageToken,
+                playlistItemsListResponse.PageInfo?.TotalResults);
+            if (stop != YouTubePageWalkStopReason.None)
+            {
+                walkGuard.LogStop(logger, stop, "playlist-items", playlistId.PlaylistId,
+                    playlistId.Source.ToString(), playlistId.SourceIdentifier, result.Count);
+                break;
+            }
         }
 
         if (result.Any() && indexingContext.ReleasedSince != null)
