@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PublishR2;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.ApiCache;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
@@ -59,8 +60,17 @@ return await Parser.Default
 async Task<int> RunR2(IServiceProvider sp, R2PublishTarget target)
 {
     var processor = sp.GetRequiredService<R2PublishProcessor>();
-    var success = await processor.Process(new R2PublishRequest { Target = target });
-    return success ? 0 : 1;
+    var result = await processor.Process(new R2PublishRequest { Target = target });
+    if (result.ApiCachePurge != null)
+    {
+        // Printed to stdout (not only logged) so the purge step is not lost among log lines.
+        var formatted = sp.GetRequiredService<IApiCachePurgeCommandBuilder>().Format(result.ApiCachePurge);
+        Console.WriteLine();
+        Console.WriteLine(formatted);
+        Console.WriteLine();
+    }
+
+    return result.Success ? 0 : 1;
 }
 
 async Task<int> RunLookups(IServiceProvider sp)

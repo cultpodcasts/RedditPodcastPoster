@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Cloudflare.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.ContentPublisher.ApiCache;
 using RedditPodcastPoster.ContentPublisher.Builders;
 using RedditPodcastPoster.ContentPublisher.Configuration;
 using RedditPodcastPoster.ContentPublisher.Publishers;
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDiscoveryInfoContentPublisher, DiscoveryInfoContentPublisher>()
             .AddScoped<ILanguagesPublisher, LanguagesPublisher>()
             .AddScoped<ISearchSuggestionsPublisher, SearchSuggestionsPublisher>()
+            .AddSingleton<IApiCachePurgeCommandBuilder, ApiCachePurgeCommandBuilder>()
             .BindConfiguration<ContentOptions>("content")
             .AddCloudflareClients();
     }

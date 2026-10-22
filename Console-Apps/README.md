@@ -155,6 +155,8 @@ PublishR2 flairs
 PublishR2 all
 ```
 
+After a run that published `search-suggestions` and/or `homepage`, `PublishR2` prints an `ACTION:` block with the exact `cf cache purge …` command (PowerShell) that clears those Api Worker edge-cached URLs, plus a verify line. Run it, or the Api keeps serving the old copy until `max-age` expires. No token or setting is needed by `PublishR2` itself. See [docs/api-cache-purge.md](../docs/api-cache-purge.md).
+
 ### MigrateConfig
 
 **Purpose:** Convert local config JSON to Azure function app-setting JSON. Replaces `SecretsToFunctionSettings` and `LaunchSettingsToAppSettings`. CommandLineParser verbs dispatch to `SecretsRequest`/`SecretsProcessor` or `LaunchSettingsRequest`/`LaunchSettingsProcessor`.
