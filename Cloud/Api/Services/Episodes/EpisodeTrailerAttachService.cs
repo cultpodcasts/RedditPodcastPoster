@@ -17,9 +17,10 @@ namespace Api.Services.Episodes;
 /// document only, so the episode stops being a playable. The order mirrors <see cref="EpisodeFilmMoveService"/>, so
 /// every failure stops before anything is lost:
 /// <list type="number">
-/// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it.</item>
+/// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).</item>
 /// <item>Push the film's search document (its <c>trailers</c> list). On failure the episode is kept.</item>
 /// <item>Delete the episode's search document. On failure the episode is kept.</item>
+/// <item>Re-read the film; if it no longer holds the trailer (a concurrent write dropped it), stop with the episode kept.</item>
 /// <item>Delete the episode row.</item>
 /// <item>Point the episode's short link at the film page (best effort).</item>
 /// </list>
@@ -103,9 +104,13 @@ public class EpisodeTrailerAttachService(
                     return BadRequest("The episode has no link to play the trailer from");
                 }
 
-                film.Trailers ??= [];
-                film.Trailers.Add(trailer);
-                await filmRepository.Save(film);
+                var (saved, stop) = await AddTrailer(film.Id, trailer);
+                if (stop is not null)
+                {
+                    return stop;
+                }
+
+                film = saved!;
             }
 
             if (!await searchSwap.UploadAsync([CataloguePlayableSearchDocument.For(film)], cancellationToken))
@@ -124,6 +129,17 @@ public class EpisodeTrailerAttachService(
                 return Failed(film);
             }
 
+            // Last check before the only irreversible step: another film write since our save (one that read the film
+            // before it) would have dropped the trailer, and deleting the episode then would lose it for good.
+            var current = await filmRepository.GetFilm(film.Id);
+            if (current?.HasTrailer(episode.Id) != true)
+            {
+                logger.LogError(
+                    "{method}: Film '{filmId}' no longer holds trailer '{episodeId}' (changed concurrently). Episode row kept; re-send to resume.",
+                    nameof(AttachAsync), film.Id, episode.Id);
+                return new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed, film.Id, film.Name);
+            }
+
             await episodeRepository.Delete(podcast.Id, episode.Id);
             logger.LogInformation(
                 "Attached episode '{episodeId}' of podcast '{podcastId}' to film '{filmId}' as a trailer.",
@@ -138,6 +154,51 @@ public class EpisodeTrailerAttachService(
                 nameof(AttachAsync), command.EpisodeId, command.PodcastId, command.Request.FilmId);
             return new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed);
         }
+    }
+
+    private const int MaxSaveAttempts = 3;
+
+    /// <summary>
+    /// Adds the trailer with an ETag-guarded replace, so a film write that lands between our read and our save (another
+    /// attach, a film edit) is never overwritten: on a conflict the film is re-read and the trailer added again.
+    /// </summary>
+    private async Task<(Film? Film, EpisodeTrailerAttachResult? Stop)> AddTrailer(Guid filmId, FilmTrailer trailer)
+    {
+        for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
+        {
+            var version = await filmRepository.GetFilmForUpdate(filmId);
+            if (version is null)
+            {
+                return (null, new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.NotFound, Error: "Film not found"));
+            }
+
+            var latest = version.Film;
+            if (latest.IsRemoved())
+            {
+                return (null, BadRequest("A removed film cannot take trailers"));
+            }
+
+            if (latest.HasTrailer(trailer.Id))
+            {
+                return (latest, null);
+            }
+
+            latest.Trailers ??= [];
+            latest.Trailers.Add(trailer);
+            if (await filmRepository.TryReplace(latest, version.ETag))
+            {
+                return (latest, null);
+            }
+
+            logger.LogWarning(
+                "{method}: Film '{filmId}' changed while adding trailer '{trailerId}' (attempt {attempt} of {max}); re-reading.",
+                nameof(AddTrailer), filmId, trailer.Id, attempt, MaxSaveAttempts);
+        }
+
+        logger.LogError(
+            "{method}: Film '{filmId}' kept changing; trailer '{trailerId}' not added. Episode row kept; re-send to resume.",
+            nameof(AddTrailer), filmId, trailer.Id);
+        return (null, new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed, filmId));
     }
 
     private static EpisodeTrailerAttachResult BadRequest(string error) =>

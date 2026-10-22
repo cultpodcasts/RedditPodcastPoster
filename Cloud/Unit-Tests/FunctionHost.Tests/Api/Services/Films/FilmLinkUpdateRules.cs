@@ -216,4 +216,42 @@ public class FilmLinkUpdateRules
         // Assert
         _uploads.Should().ContainSingle().Which.Trailers.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "PATCH film keeps a trailer attached after it read the film, and retries on an ETag conflict, so an edit never drops a trailer whose episode is already deleted.")]
+    public async Task patch_keeps_trailer_attached_during_the_edit()
+    {
+        // Arrange
+        var kept = CreateTrailer();
+        var removed = CreateTrailer();
+        var film = CreateFilm(f => f.Trailers = [kept, removed]);
+        var attached = CreateTrailer();
+        var renamed = _fixture.CreateTitle();
+        var repository = _mocker.GetMock<IFilmRepository>();
+        repository
+            .Setup(r => r.GetFilmForUpdate(film.Id))
+            .ReturnsAsync(() => new FilmVersion(
+                new Film(film.Name) { Id = film.Id, Trailers = [kept, removed, attached] },
+                _fixture.CreateTitle()));
+        var replaced = new List<Film>();
+        repository
+            .Setup(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()))
+            .Callback<Film, string>((f, _) => replaced.Add(f))
+            .ReturnsAsync(() => replaced.Count > 1); // the first attempt loses an ETag race
+
+        // Act
+        var result = await Update(film, new FilmChangeRequest
+        {
+            Trailers = [new FilmTrailerChange(kept.Id, renamed)]
+        });
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        replaced.Should().HaveCount(2);
+        var saved = replaced[^1];
+        saved.Trailers!.Select(t => t.Id).Should().Equal(kept.Id, attached.Id);
+        saved.Trailers![0].Title.Should().Be(renamed);
+        _saved.Should().BeNull();
+        _uploads.Should().ContainSingle().Which.Trailers.Should().HaveCount(2);
+    }
 }

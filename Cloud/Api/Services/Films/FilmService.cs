@@ -65,6 +65,7 @@ public class FilmService(
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(film);
             var hadTrailers = film.Trailers is { Count: > 0 };
+            var readTrailerIds = film.Trailers?.Select(trailer => trailer.Id).ToHashSet() ?? [];
 
             if (!TryApply(film, request.Change, out var postStatus, out var fieldError))
             {
@@ -83,7 +84,7 @@ public class FilmService(
                 BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target),
                 TweetDeleted = await socialRetraction.RemoveTweet(postStatus, film, target)
             };
-            await filmRepository.Save(film);
+            await SaveKeepingAttachedTrailers(film, readTrailerIds);
 
             // As the episode API: removed=true always deletes the search document and the short link (the film
             // indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
@@ -101,6 +102,47 @@ public class FilmService(
             logger.LogError(ex, "{method}: Failed to update film '{id}'.", nameof(UpdateAsync), request.FilmId);
             return new FilmUpdateResult(FilmUpdateStatus.Failed);
         }
+    }
+
+    private const int MaxSaveAttempts = 3;
+
+    /// <summary>
+    /// Saves the edited film without dropping a trailer that "Attach as trailer" added after this request read it: that
+    /// trailer's episode row is already deleted, so overwriting it would lose it. The save is ETag-guarded against the
+    /// latest film; any trailer the latest film has and this request never saw is carried over (this edit cannot have
+    /// meant to remove it). Other fields keep last-writer-wins, as before. With no stored film to compare (deleted
+    /// concurrently), falls back to the plain upsert this method replaced.
+    /// </summary>
+    private async Task SaveKeepingAttachedTrailers(Film film, IReadOnlySet<Guid> readTrailerIds)
+    {
+        for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
+        {
+            var latest = await filmRepository.GetFilmForUpdate(film.Id);
+            if (latest is null)
+            {
+                await filmRepository.Save(film);
+                return;
+            }
+
+            var attached = latest.Film.Trailers?
+                .Where(trailer => !readTrailerIds.Contains(trailer.Id) && !film.HasTrailer(trailer.Id))
+                .ToList();
+            if (attached is { Count: > 0 })
+            {
+                logger.LogWarning(
+                    "{method}: Keeping {count} trailer(s) attached to film '{filmId}' during this edit.",
+                    nameof(SaveKeepingAttachedTrailers), attached.Count, film.Id);
+                film.Trailers ??= [];
+                film.Trailers.AddRange(attached);
+            }
+
+            if (await filmRepository.TryReplace(film, latest.ETag))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException($"Film '{film.Id}' kept changing during the edit; not saved.");
     }
 
     /// <summary>

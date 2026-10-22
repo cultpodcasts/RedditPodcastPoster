@@ -15,6 +15,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
+using System.Text.Json;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Episodes;
@@ -27,8 +28,12 @@ public class EpisodeTrailerAttachServiceRules
     private readonly AutoMocker _mocker = new();
     private readonly InMemoryPodcastRepository _podcasts = new();
     private readonly InMemoryEpisodeRepository _episodes = new();
-    private readonly List<Film> _films = [];
+    // Stored as JSON with a version, like Cosmos: every read is a copy and a replace must match the ETag it read.
+    private readonly Dictionary<Guid, (string Json, int Version)> _films = [];
     private int _filmSaves;
+    private Action? _beforeReplace;
+    private Action? _beforeVerifyRead;
+    private int _filmReads;
     private readonly List<IReadOnlyList<EpisodeSearchRecord>> _uploads = [];
     private readonly List<Guid> _searchDeletes = [];
     private bool _searchUploadSucceeds = true;
@@ -43,11 +48,36 @@ public class EpisodeTrailerAttachServiceRules
         var films = _mocker.GetMock<IFilmRepository>();
         films
             .Setup(r => r.GetFilm(It.IsAny<Guid>()))
-            .ReturnsAsync((Guid id) => _films.SingleOrDefault(film => film.Id == id));
+            .ReturnsAsync((Guid id) =>
+            {
+                if (++_filmReads > 1)
+                {
+                    _beforeVerifyRead?.Invoke();
+                }
+
+                return Stored(id);
+            });
         films
-            .Setup(r => r.Save(It.IsAny<Film>()))
-            .Callback<Film>(_ => _filmSaves++)
-            .Returns(Task.CompletedTask);
+            .Setup(r => r.GetFilmForUpdate(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => Stored(id) is { } film
+                ? new FilmVersion(film, _films[id].Version.ToString())
+                : null);
+        films
+            .Setup(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()))
+            .ReturnsAsync((Film film, string etag) =>
+            {
+                var hook = _beforeReplace;
+                _beforeReplace = null;
+                hook?.Invoke();
+                if (!_films.TryGetValue(film.Id, out var stored) || stored.Version.ToString() != etag)
+                {
+                    return false;
+                }
+
+                _filmSaves++;
+                _films[film.Id] = (JsonSerializer.Serialize(film), stored.Version + 1);
+                return true;
+            });
         var search = _mocker.GetMock<IPlayableSearchDocumentSwap>();
         search
             .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
@@ -68,9 +98,28 @@ public class EpisodeTrailerAttachServiceRules
     {
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         configure?.Invoke(film);
-        _films.Add(film);
+        _films[film.Id] = (JsonSerializer.Serialize(film), 1);
         return film;
     }
+
+    private Film? Stored(Guid id) =>
+        _films.TryGetValue(id, out var stored) ? JsonSerializer.Deserialize<Film>(stored.Json) : null;
+
+    /// <summary>Another writer saves the film (unconditionally, as a plain upsert does).</summary>
+    private void WriteConcurrently(Guid filmId, Action<Film> change)
+    {
+        var film = Stored(filmId)!;
+        change(film);
+        _films[filmId] = (JsonSerializer.Serialize(film), _films[filmId].Version + 1);
+    }
+
+    private FilmTrailer CreateTrailer() => new()
+    {
+        Id = _fixture.CreateGuid(),
+        Title = _fixture.CreateTitle(),
+        Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+        Length = _fixture.CreateDuration()
+    };
 
     private (RedditPodcastPoster.Models.Podcasts.Podcast Podcast, Episode Episode) SeedEpisode(
         Action<Episode>? configure = null)
@@ -107,7 +156,7 @@ public class EpisodeTrailerAttachServiceRules
         // Assert
         result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
         result.FilmId.Should().Be(film.Id);
-        var trailer = film.Trailers.Should().ContainSingle().Subject;
+        var trailer = Stored(film.Id)!.Trailers.Should().ContainSingle().Subject;
         trailer.Id.Should().Be(episode.Id);
         trailer.Title.Should().Be(episode.Title.Trim());
         trailer.Url.Should().Be(EpisodeServicePresence.TryGetUrl(episode, ServiceKeysYouTube));
@@ -131,7 +180,7 @@ public class EpisodeTrailerAttachServiceRules
         await Attach(podcast.Id, episode.Id, film.Id, $"  {title}  ");
 
         // Assert
-        film.Trailers.Should().ContainSingle().Which.Title.Should().Be(title);
+        Stored(film.Id)!.Trailers.Should().ContainSingle().Which.Title.Should().Be(title);
     }
 
     [Fact(DisplayName =
@@ -235,13 +284,14 @@ public class EpisodeTrailerAttachServiceRules
         _searchUploadSucceeds = false;
         await Attach(podcast.Id, episode.Id, film.Id);
         _searchUploadSucceeds = true;
+        _filmReads = 0;
 
         // Act
         var result = await Attach(podcast.Id, episode.Id, film.Id);
 
         // Assert
         result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
-        film.Trailers.Should().ContainSingle();
+        Stored(film.Id)!.Trailers.Should().ContainSingle();
         _filmSaves.Should().Be(1);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
     }
@@ -261,7 +311,7 @@ public class EpisodeTrailerAttachServiceRules
         // Assert
         result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
         result.FilmId.Should().Be(film.Id);
-        film.Trailers.Should().ContainSingle();
+        Stored(film.Id)!.Trailers.Should().ContainSingle();
         _uploads.Should().ContainSingle();
     }
 
@@ -311,5 +361,74 @@ public class EpisodeTrailerAttachServiceRules
         _filmSaves.Should().Be(0);
         _uploads.Should().BeEmpty();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When another attach saves the film between this attach's read and save, both trailers are kept, because the save is ETag-guarded and re-reads on a conflict.")]
+    public async Task concurrent_attach_keeps_both_trailers()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        var other = CreateTrailer();
+        _beforeReplace = () => WriteConcurrently(film.Id, f => f.Trailers = [other]);
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
+        Stored(film.Id)!.Trailers!.Select(t => t.Id).Should().Equal(other.Id, episode.Id);
+        _uploads.Should().ContainSingle().Which.Single().Trailers.Should().HaveCount(2);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a stale film write drops the new trailer before the episode is deleted, the attach fails and keeps the episode, and a re-send finishes it.")]
+    public async Task dropped_trailer_keeps_episode_and_resend_finishes()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _beforeVerifyRead = () =>
+        {
+            _beforeVerifyRead = null;
+            WriteConcurrently(film.Id, f => f.Trailers = null);
+        };
+
+        // Act
+        var first = await Attach(podcast.Id, episode.Id, film.Id);
+        var episodeAfterFirst = await _episodes.GetEpisode(podcast.Id, episode.Id);
+        _filmReads = 0;
+        var resent = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        first.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        episodeAfterFirst.Should().NotBeNull();
+        resent.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
+        Stored(film.Id)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the film keeps changing on every save attempt, the attach fails without touching search or the episode.")]
+    public async Task persistent_conflict_fails_and_keeps_episode()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        _uploads.Should().BeEmpty();
+        _searchDeletes.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+        Stored(film.Id)!.Trailers.Should().BeNull();
     }
 }
