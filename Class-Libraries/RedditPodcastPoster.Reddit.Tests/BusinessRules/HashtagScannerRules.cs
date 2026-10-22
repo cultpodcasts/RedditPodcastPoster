@@ -114,14 +114,92 @@ public class HashtagScannerRules
     [InlineData("a #_")]
     public void hashtag_is_not_found(string text)
     {
-        HashtagScanner.Find(text).Should().BeEmpty();
+        // Arrange
+        // (text comes from the inline data)
+
+        // Act
+        var tokens = HashtagScanner.Find(text);
+
+        // Assert
+        tokens.Should().BeEmpty();
     }
 
     [Fact(DisplayName = "A tag of 64 characters links and one of 65 does not, matching Bluesky's limit.")]
     public void tag_length_limit()
     {
-        HashtagScanner.Find("#" + new string('a', HashtagScanner.MaxTagLength)).Should().ContainSingle();
-        HashtagScanner.Find("#" + new string('a', HashtagScanner.MaxTagLength + 1)).Should().BeEmpty();
+        // Arrange
+        var longest = "#" + new string('a', HashtagScanner.MaxTagLength);
+        var tooLong = "#" + new string('a', HashtagScanner.MaxTagLength + 1);
+
+        // Act
+        var longestTokens = HashtagScanner.Find(longest);
+        var tooLongTokens = HashtagScanner.Find(tooLong);
+
+        // Assert
+        longestTokens.Should().ContainSingle();
+        tooLongTokens.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "A stored hashtag is turned into tag text by dropping the leading '#' and every character a tag can't hold, so the scanner links the whole written tag.")]
+    [InlineData("#Cult", "Cult")]
+    [InlineData("Cult", "Cult")]
+    [InlineData("＃Cult", "Cult")]
+    [InlineData("#Some-Tag", "SomeTag")]
+    [InlineData("#Jehovah’sWitnesses", "JehovahsWitnesses")]
+    [InlineData("#Q&A", "QA")]
+    [InlineData("#LGBTQ+", "LGBTQ")]
+    [InlineData("#Cult_Watch_", "Cult_Watch")]
+    [InlineData("#Señor", "Señor")]
+    [InlineData("#Cafe\u0301", "Cafe\u0301")]
+    [InlineData("#カルト", "カルト")]
+    [InlineData("#Cult🙏", "Cult")]
+    [InlineData("#1Cult", "1Cult")]
+    public void stored_hashtag_becomes_linkable_tag_text(string stored, string expected)
+    {
+        // Arrange
+        // (stored and expected come from the inline data)
+
+        // Act
+        var tagText = HashtagScanner.ToTagText(stored);
+
+        // Assert
+        tagText.Should().Be(expected);
+        HashtagScanner.Find("#" + tagText).Should().ContainSingle().Which.Tag.Should().Be(expected);
+    }
+
+    [Theory(DisplayName =
+        "A stored hashtag with nothing linkable left (empty, digits or '_' only, or emoji or dashes only) has no tag text, so it is not written.")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("#")]
+    [InlineData("#123")]
+    [InlineData("#_")]
+    [InlineData("#🙏")]
+    [InlineData("#-—")]
+    public void stored_hashtag_with_nothing_linkable_has_no_tag_text(string? stored)
+    {
+        // Arrange
+        // (stored comes from the inline data)
+
+        // Act
+        var tagText = HashtagScanner.ToTagText(stored);
+
+        // Assert
+        tagText.Should().BeNull();
+    }
+
+    [Fact(DisplayName = "A stored hashtag longer than 64 characters has no tag text, matching the scanner's limit.")]
+    public void stored_hashtag_over_length_limit_has_no_tag_text()
+    {
+        // Arrange
+        var stored = "#" + new string('a', HashtagScanner.MaxTagLength + 1);
+
+        // Act
+        var tagText = HashtagScanner.ToTagText(stored);
+
+        // Assert
+        tagText.Should().BeNull();
     }
 
     [Fact(DisplayName =

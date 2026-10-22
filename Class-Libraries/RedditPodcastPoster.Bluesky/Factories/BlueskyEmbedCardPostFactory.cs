@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
+using RedditPodcastPoster.Bluesky.RichText;
 using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Models.Episodes;
@@ -57,11 +58,19 @@ public class BlueskyEmbedCardPostFactory(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
+                // Write the tag in the form the facet scanner links whole ("#Some-Tag" -> "#SomeTag"),
+                // so the linked tag always matches the text in the post.
+                var tagText = HashtagScanner.ToTagText(hashtag.MatchingText ?? hashtag.Tag);
+                if (tagText == null)
+                {
+                    continue;
+                }
+
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
                         hashtag.Tag.TrimStart('#'),
-                        hashtag.MatchingText?.TrimStart('#'));
+                        tagText);
                 if (addedHashTag)
                 {
                     hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
@@ -110,7 +119,10 @@ public class BlueskyEmbedCardPostFactory(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
-                .Select(x => $"#{x.TrimStart('#')}"));
+                .Select(HashtagScanner.ToTagText)
+                .OfType<string>()
+                .Distinct()
+                .Select(x => $"#{x}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
             postBuilder.AppendLine(endHashTags);

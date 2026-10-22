@@ -15,9 +15,10 @@ public readonly record struct HashtagToken(string Tag, long ByteStart, long Byte
 /// The tag body is a run of letters, digits, combining marks and <c>_</c>, and it ends at the first
 /// other character. This deliberately differs from Bluesky's app rule, which only ends a tag at
 /// whitespace and trims trailing punctuation: that rule links <c>#Cult—and</c>, <c>#Cult's</c>
-/// and <c>#Cult🙏</c> whole. Our tags are inserted into titles as whole words (and enrichment
-/// tags have spaces, dots, apostrophes and hyphens removed), so the facet must cover only the
-/// inserted tag. A tag still needs one character that is not a digit or <c>_</c>, and at most 64
+/// and <c>#Cult🙏</c> whole. Our tags are inserted into titles as whole words, so the facet must
+/// cover only the inserted tag. The post factory writes every tag through <see cref="ToTagText"/>,
+/// so a stored tag such as <c>Some-Tag</c> or <c>Jehovah’s Witnesses</c> is written in a form this
+/// scanner links whole. A tag still needs one character that is not a digit or <c>_</c>, and at most 64
 /// characters.
 /// </para>
 /// </summary>
@@ -44,8 +45,10 @@ public static class HashtagScanner
                 bodyEnd += width;
             }
 
+            // The body holds only letters, digits, marks and '_', so the only trailing character
+            // to trim is '_' ("#Cult_" links "#Cult").
             var trimmedEnd = bodyEnd;
-            while (trimmedEnd > bodyStart && char.IsPunctuation(text[trimmedEnd - 1]))
+            while (trimmedEnd > bodyStart && text[trimmedEnd - 1] == '_')
             {
                 trimmedEnd--;
             }
@@ -60,6 +63,41 @@ public static class HashtagScanner
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// Returns the text to write after <c>#</c> so that <see cref="Find"/> links the whole tag:
+    /// a leading <c>#</c> or <c>＃</c> is dropped, every character the tag body can't hold (dash,
+    /// apostrophe, <c>&amp;</c>, <c>+</c>, space, emoji…) is removed, and trailing <c>_</c> is
+    /// trimmed. Returns <c>null</c> when what is left can't be a hashtag (empty, digits and
+    /// <c>_</c> only, or over <see cref="MaxTagLength"/>).
+    /// </summary>
+    public static string? ToTagText(string? hashTag)
+    {
+        if (string.IsNullOrEmpty(hashTag))
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder(hashTag.Length);
+        var index = 0;
+        while (index < hashTag.Length && IsHashMark(hashTag[index]))
+        {
+            index++;
+        }
+
+        while (index < hashTag.Length)
+        {
+            if (TryReadTagRune(hashTag, index, out var width))
+            {
+                builder.Append(hashTag, index, width);
+            }
+
+            index += Math.Max(width, 1);
+        }
+
+        var tag = builder.ToString().TrimEnd('_');
+        return IsValidTag(tag) ? tag : null;
     }
 
     private static bool IsHashMark(char c) => c is '#' or '＃';
@@ -113,7 +151,7 @@ public static class HashtagScanner
 
     private static bool IsValidTag(string tag)
     {
-        if (tag.Length == 0 || tag[0] == '\uFE0F' ||
+        if (tag.Length == 0 ||
             new StringInfo(tag).LengthInTextElements > MaxTagLength)
         {
             return false;
