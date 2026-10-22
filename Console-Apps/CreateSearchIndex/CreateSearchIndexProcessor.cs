@@ -41,6 +41,7 @@ public partial class CreateSearchIndexProcessor(
     public async Task Process(CreateSearchIndexRequest request)
     {
         var plan = SearchIndexRebuildPlan.For(request);
+        await EnsureSiblingQuotaFits(request, plan);
         if (request.TearDownIndex)
         {
             if (request.UpdateExisting)
@@ -122,6 +123,11 @@ public partial class CreateSearchIndexProcessor(
                 throw ex;
             }
             await RunIndexerWithRetries(request, request.IndexerName);
+            if (plan.TransientSiblings)
+            {
+                await RunTransientSiblings(request, indexerName => RunIndexerWithRetries(request, indexerName));
+            }
+
             if (plan.RunSiblings)
             {
                 foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
@@ -497,49 +503,103 @@ public partial class CreateSearchIndexProcessor(
         })
     };
 
+    /// <summary>
+    /// Fails before any teardown when the service cannot hold the episode indexer plus every scheduled
+    /// sibling at once (the Free tier allows three data sources and three indexers; this needs four).
+    /// Without this, a teardown deletes the index and then stops on the last sibling create.
+    /// </summary>
+    private async Task EnsureSiblingQuotaFits(CreateSearchIndexRequest request, SearchIndexRebuildPlan plan)
+    {
+        if (!plan.EnsureSiblings)
+        {
+            return;
+        }
+
+        var counters = (await searchIndexClient.GetServiceStatisticsAsync())?.Value?.Counters;
+        var needed = 1 + PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!).Count;
+        var dataSourceQuota = counters?.DataSourceCounter?.Quota;
+        var indexerQuota = counters?.IndexerCounter?.Quota;
+        if (dataSourceQuota < needed || indexerQuota < needed)
+        {
+            throw new InvalidOperationException(
+                $"The search service allows {dataSourceQuota} data sources and {indexerQuota} indexers, but the episode indexer plus scheduled TV, film and news siblings needs {needed} of each. " +
+                "Re-run with --run-indexer --transient-playables to load the siblings one at a time.");
+        }
+    }
+
+    /// <summary>
+    /// <c>--transient-playables</c>: for each sibling (TV, film, news) create its data source and indexer,
+    /// run it to completion, then delete both before the next one. The delete runs even when the run
+    /// fails, so a Free-tier service never holds more than the episode pair plus one sibling pair.
+    /// </summary>
+    internal async Task RunTransientSiblings(CreateSearchIndexRequest request, Func<string, Task> runIndexer)
+    {
+        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        {
+            await EnsureSiblingPlayableIndexer(request, source);
+            try
+            {
+                await runIndexer(source.IndexerName);
+            }
+            finally
+            {
+                await DeleteIndexerIfPresent(source.IndexerName);
+                await DeleteDataSourceIfPresent(source.DataSourceName);
+                logger.LogInformation(
+                    "Transient playable sibling for {ContentKind} removed after its run.",
+                    source.ContentKind);
+            }
+        }
+    }
+
     private async Task EnsureSiblingPlayableIndexers(CreateSearchIndexRequest request)
+    {
+        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        {
+            await EnsureSiblingPlayableIndexer(request, source);
+        }
+    }
+
+    private async Task EnsureSiblingPlayableIndexer(CreateSearchIndexRequest request, PlayableSearchSources.Source source)
     {
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
-        foreach (var source in PlayableSearchSources.Siblings(_cosmosDbSettings, request.IndexName!))
+        var hadDataSource = await TryGetDataSource(source.DataSourceName) != null;
+        var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
+        var dataSource = new SearchIndexerDataSourceConnection(
+            source.DataSourceName,
+            SearchIndexerDataSourceType.CosmosDb,
+            connectionString,
+            container)
         {
-            var hadDataSource = await TryGetDataSource(source.DataSourceName) != null;
-            var container = new SearchIndexerDataContainer(source.ContainerName) { Query = source.Query };
-            var dataSource = new SearchIndexerDataSourceConnection(
-                source.DataSourceName,
-                SearchIndexerDataSourceType.CosmosDb,
-                connectionString,
-                container)
-            {
-                DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
-            };
-            await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
-            logger.LogInformation(
-                "{Action} playable data source '{DataSourceName}' for {ContentKind}.",
-                hadDataSource ? "Updated" : "Created",
-                source.DataSourceName,
-                source.ContentKind);
+            DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+        };
+        await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(dataSource);
+        logger.LogInformation(
+            "{Action} playable data source '{DataSourceName}' for {ContentKind}.",
+            hadDataSource ? "Updated" : "Created",
+            source.DataSourceName,
+            source.ContentKind);
 
-            var hadIndexer = await TryGetIndexer(source.IndexerName) != null;
-            var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
-            var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+        var hadIndexer = await TryGetIndexer(source.IndexerName) != null;
+        var nextIndex = DateTimeOffset.Now.Add(Frequency).Floor(Frequency).Add(IndexAtMinutes);
+        var indexer = new SearchIndexer(source.IndexerName, source.DataSourceName, request.IndexName)
+        {
+            Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
+            Description = source.ContentKind,
+            Parameters = new IndexingParameters
             {
-                Schedule = new IndexingSchedule(Frequency) { StartTime = nextIndex },
-                Description = source.ContentKind,
-                Parameters = new IndexingParameters
-                {
-                    MaxFailedItems = 0,
-                    MaxFailedItemsPerBatch = 0,
-                    Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
-                }
-            };
-            await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
-            logger.LogInformation(
-                "{Action} playable indexer '{IndexerName}' for {ContentKind}.",
-                hadIndexer ? "Updated" : "Created",
-                source.IndexerName,
-                source.ContentKind);
-        }
+                MaxFailedItems = 0,
+                MaxFailedItemsPerBatch = 0,
+                Configuration = { { "assumeOrderByHighWaterMarkColumn", true } }
+            }
+        };
+        await searchIndexerClient.CreateOrUpdateIndexerAsync(indexer);
+        logger.LogInformation(
+            "{Action} playable indexer '{IndexerName}' for {ContentKind}.",
+            hadIndexer ? "Updated" : "Created",
+            source.IndexerName,
+            source.ContentKind);
     }
 
     private async Task<Azure.Response<SearchIndexer>> CreateIndexer(CreateSearchIndexRequest request)
