@@ -224,6 +224,73 @@ public class BlueskyHashtagFacetRules
         post.Text.Should().NotContain("#");
     }
 
+    [Theory(DisplayName =
+        "Two stored hashtags that write the same tag (differing only in case or in characters a tag can't hold) are " +
+        "linked once, in the title or the end-of-post line, so the post never repeats a tag.")]
+    [InlineData("Inside Some-Tag Today", "#Some-Tag", "#SomeTag", "SomeTag")]
+    [InlineData("Inside Cult Today", "#Cult", "#cult", "Cult")]
+    [InlineData("An Unrelated Title", "#Some-Tag", "#SomeTag", "SomeTag")]
+    [InlineData("An Unrelated Title", "#Cult", "#CULT", "Cult")]
+    public async Task stored_hashtags_writing_the_same_tag_are_linked_once(
+        string title, string firstTag, string secondTag, string expectedTag)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.BlueskyHandle = null;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [_fixture.Create<string>()];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        var factory = CreateFactory(podcast, title, [new HashTag(firstTag, null), new HashTag(secondTag, null)]);
+        var post = await factory.Create(new PodcastEpisode(podcast, episode), null);
+        var sut = new BlueskyFacetExtractor((_, _) => Task.FromResult<Did?>(null));
+
+        // Act
+        var facets = await sut.ExtractFacets(post.Text);
+
+        // Assert
+        Tags(facets).Should().ContainSingle().Which.Should().Be(expectedTag);
+    }
+
+    [Fact(DisplayName =
+        "Distinct stored hashtags that are not in the title are all written on the end-of-post line, in order.")]
+    public async Task distinct_end_tags_are_all_written()
+    {
+        // Arrange
+        const string title = "An Unrelated Title";
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.BlueskyHandle = null;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [_fixture.Create<string>()];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        var factory = CreateFactory(podcast, title, [new HashTag("#Cult", null), new HashTag("#Sect", null)]);
+
+        // Act
+        var post = await factory.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        post.Text.Should().Contain("#Cult #Sect");
+    }
+
     private static IEnumerable<string> Tags(IEnumerable<Facet> facets) =>
         facets.SelectMany(f => f.Features).OfType<TagFacetFeature>().Select(t => t.Tag);
 
