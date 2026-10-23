@@ -64,6 +64,14 @@ public class EpisodeTrailerAttachServiceRules
                 ? new FilmVersion(film, _films[id].Version.ToString())
                 : null);
         films
+            .Setup(r => r.GetFilmIdsByTrailerId(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid trailerId) =>
+                (IReadOnlyList<Guid>)_films.Keys
+                    .Select(Stored)
+                    .Where(film => film?.HasTrailer(trailerId) == true)
+                    .Select(film => film!.Id)
+                    .ToArray());
+        films
             .Setup(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()))
             .ReturnsAsync((Film film, string etag) =>
             {
@@ -273,6 +281,74 @@ public class EpisodeTrailerAttachServiceRules
         result.FailureIndexing.Should().BeTrue();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
         _redirects.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Attaching an episode that is already a trailer of another film is rejected, the second film is left unchanged, and the episode row stays, because one episode cannot be a trailer of two films.")]
+    public async Task episode_already_a_trailer_of_another_film_is_rejected()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var existing = CreateTrailer();
+        existing.Id = episode.Id;
+        var holding = SeedFilm(film => film.Trailers = [existing]);
+        var target = SeedFilm();
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, target.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.BadRequest);
+        result.Error.Should().Be("This episode is already a trailer of another film");
+        Stored(target.Id)!.Trailers.Should().BeNull();
+        Stored(holding.Id)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        _filmSaves.Should().Be(0);
+        _uploads.Should().BeEmpty();
+        _searchDeletes.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the lookup of films already holding the trailer id fails, the attach fails and the episode stays, so a trailer is not added while that check is unknown.")]
+    public async Task trailer_lookup_failure_keeps_episode()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilmIdsByTrailerId(episode.Id))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        result.FailureIndexing.Should().BeFalse();
+        _filmSaves.Should().Be(0);
+        _uploads.Should().BeEmpty();
+        Stored(film.Id)!.Trailers.Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "The film being attached to is not treated as another holder of the trailer, so a re-read that already lists this film still adds the trailer.")]
+    public async Task destination_film_in_the_trailer_lookup_does_not_block_the_attach()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilmIdsByTrailerId(episode.Id))
+            .ReturnsAsync([film.Id]);
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
+        Stored(film.Id)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
     }
 
     [Fact(DisplayName =

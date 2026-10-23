@@ -73,6 +73,45 @@ public class FilmRepository(
         }
     }
 
+    public async Task<IReadOnlyList<Guid>> GetFilmIdsByTrailerId(Guid trailerId)
+    {
+        var query = new QueryDefinition(
+                "SELECT VALUE c.id FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.trailers WHERE t.id = @trailerId)")
+            .WithParameter("@trailerId", trailerId.ToString());
+
+        // Films are partitioned by film id. The trailer id is not that key, so the query must not set one.
+        var iterator = filmsContainer.GetItemQueryIterator<string>(
+            query,
+            requestOptions: new QueryRequestOptions());
+
+        var ids = new List<Guid>();
+        while (iterator.HasMoreResults)
+        {
+            FeedResponse<string> response;
+            try
+            {
+                response = await iterator.ReadNextAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "{method}: error finding films holding trailer '{trailerId}'.",
+                    nameof(GetFilmIdsByTrailerId), trailerId);
+                throw;
+            }
+
+            foreach (var id in response)
+            {
+                if (Guid.TryParse(id, out var filmId))
+                {
+                    ids.Add(filmId);
+                }
+            }
+        }
+
+        return ids;
+    }
+
     public async Task Delete(Guid filmId)
     {
         try
