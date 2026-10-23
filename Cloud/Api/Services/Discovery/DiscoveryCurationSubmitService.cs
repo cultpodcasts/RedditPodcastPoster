@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
@@ -20,6 +21,7 @@ public class DiscoveryCurationSubmitService(
     IEpisodeSearchIndexerService searchIndexerService,
     IPlayableSearchDocumentSwap playableSearch,
     IPodcastRepository podcastRepository,
+    IPodcastService podcastService,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
     public Task<DiscoveryCurationSubmitResult> SubmitAsync(
@@ -202,20 +204,18 @@ public class DiscoveryCurationSubmitService(
     }
 
     /// <summary>
-    /// True when the podcast that owns this stored result is removed. Cards that name matching podcast ids are
-    /// judged on those rows. Otherwise the YouTube channel, Spotify show, or Apple podcast id is used, and a
-    /// removed channel-wide outlet does not reject a live playlist-scoped show on the same channel. URL resolution
-    /// stays on the ban command; save only refuses what the queue already records.
+    /// True when the podcast that owns this stored result is removed. A live playlist-scoped show counts only when
+    /// the video is in its playlist, so a removed channel-wide outlet still rejects its own episodes. URL resolution
+    /// of a missing video stays on the ban command; save only refuses what the queue already records.
     /// </summary>
     private async Task<bool> IsStoredAgainstRemovedPodcast(DiscoveryResult result)
     {
+        var candidates = new List<Podcast>();
         if (result.MatchingPodcastIds is { Length: > 0 } ids)
         {
-            var named = await podcastRepository.GetAllBy(x => Enumerable.Contains(ids, x.Id)).ToListAsync();
-            return PodcastShowOwnership.RemovedShowSuppresses(named);
+            candidates.AddRange(await podcastRepository.GetAllBy(x => Enumerable.Contains(ids, x.Id)).ToListAsync());
         }
 
-        var candidates = new List<Podcast>();
         var channel = result.YouTubeChannelId;
         if (!string.IsNullOrWhiteSpace(channel))
         {
@@ -233,7 +233,27 @@ public class DiscoveryCurationSubmitService(
             candidates.AddRange(await podcastRepository.GetAllBy(x => x.AppleId == apple).ToListAsync());
         }
 
-        return PodcastShowOwnership.RemovedShowSuppresses(candidates);
+        var owners = new List<Podcast>();
+        foreach (var podcast in candidates.DistinctBy(x => x.Id))
+        {
+            if (string.IsNullOrEmpty(podcast.YouTubePlaylistId) || podcast.IsRemoved() ||
+                await VideoIsInPlaylist(result, podcast))
+            {
+                owners.Add(podcast);
+            }
+        }
+
+        return PodcastShowOwnership.RemovedShowSuppresses(owners);
+    }
+
+    private async Task<bool> VideoIsInPlaylist(DiscoveryResult result, Podcast podcast)
+    {
+        if (result.Urls.YouTube is not { } url)
+        {
+            return false;
+        }
+
+        return await podcastService.IsVideoInPodcastPlaylist(podcast, url, new IndexingContext()) == true;
     }
 
     private static string Describe(Exception ex)

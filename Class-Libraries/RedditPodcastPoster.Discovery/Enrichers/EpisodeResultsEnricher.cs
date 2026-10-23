@@ -71,12 +71,20 @@ public class EpisodeResultsEnricher(
                     x.IsRemoved() && string.IsNullOrEmpty(x.YouTubePlaylistId));
                 foreach (var match in channelPodcasts)
                 {
-                    if (match.IsRemoved() ||
-                        (removedOutlet && !string.IsNullOrEmpty(match.YouTubePlaylistId)))
+                    var playlistId = match.YouTubePlaylistId;
+                    var livePlaylistShow = removedOutlet &&
+                                           !match.IsRemoved() &&
+                                           !string.IsNullOrEmpty(playlistId);
+                    if (livePlaylistShow && !await VideoIsInPlaylist(playlistId, episodeResult))
+                    {
+                        continue;
+                    }
+
+                    if (match.IsRemoved() || livePlaylistShow)
                     {
                         if (Add(podcasts, match))
                         {
-                            youTubePlaylistByOwner[match.Id] = match.YouTubePlaylistId;
+                            youTubePlaylistByOwner[match.Id] = playlistId;
                         }
                     }
                 }
@@ -109,9 +117,10 @@ public class EpisodeResultsEnricher(
     }
 
     /// <summary>
-    /// Keeps the indexed owner the elimination rule already used, every removed match, and every live
-    /// playlist-scoped show. A removed channel-wide outlet stays visible beside an indexed row of the same
-    /// show, and a live playlist show on that channel stays visible so the outlet does not own it.
+    /// Keeps the indexed owner the elimination rule already used, and every removed match, so a banned show
+    /// stays visible beside an indexed row of that same show. A live playlist-scoped row is kept here for a
+    /// Spotify or Apple id, which already names that show. A YouTube channel match attaches a live playlist
+    /// show only when the video is in its playlist.
     /// </summary>
     private void AddMatches(List<Podcast> podcasts, Podcast[] matches)
     {

@@ -282,8 +282,47 @@ public class DiscoveryChannelBanRules
     }
 
     [Fact(DisplayName =
-        "Banning a YouTube episode whose show lookup throws is a conflict and saves nothing, because an ambiguous catalogue match is not a missing video.")]
+        "Banning a YouTube episode whose channel matches more than one podcast is a conflict and saves nothing, because several catalogue rows are not a missing video.")]
     public async Task ambiguous_youtube_lookup_is_a_conflict()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var videoId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        _podcasts.Add(_fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+        }));
+        _podcasts.Add(_fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        }));
+        var result = new DiscoveryResult
+        {
+            Id = _fixture.CreateGuid(),
+            ShowName = _fixture.CreateTitle(),
+            Urls = new DiscoveryResultUrls { YouTube = url }
+        };
+        _documents.Add(Document([result]));
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.GetOwnerIds(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new EpisodeUrlOwnerIds(YouTubeChannelId: channelId));
+        var sut = _mocker.CreateInstance<DiscoveryChannelBanService>();
+
+        // Act
+        var outcome = await sut.BanAsync(result.Id, CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryChannelBanStatus.Conflict);
+        _savedPodcasts.Should().BeEmpty();
+        _updates.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Banning a result whose only episode URL cannot be found is a bad request and writes nothing, because a missing video is not several catalogue matches.")]
+    public async Task missing_youtube_video_is_not_a_conflict()
     {
         // Arrange
         var videoId = _fixture.CreateYouTubeId();
@@ -304,9 +343,44 @@ public class DiscoveryChannelBanRules
         var outcome = await sut.BanAsync(result.Id, CancellationToken.None);
 
         // Assert
-        outcome.Status.Should().Be(DiscoveryChannelBanStatus.Conflict);
+        outcome.Status.Should().Be(DiscoveryChannelBanStatus.BadRequest);
         _savedPodcasts.Should().BeEmpty();
         _updates.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Banning a channel still removes the podcast when a sibling episode URL cannot be found, because a missing video does not undo the write.")]
+    public async Task missing_sibling_video_does_not_undo_the_ban()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var videoId = _fixture.CreateYouTubeId();
+        var siblingUrl = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        var result = new DiscoveryResult
+        {
+            Id = _fixture.CreateGuid(),
+            ShowName = _fixture.CreateTitle(),
+            YouTubeChannelId = channelId
+        };
+        var sibling = new DiscoveryResult
+        {
+            Id = _fixture.CreateGuid(),
+            Urls = new DiscoveryResultUrls { YouTube = siblingUrl }
+        };
+        _documents.Add(Document([result, sibling]));
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.GetOwnerIds(siblingUrl, It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+        var sut = _mocker.CreateInstance<DiscoveryChannelBanService>();
+
+        // Act
+        var outcome = await sut.BanAsync(result.Id, CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryChannelBanStatus.Accepted);
+        _savedPodcasts.Should().ContainSingle().Which.YouTubeChannelId.Should().Be(channelId);
+        _savedPodcasts[0].Removed.Should().BeTrue();
+        sibling.MatchingPodcastIds.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

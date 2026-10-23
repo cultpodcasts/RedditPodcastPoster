@@ -9,6 +9,8 @@ using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using Xunit;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using AutoFixture;
@@ -114,29 +116,33 @@ public class RemovedPodcastDiscoveryFilterRules
     }
 
     [Fact(DisplayName =
-        "A discovered episode is still returned when the only removed podcast on its channel is the channel-wide outlet and a playlist-scoped show on that channel is live, because the outlet does not own the other show.")]
-    public async Task live_playlist_show_is_kept_when_the_outlet_is_removed()
+        "A discovered video that is not in the live playlist show is left out when the channel-wide outlet is removed, because that video still belongs to the outlet.")]
+    public async Task video_outside_the_playlist_is_eliminated_when_the_outlet_is_removed()
     {
         // Arrange
-        var channelId = _fixture.Create<string>();
-        var outlet = new Podcast
-        {
-            Id = _fixture.Create<Guid>(),
-            Name = _fixture.Create<string>(),
-            YouTubeChannelId = channelId,
-            YouTubePlaylistId = string.Empty,
-            Removed = true
-        };
-        var show = new Podcast
-        {
-            Id = _fixture.Create<Guid>(),
-            Name = _fixture.Create<string>(),
-            YouTubeChannelId = channelId,
-            YouTubePlaylistId = _fixture.Create<string>()
-        };
-        _podcasts.AddRange([outlet, show]);
-        var episode = Episode();
-        episode.PodcastIds.YouTube = channelId;
+        var (episode, outlet, show) = ChannelWithPlaylistShow(inPlaylist: false);
+        var enricher = _mocker.CreateInstance<EpisodeResultsEnricher>();
+        var adapter = _mocker.CreateInstance<EnrichedEpisodeResultsAdapter>();
+
+        // Act
+        var enriched = await Collect(enricher.EnrichWithPodcastDetails([episode]));
+        List<DiscoveryResult> results = enriched.Count == 0
+            ? []
+            : await Collect(adapter.ToDiscoveryResults(One(enriched[0])));
+
+        // Assert
+        var matches = enriched.Should().ContainSingle().Subject.PodcastResults;
+        matches.Should().Contain(x => x.PodcastId == outlet.Id && x.Removed);
+        matches.Should().NotContain(x => x.PodcastId == show.Id);
+        results.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A discovered video that is in a live playlist show is still returned when the channel-wide outlet is removed, and the outlet stays recorded beside that show, because the outlet does not own the playlist.")]
+    public async Task video_in_the_playlist_is_kept_when_the_outlet_is_removed()
+    {
+        // Arrange
+        var (episode, outlet, show) = ChannelWithPlaylistShow(inPlaylist: true);
         var scored = new DiscoveryResult { Id = _fixture.Create<Guid>() };
         _mocker.GetMock<IEnrichedEpisodeResultAdapter>()
             .Setup(a => a.ToDiscoveryResult(It.IsAny<EnrichedEpisodeResult>()))
@@ -158,6 +164,38 @@ public class RemovedPodcastDiscoveryFilterRules
         matches.Should().Contain(x => x.PodcastId == outlet.Id && x.Removed && x.YouTubePlaylistId == string.Empty);
         matches.Should().Contain(x => x.PodcastId == show.Id && !x.Removed && x.YouTubePlaylistId == show.YouTubePlaylistId);
         results.Should().ContainSingle().Which.Should().BeSameAs(scored);
+    }
+
+    private (EpisodeResult Episode, Podcast Outlet, Podcast Show) ChannelWithPlaylistShow(bool inPlaylist)
+    {
+        var channelId = _fixture.Create<string>();
+        var playlistId = _fixture.Create<string>();
+        var videoId = new string(Enumerable.Range(0, 11)
+            .Select(_ => "abcdefghijklmnopqrstuvwxyz0123456789"[_fixture.Create<int>() & int.MaxValue % 36])
+            .ToArray());
+        var outlet = new Podcast
+        {
+            Id = _fixture.Create<Guid>(),
+            Name = _fixture.Create<string>(),
+            YouTubeChannelId = channelId,
+            YouTubePlaylistId = string.Empty,
+            Removed = true
+        };
+        var show = new Podcast
+        {
+            Id = _fixture.Create<Guid>(),
+            Name = _fixture.Create<string>(),
+            YouTubeChannelId = channelId,
+            YouTubePlaylistId = playlistId
+        };
+        _podcasts.AddRange([outlet, show]);
+        var episode = Episode();
+        episode.PodcastIds.YouTube = channelId;
+        episode.Urls.YouTube = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(inPlaylist);
+        return (episode, outlet, show);
     }
 
     private EpisodeResult Episode() =>

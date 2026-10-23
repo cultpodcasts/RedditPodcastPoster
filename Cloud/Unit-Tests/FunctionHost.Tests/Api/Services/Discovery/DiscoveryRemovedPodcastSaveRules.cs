@@ -11,6 +11,7 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 using Xunit;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -70,30 +71,21 @@ public class DiscoveryRemovedPodcastSaveRules
     }
 
     [Fact(DisplayName =
-        "Saving a discovery result for a live playlist-scoped show still ingests it when the only removed podcast on that channel is the outlet, because the outlet does not own the playlist show.")]
-    public async Task live_playlist_show_is_saved_when_the_outlet_is_removed()
+        "Saving a discovery result whose video is in a live playlist show still ingests it when the channel-wide outlet is removed, because the outlet does not own that playlist.")]
+    public async Task video_in_the_playlist_is_saved_when_the_outlet_is_removed()
     {
         // Arrange
-        var channelId = _fixture.CreateYouTubeChannelId();
-        _podcasts.Add(_fixture.CreatePodcast(p =>
-        {
-            p.YouTubeChannelId = channelId;
-            p.YouTubePlaylistId = string.Empty;
-            p.Removed = true;
-        }));
-        var show = _fixture.CreatePodcast(p =>
-        {
-            p.YouTubeChannelId = channelId;
-            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
-        });
-        _podcasts.Add(show);
-        var result = new DiscoveryResult { Id = _fixture.CreateGuid(), YouTubeChannelId = channelId };
+        var (result, show) = PlaylistChannel();
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
             .ReturnsAsync([result]);
         _mocker.GetMock<IDiscoveryUrlSubmitter>()
             .Setup(s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
             .ReturnsAsync(new DiscoverySubmitResult(DiscoverySubmitResultState.NoUrls));
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.IsVideoInPodcastPlaylist(
+                It.Is<Podcast>(p => p.Id == show.Id), result.Urls.YouTube!, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(true);
         var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
 
         // Act
@@ -109,6 +101,62 @@ public class DiscoveryRemovedPodcastSaveRules
         outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
         _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
             s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Saving a discovery result whose video is not in the live playlist show does not ingest it when the channel-wide outlet is removed, because that video still belongs to the outlet.")]
+    public async Task video_outside_the_playlist_is_rejected_when_the_outlet_is_removed()
+    {
+        // Arrange
+        var (result, show) = PlaylistChannel();
+        _mocker.GetMock<IDiscoveryResultsService>()
+            .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
+            .ReturnsAsync([result]);
+        _mocker.GetMock<IPodcastService>()
+            .Setup(s => s.IsVideoInPodcastPlaylist(
+                It.Is<Podcast>(p => p.Id == show.Id), result.Urls.YouTube!, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(false);
+        var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
+
+        // Act
+        var outcome = await sut.SubmitAsync(
+            new DiscoverySubmitRequest
+            {
+                DiscoveryResultsDocumentIds = [_fixture.CreateGuid()],
+                ResultIds = [result.Id]
+            },
+            CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
+            s => s.Submit(It.IsAny<DiscoveryResult>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()),
+            Times.Never);
+    }
+
+    private (DiscoveryResult Result, Podcast Show) PlaylistChannel()
+    {
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var videoId = _fixture.CreateYouTubeId();
+        _podcasts.Add(_fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+            p.Removed = true;
+        }));
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        });
+        _podcasts.Add(show);
+        var result = new DiscoveryResult
+        {
+            Id = _fixture.CreateGuid(),
+            YouTubeChannelId = channelId,
+            Urls = new DiscoveryResultUrls { YouTube = new Uri($"https://www.youtube.com/watch?v={videoId}") }
+        };
+        return (result, show);
     }
 
     [Fact(DisplayName =

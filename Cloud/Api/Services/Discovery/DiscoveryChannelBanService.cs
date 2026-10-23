@@ -30,20 +30,8 @@ public class DiscoveryChannelBanService(
     ITvShowRepository tvShowRepository,
     ILogger<DiscoveryChannelBanService> logger) : IDiscoveryChannelBanService
 {
-    public async Task<DiscoveryChannelBanResult> BanAsync(Guid resultId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await BanCoreAsync(resultId, cancellationToken);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning(ex,
-                "Show lookup for discovery result '{ResultId}' did not resolve to one set of ids.", resultId);
-            return new DiscoveryChannelBanResult(DiscoveryChannelBanStatus.Conflict,
-                "More than one podcast matches this channel.");
-        }
-    }
+    public Task<DiscoveryChannelBanResult> BanAsync(Guid resultId, CancellationToken cancellationToken) =>
+        BanCoreAsync(resultId, cancellationToken);
 
     private async Task<DiscoveryChannelBanResult> BanCoreAsync(Guid resultId, CancellationToken cancellationToken)
     {
@@ -180,7 +168,7 @@ public class DiscoveryChannelBanService(
                 apple ??= owner.ApplePodcastId;
                 channelTitle ??= NullIfEmpty(owner.YouTubeChannelTitle);
             }
-            catch (Exception ex) when (ex is ArgumentException or HttpRequestException)
+            catch (Exception ex) when (ex is ArgumentException or HttpRequestException or InvalidOperationException)
             {
                 logger.LogWarning(ex,
                     "Could not resolve show ids for discovery result '{ResultId}'.", result.Id);

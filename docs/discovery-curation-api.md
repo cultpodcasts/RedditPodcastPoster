@@ -135,9 +135,9 @@ Curator command. Removes the show behind one open discovery result.
 
 The response is **202 with an empty body**. It does not include the podcast. The client GETs `DiscoveryCuration` again (the result's `matchingPodcasts[].id`, `visible: false`) and then GETs `podcast/{id}`.
 
-`curate` is required. A news organisation or TV show that already owns the channel is **409**. So is an ambiguous catalogue match. A missing result is **404**.
+`curate` is required. A news organisation or TV show that already owns the channel is **409**. So is an ambiguous catalogue match. A missing YouTube or Spotify lookup is a warning and the ban continues with any ids already resolved. A missing result is **404**.
 
-Future discovery runs drop an episode when the podcast that owns it, or a catalogue parent, is removed. A removed channel-wide outlet does not drop a live playlist-scoped show on the same channel. Save rejects a queued result on that same ownership rule.
+Future discovery runs drop an episode when the podcast that owns it, or a catalogue parent, is removed. A removed channel-wide outlet does not drop a video that is in a live playlist-scoped show on that channel. A video that is not in the playlist stays dropped, and Save rejects it.
 
 ---
 
