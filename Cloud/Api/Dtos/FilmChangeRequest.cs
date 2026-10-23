@@ -32,9 +32,17 @@ public class FilmChangeRequest : PublisherFieldsChangeRequest
     /// <summary>
     /// The trailers to keep, in display order, each with an optional new title. Trailers left out are removed;
     /// [] removes all. An id the film does not have is a 400. Trailers are added by POST episode/.../trailer.
+    /// Send <see cref="ExpectedTrailerIds"/> with this field. A stored trailer whose id is not in that list is a 409.
     /// </summary>
     [JsonPropertyName("trailers")]
     public FilmTrailerChangeRequest[]? Trailers { get; set; }
+
+    /// <summary>
+    /// Trailer ids the client last saw. When <see cref="Trailers"/> is sent, a stored trailer whose id is not in
+    /// this list is a 409 and nothing is saved. Omitted or empty means the client listed no trailer ids.
+    /// </summary>
+    [JsonPropertyName("expectedTrailerIds")]
+    public Guid[]? ExpectedTrailerIds { get; set; }
 
     /// <summary>A year <c>yyyy</c> or a calendar date <c>yyyy-MM-dd</c>. Anything else is a 400.</summary>
     [JsonPropertyName("release")]

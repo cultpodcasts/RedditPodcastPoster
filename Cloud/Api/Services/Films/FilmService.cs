@@ -77,6 +77,17 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, imdbError);
             }
 
+            // A keep-list is rejected before any social delete when the stored film already has a trailer this
+            // client did not list. The save loop checks again, for a trailer attached in the gap after this read.
+            if (request.Change.Trailers is not null)
+            {
+                var stale = await ReadStaleTrailers(film.Id, request.Change.ExpectedTrailerIds);
+                if (stale.Status != FilmUpdateStatus.Accepted)
+                {
+                    return stale;
+                }
+            }
+
             // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
             // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
             var outcome = new EpisodeUpdateOutcome
@@ -84,9 +95,10 @@ public class FilmService(
                 BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, film, target),
                 TweetDeleted = await socialRetraction.RemoveTweet(postStatus, film, target)
             };
-            if (!await SaveKeepingAttachedTrailers(film, readTrailerIds))
+            var persisted = await SaveKeepingAttachedTrailers(film, request.Change, readTrailerIds);
+            if (persisted.Status != FilmUpdateStatus.Accepted)
             {
-                return new FilmUpdateResult(FilmUpdateStatus.NotFound);
+                return persisted;
             }
 
             // As the episode API: removed=true always deletes the search document and the short link (the film
@@ -107,17 +119,64 @@ public class FilmService(
         }
     }
 
-    private const int MaxSaveAttempts = 3;
+    private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
+
+    private const string StaleTrailersMessage =
+        "The film's trailers changed after this edit was loaded. Close and reopen the film to edit its trailers.";
 
     /// <summary>
-    /// Saves the edited film without dropping a trailer that "Attach as trailer" added after this request read it: that
-    /// trailer's episode row is already deleted, so overwriting it would lose it. The save is ETag-guarded against the
-    /// latest film; any trailer the latest film has and this request never saw is carried over (this edit cannot have
-    /// meant to remove it). Other fields keep last-writer-wins, as before. False when the film was deleted after this
-    /// request read it: nothing is saved, so the edit does not re-create it.
+    /// Null <paramref name="expectedTrailerIds"/> and an empty array both mean the client listed no trailer ids.
     /// </summary>
-    private async Task<bool> SaveKeepingAttachedTrailers(Film film, IReadOnlySet<Guid> readTrailerIds)
+    private async Task<FilmUpdateResult> ReadStaleTrailers(Guid filmId, Guid[]? expectedTrailerIds)
     {
+        var latest = await filmRepository.GetFilmForUpdate(filmId);
+        if (latest is null)
+        {
+            logger.LogWarning(
+                "{method}: Film '{filmId}' was deleted during the edit; not saved.",
+                nameof(ReadStaleTrailers), filmId);
+            return new FilmUpdateResult(FilmUpdateStatus.NotFound);
+        }
+
+        var unexpected = TrailerIdsTheClientDidNotList(latest.Film, expectedTrailerIds);
+        return unexpected.Length == 0
+            ? new FilmUpdateResult(FilmUpdateStatus.Accepted)
+            : StaleTrailers(filmId, unexpected);
+    }
+
+    private FilmUpdateResult StaleTrailers(Guid filmId, Guid[] unexpected)
+    {
+        logger.LogWarning(
+            "{method}: Film '{filmId}' has {count} trailer(s) this edit did not list; not saved.",
+            nameof(StaleTrailers), filmId, unexpected.Length);
+        return new FilmUpdateResult(
+            FilmUpdateStatus.Conflict,
+            StaleTrailersMessage,
+            UnexpectedTrailerIds: unexpected);
+    }
+
+    private static Guid[] TrailerIdsTheClientDidNotList(Film film, Guid[]? expectedTrailerIds)
+    {
+        var expected = expectedTrailerIds is null ? [] : expectedTrailerIds.ToHashSet();
+        return film.Trailers?
+                   .Where(trailer => !expected.Contains(trailer.Id))
+                   .Select(trailer => trailer.Id)
+                   .ToArray()
+               ?? [];
+    }
+
+    /// <summary>
+    /// Saves the edited film. A trailer keep-list is a 409 when the latest film has a trailer id the client did not
+    /// list: that trailer is not removed, and the edit is not saved. Any other edit still carries over a trailer
+    /// attached after this request read the film, because that trailer's episode row is already deleted. The replace
+    /// is ETag-guarded. NotFound when the film was deleted after this request read it, so the edit does not re-create it.
+    /// </summary>
+    private async Task<FilmUpdateResult> SaveKeepingAttachedTrailers(
+        Film film,
+        FilmChangeRequest change,
+        IReadOnlySet<Guid> readTrailerIds)
+    {
+        var guardingTrailers = change.Trailers is not null;
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
         {
             var latest = await filmRepository.GetFilmForUpdate(film.Id);
@@ -126,24 +185,35 @@ public class FilmService(
                 logger.LogWarning(
                     "{method}: Film '{filmId}' was deleted during the edit; not saved.",
                     nameof(SaveKeepingAttachedTrailers), film.Id);
-                return false;
+                return new FilmUpdateResult(FilmUpdateStatus.NotFound);
             }
 
-            var attached = latest.Film.Trailers?
-                .Where(trailer => !readTrailerIds.Contains(trailer.Id) && !film.HasTrailer(trailer.Id))
-                .ToList();
-            if (attached is { Count: > 0 })
+            if (guardingTrailers)
             {
-                logger.LogWarning(
-                    "{method}: Keeping {count} trailer(s) attached to film '{filmId}' during this edit.",
-                    nameof(SaveKeepingAttachedTrailers), attached.Count, film.Id);
-                film.Trailers ??= [];
-                film.Trailers.AddRange(attached);
+                var unexpected = TrailerIdsTheClientDidNotList(latest.Film, change.ExpectedTrailerIds);
+                if (unexpected.Length > 0)
+                {
+                    return StaleTrailers(film.Id, unexpected);
+                }
+            }
+            else
+            {
+                var attached = latest.Film.Trailers?
+                    .Where(trailer => !readTrailerIds.Contains(trailer.Id) && !film.HasTrailer(trailer.Id))
+                    .ToList();
+                if (attached is { Count: > 0 })
+                {
+                    logger.LogWarning(
+                        "{method}: Keeping {count} trailer(s) attached to film '{filmId}' during this edit.",
+                        nameof(SaveKeepingAttachedTrailers), attached.Count, film.Id);
+                    film.Trailers ??= [];
+                    film.Trailers.AddRange(attached);
+                }
             }
 
             if (await filmRepository.TryReplace(film, latest.ETag))
             {
-                return true;
+                return new FilmUpdateResult(FilmUpdateStatus.Accepted);
             }
         }
 

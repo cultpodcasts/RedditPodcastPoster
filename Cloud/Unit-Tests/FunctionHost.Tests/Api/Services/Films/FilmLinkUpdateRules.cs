@@ -158,10 +158,10 @@ public class FilmLinkUpdateRules
         var newTitle = _fixture.CreateTitle();
 
         // Act
-        var result = await Update(film, new FilmChangeRequest
+        var result = await Update(film, Seen(film, new FilmChangeRequest
         {
             Trailers = [new FilmTrailerChange(second.Id, $" {newTitle} "), new FilmTrailerChange(first.Id, null)]
-        });
+        }));
 
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
@@ -194,10 +194,11 @@ public class FilmLinkUpdateRules
     public async Task removing_last_trailer_clears_search_field()
     {
         // Arrange
-        var film = CreateFilm(f => f.Trailers = [CreateTrailer()]);
+        var trailer = CreateTrailer();
+        var film = CreateFilm(f => f.Trailers = [trailer]);
 
         // Act
-        await Update(film, new FilmChangeRequest { Trailers = [] });
+        await Update(film, Seen(film, new FilmChangeRequest { Trailers = [] }));
 
         // Assert
         _saved!.Trailers.Should().BeNull();
@@ -219,7 +220,7 @@ public class FilmLinkUpdateRules
     }
 
     [Fact(DisplayName =
-        "PATCH film keeps a trailer attached after it read the film, and retries on an ETag conflict, so an edit never drops a trailer whose episode is already deleted.")]
+        "PATCH film keeps a trailer attached after it read the film, and retries on an ETag conflict, so an edit that is not a trailer keep-list never drops a trailer whose episode is already deleted.")]
     public async Task patch_keeps_trailer_attached_during_the_edit()
     {
         // Arrange
@@ -227,7 +228,6 @@ public class FilmLinkUpdateRules
         var removed = CreateTrailer();
         var film = CreateFilm(f => f.Trailers = [kept, removed]);
         var attached = CreateTrailer();
-        var renamed = _fixture.CreateTitle();
         var repository = _mocker.GetMock<IFilmRepository>();
         repository
             .Setup(r => r.GetFilmForUpdate(film.Id))
@@ -241,19 +241,105 @@ public class FilmLinkUpdateRules
             .ReturnsAsync(() => replaced.Count > 1); // the first attempt loses an ETag race
 
         // Act
-        var result = await Update(film, new FilmChangeRequest
-        {
-            Trailers = [new FilmTrailerChange(kept.Id, renamed)]
-        });
+        var result = await Update(film, new FilmChangeRequest { Explicit = true });
 
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
         replaced.Should().HaveCount(2);
         var saved = replaced[^1];
-        saved.Trailers!.Select(t => t.Id).Should().Equal(kept.Id, attached.Id);
-        saved.Trailers![0].Title.Should().Be(renamed);
+        saved.Explicit.Should().BeTrue();
+        saved.Trailers!.Select(t => t.Id).Should().Equal(kept.Id, removed.Id, attached.Id);
         _saved.Should().BeNull();
-        _uploads.Should().ContainSingle().Which.Trailers.Should().HaveCount(2);
+        _uploads.Should().ContainSingle().Which.Trailers.Should().HaveCount(3);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film trailers is a conflict when the film has a trailer the client did not list, and nothing is saved, because a stale keep-list must not delete a trailer whose episode is already gone.")]
+    public async Task stale_trailer_keep_list_is_conflict()
+    {
+        // Arrange
+        var kept = CreateTrailer();
+        var attached = CreateTrailer();
+        var film = CreateFilm(f => f.Trailers = [kept, attached]);
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilmForUpdate(film.Id))
+            .ReturnsAsync(() => new FilmVersion(
+                new Film(film.Name) { Id = film.Id, Trailers = [kept, attached] },
+                _fixture.CreateTitle()));
+
+        // Act
+        var result = await Update(film, new FilmChangeRequest
+        {
+            Trailers = [new FilmTrailerChange(kept.Id, null)],
+            ExpectedTrailerIds = [kept.Id]
+        });
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Conflict);
+        result.UnexpectedTrailerIds.Should().Equal(attached.Id);
+        _saved.Should().BeNull();
+        _uploads.Should().BeEmpty();
+        _mocker.GetMock<IFilmRepository>().Verify(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film trailers is a conflict when a trailer is attached after the edit was checked, and the stale keep-list is not saved.")]
+    public async Task trailer_attached_during_a_keep_list_edit_is_conflict()
+    {
+        // Arrange
+        var kept = CreateTrailer();
+        var film = CreateFilm(f => f.Trailers = [kept]);
+        var attached = CreateTrailer();
+        var reads = 0;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilmForUpdate(film.Id))
+            .ReturnsAsync(() =>
+            {
+                reads++;
+                var trailers = reads == 1
+                    ? new List<FilmTrailer> { kept }
+                    : new List<FilmTrailer> { kept, attached };
+                return new FilmVersion(new Film(film.Name) { Id = film.Id, Trailers = trailers }, _fixture.CreateTitle());
+            });
+
+        // Act
+        var result = await Update(film, Seen(film, new FilmChangeRequest
+        {
+            Trailers = [new FilmTrailerChange(kept.Id, _fixture.CreateTitle())]
+        }));
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Conflict);
+        result.UnexpectedTrailerIds.Should().Equal(attached.Id);
+        _saved.Should().BeNull();
+        _uploads.Should().BeEmpty();
+        _mocker.GetMock<IFilmRepository>().Verify(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film trailers without the ids the client saw is a conflict and saves nothing, because a keep-list cannot tell a deliberate removal from a client that never listed the stored trailers.")]
+    public async Task trailer_keep_list_without_expected_ids_is_conflict()
+    {
+        // Arrange
+        var film = CreateFilm(f => f.Trailers = [CreateTrailer()]);
+
+        // Act
+        var result = await Update(film, new FilmChangeRequest
+        {
+            Trailers = [new FilmTrailerChange(film.Trailers![0].Id, null)]
+        });
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Conflict);
+        result.UnexpectedTrailerIds.Should().Equal(film.Trailers![0].Id);
+        _saved.Should().BeNull();
+        _uploads.Should().BeEmpty();
+    }
+
+    private static FilmChangeRequest Seen(Film film, FilmChangeRequest change)
+    {
+        change.ExpectedTrailerIds = film.Trailers?.Select(trailer => trailer.Id).ToArray() ?? [];
+        return change;
     }
 
     [Fact(DisplayName =

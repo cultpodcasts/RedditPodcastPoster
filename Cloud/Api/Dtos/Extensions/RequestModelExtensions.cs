@@ -105,6 +105,7 @@ public static class RequestModelExtensions
             TmdbId = request.TmdbId,
             Services = request.Services,
             Trailers = request.Trailers?.Select(trailer => new Models.FilmTrailerChange(trailer.Id, trailer.Title)).ToArray(),
+            ExpectedTrailerIds = request.ExpectedTrailerIds,
             Release = request.Release,
             Duration = request.Duration,
             Explicit = request.Explicit,
