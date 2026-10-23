@@ -28,8 +28,13 @@ public class FilmRepository(
 
     public async Task Save(Film film)
     {
+        // Create, or a full document that was not read-modify-written here. An existing film a caller has read
+        // and changed goes through Update, so this upsert cannot drop a trailer attached since that read.
         await filmsContainer.UpsertItemAsync(film, new PartitionKey(film.Id.ToString()));
     }
+
+    public Task<Film?> Update(Guid id, Func<Film, bool> mutate) =>
+        FilmDocumentUpdate.Apply(id, mutate, GetFilmForUpdate, TryReplace);
 
     public async Task<FilmVersion?> GetFilmForUpdate(Guid filmId)
     {

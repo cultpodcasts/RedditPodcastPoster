@@ -119,9 +119,17 @@ public class CataloguePlayableSocialPosts(
             }
             case nameof(ContentKind.Film):
             {
-                var stored = await filmRepository.GetFilm(item.Episode.Id) ?? throw NotFound(item);
-                setFilm(stored);
-                await filmRepository.Save(stored);
+                // Re-read on 412. The flag is applied to the film that is saved, so a trailer attached since the
+                // post was composed is still on that film. The episode row for that trailer is already deleted.
+                if (await filmRepository.Update(item.Episode.Id, stored =>
+                    {
+                        setFilm(stored);
+                        return true;
+                    }) is null)
+                {
+                    throw NotFound(item);
+                }
+
                 break;
             }
             default:
