@@ -109,8 +109,14 @@ public class CatalogueRenameRules
         var films = _mocker.GetMock<IFilmRepository>();
         films.Setup(r => r.GetFilm(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _films.SingleOrDefault(x => x.Id == id));
-        films.Setup(r => r.Save(It.IsAny<Film>()))
-            .Callback<Film>(_ => _saveOrder.Add("parent")).Returns(Task.CompletedTask);
+        films.Setup(r => r.Update(It.IsAny<Guid>(), It.IsAny<Func<Film, bool>>()))
+            .Returns<Guid, Func<Film, bool>>((id, mutate) =>
+            {
+                var film = _films.Single(x => x.Id == id);
+                mutate(film);
+                _saveOrder.Add("parent");
+                return Task.FromResult<Film?>(film);
+            });
     }
 
     private void Filterable<TRepository, TEntity>(List<TEntity> store)
@@ -233,6 +239,80 @@ public class CatalogueRenameRules
         _saveOrder.Should().Equal("redirect", "parent");
         _merges.Single().Field.Should().Be("title");
         _merges.Single().Keys.Should().Equal(film.Id.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Renaming a film keeps a trailer attached while the rename is in flight, because the film is re-read and replaced with its ETag and the episode row for that trailer is already deleted.")]
+    public async Task film_rename_keeps_a_trailer_attached_concurrently()
+    {
+        // Arrange
+        var film = AddFilm("Synthetic Feature");
+        var trailer = new FilmTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            Length = _fixture.CreateDuration()
+        };
+        var newName = "Synthetic Feature Restored";
+        var stored = CopyFilm(film);
+        var etag = "first";
+        Film? saved = null;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.Update(film.Id, It.IsAny<Func<Film, bool>>()))
+            .Returns<Guid, Func<Film, bool>>((id, mutate) => FilmDocumentUpdate.Apply(
+                id,
+                mutate,
+                _ => Task.FromResult<FilmVersion?>(new FilmVersion(CopyFilm(stored), etag)),
+                (candidate, match) =>
+                {
+                    if (match != etag)
+                    {
+                        return Task.FromResult(false);
+                    }
+
+                    if (stored.Trailers is not { Count: > 0 })
+                    {
+                        stored = CopyFilm(stored);
+                        stored.Trailers = [trailer];
+                        etag = "attached";
+                        return Task.FromResult(false);
+                    }
+
+                    stored = candidate;
+                    saved = candidate;
+                    etag = "saved";
+                    _saveOrder.Add("parent");
+                    return Task.FromResult(true);
+                }));
+
+        // Act
+        var result = await Service.RenameFilm(
+            new CatalogueRenameCommand(film.Id.ToString(), newName), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        saved.Should().NotBeNull();
+        saved!.Name.Should().Be(newName);
+        saved.Trailers.Should().ContainSingle().Which.Id.Should().Be(trailer.Id);
+        _mocker.GetMock<IFilmRepository>().Verify(r => r.Save(It.IsAny<Film>()), Times.Never);
+    }
+
+    private static Film CopyFilm(Film source)
+    {
+        var copy = new Film(source.Name) { Id = source.Id, Tweeted = source.Tweeted };
+        if (source.Trailers is not null)
+        {
+            copy.Trailers = source.Trailers.Select(trailer => new FilmTrailer
+            {
+                Id = trailer.Id,
+                Title = trailer.Title,
+                Url = trailer.Url,
+                Length = trailer.Length
+            }).ToList();
+        }
+
+        return copy;
     }
 
     [Fact(DisplayName =

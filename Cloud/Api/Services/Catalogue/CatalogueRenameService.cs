@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
 
@@ -84,9 +85,26 @@ public class CatalogueRenameService(
             filmRepository.GetFilm,
             command,
             (film, _) => Task.FromResult<IReadOnlyList<Guid>>([film.Id]),
-            filmRepository.Save,
+            SaveRenamedFilm,
             PlayableSearchRename.TitleField,
             c);
+
+    /// <summary>
+    /// The name is copied onto a freshly read film. A trailer attached after the rename loaded the film stays,
+    /// because the replace is ETag-guarded and retried on 412.
+    /// </summary>
+    private async Task SaveRenamedFilm(Film film)
+    {
+        var name = film.Name;
+        if (await filmRepository.Update(film.Id, latest =>
+            {
+                latest.Name = name;
+                return true;
+            }) is null)
+        {
+            throw new InvalidOperationException($"Film '{film.Id}' was deleted during the rename.");
+        }
+    }
 
     private async Task<CatalogueRenameResult> Rename<TEntity>(
         CatalogueRedirectKind kind,
