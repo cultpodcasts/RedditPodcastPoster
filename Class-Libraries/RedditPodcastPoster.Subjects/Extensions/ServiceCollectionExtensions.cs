@@ -53,6 +53,7 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IRecycledFlareIdProvider, RecycledFlareIdProvider>()
                 .AddScoped<ICategoriser, Categoriser>()
                 .AddScoped<IRecentPodcastEpisodeCategoriser, RecentPodcastEpisodeCategoriser>()
+                .AddScoped<IRecentCataloguePlayableCategoriser, RecentCataloguePlayableCategoriser>()
                 .AddScoped<ISubjectFactory, SubjectFactory>()
                 .AddScoped<IHashTagProvider, HashTagProvider>()
                 .AddSingleton<ICachedSubjectProvider, CachedSubjectProvider>()
