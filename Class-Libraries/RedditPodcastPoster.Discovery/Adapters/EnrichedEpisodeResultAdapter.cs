@@ -79,6 +79,12 @@ public class EnrichedEpisodeResultAdapter(
         discoveryResult.Guests = matchEpisode.Guests ?? [];
 
         discoveryResult.MatchingPodcastIds = episode.PodcastResults.Select(x => x.PodcastId).ToArray();
+        discoveryResult.YouTubeChannelId = NullIfEmpty(episode.EpisodeResult.PodcastIds.YouTube);
+        discoveryResult.SpotifyId = NullIfEmpty(episode.EpisodeResult.PodcastIds.Spotify);
+        discoveryResult.AppleId = episode.EpisodeResult.PodcastIds.Apple;
         return discoveryResult;
     }
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 }

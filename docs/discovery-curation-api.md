@@ -104,7 +104,10 @@ Items with no score (`acceptProbability: null`) sort last (treated as `-1` inter
 | `showDescription` | string? | |
 | `released` | ISO 8601 datetime | UTC |
 | `duration` | timespan string | e.g. `"01:23:45"` |
-| `urls` | object | `apple`, `spotify`, `youTube` URLs |
+| `urls` | object | `apple`, `spotify`, `youTube` episode URLs |
+| `youTubeChannelId` | string? | YouTube channel id, when the discovery run recorded it |
+| `spotifyId` | string? | Spotify show id, when the discovery run recorded it |
+| `appleId` | number? | Apple podcast id, when the discovery run recorded it |
 | `subjects` | string[] | Matched subject tags |
 | `youTubeViews` | number? | |
 | `youTubeChannelMembers` | number? | |
@@ -112,11 +115,27 @@ Items with no score (`acceptProbability: null`) sort last (treated as `-1` inter
 | `discoverService` | string[] | Source services: `ListenNotes`, `Spotify`, `YouTube`, `Taddy` |
 | `enrichedTimeFromApple` | boolean | |
 | `enrichedUrlFromSpotify` | boolean | |
-| `matchingPodcasts` | array? | `{ name, visible, visibleEpisodes, kind? }` for known catalogue matches. `kind` is `NewsOrganisation` or `TvShow` when the channel / show belongs to a catalogue parent (then `visibleEpisodes` counts its not-removed reports / episodes); omitted for podcasts. A migrated podcast keeps its id, so `matchingPodcastIds` on stored results resolves to the parent |
+| `matchingPodcasts` | array? | `{ id, name, visible, visibleEpisodes, kind? }` for known catalogue matches. `visible` is false when that podcast (or parent) is removed; the curation card shows the removed icon. `kind` is `NewsOrganisation` or `TvShow` when the channel / show belongs to a catalogue parent (then `visibleEpisodes` counts its not-removed reports / episodes); omitted for podcasts. A migrated podcast keeps its id, so `matchingPodcastIds` on stored results resolves to the parent |
 | **`acceptProbability`** | number? | **0.0–1.0** ML estimate that a curator would accept this episode. `null` if not scored (legacy reports). |
 | **`autoHidden`** | boolean | **`true`** when `acceptProbability < 0.05` (production threshold). Hidden from default GET. |
 
 **Not exposed on GET:** per-result `state` (all items in an unprocessed report are effectively pending curation).
+
+---
+
+### POST `DiscoveryCuration/{resultId}/ban`
+
+Curator command. Removes the show behind one open discovery result.
+
+- If a podcast already has that YouTube channel, Spotify show, or Apple podcast id, it is marked `removed`.
+- If none does, a minimal podcast is created from those ids and the show name, with `removed: true`.
+- Other open results from the same show are linked to that podcast.
+
+The response is **202 with an empty body**. It does not include the podcast. The client GETs `DiscoveryCuration` again (the result's `matchingPodcasts[].id`, `visible: false`) and then GETs `podcast/{id}`.
+
+`curate` is required. A news organisation or TV show that already owns the channel is **409**. A missing result is **404**.
+
+Future discovery runs drop episodes whose matched podcast or catalogue parent is removed, using the same elimination as fully indexed shows.
 
 ---
 
@@ -136,7 +155,7 @@ Accepts a subset of discovery results and closes the associated report(s).
 | Field | JSON name | Description |
 |-------|-----------|-------------|
 | Document IDs | `ids` | One or more discovery report document GUIDs (from GET `ids`). |
-| Accepted result IDs | `resultIds` | Result GUIDs the curator **accepts**. All other results **in those documents** become rejected when the report is processed. |
+| Accepted result IDs | `resultIds` | Result GUIDs the curator **accepts**. All other results **in those documents** become rejected when the report is processed. A result whose podcast is removed is not ingested and is stamped rejected even if its id is in this list. |
 
 **Important:** POST operates on **whole documents**. If a report contains 100 results and the curator accepts 3, send all report IDs in `ids` and only the 3 accepted GUIDs in `resultIds`. The remaining 97 (including auto-hidden items never shown in the default GET) are marked **`Rejected`**.
 

@@ -167,6 +167,14 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
             .Distinct()
             .ToArray();
 
+        merged.YouTubeChannelId ??= linkedItems
+            .Select(x => x.YouTubeChannelId)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        merged.SpotifyId ??= linkedItems
+            .Select(x => x.SpotifyId)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        merged.AppleId ??= linkedItems.Select(x => x.AppleId).FirstOrDefault(x => x != null);
+
         return merged;
     }
 
@@ -379,6 +387,9 @@ public class DiscoveryResultDeduplicator : IDiscoveryResultDeduplicator
             Sources = source.Sources.ToArray(),
             EnrichedTimeFromApple = source.EnrichedTimeFromApple,
             EnrichedUrlFromSpotify = source.EnrichedUrlFromSpotify,
+            YouTubeChannelId = source.YouTubeChannelId,
+            SpotifyId = source.SpotifyId,
+            AppleId = source.AppleId,
             MatchingPodcastIds = source.MatchingPodcastIds.ToArray(),
             AcceptProbability = source.AcceptProbability,
             AutoHidden = source.AutoHidden

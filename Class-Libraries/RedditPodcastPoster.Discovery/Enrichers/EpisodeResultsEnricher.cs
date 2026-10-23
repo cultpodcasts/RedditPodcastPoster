@@ -35,24 +35,22 @@ public class EpisodeResultsEnricher(
             var parents = new List<CatalogueOwner>();
             if (episodeResult.PodcastIds.Spotify is { } spotifyId && !string.IsNullOrWhiteSpace(spotifyId))
             {
-                Add(podcasts, GetCurrentIndexed(
-                    await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync()));
+                AddMatches(podcasts, await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync());
                 catalogueOwners ??= await LoadCatalogueOwners();
                 Add(parents, FindParent(catalogueOwners, x => x.SpotifyId == spotifyId));
             }
 
             if (episodeResult.PodcastIds.Apple is { } appleId)
             {
-                Add(podcasts, GetCurrentIndexed(
-                    await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToArrayAsync()));
+                AddMatches(podcasts, await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToArrayAsync());
                 catalogueOwners ??= await LoadCatalogueOwners();
                 Add(parents, FindParent(catalogueOwners, x => x.AppleId == appleId));
             }
 
             if (episodeResult.PodcastIds.YouTube is { } channelId && !string.IsNullOrWhiteSpace(channelId))
             {
-                Add(podcasts, GetCurrentIndexed(
-                    await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channelId).ToArrayAsync()));
+                AddMatches(podcasts,
+                    await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channelId).ToArrayAsync());
                 catalogueOwners ??= await LoadCatalogueOwners();
                 Add(parents, FindParent(catalogueOwners, x => x.YouTubeChannelId == channelId));
             }
@@ -65,8 +63,24 @@ public class EpisodeResultsEnricher(
                     enriched.PodcastResults
                         .Concat(parents
                             .Where(parent => enriched.PodcastResults.All(x => x.PodcastId != parent.Id))
-                            .Select(parent => new PodcastResult(parent.Id, parent.IndexAllEpisodes)))
+                            .Select(parent => new PodcastResult(parent.Id, parent.IndexAllEpisodes, parent.Removed)))
                         .ToArray());
+        }
+    }
+
+    /// <summary>
+    /// Keeps the indexed owner the elimination rule already used, and also every removed match, so a banned
+    /// channel is visible to that same rule even when another podcast on the id is the indexed one.
+    /// </summary>
+    private void AddMatches(List<Podcast> podcasts, Podcast[] matches)
+    {
+        Add(podcasts, GetCurrentIndexed(matches));
+        foreach (var removed in matches)
+        {
+            if (removed.IsRemoved())
+            {
+                Add(podcasts, removed);
+            }
         }
     }
 
@@ -92,8 +106,8 @@ public class EpisodeResultsEnricher(
         var shows = await tvShowRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
         return
         [
-            .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!)),
-            .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!))
+            .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved())),
+            .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved()))
         ];
     }
 
@@ -126,7 +140,7 @@ public class EpisodeResultsEnricher(
         return podcasts.FirstOrDefault(x => x.IndexAllEpisodes || !string.IsNullOrEmpty(x.EpisodeIncludeTitleRegex));
     }
 
-    private sealed record CatalogueOwner(Guid Id, CatalogueIndexingSource Indexing)
+    private sealed record CatalogueOwner(Guid Id, CatalogueIndexingSource Indexing, bool Removed)
     {
         public bool IndexAllEpisodes => Indexing.IndexAllEpisodes;
     }

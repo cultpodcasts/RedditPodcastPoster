@@ -97,6 +97,18 @@ public class DiscoveryResponse
         [JsonPropertyOrder(140)]
         public bool EnrichedUrlFromSpotify { get; set; }
 
+        [JsonPropertyName("youTubeChannelId")]
+        [JsonPropertyOrder(145)]
+        public string? YouTubeChannelId { get; set; }
+
+        [JsonPropertyName("spotifyId")]
+        [JsonPropertyOrder(146)]
+        public string? SpotifyId { get; set; }
+
+        [JsonPropertyName("appleId")]
+        [JsonPropertyOrder(147)]
+        public long? AppleId { get; set; }
+
         [JsonPropertyName("matchingPodcasts")]
         [JsonPropertyOrder(150)]
         public MatchingPodcast[]? MatchingPodcasts { get; set; }
@@ -119,6 +131,9 @@ public class DiscoveryResponse
 
         public class MatchingPodcast
         {
+            [JsonPropertyName("id")]
+            public Guid Id { get; set; }
+
             [JsonPropertyName("name")]
             public required string Name { get; set; }
 

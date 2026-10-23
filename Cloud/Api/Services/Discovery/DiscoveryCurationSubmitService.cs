@@ -6,8 +6,10 @@ using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
+using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace Api.Services.Discovery;
 
@@ -16,6 +18,7 @@ public class DiscoveryCurationSubmitService(
     IDiscoveryUrlSubmitter discoveryUrlSubmitter,
     IEpisodeSearchIndexerService searchIndexerService,
     IPlayableSearchDocumentSwap playableSearch,
+    IPodcastRepository podcastRepository,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
     public Task<DiscoveryCurationSubmitResult> SubmitAsync(
@@ -59,9 +62,11 @@ public class DiscoveryCurationSubmitService(
             var terminal = CancellationToken.None;
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
-            var erroredResults = await IngestResults(discoveryResults, submitResults);
+            var rejectedRemoved = new List<Guid>();
+            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved);
+            var accepted = request.ResultIds.Except(erroredResults).Except(rejectedRemoved).ToArray();
 
-            await discoveryResultsService.MarkAsProcessed(request.DiscoveryResultsDocumentIds, request.ResultIds,
+            await discoveryResultsService.MarkAsProcessed(request.DiscoveryResultsDocumentIds, accepted,
                 erroredResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
@@ -112,8 +117,10 @@ public class DiscoveryCurationSubmitService(
             // Ingest has started: the client can no longer cancel it or the bookkeeping that follows.
             var terminal = CancellationToken.None;
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
-            var erroredResults = await IngestResults(discoveryResults, submitResults);
-            var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults).ToArray();
+            var rejectedRemoved = new List<Guid>();
+            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved);
+            var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults)
+                .Except(rejectedRemoved).ToArray();
             await discoveryResultsService.UpdateResultStates(request.DiscoveryResultsDocumentIds, succeeded,
                 erroredResults);
 
@@ -141,7 +148,7 @@ public class DiscoveryCurationSubmitService(
 
     /// <summary>Submits each result; per-item exceptions become <c>Error</c> outcomes carrying the reason.</summary>
     private async Task<Guid[]> IngestResults(IEnumerable<DiscoveryResult> discoveryResults,
-        List<DiscoverySubmitItemOutcome> submitResults)
+        List<DiscoverySubmitItemOutcome> submitResults, List<Guid> rejectedRemoved)
     {
         var indexingContext = new IndexingContext
         {
@@ -153,6 +160,15 @@ public class DiscoveryCurationSubmitService(
         var erroredResults = new List<Guid>();
         foreach (var discoveryResult in discoveryResults)
         {
+            if (await IsStoredAgainstRemovedPodcast(discoveryResult))
+            {
+                rejectedRemoved.Add(discoveryResult.Id);
+                logger.LogInformation(
+                    "Rejecting discovery-result '{DiscoveryResultId}' because its podcast is removed.",
+                    discoveryResult.Id);
+                continue;
+            }
+
             logger.LogInformation(
                 "Submitting discovery-result '{discoveryResultId}' with indexing-context: {indexingContext}",
                 discoveryResult.Id, indexingContext);
@@ -182,6 +198,54 @@ public class DiscoveryCurationSubmitService(
         }
 
         return erroredResults.ToArray();
+    }
+
+    /// <summary>
+    /// True when the stored result already points at a removed podcast (matching id or show id). URL resolution
+    /// stays on the ban command; save only refuses what the queue already records.
+    /// </summary>
+    private async Task<bool> IsStoredAgainstRemovedPodcast(DiscoveryResult result)
+    {
+        if (result.MatchingPodcastIds is { Length: > 0 })
+        {
+            var ids = result.MatchingPodcastIds;
+            var matched = await podcastRepository.GetAllBy(x => Enumerable.Contains(ids, x.Id)).ToListAsync();
+            if (matched.Any(x => x.IsRemoved()))
+            {
+                return true;
+            }
+        }
+
+        var channel = result.YouTubeChannelId;
+        if (!string.IsNullOrWhiteSpace(channel))
+        {
+            var matched = await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channel).ToListAsync();
+            if (matched.Any(x => x.IsRemoved()))
+            {
+                return true;
+            }
+        }
+
+        var spotify = result.SpotifyId;
+        if (!string.IsNullOrWhiteSpace(spotify))
+        {
+            var matched = await podcastRepository.GetAllBy(x => x.SpotifyId == spotify).ToListAsync();
+            if (matched.Any(x => x.IsRemoved()))
+            {
+                return true;
+            }
+        }
+
+        if (result.AppleId is { } apple)
+        {
+            var matched = await podcastRepository.GetAllBy(x => x.AppleId == apple).ToListAsync();
+            if (matched.Any(x => x.IsRemoved()))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string Describe(Exception ex)

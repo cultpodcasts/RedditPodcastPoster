@@ -193,6 +193,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddTimeProviderIfMissing()
             .AddScoped<IGetDiscoveryCurationHandler, GetDiscoveryCurationHandler>()
             .AddScoped<IPostDiscoveryCurationHandler, PostDiscoveryCurationHandler>()
+            .AddScoped<IDiscoveryChannelBanService, DiscoveryChannelBanService>()
+            .AddScoped<IPostDiscoveryChannelBanHandler, PostDiscoveryChannelBanHandler>()
             .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
             .AddScoped<IDiscoverySubmissionIngestedEpisodes, DiscoverySubmissionIngestedEpisodes>()
             .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()

@@ -17,6 +17,7 @@ namespace Api.Controllers;
 public class DiscoveryCurationController(
     IGetDiscoveryCurationHandler getDiscoveryCurationHandler,
     IPostDiscoveryCurationHandler postDiscoveryCurationHandler,
+    IPostDiscoveryChannelBanHandler postDiscoveryChannelBanHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoveryCurationController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -50,6 +51,20 @@ public class DiscoveryCurationController(
             [DiscoveryPermissions.Curate, DiscoveryPermissions.CurateSupervised],
             discoverySubmitRequest.ToModel(),
             postDiscoveryCurationHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("DiscoveryCurationBan")]
+    public Task<HttpResponseData> Ban(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DiscoveryCuration/{resultId:guid}/ban")]
+        HttpRequestData req,
+        Guid resultId,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            resultId,
+            postDiscoveryChannelBanHandler.Handle,
             Unauthorised,
             ct);
 }

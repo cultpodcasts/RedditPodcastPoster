@@ -21,10 +21,15 @@ public class EnrichedEpisodeResultsAdapter(
 
         await foreach (var episode in episodeResults)
         {
-            if (episode.PodcastResults.Any(x => x.IndexAllEpisodes))
+            if (episode.PodcastResults.Any(x => x.IndexAllEpisodes || x.Removed))
             {
+                var removed = episode.PodcastResults.Any(x => x.Removed);
                 logger.LogInformation(
-                    "Eliminated episode '{EpisodeResultId}' as found in indexed-podcast with podcast-id: '{Join}'.", episode.EpisodeResult.Id, string.Join(",", episode.PodcastResults.Select(x => x.PodcastId)));
+                    removed
+                        ? "Eliminated episode '{EpisodeResultId}' as found in removed-podcast with podcast-id: '{Join}'."
+                        : "Eliminated episode '{EpisodeResultId}' as found in indexed-podcast with podcast-id: '{Join}'.",
+                    episode.EpisodeResult.Id,
+                    string.Join(",", episode.PodcastResults.Select(x => x.PodcastId)));
                 continue;
             }
 
