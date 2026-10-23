@@ -20,7 +20,7 @@ namespace Api.Services.Episodes;
 /// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).</item>
 /// <item>Push the film's search document (its <c>trailers</c> list). On failure the episode is kept.</item>
 /// <item>Delete the episode's search document. On failure the episode is kept.</item>
-/// <item>Re-read the film; if it no longer holds the trailer (a concurrent write dropped it), stop with the episode kept.</item>
+/// <item>Re-read the film. If it was deleted, best-effort re-upload the episode search document and stop with the episode kept. If it no longer holds the trailer (a concurrent write dropped it), stop with the episode kept.</item>
 /// <item>Delete the episode row.</item>
 /// <item>Point the episode's short link at the film page (best effort).</item>
 /// </list>
@@ -132,7 +132,18 @@ public class EpisodeTrailerAttachService(
             // Last check before the only irreversible step: another film write since our save (one that read the film
             // before it) would have dropped the trailer, and deleting the episode then would lose it for good.
             var current = await filmRepository.GetFilm(film.Id);
-            if (current?.HasTrailer(episode.Id) != true)
+            if (current is null)
+            {
+                // The episode search document is already gone. A re-send finds no film and returns 404, so nothing
+                // else puts the episode back into search. Restore it now; the episode row stays.
+                logger.LogWarning(
+                    "TrailerAttachFilmGone: Film '{filmId}' was deleted after the trailer save. Re-uploading the search document for episode '{episodeId}'.",
+                    film.Id, episode.Id);
+                await RestoreEpisodeSearchDocument(podcast, episode, film.Id, cancellationToken);
+                return Failed(film);
+            }
+
+            if (!current.HasTrailer(episode.Id))
             {
                 logger.LogError(
                     "{method}: Film '{filmId}' no longer holds trailer '{episodeId}' (changed concurrently). Episode row kept; re-send to resume.",
@@ -201,6 +212,36 @@ public class EpisodeTrailerAttachService(
             "{method}: Film '{filmId}' kept changing; trailer '{trailerId}' not added. Episode row kept; re-send to resume.",
             nameof(AddTrailer), filmId, trailer.Id);
         return (null, new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed, filmId));
+    }
+
+    /// <summary>
+    /// The film disappeared after its search document was pushed and the episode's was deleted. Putting the episode
+    /// document back is best effort: a failure is logged and the attach still stops with the episode row kept.
+    /// </summary>
+    private async Task RestoreEpisodeSearchDocument(
+        Podcast podcast,
+        Episode episode,
+        Guid filmId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var document = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+            if (await searchSwap.UploadAsync([document], cancellationToken))
+            {
+                return;
+            }
+
+            logger.LogError(
+                "TrailerAttachFilmGone: Search re-upload failed for episode '{episodeId}' of deleted film '{filmId}'.",
+                episode.Id, filmId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "TrailerAttachFilmGone: Search re-upload failed for episode '{episodeId}' of deleted film '{filmId}'.",
+                episode.Id, filmId);
+        }
     }
 
     private static EpisodeTrailerAttachResult BadRequest(string error) =>
