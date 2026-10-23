@@ -197,6 +197,17 @@ Console / API submit / discovery curation often set these to `false`.
 `IndexingStrategy` owns the hour formulas; `Indexer` combines them with
 `IsPrimaryPass(pass, totalPasses)`.
 
+**Batches 2–4 do not get an expensive-allowed YouTube pass, and do not need a daily full walk from that gate.**
+Expensive YouTube queries are midnight UTC only. That hour is even, so passes 1–2 run, and the primary pass is 1.
+Batches 2, 3 and 4 therefore always have `SkipExpensiveYouTubeQueries` set. The hourly indexer still sets
+`UseYouTubeIndexingHints` on every pass. A large oldest-first playlist with fresh hints is checked from the channel
+uploads head (newest-first) on every YouTube-enabled hour for its batch — four times a day, including those
+skip-expensive hours — so a video appended to the tail is found without waiting for an expensive-allowed pass.
+When the last full walk is older than `FullWalkDueAfter` (24h less 1h of slack), the next YouTube-enabled pass
+walks the playlist in full even though expensive queries are skipped. Playlists at or under the uploads-head
+item threshold are paginated to the end on every YouTube-enabled pass; the expensive flag no longer changes that
+walk.
+
 ---
 
 ## 3. Spotify catalogue pagination
@@ -341,7 +352,10 @@ Sample ≥ 2 dated items among the first 3?
         │
         ▼
 Continue while nextPageToken != null
-  AND (not reverse-chrono OR last item still in ReleasedSince window)
+  AND (not reverse-chrono
+       OR last item's added-at is still in the ReleasedSince window
+       OR that page still has an indexing-window date in the window
+          and fewer than PublishedWindowExtraPages (2) such extra pages have been taken)
   AND YouTubePageWalkGuard says go on (see "Page-walk guards")
         │
         ▼
@@ -352,6 +366,14 @@ Discovery: YouTubeExpensiveQueryFlag.Apply (unless Arbitrary)
 **Equal timestamps:** bulk-added items share the same added-at. Equal pairs satisfy
 `IsReverseDateOrdered` (non-ascending). That mis-classifies some curated playlists as
 newest-first — the main reason `Arbitrary` exists.
+
+**Published-window extra pages.** The added-at stop above is the playlist's order, not the indexing
+window (later of added-at and video-published-at). After added-at leaves the window, a newest-first
+walk reads at most `YouTubePlaylistService.PublishedWindowExtraPages` (2) further pages, and only
+while the page just read still has an item inside the indexing window. That is how a video added
+before the window but published inside it, on page 2 or the page after, is still seen. Each extra
+page is 1 quota unit. The stop is still `StoppedAtWindow` when a next token remains. Detail:
+[youtube-playlist-order.md](youtube-playlist-order.md) § Newest-first paging stop.
 
 ### Arbitrary mode
 
@@ -432,6 +454,11 @@ is a `ReleasedSince` window. Otherwise it runs the normal full walk (`not-opted-
 (`--released-since` backfills) always walk in full, so they recover an in-window episode the uploads
 check would never offer again (an earlier failed pass, or a window wider than the watermark). Their
 complete walks still refresh the hints.
+The uploads-head check is **not** gated on `SkipExpensiveYouTubeQueries`. Batches 2–4, which never
+get an expensive-allowed pass (see §2), still run it on every YouTube-enabled hour, so a new item
+appended to the tail of an oldest-first playlist is discovered for a podcast in any batch. The
+age-based full walk (`full-walk-due`) also runs on a skip-expensive pass.
+
 `YouTubeUploadsHeadCheck` then:
 
 1. reads the playlist head (`maxResults=1`, 1 unit) for `totalResults`;
@@ -499,6 +526,8 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
 | Page-walk guards incl. two consecutive empty pages | `YouTube.Tests/Paging/YouTubePlaylistServicePagingRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeConsecutiveEmptyPagesRules.cs` |
+| Newest-first extra pages for a video added outside the window but published inside it, and the extra-page quota bound | `YouTube.Tests/BusinessRules/Paging/YouTubePublishedWindowPagingRules.cs` |
+| Tail append on an oldest-first playlist is found from the uploads head when expensive queries are skipped (any batch) | `YouTube.Tests/BusinessRules/IndexingHints/YouTubeUploadsHeadCheckRules.cs`, `Indexer.Tests/BusinessRules/YouTubeBatchUploadsHeadCoverageRules.cs` |
 | Indexing hints: planner (opt-in, skip-YouTube, slack), uploads-head check (quota per path, strict `>` watermark, count drop, full-walk-cheaper, undated gap, window/known filters), walk outcome (circuit breaker, failed build), handler | `YouTube.Tests/BusinessRules/IndexingHints/*.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderBuildPlaylistEpisodesRules.cs` |
 | Indexing hints: only the hourly indexer opts in; curator re-index does not | `Indexer.Tests/IndexerActivityParentFailureRules.cs`, `FunctionHost.Tests/Api/Services/Podcasts/PodcastIndexServiceYouTubeIndexingHintsRules.cs` |
 | Indexing hints: storage, patch, hints-only save, failed merge keeps previous hints, curator saves keep them | `Persistence.Tests/BusinessRules/YouTubeIndexingHintsPersistenceRules.cs`, `PodcastServices.Tests/BusinessRules/Indexing/YouTubeIndexingHintsSaveRules.cs`, `CatalogueParentIndexingRules.cs`, `FunctionHost.Tests/Api/Services/Catalogue/CuratorSaveKeepsYouTubeIndexingHintsRules.cs` |
@@ -567,7 +596,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 
 | Concern | Spotify | YouTube | Apple |
 |---------|---------|---------|-------|
-| Newest-first strategy | Reverse-chrono Simple; stop on `ReleasedSince` | Early-stop while last in-window date in window | Early-stop while last collected >= `ReleasedSince` |
+| Newest-first strategy | Reverse-chrono Simple; stop on `ReleasedSince` | Early-stop on added-at, then at most 2 extra pages while an item is still inside the indexing window | Early-stop while last collected >= `ReleasedSince` |
 | Oldest-first strategy | End-jump + walk back (`MaxWalkBackPages=5`) | Full forward walk (no API end-jump) | Forward walk capped at `MaxPages=20` when window set |
 | Arbitrary / curated | N/A (catalogue is API-ordered) | `PlaylistOrder.Arbitrary` + capped walk | N/A |
 | Forward / unordered cap | `SimpleEpisodePaginator.MaxPages=20` | `ArbitraryYouTubePlaylistWalk.MaxPages=20` | `AppleCataloguePagination.MaxPages=20` |

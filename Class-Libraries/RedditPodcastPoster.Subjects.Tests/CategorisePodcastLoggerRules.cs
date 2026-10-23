@@ -116,4 +116,29 @@ public class CategorisePodcastLoggerRules
         message.Should().Contain($"title='{t2}'");
         message.Should().Contain(";");
     }
+
+    [Fact(DisplayName = "FormatCatalogueMessage uses the catalogue prefix with the parent id and subject delta.")]
+    public void format_catalogue_message_names_the_parent_and_delta()
+    {
+        // Arrange
+        var parentId = _fixture.Create<Guid>();
+        var parentName = _fixture.Create<string>();
+        var episodeId = _fixture.Create<Guid>();
+        var subject = _fixture.Create<string>();
+        var deltas = new[]
+        {
+            CategoriseEpisodeDelta.From(episodeId, _fixture.Create<string>(), [], [subject], persisted: true)
+        };
+
+        // Act
+        var message = CategorisePodcastLogger.FormatCatalogueMessage(parentId, parentName, deltas);
+
+        // Assert
+        message.Should().StartWith(CategorisePodcastLogger.CatalogueMessagePrefix);
+        message.Should().Contain($"parent-id='{parentId}'");
+        message.Should().Contain($"parent-name='{parentName}'");
+        message.Should().Contain($"episode-id='{episodeId}'");
+        message.Should().Contain($"added=['{subject}']");
+        message.Should().NotContain(CategorisePodcastLogger.MessagePrefix);
+    }
 }

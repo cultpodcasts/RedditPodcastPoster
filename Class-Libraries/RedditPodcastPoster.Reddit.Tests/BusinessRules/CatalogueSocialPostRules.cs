@@ -784,11 +784,14 @@ public class CatalogueSocialPostRules
         var film = CreateFilm();
         var item = CatalogueParentKindMapper.ToPostProjection(film);
         Film? saved = null;
-        _mocker.GetMock<IFilmRepository>().Setup(x => x.GetFilm(film.Id)).ReturnsAsync(film);
         _mocker.GetMock<IFilmRepository>()
-            .Setup(x => x.Save(It.IsAny<Film>()))
-            .Callback<Film>(x => saved = x)
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.Update(film.Id, It.IsAny<Func<Film, bool>>()))
+            .Returns<Guid, Func<Film, bool>>((_, mutate) =>
+            {
+                mutate(film);
+                saved = film;
+                return Task.FromResult<Film?>(film);
+            });
         var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
 
         // Act
@@ -797,6 +800,79 @@ public class CatalogueSocialPostRules
         // Assert
         saved.Should().BeSameAs(film);
         saved!.Tweeted.Should().BeTrue();
+        _mocker.GetMock<IFilmRepository>().Verify(x => x.Save(It.IsAny<Film>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a film is marked tweeted while a trailer is attached, then the saved film is tweeted and still has that trailer, because the flag is written onto a re-read film and the trailer's episode row is already deleted.")]
+    public async Task mark_tweeted_keeps_a_trailer_attached_concurrently()
+    {
+        // Arrange
+        var film = CreateFilm();
+        var trailer = new FilmTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            Length = _fixture.CreateDuration()
+        };
+        var item = CatalogueParentKindMapper.ToPostProjection(film);
+        var stored = CopyFilm(film);
+        var etag = "first";
+        Film? saved = null;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.Update(film.Id, It.IsAny<Func<Film, bool>>()))
+            .Returns<Guid, Func<Film, bool>>((id, mutate) => FilmDocumentUpdate.Apply(
+                id,
+                mutate,
+                _ => Task.FromResult<FilmVersion?>(new FilmVersion(CopyFilm(stored), etag)),
+                (candidate, match) =>
+                {
+                    if (match != etag)
+                    {
+                        return Task.FromResult(false);
+                    }
+
+                    if (stored.Trailers is not { Count: > 0 })
+                    {
+                        stored = CopyFilm(stored);
+                        stored.Trailers = [trailer];
+                        etag = "attached";
+                        return Task.FromResult(false);
+                    }
+
+                    stored = candidate;
+                    saved = candidate;
+                    etag = "saved";
+                    return Task.FromResult(true);
+                }));
+        var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
+
+        // Act
+        await sut.MarkTweeted(item);
+
+        // Assert
+        saved.Should().NotBeNull();
+        saved!.Tweeted.Should().BeTrue();
+        saved.Trailers.Should().ContainSingle().Which.Id.Should().Be(trailer.Id);
+        _mocker.GetMock<IFilmRepository>().Verify(x => x.Save(It.IsAny<Film>()), Times.Never);
+    }
+
+    private static Film CopyFilm(Film source)
+    {
+        var copy = new Film(source.Name) { Id = source.Id, Tweeted = source.Tweeted };
+        if (source.Trailers is not null)
+        {
+            copy.Trailers = source.Trailers.Select(trailer => new FilmTrailer
+            {
+                Id = trailer.Id,
+                Title = trailer.Title,
+                Url = trailer.Url,
+                Length = trailer.Length
+            }).ToList();
+        }
+
+        return copy;
     }
 
     [Fact(DisplayName =

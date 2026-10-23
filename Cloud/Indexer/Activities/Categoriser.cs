@@ -12,6 +12,7 @@ namespace Indexer.Activities;
 [DurableTask(nameof(Categoriser))]
 public class Categoriser(
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
+    IRecentCataloguePlayableCategoriser recentCataloguePlayableCategoriser,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
@@ -48,6 +49,11 @@ public class Categoriser(
         try
         {
             await recentEpisodeCategoriser.Categorise(indexerContext.RecentEpisodeCandidates);
+            var cataloguePlayables = await recentCataloguePlayableCategoriser.Categorise();
+            logger.LogInformation(
+                "{class} catalogue playables categorised. Count: {count}.",
+                nameof(Categoriser),
+                cataloguePlayables.Count);
         }
         catch (Exception ex)
         {

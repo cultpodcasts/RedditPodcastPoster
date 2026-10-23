@@ -256,8 +256,9 @@ public class YouTubePlaylistServicePagingRules
     }
 
     [Fact(DisplayName =
-        "A newest-first playlist with a date window still stops after the first page once items leave the " +
-        "window, because 50-item pages must keep the cheap early stop for channel uploads.")]
+        "A newest-first playlist whose first page still has items inside the window reads one further page after " +
+        "added-at leaves the window, then stops when that page is entirely outside it, because a later page can " +
+        "hold a video published inside the window and a stale page ends the extra reads.")]
     public async Task Newest_first_window_still_stops_early()
     {
         // Arrange: items one minute apart, newest first; window covers only the first few.
@@ -270,9 +271,10 @@ public class YouTubePlaylistServicePagingRules
         var response = await CreateSut().GetPlaylistVideoSnippets(Wrapper(), PlaylistId, context);
 
         // Assert
-        _api.Requests.Should().HaveCount(1);
+        _api.Requests.Should().HaveCount(2);
         response.IsExpensiveQuery.Should().BeFalse();
         response.Result.Should().NotBeEmpty();
+        response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.StoppedAtWindow);
     }
 
     private static readonly DateTimeOffset ProbeNow = new(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
@@ -296,8 +298,9 @@ public class YouTubePlaylistServicePagingRules
 
     [Fact(DisplayName =
         "The newest-first check looks only at the first 3 items: items 1-3 newest-first with item 4 out of " +
-        "order is still newest-first, so the walk stops after page 1 and the playlist is not flagged expensive " +
-        "(the old 3-item first page saw exactly this, so 50-item pages must not reclassify it).")]
+        "order is still newest-first, so the playlist is not flagged expensive and only the bounded extra page is " +
+        "read after added-at leaves the window (the old 3-item first page saw exactly this, so 50-item pages must " +
+        "not reclassify it).")]
     public async Task Order_check_ignores_items_after_the_third()
     {
         // Arrange: item 4 is newer than item 3, breaking the order after the probe sample.
@@ -310,7 +313,7 @@ public class YouTubePlaylistServicePagingRules
 
         // Assert
         response.IsExpensiveQuery.Should().BeFalse();
-        _api.Requests.Should().HaveCount(1);
+        _api.Requests.Should().HaveCount(2);
     }
 
     [Fact(DisplayName =
@@ -333,7 +336,8 @@ public class YouTubePlaylistServicePagingRules
 
     [Fact(DisplayName =
         "The newest-first check takes the first 3 items and then drops undated ones: with item 1 undated it " +
-        "judges items 2-3 only, so an out-of-order item 4 does not count (matching the old 3-item first page).")]
+        "judges items 2-3 only, so an out-of-order item 4 does not count and the playlist is not flagged expensive " +
+        "(matching the old 3-item first page).")]
     public async Task Order_check_takes_three_then_filters_undated()
     {
         // Arrange: item 1 has no date; items 2-3 newest-first; item 4 newer than item 3.
@@ -346,6 +350,6 @@ public class YouTubePlaylistServicePagingRules
 
         // Assert
         response.IsExpensiveQuery.Should().BeFalse();
-        _api.Requests.Should().HaveCount(1);
+        _api.Requests.Should().HaveCount(2);
     }
 }

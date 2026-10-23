@@ -26,6 +26,12 @@ public class PostFilmHandler(
                 await ctx.NotFound(new { id = request.FilmId }, c),
             FilmUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            FilmUpdateStatus.Conflict =>
+                await ctx.Conflict(new
+                {
+                    message = result.Message,
+                    unexpectedTrailerIds = result.UnexpectedTrailerIds ?? []
+                }, c),
             FilmUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update film"), c),
             _ => await LogAndFail(ctx, c)
