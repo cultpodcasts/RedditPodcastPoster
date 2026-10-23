@@ -14,6 +14,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Discovery;
@@ -391,14 +392,14 @@ public class RecoveredSubmissionIngestedEpisodesRules
             case CatalogueServiceLink.Apple:
                 var showId = _domain.CreateAppleId();
                 var episodeId = _domain.CreateAppleId();
+                var slug = string.Join(
+                    '-',
+                    _domain.CreateTitle().Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
+                var discoveryUrl = new Uri(
+                    $"https://podcasts.apple.com/us/podcast/{slug}/id{showId}?i={episodeId}&uo=4");
                 return (
-                    new DiscoveryResultUrls
-                    {
-                        Apple = new Uri(
-                            $"https://podcasts.apple.com/us/podcast/episode/id{showId}?i={episodeId}&uo=4")
-                    },
-                    Service(ServiceKeys.Apple, new Uri(
-                        $"https://podcasts.apple.com/us/podcast/episode/id{showId}?i={episodeId}")));
+                    new DiscoveryResultUrls { Apple = discoveryUrl },
+                    Service(ServiceKeys.Apple, discoveryUrl.CleanAppleUrl()));
             case CatalogueServiceLink.YouTube:
                 var youTubeId = _domain.CreateYouTubeId();
                 return (
