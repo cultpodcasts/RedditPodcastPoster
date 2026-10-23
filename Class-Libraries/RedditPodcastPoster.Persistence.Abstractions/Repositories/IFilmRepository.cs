@@ -15,6 +15,12 @@ public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film
     /// there first (or the film is gone), so the caller re-reads and re-applies instead of overwriting that write.
     /// </summary>
     Task<bool> TryReplace(Film film, string etag);
+
+    /// <summary>
+    /// Film ids whose <c>trailers[].id</c> equals <paramref name="trailerId"/>.
+    /// Films are partitioned by their own id, so this reads across partitions.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetFilmIdsByTrailerId(Guid trailerId);
 }
 
 /// <summary>A film as read, plus the ETag a <see cref="IFilmRepository.TryReplace"/> must match.</summary>

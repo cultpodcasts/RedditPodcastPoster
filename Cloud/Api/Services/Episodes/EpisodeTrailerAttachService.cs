@@ -17,7 +17,9 @@ namespace Api.Services.Episodes;
 /// document only, so the episode stops being a playable. The order mirrors <see cref="EpisodeFilmMoveService"/>, so
 /// every failure stops before anything is lost:
 /// <list type="number">
-/// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).</item>
+/// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).
+/// Before the add, films are queried across partitions for that id in <c>trailers[].id</c>. Another film that already
+/// holds it rejects the attach and the episode stays, so one episode cannot be a trailer of two films.</item>
 /// <item>Push the film's search document (its <c>trailers</c> list). On failure the episode is kept.</item>
 /// <item>Delete the episode's search document. On failure the episode is kept.</item>
 /// <item>Re-read the film. If it was deleted, best-effort re-upload the episode search document and stop with the episode kept. If it no longer holds the trailer (a concurrent write dropped it), stop with the episode kept.</item>
@@ -196,6 +198,15 @@ public class EpisodeTrailerAttachService(
                 return (latest, null);
             }
 
+            var otherFilmId = await OtherFilmHoldingTrailer(filmId, trailer.Id);
+            if (otherFilmId is not null)
+            {
+                logger.LogWarning(
+                    "{method}: Episode '{episodeId}' is already a trailer of film '{otherFilmId}'; refusing to attach it to film '{filmId}'.",
+                    nameof(AddTrailer), trailer.Id, otherFilmId, filmId);
+                return (null, BadRequest("This episode is already a trailer of another film"));
+            }
+
             latest.Trailers ??= [];
             latest.Trailers.Add(trailer);
             if (await filmRepository.TryReplace(latest, version.ETag))
@@ -212,6 +223,24 @@ public class EpisodeTrailerAttachService(
             "{method}: Film '{filmId}' kept changing; trailer '{trailerId}' not added. Episode row kept; re-send to resume.",
             nameof(AddTrailer), filmId, trailer.Id);
         return (null, new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Failed, filmId));
+    }
+
+    /// <summary>
+    /// A film other than <paramref name="filmId"/> that already lists <paramref name="trailerId"/>.
+    /// The destination film is ignored: re-sending to the film that already holds the trailer still resumes.
+    /// </summary>
+    private async Task<Guid?> OtherFilmHoldingTrailer(Guid filmId, Guid trailerId)
+    {
+        var holders = await filmRepository.GetFilmIdsByTrailerId(trailerId);
+        foreach (var holder in holders)
+        {
+            if (holder != filmId)
+            {
+                return holder;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
