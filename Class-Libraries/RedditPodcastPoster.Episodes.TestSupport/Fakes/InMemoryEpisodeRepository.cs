@@ -21,6 +21,12 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public IReadOnlyList<Episode> SavedEpisodes => _savedEpisodes;
 
+    /// <summary>
+    /// Runs at the start of each save, so a test can delete the podcast after the save-episodes point-read and before
+    /// the save-podcast point-read.
+    /// </summary>
+    public Action? OnSaving { get; set; }
+
     public void Seed(params Episode[] episodes)
     {
         foreach (var episode in episodes)
@@ -89,6 +95,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task Save(Episode entity)
     {
+        OnSaving?.Invoke();
         _episodes[entity.Id] = Clone(entity);
         _savedEpisodes.Add(Clone(entity));
         _saveCallRecorder?.RecordSingle(entity.Id);
@@ -97,6 +104,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task Save(IEnumerable<Episode> episodes)
     {
+        OnSaving?.Invoke();
         var saved = episodes.Select(Clone).ToList();
         foreach (var episode in saved)
         {
