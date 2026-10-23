@@ -95,6 +95,21 @@ public class DiscoveryResult
     [JsonPropertyOrder(160)]
     public bool EnrichedUrlFromSpotify { get; set; }
 
+    /// <summary>YouTube channel id of the discovered show, when the discovery run recorded it.</summary>
+    [JsonPropertyName("youTubeChannelId")]
+    [JsonPropertyOrder(165)]
+    public string? YouTubeChannelId { get; set; }
+
+    /// <summary>Spotify show id of the discovered show, when the discovery run recorded it.</summary>
+    [JsonPropertyName("spotifyId")]
+    [JsonPropertyOrder(166)]
+    public string? SpotifyId { get; set; }
+
+    /// <summary>Apple podcast id of the discovered show, when the discovery run recorded it.</summary>
+    [JsonPropertyName("appleId")]
+    [JsonPropertyOrder(167)]
+    public long? AppleId { get; set; }
+
     [JsonPropertyName("matchingPodcastIds")]
     [JsonPropertyOrder(170)]
     public Guid[] MatchingPodcastIds { get; set; } = [];

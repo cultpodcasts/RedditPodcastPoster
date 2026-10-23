@@ -13,6 +13,7 @@ public static class DiscoveryResultExtensions
             kv => kv.Key,
             kv => new DiscoveryResponse.Item.MatchingPodcast
             {
+                Id = kv.Key,
                 Name = kv.Value.Name,
                 IsVisible = kv.Value.IsVisible,
                 VisibleEpisodes = kv.Value.VisibleEpisodes,
@@ -64,6 +65,9 @@ public static class DiscoveryResultExtensions
             .ToArray();
         result.MatchingPodcasts = (resultMatchingPodcasts.Any() ? resultMatchingPodcasts : null)!;
         result.ShowName = item.ShowName;
+        result.YouTubeChannelId = item.YouTubeChannelId;
+        result.SpotifyId = item.SpotifyId;
+        result.AppleId = item.AppleId;
         result.YouTubeChannelMembers = item.YouTubeChannelMembers;
         result.YouTubeViews = item.YouTubeViews;
         result.ContainsSyntheticMedia = item.ContainsSyntheticMedia;

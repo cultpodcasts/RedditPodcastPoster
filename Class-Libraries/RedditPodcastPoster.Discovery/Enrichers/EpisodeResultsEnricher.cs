@@ -45,16 +45,14 @@ public class EpisodeResultsEnricher(
             var youTubePlaylistByOwner = new Dictionary<Guid, string?>();
             if (episodeResult.PodcastIds.Spotify is { } spotifyId && !string.IsNullOrWhiteSpace(spotifyId))
             {
-                Add(podcasts, GetCurrentIndexed(
-                    await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync()));
+                AddMatches(podcasts, await podcastRepository.GetAllBy(x => x.SpotifyId == spotifyId).ToArrayAsync());
                 catalogueOwners ??= await LoadCatalogueOwners();
                 Add(parents, FindParent(catalogueOwners, x => x.SpotifyId == spotifyId));
             }
 
             if (episodeResult.PodcastIds.Apple is { } appleId)
             {
-                Add(podcasts, GetCurrentIndexed(
-                    await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToArrayAsync()));
+                AddMatches(podcasts, await podcastRepository.GetAllBy(x => x.AppleId == appleId).ToArrayAsync());
                 catalogueOwners ??= await LoadCatalogueOwners();
                 Add(parents, FindParent(catalogueOwners, x => x.AppleId == appleId));
             }
@@ -63,10 +61,32 @@ public class EpisodeResultsEnricher(
             {
                 var channelPodcasts = await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channelId)
                     .ToArrayAsync();
-                var podcast = GetCurrentIndexed(PreferChannelWide(channelPodcasts, x => x.YouTubePlaylistId));
-                if (Add(podcasts, podcast))
+                var indexed = GetCurrentIndexed(PreferChannelWide(channelPodcasts, x => x.YouTubePlaylistId));
+                if (Add(podcasts, indexed))
                 {
-                    youTubePlaylistByOwner[podcast!.Id] = podcast.YouTubePlaylistId;
+                    youTubePlaylistByOwner[indexed!.Id] = indexed.YouTubePlaylistId;
+                }
+
+                var removedOutlet = channelPodcasts.Any(x =>
+                    x.IsRemoved() && string.IsNullOrEmpty(x.YouTubePlaylistId));
+                foreach (var match in channelPodcasts)
+                {
+                    var playlistId = match.YouTubePlaylistId;
+                    var livePlaylistShow = removedOutlet &&
+                                           !match.IsRemoved() &&
+                                           !string.IsNullOrEmpty(playlistId);
+                    if (livePlaylistShow && !await VideoIsInPlaylist(playlistId, episodeResult))
+                    {
+                        continue;
+                    }
+
+                    if (match.IsRemoved() || livePlaylistShow)
+                    {
+                        if (Add(podcasts, match))
+                        {
+                            youTubePlaylistByOwner[match.Id] = playlistId;
+                        }
+                    }
                 }
 
                 catalogueOwners ??= await LoadCatalogueOwners();
@@ -83,11 +103,34 @@ public class EpisodeResultsEnricher(
                 : enriched.PodcastResults
                     .Concat(parents
                         .Where(parent => enriched.PodcastResults.All(x => x.PodcastId != parent.Id))
-                        .Select(parent => new PodcastResult(parent.Id, parent.IndexAllEpisodes)))
+                        .Select(parent => new PodcastResult(
+                            parent.Id,
+                            parent.IndexAllEpisodes,
+                            parent.Removed,
+                            parent.Indexing.YouTubePlaylistId ?? string.Empty,
+                            suppressesUnrelatedShows: parent.Removed)))
                     .ToArray();
             yield return new EnrichedEpisodeResult(
                 enriched.EpisodeResult,
                 await ApplyPlaylistScope(episodeResult, combined, youTubePlaylistByOwner));
+        }
+    }
+
+    /// <summary>
+    /// Keeps the indexed owner the elimination rule already used, and every removed match, so a banned show
+    /// stays visible beside an indexed row of that same show. A live playlist-scoped row is kept here for a
+    /// Spotify or Apple id, which already names that show. A YouTube channel match attaches a live playlist
+    /// show only when the video is in its playlist.
+    /// </summary>
+    private void AddMatches(List<Podcast> podcasts, Podcast[] matches)
+    {
+        Add(podcasts, GetCurrentIndexed(matches));
+        foreach (var match in matches)
+        {
+            if (match.IsRemoved() || !string.IsNullOrEmpty(match.YouTubePlaylistId))
+            {
+                Add(podcasts, match);
+            }
         }
     }
 
@@ -128,7 +171,12 @@ public class EpisodeResultsEnricher(
                 logger.LogInformation(
                     "Matched playlist-scoped owner '{OwnerId}' but the video is not in playlist '{PlaylistId}', so it is not index-all.",
                     result.PodcastId, playlistId);
-                reported[i] = new PodcastResult(result.PodcastId, false);
+                reported[i] = new PodcastResult(
+                    result.PodcastId,
+                    false,
+                    result.Removed,
+                    result.YouTubePlaylistId,
+                    result.SuppressesUnrelatedShows);
             }
             else
             {
@@ -193,8 +241,8 @@ public class EpisodeResultsEnricher(
         var shows = await tvShowRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
         return
         [
-            .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!)),
-            .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!))
+            .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved())),
+            .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved()))
         ];
     }
 
@@ -230,7 +278,7 @@ public class EpisodeResultsEnricher(
             podcasts,
             x => x.IndexAllEpisodes || !string.IsNullOrEmpty(x.EpisodeIncludeTitleRegex));
 
-    private sealed record CatalogueOwner(Guid Id, CatalogueIndexingSource Indexing)
+    private sealed record CatalogueOwner(Guid Id, CatalogueIndexingSource Indexing, bool Removed)
     {
         public bool IndexAllEpisodes => Indexing.IndexAllEpisodes;
     }

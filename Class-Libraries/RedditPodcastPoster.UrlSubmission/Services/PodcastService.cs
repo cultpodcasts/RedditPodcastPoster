@@ -61,7 +61,7 @@ public class PodcastService(
         return await youTubePlaylistMembership.Contains(youTubeService, podcast.YouTubePlaylistId, videoId);
     }
 
-    private async Task<EpisodeUrlOwnerIds> GetOwnerIds(Uri url, IndexingContext indexingContext)
+    public async Task<EpisodeUrlOwnerIds> GetOwnerIds(Uri url, IndexingContext indexingContext)
     {
         if (SpotifyPodcastServiceMatcher.IsMatch(url))
         {

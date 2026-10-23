@@ -3,6 +3,7 @@ using RedditPodcastPoster.Discovery.ML;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Discovery.ML.Services;
 
 namespace RedditPodcastPoster.Discovery.Adapters;
@@ -21,10 +22,15 @@ public class EnrichedEpisodeResultsAdapter(
 
         await foreach (var episode in episodeResults)
         {
-            if (episode.PodcastResults.Any(x => x.IndexAllEpisodes))
+            if (episode.PodcastResults.Any(x => x.IndexAllEpisodes) || RemovedOwner(episode.PodcastResults))
             {
+                var removed = RemovedOwner(episode.PodcastResults);
                 logger.LogInformation(
-                    "Eliminated episode '{EpisodeResultId}' as found in indexed-podcast with podcast-id: '{Join}'.", episode.EpisodeResult.Id, string.Join(",", episode.PodcastResults.Select(x => x.PodcastId)));
+                    removed
+                        ? "Eliminated episode '{EpisodeResultId}' as found in removed-podcast with podcast-id: '{Join}'."
+                        : "Eliminated episode '{EpisodeResultId}' as found in indexed-podcast with podcast-id: '{Join}'.",
+                    episode.EpisodeResult.Id,
+                    string.Join(",", episode.PodcastResults.Select(x => x.PodcastId)));
                 continue;
             }
 
@@ -56,4 +62,13 @@ public class EnrichedEpisodeResultsAdapter(
             }
         }
     }
+
+    /// <summary>
+    /// A removed podcast drops the episode only when that podcast owns it. A removed channel-wide outlet does not
+    /// own a live playlist-scoped show on the same channel. A removed catalogue parent still does.
+    /// </summary>
+    private static bool RemovedOwner(IReadOnlyList<PodcastResult> results) =>
+        results.Any(x => x.SuppressesUnrelatedShows) ||
+        PodcastShowOwnership.RemovedShowSuppresses(
+            results.Select(x => (x.Removed, x.YouTubePlaylistId)));
 }
