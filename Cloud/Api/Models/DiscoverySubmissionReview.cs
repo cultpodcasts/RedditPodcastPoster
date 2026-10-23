@@ -28,6 +28,10 @@ public sealed class DiscoverySubmissionApplyRequest
 
     /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
     public Dictionary<Guid, string>? LanguageDecisions { get; init; }
+
+    public Dictionary<Guid, string>? IdentityDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionRetryRequest
@@ -39,6 +43,10 @@ public sealed class DiscoverySubmissionRetryRequest
 
     /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
     public Dictionary<Guid, string>? LanguageDecisions { get; init; }
+
+    public Dictionary<Guid, string>? IdentityDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionReleaseRequest
@@ -77,7 +85,10 @@ public enum DiscoverySubmissionCommandStatus
     ApplyFailed,
 
     /// <summary>Nothing was created; the caller must answer an unsupported-language prompt. Submission is not left Applying.</summary>
-    LanguageDecisionRequired
+    LanguageDecisionRequired,
+
+    /// <summary>Nothing was created; the caller must pick an authority identity. Submission is not left Applying.</summary>
+    IdentityDecisionRequired
 }
 
 public sealed record DiscoverySubmissionCommandResult(

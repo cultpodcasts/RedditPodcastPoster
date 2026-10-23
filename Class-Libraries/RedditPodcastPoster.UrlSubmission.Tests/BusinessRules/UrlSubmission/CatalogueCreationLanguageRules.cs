@@ -14,6 +14,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Languages;
@@ -52,6 +53,22 @@ public class CatalogueCreationLanguageRules
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create());
         _mocker.Use<ICatalogueLanguageGate>(new CatalogueLanguageGate(new CatalogueLanguageDetector(), registrar.Object));
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveTvShowEpisodeAsync(
+                It.IsAny<TvShow>(),
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<IFilmRepository>()
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .ReturnsAsync((Expression<Func<Film, bool>> predicate) => _films.FirstOrDefault(predicate.Compile()));

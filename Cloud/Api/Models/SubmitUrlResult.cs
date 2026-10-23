@@ -18,6 +18,9 @@ public enum SubmitUrlStatus
     /// <summary>Detected language is not supported yet; nothing was created. 200 with <c>languageDecision</c>.</summary>
     LanguageDecisionRequired,
 
+    /// <summary>Authority search is ambiguous; nothing was created. 200 with <c>identityDecision</c>.</summary>
+    IdentityDecisionRequired,
+
     /// <summary>The caller chose cancel; nothing was created.</summary>
     Cancelled
 }

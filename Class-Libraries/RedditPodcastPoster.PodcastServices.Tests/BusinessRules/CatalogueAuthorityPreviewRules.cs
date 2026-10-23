@@ -81,6 +81,9 @@ public class CatalogueAuthorityPreviewRules
         preview.TmdbId.Should().BeNull();
         preview.TvdbId.Should().BeNull();
         preview.HitLabels.Should().Equal(first, second);
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c => c.Source == CatalogueAuthorityCandidate.TmdbSource);
     }
 
     [Fact(DisplayName =

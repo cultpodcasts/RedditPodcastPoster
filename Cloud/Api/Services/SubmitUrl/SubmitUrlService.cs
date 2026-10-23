@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -83,6 +84,7 @@ public class SubmitUrlService(
 
             var supported = await SupportedLanguageCodes();
             var choice = CatalogueLanguageChoices.Parse(submitUrlModel.LanguageDecision);
+            var identityChoice = CatalogueIdentityChoices.Parse(submitUrlModel.IdentityDecision);
             var submitOptions = new SubmitOptions(
                 podcastId,
                 true,
@@ -91,7 +93,9 @@ public class SubmitUrlService(
                 Parent: parentTarget,
                 EnforceLanguageGate: true,
                 SupportedLanguageCodes: supported,
-                LanguageChoice: choice);
+                LanguageChoice: choice,
+                IdentityChoice: identityChoice,
+                SelectedIdentityKey: submitUrlModel.SelectedIdentityKey);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
@@ -112,7 +116,7 @@ public class SubmitUrlService(
                 return new SubmitUrlResult(SubmitUrlStatus.RequiresCurator, result);
             }
 
-            if (choice == CatalogueLanguageChoice.Cancel)
+            if (choice == CatalogueLanguageChoice.Cancel || identityChoice == CatalogueIdentityChoice.Cancel)
             {
                 return new SubmitUrlResult(SubmitUrlStatus.Cancelled, result);
             }
@@ -120,6 +124,11 @@ public class SubmitUrlService(
             if (result.LanguageHold is { Code: { Length: > 0 } })
             {
                 return new SubmitUrlResult(SubmitUrlStatus.LanguageDecisionRequired, result);
+            }
+
+            if (result.IdentityHold is { Candidates.Count: > 0 })
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.IdentityDecisionRequired, result);
             }
 
             var episodeId = result.Episode?.Id;

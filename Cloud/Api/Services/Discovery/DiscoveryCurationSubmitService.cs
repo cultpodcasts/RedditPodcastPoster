@@ -9,6 +9,7 @@ using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -231,6 +232,14 @@ public class DiscoveryCurationSubmitService(
                     continue;
                 }
 
+                if (result.IdentityHold is { Candidates.Count: > 0 })
+                {
+                    erroredResults.Add(discoveryResult.Id);
+                    submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id, null, null,
+                        "IdentityDecisionRequired"));
+                    continue;
+                }
+
                 submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id,
                     result.Episode?.Id ?? result.PlayableId,
                     result.Episode?.PodcastId ?? result.ParentId,
@@ -267,6 +276,7 @@ public class DiscoveryCurationSubmitService(
         var pendingResults = discoveryResultsService.GetDiscoveryResult(request);
         var discoveryResults = pendingResults is null ? [] : await pendingResults ?? [];
         var holds = new List<CatalogueLanguageHold>();
+        var identityHolds = new List<CatalogueIdentityHold>();
         var indexingContext = new IndexingContext
         {
             SkipPodcastDiscovery = false,
@@ -290,6 +300,10 @@ public class DiscoveryCurationSubmitService(
                 {
                     holds.Add(hold with { DiscoveryItemId = discoveryResult.Id });
                 }
+                else if (probed?.IdentityHold is { Candidates.Count: > 0 } identityHold)
+                {
+                    identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
+                }
             }
             catch (Exception ex)
             {
@@ -299,32 +313,54 @@ public class DiscoveryCurationSubmitService(
             }
         }
 
-        if (holds.Count == 0)
+        if (holds.Count > 0)
         {
-            return null;
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.LanguageDecisionRequired,
+                new DiscoverySubmitOutcome(
+                    "LanguageDecisionRequired",
+                    false,
+                    [],
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
+                    holds));
         }
 
-        return new DiscoveryCurationSubmitResult(
-            DiscoveryCurationSubmitStatus.LanguageDecisionRequired,
-            new DiscoverySubmitOutcome(
-                "LanguageDecisionRequired",
-                false,
-                [],
-                new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
-                holds));
+        if (identityHolds.Count > 0)
+        {
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.IdentityDecisionRequired,
+                new DiscoverySubmitOutcome(
+                    "IdentityDecisionRequired",
+                    false,
+                    [],
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
+                    IdentityDecisionsRequired: identityHolds));
+        }
+
+        return null;
     }
 
     private static DiscoverySubmitRequest WithoutCancelled(DiscoverySubmitRequest request)
     {
-        if (request.LanguageDecisions is not { Count: > 0 })
+        var cancelled = new HashSet<Guid>();
+        if (request.LanguageDecisions is { Count: > 0 })
         {
-            return request;
+            foreach (var pair in request.LanguageDecisions
+                         .Where(x => CatalogueLanguageChoices.Parse(x.Value) == CatalogueLanguageChoice.Cancel))
+            {
+                cancelled.Add(pair.Key);
+            }
         }
 
-        var cancelled = request.LanguageDecisions
-            .Where(x => CatalogueLanguageChoices.Parse(x.Value) == CatalogueLanguageChoice.Cancel)
-            .Select(x => x.Key)
-            .ToHashSet();
+        if (request.IdentityDecisions is { Count: > 0 })
+        {
+            foreach (var pair in request.IdentityDecisions
+                         .Where(x => CatalogueIdentityChoices.Parse(x.Value) == CatalogueIdentityChoice.Cancel))
+            {
+                cancelled.Add(pair.Key);
+            }
+        }
+
         if (cancelled.Count == 0)
         {
             return request;
@@ -334,7 +370,9 @@ public class DiscoveryCurationSubmitService(
         {
             DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
             ResultIds = request.ResultIds.Where(id => !cancelled.Contains(id)).ToArray(),
-            LanguageDecisions = request.LanguageDecisions
+            LanguageDecisions = request.LanguageDecisions,
+            IdentityDecisions = request.IdentityDecisions,
+            SelectedIdentityKeys = request.SelectedIdentityKeys
         };
     }
 
@@ -351,6 +389,20 @@ public class DiscoveryCurationSubmitService(
             choice = CatalogueLanguageChoices.Parse(raw);
         }
 
+        var identityChoice = CatalogueIdentityChoice.Unset;
+        string? selectedKey = null;
+        if (request.IdentityDecisions != null &&
+            request.IdentityDecisions.TryGetValue(resultId, out var identityRaw))
+        {
+            identityChoice = CatalogueIdentityChoices.Parse(identityRaw);
+        }
+
+        if (request.SelectedIdentityKeys != null &&
+            request.SelectedIdentityKeys.TryGetValue(resultId, out var key))
+        {
+            selectedKey = key;
+        }
+
         return new SubmitOptions(
             null,
             true,
@@ -359,7 +411,9 @@ public class DiscoveryCurationSubmitService(
             EnforceLanguageGate: true,
             SupportedLanguageCodes: supportedLanguageCodes,
             LanguageChoice: choice,
-            LanguageProbe: probe);
+            LanguageProbe: probe,
+            IdentityChoice: identityChoice,
+            SelectedIdentityKey: selectedKey);
     }
 
     private async Task<IReadOnlyCollection<string>> SupportedLanguageCodes()

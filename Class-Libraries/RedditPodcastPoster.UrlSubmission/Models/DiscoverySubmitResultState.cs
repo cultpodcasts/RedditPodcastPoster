@@ -12,5 +12,6 @@ public enum DiscoverySubmitResultState
     EnrichedPodcast,
     EnrichedEpisode,
     LanguageDecisionRequired,
-    LanguageProbeClear
+    LanguageProbeClear,
+    IdentityDecisionRequired
 }

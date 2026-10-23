@@ -192,7 +192,9 @@ public static class RequestModelExtensions
     {
         DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
         ResultIds = request.ResultIds,
-        LanguageDecisions = request.LanguageDecisions
+        LanguageDecisions = request.LanguageDecisions,
+        IdentityDecisions = request.IdentityDecisions,
+        SelectedIdentityKeys = request.SelectedIdentityKeys
     };
 
     public static Models.DiscoveryScheduleUpdateRequest ToModel(this DiscoveryScheduleUpdateRequest request) => new()

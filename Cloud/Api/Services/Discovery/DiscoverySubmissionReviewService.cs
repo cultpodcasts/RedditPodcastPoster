@@ -221,7 +221,9 @@ public class DiscoverySubmissionReviewService(
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = finalSet,
-            LanguageDecisions = request.LanguageDecisions
+            LanguageDecisions = request.LanguageDecisions,
+            IdentityDecisions = request.IdentityDecisions,
+            SelectedIdentityKeys = request.SelectedIdentityKeys
         }, terminal);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -233,6 +235,17 @@ public class DiscoverySubmissionReviewService(
             await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
             return new(DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
                 "A language decision is required before anything is created.",
+                Outcome: result.Outcome);
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.IdentityDecisionRequired)
+        {
+            submission.Status = previousStatus;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "IdentityDecisionRequired");
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
+            return new(DiscoverySubmissionCommandStatus.IdentityDecisionRequired,
+                "An identity decision is required before anything is created.",
                 Outcome: result.Outcome);
         }
 
@@ -346,7 +359,9 @@ public class DiscoverySubmissionReviewService(
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = toRetry,
-            LanguageDecisions = request.LanguageDecisions
+            LanguageDecisions = request.LanguageDecisions,
+            IdentityDecisions = request.IdentityDecisions,
+            SelectedIdentityKeys = request.SelectedIdentityKeys
         }, terminal);
 
         if (result.Status == DiscoveryCurationSubmitStatus.LanguageDecisionRequired)
@@ -359,6 +374,19 @@ public class DiscoverySubmissionReviewService(
             {
                 Status = DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
                 Message = "A language decision is required before anything is created."
+            };
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.IdentityDecisionRequired)
+        {
+            submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "IdentityDecisionRequired");
+            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                result.Outcome, terminal) with
+            {
+                Status = DiscoverySubmissionCommandStatus.IdentityDecisionRequired,
+                Message = "An identity decision is required before anything is created."
             };
         }
 

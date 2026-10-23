@@ -72,7 +72,9 @@ public class DiscoveryUrlSubmitter(
 
         var submitResult = await discoveryResultProcessor.CreateSubmitResult(discoveryResult, indexingContext,
             submitOptions, spotifyPodcast, applePodcast, youTubePodcast);
-        if (submitOptions.LanguageProbe || submitResult.LanguageHold != null)
+        if (submitOptions.LanguageProbe ||
+            submitResult.LanguageHold != null ||
+            submitResult.IdentityHold != null)
         {
             return ProbeResult(submitResult);
         }
@@ -107,7 +109,7 @@ public class DiscoveryUrlSubmitter(
             discoveryResult.Id, parent.Kind, parent.Parent.Name, parent.Parent.Id);
 
         var result = await catalogueParentSubmitter.Submit(parent, parentRoutes[0].Url, indexingContext, submitOptions);
-        if (submitOptions.LanguageProbe || result.LanguageHold != null)
+        if (submitOptions.LanguageProbe || result.LanguageHold != null || result.IdentityHold != null)
         {
             return ProbeResult(result);
         }
@@ -167,12 +169,13 @@ public class DiscoveryUrlSubmitter(
         new(
             submitResult.LanguageHold != null
                 ? DiscoverySubmitResultState.LanguageDecisionRequired
-                : DiscoverySubmitResultState.LanguageProbeClear,
+                : submitResult.IdentityHold != null
+                    ? DiscoverySubmitResultState.IdentityDecisionRequired
+                    : DiscoverySubmitResultState.LanguageProbeClear,
             ContentKind: submitResult.ContentKind,
             PlayableId: submitResult.PlayableId,
-            LanguageHold: submitResult.LanguageHold == null
-                ? null
-                : submitResult.LanguageHold);
+            LanguageHold: submitResult.LanguageHold,
+            IdentityHold: submitResult.IdentityHold);
 
     private static int Rank(SubmitResultState state) => state switch
     {

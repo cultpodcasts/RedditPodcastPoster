@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
@@ -24,7 +25,8 @@ public class CatalogueKindSubmitter(
     INewsOrganisationRepository newsOrganisations,
     INewsReportRepository newsReports,
     INonPodcastServiceAdapterResolver adapters,
-    ICatalogueLanguageGate languageGate) : ICatalogueKindSubmitter
+    ICatalogueLanguageGate languageGate,
+    ICatalogueIdentityEnricher identityEnricher) : ICatalogueKindSubmitter
 {
     public async Task<SubmitResult?> TrySubmit(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
@@ -93,12 +95,26 @@ public class CatalogueKindSubmitter(
                 return filmAdmission.Stop;
             }
 
+            var filmIdentity = await AdmitIdentityFilm(source, submitOptions, SubmitClassification.Film);
+            if (filmIdentity.Stop != null)
+            {
+                return filmIdentity.Stop;
+            }
+
+            if (submitOptions.LanguageProbe)
+            {
+                return LanguageProbeResult(
+                    SubmitClassification.Film,
+                    filmAdmission.Admission.SetsDefaultLanguage);
+            }
+
             var film = CreateFilm(source);
             if (filmAdmission.Admission.LanguageCode != null)
             {
                 film.Language = filmAdmission.Admission.LanguageCode;
             }
 
+            identityEnricher.ApplyMissing(film, filmIdentity.Admission.Ids);
             await films.Save(film);
             return CreatedPlayable(
                 SubmitClassification.Film,
@@ -225,6 +241,24 @@ public class CatalogueKindSubmitter(
             return (null, creatingParent, admitted.Stop, false, null);
         }
 
+        var identity = await AdmitIdentityTv(show, RequiredTitle(source), submitOptions, SubmitClassification.TvShowEpisode);
+        if (identity.Stop != null)
+        {
+            return (null, creatingParent, identity.Stop, false, null);
+        }
+
+        if (submitOptions.LanguageProbe)
+        {
+            return (
+                null,
+                creatingParent,
+                LanguageProbeResult(
+                    SubmitClassification.TvShowEpisode,
+                    admitted.Admission.SetsDefaultLanguage),
+                false,
+                null);
+        }
+
         if (creatingParent)
         {
             if (admitted.Admission.LanguageCode != null)
@@ -232,6 +266,11 @@ public class CatalogueKindSubmitter(
                 show.Language = admitted.Admission.LanguageCode;
             }
 
+            identityEnricher.ApplyMissing(show, identity.Admission.ParentIds ?? identity.Admission.Ids);
+            await tvShows.Save(show);
+        }
+        else if (identityEnricher.ApplyMissing(show, identity.Admission.ParentIds))
+        {
             await tvShows.Save(show);
         }
 
@@ -254,6 +293,7 @@ public class CatalogueKindSubmitter(
             episode.SetRelease(CatalogueRelease.FromDateTimeUtc(release));
         }
 
+        identityEnricher.ApplyMissing(episode, identity.Admission.Ids);
         await tvShowEpisodes.Save(episode);
         return (
             episode,
@@ -293,6 +333,18 @@ public class CatalogueKindSubmitter(
         if (admitted.Stop != null)
         {
             return (null, creatingParent, admitted.Stop, false, null);
+        }
+
+        if (submitOptions.LanguageProbe)
+        {
+            return (
+                null,
+                creatingParent,
+                LanguageProbeResult(
+                    SubmitClassification.NewsReport,
+                    admitted.Admission.SetsDefaultLanguage),
+                false,
+                null);
         }
 
         if (creatingParent)
@@ -389,17 +441,63 @@ public class CatalogueKindSubmitter(
                 LanguageHold: admission.Prompt));
         }
 
-        if (options.LanguageProbe)
-        {
-            return (admission, new SubmitResult(
-                SubmitResultState.None,
-                SubmitResultState.None,
-                ContentKind: contentKind,
-                DefaultLanguageFromDetection: admission.SetsDefaultLanguage));
-        }
-
+        // LanguageProbe continues so identity can also be checked before the no-write return.
         return (admission, null);
     }
+
+    private async Task<(CatalogueIdentityAdmission Admission, SubmitResult? Stop)> AdmitIdentityFilm(
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions options,
+        string contentKind)
+    {
+        var admission = await identityEnricher.ResolveFilmAsync(
+            RequiredTitle(source),
+            source.Release?.Year,
+            options.IdentityChoice,
+            options.SelectedIdentityKey).ConfigureAwait(false);
+        return IdentityStop(admission, contentKind);
+    }
+
+    private async Task<(CatalogueIdentityAdmission Admission, SubmitResult? Stop)> AdmitIdentityTv(
+        TvShow show,
+        string episodeTitle,
+        SubmitOptions options,
+        string contentKind)
+    {
+        var admission = await identityEnricher.ResolveTvShowEpisodeAsync(
+            show,
+            episodeTitle,
+            options.IdentityChoice,
+            options.SelectedIdentityKey);
+        return IdentityStop(admission, contentKind);
+    }
+
+    private static (CatalogueIdentityAdmission Admission, SubmitResult? Stop) IdentityStop(
+        CatalogueIdentityAdmission admission,
+        string contentKind)
+    {
+        if (!admission.Hold)
+        {
+            return (admission, null);
+        }
+
+        return (admission, new SubmitResult(
+            SubmitResultState.None,
+            SubmitResultState.None,
+            ContentKind: contentKind,
+            IdentityHold: admission.Prompt));
+    }
+
+    private static SubmitResult LanguageProbeResult(
+        string contentKind,
+        bool setsDefaultLanguage,
+        CatalogueIdentityHold? identityHold = null) =>
+        new(
+            SubmitResultState.None,
+            SubmitResultState.None,
+            ContentKind: contentKind,
+            DefaultLanguageFromDetection: setsDefaultLanguage,
+            IdentityHold: identityHold);
 
     private async Task<T?> FindByCanonicalUrl<T>(
         IFilterableRepository<T> repository,

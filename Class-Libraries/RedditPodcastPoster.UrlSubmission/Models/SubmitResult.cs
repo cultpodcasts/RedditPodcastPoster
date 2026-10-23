@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Languages;
@@ -16,7 +17,8 @@ public record SubmitResult(
     bool RequiresCurator = false,
     CatalogueSearchSource? CatalogueSearchSource = null,
     bool DefaultLanguageFromDetection = false,
-    CatalogueLanguageHold? LanguageHold = null
+    CatalogueLanguageHold? LanguageHold = null,
+    CatalogueIdentityHold? IdentityHold = null
 )
 {
     public override string ToString()

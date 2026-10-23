@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -34,4 +35,6 @@ public record SubmitOptions(
     bool EnforceLanguageGate = false,
     IReadOnlyCollection<string>? SupportedLanguageCodes = null,
     CatalogueLanguageChoice LanguageChoice = CatalogueLanguageChoice.Unset,
-    bool LanguageProbe = false);
+    bool LanguageProbe = false,
+    CatalogueIdentityChoice IdentityChoice = CatalogueIdentityChoice.Unset,
+    string? SelectedIdentityKey = null);

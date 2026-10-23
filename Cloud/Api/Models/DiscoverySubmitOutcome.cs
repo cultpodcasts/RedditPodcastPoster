@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.UrlSubmission.Languages;
 
@@ -19,7 +20,8 @@ public record DiscoverySubmitOutcome(
     bool ErrorsOccurred,
     IReadOnlyList<DiscoverySubmitItemOutcome> Results,
     EntitySearchIndexerResponse SearchIndexer,
-    IReadOnlyList<CatalogueLanguageHold>? LanguageDecisionsRequired = null);
+    IReadOnlyList<CatalogueLanguageHold>? LanguageDecisionsRequired = null,
+    IReadOnlyList<CatalogueIdentityHold>? IdentityDecisionsRequired = null);
 
 public static class DiscoverySubmitItemOutcomeMessages
 {

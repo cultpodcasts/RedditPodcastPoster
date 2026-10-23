@@ -61,7 +61,9 @@ public static class DiscoverySubmissionExtensions
     {
         ETag = dto.ETag,
         AbandonResultIds = dto.AbandonResultIds,
-        LanguageDecisions = dto.LanguageDecisions
+        LanguageDecisions = dto.LanguageDecisions,
+        IdentityDecisions = dto.IdentityDecisions,
+        SelectedIdentityKeys = dto.SelectedIdentityKeys
     };
 
     public static DiscoverySubmissionDetailResponse ToDto(this DiscoverySubmissionDetail detail)
@@ -132,7 +134,9 @@ public static class DiscoverySubmissionExtensions
     {
         ETag = dto.ETag,
         AcceptedResultIds = dto.AcceptedResultIds,
-        LanguageDecisions = dto.LanguageDecisions
+        LanguageDecisions = dto.LanguageDecisions,
+        IdentityDecisions = dto.IdentityDecisions,
+        SelectedIdentityKeys = dto.SelectedIdentityKeys
     };
 
     public static DiscoverySubmissionCommandResponse ToDto(this DiscoverySubmissionCommandResult result,

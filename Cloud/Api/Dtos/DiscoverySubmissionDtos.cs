@@ -276,6 +276,12 @@ public class DiscoverySubmissionRetryRequestDto
     /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
     [JsonPropertyName("languageDecisions")]
     public Dictionary<Guid, string>? LanguageDecisions { get; set; }
+
+    [JsonPropertyName("identityDecisions")]
+    public Dictionary<Guid, string>? IdentityDecisions { get; set; }
+
+    [JsonPropertyName("selectedIdentityKeys")]
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
 }
 
 /// <summary>POST DiscoverySubmissions/{id}/release.</summary>
@@ -403,6 +409,12 @@ public class DiscoverySubmissionApplyRequestDto
     /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
     [JsonPropertyName("languageDecisions")]
     public Dictionary<Guid, string>? LanguageDecisions { get; set; }
+
+    [JsonPropertyName("identityDecisions")]
+    public Dictionary<Guid, string>? IdentityDecisions { get; set; }
+
+    [JsonPropertyName("selectedIdentityKeys")]
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
 }
 
 /// <summary>Command outcome for review save / apply. Not the submission read model — GET it to rebind.</summary>

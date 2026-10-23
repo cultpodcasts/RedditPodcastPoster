@@ -30,6 +30,12 @@ public class SubmitUrlRequest
     /// <summary><c>add</c>, <c>continue</c>, or <c>cancel</c> after an unsupported-language prompt.</summary>
     public string? LanguageDecision { get; set; }
 
+    /// <summary><c>select</c>, <c>continue</c>, or <c>cancel</c> after an ambiguous-identity prompt.</summary>
+    public string? IdentityDecision { get; set; }
+
+    /// <summary>Candidate <c>key</c> when <see cref="IdentityDecision"/> is <c>select</c> (e.g. <c>tmdb:123</c>).</summary>
+    public string? SelectedIdentityKey { get; set; }
+
     /// <summary>
     /// Isolated <c>required Uri</c> only means the JSON property was present.
     /// Submit needs a non-blank absolute http(s) URL.

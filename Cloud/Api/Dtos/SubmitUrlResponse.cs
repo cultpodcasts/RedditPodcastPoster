@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -17,6 +18,11 @@ public class SubmitUrlResponse
     [JsonPropertyName("languageDecision")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LanguageDecisionBody? LanguageDecision { get; private set; }
+
+    /// <summary>Set when nothing was created because authority search matched several programmes.</summary>
+    [JsonPropertyName("identityDecision")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IdentityDecisionBody? IdentityDecision { get; private set; }
 
     /// <summary>The caller chose cancel; nothing was created.</summary>
     [JsonPropertyName("cancelled")]
@@ -42,6 +48,9 @@ public class SubmitUrlResponse
     public static SubmitUrlResponse DecisionRequired(CatalogueLanguageHold hold) =>
         new() { LanguageDecision = ToDecision(hold) };
 
+    public static SubmitUrlResponse IdentityDecisionRequired(CatalogueIdentityHold hold) =>
+        new() { IdentityDecision = ToIdentityDecision(hold) };
+
     public static SubmitUrlResponse CancelledResponse() => new() { Cancelled = true };
 
     public static SubmitUrlResponse Failure(string message = "")
@@ -60,6 +69,24 @@ public class SubmitUrlResponse
                 Label = x.Label,
                 Excerpt = x.Excerpt,
                 Reason = x.Reason
+            }).ToArray()
+        };
+
+    private static IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>
+        new()
+        {
+            Target = hold.Target,
+            Query = hold.Query,
+            Candidates = hold.Candidates.Select(x => new IdentityCandidateBody
+            {
+                Key = x.Key,
+                Title = x.Title,
+                Year = x.Year,
+                Kind = x.Kind,
+                Source = x.Source,
+                TmdbId = x.TmdbId,
+                TvdbId = x.TvdbId,
+                PageUrl = x.PageUrl?.ToString()
             }).ToArray()
         };
 
@@ -168,6 +195,52 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("signals")]
         public required LanguageSignalBody[] Signals { get; set; }
+    }
+
+    public class IdentityDecisionBody
+    {
+        /// <summary><c>Film</c>, <c>TvShow</c>, or <c>TvShowEpisode</c>.</summary>
+        [JsonPropertyName("target")]
+        public required string Target { get; set; }
+
+        [JsonPropertyName("query")]
+        public required string Query { get; set; }
+
+        [JsonPropertyName("candidates")]
+        public required IdentityCandidateBody[] Candidates { get; set; }
+    }
+
+    public class IdentityCandidateBody
+    {
+        /// <summary>Opaque key to send back as <c>selectedIdentityKey</c> with <c>identityDecision: select</c>.</summary>
+        [JsonPropertyName("key")]
+        public required string Key { get; set; }
+
+        [JsonPropertyName("title")]
+        public required string Title { get; set; }
+
+        [JsonPropertyName("year")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? Year { get; set; }
+
+        [JsonPropertyName("kind")]
+        public required string Kind { get; set; }
+
+        /// <summary><c>tmdb</c> or <c>tvdb</c>.</summary>
+        [JsonPropertyName("source")]
+        public required string Source { get; set; }
+
+        [JsonPropertyName("tmdbId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? TmdbId { get; set; }
+
+        [JsonPropertyName("tvdbId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public long? TvdbId { get; set; }
+
+        [JsonPropertyName("pageUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? PageUrl { get; set; }
     }
 
     public class LanguageSignalBody

@@ -30,6 +30,8 @@ public class PostDiscoveryCurationHandler(
                 await ctx.Ok(result.Outcome!.ToDto(), c),
             DiscoveryCurationSubmitStatus.LanguageDecisionRequired =>
                 await ctx.Ok(result.Outcome!.ToDto(), c),
+            DiscoveryCurationSubmitStatus.IdentityDecisionRequired =>
+                await ctx.Ok(result.Outcome!.ToDto(), c),
             DiscoveryCurationSubmitStatus.Conflict =>
                 await ctx.Conflict(new DiscoveryUnavailableReportsResponse
                 {
