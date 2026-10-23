@@ -125,7 +125,8 @@ public class CatalogueKindSubmitter(
                 SubmitClassification.TvShowEpisode,
                 saved.Episode!.Id,
                 saved.ParentCreated,
-                saved.SetsDefaultLanguage);
+                saved.SetsDefaultLanguage,
+                saved.SearchSource);
         }
 
         if (classified.ContentKind == SubmitClassification.NewsReport)
@@ -146,7 +147,8 @@ public class CatalogueKindSubmitter(
                 SubmitClassification.NewsReport,
                 saved.Report!.Id,
                 saved.ParentCreated,
-                saved.SetsDefaultLanguage);
+                saved.SetsDefaultLanguage,
+                saved.SearchSource);
         }
 
         return null;
@@ -163,12 +165,14 @@ public class CatalogueKindSubmitter(
         string contentKind,
         Guid playableId,
         bool parentCreated,
-        bool defaultLanguageFromDetection = false) =>
+        bool defaultLanguageFromDetection = false,
+        CatalogueSearchSource? searchSource = null) =>
         new(
             SubmitResultState.Created,
             parentCreated ? SubmitResultState.Created : SubmitResultState.None,
             ContentKind: contentKind,
             PlayableId: playableId,
+            CatalogueSearchSource: searchSource,
             DefaultLanguageFromDetection: defaultLanguageFromDetection);
 
     private Film CreateFilm(ResolvedNonPodcastServiceItem source)
@@ -178,7 +182,8 @@ public class CatalogueKindSubmitter(
             Description = source.Description ?? string.Empty,
             Length = source.Duration ?? TimeSpan.Zero,
             Explicit = source.Explicit,
-            Services = ServiceMap(source)
+            Services = ServiceMap(source),
+            PublisherName = TrimmedOrEmpty(source.Publisher)
         };
         if (source.Release is { } release)
         {
@@ -188,7 +193,7 @@ public class CatalogueKindSubmitter(
         return film;
     }
 
-    private async Task<(TvShowEpisode? Episode, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage)> SaveTvShowEpisode(
+    private async Task<(TvShowEpisode? Episode, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource)> SaveTvShowEpisode(
         ResolvedNonPodcastServiceItem source,
         SubmitOptions submitOptions)
     {
@@ -201,7 +206,9 @@ public class CatalogueKindSubmitter(
         }
 
         var creatingParent = parents.Count == 0;
-        var show = creatingParent ? new TvShow(name) : parents[0];
+        var show = creatingParent
+            ? new TvShow(name) { PublisherName = TrimmedOrEmpty(source.Publisher) }
+            : parents[0];
         var admitted = await AdmitOrStop(
             CatalogueLanguageTextReader.ForParentAndChild(
                 show.Name,
@@ -215,7 +222,7 @@ public class CatalogueKindSubmitter(
             SubmitClassification.TvShowEpisode);
         if (admitted.Stop != null)
         {
-            return (null, creatingParent, admitted.Stop, false);
+            return (null, creatingParent, admitted.Stop, false, null);
         }
 
         if (creatingParent)
@@ -248,10 +255,15 @@ public class CatalogueKindSubmitter(
         }
 
         await tvShowEpisodes.Save(episode);
-        return (episode, creatingParent, null, admitted.Admission.SetsDefaultLanguage);
+        return (
+            episode,
+            creatingParent,
+            null,
+            admitted.Admission.SetsDefaultLanguage,
+            ImmediateSearchSource(show, episode, CatalogueParentKind.TvShow));
     }
 
-    private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage)> SaveNewsReport(
+    private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource)> SaveNewsReport(
         ResolvedNonPodcastServiceItem source,
         SubmitOptions submitOptions)
     {
@@ -264,7 +276,9 @@ public class CatalogueKindSubmitter(
         }
 
         var creatingParent = parents.Count == 0;
-        var organisation = creatingParent ? new NewsOrganisation(name) : parents[0];
+        var organisation = creatingParent
+            ? new NewsOrganisation(name) { PublisherName = TrimmedOrEmpty(source.Publisher) }
+            : parents[0];
         var admitted = await AdmitOrStop(
             CatalogueLanguageTextReader.ForParentAndChild(
                 organisation.Name,
@@ -278,7 +292,7 @@ public class CatalogueKindSubmitter(
             SubmitClassification.NewsReport);
         if (admitted.Stop != null)
         {
-            return (null, creatingParent, admitted.Stop, false);
+            return (null, creatingParent, admitted.Stop, false, null);
         }
 
         if (creatingParent)
@@ -311,8 +325,39 @@ public class CatalogueKindSubmitter(
         }
 
         await newsReports.Save(report);
-        return (report, creatingParent, null, admitted.Admission.SetsDefaultLanguage);
+        return (
+            report,
+            creatingParent,
+            null,
+            admitted.Admission.SetsDefaultLanguage,
+            ImmediateSearchSource(organisation, report, CatalogueParentKind.NewsOrganisation));
     }
+
+    /// <summary>
+    /// Same transient-podcast projection <see cref="CatalogueParentSubmitter"/> uses so the host can upload
+    /// the search document immediately. Kind-classified creates previously returned only a playable id, so
+    /// <c>SubmitUrlService</c> exited without indexing and the item waited for the pull indexer.
+    /// </summary>
+    private static CatalogueSearchSource ImmediateSearchSource(
+        Publisher parent,
+        Playable playable,
+        CatalogueParentKind kind)
+    {
+        var indexing = parent switch
+        {
+            TvShow show => show.Indexing,
+            NewsOrganisation organisation => organisation.Indexing,
+            _ => null
+        };
+        var transient = (indexing ?? new CatalogueIndexingSource()).ToTransientPodcast(parent);
+        return new CatalogueSearchSource(
+            transient,
+            CatalogueParentKnownEpisodes.ToEpisode(playable, transient),
+            kind);
+    }
+
+    private static string TrimmedOrEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
     private async Task<(CatalogueLanguageAdmission Admission, SubmitResult? Stop)> AdmitOrStop(
         CatalogueLanguageTexts texts,
