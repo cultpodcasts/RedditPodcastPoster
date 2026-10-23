@@ -220,7 +220,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
             .AddScoped<IPostSupportedLanguagesHandler, PostSupportedLanguagesHandler>()
             .AddScoped<IDeleteSupportedLanguagesHandler, DeleteSupportedLanguagesHandler>()
-            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
+            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>()
+            .AddScoped<RedditPodcastPoster.UrlSubmission.Languages.ISupportedLanguageRegistrar, SupportedLanguageRegistrar>();
 
     public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
         services

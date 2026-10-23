@@ -23,7 +23,8 @@ public class PodcastAndEpisodeFactory(
 {
     public async Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
         CategorisedItem categorisedItem,
-        string? podcastName = null)
+        string? podcastName = null,
+        string? defaultLanguage = null)
     {
         string showName;
         string publisher;
@@ -56,6 +57,12 @@ public class PodcastAndEpisodeFactory(
         }
 
         var newPodcast = await podcastFactory.Create(showName);
+        var storedLanguage = EpisodeLanguageResolution.ToStoredLanguage(defaultLanguage);
+        if (storedLanguage != null)
+        {
+            newPodcast.Language = storedLanguage;
+        }
+
         newPodcast.PublisherName = publisher;
         newPodcast.SpotifyId = categorisedItem.ResolvedSpotifyItem?.ShowId ?? string.Empty;
         newPodcast.AppleId = categorisedItem.ResolvedAppleItem?.ShowId;

@@ -17,6 +17,41 @@ public class DiscoverySubmitResponse
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public required SearchIndexerState SearchIndexerState { get; set; }
 
+    /// <summary>Items that must be answered before anything is created. Empty results accompany this.</summary>
+    [JsonPropertyName("languageDecisionsRequired")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LanguageDecision[]? LanguageDecisionsRequired { get; set; }
+
+    public class LanguageDecision
+    {
+        [JsonPropertyName("discoveryItemId")]
+        public required Guid DiscoveryItemId { get; set; }
+
+        [JsonPropertyName("code")]
+        public required string Code { get; set; }
+
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+
+        [JsonPropertyName("signals")]
+        public required LanguageSignal[] Signals { get; set; }
+    }
+
+    public class LanguageSignal
+    {
+        [JsonPropertyName("field")]
+        public required string Field { get; set; }
+
+        [JsonPropertyName("label")]
+        public required string Label { get; set; }
+
+        [JsonPropertyName("excerpt")]
+        public required string Excerpt { get; set; }
+
+        [JsonPropertyName("reason")]
+        public required string Reason { get; set; }
+    }
+
     public class Item
     {
         [JsonPropertyName("discoveryItemId")]

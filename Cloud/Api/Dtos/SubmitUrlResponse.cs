@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using RedditPodcastPoster.People.Models;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace Api.Dtos;
@@ -12,6 +13,16 @@ public class SubmitUrlResponse
     [JsonPropertyName("error")]
     public string? Error { get; private set; }
 
+    /// <summary>Set when nothing was created because the detected language is not supported yet.</summary>
+    [JsonPropertyName("languageDecision")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LanguageDecisionBody? LanguageDecision { get; private set; }
+
+    /// <summary>The caller chose cancel; nothing was created.</summary>
+    [JsonPropertyName("cancelled")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Cancelled { get; private set; }
+
     public static SubmitUrlResponse Successful(SubmitResult result)
     {
         return new SubmitUrlResponse
@@ -23,14 +34,34 @@ public class SubmitUrlResponse
                 result.Episode?.Id,
                 result.Podcast?.Id,
                 result.ContentKind,
-                result.PlayableId)
+                result.PlayableId,
+                result.DefaultLanguageFromDetection)
         };
     }
+
+    public static SubmitUrlResponse DecisionRequired(CatalogueLanguageHold hold) =>
+        new() { LanguageDecision = ToDecision(hold) };
+
+    public static SubmitUrlResponse CancelledResponse() => new() { Cancelled = true };
 
     public static SubmitUrlResponse Failure(string message = "")
     {
         return new SubmitUrlResponse { Error = message };
     }
+
+    private static LanguageDecisionBody ToDecision(CatalogueLanguageHold hold) =>
+        new()
+        {
+            Code = hold.Code,
+            Name = hold.Name,
+            Signals = hold.Signals.Select(x => new LanguageSignalBody
+            {
+                Field = x.Field,
+                Label = x.Label,
+                Excerpt = x.Excerpt,
+                Reason = x.Reason
+            }).ToArray()
+        };
 
     private static ItemState ToItemState(SubmitResultState submitResultState)
     {
@@ -94,7 +125,8 @@ public class SubmitUrlResponse
         Guid? episodeId,
         Guid? podcastId,
         string? contentKind = null,
-        Guid? playableId = null)
+        Guid? playableId = null,
+        bool defaultLanguageFromDetection = false)
     {
         [JsonPropertyName("episode")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -120,6 +152,37 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("episodeDetails")]
         public EpisodeDetails? EpisodeDetails { get; private set; } = submitEpisodeDetails;
+
+        /// <summary>True when this create stored a detected non-English default language on a new parent.</summary>
+        [JsonPropertyName("defaultLanguageFromDetection")]
+        public bool DefaultLanguageFromDetection { get; private set; } = defaultLanguageFromDetection;
+    }
+
+    public class LanguageDecisionBody
+    {
+        [JsonPropertyName("code")]
+        public required string Code { get; set; }
+
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+
+        [JsonPropertyName("signals")]
+        public required LanguageSignalBody[] Signals { get; set; }
+    }
+
+    public class LanguageSignalBody
+    {
+        [JsonPropertyName("field")]
+        public required string Field { get; set; }
+
+        [JsonPropertyName("label")]
+        public required string Label { get; set; }
+
+        [JsonPropertyName("excerpt")]
+        public required string Excerpt { get; set; }
+
+        [JsonPropertyName("reason")]
+        public required string Reason { get; set; }
     }
 
     public class EpisodeDetails(

@@ -7,5 +7,6 @@ public interface IPodcastAndEpisodeFactory
 {
     Task<CreatePodcastWithEpisodeResponse> CreatePodcastWithEpisode(
         CategorisedItem categorisedItem,
-        string? podcastName = null);
+        string? podcastName = null,
+        string? defaultLanguage = null);
 }

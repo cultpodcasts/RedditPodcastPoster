@@ -6,6 +6,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
@@ -17,10 +18,21 @@ public class CategorisedItemProcessor(
     IPodcastAndEpisodeFactory podcastAndEpisodeFactory,
     IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CategorisedItem> logger,
+    ICatalogueLanguageGate? languageGate = null,
     ICatalogueKindSubmitter? catalogueKindSubmitter = null) : ICategorisedItemProcessor
 {
     public async Task<SubmitResult> ProcessCategorisedItem(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
+        if (submitOptions.LanguageChoice == CatalogueLanguageChoice.Cancel)
+        {
+            return LanguageHold(new CatalogueLanguageHold(string.Empty, string.Empty, []));
+        }
+
+        if (languageGate == null && (submitOptions.EnforceLanguageGate || submitOptions.LanguageProbe))
+        {
+            throw new InvalidOperationException("Language gate is not configured.");
+        }
+
         if (catalogueKindSubmitter != null)
         {
             var kindResult = await catalogueKindSubmitter.TrySubmit(categorisedItem, submitOptions);
@@ -63,6 +75,23 @@ public class CategorisedItemProcessor(
         if (categorisedItem.MatchingPodcast != null)
         {
             submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
+            if (submitResult.EpisodeResult == SubmitResultState.Created && submitOptions.EnforceLanguageGate)
+            {
+                var admission = await Admit(categorisedItem, creatingNewParent: false, submitOptions);
+                if (admission.Hold)
+                {
+                    return LanguageHold(admission.Prompt!);
+                }
+
+                if (submitOptions.LanguageProbe)
+                {
+                    return Probe(admission);
+                }
+            }
+            else if (submitOptions.LanguageProbe)
+            {
+                return Probe(CatalogueLanguageAdmission.Proceed());
+            }
 
             if (submitOptions.PersistToDatabase)
             {
@@ -84,14 +113,35 @@ public class CategorisedItemProcessor(
         }
         else
         {
+            var admission = CatalogueLanguageAdmission.Proceed();
+            if (submitOptions.EnforceLanguageGate)
+            {
+                admission = await Admit(categorisedItem, creatingNewParent: true, submitOptions);
+                if (admission.Hold)
+                {
+                    return LanguageHold(admission.Prompt!);
+                }
+
+                if (submitOptions.LanguageProbe)
+                {
+                    return Probe(admission);
+                }
+            }
+            else if (submitOptions.LanguageProbe)
+            {
+                return Probe(admission);
+            }
+
             var result = await podcastAndEpisodeFactory.CreatePodcastWithEpisode(
                 categorisedItem,
-                submitOptions.PodcastName);
+                submitOptions.PodcastName,
+                admission.LanguageCode);
             submitResult = new SubmitResult(SubmitResultState.Created,
                 SubmitResultState.Created,
                 result.SubmitEpisodeDetails,
                 result.NewEpisode,
-                result.NewPodcast);
+                result.NewPodcast,
+                DefaultLanguageFromDetection: admission.SetsDefaultLanguage);
             if (submitOptions.PersistToDatabase)
             {
                 await podcastRepository.Save(result.NewPodcast);
@@ -141,6 +191,27 @@ public class CategorisedItemProcessor(
         LogSubmitEpisodeState(submitResult);
         return submitResult;
     }
+
+    private Task<CatalogueLanguageAdmission> Admit(
+        CategorisedItem categorisedItem,
+        bool creatingNewParent,
+        SubmitOptions submitOptions) =>
+        languageGate!.Evaluate(
+            CatalogueLanguageTextReader.FromCategorisedItem(
+                categorisedItem,
+                submitOptions.PodcastName,
+                creatingNewParent ? null : categorisedItem.MatchingPodcast),
+            creatingNewParent,
+            submitOptions);
+
+    private static SubmitResult LanguageHold(CatalogueLanguageHold hold) =>
+        new(SubmitResultState.None, SubmitResultState.None, LanguageHold: hold);
+
+    private static SubmitResult Probe(CatalogueLanguageAdmission admission) =>
+        new(
+            SubmitResultState.None,
+            SubmitResultState.None,
+            DefaultLanguageFromDetection: admission.SetsDefaultLanguage);
 
     private async Task PromoteCreatedEpisodeIfEligible(
         Podcast podcast,

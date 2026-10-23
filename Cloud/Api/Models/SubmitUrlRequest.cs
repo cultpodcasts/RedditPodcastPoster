@@ -27,6 +27,9 @@ public class SubmitUrlRequest
     /// </summary>
     public NonPodcastServiceItemMetaData? PrefetchedMeta { get; set; }
 
+    /// <summary><c>add</c>, <c>continue</c>, or <c>cancel</c> after an unsupported-language prompt.</summary>
+    public string? LanguageDecision { get; set; }
+
     /// <summary>
     /// Isolated <c>required Uri</c> only means the JSON property was present.
     /// Submit needs a non-blank absolute http(s) URL.

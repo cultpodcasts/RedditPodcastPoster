@@ -1,4 +1,5 @@
 using RedditPodcastPoster.EntitySearchIndexer.Models;
+using RedditPodcastPoster.UrlSubmission.Languages;
 
 namespace Api.Models;
 
@@ -17,7 +18,8 @@ public record DiscoverySubmitOutcome(
     string Message,
     bool ErrorsOccurred,
     IReadOnlyList<DiscoverySubmitItemOutcome> Results,
-    EntitySearchIndexerResponse SearchIndexer);
+    EntitySearchIndexerResponse SearchIndexer,
+    IReadOnlyList<CatalogueLanguageHold>? LanguageDecisionsRequired = null);
 
 public static class DiscoverySubmitItemOutcomeMessages
 {

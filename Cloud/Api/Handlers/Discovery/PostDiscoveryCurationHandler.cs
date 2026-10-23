@@ -28,6 +28,8 @@ public class PostDiscoveryCurationHandler(
         {
             DiscoveryCurationSubmitStatus.Ok =>
                 await ctx.Ok(result.Outcome!.ToDto(), c),
+            DiscoveryCurationSubmitStatus.LanguageDecisionRequired =>
+                await ctx.Ok(result.Outcome!.ToDto(), c),
             DiscoveryCurationSubmitStatus.Conflict =>
                 await ctx.Conflict(new DiscoveryUnavailableReportsResponse
                 {

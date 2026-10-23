@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.UrlSubmission.Languages;
 
 namespace RedditPodcastPoster.UrlSubmission.Models;
 
@@ -17,5 +18,6 @@ public record DiscoverySubmitResult(
     string? ContentKind = null,
     Guid? PlayableId = null,
     Guid? ParentId = null,
-    CatalogueSearchSource? CatalogueSearchSource = null
+    CatalogueSearchSource? CatalogueSearchSource = null,
+    CatalogueLanguageHold? LanguageHold = null
 );

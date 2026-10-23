@@ -191,7 +191,8 @@ public static class RequestModelExtensions
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {
         DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
-        ResultIds = request.ResultIds
+        ResultIds = request.ResultIds,
+        LanguageDecisions = request.LanguageDecisions
     };
 
     public static Models.DiscoveryScheduleUpdateRequest ToModel(this DiscoveryScheduleUpdateRequest request) => new()
@@ -239,7 +240,8 @@ public static class RequestModelExtensions
         ParentKind = request.ParentKind,
         ParentId = request.ParentId,
         ParentName = request.ParentName,
-        PrefetchedMeta = request.PrefetchedMeta
+        PrefetchedMeta = request.PrefetchedMeta,
+        LanguageDecision = request.LanguageDecision
     };
 
     public static Models.SubmitUrlPrepareRequest ToModel(this SubmitUrlPrepareRequest request) => new()

@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
@@ -34,6 +35,7 @@ public class CatalogueParentSubmitter(
     IPodcastProcessor podcastProcessor,
     INewsReportRepository newsReports,
     ITvShowEpisodeRepository tvShowEpisodes,
+    ICatalogueLanguageGate languageGate,
     ILogger<CatalogueParentSubmitter> logger) : ICatalogueParentSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -106,6 +108,48 @@ public class CatalogueParentSubmitter(
             TvShow show => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             _ => throw new InvalidOperationException($"Unsupported catalogue parent '{parent.Parent.GetType().Name}'.")
         };
+
+        if (submitOptions.LanguageChoice == CatalogueLanguageChoice.Cancel)
+        {
+            return new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: parent.ContentKind,
+                LanguageHold: new CatalogueLanguageHold(string.Empty, string.Empty, []));
+        }
+
+        if (submitOptions.EnforceLanguageGate || submitOptions.LanguageProbe)
+        {
+            var parentNoun = parent.Kind == CatalogueParentKind.NewsOrganisation ? "News organisation" : "TV show";
+            var childNoun = parent.Kind == CatalogueParentKind.NewsOrganisation ? "Report" : "Episode";
+            var admission = await languageGate.Evaluate(
+                CatalogueLanguageTextReader.ForParentAndChild(
+                    parent.Parent.Name,
+                    parent.Parent.Description,
+                    episode.Title,
+                    episode.Description,
+                    parentNoun,
+                    childNoun),
+                creatingNewParent: false,
+                submitOptions);
+            if (admission.Hold)
+            {
+                return new SubmitResult(
+                    SubmitResultState.None,
+                    SubmitResultState.None,
+                    ContentKind: parent.ContentKind,
+                    LanguageHold: admission.Prompt);
+            }
+
+            if (submitOptions.LanguageProbe)
+            {
+                return new SubmitResult(
+                    SubmitResultState.None,
+                    SubmitResultState.None,
+                    ContentKind: parent.ContentKind,
+                    DefaultLanguageFromDetection: admission.SetsDefaultLanguage);
+            }
+        }
 
         if (!submitOptions.PersistToDatabase)
         {

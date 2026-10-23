@@ -27,4 +27,10 @@ public class SubmitUrlRequest
     /// caller — do not forward SPA-supplied meta on public submit bodies.
     /// </summary>
     public NonPodcastServiceItemMetaData? PrefetchedMeta { get; set; }
+
+    /// <summary>
+    /// Answer to an unsupported-language prompt: <c>add</c>, <c>continue</c>, or <c>cancel</c>.
+    /// Absent on the first submit, which detects before anything is created.
+    /// </summary>
+    public string? LanguageDecision { get; set; }
 }

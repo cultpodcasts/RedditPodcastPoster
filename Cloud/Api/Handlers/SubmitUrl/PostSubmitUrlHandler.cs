@@ -21,6 +21,10 @@ public class PostSubmitUrlHandler(
         {
             SubmitUrlStatus.Ok =>
                 await ctx.Ok(SubmitUrlResponse.Successful(result.Result!), c),
+            SubmitUrlStatus.LanguageDecisionRequired =>
+                await ctx.Ok(SubmitUrlResponse.DecisionRequired(result.Result!.LanguageHold!), c),
+            SubmitUrlStatus.Cancelled =>
+                await ctx.Ok(SubmitUrlResponse.CancelledResponse(), c),
             SubmitUrlStatus.PodcastNotFound =>
                 await ctx.NotFound(new { message = result.Message }, c),
             SubmitUrlStatus.ParentNotFound =>

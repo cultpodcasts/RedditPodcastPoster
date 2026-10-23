@@ -3,9 +3,11 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
@@ -17,6 +19,7 @@ public class SubmitUrlService(
     IPodcastRepository repository,
     IUrlSubmitter urlSubmitter,
     IEpisodeSearchIndexerService episodeSearchIndexerService,
+    ILookupRepository lookupRepository,
     ILogger<SubmitUrlService> logger,
     IPlayableSearchDocumentSwap playableSearch) : ISubmitUrlService
 {
@@ -78,12 +81,17 @@ public class SubmitUrlService(
                 }
             }
 
+            var supported = await SupportedLanguageCodes();
+            var choice = CatalogueLanguageChoices.Parse(submitUrlModel.LanguageDecision);
             var submitOptions = new SubmitOptions(
                 podcastId,
                 true,
                 PodcastName: submitUrlModel.PodcastName,
                 PrefetchedMeta: submitUrlModel.PrefetchedMeta,
-                Parent: parentTarget);
+                Parent: parentTarget,
+                EnforceLanguageGate: true,
+                SupportedLanguageCodes: supported,
+                LanguageChoice: choice);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
@@ -102,6 +110,16 @@ public class SubmitUrlService(
             if (result.RequiresCurator)
             {
                 return new SubmitUrlResult(SubmitUrlStatus.RequiresCurator, result);
+            }
+
+            if (choice == CatalogueLanguageChoice.Cancel)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.Cancelled, result);
+            }
+
+            if (result.LanguageHold is { Code: { Length: > 0 } })
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.LanguageDecisionRequired, result);
             }
 
             var episodeId = result.Episode?.Id;
@@ -206,4 +224,12 @@ public class SubmitUrlService(
     /// <summary>A URL routed to a news organisation / TV show is indexed now, like a podcast episode.</summary>
     private Task IndexCatalogueParentItem(CatalogueSearchSource source, CancellationToken cancellationToken) =>
         CatalogueSubmitSearchIndexing.IndexAsync(playableSearch, source, logger, cancellationToken);
+
+    private async Task<IReadOnlyCollection<string>> SupportedLanguageCodes()
+    {
+        var pending = lookupRepository.GetSupportedLanguagesConfig();
+        var config = pending == null ? null : await pending;
+        config ??= SupportedLanguagesConfig.CreateDefault();
+        return config.Languages.Select(x => x.Code).ToArray();
+    }
 }

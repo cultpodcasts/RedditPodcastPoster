@@ -272,6 +272,10 @@ public class DiscoverySubmissionRetryRequestDto
     /// <summary>Failed items to abandon instead of retrying.</summary>
     [JsonPropertyName("abandonResultIds")]
     public Guid[]? AbandonResultIds { get; set; }
+
+    /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
+    [JsonPropertyName("languageDecisions")]
+    public Dictionary<Guid, string>? LanguageDecisions { get; set; }
 }
 
 /// <summary>POST DiscoverySubmissions/{id}/release.</summary>
@@ -395,6 +399,10 @@ public class DiscoverySubmissionApplyRequestDto
     /// <summary>Optional final accepted set; when omitted the saved review set (else the submitter's set) applies.</summary>
     [JsonPropertyName("acceptedResultIds")]
     public Guid[]? AcceptedResultIds { get; set; }
+
+    /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
+    [JsonPropertyName("languageDecisions")]
+    public Dictionary<Guid, string>? LanguageDecisions { get; set; }
 }
 
 /// <summary>Command outcome for review save / apply. Not the submission read model — GET it to rebind.</summary>

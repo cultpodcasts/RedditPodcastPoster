@@ -60,7 +60,8 @@ public static class DiscoverySubmissionExtensions
     public static DiscoverySubmissionRetryRequest ToModel(this DiscoverySubmissionRetryRequestDto dto) => new()
     {
         ETag = dto.ETag,
-        AbandonResultIds = dto.AbandonResultIds
+        AbandonResultIds = dto.AbandonResultIds,
+        LanguageDecisions = dto.LanguageDecisions
     };
 
     public static DiscoverySubmissionDetailResponse ToDto(this DiscoverySubmissionDetail detail)
@@ -130,7 +131,8 @@ public static class DiscoverySubmissionExtensions
     public static DiscoverySubmissionApplyRequest ToModel(this DiscoverySubmissionApplyRequestDto dto) => new()
     {
         ETag = dto.ETag,
-        AcceptedResultIds = dto.AcceptedResultIds
+        AcceptedResultIds = dto.AcceptedResultIds,
+        LanguageDecisions = dto.LanguageDecisions
     };
 
     public static DiscoverySubmissionCommandResponse ToDto(this DiscoverySubmissionCommandResult result,

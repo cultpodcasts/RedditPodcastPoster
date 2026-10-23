@@ -2,6 +2,7 @@ using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Languages;
 
 namespace RedditPodcastPoster.UrlSubmission.Models;
 
@@ -29,4 +30,8 @@ public record SubmitOptions(
     bool RefreshMeta = false,
     SubmitClassificationSignals? ClassificationSignals = null,
     CatalogueParentTarget? Parent = null,
-    bool EnrichOnly = false);
+    bool EnrichOnly = false,
+    bool EnforceLanguageGate = false,
+    IReadOnlyCollection<string>? SupportedLanguageCodes = null,
+    CatalogueLanguageChoice LanguageChoice = CatalogueLanguageChoice.Unset,
+    bool LanguageProbe = false);

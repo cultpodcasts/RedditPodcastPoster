@@ -9,6 +9,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,8 @@ public class CatalogueKindSubmitter(
     ITvShowEpisodeRepository tvShowEpisodes,
     INewsOrganisationRepository newsOrganisations,
     INewsReportRepository newsReports,
-    INonPodcastServiceAdapterResolver adapters) : ICatalogueKindSubmitter
+    INonPodcastServiceAdapterResolver adapters,
+    ICatalogueLanguageGate languageGate) : ICatalogueKindSubmitter
 {
     public async Task<SubmitResult?> TrySubmit(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
@@ -61,7 +63,10 @@ public class CatalogueKindSubmitter(
             return AlreadyExists(SubmitClassification.Episode, existingEpisode.Id);
         }
 
-        if (!submitOptions.PersistToDatabase)
+        if (!submitOptions.PersistToDatabase &&
+            !submitOptions.EnforceLanguageGate &&
+            !submitOptions.LanguageProbe &&
+            submitOptions.LanguageChoice != CatalogueLanguageChoice.Cancel)
         {
             return new SubmitResult(
                 SubmitResultState.Created,
@@ -77,9 +82,29 @@ public class CatalogueKindSubmitter(
                 return AlreadyExists(SubmitClassification.Film, existing.Id);
             }
 
+            var filmAdmission = await AdmitOrStop(
+                CatalogueLanguageTextReader.ForParentAndChild(
+                    source.Title, source.Description, source.Title, source.Description, "Film", "Film"),
+                creatingNewParent: true,
+                submitOptions,
+                SubmitClassification.Film);
+            if (filmAdmission.Stop != null)
+            {
+                return filmAdmission.Stop;
+            }
+
             var film = CreateFilm(source);
+            if (filmAdmission.Admission.LanguageCode != null)
+            {
+                film.Language = filmAdmission.Admission.LanguageCode;
+            }
+
             await films.Save(film);
-            return CreatedPlayable(SubmitClassification.Film, film.Id, parentCreated: false);
+            return CreatedPlayable(
+                SubmitClassification.Film,
+                film.Id,
+                parentCreated: false,
+                filmAdmission.Admission.SetsDefaultLanguage);
         }
 
         if (classified.ContentKind == SubmitClassification.TvShowEpisode)
@@ -91,7 +116,16 @@ public class CatalogueKindSubmitter(
             }
 
             var saved = await SaveTvShowEpisode(source, submitOptions);
-            return CreatedPlayable(SubmitClassification.TvShowEpisode, saved.Episode.Id, saved.ParentCreated);
+            if (saved.Stop != null)
+            {
+                return saved.Stop;
+            }
+
+            return CreatedPlayable(
+                SubmitClassification.TvShowEpisode,
+                saved.Episode!.Id,
+                saved.ParentCreated,
+                saved.SetsDefaultLanguage);
         }
 
         if (classified.ContentKind == SubmitClassification.NewsReport)
@@ -103,7 +137,16 @@ public class CatalogueKindSubmitter(
             }
 
             var saved = await SaveNewsReport(source, submitOptions);
-            return CreatedPlayable(SubmitClassification.NewsReport, saved.Report.Id, saved.ParentCreated);
+            if (saved.Stop != null)
+            {
+                return saved.Stop;
+            }
+
+            return CreatedPlayable(
+                SubmitClassification.NewsReport,
+                saved.Report!.Id,
+                saved.ParentCreated,
+                saved.SetsDefaultLanguage);
         }
 
         return null;
@@ -116,12 +159,17 @@ public class CatalogueKindSubmitter(
             ContentKind: contentKind,
             PlayableId: playableId);
 
-    private static SubmitResult CreatedPlayable(string contentKind, Guid playableId, bool parentCreated) =>
+    private static SubmitResult CreatedPlayable(
+        string contentKind,
+        Guid playableId,
+        bool parentCreated,
+        bool defaultLanguageFromDetection = false) =>
         new(
             SubmitResultState.Created,
             parentCreated ? SubmitResultState.Created : SubmitResultState.None,
             ContentKind: contentKind,
-            PlayableId: playableId);
+            PlayableId: playableId,
+            DefaultLanguageFromDetection: defaultLanguageFromDetection);
 
     private Film CreateFilm(ResolvedNonPodcastServiceItem source)
     {
@@ -140,7 +188,7 @@ public class CatalogueKindSubmitter(
         return film;
     }
 
-    private async Task<(TvShowEpisode Episode, bool ParentCreated)> SaveTvShowEpisode(
+    private async Task<(TvShowEpisode? Episode, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage)> SaveTvShowEpisode(
         ResolvedNonPodcastServiceItem source,
         SubmitOptions submitOptions)
     {
@@ -152,9 +200,31 @@ public class CatalogueKindSubmitter(
                 SubmitClassification.TvShowEpisode, name, parents.Select(show => show.Id).ToArray());
         }
 
-        var show = parents.Count == 1 ? parents[0] : new TvShow(name);
-        if (parents.Count == 0)
+        var creatingParent = parents.Count == 0;
+        var show = creatingParent ? new TvShow(name) : parents[0];
+        var admitted = await AdmitOrStop(
+            CatalogueLanguageTextReader.ForParentAndChild(
+                show.Name,
+                creatingParent ? null : show.Description,
+                source.Title,
+                source.Description,
+                "TV show",
+                "Episode"),
+            creatingParent,
+            submitOptions,
+            SubmitClassification.TvShowEpisode);
+        if (admitted.Stop != null)
         {
+            return (null, creatingParent, admitted.Stop, false);
+        }
+
+        if (creatingParent)
+        {
+            if (admitted.Admission.LanguageCode != null)
+            {
+                show.Language = admitted.Admission.LanguageCode;
+            }
+
             await tvShows.Save(show);
         }
 
@@ -166,16 +236,22 @@ public class CatalogueKindSubmitter(
             Services = ServiceMap(source)
         };
         episode.SetTvShowProperties(show);
+        if (creatingParent && admitted.Admission.LanguageCode != null &&
+            string.IsNullOrWhiteSpace(episode.Language))
+        {
+            episode.Language = admitted.Admission.LanguageCode;
+        }
+
         if (source.Release is { } release)
         {
             episode.SetRelease(CatalogueRelease.FromDateTimeUtc(release));
         }
 
         await tvShowEpisodes.Save(episode);
-        return (episode, parents.Count == 0);
+        return (episode, creatingParent, null, admitted.Admission.SetsDefaultLanguage);
     }
 
-    private async Task<(NewsReport Report, bool ParentCreated)> SaveNewsReport(
+    private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage)> SaveNewsReport(
         ResolvedNonPodcastServiceItem source,
         SubmitOptions submitOptions)
     {
@@ -187,9 +263,31 @@ public class CatalogueKindSubmitter(
                 SubmitClassification.NewsReport, name, parents.Select(org => org.Id).ToArray());
         }
 
-        var organisation = parents.Count == 1 ? parents[0] : new NewsOrganisation(name);
-        if (parents.Count == 0)
+        var creatingParent = parents.Count == 0;
+        var organisation = creatingParent ? new NewsOrganisation(name) : parents[0];
+        var admitted = await AdmitOrStop(
+            CatalogueLanguageTextReader.ForParentAndChild(
+                organisation.Name,
+                creatingParent ? null : organisation.Description,
+                source.Title,
+                source.Description,
+                "News organisation",
+                "Report"),
+            creatingParent,
+            submitOptions,
+            SubmitClassification.NewsReport);
+        if (admitted.Stop != null)
         {
+            return (null, creatingParent, admitted.Stop, false);
+        }
+
+        if (creatingParent)
+        {
+            if (admitted.Admission.LanguageCode != null)
+            {
+                organisation.Language = admitted.Admission.LanguageCode;
+            }
+
             await newsOrganisations.Save(organisation);
         }
 
@@ -201,13 +299,61 @@ public class CatalogueKindSubmitter(
             Services = ServiceMap(source)
         };
         report.SetNewsOrganisationProperties(organisation);
+        if (creatingParent && admitted.Admission.LanguageCode != null &&
+            string.IsNullOrWhiteSpace(report.Language))
+        {
+            report.Language = admitted.Admission.LanguageCode;
+        }
+
         if (source.Release is { } release)
         {
             report.SetRelease(CatalogueRelease.FromDateTimeUtc(release));
         }
 
         await newsReports.Save(report);
-        return (report, parents.Count == 0);
+        return (report, creatingParent, null, admitted.Admission.SetsDefaultLanguage);
+    }
+
+    private async Task<(CatalogueLanguageAdmission Admission, SubmitResult? Stop)> AdmitOrStop(
+        CatalogueLanguageTexts texts,
+        bool creatingNewParent,
+        SubmitOptions options,
+        string contentKind)
+    {
+        if (options.LanguageChoice == CatalogueLanguageChoice.Cancel)
+        {
+            return (CatalogueLanguageAdmission.NeedsPrompt(new CatalogueLanguageHold(string.Empty, string.Empty, [])),
+                new SubmitResult(SubmitResultState.None, SubmitResultState.None, ContentKind: contentKind,
+                    LanguageHold: new CatalogueLanguageHold(string.Empty, string.Empty, [])));
+        }
+
+        if (!options.EnforceLanguageGate && !options.LanguageProbe)
+        {
+            return (CatalogueLanguageAdmission.Proceed(), null);
+        }
+
+        var admission = options.EnforceLanguageGate
+            ? await languageGate.Evaluate(texts, creatingNewParent, options)
+            : CatalogueLanguageAdmission.Proceed();
+        if (admission.Hold)
+        {
+            return (admission, new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: contentKind,
+                LanguageHold: admission.Prompt));
+        }
+
+        if (options.LanguageProbe)
+        {
+            return (admission, new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: contentKind,
+                DefaultLanguageFromDetection: admission.SetsDefaultLanguage));
+        }
+
+        return (admission, null);
     }
 
     private async Task<T?> FindByCanonicalUrl<T>(
