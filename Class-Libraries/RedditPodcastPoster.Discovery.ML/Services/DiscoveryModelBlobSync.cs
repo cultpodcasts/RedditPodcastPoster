@@ -102,7 +102,8 @@ public static class DiscoveryModelBlobSync
             if (manifest != null)
             {
                 logger.LogInformation(
-                    "Discovery scorer model ready from blob cache (trained {TrainedAt:O}, {Rows:N0} rows).",
+                    "Discovery scorer model {ModelVersion} ready from blob cache (trained {TrainedAt:O}, {Rows:N0} rows).",
+                    manifest.ModelVersion,
                     manifest.TrainedAt,
                     manifest.TrainingRows);
             }
