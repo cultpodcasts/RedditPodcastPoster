@@ -38,6 +38,16 @@ Manually curated playlists break both assumptions:
 
 ---
 
+## Newest-first paging stop
+
+A newest-first playlist is ordered by **added-at** (`snippet.publishedAt`). The walk used to stop when the last item's added-at fell before `ReleasedSince`. The indexing window is the **later** of added-at and `contentDetails.videoPublishedAt`, so a video added before the window can still belong in it, and on a newest-first playlist that video sits on a **later** page than the added-at stop.
+
+After the last item's added-at leaves the window, the walk keeps reading while the page just read still has an item inside the indexing window, and stops after `YouTubePlaylistService.PublishedWindowExtraPages` (**2**) of those further pages. Each extra page is one `playlistItems.list` unit. Pages read while added-at is still inside the window do not count against the bound. A page with no in-window indexing date ends the extra reads immediately: later pages are older by added-at, and this page gave no sign that a publication date is still inside the window.
+
+A video published inside the window on the next page (page 2, or the page after that while the bound lasts) is returned. A video past the bound is not read on this pass. Stopping with a next-page token still in hand stays `StoppedAtWindow`, so indexing hints are cleared rather than recorded as a complete full walk.
+
+---
+
 ## `youTubePlaylistOrder` (implemented)
 
 Nullable enum on `Podcast` (`PlaylistOrder`, JSON `youTubePlaylistOrder`):
@@ -101,3 +111,4 @@ Critical YouTube-only cases:
 | Arbitrary circuit breaker trips at MaxPages with next token remaining | `ArbitraryYouTubePlaylistWalkRules` |
 | Arbitrary leaves expensive flag untouched even if a probe value sneaks through | `YouTubeEpisodeRetrievalHandlerRules` |
 | Scheduled upload added before the window but published inside it is retained and dated by publication | `ScheduledUploadIndexingWindowRules`, `YouTubeEpisodeProviderScheduledUploadRules` |
+| Newest-first paging still returns a video added outside the window but published inside it on a later page, and stops after `PublishedWindowExtraPages` | `YouTubePublishedWindowPagingRules` |

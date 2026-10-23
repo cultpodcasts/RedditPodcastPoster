@@ -76,6 +76,30 @@ public class YouTubeUploadsHeadCheckRules
         IndexingContext? context = null) =>
         CreateSut().Check(_podcast, _hints, _playlistId, knownIds ?? [], context ?? _context);
 
+    [Theory(DisplayName =
+        "A new video appended to the tail of an oldest-first playlist is discovered from the channel uploads head " +
+        "for a podcast in any indexer batch, including a pass that skips expensive YouTube queries, because batches " +
+        "2–4 never get an expensive-allowed hour and the uploads check does not use that gate.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task tail_append_is_discovered_when_expensive_queries_are_skipped(bool skipExpensiveYouTubeQueries)
+    {
+        // Arrange — oldest-first playlist; the new video is concatenated at the tail.
+        var upload = Video(DomainTestFixture.UtcDaysAgo(1));
+        Serve([upload], [upload]);
+        var context = new IndexingContext(DomainTestFixture.UtcDaysAgo(3), SkipExpensiveYouTubeQueries: skipExpensiveYouTubeQueries)
+        {
+            UseYouTubeIndexingHints = true
+        };
+
+        // Act
+        var result = await Check(context: context);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Members.Select(x => x.Snippet.ResourceId.VideoId).Should().Equal(upload.Id);
+    }
+
     [Fact(DisplayName =
         "A new upload that is in the playlist is found for 3 quota units (count, uploads, one membership check) and " +
         "the watermark moves to it, because the count rose by exactly the members found.")]

@@ -32,6 +32,14 @@ public class YouTubePlaylistService(
     /// </summary>
     public const int OrderProbeSampleSize = 3;
 
+    /// <summary>
+    /// Extra <c>playlistItems.list</c> pages (1 quota unit each) a newest-first walk may read after the last
+    /// item's added-at has left <see cref="IndexingContext.ReleasedSince"/>. The walk continues only while the
+    /// page just read still has an item inside the indexing window (later of added-at and video-published-at),
+    /// and never more than this many pages past that added-at stop. See docs/youtube-playlist-order.md.
+    /// </summary>
+    public const int PublishedWindowExtraPages = 2;
+
     private const string PrivateVideoTitle = "Private video";
 
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
@@ -70,6 +78,8 @@ public class YouTubePlaylistService(
         var walkGuard = new YouTubePageWalkGuard(batchSize);
         var stopReason = YouTubePageWalkStopReason.None;
         var circuitBreakerTripped = false;
+        var publishedWindowExtraPagesUsed = 0;
+        List<PlaylistItem> lastPagePublicItems = [];
         // contentDetails is free on playlistItems.list (1 unit per page regardless of parts) and carries
         // videoPublishedAt, which the ReleasedSince filter below needs to window scheduled uploads on
         // their public release rather than the earlier added-to-playlist time.
@@ -79,10 +89,48 @@ public class YouTubePlaylistService(
             requestScope += ",contentDetails";
         }
 
-        while (
-            nextPageToken != null &&
-            (firstRun || (knownToBeInReverseOrder && result.Any() && result.Last().Snippet.PublishedAtDateTimeOffset
-                .ReleasedSinceDate(indexingContext.ReleasedSince)) || !knownToBeInReverseOrder))
+        // Newest-first playlists are ordered by added-at. Stopping on the last item's added-at misses a video
+        // that was added before the window (so it sits on a later page) but published inside it. After added-at
+        // leaves the window, keep reading while the page just read still has an indexing-window date inside the
+        // window, and stop after PublishedWindowExtraPages of those pages.
+        bool ShouldContinueAfterPage()
+        {
+            if (!knownToBeInReverseOrder)
+            {
+                return true;
+            }
+
+            if (!result.Any())
+            {
+                return false;
+            }
+
+            var lastAddedInWindow = result.Last().Snippet.PublishedAtDateTimeOffset
+                .ReleasedSinceDate(indexingContext.ReleasedSince);
+            if (lastAddedInWindow)
+            {
+                return true;
+            }
+
+            if (publishedWindowExtraPagesUsed >= PublishedWindowExtraPages ||
+                !lastPagePublicItems.Any(item =>
+                    item.GetIndexingWindowDate().ReleasedSinceDate(indexingContext.ReleasedSince)))
+            {
+                return false;
+            }
+
+            publishedWindowExtraPagesUsed++;
+            if (publishedWindowExtraPagesUsed == 1)
+            {
+                logger.LogInformation(
+                    "Playlist '{playlistId}' added-at left the indexing window; reading up to {extraPages} further page(s) for items published inside the window.",
+                    playlistId.PlaylistId, PublishedWindowExtraPages);
+            }
+
+            return true;
+        }
+
+        while (nextPageToken != null && (firstRun || ShouldContinueAfterPage()))
         {
             if (arbitraryOrder &&
                 ArbitraryYouTubePlaylistWalk.ShouldTripCircuitBreaker(walkGuard.PagesFetched, nextPageToken))
@@ -184,17 +232,25 @@ public class YouTubePlaylistService(
                     {
                         knownToBeInReverseOrder = PlaylistItemOrdering.IsReverseDateOrdered(sample);
                         isExpensiveQuery = !knownToBeInReverseOrder;
-                        logger.LogInformation(
-                            knownToBeInReverseOrder
-                                ? "Playlist '{playlistId}' appears to be in reverse-date order; stopping once items leave the window. Batch-size '{batchSize}'."
-                                : "Playlist '{playlistId}' is not in reverse-date order; walking to the end. Batch-size '{batchSize}'.",
-                            playlistId.PlaylistId, batchSize);
+                        if (knownToBeInReverseOrder)
+                        {
+                            logger.LogInformation(
+                                "Playlist '{playlistId}' appears to be in reverse-date order; stopping once added-at leaves the window, then at most {extraPages} further page(s) while an item is still inside the indexing window. Batch-size '{batchSize}'.",
+                                playlistId.PlaylistId, PublishedWindowExtraPages, batchSize);
+                        }
+                        else
+                        {
+                            logger.LogInformation(
+                                "Playlist '{playlistId}' is not in reverse-date order; walking to the end. Batch-size '{batchSize}'.",
+                                playlistId.PlaylistId, batchSize);
+                        }
                     }
                 }
             }
 
             var pageItems = playlistItemsListResponse.Items ?? [];
-            result.AddRange(pageItems.Where(x => x.Snippet.Title != PrivateVideoTitle));
+            lastPagePublicItems = pageItems.Where(x => x.Snippet.Title != PrivateVideoTitle).ToList();
+            result.AddRange(lastPagePublicItems);
             nextPageToken = playlistItemsListResponse.NextPageToken;
 
             var stop = walkGuard.Observe(

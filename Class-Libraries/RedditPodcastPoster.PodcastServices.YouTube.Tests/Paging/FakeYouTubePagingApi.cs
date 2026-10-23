@@ -15,6 +15,12 @@ public sealed record FakeYouTubePage(IReadOnlyList<string> VideoIds, string? Nex
 
     /// <summary>Explicit per-item publish times (overrides <see cref="Newest"/>); a null entry has no date.</summary>
     public IReadOnlyList<DateTimeOffset?>? Dates { get; init; }
+
+    /// <summary>
+    /// Per-item video publication (<c>contentDetails.videoPublishedAt</c>). When null, it matches the added-at
+    /// (<c>snippet.publishedAt</c>) from <see cref="Dates"/> or <see cref="Newest"/>.
+    /// </summary>
+    public IReadOnlyList<DateTimeOffset?>? VideoPublishedAt { get; init; }
 }
 
 /// <summary>
@@ -65,17 +71,23 @@ public sealed class FakeYouTubePagingApi
         var items = page.VideoIds.Select((id, i) =>
         {
             var date = page.Dates != null ? page.Dates[i] : newest.AddMinutes(-i);
-            var published = date?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            var videoPublished = page.VideoPublishedAt != null ? page.VideoPublishedAt[i] : date;
+            var addedAt = date?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            var videoPublishedAt = videoPublished?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
             var snippet = new Dictionary<string, object?>
             {
                 ["title"] = $"Synthetic {id}",
                 ["resourceId"] = new { kind = "youtube#video", videoId = id }
             };
             var contentDetails = new Dictionary<string, object?> { ["videoId"] = id };
-            if (published != null)
+            if (addedAt != null)
             {
-                snippet["publishedAt"] = published;
-                contentDetails["videoPublishedAt"] = published;
+                snippet["publishedAt"] = addedAt;
+            }
+
+            if (videoPublishedAt != null)
+            {
+                contentDetails["videoPublishedAt"] = videoPublishedAt;
             }
 
             return isSearch
@@ -83,7 +95,7 @@ public sealed class FakeYouTubePagingApi
                 {
                     kind = "youtube#searchResult",
                     id = new { kind = "youtube#video", videoId = id },
-                    snippet = new { title = $"Synthetic {id}", publishedAt = published, liveBroadcastContent = "none" }
+                    snippet = new { title = $"Synthetic {id}", publishedAt = addedAt, liveBroadcastContent = "none" }
                 }
                 : new
                 {
