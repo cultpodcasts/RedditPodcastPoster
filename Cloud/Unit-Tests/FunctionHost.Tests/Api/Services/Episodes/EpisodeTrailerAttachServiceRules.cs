@@ -5,6 +5,7 @@ using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Cloudflare.Models;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -431,5 +432,77 @@ public class EpisodeTrailerAttachServiceRules
         _searchDeletes.Should().BeEmpty();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
         Stored(film.Id)!.Trailers.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the film is deleted after the trailer is saved, the episode search document is put back and the episode row is kept, and a re-send reports the film as not found.")]
+    public async Task film_deleted_after_save_restores_episode_search_document()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _beforeVerifyRead = () =>
+        {
+            _beforeVerifyRead = null;
+            _films.Remove(film.Id);
+        };
+
+        // Act
+        var first = await Attach(podcast.Id, episode.Id, film.Id);
+        var episodeAfterFirst = await _episodes.GetEpisode(podcast.Id, episode.Id);
+        var resent = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        first.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        first.FailureIndexing.Should().BeTrue();
+        episodeAfterFirst.Should().NotBeNull();
+        resent.Status.Should().Be(EpisodeTrailerAttachStatus.NotFound);
+        resent.Error.Should().Be("Film not found");
+        _searchDeletes.Should().Equal(episode.Id);
+        _redirects.Should().BeEmpty();
+        _uploads.Should().HaveCount(2);
+        _uploads[1].Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord());
+        LoggedFilmGone(LogLevel.Warning, episode.Id, film.Id);
+    }
+
+    [Fact(DisplayName =
+        "When the film is deleted after the trailer is saved and putting the episode search document back fails, the episode row is still kept.")]
+    public async Task film_deleted_after_save_keeps_episode_when_search_restore_fails()
+    {
+        // Arrange
+        var film = SeedFilm();
+        var (podcast, episode) = SeedEpisode();
+        _beforeVerifyRead = () =>
+        {
+            _beforeVerifyRead = null;
+            _films.Remove(film.Id);
+            _searchUploadSucceeds = false;
+        };
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        result.FailureIndexing.Should().BeTrue();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+        _uploads.Should().HaveCount(2);
+        _uploads[1].Should().ContainSingle().Which.Id.Should().Be(episode.Id.ToString());
+        LoggedFilmGone(LogLevel.Warning, episode.Id, film.Id);
+        LoggedFilmGone(LogLevel.Error, episode.Id, film.Id);
+    }
+
+    private void LoggedFilmGone(LogLevel level, Guid episodeId, Guid filmId)
+    {
+        var fragments = new[] { "TrailerAttachFilmGone", episodeId.ToString(), filmId.ToString() };
+        _mocker.GetMock<ILogger<EpisodeTrailerAttachService>>().Verify(
+            x => x.Log(
+                level,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => fragments.All(fragment => state!.ToString()!.Contains(fragment))),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
