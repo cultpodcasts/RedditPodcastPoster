@@ -9,8 +9,10 @@ using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -38,9 +40,20 @@ public class PodcastUpdater(
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     IHeroEpisodePromoter heroEpisodePromoter,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    ITvShowRepository tvShowRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
+    /// <summary>
+    /// Stable log prefix when the podcast row disappeared during this pass (CatalogueMigrate deleted it after the
+    /// pass had already read it). App Insights keys off it. <c>stage</c> is <c>save-episodes</c> or <c>save-podcast</c>.
+    /// </summary>
+    public const string PodcastGoneMessagePrefix = "IndexerPodcastGone";
+
+    private const string SaveEpisodesStage = "save-episodes";
+    private const string SavePodcastStage = "save-podcast";
+
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<IndexPodcastResult> Update(Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
@@ -170,8 +183,25 @@ public class PodcastUpdater(
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
 
-        indexingContext.ReportStage("save-episodes",
+        indexingContext.ReportStage(SaveEpisodesStage,
             $"enriched={enrichmentResult.UpdatedEpisodes.Count} filtered={filterResult.FilteredEpisodes.Count} merged={mergeResult.MergedEpisodes.Count} added={mergeResult.AddedEpisodes.Count}");
+        // CatalogueMigrate deletes the source podcast after the move. A pass that read the row before that delete
+        // must not upsert it back, or save episodes under an id that no longer exists. One point-read (1 RU) before
+        // the first write, and again before the podcast upsert.
+        if (!await PodcastRowStillExists(podcast.Id, SaveEpisodesStage, cancellationToken))
+        {
+            await RecordPodcastQuotaImpactIfNeeded(podcast, enrichOnly, indexingContext, initialSkipYouTube);
+            // Indexer.Index treats this result as persisted work and saves added, enriched, and filtered episodes.
+            // Those writes have not happened; returning them would create episodes under the deleted podcast id.
+            return new IndexPodcastResult(
+                podcast,
+                EpisodeMergeResult.Empty,
+                new FilterResult([]),
+                new EnrichmentResults([]),
+                initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
+                initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
+        }
+
         // Persist enriched episodes
         if (enrichmentResult.UpdatedEpisodes.Any())
         {
@@ -358,9 +388,13 @@ public class PodcastUpdater(
                 }
             }
 
-            indexingContext.ReportStage("save-podcast");
+            indexingContext.ReportStage(SavePodcastStage);
             cancellationToken.ThrowIfCancellationRequested();
-            await podcastRepository.Save(podcast);
+            if (await PodcastRowStillExists(podcast.Id, SavePodcastStage, cancellationToken))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await podcastRepository.Save(podcast);
+            }
         }
 
         await RecordPodcastQuotaImpactIfNeeded(
@@ -376,6 +410,55 @@ public class PodcastUpdater(
             enrichmentResult,
             spotifyBypassed,
             youTubeBypassed);
+    }
+
+    /// <summary>
+    /// Point-reads the podcast. When the row is gone, logs <see cref="PodcastGoneMessagePrefix"/> and reports whether
+    /// a TvShow or NewsOrganisation now has the same id (the CatalogueMigrate destination).
+    /// </summary>
+    private async Task<bool> PodcastRowStillExists(Guid podcastId, string stage, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (await podcastRepository.GetPodcast(podcastId) is not null)
+        {
+            // The point-read ignores the token. A budget cancel during that read must not continue into a write.
+            cancellationToken.ThrowIfCancellationRequested();
+            return true;
+        }
+
+        var movedTo = await MovedCatalogueParent(podcastId);
+        if (movedTo is null)
+        {
+            logger.LogWarning(
+                PodcastGoneMessagePrefix + " podcast-id={PodcastId} stage={Stage}",
+                podcastId,
+                stage);
+        }
+        else
+        {
+            logger.LogWarning(
+                PodcastGoneMessagePrefix + " podcast-id={PodcastId} stage={Stage} moved-to={MovedTo}",
+                podcastId,
+                stage,
+                movedTo);
+        }
+
+        return false;
+    }
+
+    private async Task<string?> MovedCatalogueParent(Guid podcastId)
+    {
+        if (await tvShowRepository.GetTvShow(podcastId) is not null)
+        {
+            return nameof(TvShow);
+        }
+
+        if (await newsOrganisationRepository.GetNewsOrganisation(podcastId) is not null)
+        {
+            return nameof(NewsOrganisation);
+        }
+
+        return null;
     }
 
     private async Task RecordPodcastQuotaImpactIfNeeded(
