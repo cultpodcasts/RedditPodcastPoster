@@ -25,6 +25,8 @@ using RedditPodcastPoster.PodcastServices.Enrichers;
 using RedditPodcastPoster.PodcastServices.Merging;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Updaters;
 
@@ -40,16 +42,29 @@ public class PodcastUpdater(
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     IHeroEpisodePromoter heroEpisodePromoter,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    IUrlMembershipLookup urlMembershipLookup,
     ITvShowRepository tvShowRepository,
     INewsOrganisationRepository newsOrganisationRepository,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
     /// <summary>
+    /// App Insights search key. Keep the formatted message starting with this text.
+    /// </summary>
+    public const string CatalogueOwnedUrlSkippedMessagePrefix = "Indexer skipped catalogue-owned URL:";
+
+    /// <summary>
     /// Stable log prefix when the podcast row disappeared during this pass (CatalogueMigrate deleted it after the
     /// pass had already read it). App Insights keys off it. <c>stage</c> is <c>save-episodes</c> or <c>save-podcast</c>.
     /// </summary>
     public const string PodcastGoneMessagePrefix = "IndexerPodcastGone";
+
+    private static readonly string[] CatalogueServiceUrlKeys =
+    [
+        ServiceKeys.YouTube,
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple
+    ];
 
     private const string SaveEpisodesStage = "save-episodes";
     private const string SavePodcastStage = "save-podcast";
@@ -127,6 +142,7 @@ public class PodcastUpdater(
             indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
             episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
+            await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
 
             // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
             // before enrichment and elimination filtering so new episodes are not evaluated only on a later index pass.
@@ -410,6 +426,64 @@ public class PodcastUpdater(
             enrichmentResult,
             spotifyBypassed,
             youTubeBypassed);
+    }
+
+    private async Task DropAddedEpisodesOwnedByCatalogue(
+        Podcast podcast,
+        EpisodeMergeResult mergeResult,
+        CancellationToken cancellationToken)
+    {
+        if (mergeResult.AddedEpisodes.Count == 0)
+        {
+            return;
+        }
+
+        var skipped = new List<Episode>();
+        foreach (var added in mergeResult.AddedEpisodes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var ownedUrl = await FindCatalogueOwnedServiceUrl(added, cancellationToken);
+            if (ownedUrl is null)
+            {
+                continue;
+            }
+
+            skipped.Add(added);
+            logger.LogInformation(
+                CatalogueOwnedUrlSkippedMessagePrefix +
+                " podcast-id='{PodcastId}' episode-id='{EpisodeId}' content-kind='{ContentKind}' url='{Url}'.",
+                podcast.Id,
+                added.Id,
+                ownedUrl.Value.Owner.ContentKind,
+                ownedUrl.Value.Url);
+        }
+
+        foreach (var episode in skipped)
+        {
+            mergeResult.AddedEpisodes.Remove(episode);
+        }
+    }
+
+    private async Task<(CatalogueServiceUrlOwner Owner, Uri Url)?> FindCatalogueOwnedServiceUrl(
+        Episode episode,
+        CancellationToken cancellationToken)
+    {
+        foreach (var key in CatalogueServiceUrlKeys)
+        {
+            var url = EpisodeServicePresence.TryGetUrl(episode, key);
+            if (url is null)
+            {
+                continue;
+            }
+
+            var owner = await urlMembershipLookup.FindCatalogueServiceUrlOwner(url, cancellationToken);
+            if (owner is not null)
+            {
+                return (owner, url);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

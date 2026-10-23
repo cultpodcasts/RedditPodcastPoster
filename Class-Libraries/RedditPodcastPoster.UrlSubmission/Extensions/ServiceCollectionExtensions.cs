@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.People.Extensions;
@@ -42,7 +43,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ISpotifyUrlCategoriser, SpotifyUrlCategoriser>()
             .AddScoped<IYouTubeUrlCategoriser, YouTubeUrlCategoriser>()
             .AddScoped<IUrlSubmitter, UrlSubmitter>()
-            .AddScoped<IUrlMembershipLookup, UrlMembershipLookup>()
+            .AddUrlMembershipLookup()
             .AddScoped<IPodcastService, PodcastService>()
             .AddSingleton<IDescriptionHelper, DescriptionHelper>()
             .AddSingleton<IEpisodeHelper, EpisodeHelper>()
@@ -69,6 +70,17 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>()
             .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
             .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
+    }
+
+    /// <summary>
+    /// Catalogue URL ownership for submit membership and the indexer. Safe to call from both
+    /// <see cref="AddUrlSubmission"/> and podcast-service registration; the lookup is registered once.
+    /// </summary>
+    public static IServiceCollection AddUrlMembershipLookup(this IServiceCollection services)
+    {
+        services.AddSubmitContentTypes();
+        services.TryAddScoped<IUrlMembershipLookup, UrlMembershipLookup>();
+        return services;
     }
 
     /// <summary>

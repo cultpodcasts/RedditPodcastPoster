@@ -26,6 +26,8 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.PodcastServices.Enrichers;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Support;
 
@@ -50,6 +52,9 @@ internal sealed class PodcastUpdaterTestHarness
             .Setup(x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        UrlMembershipLookup
+            .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CatalogueServiceUrlOwner?)null);
         TvShows.Setup(x => x.GetTvShow(It.IsAny<Guid>())).ReturnsAsync((TvShow?)null);
         NewsOrganisations.Setup(x => x.GetNewsOrganisation(It.IsAny<Guid>())).ReturnsAsync((NewsOrganisation?)null);
 
@@ -65,6 +70,7 @@ internal sealed class PodcastUpdaterTestHarness
             YouTubeQuotaUsageTracker.Object,
             HeroEpisodePromoter.Object,
             ShowEpisodeCounts,
+            UrlMembershipLookup.Object,
             TvShows.Object,
             NewsOrganisations.Object,
             logger ?? NullLogger<PodcastUpdater>.Instance);
@@ -121,6 +127,8 @@ internal sealed class PodcastUpdaterTestHarness
 
     public Mock<IEliminationTermsProvider> EliminationTermsProvider =>
         _mocker.GetMock<IEliminationTermsProvider>();
+
+    public Mock<IUrlMembershipLookup> UrlMembershipLookup => _mocker.GetMock<IUrlMembershipLookup>();
 
     public PodcastUpdater Updater { get; }
 
