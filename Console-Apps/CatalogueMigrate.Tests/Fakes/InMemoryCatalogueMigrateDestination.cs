@@ -61,6 +61,30 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<CatalogueMigrateStoredPlayable>> ListPlayables(
+        string kind,
+        Guid parentId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<CatalogueMigrateStoredPlayable> playables = kind switch
+        {
+            SubmitClassification.NewsReport => NewsReports
+                .Where(pair => pair.Key.Parent == parentId)
+                .Select(pair => new CatalogueMigrateStoredPlayable(pair.Value.Id, pair.Value.Services))
+                .ToList(),
+            SubmitClassification.TvShowEpisode => TvShowEpisodes
+                .Where(pair => pair.Key.Parent == parentId)
+                .Select(pair => new CatalogueMigrateStoredPlayable(pair.Value.Id, pair.Value.Services))
+                .ToList(),
+            SubmitClassification.Film => Films.TryGetValue(parentId, out var film)
+                ? [new CatalogueMigrateStoredPlayable(film.Id, film.Services)]
+                : [],
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+        };
+        return Task.FromResult(playables);
+    }
+
     public Task<int> CountPlayables(string kind, Guid parentId) => Task.FromResult(kind switch
     {
         SubmitClassification.NewsReport => NewsReports.Keys.Count(key => key.Parent == parentId),

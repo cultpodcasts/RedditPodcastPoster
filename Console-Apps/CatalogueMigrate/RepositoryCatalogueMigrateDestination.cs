@@ -44,6 +44,12 @@ public sealed class RepositoryCatalogueMigrateDestination(
 
     public Task<int> CountPlayables(string kind, Guid parentId) => reader.CountPlayables(kind, parentId);
 
+    public Task<IReadOnlyList<CatalogueMigrateStoredPlayable>> ListPlayables(
+        string kind,
+        Guid parentId,
+        CancellationToken cancellationToken) =>
+        reader.ListPlayables(kind, parentId, cancellationToken);
+
     public Task<Guid?> FindOtherParentWithName(string kind, string name, string fileKey, Guid excludeId) =>
         reader.FindOtherParentWithName(kind, name, fileKey, excludeId);
 
