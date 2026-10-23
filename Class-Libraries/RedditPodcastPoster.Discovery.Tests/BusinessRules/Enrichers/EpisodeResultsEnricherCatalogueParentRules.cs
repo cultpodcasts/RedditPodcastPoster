@@ -11,6 +11,8 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
 namespace RedditPodcastPoster.Discovery.Tests.BusinessRules.Enrichers;
 
@@ -198,6 +200,220 @@ public class EpisodeResultsEnricherCatalogueParentRules
             r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()), Times.Once);
     }
 
+    [Fact(DisplayName =
+        "When a channel-wide podcast and a playlist-scoped podcast that indexes every episode share a YouTube channel, " +
+        "discovery matches the channel-wide podcast and does not mark the video index-all, because a playlist does not " +
+        "cover the rest of the channel.")]
+    public async Task shared_channel_prefers_channel_wide_podcast_over_playlist_scoped_index_all()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        AddPodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+            p.IndexAllEpisodes = true;
+        });
+        var channelWide = AddPodcast(p => p.YouTubeChannelId = channelId);
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, CreateVideoId());
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(channelWide.Id);
+        match.IndexAllEpisodes.Should().BeFalse();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a channel-wide news organisation and a playlist-scoped TV show that indexes every episode share a YouTube " +
+        "channel, discovery matches the organisation and does not mark the video index-all, because the show's playlist " +
+        "does not cover the outlet's other videos.")]
+    public async Task shared_channel_prefers_channel_wide_parent_over_playlist_scoped_index_all()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = CreatePlaylistId();
+            i.IndexAllEpisodes = true;
+        });
+        var channelWide = AddOrganisation(i => i.YouTubeChannelId = channelId);
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, CreateVideoId());
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(channelWide.Id);
+        match.IndexAllEpisodes.Should().BeFalse();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a channel-wide podcast and a playlist-scoped TV show that indexes every episode share a channel, a video " +
+        "outside that playlist stays matched to both and is not index-all, because the show does not cover the podcast's channel.")]
+    public async Task shared_channel_podcast_and_playlist_scoped_parent_does_not_eliminate_video_outside_playlist()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var podcast = AddPodcast(p => p.YouTubeChannelId = channelId);
+        var show = AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+            i.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, videoId);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(false);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var matches = enriched.Single().PodcastResults;
+        matches.Select(x => x.PodcastId).Should().BeEquivalentTo([podcast.Id, show.Id]);
+        matches.Should().OnlyContain(x => !x.IndexAllEpisodes);
+    }
+
+    [Theory(DisplayName =
+        "A playlist-scoped podcast that indexes every episode eliminates a discovered video only when that video is in " +
+        "its playlist; otherwise the video stays matched and is not index-all, including when membership cannot be checked.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task playlist_scoped_podcast_eliminates_only_videos_in_its_playlist(bool? inPlaylist)
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var podcast = AddPodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+            p.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, videoId);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(inPlaylist);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(podcast.Id);
+        match.IndexAllEpisodes.Should().Be(inPlaylist == true);
+    }
+
+    [Theory(DisplayName =
+        "A playlist-scoped TV show that indexes every episode eliminates a discovered video only when that video is in " +
+        "its playlist; otherwise the video stays matched and is not index-all, including when membership cannot be checked.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task playlist_scoped_parent_eliminates_only_videos_in_its_playlist(bool? inPlaylist)
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var show = AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+            i.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, videoId);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(inPlaylist);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(show.Id);
+        match.IndexAllEpisodes.Should().Be(inPlaylist == true);
+    }
+
+    [Fact(DisplayName =
+        "A discovered video whose YouTube URL names the playlist-scoped podcast's playlist is index-all without a " +
+        "playlist lookup, because the link already places the video in that playlist.")]
+    public async Task playlist_url_marks_playlist_scoped_podcast_index_all_without_lookup()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var podcast = AddPodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+            p.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, videoId, playlistId);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(podcast.Id);
+        match.IndexAllEpisodes.Should().BeTrue();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A discovered video whose YouTube URL names the playlist-scoped TV show's playlist is index-all without a " +
+        "playlist lookup, because the link already places the video in that playlist.")]
+    public async Task playlist_url_marks_playlist_scoped_parent_index_all_without_lookup()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var playlistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var show = AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+            i.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = channelId);
+        AttachYouTube(result, videoId, playlistId);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(show.Id);
+        match.IndexAllEpisodes.Should().BeTrue();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
     [Theory(DisplayName =
         "A discovered result with a blank Spotify show id or YouTube channel id matches no owner, because a blank id is " +
         "no id and must not pick a podcast (whose unset ids are \"\"), news organisation or TV show whose id is unset.")]
@@ -222,6 +438,38 @@ public class EpisodeResultsEnricherCatalogueParentRules
 
         // Assert
         enriched.Single().PodcastResults.Should().BeEmpty();
+    }
+
+    private Podcast AddPodcast(Action<Podcast> configure)
+    {
+        var podcast = new Podcast { Id = _fixture.Create<Guid>(), Name = _fixture.Create<string>() };
+        configure(podcast);
+        _podcasts.Add(podcast);
+        return podcast;
+    }
+
+    private static void AttachYouTube(EpisodeResult result, string videoId, string? playlistId = null)
+    {
+        var url = playlistId == null
+            ? $"https://www.youtube.com/watch?v={videoId}"
+            : $"https://www.youtube.com/watch?v={videoId}&list={playlistId}";
+        result.Urls.YouTube = new Uri(url);
+    }
+
+    private string CreateVideoId() => CreateToken(11);
+
+    private string CreatePlaylistId() => CreateToken(32, "PL");
+
+    private string CreateToken(int length, string prefix = "")
+    {
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var chars = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            chars[i] = alphabet[(_fixture.Create<int>() & int.MaxValue) % alphabet.Length];
+        }
+
+        return prefix + new string(chars);
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
