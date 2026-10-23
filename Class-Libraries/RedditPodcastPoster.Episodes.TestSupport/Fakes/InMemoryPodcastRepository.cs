@@ -12,6 +12,11 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
 
     public IReadOnlyList<Podcast> SavedPodcasts => _savedPodcasts;
 
+    /// <summary>
+    /// Runs at the start of a point-read, so a test can cancel while that read is in flight.
+    /// </summary>
+    public Action? OnReading { get; set; }
+
     public void Seed(params Podcast[] podcasts)
     {
         foreach (var podcast in podcasts)
@@ -20,8 +25,11 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
         }
     }
 
-    public Task<Podcast?> GetPodcast(Guid podcastId) =>
-        Task.FromResult(_podcasts.TryGetValue(podcastId, out var podcast) ? Clone(podcast) : null);
+    public Task<Podcast?> GetPodcast(Guid podcastId)
+    {
+        OnReading?.Invoke();
+        return Task.FromResult(_podcasts.TryGetValue(podcastId, out var podcast) ? Clone(podcast) : null);
+    }
 
     public Task Save(Podcast entity)
     {

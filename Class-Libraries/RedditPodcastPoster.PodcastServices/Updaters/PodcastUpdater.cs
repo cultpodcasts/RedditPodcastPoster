@@ -191,11 +191,13 @@ public class PodcastUpdater(
         if (!await PodcastRowStillExists(podcast.Id, SaveEpisodesStage, cancellationToken))
         {
             await RecordPodcastQuotaImpactIfNeeded(podcast, enrichOnly, indexingContext, initialSkipYouTube);
+            // Indexer.Index treats this result as persisted work and saves added, enriched, and filtered episodes.
+            // Those writes have not happened; returning them would create episodes under the deleted podcast id.
             return new IndexPodcastResult(
                 podcast,
-                mergeResult,
-                filterResult,
-                enrichmentResult,
+                EpisodeMergeResult.Empty,
+                new FilterResult([]),
+                new EnrichmentResults([]),
                 initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving,
                 initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving);
         }
@@ -390,6 +392,7 @@ public class PodcastUpdater(
             cancellationToken.ThrowIfCancellationRequested();
             if (await PodcastRowStillExists(podcast.Id, SavePodcastStage, cancellationToken))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await podcastRepository.Save(podcast);
             }
         }
@@ -418,6 +421,8 @@ public class PodcastUpdater(
         cancellationToken.ThrowIfCancellationRequested();
         if (await podcastRepository.GetPodcast(podcastId) is not null)
         {
+            // The point-read ignores the token. A budget cancel during that read must not continue into a write.
+            cancellationToken.ThrowIfCancellationRequested();
             return true;
         }
 

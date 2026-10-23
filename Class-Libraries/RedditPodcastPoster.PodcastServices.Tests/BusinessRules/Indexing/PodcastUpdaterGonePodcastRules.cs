@@ -49,21 +49,78 @@ public class PodcastUpdaterGonePodcastRules
         };
 
     [Fact(DisplayName =
-        "When the podcast row is deleted before save-episodes, no episodes are saved and the podcast is not " +
-        "re-created, and the warning names IndexerPodcastGone with the podcast id and stage save-episodes, because " +
-        "a pass that read the row before CatalogueMigrate deleted it must not write it back.")]
+        "When the podcast row is deleted before save-episodes, no episodes are saved, the podcast is not " +
+        "re-created, and the result carries no added, merged, updated, or filtered episodes, and the warning names " +
+        "IndexerPodcastGone with the podcast id and stage save-episodes, because a pass that read the row before " +
+        "CatalogueMigrate deleted it must not write it back or hand those episodes to Indexer to save.")]
     public async Task deleted_before_save_episodes_writes_nothing()
     {
         // Arrange
-        DeletePodcastWhenEnrichmentRuns();
+        var mergeInput = _fixture.CreateSpotifyCatalogueInput(b => b
+            .WithRelease(EpisodeRelease)
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
+        var mergedExisting = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
+            .WithDescription(mergeInput.Description));
+        mergedExisting.PodcastId = _podcast.Id;
+        _harness.EpisodeRepository.Seed(mergedExisting);
+
+        var mergeDiscovered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithSpotifyId(mergeInput.SpotifyId)
+            .WithRelease(mergeInput.Release)
+            .WithDuration(mergeInput.Duration)
+            .WithDescription(_fixture.Create<string>()));
+        var added = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease.AddDays(1))
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
+        _harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(_podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([mergeDiscovered, added]);
+
+        var updated = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease.AddDays(2))
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
+        updated.PodcastId = _podcast.Id;
+        var filtered = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(EpisodeRelease.AddDays(3))
+            .WithDuration(_fixture.CreateDuration())
+            .WithDescription(_fixture.Create<string>()));
+        filtered.PodcastId = _podcast.Id;
+
+        _harness.EpisodeEnricher
+            .Setup(x => x.EnrichEpisodes(
+                It.IsAny<Podcast>(),
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IList<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .Callback(() => _harness.PodcastRepository.Delete(_podcast.Id).GetAwaiter().GetResult())
+            .ReturnsAsync(new EnrichmentResults([
+                new EnrichmentResult(_podcast, updated, new EnrichmentContext())
+            ]));
+        _harness.PodcastFilter
+            .Setup(x => x.Filter(
+                It.IsAny<Podcast>(),
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<List<string>>()))
+            .Returns(new FilterResult([new FilteredEpisode(filtered, [_fixture.Create<string>()])]));
 
         // Act
-        await _harness.Updater.Update(_podcast, false, PodcastUpdaterTestHarness.DefaultIndexingContext());
+        var result = await _harness.Updater.Update(
+            _podcast, false, PodcastUpdaterTestHarness.DefaultIndexingContext());
 
         // Assert
         _recorder.EpisodeCalls.Should().BeEmpty();
         _harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
         (await _harness.PodcastRepository.GetPodcast(_podcast.Id)).Should().BeNull();
+        result.MergeResult.AddedEpisodes.Should().BeEmpty();
+        result.MergeResult.MergedEpisodes.Should().BeEmpty();
+        result.EnrichmentResult.UpdatedEpisodes.Should().BeEmpty();
+        result.FilterResult.FilteredEpisodes.Should().BeEmpty();
         var warning = SingleGoneWarning();
         warning.Message.Should().Contain($"podcast-id={_podcast.Id}");
         warning.Message.Should().Contain("stage=save-episodes");

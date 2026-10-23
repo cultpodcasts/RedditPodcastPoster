@@ -87,6 +87,32 @@ public class PodcastUpdaterCancellationRules
     }
 
     [Fact(DisplayName =
+        "When the podcast's budget is cancelled during the save-podcast point-read, the update throws and does not " +
+        "save the podcast, because a Cosmos read that ignores the token must not be followed by an upsert the indexer " +
+        "already abandoned.")]
+    public async Task cancellation_during_save_podcast_point_read_does_not_save_the_podcast()
+    {
+        // Arrange
+        var reads = 0;
+        _harness.PodcastRepository.OnReading = () =>
+        {
+            reads++;
+            if (reads >= 2)
+            {
+                _budget.Cancel();
+            }
+        };
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext() with { CancellationToken = _budget.Token };
+
+        // Act
+        var act = () => _harness.Updater.Update(_podcast, false, context);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        _harness.PodcastRepository.SavedPodcasts.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Without a cancelled token the same update saves the discovered episode and the podcast, so the cancellation " +
         "rules above are not passing only because nothing would be saved anyway.")]
     public async Task uncancelled_update_saves()
