@@ -113,6 +113,53 @@ public class RemovedPodcastDiscoveryFilterRules
         matches.Should().Contain(x => x.PodcastId == indexed.Id && x.IndexAllEpisodes);
     }
 
+    [Fact(DisplayName =
+        "A discovered episode is still returned when the only removed podcast on its channel is the channel-wide outlet and a playlist-scoped show on that channel is live, because the outlet does not own the other show.")]
+    public async Task live_playlist_show_is_kept_when_the_outlet_is_removed()
+    {
+        // Arrange
+        var channelId = _fixture.Create<string>();
+        var outlet = new Podcast
+        {
+            Id = _fixture.Create<Guid>(),
+            Name = _fixture.Create<string>(),
+            YouTubeChannelId = channelId,
+            YouTubePlaylistId = string.Empty,
+            Removed = true
+        };
+        var show = new Podcast
+        {
+            Id = _fixture.Create<Guid>(),
+            Name = _fixture.Create<string>(),
+            YouTubeChannelId = channelId,
+            YouTubePlaylistId = _fixture.Create<string>()
+        };
+        _podcasts.AddRange([outlet, show]);
+        var episode = Episode();
+        episode.PodcastIds.YouTube = channelId;
+        var scored = new DiscoveryResult { Id = _fixture.Create<Guid>() };
+        _mocker.GetMock<IEnrichedEpisodeResultAdapter>()
+            .Setup(a => a.ToDiscoveryResult(It.IsAny<EnrichedEpisodeResult>()))
+            .ReturnsAsync(scored);
+        _mocker.GetMock<IDiscoveryResultScorer>()
+            .Setup(s => s.Score(scored))
+            .Returns(new DiscoveryScoreResult(0.5f, false));
+        var enricher = _mocker.CreateInstance<EpisodeResultsEnricher>();
+        var adapter = _mocker.CreateInstance<EnrichedEpisodeResultsAdapter>();
+
+        // Act
+        var enriched = await Collect(enricher.EnrichWithPodcastDetails([episode]));
+        List<DiscoveryResult> results = enriched.Count == 0
+            ? []
+            : await Collect(adapter.ToDiscoveryResults(One(enriched[0])));
+
+        // Assert
+        var matches = enriched.Should().ContainSingle().Subject.PodcastResults;
+        matches.Should().Contain(x => x.PodcastId == outlet.Id && x.Removed && x.YouTubePlaylistId == string.Empty);
+        matches.Should().Contain(x => x.PodcastId == show.Id && !x.Removed && x.YouTubePlaylistId == show.YouTubePlaylistId);
+        results.Should().ContainSingle().Which.Should().BeSameAs(scored);
+    }
+
     private EpisodeResult Episode() =>
         new(
             _fixture.Create<string>(),

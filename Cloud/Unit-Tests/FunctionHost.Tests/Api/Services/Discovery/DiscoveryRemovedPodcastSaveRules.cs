@@ -69,6 +69,82 @@ public class DiscoveryRemovedPodcastSaveRules
             It.Is<Guid[]>(ids => ids.Length == 0)), Times.Once);
     }
 
+    [Fact(DisplayName =
+        "Saving a discovery result for a live playlist-scoped show still ingests it when the only removed podcast on that channel is the outlet, because the outlet does not own the playlist show.")]
+    public async Task live_playlist_show_is_saved_when_the_outlet_is_removed()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        _podcasts.Add(_fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+            p.Removed = true;
+        }));
+        var show = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        });
+        _podcasts.Add(show);
+        var result = new DiscoveryResult { Id = _fixture.CreateGuid(), YouTubeChannelId = channelId };
+        _mocker.GetMock<IDiscoveryResultsService>()
+            .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
+            .ReturnsAsync([result]);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>()
+            .Setup(s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new DiscoverySubmitResult(DiscoverySubmitResultState.NoUrls));
+        var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
+
+        // Act
+        var outcome = await sut.SubmitAsync(
+            new DiscoverySubmitRequest
+            {
+                DiscoveryResultsDocumentIds = [_fixture.CreateGuid()],
+                ResultIds = [result.Id]
+            },
+            CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
+            s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Saving a discovery result whose only channel match is a removed outlet does not ingest it, because a banned channel with no other show is still rejected.")]
+    public async Task removed_outlet_with_no_playlist_show_is_rejected_on_save()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        _podcasts.Add(_fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+            p.Removed = true;
+        }));
+        var result = new DiscoveryResult { Id = _fixture.CreateGuid(), YouTubeChannelId = channelId };
+        _mocker.GetMock<IDiscoveryResultsService>()
+            .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
+            .ReturnsAsync([result]);
+        var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
+
+        // Act
+        var outcome = await sut.SubmitAsync(
+            new DiscoverySubmitRequest
+            {
+                DiscoveryResultsDocumentIds = [_fixture.CreateGuid()],
+                ResultIds = [result.Id]
+            },
+            CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
+            s => s.Submit(It.IsAny<DiscoveryResult>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()),
+            Times.Never);
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())

@@ -15,6 +15,12 @@ public interface IPodcastService
     Task<RedditPodcastPoster.UrlSubmission.Models.EpisodeUrlOwner> GetEpisodeUrlOwner(Uri url, IndexingContext indexingContext);
 
     /// <summary>
+    /// The channel / show ids on an episode URL, without choosing one podcast. An ambiguous catalogue match is
+    /// the caller's conflict to resolve; this method still returns the ids.
+    /// </summary>
+    Task<RedditPodcastPoster.UrlSubmission.Models.EpisodeUrlOwnerIds> GetOwnerIds(Uri url, IndexingContext indexingContext);
+
+    /// <summary>
     /// True when the podcast is not playlist-scoped, the URL's <c>list=</c> is its playlist, or YouTube lists the
     /// video in its playlist (one <c>playlistItems.list</c> call). False when it is not in it; null when unknown.
     /// </summary>

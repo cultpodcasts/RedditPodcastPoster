@@ -9,7 +9,8 @@ public class EpisodeResultEnricher : IEpisodeResultEnricher
 {
     public EnrichedEpisodeResult Enrich(EpisodeResult episodeResult, Podcast[] podcasts)
     {
-        var podcastResults = podcasts.Select(x => new PodcastResult(x.Id, x.IndexAllEpisodes, x.IsRemoved()));
+        var podcastResults = podcasts.Select(x =>
+            new PodcastResult(x.Id, x.IndexAllEpisodes, x.IsRemoved(), x.YouTubePlaylistId));
         return new EnrichedEpisodeResult(episodeResult, podcastResults.ToArray());
     }
 }

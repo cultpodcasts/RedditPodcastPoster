@@ -63,23 +63,28 @@ public class EpisodeResultsEnricher(
                     enriched.PodcastResults
                         .Concat(parents
                             .Where(parent => enriched.PodcastResults.All(x => x.PodcastId != parent.Id))
-                            .Select(parent => new PodcastResult(parent.Id, parent.IndexAllEpisodes, parent.Removed)))
+                            .Select(parent => new PodcastResult(
+                                parent.Id,
+                                parent.IndexAllEpisodes,
+                                parent.Removed,
+                                suppressesUnrelatedShows: parent.Removed)))
                         .ToArray());
         }
     }
 
     /// <summary>
-    /// Keeps the indexed owner the elimination rule already used, and also every removed match, so a banned
-    /// channel is visible to that same rule even when another podcast on the id is the indexed one.
+    /// Keeps the indexed owner the elimination rule already used, every removed match, and every live
+    /// playlist-scoped show. A removed channel-wide outlet stays visible beside an indexed row of the same
+    /// show, and a live playlist show on that channel stays visible so the outlet does not own it.
     /// </summary>
     private void AddMatches(List<Podcast> podcasts, Podcast[] matches)
     {
         Add(podcasts, GetCurrentIndexed(matches));
-        foreach (var removed in matches)
+        foreach (var match in matches)
         {
-            if (removed.IsRemoved())
+            if (match.IsRemoved() || !string.IsNullOrEmpty(match.YouTubePlaylistId))
             {
-                Add(podcasts, removed);
+                Add(podcasts, match);
             }
         }
     }

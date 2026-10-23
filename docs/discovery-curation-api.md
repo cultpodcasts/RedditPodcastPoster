@@ -127,15 +127,17 @@ Items with no score (`acceptProbability: null`) sort last (treated as `-1` inter
 
 Curator command. Removes the show behind one open discovery result.
 
-- If a podcast already has that YouTube channel, Spotify show, or Apple podcast id, it is marked `removed`.
-- If none does, a minimal podcast is created from those ids and the show name, with `removed: true`.
-- Other open results from the same show are linked to that podcast.
+- If exactly one podcast has that YouTube channel, Spotify show, or Apple podcast id, it is marked `removed`.
+- If several podcasts match and the card's `matchingPodcastIds` name exactly one of them, that podcast is marked `removed`. A playlist-scoped show and the channel-wide outlet on the same channel are different podcasts.
+- If several podcasts match and the card does not name exactly one of them, the command is **409** and nothing is written.
+- If none match, a minimal podcast is created from those ids and the show name, with `removed: true`.
+- Other open results are linked when their YouTube channel id, Spotify show id, or Apple podcast id matches. A result that only has an episode URL is resolved first. A shared show title does not link a card. The banned podcast id is added to `matchingPodcastIds` even when that array already has entries.
 
 The response is **202 with an empty body**. It does not include the podcast. The client GETs `DiscoveryCuration` again (the result's `matchingPodcasts[].id`, `visible: false`) and then GETs `podcast/{id}`.
 
-`curate` is required. A news organisation or TV show that already owns the channel is **409**. A missing result is **404**.
+`curate` is required. A news organisation or TV show that already owns the channel is **409**. So is an ambiguous catalogue match. A missing result is **404**.
 
-Future discovery runs drop episodes whose matched podcast or catalogue parent is removed, using the same elimination as fully indexed shows.
+Future discovery runs drop an episode when the podcast that owns it, or a catalogue parent, is removed. A removed channel-wide outlet does not drop a live playlist-scoped show on the same channel. Save rejects a queued result on that same ownership rule.
 
 ---
 

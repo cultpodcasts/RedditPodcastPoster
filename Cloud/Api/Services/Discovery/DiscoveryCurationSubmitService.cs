@@ -3,6 +3,7 @@ using Api.Services.SubmitUrl;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -201,51 +202,38 @@ public class DiscoveryCurationSubmitService(
     }
 
     /// <summary>
-    /// True when the stored result already points at a removed podcast (matching id or show id). URL resolution
+    /// True when the podcast that owns this stored result is removed. Cards that name matching podcast ids are
+    /// judged on those rows. Otherwise the YouTube channel, Spotify show, or Apple podcast id is used, and a
+    /// removed channel-wide outlet does not reject a live playlist-scoped show on the same channel. URL resolution
     /// stays on the ban command; save only refuses what the queue already records.
     /// </summary>
     private async Task<bool> IsStoredAgainstRemovedPodcast(DiscoveryResult result)
     {
-        if (result.MatchingPodcastIds is { Length: > 0 })
+        if (result.MatchingPodcastIds is { Length: > 0 } ids)
         {
-            var ids = result.MatchingPodcastIds;
-            var matched = await podcastRepository.GetAllBy(x => Enumerable.Contains(ids, x.Id)).ToListAsync();
-            if (matched.Any(x => x.IsRemoved()))
-            {
-                return true;
-            }
+            var named = await podcastRepository.GetAllBy(x => Enumerable.Contains(ids, x.Id)).ToListAsync();
+            return PodcastShowOwnership.RemovedShowSuppresses(named);
         }
 
+        var candidates = new List<Podcast>();
         var channel = result.YouTubeChannelId;
         if (!string.IsNullOrWhiteSpace(channel))
         {
-            var matched = await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channel).ToListAsync();
-            if (matched.Any(x => x.IsRemoved()))
-            {
-                return true;
-            }
+            candidates.AddRange(await podcastRepository.GetAllBy(x => x.YouTubeChannelId == channel).ToListAsync());
         }
 
         var spotify = result.SpotifyId;
         if (!string.IsNullOrWhiteSpace(spotify))
         {
-            var matched = await podcastRepository.GetAllBy(x => x.SpotifyId == spotify).ToListAsync();
-            if (matched.Any(x => x.IsRemoved()))
-            {
-                return true;
-            }
+            candidates.AddRange(await podcastRepository.GetAllBy(x => x.SpotifyId == spotify).ToListAsync());
         }
 
         if (result.AppleId is { } apple)
         {
-            var matched = await podcastRepository.GetAllBy(x => x.AppleId == apple).ToListAsync();
-            if (matched.Any(x => x.IsRemoved()))
-            {
-                return true;
-            }
+            candidates.AddRange(await podcastRepository.GetAllBy(x => x.AppleId == apple).ToListAsync());
         }
 
-        return false;
+        return PodcastShowOwnership.RemovedShowSuppresses(candidates);
     }
 
     private static string Describe(Exception ex)

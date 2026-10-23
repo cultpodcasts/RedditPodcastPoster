@@ -15,8 +15,10 @@ namespace Api.Services.Discovery;
 
 /// <summary>
 /// Bans the show behind one discovery result: an existing podcast is marked removed, and a channel that has never
-/// been catalogued becomes a minimal removed podcast. Sibling cards in the open queue are linked to that podcast
-/// so the next discovery GET shows the removed icon. The command does not return the podcast.
+/// been catalogued becomes a minimal removed podcast. Sibling cards that share a YouTube channel, Spotify show, or
+/// Apple podcast id are linked to that podcast so the next discovery GET shows the removed icon. A shared title is
+/// not identity. Several catalogue matches, with no single card id, are a conflict and write nothing. The command
+/// does not return the podcast.
 /// </summary>
 public class DiscoveryChannelBanService(
     IDiscoveryResultsRepository discoveryResultsRepository,
@@ -29,6 +31,21 @@ public class DiscoveryChannelBanService(
     ILogger<DiscoveryChannelBanService> logger) : IDiscoveryChannelBanService
 {
     public async Task<DiscoveryChannelBanResult> BanAsync(Guid resultId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await BanCoreAsync(resultId, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Show lookup for discovery result '{ResultId}' did not resolve to one set of ids.", resultId);
+            return new DiscoveryChannelBanResult(DiscoveryChannelBanStatus.Conflict,
+                "More than one podcast matches this channel.");
+        }
+    }
+
+    private async Task<DiscoveryChannelBanResult> BanCoreAsync(Guid resultId, CancellationToken cancellationToken)
     {
         var documents = await discoveryResultsRepository.GetAllUnprocessed().ToListAsync(cancellationToken);
         DiscoveryResult? result = null;
@@ -56,11 +73,23 @@ public class DiscoveryChannelBanService(
 
         ApplyIdentity(result, identity);
         var podcasts = await FindPodcasts(identity, cancellationToken);
-        var chosen = Choose(podcasts);
+        var chosen = Choose(podcasts, result.MatchingPodcastIds);
         if (podcasts.Select(x => x.Id).Distinct().Count() > 1 && chosen == null)
         {
             return new DiscoveryChannelBanResult(DiscoveryChannelBanStatus.Conflict,
                 "More than one podcast matches this channel.");
+        }
+
+        var linked = new List<(DiscoveryResultsDocument Document, DiscoveryResult Candidate)>();
+        foreach (var document in documents)
+        {
+            foreach (var candidate in document.DiscoveryResults)
+            {
+                if (await SameChannel(candidate, result, identity, cancellationToken))
+                {
+                    linked.Add((document, candidate));
+                }
+            }
         }
 
         Podcast podcast;
@@ -104,30 +133,16 @@ public class DiscoveryChannelBanService(
         }
 
         var dirty = false;
-        foreach (var document in documents)
+        foreach (var group in linked.GroupBy(x => x.Document))
         {
-            var changed = false;
-            foreach (var candidate in document.DiscoveryResults)
+            foreach (var (_, candidate) in group)
             {
-                if (!SameChannel(candidate, result, identity))
-                {
-                    continue;
-                }
-
                 ApplyIdentity(candidate, identity);
-                if (candidate.MatchingPodcastIds is not { Length: > 0 })
-                {
-                    candidate.MatchingPodcastIds = [podcast.Id];
-                }
-
-                changed = true;
+                LinkPodcast(candidate, podcast.Id);
             }
 
-            if (changed)
-            {
-                await discoveryResultsRepository.Save(document);
-                dirty = true;
-            }
+            await discoveryResultsRepository.Save(group.Key);
+            dirty = true;
         }
 
         if (!dirty)
@@ -159,13 +174,13 @@ public class DiscoveryChannelBanService(
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var owner = await podcastService.GetEpisodeUrlOwner(url, context);
-                channel ??= NullIfEmpty(owner.Ids.YouTubeChannelId);
-                spotify ??= NullIfEmpty(owner.Ids.SpotifyShowId);
-                apple ??= owner.Ids.ApplePodcastId;
-                channelTitle ??= NullIfEmpty(owner.Ids.YouTubeChannelTitle);
+                var owner = await podcastService.GetOwnerIds(url, context);
+                channel ??= NullIfEmpty(owner.YouTubeChannelId);
+                spotify ??= NullIfEmpty(owner.SpotifyShowId);
+                apple ??= owner.ApplePodcastId;
+                channelTitle ??= NullIfEmpty(owner.YouTubeChannelTitle);
             }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or HttpRequestException)
+            catch (Exception ex) when (ex is ArgumentException or HttpRequestException)
             {
                 logger.LogWarning(ex,
                     "Could not resolve show ids for discovery result '{ResultId}'.", result.Id);
@@ -218,7 +233,11 @@ public class DiscoveryChannelBanService(
         return found;
     }
 
-    private static Podcast? Choose(IReadOnlyList<Podcast> podcasts)
+    /// <summary>
+    /// The sole id match, or the only match the card already names. Several remaining podcasts are a conflict:
+    /// a playlist-scoped show and the channel-wide outlet are not the same podcast.
+    /// </summary>
+    private static Podcast? Choose(IReadOnlyList<Podcast> podcasts, Guid[]? matchingPodcastIds)
     {
         var distinct = podcasts.DistinctBy(x => x.Id).ToArray();
         if (distinct.Length == 0)
@@ -231,8 +250,13 @@ public class DiscoveryChannelBanService(
             return distinct[0];
         }
 
-        var channelWide = distinct.Where(x => string.IsNullOrEmpty(x.YouTubePlaylistId)).ToArray();
-        return channelWide.Length == 1 ? channelWide[0] : null;
+        if (matchingPodcastIds is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        var named = distinct.Where(x => matchingPodcastIds.Contains(x.Id)).ToArray();
+        return named.Length == 1 ? named[0] : null;
     }
 
     private async Task FillMissingIds(Podcast podcast, EpisodeUrlOwnerIds identity, CancellationToken cancellationToken)
@@ -319,13 +343,34 @@ public class DiscoveryChannelBanService(
         return false;
     }
 
-    private static bool SameChannel(DiscoveryResult candidate, DiscoveryResult source, EpisodeUrlOwnerIds identity)
+    private async Task<bool> SameChannel(
+        DiscoveryResult candidate,
+        DiscoveryResult source,
+        EpisodeUrlOwnerIds identity,
+        CancellationToken cancellationToken)
     {
         if (candidate.Id == source.Id)
         {
             return true;
         }
 
+        var candidateIds = StoredIds(candidate);
+        if (candidateIds.IsEmpty && HasEpisodeUrl(candidate))
+        {
+            candidateIds = await ResolveIdentity(candidate, cancellationToken);
+        }
+
+        return SharesServiceId(candidateIds, identity);
+    }
+
+    private static EpisodeUrlOwnerIds StoredIds(DiscoveryResult result) =>
+        new(NullIfEmpty(result.SpotifyId), result.AppleId, NullIfEmpty(result.YouTubeChannelId));
+
+    private static bool HasEpisodeUrl(DiscoveryResult result) =>
+        result.Urls.YouTube != null || result.Urls.Spotify != null || result.Urls.Apple != null;
+
+    private static bool SharesServiceId(EpisodeUrlOwnerIds candidate, EpisodeUrlOwnerIds identity)
+    {
         if (identity.YouTubeChannelId != null &&
             string.Equals(candidate.YouTubeChannelId, identity.YouTubeChannelId, StringComparison.Ordinal))
         {
@@ -333,44 +378,21 @@ public class DiscoveryChannelBanService(
         }
 
         if (identity.SpotifyShowId != null &&
-            string.Equals(candidate.SpotifyId, identity.SpotifyShowId, StringComparison.Ordinal))
+            string.Equals(candidate.SpotifyShowId, identity.SpotifyShowId, StringComparison.Ordinal))
         {
             return true;
         }
 
-        if (identity.ApplePodcastId != null && candidate.AppleId == identity.ApplePodcastId)
-        {
-            return true;
-        }
-
-        if (Contradicts(candidate, identity))
-        {
-            return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(source.ShowName) &&
-               string.Equals(candidate.ShowName, source.ShowName, StringComparison.OrdinalIgnoreCase);
+        return identity.ApplePodcastId != null && candidate.ApplePodcastId == identity.ApplePodcastId;
     }
 
-    private static bool Contradicts(DiscoveryResult candidate, EpisodeUrlOwnerIds identity)
+    private static void LinkPodcast(DiscoveryResult candidate, Guid podcastId)
     {
-        if (identity.YouTubeChannelId != null &&
-            !string.IsNullOrWhiteSpace(candidate.YouTubeChannelId) &&
-            !string.Equals(candidate.YouTubeChannelId, identity.YouTubeChannelId, StringComparison.Ordinal))
+        var ids = candidate.MatchingPodcastIds ?? [];
+        if (!ids.Contains(podcastId))
         {
-            return true;
+            candidate.MatchingPodcastIds = [.. ids, podcastId];
         }
-
-        if (identity.SpotifyShowId != null &&
-            !string.IsNullOrWhiteSpace(candidate.SpotifyId) &&
-            !string.Equals(candidate.SpotifyId, identity.SpotifyShowId, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        return identity.ApplePodcastId != null &&
-               candidate.AppleId != null &&
-               candidate.AppleId != identity.ApplePodcastId;
     }
 
     private static void ApplyIdentity(DiscoveryResult result, EpisodeUrlOwnerIds identity)

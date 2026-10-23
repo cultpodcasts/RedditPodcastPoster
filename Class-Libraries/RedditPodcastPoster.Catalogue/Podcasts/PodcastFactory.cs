@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Catalogue.Podcasts;
 public class PodcastFactory(
     IPodcastRepository podcastRepository) : IPodcastFactory
 {
-    private static string[]? _fileKeys;
+    private static List<string>? _fileKeys;
 
     public async Task<Podcast> Create(string podcastName)
     {
@@ -16,7 +16,7 @@ public class PodcastFactory(
             throw new ArgumentNullException(nameof(podcastName));
         }
 
-        _fileKeys ??= await podcastRepository.GetAll().Select(x => x.FileKey).ToArrayAsync();
+        _fileKeys ??= await podcastRepository.GetAll().Select(x => x.FileKey).ToListAsync();
 
         podcastName = podcastName.Trim();
         var fileKey = FileKeyFactory.GetFileKey(podcastName);
@@ -30,6 +30,7 @@ public class PodcastFactory(
             } while (_fileKeys.Contains(fileKey));
         }
 
+        _fileKeys.Add(fileKey);
         return new Podcast { Id = Guid.NewGuid(), Name = podcastName, FileKey = fileKey };
     }
 }
