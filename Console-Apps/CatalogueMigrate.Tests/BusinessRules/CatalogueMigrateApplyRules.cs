@@ -786,6 +786,97 @@ public class CatalogueMigrateApplyRules
         _destination.NewsOrganisations.Should().ContainKey(podcast.Id);
     }
 
+    [Fact(DisplayName =
+        "Catalogue migrate: when an episode delete throws after the destination is written and an indexer save re-creates " +
+        "that video as a new episode, then a re-run does not write a second playable or its search document, because the " +
+        "parent already holds that YouTube id.")]
+    public async Task rerun_after_partial_delete_does_not_duplicate_a_recreated_video()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2);
+        podcast.IndexAllEpisodes = true;
+        _podcasts.Seed(podcast);
+        Guid? removedId = null;
+        var deleteAttempts = 0;
+        _episodes.BeforeDelete = (_, episodeId) =>
+        {
+            deleteAttempts++;
+            if (deleteAttempts == 1)
+            {
+                removedId = episodeId;
+                return;
+            }
+
+            throw new IOException("delete failed");
+        };
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var failed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var removed = episodes.Single(episode => episode.Id == removedId);
+        var videoId = EpisodeServicePresence.YouTubeEpisodeId(removed)!;
+        var recreated = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        EpisodeServicePresence.SetYouTubeIdentity(recreated, videoId);
+        EpisodeServicePresence.Upsert(recreated, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(videoId), null);
+        await _episodes.Save(recreated);
+        _episodes.BeforeDelete = null;
+        _clock.Now = _clock.Now.AddMinutes(5);
+        var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        failed.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
+        resumed.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        resumed.AppliedCount.Should().Be(1);
+        _destination.NewsReports.Should().HaveCount(episodes.Count);
+        _destination.NewsReports.Keys.Select(key => key.Id).Should().BeEquivalentTo(episodes.Select(episode => episode.Id));
+        _destination.NewsReports.Keys.Select(key => key.Id).Should().NotContain(recreated.Id);
+        _destination.NewsReports.Values.Count(report =>
+            report.Services![ServiceKeys.YouTube].Url == _fixture.DefaultYouTubeUrl(videoId)).Should().Be(1);
+        _destination.Search.Keys.Should().BeEquivalentTo(episodes.Select(episode => episode.Id.ToString()));
+        _destination.Search.Values.Count(document => document.YoutubeId == videoId).Should().Be(1);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        (await _episodes.GetByPodcastId(podcast.Id).ToListAsync()).Should().BeEmpty();
+    }
+
+    public static TheoryData<string> HeldIndexServiceIds() =>
+        new()
+        {
+            ServiceKeys.YouTube,
+            ServiceKeys.Spotify,
+            ServiceKeys.Apple
+        };
+
+    [Theory(DisplayName =
+        "Catalogue migrate: a different episode id is already held when the destination playable has the same YouTube, " +
+        "Spotify, or Apple service id, the same episode id is not a second playable, and a different service id is not held.")]
+    [MemberData(nameof(HeldIndexServiceIds))]
+    public void same_service_id_on_another_playable_is_already_held(string service)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var original = _fixture.CreateStoredEpisode(podcast);
+        StampIndexService(original, service);
+        var recreated = _fixture.CreateStoredEpisode(podcast);
+        StampIndexService(recreated, service, original);
+        var other = _fixture.CreateStoredEpisode(podcast);
+        StampIndexService(other, service);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var stored = new CatalogueMigrateStoredPlayable(
+            original.Id,
+            CatalogueParentKindMapper.ToNewsReport(original, organisation).Services);
+
+        // Act
+        var held = CatalogueMigrateHeldPlayables.AlreadyHeld(recreated, [stored]);
+        var sameRow = CatalogueMigrateHeldPlayables.AlreadyHeld(original, [stored]);
+        var differentVideo = CatalogueMigrateHeldPlayables.AlreadyHeld(other, [stored]);
+
+        // Assert
+        held.Should().BeTrue();
+        sameRow.Should().BeFalse();
+        differentVideo.Should().BeFalse();
+    }
+
     private static DateTimeOffset AtMinute(int minute) =>
         new DateTimeOffset(DomainTestFixture.UtcToday, TimeSpan.Zero).AddHours(12).AddMinutes(minute);
 
@@ -871,6 +962,47 @@ public class CatalogueMigrateApplyRules
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         episode.Removed = true;
         return episode;
+    }
+
+    private void StampIndexService(Episode episode, string service, Episode? sameAs = null)
+    {
+        switch (service)
+        {
+            case ServiceKeys.YouTube:
+            {
+                var youTubeId = sameAs is null
+                    ? _fixture.CreateYouTubeId()
+                    : EpisodeServicePresence.YouTubeEpisodeId(sameAs)!;
+                EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(youTubeId), null);
+                break;
+            }
+            case ServiceKeys.Spotify:
+            {
+                var spotifyId = sameAs is null
+                    ? _fixture.CreateSpotifyId()
+                    : EpisodeServicePresence.SpotifyEpisodeId(sameAs)!;
+                EpisodeServicePresence.SetSpotifyIdentity(episode, spotifyId);
+                EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(spotifyId), null);
+                break;
+            }
+            case ServiceKeys.Apple:
+            {
+                var appleId = sameAs is null
+                    ? _fixture.CreateAppleId()
+                    : EpisodeServicePresence.AppleEpisodeId(sameAs)!.Value;
+                var showId = _fixture.CreateAppleId();
+                EpisodeServicePresence.SetAppleIdentity(episode, appleId);
+                EpisodeServicePresence.Upsert(
+                    episode,
+                    ServiceKeys.Apple,
+                    new Uri($"https://podcasts.apple.com/us/podcast/episode/id{showId}?i={appleId}"),
+                    null);
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(service), service, null);
+        }
     }
 
     private Podcast CreateYouTubeOnlyPodcast(string name) =>

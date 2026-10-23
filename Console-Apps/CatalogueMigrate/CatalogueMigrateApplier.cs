@@ -22,8 +22,11 @@ public enum CatalogueMigrateApplyOutcome
 
 /// <summary>
 /// Moves one podcast, keeping ids (S-006): evidence first, then upsert destination,
-/// verify, swap search, and only then delete the source rows. A failure stops before
-/// the source is deleted, so re-running the batch repeats the same upserts.
+/// verify, swap search, and only then delete the source episodes and the podcast.
+/// Episodes are deleted before the podcast. A playable whose YouTube, Spotify, or Apple
+/// service id the destination parent already holds is not written again and gets no
+/// search document, so a re-run after a partial delete cannot duplicate a video the
+/// indexer re-created under a new episode id.
 /// </summary>
 public class CatalogueMigrateApplier(
     IPodcastRepository podcastRepository,
@@ -75,8 +78,27 @@ public class CatalogueMigrateApplier(
 
         try
         {
-            await WriteDestination(unit);
-            await Record(CatalogueMigrateEvidenceEvent.DestWritten);
+            // Read what the parent already holds before this write. A previous attempt may have stored every
+            // playable, then failed while deleting source episodes; the indexer can save those missing videos
+            // again as new episode ids. Those must not become a second playable or search document.
+            var held = await destination.ListPlayables(kind, parentId, cancellationToken);
+            var alreadyHeld = unit.MoveEpisodes
+                .Where(episode => CatalogueMigrateHeldPlayables.AlreadyHeld(episode, held))
+                .Select(episode => episode.Id)
+                .ToHashSet();
+            if (alreadyHeld.Count > 0)
+            {
+                logger.LogInformation(
+                    "Catalogue migrate {PodcastId} {Kind}: skipped {SkippedCount} episode(s) already held by the destination on a YouTube, Spotify, or Apple service id.",
+                    podcast.Id,
+                    kind,
+                    alreadyHeld.Count);
+            }
+
+            await WriteDestination(unit, alreadyHeld);
+            await Record(
+                CatalogueMigrateEvidenceEvent.DestWritten,
+                alreadyHeld.Count == 0 ? null : $"skippedExistingServiceIds={alreadyHeld.Count}");
 
             var stored = await destination.CountPlayables(kind, parentId);
             var expected = kind == SubmitClassification.Film ? 1 : playableIds.Length;
@@ -87,7 +109,10 @@ public class CatalogueMigrateApplier(
 
             await Record(CatalogueMigrateEvidenceEvent.Verified, $"stored={stored}");
 
-            var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, unit.SearchEpisodes, kind);
+            var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+                podcast,
+                unit.SearchEpisodes.Where(episode => !alreadyHeld.Contains(episode.Id)),
+                kind);
             if (!await destination.UploadSearch(documents, cancellationToken))
             {
                 return await Fail(Record, podcast.Id, kind, "Search swap failed. Source rows kept; re-run resumes.");
@@ -113,6 +138,8 @@ public class CatalogueMigrateApplier(
                     $"{change} Source rows kept; re-run moves the current podcast and episodes.");
             }
 
+            // Episodes first, then the podcast. A re-created episode that was not written again is still
+            // removed here: the parent already holds that video, and the source row must not stay behind.
             foreach (var episode in unit.MoveEpisodes)
             {
                 await episodeRepository.Delete(podcast.Id, episode.Id);
@@ -264,15 +291,16 @@ public class CatalogueMigrateApplier(
         _ => false
     };
 
-    private Task WriteDestination(CatalogueMigrateUnit unit)
+    private Task WriteDestination(CatalogueMigrateUnit unit, IReadOnlySet<Guid> alreadyHeld)
     {
         var podcast = unit.Podcast;
+        var episodes = unit.MoveEpisodes.Where(episode => !alreadyHeld.Contains(episode.Id)).ToList();
         switch (unit.Kind)
         {
             case SubmitClassification.NewsReport:
             {
                 var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
-                var reports = unit.MoveEpisodes
+                var reports = episodes
                     .Select(episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation))
                     .ToList();
                 return destination.SaveNews(organisation, reports);
@@ -280,13 +308,15 @@ public class CatalogueMigrateApplier(
             case SubmitClassification.TvShowEpisode:
             {
                 var show = CatalogueParentKindMapper.ToTvShow(podcast);
-                var playables = unit.MoveEpisodes
+                var playables = episodes
                     .Select(episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show))
                     .ToList();
                 return destination.SaveTv(show, playables);
             }
             case SubmitClassification.Film:
-                return destination.SaveFilm(CatalogueParentKindMapper.ToFilm(podcast, unit.MoveEpisodes.Single()));
+                return episodes.Count == 0
+                    ? Task.CompletedTask
+                    : destination.SaveFilm(CatalogueParentKindMapper.ToFilm(podcast, episodes.Single()));
             default:
                 throw new ArgumentOutOfRangeException(nameof(unit), unit.Kind, "Not a corpus-migrate kind.");
         }

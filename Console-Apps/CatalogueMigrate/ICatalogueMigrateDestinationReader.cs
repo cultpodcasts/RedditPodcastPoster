@@ -10,6 +10,15 @@ public interface ICatalogueMigrateDestinationReader
     Task<int> CountPlayables(string kind, Guid parentId);
 
     /// <summary>
+    /// Playables stored under the parent, so a re-run can see service ids it already wrote.
+    /// Film: the film when <paramref name="parentId"/> is that film's id, otherwise empty.
+    /// </summary>
+    Task<IReadOnlyList<CatalogueMigrateStoredPlayable>> ListPlayables(
+        string kind,
+        Guid parentId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Id of an existing TV show / news organisation (per <paramref name="kind"/>) whose name or fileKey matches,
     /// other than <paramref name="excludeId"/>; null when there is none. Always null for Film (no parent).
     /// </summary>

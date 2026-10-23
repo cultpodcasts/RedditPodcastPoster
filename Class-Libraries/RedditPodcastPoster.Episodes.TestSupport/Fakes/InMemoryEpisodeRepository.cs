@@ -27,6 +27,11 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
     /// </summary>
     public Action? OnSaving { get; set; }
 
+    /// <summary>
+    /// Runs before a delete removes the row. Throw to simulate a Cosmos delete failure; the row stays.
+    /// </summary>
+    public Action<Guid, Guid>? BeforeDelete { get; set; }
+
     public void Seed(params Episode[] episodes)
     {
         foreach (var episode in episodes)
@@ -118,6 +123,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
 
     public Task Delete(Guid podcastId, Guid episodeId)
     {
+        BeforeDelete?.Invoke(podcastId, episodeId);
         if (_episodes.TryGetValue(episodeId, out var episode) && episode.PodcastId == podcastId)
         {
             _episodes.Remove(episodeId);
