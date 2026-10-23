@@ -9,7 +9,9 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.InternetArchive.Extractors;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -670,6 +672,149 @@ public class UrlMembershipLookupRules
         result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
         result.ContentKind.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "When submit content types are off, a Spotify URL already stored on a film is still a catalogue service-url owner with no parent, because the indexer must not re-add a moved episode while submit still writes podcasts.")]
+    public async Task flag_off_spotify_url_on_a_film_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = SpotifyServiceUrl();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = new() { Url = url }
+            }
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
+                predicate.Compile()(film) ? film : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Film);
+        owner.ParentName.Should().BeNull();
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, a YouTube URL already stored on a TV episode is a catalogue service-url owner named for that show, because a moved TV item must not be indexed again as a podcast episode.")]
+    public async Task flag_off_youtube_url_on_a_tv_episode_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        var showName = _fixture.CreateTitle();
+        var tvEpisode = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            TvShowName = showName,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = url }
+            }
+        };
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
+            .ReturnsAsync((Expression<Func<TvShowEpisode, bool>> predicate) =>
+                predicate.Compile()(tvEpisode) ? tvEpisode : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        owner.ParentName.Should().Be(showName);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, an Apple URL already stored on a news report is a catalogue service-url owner named for that organisation, because a moved news item must not be indexed again as a podcast episode.")]
+    public async Task flag_off_apple_url_on_a_news_report_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = AppleServiceUrl();
+        var organisationName = _fixture.CreateTitle();
+        var report = new NewsReport(_fixture.CreateTitle())
+        {
+            NewsOrganisationName = organisationName,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Apple] = new() { Url = url }
+            }
+        };
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .ReturnsAsync((Expression<Func<NewsReport, bool>> predicate) =>
+                predicate.Compile()(report) ? report : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        owner.ParentName.Should().Be(organisationName);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, URL membership lookup does not query films for a Spotify URL, because submit membership stays podcast-only until the flag is on.")]
+    public async Task flag_off_lookup_does_not_query_films_for_a_spotify_url()
+    {
+        // Arrange
+        var url = SpotifyServiceUrl();
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.ContentKind.Should().BeNull();
+        _mocker.GetMock<IFilmRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A streaming URL is not a catalogue service-url owner, because the indexer ownership check only covers YouTube, Spotify, and Apple.")]
+    public async Task streaming_url_is_not_a_catalogue_service_url_owner()
+    {
+        // Arrange
+        var url = NetflixWatchUrl();
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().BeNull();
+        _mocker.GetMock<IFilmRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()),
+            Times.Never);
+    }
+
+    private Uri SpotifyServiceUrl() =>
+        EpisodeServicePresence.TryGetUrl(
+            _fixture.CreateStoredEpisodeWithSpotifyOnly(_fixture.CreatePodcast()),
+            ServiceKeys.Spotify)!;
+
+    private Uri YouTubeServiceUrl() =>
+        EpisodeServicePresence.TryGetUrl(
+            _fixture.CreateYouTubeCatalogueEpisode(),
+            ServiceKeys.YouTube)!;
+
+    private Uri AppleServiceUrl() =>
+        EpisodeServicePresence.TryGetUrl(
+            _fixture.CreateAppleCatalogueEpisode(),
+            ServiceKeys.Apple)!;
 
     private Uri NetflixWatchUrl() =>
         new($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");

@@ -81,7 +81,7 @@ public class UrlMembershipLookup(
             }
         }
 
-        var other = await FindOtherPlayable(url, kind, streamingService);
+        var other = await FindOtherPlayable(url, kind, streamingService, cancellationToken);
         if (other != null)
         {
             return other;
@@ -111,50 +111,71 @@ public class UrlMembershipLookup(
         };
     }
 
+    public Task<CatalogueServiceUrlOwner?> FindCatalogueServiceUrlOwner(
+        Uri url,
+        CancellationToken cancellationToken)
+    {
+        var serviceKey = ServiceCatalog.TryResolvePodcastPlatformKey(url);
+        if (string.IsNullOrWhiteSpace(serviceKey))
+        {
+            return Task.FromResult<CatalogueServiceUrlOwner?>(null);
+        }
+
+        return QueryCatalogueOwner(CanonicalStoredUrl(url), serviceKey, cancellationToken);
+    }
+
     private async Task<UrlMembershipLookupResult?> FindOtherPlayable(
         Uri url,
         string kind,
-        string? serviceKey)
+        string? serviceKey,
+        CancellationToken cancellationToken)
     {
         if (!ContentTypesEnabled || string.IsNullOrWhiteSpace(serviceKey))
         {
             return null;
         }
 
-        var canonical = CanonicalStoredUrl(url);
+        var owner = await QueryCatalogueOwner(CanonicalStoredUrl(url), serviceKey, cancellationToken);
+        if (owner is null)
+        {
+            return null;
+        }
+
+        return new UrlMembershipLookupResult(
+            true,
+            Kind: kind,
+            Service: serviceKey,
+            ContentKind: owner.ContentKind,
+            ParentName: owner.ParentName);
+    }
+
+    private async Task<CatalogueServiceUrlOwner?> QueryCatalogueOwner(
+        Uri canonical,
+        string serviceKey,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var film = await films.GetBy(item =>
             item.Services != null && item.Services[serviceKey].Url == canonical);
         if (film != null)
         {
-            return new UrlMembershipLookupResult(
-                true,
-                Kind: kind,
-                Service: serviceKey,
-                ContentKind: SubmitClassification.Film);
+            return new CatalogueServiceUrlOwner(SubmitClassification.Film, null);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var episode = await tvShowEpisodes.GetBy(item =>
             item.Services != null && item.Services[serviceKey].Url == canonical);
         if (episode != null)
         {
-            return new UrlMembershipLookupResult(
-                true,
-                Kind: kind,
-                Service: serviceKey,
-                ContentKind: SubmitClassification.TvShowEpisode,
-                ParentName: episode.TvShowName);
+            return new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, episode.TvShowName);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var report = await newsReports.GetBy(item =>
             item.Services != null && item.Services[serviceKey].Url == canonical);
         if (report != null)
         {
-            return new UrlMembershipLookupResult(
-                true,
-                Kind: kind,
-                Service: serviceKey,
-                ContentKind: SubmitClassification.NewsReport,
-                ParentName: report.NewsOrganisationName);
+            return new CatalogueServiceUrlOwner(SubmitClassification.NewsReport, report.NewsOrganisationName);
         }
 
         return null;

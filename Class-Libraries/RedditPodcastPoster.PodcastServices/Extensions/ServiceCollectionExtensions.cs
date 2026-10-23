@@ -44,6 +44,7 @@ using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Tubi.Extensions;
 using RedditPodcastPoster.Vimeo.Extensions;
 using RedditPodcastPoster.Zdf.Extensions;
+using RedditPodcastPoster.UrlSubmission.Extensions;
 
 namespace RedditPodcastPoster.PodcastServices.Extensions;
 
@@ -72,7 +73,8 @@ public static class ServiceCollectionExtensions
                 .BindConfiguration<PodcastUpdateBudgetOptions>(PodcastUpdateBudgetOptions.SectionName)
                 .BindConfiguration<PodcastIndexingStageLogOptions>(PodcastIndexingStageLogOptions.SectionName)
                 .AddSingleton<PodcastUpdateBudgetCutTracker>()
-                .AddYouTubeThumbnailRecheck();
+                .AddYouTubeThumbnailRecheck()
+                .AddUrlMembershipLookup();
         }
 
         /// <summary>

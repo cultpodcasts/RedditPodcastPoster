@@ -1,8 +1,10 @@
 using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration;
@@ -21,32 +23,43 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.PodcastServices.Enrichers;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.Support;
 
 internal sealed class PodcastUpdaterTestHarness
 {
-    public PodcastUpdaterTestHarness(SaveCallRecorder? saveCallRecorder = null)
+    private readonly AutoMocker _mocker = new();
+
+    public PodcastUpdaterTestHarness(
+        SaveCallRecorder? saveCallRecorder = null,
+        ILogger<PodcastUpdater>? logger = null)
     {
         SaveCallRecorder = saveCallRecorder ?? new SaveCallRecorder();
         EpisodeRepository = new InMemoryEpisodeRepository(SaveCallRecorder);
         PodcastRepository = new InMemoryPodcastRepository();
-        EpisodeProvider = new Mock<IEpisodeProvider>();
-        EpisodeEnricher = new Mock<IPodcastServicesEpisodeEnricher>();
-        PodcastFilter = new Mock<IPodcastFilter>();
-        YouTubeQuotaUsageTracker = new Mock<IYouTubeQuotaUsageTracker>();
-        EliminationTermsProvider = new Mock<IEliminationTermsProvider>();
+        EpisodeProvider = _mocker.GetMock<IEpisodeProvider>();
+        EpisodeEnricher = _mocker.GetMock<IPodcastServicesEpisodeEnricher>();
+        PodcastFilter = _mocker.GetMock<IPodcastFilter>();
+        YouTubeQuotaUsageTracker = _mocker.GetMock<IYouTubeQuotaUsageTracker>();
+        EliminationTermsProvider = _mocker.GetMock<IEliminationTermsProvider>();
         EliminationTermsProvider.Setup(x => x.GetEliminationTerms()).Returns(new EliminationTerms());
 
-        var eliminationTermsInstance = new Mock<IAsyncInstance<IEliminationTermsProvider>>();
+        var eliminationTermsInstance = _mocker.GetMock<IAsyncInstance<IEliminationTermsProvider>>();
         eliminationTermsInstance
             .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(EliminationTermsProvider.Object);
 
-        HeroEpisodePromoter = new Mock<IHeroEpisodePromoter>();
+        HeroEpisodePromoter = _mocker.GetMock<IHeroEpisodePromoter>();
         HeroEpisodePromoter
             .Setup(x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+
+        UrlMembershipLookup = _mocker.GetMock<IUrlMembershipLookup>();
+        UrlMembershipLookup
+            .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CatalogueServiceUrlOwner?)null);
 
         Updater = new PodcastUpdater(
             PodcastRepository,
@@ -60,7 +73,8 @@ internal sealed class PodcastUpdaterTestHarness
             YouTubeQuotaUsageTracker.Object,
             HeroEpisodePromoter.Object,
             ShowEpisodeCounts,
-            NullLogger<PodcastUpdater>.Instance);
+            UrlMembershipLookup.Object,
+            logger ?? NullLogger<PodcastUpdater>.Instance);
 
         EpisodeEnricher
             .Setup(x => x.EnrichEpisodes(
@@ -106,6 +120,8 @@ internal sealed class PodcastUpdaterTestHarness
     public Mock<IHeroEpisodePromoter> HeroEpisodePromoter { get; }
 
     public Mock<IEliminationTermsProvider> EliminationTermsProvider { get; }
+
+    public Mock<IUrlMembershipLookup> UrlMembershipLookup { get; }
 
     public PodcastUpdater Updater { get; }
 

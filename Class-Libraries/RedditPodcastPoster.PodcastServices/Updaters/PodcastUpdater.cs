@@ -23,6 +23,8 @@ using RedditPodcastPoster.PodcastServices.Enrichers;
 using RedditPodcastPoster.PodcastServices.Merging;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 using RedditPodcastPoster.Text.EliminationTerms;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Updaters;
 
@@ -38,9 +40,22 @@ public class PodcastUpdater(
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     IHeroEpisodePromoter heroEpisodePromoter,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
+    /// <summary>
+    /// App Insights search key. Keep the formatted message starting with this text.
+    /// </summary>
+    public const string CatalogueOwnedUrlSkippedMessagePrefix = "Indexer skipped catalogue-owned URL:";
+
+    private static readonly string[] CatalogueServiceUrlKeys =
+    [
+        ServiceKeys.YouTube,
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple
+    ];
+
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     public async Task<IndexPodcastResult> Update(Podcast podcast, bool enrichOnly, IndexingContext indexingContext)
@@ -114,6 +129,7 @@ public class PodcastUpdater(
             indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
             episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
+            await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
 
             // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
             // before enrichment and elimination filtering so new episodes are not evaluated only on a later index pass.
@@ -376,6 +392,64 @@ public class PodcastUpdater(
             enrichmentResult,
             spotifyBypassed,
             youTubeBypassed);
+    }
+
+    private async Task DropAddedEpisodesOwnedByCatalogue(
+        Podcast podcast,
+        EpisodeMergeResult mergeResult,
+        CancellationToken cancellationToken)
+    {
+        if (mergeResult.AddedEpisodes.Count == 0)
+        {
+            return;
+        }
+
+        var skipped = new List<Episode>();
+        foreach (var added in mergeResult.AddedEpisodes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var ownedUrl = await FindCatalogueOwnedServiceUrl(added, cancellationToken);
+            if (ownedUrl is null)
+            {
+                continue;
+            }
+
+            skipped.Add(added);
+            logger.LogInformation(
+                CatalogueOwnedUrlSkippedMessagePrefix +
+                " podcast-id='{PodcastId}' episode-id='{EpisodeId}' content-kind='{ContentKind}' url='{Url}'.",
+                podcast.Id,
+                added.Id,
+                ownedUrl.Value.Owner.ContentKind,
+                ownedUrl.Value.Url);
+        }
+
+        foreach (var episode in skipped)
+        {
+            mergeResult.AddedEpisodes.Remove(episode);
+        }
+    }
+
+    private async Task<(CatalogueServiceUrlOwner Owner, Uri Url)?> FindCatalogueOwnedServiceUrl(
+        Episode episode,
+        CancellationToken cancellationToken)
+    {
+        foreach (var key in CatalogueServiceUrlKeys)
+        {
+            var url = EpisodeServicePresence.TryGetUrl(episode, key);
+            if (url is null)
+            {
+                continue;
+            }
+
+            var owner = await urlMembershipLookup.FindCatalogueServiceUrlOwner(url, cancellationToken);
+            if (owner is not null)
+            {
+                return (owner, url);
+            }
+        }
+
+        return null;
     }
 
     private async Task RecordPodcastQuotaImpactIfNeeded(

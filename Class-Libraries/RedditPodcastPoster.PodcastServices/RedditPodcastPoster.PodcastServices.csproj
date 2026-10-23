@@ -48,5 +48,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.UrlSubmission\RedditPodcastPoster.UrlSubmission.csproj" />
   </ItemGroup>
 </Project>
