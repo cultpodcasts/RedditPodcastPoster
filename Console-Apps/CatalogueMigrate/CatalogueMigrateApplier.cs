@@ -24,9 +24,11 @@ public enum CatalogueMigrateApplyOutcome
 /// Moves one podcast, keeping ids (S-006): evidence first, then upsert destination,
 /// verify, swap search, and only then delete the source episodes and the podcast.
 /// Episodes are deleted before the podcast. A playable whose YouTube, Spotify, or Apple
-/// service id the destination parent already holds is not written again and gets no
-/// search document, so a re-run after a partial delete cannot duplicate a video the
-/// indexer re-created under a new episode id.
+/// service id the destination parent already holds is not written again. The search key
+/// for that re-created episode id is deleted, including an Episode document the hourly
+/// indexer already wrote, because the pull indexer has no deletion policy. The original
+/// playable's search document stays. A re-run after a partial delete therefore cannot
+/// leave a second playable or a second search document for that video.
 /// </summary>
 public class CatalogueMigrateApplier(
     IPodcastRepository podcastRepository,
@@ -118,14 +120,20 @@ public class CatalogueMigrateApplier(
                 return await Fail(Record, podcast.Id, kind, "Search swap failed. Source rows kept; re-run resumes.");
             }
 
-            // MoveEpisodes the document builder skips (removed, or on a removed podcast) may already be indexed.
-            // Drop those keys before the source row the episode indexer would use to delete them is gone.
-            var excludedIds = unit.MoveEpisodes
-                .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
+            // Keys this upload does not write may already be indexed: a removed episode (or one on a removed
+            // podcast), and a re-created episode the parent already holds on a YouTube, Spotify, or Apple id.
+            // Skipping the upload leaves the Episode document the hourly indexer wrote for the new id. The pull
+            // indexer has no deletion policy, so delete those keys before the source row is gone. The original
+            // playable id is not in this set (AlreadyHeld is false for the same id). Deleting a missing id succeeds.
+            var searchDeleteIds = unit.MoveEpisodes
+                .Where(episode =>
+                    alreadyHeld.Contains(episode.Id) ||
+                    EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
                 .Select(episode => episode.Id)
+                .Distinct()
                 .ToList();
-            if (excludedIds.Count > 0 &&
-                !await destination.DeleteSearch(excludedIds, cancellationToken))
+            if (searchDeleteIds.Count > 0 &&
+                !await destination.DeleteSearch(searchDeleteIds, cancellationToken))
             {
                 return await Fail(Record, podcast.Id, kind, "Search delete failed. Source rows kept; re-run resumes.");
             }

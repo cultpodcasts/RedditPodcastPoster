@@ -788,8 +788,8 @@ public class CatalogueMigrateApplyRules
 
     [Fact(DisplayName =
         "Catalogue migrate: when an episode delete throws after the destination is written and an indexer save re-creates " +
-        "that video as a new episode, then a re-run does not write a second playable or its search document, because the " +
-        "parent already holds that YouTube id.")]
+        "that video as a new episode, then a re-run does not write a second playable and deletes the recreated episode's " +
+        "search document, because the parent already holds that YouTube id and the pull indexer will not drop that key.")]
     public async Task rerun_after_partial_delete_does_not_duplicate_a_recreated_video()
     {
         // Arrange
@@ -820,6 +820,19 @@ public class CatalogueMigrateApplyRules
         EpisodeServicePresence.SetYouTubeIdentity(recreated, videoId);
         EpisodeServicePresence.Upsert(recreated, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(videoId), null);
         await _episodes.Save(recreated);
+        var indexed = _destination.Search[removed.Id.ToString()];
+        _destination.Search[recreated.Id.ToString()] = new EpisodeSearchRecord
+        {
+            Id = recreated.Id.ToString(),
+            Release = indexed.Release,
+            Duration = indexed.Duration,
+            YoutubeId = videoId,
+            BBC = indexed.BBC,
+            InternetArchive = indexed.InternetArchive,
+            Subjects = indexed.Subjects,
+            PublisherSearchTerms = indexed.PublisherSearchTerms,
+            EpisodeSearchTerms = indexed.EpisodeSearchTerms
+        };
         _episodes.BeforeDelete = null;
         _clock.Now = _clock.Now.AddMinutes(5);
         var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
@@ -834,6 +847,7 @@ public class CatalogueMigrateApplyRules
         _destination.NewsReports.Values.Count(report =>
             report.Services![ServiceKeys.YouTube].Url == _fixture.DefaultYouTubeUrl(videoId)).Should().Be(1);
         _destination.Search.Keys.Should().BeEquivalentTo(episodes.Select(episode => episode.Id.ToString()));
+        _destination.Search.Should().NotContainKey(recreated.Id.ToString());
         _destination.Search.Values.Count(document => document.YoutubeId == videoId).Should().Be(1);
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
         (await _episodes.GetByPodcastId(podcast.Id).ToListAsync()).Should().BeEmpty();
