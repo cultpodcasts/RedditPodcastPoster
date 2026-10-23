@@ -5,9 +5,14 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Discovery;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
 
@@ -22,20 +27,31 @@ namespace FunctionHost.Tests.Api.Services.Discovery;
 public class RecoveredSubmissionIngestedEpisodesRules
 {
     private readonly Fixture _fixture = new();
+    private readonly DomainTestFixture _domain = new();
     private readonly AutoMocker _mocker = new();
     private readonly List<Episode> _episodes = [];
+    private readonly List<NewsReport> _newsReports = [];
+    private readonly List<TvShowEpisode> _tvEpisodes = [];
     private DiscoverySubmission _submission = null!;
     private DiscoveryResultsDocument _report = null!;
 
     public RecoveredSubmissionIngestedEpisodesRules()
     {
         _mocker.Use(TimeProvider.System);
-        _mocker.Use<IDiscoverySubmissionIngestedEpisodes>(
-            _mocker.CreateInstance<DiscoverySubmissionIngestedEpisodes>());
         _mocker.GetMock<IEpisodeRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Episode, bool>>>()))
             .Returns((Expression<Func<Episode, bool>> selector) =>
                 _episodes.Where(selector.Compile()).ToAsyncEnumerable());
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .Returns((Expression<Func<NewsReport, bool>> selector) =>
+                _newsReports.Where(selector.Compile()).ToAsyncEnumerable());
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
+            .Returns((Expression<Func<TvShowEpisode, bool>> selector) =>
+                _tvEpisodes.Where(selector.Compile()).ToAsyncEnumerable());
+        _mocker.Use<IDiscoverySubmissionIngestedEpisodes>(
+            _mocker.CreateInstance<DiscoverySubmissionIngestedEpisodes>());
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.GetById(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _submission);
@@ -61,7 +77,8 @@ public class RecoveredSubmissionIngestedEpisodesRules
         // Assert
         var outcomes = result.Value!.Submission.ItemOutcomes;
         outcomes.Should().NotBeNull();
-        outcomes!.Should().OnlyContain(x => x.State == DiscoverySubmissionItemState.Succeeded);
+        outcomes!.Should().OnlyContain(x =>
+            x.State == DiscoverySubmissionItemState.Succeeded && x.ContentKind == null);
         outcomes.Select(x => (x.ResultId, x.EpisodeId, x.PodcastId)).Should().BeEquivalentTo([
             (spotify.Result, spotify.Episode.Id, spotify.Episode.PodcastId),
             (apple.Result, apple.Episode.Id, apple.Episode.PodcastId),
@@ -85,6 +102,11 @@ public class RecoveredSubmissionIngestedEpisodesRules
         _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(r => r.TryReplace(
             It.IsAny<DiscoverySubmission>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(It.IsAny<IEnumerable<Episode>>()), Times.Never);
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<IEnumerable<NewsReport>>()), Times.Never);
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(r => r.Save(It.IsAny<TvShowEpisode>()), Times.Never);
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(
+            r => r.Save(It.IsAny<IEnumerable<TvShowEpisode>>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsRepository>().VerifyNoOtherCalls();
     }
 
@@ -136,6 +158,10 @@ public class RecoveredSubmissionIngestedEpisodesRules
         // Assert
         _mocker.GetMock<IEpisodeRepository>().Verify(r => r.GetAllBy(It.IsAny<Expression<Func<Episode, bool>>>()),
             Times.Never);
+        _mocker.GetMock<INewsReportRepository>().Verify(
+            r => r.GetAllBy(It.IsAny<Expression<Func<NewsReport, bool>>>()), Times.Never);
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(
+            r => r.GetAllBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()), Times.Never);
         if (withOutcomes)
         {
             result.Value!.Submission.ItemOutcomes.Should().ContainSingle().Which.Should().BeSameAs(recorded);
@@ -144,6 +170,130 @@ public class RecoveredSubmissionIngestedEpisodesRules
         {
             result.Value!.Submission.ItemOutcomes.Should().BeNull();
         }
+    }
+
+    public static TheoryData<CatalogueServiceLink> CatalogueServiceLinks() =>
+        new()
+        {
+            CatalogueServiceLink.Spotify,
+            CatalogueServiceLink.Apple,
+            CatalogueServiceLink.YouTube
+        };
+
+    [Theory(DisplayName =
+        "When an Applied submission has no item outcomes and an accepted result's Spotify, Apple, or YouTube id belongs to a news report, the ingested view lists that report as Succeeded with contentKind NewsReport, episodeId the report id, and podcastId the organisation id.")]
+    [MemberData(nameof(CatalogueServiceLinks))]
+    public async Task recovered_submission_lists_news_report_by_service_id(CatalogueServiceLink service)
+    {
+        // Arrange
+        var (resultId, itemId, parentId) = ArrangeCatalogue(service, (id, parent, services) =>
+        {
+            _newsReports.Add(new NewsReport(_domain.CreateTitle())
+            {
+                Id = id,
+                NewsOrganisationId = parent,
+                Services = services
+            });
+        });
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Get(_submission.Id, Curator(), CancellationToken.None);
+
+        // Assert
+        var outcome = result.Value!.Submission.ItemOutcomes.Should().ContainSingle().Subject;
+        outcome.State.Should().Be(DiscoverySubmissionItemState.Succeeded);
+        outcome.ResultId.Should().Be(resultId);
+        outcome.EpisodeId.Should().Be(itemId);
+        outcome.PodcastId.Should().Be(parentId);
+        outcome.ContentKind.Should().Be(nameof(ContentKind.NewsReport));
+        outcome.Message.Should().Be(DiscoverySubmissionIngestedEpisodes.RecoveredMessage);
+    }
+
+    [Theory(DisplayName =
+        "When an Applied submission has no item outcomes and an accepted result's Spotify, Apple, or YouTube id belongs to a TV episode, the ingested view lists that episode as Succeeded with contentKind TvShowEpisode, episodeId the TV episode id, and podcastId the TV show id.")]
+    [MemberData(nameof(CatalogueServiceLinks))]
+    public async Task recovered_submission_lists_tv_episode_by_service_id(CatalogueServiceLink service)
+    {
+        // Arrange
+        var (resultId, itemId, parentId) = ArrangeCatalogue(service, (id, parent, services) =>
+        {
+            _tvEpisodes.Add(new TvShowEpisode(_domain.CreateTitle())
+            {
+                Id = id,
+                TvShowId = parent,
+                Services = services
+            });
+        });
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Get(_submission.Id, Curator(), CancellationToken.None);
+
+        // Assert
+        var outcome = result.Value!.Submission.ItemOutcomes.Should().ContainSingle().Subject;
+        outcome.State.Should().Be(DiscoverySubmissionItemState.Succeeded);
+        outcome.ResultId.Should().Be(resultId);
+        outcome.EpisodeId.Should().Be(itemId);
+        outcome.PodcastId.Should().Be(parentId);
+        outcome.ContentKind.Should().Be(nameof(ContentKind.TvShowEpisode));
+        outcome.Message.Should().Be(DiscoverySubmissionIngestedEpisodes.RecoveredMessage);
+    }
+
+    [Fact(DisplayName =
+        "When the episodes container already contains the service id, a recovered outcome keeps a null content kind and the podcast episode id, because catalogue kinds are only the fallback.")]
+    public async Task podcast_episode_wins_over_catalogue_playable_with_the_same_service_id()
+    {
+        // Arrange
+        var spotifyId = _domain.CreateSpotifyId();
+        var stored = new Uri($"https://open.spotify.com/episode/{spotifyId}");
+        var resultId = ArrangeSingle(
+            new DiscoveryResultUrls { Spotify = new Uri($"https://open.spotify.com/episode/{spotifyId}?si=1") });
+        var episode = Episode(new EpisodeIds { Spotify = spotifyId });
+        var reportId = _domain.CreateGuid();
+        _newsReports.Add(new NewsReport(_domain.CreateTitle())
+        {
+            Id = reportId,
+            NewsOrganisationId = _domain.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = new ServiceLink { Url = stored }
+            }
+        });
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Get(_submission.Id, Curator(), CancellationToken.None);
+
+        // Assert
+        var outcome = result.Value!.Submission.ItemOutcomes.Should().ContainSingle().Subject;
+        outcome.ResultId.Should().Be(resultId);
+        outcome.EpisodeId.Should().Be(episode.Id);
+        outcome.PodcastId.Should().Be(episode.PodcastId);
+        outcome.ContentKind.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the news-report lookup fails, podcast episodes already matched are still listed, because a catalogue lookup must not hide the recovered submission.")]
+    public async Task news_lookup_failure_still_lists_matched_episodes()
+    {
+        // Arrange
+        var (spotify, apple, youTube, _, _) = Arrange(DiscoverySubmissionStatus.Applied);
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .Throws(new InvalidOperationException("cosmos unavailable"));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Get(_submission.Id, Curator(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionQueryStatus.Ok);
+        result.Value!.Submission.ItemOutcomes.Should().NotBeNull();
+        result.Value!.Submission.ItemOutcomes!.Select(x => x.EpisodeId).Should().BeEquivalentTo([
+            spotify.Episode.Id, apple.Episode.Id, youTube.Episode.Id
+        ]);
+        result.Value!.Submission.ItemOutcomes!.Should().OnlyContain(x => x.ContentKind == null);
     }
 
     private ((Guid Result, Episode Episode) Spotify, (Guid Result, Episode Episode) Apple,
@@ -194,4 +344,78 @@ public class RecoveredSubmissionIngestedEpisodesRules
     }
 
     private SupervisionCaller Curator() => new(_submission.SubmitterSubject, IsAdmin: true, IsSupervisor: true);
+
+    private (Guid ResultId, Guid ItemId, Guid ParentId) ArrangeCatalogue(
+        CatalogueServiceLink service, Action<Guid, Guid, Dictionary<string, ServiceLink>> store)
+    {
+        var itemId = _domain.CreateGuid();
+        var parentId = _domain.CreateGuid();
+        var (urls, services) = Links(service);
+        store(itemId, parentId, services);
+        return (ArrangeSingle(urls), itemId, parentId);
+    }
+
+    private Guid ArrangeSingle(DiscoveryResultUrls urls)
+    {
+        var result = Result(urls);
+        _report = new DiscoveryResultsDocument(DateTime.UtcNow.AddDays(-1), [result])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _submission = new DiscoverySubmission
+        {
+            Id = _domain.CreateGuid(),
+            Status = DiscoverySubmissionStatus.Applied,
+            SubmitterSubject = _fixture.Create<string>(),
+            SubmittedAt = DateTime.UtcNow.AddHours(-1),
+            ETag = _fixture.Create<string>(),
+            DiscoveryResultsDocumentIds = [_report.Id],
+            SubmitterAcceptedResultIds = [result.Id]
+        };
+        return result.Id;
+    }
+
+    private (DiscoveryResultUrls Urls, Dictionary<string, ServiceLink> Stored) Links(CatalogueServiceLink service)
+    {
+        switch (service)
+        {
+            case CatalogueServiceLink.Spotify:
+                var spotifyId = _domain.CreateSpotifyId();
+                return (
+                    new DiscoveryResultUrls
+                    {
+                        Spotify = new Uri($"https://open.spotify.com/episode/{spotifyId}?si=1")
+                    },
+                    Service(ServiceKeys.Spotify, new Uri($"https://open.spotify.com/episode/{spotifyId}")));
+            case CatalogueServiceLink.Apple:
+                var showId = _domain.CreateAppleId();
+                var episodeId = _domain.CreateAppleId();
+                return (
+                    new DiscoveryResultUrls
+                    {
+                        Apple = new Uri(
+                            $"https://podcasts.apple.com/us/podcast/episode/id{showId}?i={episodeId}&uo=4")
+                    },
+                    Service(ServiceKeys.Apple, new Uri(
+                        $"https://podcasts.apple.com/us/podcast/episode/id{showId}?i={episodeId}")));
+            case CatalogueServiceLink.YouTube:
+                var youTubeId = _domain.CreateYouTubeId();
+                return (
+                    new DiscoveryResultUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") },
+                    Service(ServiceKeys.YouTube, new Uri($"https://www.youtube.com/watch?v={youTubeId}")));
+            default:
+                throw new ArgumentOutOfRangeException(nameof(service), service, null);
+        }
+    }
+
+    private static Dictionary<string, ServiceLink> Service(string key, Uri url) =>
+        new() { [key] = new ServiceLink { Url = url } };
+
+    public enum CatalogueServiceLink
+    {
+        Spotify,
+        Apple,
+        YouTube
+    }
 }
