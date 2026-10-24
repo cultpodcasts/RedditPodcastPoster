@@ -109,11 +109,13 @@ Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `art
 ## Discovery scorer checklist (interim)
 
 1. `provision-storage-containers.ps1` — ensures `discovery-models` exists  
-2. Train model locally (`DiscoveryTrainingTrain`)  
-3. `upload-discovery-model.ps1` — uploads to `current/`  
+2. Train model locally (`DiscoveryTrainingTrain`) and read `training-metrics.txt`  
+3. `upload-discovery-model.ps1` — copies the live bundle to `archive/<live ModelVersion>/`, then uploads to `current/` (`-SkipArchive` skips the copy)  
 4. Ensure `discover__scorer__*` app settings exist on `discover-infra` (bicep deploy or [`apply-discover-scorer-settings.ps1`](../scripts/apply-discover-scorer-settings.ps1))  
 5. `deploy-discover.ps1` — deploy code that reads model from blob  
-6. Confirm logs on next run: model sync + auto-hide messages  
+6. Confirm logs on next run: model sync (logs `ModelVersion`) + auto-hide messages  
+
+Discover syncs the bundle once per process, so a new model takes effect on the next cold start. To roll back, copy `archive/<ModelVersion>/*` back over `current/` and restart `discover-infra`.  
 
 ## When CI returns
 

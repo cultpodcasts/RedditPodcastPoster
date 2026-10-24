@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Discovery.ML.Services;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
@@ -99,6 +100,10 @@ public class DiscoveryTrainingExportProcessor
             State = result.State?.ToString() ?? string.Empty,
             EpisodeName = result.EpisodeName,
             ShowName = result.ShowName,
+            EpisodeDescription = result.Description,
+            ShowDescription = result.ShowDescription,
+            AutoHidden = result.AutoHidden,
+            AcceptProbability = result.AcceptProbability,
             Released = result.Released,
             Duration = result.Length?.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture),
             SpotifyUrl = result.Urls.Spotify?.ToString(),
@@ -259,7 +264,8 @@ public class DiscoveryTrainingExportProcessor
             "includeTaddy", "excludeSpotify", "resultId", "state", "episodeName", "showName", "released", "duration",
             "spotifyUrl", "appleUrl", "youTubeUrl", "spotifyEpisodeId", "appleEpisodeId", "youTubeVideoId", "sources",
             "discoverySubjects", "matchingPodcastIds", "joinMethod", "joinMatchCount", "episodeId", "episodePodcastId",
-            "episodeTitle", "episodeSubjects", "subjectsAdded", "subjectsRemoved", "subjectsExactMatch"
+            "episodeTitle", "episodeSubjects", "subjectsAdded", "subjectsRemoved", "subjectsExactMatch",
+            "episodeDescription", "showDescription", "autoHidden", "acceptProbability"
         };
 
         await using var writer = new StreamWriter(path, false, Encoding.UTF8);
@@ -299,7 +305,11 @@ public class DiscoveryTrainingExportProcessor
                 Csv(row.EpisodeSubjects),
                 Csv(row.SubjectsAdded),
                 Csv(row.SubjectsRemoved),
-                Csv(row.SubjectsExactMatch)));
+                Csv(row.SubjectsExactMatch),
+                Csv(row.EpisodeDescription),
+                Csv(row.ShowDescription),
+                Csv(row.AutoHidden),
+                Csv(row.AcceptProbability)));
         }
     }
 
@@ -418,27 +428,7 @@ public class DiscoveryTrainingExportProcessor
     private static string Pct(int part, int whole) =>
         whole == 0 ? "n/a" : $"{100.0 * part / whole:F1}%";
 
-    private static string Csv(object? value)
-    {
-        if (value == null)
-        {
-            return string.Empty;
-        }
-
-        var text = value switch
-        {
-            DateTime dt => dt.ToString("O", CultureInfo.InvariantCulture),
-            bool b => b ? "true" : "false",
-            _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
-        };
-
-        if (text.Contains('"') || text.Contains(',') || text.Contains('\n') || text.Contains('\r'))
-        {
-            return $"\"{text.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
-        }
-
-        return text;
-    }
+    private static string Csv(object? value) => TrainingCsv.Escape(value);
 
     private enum ServiceKey
     {
@@ -509,6 +499,10 @@ public class DiscoveryTrainingExportProcessor
         public string State { get; init; } = string.Empty;
         public string? EpisodeName { get; init; }
         public string? ShowName { get; init; }
+        public string? EpisodeDescription { get; init; }
+        public string? ShowDescription { get; init; }
+        public bool AutoHidden { get; init; }
+        public float? AcceptProbability { get; init; }
         public DateTime Released { get; init; }
         public string? Duration { get; init; }
         public string? SpotifyUrl { get; init; }

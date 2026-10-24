@@ -27,8 +27,14 @@ public class DiscoveryScorerSettings
 
     public string ShowAcceptRatesFileName { get; set; } = "show-accept-rates.csv";
 
-    /// <summary>Results with accept probability below this are auto-hidden when enabled.</summary>
+    /// <summary>
+    /// Results with accept probability below this are auto-hidden when enabled. Used for feature-version-1
+    /// models, or for any model when <see cref="UseManifestThreshold"/> is false.
+    /// </summary>
     public float AutoHideThreshold { get; set; } = 0.05f;
+
+    /// <summary>When true (default), a feature-version-2+ model's manifest threshold overrides <see cref="AutoHideThreshold"/>.</summary>
+    public bool UseManifestThreshold { get; set; } = true;
 
     public int EmbeddingMaxLength { get; set; } = 256;
 }

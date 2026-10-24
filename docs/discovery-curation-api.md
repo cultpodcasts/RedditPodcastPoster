@@ -412,8 +412,8 @@ plus report and item comments. No notifications are sent; UIs use `pendingCount`
 | Concept | Behaviour |
 |---------|-----------|
 | **Model** | LightGBM + MiniLM embeddings; trained on historical accept/reject labels |
-| **`acceptProbability`** | Estimated P(curator accepts). Higher = more likely worth reviewing first |
-| **`autoHidden`** | Set at ingest when `acceptProbability < 0.05` (config: `discover__scorer__AutoHideThreshold`) |
+| **`acceptProbability`** | Estimated P(curator accepts). Feature-version-2 models are calibrated, so 0.3 means about 30% of such results get accepted |
+| **`autoHidden`** | Set at ingest when `acceptProbability` is below the hide threshold. Feature-version-2 models use the manifest threshold (chosen at training for a target recall, default 97% of accepts kept visible). Version-1 models, or `discover__scorer__UseManifestThreshold=false`, use `discover__scorer__AutoHideThreshold` (default 0.05) |
 | **Persistence** | Both fields stored on each `DiscoveryResult` in Cosmos |
 | **Default GET** | Omits `autoHidden: true` rows from `results` |
 | **Curator authority** | Scorer never writes `Accepted`/`Rejected`; only POST does |

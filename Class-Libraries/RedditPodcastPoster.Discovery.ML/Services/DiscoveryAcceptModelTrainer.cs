@@ -7,35 +7,74 @@ using RedditPodcastPoster.Discovery.ML.Models;
 
 namespace RedditPodcastPoster.Discovery.ML.Services;
 
+public sealed record DiscoveryAcceptTrainOptions
+{
+    /// <summary>Share of accepted results the hide threshold must keep visible (chosen on the calibration slice).</summary>
+    public float TargetRecall { get; init; } = 0.97f;
+
+    /// <summary>When set, used instead of choosing a threshold from <see cref="TargetRecall"/>.</summary>
+    public float? FixedThreshold { get; init; }
+
+    public float PositiveExampleWeight { get; init; } = 15f;
+
+    public float ShowRatePriorWeight { get; init; } = ShowAcceptSmoothing.DefaultPriorWeight;
+}
+
+/// <summary>
+/// Trains the discovery accept model. Rows are split by time (train 70%, calibration 10%, test 20%) so
+/// evaluation always predicts later runs from earlier ones. The LightGBM score is Platt-calibrated on the
+/// calibration slice, which is not reweighted, so <c>acceptProbability</c> estimates the real accept rate.
+/// </summary>
 public sealed class DiscoveryAcceptModelTrainer
 {
+    public const string ModelFileName = "discovery-accept.model.zip";
+    public const string ManifestFileName = "discovery-accept.manifest.json";
+    public const string MetricsFileName = "training-metrics.txt";
+    public const string ShowAcceptRatesFileName = "show-accept-rates.csv";
+
+    private const double TrainShare = 0.7;
+    private const double CalibrationShare = 0.1;
+
     public async Task<DiscoveryAcceptTrainResult> TrainAsync(
         IReadOnlyList<DiscoveryTrainingExample> examples,
         string outputDirectory,
-        float autoHideThreshold,
-        float positiveExampleWeight = 15f,
+        DiscoveryAcceptTrainOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        options ??= new DiscoveryAcceptTrainOptions();
         if (examples.Count < 100)
         {
             throw new InvalidOperationException($"Need at least 100 labeled examples; got {examples.Count}.");
         }
 
         Directory.CreateDirectory(outputDirectory);
-        var ordered = examples
-            .OrderBy(x => x.DiscoveryBegan)
-            .ToList();
-        var splitIndex = (int)(ordered.Count * 0.8);
-        var trainRows = ordered.Take(splitIndex).ToList();
-        var testRows = ordered.Skip(splitIndex).ToList();
+        var ordered = examples.OrderBy(x => x.DiscoveryBegan).ToList();
+        var trainEnd = (int)(ordered.Count * TrainShare);
+        var calibrationEnd = (int)(ordered.Count * (TrainShare + CalibrationShare));
+        var trainRows = ordered.Take(trainEnd).ToList();
+        var calibrationRows = ordered.Skip(trainEnd).Take(calibrationEnd - trainEnd).ToList();
+        var testRows = ordered.Skip(calibrationEnd).ToList();
+
+        var prior = (float)trainRows.Count(x => x.Label) / trainRows.Count;
+        var smoothing = new ShowAcceptSmoothing(prior, options.ShowRatePriorWeight, ShowAcceptSmoothing.DefaultSeenCountCap);
+        var showFeatures = ShowAcceptHistory.PointInTime(
+            ordered.Select(x => (x.ShowName, x.DiscoveryBegan, x.Label)).ToList(),
+            smoothing);
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            ordered[i].ShowAcceptRate = showFeatures[i].AcceptRate;
+            ordered[i].ShowSeenCount = showFeatures[i].SeenCount;
+            ordered[i].ExampleWeight = 1f;
+        }
 
         foreach (var row in trainRows.Where(x => x.Label))
         {
-            row.ExampleWeight = positiveExampleWeight;
+            row.ExampleWeight = options.PositiveExampleWeight;
         }
 
         var mlContext = new MLContext(seed: 42);
         var trainData = mlContext.Data.LoadFromEnumerable(trainRows);
+        var calibrationData = mlContext.Data.LoadFromEnumerable(calibrationRows);
         var testData = mlContext.Data.LoadFromEnumerable(testRows);
 
         var pipeline = mlContext.Transforms.Concatenate(
@@ -47,7 +86,8 @@ public sealed class DiscoveryAcceptModelTrainer
                 nameof(DiscoveryTrainingExample.SourceSpotify),
                 nameof(DiscoveryTrainingExample.SourceYouTube),
                 nameof(DiscoveryTrainingExample.SourceTaddy),
-                nameof(DiscoveryTrainingExample.ShowAcceptRate))
+                nameof(DiscoveryTrainingExample.ShowAcceptRate),
+                nameof(DiscoveryTrainingExample.ShowSeenCount))
             .Append(mlContext.BinaryClassification.Trainers.LightGbm(
                 labelColumnName: nameof(DiscoveryTrainingExample.Label),
                 featureColumnName: "Features",
@@ -57,65 +97,113 @@ public sealed class DiscoveryAcceptModelTrainer
                 minimumExampleCountPerLeaf: 50,
                 learningRate: 0.05));
 
-        var model = pipeline.Fit(trainData);
-        var predictions = model.Transform(testData);
-        var metrics = mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: nameof(DiscoveryTrainingExample.Label));
+        var scorer = pipeline.Fit(trainData);
+        var calibrator = mlContext.BinaryClassification.Calibrators
+            .Platt(labelColumnName: nameof(DiscoveryTrainingExample.Label), scoreColumnName: "Score")
+            .Fit(scorer.Transform(calibrationData));
+        var model = scorer.Append(calibrator);
 
-        var (precision, recall) = EvaluateAtThreshold(predictions, mlContext, autoHideThreshold);
+        var calibrationScored = Scored(mlContext, model.Transform(calibrationData));
+        var threshold = options.FixedThreshold ?? DiscoveryThresholds.ForTargetRecall(calibrationScored, options.TargetRecall);
 
-        var modelPath = Path.Combine(outputDirectory, "discovery-accept.model.zip");
+        var testPredictions = model.Transform(testData);
+        var metrics = mlContext.BinaryClassification.Evaluate(testPredictions, labelColumnName: nameof(DiscoveryTrainingExample.Label));
+        var testScored = Scored(mlContext, testPredictions);
+        var atThreshold = DiscoveryThresholds.Evaluate(testScored, threshold);
+        var unseenShows = testRows
+            .Select((row, index) => (row, scored: testScored[index]))
+            .Where(x => x.row.ShowSeenCount == 0f)
+            .Select(x => x.scored)
+            .ToList();
+
+        var modelPath = Path.Combine(outputDirectory, ModelFileName);
         mlContext.Model.Save(model, trainData.Schema, modelPath);
 
+        var showRatesPath = Path.Combine(outputDirectory, ShowAcceptRatesFileName);
+        ShowAcceptRateLookup.Write(showRatesPath, ShowAcceptHistory.Totals(ordered.Select(x => (x.ShowName, x.Label))));
+
+        var trainedAt = DateTime.UtcNow;
         var manifest = new DiscoveryAcceptManifest
         {
-            ModelVersion = "1",
-            TrainedAt = DateTime.UtcNow,
+            ModelVersion = DiscoveryAcceptManifest.CreateModelVersion(trainedAt),
+            FeatureVersion = DiscoveryAcceptManifest.CurrentFeatureVersion,
+            TrainedAt = trainedAt,
+            LabelsFrom = ordered[0].DiscoveryBegan,
+            LabelsTo = ordered[^1].DiscoveryBegan,
             TrainingRows = trainRows.Count,
+            CalibrationRows = calibrationRows.Count,
+            TestRows = testRows.Count,
             EmbeddingDimensions = DiscoveryFeatureBuilder.EmbeddingDimensions,
-            AutoHideThreshold = autoHideThreshold,
-            TestPrecisionAtThreshold = precision,
-            TestRecallAtThreshold = recall
+            AutoHideThreshold = threshold,
+            TargetRecall = options.FixedThreshold == null ? options.TargetRecall : null,
+            TestPrecisionAtThreshold = atThreshold.Precision,
+            TestRecallAtThreshold = atThreshold.Recall,
+            ShowRatePrior = smoothing.Prior,
+            ShowRatePriorWeight = smoothing.PriorWeight,
+            ShowSeenCountCap = smoothing.SeenCountCap
         };
 
-        var manifestPath = Path.Combine(outputDirectory, "discovery-accept.manifest.json");
+        var manifestPath = Path.Combine(outputDirectory, ManifestFileName);
         await File.WriteAllTextAsync(
             manifestPath,
             JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }),
             cancellationToken);
 
-        var metricsPath = Path.Combine(outputDirectory, "training-metrics.txt");
-        var metricsText = new StringBuilder()
-            .AppendLine("Discovery accept/reject model training metrics")
-            .AppendLine($"Train rows: {trainRows.Count:N0}")
-            .AppendLine($"Test rows: {testRows.Count:N0}")
-            .AppendLine($"Accuracy: {metrics.Accuracy:P2}")
-            .AppendLine($"AUC: {metrics.AreaUnderRocCurve:F4}")
-            .AppendLine($"F1: {metrics.F1Score:F4}")
-            .AppendLine($"Precision (default): {metrics.PositivePrecision:F4}")
-            .AppendLine($"Recall (default): {metrics.PositiveRecall:F4}")
-            .AppendLine($"Precision @ threshold {autoHideThreshold.ToString(CultureInfo.InvariantCulture)}: {precision:F4}")
-            .AppendLine($"Recall @ threshold {autoHideThreshold.ToString(CultureInfo.InvariantCulture)}: {recall:F4}")
-            .ToString();
-        await File.WriteAllTextAsync(metricsPath, metricsText, cancellationToken);
+        var metricsPath = Path.Combine(outputDirectory, MetricsFileName);
+        await File.WriteAllTextAsync(
+            metricsPath,
+            MetricsReport(manifest, metrics, testScored, atThreshold, unseenShows),
+            cancellationToken);
 
-        return new DiscoveryAcceptTrainResult(modelPath, manifestPath, metricsPath, metrics, precision, recall);
+        return new DiscoveryAcceptTrainResult(modelPath, manifestPath, metricsPath, showRatesPath, metrics, manifest);
     }
 
-    private static (float Precision, float Recall) EvaluateAtThreshold(
-        IDataView predictions,
-        MLContext mlContext,
-        float threshold)
+    private static List<ScoredLabel> Scored(MLContext mlContext, IDataView predictions) =>
+        mlContext.Data.CreateEnumerable<ThresholdEvaluationRow>(predictions, reuseRowObject: false)
+            .Select(x => new ScoredLabel(x.Probability, x.Label))
+            .ToList();
+
+    private static string MetricsReport(
+        DiscoveryAcceptManifest manifest,
+        CalibratedBinaryClassificationMetrics metrics,
+        IReadOnlyCollection<ScoredLabel> testScored,
+        ThresholdOutcome atThreshold,
+        IReadOnlyCollection<ScoredLabel> unseenShows)
     {
-        var scored = mlContext.Data.CreateEnumerable<ThresholdEvaluationRow>(predictions, reuseRowObject: false).ToList();
-        var positives = scored.Where(x => x.Probability >= threshold).ToList();
-        var tp = positives.Count(x => x.Label);
-        var fp = positives.Count(x => !x.Label);
-        var fn = scored.Count(x => x.Label) - tp;
+        var testAccepted = testScored.Count(x => x.Accepted);
+        var sb = new StringBuilder()
+            .AppendLine("Discovery accept/reject model training metrics")
+            .AppendLine($"Model version: {manifest.ModelVersion} (feature version {manifest.FeatureVersion})")
+            .AppendLine($"Labels from {manifest.LabelsFrom:yyyy-MM-dd} to {manifest.LabelsTo:yyyy-MM-dd}")
+            .AppendLine($"Rows: train {manifest.TrainingRows:N0}, calibration {manifest.CalibrationRows:N0}, test {manifest.TestRows:N0} (split by discovery time)")
+            .AppendLine($"Train accept rate (show-rate prior): {manifest.ShowRatePrior:P2}")
+            .AppendLine($"Test accepted: {testAccepted:N0} of {testScored.Count:N0} ({Ratio(testAccepted, testScored.Count):P2})")
+            .AppendLine($"AUC: {metrics.AreaUnderRocCurve:F4}")
+            .AppendLine($"PR-AUC: {metrics.AreaUnderPrecisionRecallCurve:F4}")
+            .AppendLine($"Log-loss: {metrics.LogLoss:F4}")
+            .AppendLine()
+            .AppendLine(manifest.TargetRecall is { } target
+                ? $"Hide threshold {Format(manifest.AutoHideThreshold)} chosen on calibration slice for target recall {target:P0}"
+                : $"Hide threshold {Format(manifest.AutoHideThreshold)} fixed by --threshold")
+            .AppendLine($"  Test at threshold: shown {atThreshold.Shown:N0}, hidden {atThreshold.Hidden:N0} ({Ratio(atThreshold.Hidden, testScored.Count):P1}), precision {atThreshold.Precision:P1}, recall {atThreshold.Recall:P1}");
 
-        var precision = tp + fp == 0 ? 0f : (float)tp / (tp + fp);
-        var recall = tp + fn == 0 ? 0f : (float)tp / (tp + fn);
-        return (precision, recall);
+        var unseen = DiscoveryThresholds.Evaluate(unseenShows, manifest.AutoHideThreshold);
+        sb.AppendLine($"  Shows with no prior history: {unseenShows.Count:N0} rows, {unseenShows.Count(x => x.Accepted):N0} accepted, recall {unseen.Recall:P1}, precision {unseen.Precision:P1}")
+            .AppendLine()
+            .AppendLine("Test slice by threshold (shown = probability >= threshold):")
+            .AppendLine("  threshold   shown   hidden  precision  recall");
+        foreach (var t in DiscoveryThresholds.ReportThresholds.Append(manifest.AutoHideThreshold).Distinct().OrderBy(x => x))
+        {
+            var o = DiscoveryThresholds.Evaluate(testScored, t);
+            sb.AppendLine($"  {Format(t),9} {o.Shown,7:N0} {o.Hidden,8:N0} {o.Precision,10:P1} {o.Recall,7:P1}");
+        }
+
+        return sb.ToString();
     }
+
+    private static double Ratio(int part, int whole) => whole == 0 ? 0 : (double)part / whole;
+
+    private static string Format(float value) => value.ToString("0.####", CultureInfo.InvariantCulture);
 
     private sealed class ThresholdEvaluationRow
     {
@@ -131,6 +219,6 @@ public sealed record DiscoveryAcceptTrainResult(
     string ModelPath,
     string ManifestPath,
     string MetricsPath,
-    BinaryClassificationMetrics Metrics,
-    float TestPrecisionAtThreshold,
-    float TestRecallAtThreshold);
+    string ShowAcceptRatesPath,
+    CalibratedBinaryClassificationMetrics Metrics,
+    DiscoveryAcceptManifest Manifest);

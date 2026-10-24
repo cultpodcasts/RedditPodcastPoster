@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Discovery.ML.Models;
 using RedditPodcastPoster.Models.Discovery;
 
 namespace RedditPodcastPoster.Discovery.ML.Services;
@@ -34,32 +35,28 @@ public static class DiscoveryFeatureBuilder
 
     public static DiscoveryNumericFeatures BuildNumericFeatures(
         DiscoveryResult result,
-        IReadOnlyDictionary<string, float>? showAcceptRates)
+        IReadOnlyDictionary<string, ShowAcceptCounts>? showAcceptCounts,
+        ShowAcceptSmoothing smoothing)
     {
+        var key = ShowAcceptHistory.Key(result.ShowName);
+        ShowAcceptCounts? counts = key != null && showAcceptCounts != null &&
+                                   showAcceptCounts.TryGetValue(key, out var c)
+            ? c
+            : null;
         return BuildNumericFeatures(
             result.MatchingPodcastIds.Length,
             result.Subjects,
             result.Sources,
-            result.ShowName,
-            showAcceptRates);
+            smoothing.Features(counts));
     }
 
     public static DiscoveryNumericFeatures BuildNumericFeatures(
         int matchingPodcastCount,
         IEnumerable<string>? subjects,
         DiscoverService[] sources,
-        string? showName,
-        IReadOnlyDictionary<string, float>? showAcceptRates)
+        ShowAcceptFeatures show)
     {
         var subjectCount = subjects?.Count() ?? 0;
-        var showRate = 0f;
-        if (!string.IsNullOrWhiteSpace(showName) &&
-            showAcceptRates != null &&
-            showAcceptRates.TryGetValue(showName.Trim(), out var rate))
-        {
-            showRate = rate;
-        }
-
         return new DiscoveryNumericFeatures
         {
             HasMatchingPodcast = matchingPodcastCount > 0 ? 1f : 0f,
@@ -68,24 +65,30 @@ public static class DiscoveryFeatureBuilder
             SourceSpotify = sources.Contains(DiscoverService.Spotify) ? 1f : 0f,
             SourceYouTube = sources.Contains(DiscoverService.YouTube) ? 1f : 0f,
             SourceTaddy = sources.Contains(DiscoverService.Taddy) ? 1f : 0f,
-            ShowAcceptRate = showRate
+            ShowAcceptRate = show.AcceptRate,
+            ShowSeenCount = show.SeenCount
         };
     }
 
-    public static DiscoveryNumericFeatures BuildNumericFeatures(
-        Guid[] matchingPodcastIds,
-        IEnumerable<string>? subjects,
-        DiscoverService[] sources,
-        string? showName,
-        IReadOnlyDictionary<string, float>? showAcceptRates)
-    {
-        return BuildNumericFeatures(
-            matchingPodcastIds.Length,
-            subjects,
-            sources,
-            showName,
-            showAcceptRates);
-    }
+    public static DiscoveryTrainingExample ToExample(
+        float[] embedding,
+        DiscoveryNumericFeatures numeric,
+        bool label = false,
+        DateTime discoveryBegan = default) =>
+        new()
+        {
+            DiscoveryBegan = discoveryBegan,
+            Label = label,
+            Embedding = embedding,
+            HasMatchingPodcast = numeric.HasMatchingPodcast,
+            SubjectCount = numeric.SubjectCount,
+            SourceListenNotes = numeric.SourceListenNotes,
+            SourceSpotify = numeric.SourceSpotify,
+            SourceYouTube = numeric.SourceYouTube,
+            SourceTaddy = numeric.SourceTaddy,
+            ShowAcceptRate = numeric.ShowAcceptRate,
+            ShowSeenCount = numeric.ShowSeenCount
+        };
 }
 
 public sealed class DiscoveryNumericFeatures
@@ -97,6 +100,7 @@ public sealed class DiscoveryNumericFeatures
     public float SourceYouTube { get; init; }
     public float SourceTaddy { get; init; }
     public float ShowAcceptRate { get; init; }
+    public float ShowSeenCount { get; init; }
 
     public float[] ToArray() =>
     [
@@ -106,6 +110,7 @@ public sealed class DiscoveryNumericFeatures
         SourceSpotify,
         SourceYouTube,
         SourceTaddy,
-        ShowAcceptRate
+        ShowAcceptRate,
+        ShowSeenCount
     ];
 }
