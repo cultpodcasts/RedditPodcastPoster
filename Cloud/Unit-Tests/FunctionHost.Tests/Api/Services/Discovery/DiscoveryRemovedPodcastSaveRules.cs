@@ -67,7 +67,8 @@ public class DiscoveryRemovedPodcastSaveRules
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
             It.Is<Guid[]>(ids => ids.SequenceEqual(new[] { documentId })),
             It.Is<Guid[]>(ids => ids.Length == 0),
-            It.Is<Guid[]>(ids => ids.Length == 0)), Times.Once);
+            It.Is<Guid[]>(ids => ids.Length == 0),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Once);
     }
 
     [Fact(DisplayName =

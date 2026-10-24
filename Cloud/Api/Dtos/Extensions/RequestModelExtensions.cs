@@ -203,6 +203,12 @@ public static class RequestModelExtensions
         SelectedIdentityKeys = request.SelectedIdentityKeys
     };
 
+    public static Models.DiscoverySubmitOutcomeRequest ToModel(this DiscoverySubmitOutcomeRequest request) => new()
+    {
+        DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
+        ResultIds = request.ResultIds
+    };
+
     public static Models.DiscoveryScheduleUpdateRequest ToModel(this DiscoveryScheduleUpdateRequest request) => new()
     {
         RunTimes = request.RunTimes,
