@@ -6,8 +6,13 @@ namespace Api.Services.Discovery;
 public interface IDiscoveryResultsService
 {
     Task<DiscoveryCurationData> Get(bool includeHidden, CancellationToken c);
-    Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds);
 
+    /// <summary>
+    /// Stamps each result Accepted / AcceptError / Rejected and copies podcast/episode ids (and error text)
+    /// from <paramref name="outcomes"/> so a lost HTTP response can still be reconciled.
+    /// </summary>
+    Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds,
+        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null);
 
     Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest);
     Task UpdateDiscoveryInfoContent();
@@ -32,7 +37,15 @@ public interface IDiscoveryResultsService
     Task ReleaseHeldClaim(Guid[] documentIds);
 
     /// <summary>On Processed reports, sets only the given results to Accepted / AcceptError (retry outcome).</summary>
-    Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds);
+    Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds,
+        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null);
+
+    /// <summary>
+    /// Reads stamped submit outcomes for the given document + result ids (including Processed reports).
+    /// Missing stamps mean the item is still pending / in flight.
+    /// </summary>
+    Task<IReadOnlyList<DiscoverySubmitOutcomeItem>> GetSubmitOutcome(Guid[] documentIds, Guid[] resultIds,
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyDictionary<Guid, DiscoveryPodcastInfo>> GetPodcastInfo(IEnumerable<DiscoveryResult> results,
         CancellationToken c);
