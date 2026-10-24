@@ -20,4 +20,20 @@ public abstract class ServiceIdsDto : PublisherFieldsDto
 
     [JsonPropertyName("appleId")]
     public long? AppleId { get; set; }
+
+    /// <summary>From <c>indexing</c>: auto-index every episode, or only titles matching the include regex.</summary>
+    [JsonPropertyName("indexAllEpisodes")]
+    public bool IndexAllEpisodes { get; set; }
+
+    [JsonPropertyName("titleRegex")]
+    public string TitleRegex { get; set; } = "";
+
+    [JsonPropertyName("descriptionRegex")]
+    public string DescriptionRegex { get; set; } = "";
+
+    [JsonPropertyName("episodeMatchRegex")]
+    public string EpisodeMatchRegex { get; set; } = "";
+
+    [JsonPropertyName("episodeIncludeTitleRegex")]
+    public string EpisodeIncludeTitleRegex { get; set; } = "";
 }

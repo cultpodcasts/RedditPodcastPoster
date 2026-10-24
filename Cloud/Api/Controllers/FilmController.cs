@@ -31,6 +31,15 @@ public class FilmController(
         CancellationToken ct) =>
         HandleRequest(req, ["curate"], filmIdentifier, getFilmHandler.Handle, Unauthorised, ct);
 
+    // Rare fallback: App Service decodes %2F to '/' (Azure/azure-functions-host#9290; same as PodcastGetSlash).
+    [Function("FilmGetSlash")]
+    public Task<HttpResponseData> GetSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "film/{*filmIdentifier}")]
+        HttpRequestData req,
+        string filmIdentifier,
+        CancellationToken ct) =>
+        Get(req, filmIdentifier, ct);
+
     [Function("FilmPatch")]
     public Task<HttpResponseData> Patch(
         [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "film/{filmId:guid}")]
@@ -61,4 +70,14 @@ public class FilmController(
             catalogueRenameHandler.HandleFilm,
             Unauthorised,
             ct);
+
+    /// <summary>Rename when the old name contains <c>/</c> (App Service %2F decode; see FilmGetSlash).</summary>
+    [Function("FilmRenameSlash")]
+    public Task<HttpResponseData> RenameSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "film/name/{*filmIdentifier}")]
+        HttpRequestData req,
+        string filmIdentifier,
+        [FromBody] Dtos.CatalogueRenameRequest rename,
+        CancellationToken ct) =>
+        Rename(req, filmIdentifier, rename, ct);
 }

@@ -24,4 +24,19 @@ public abstract class ServiceIdsChangeRequest : PublisherFieldsChangeRequest
 
     [JsonPropertyName("nullAppleId")]
     public bool? NullAppleId { get; set; }
+
+    [JsonPropertyName("indexAllEpisodes")]
+    public bool? IndexAllEpisodes { get; set; }
+
+    [JsonPropertyName("titleRegex")]
+    public string? TitleRegex { get; set; }
+
+    [JsonPropertyName("descriptionRegex")]
+    public string? DescriptionRegex { get; set; }
+
+    [JsonPropertyName("episodeMatchRegex")]
+    public string? EpisodeMatchRegex { get; set; }
+
+    [JsonPropertyName("episodeIncludeTitleRegex")]
+    public string? EpisodeIncludeTitleRegex { get; set; }
 }

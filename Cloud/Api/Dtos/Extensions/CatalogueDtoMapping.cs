@@ -15,6 +15,11 @@ public static class CatalogueDtoMapping
         dto.YouTubePlaylistIdHistory = indexing?.YouTubePlaylistIdHistory?.ToArray();
         dto.SpotifyId = indexing?.SpotifyId ?? "";
         dto.AppleId = indexing?.AppleId;
+        dto.IndexAllEpisodes = indexing?.IndexAllEpisodes ?? false;
+        dto.TitleRegex = indexing?.TitleRegex ?? "";
+        dto.DescriptionRegex = indexing?.DescriptionRegex ?? "";
+        dto.EpisodeMatchRegex = indexing?.EpisodeMatchRegex ?? "";
+        dto.EpisodeIncludeTitleRegex = indexing?.EpisodeIncludeTitleRegex ?? "";
         return dto;
     }
 
