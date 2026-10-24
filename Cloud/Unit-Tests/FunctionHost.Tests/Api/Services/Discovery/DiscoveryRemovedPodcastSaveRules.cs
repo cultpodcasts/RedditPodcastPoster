@@ -100,7 +100,8 @@ public class DiscoveryRemovedPodcastSaveRules
         // Assert
         outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
         _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
-            s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()), Times.Once);
+            s => s.Submit(result, It.IsAny<IndexingContext>(), It.Is<SubmitOptions>(o => !o.LanguageProbe)),
+            Times.Once);
     }
 
     [Fact(DisplayName =

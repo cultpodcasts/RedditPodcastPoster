@@ -27,7 +27,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
             .Callback(() =>
             {
                 _calls.Add("ingest");
-                if (_throwOnLookup)
+                if (_throwOnLookup && _calls.Contains("claimHeld"))
                 {
                     throw new InvalidOperationException();
                 }
@@ -36,7 +36,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
     }
 
     [Fact(DisplayName =
-        "INVARIANT: A supervisor apply claims the held reports (PendingSupervisor to Processed, guarded) before any ingestion and never uses the curator claim, because only a supervisor apply may process a held report.")]
+        "INVARIANT: A supervisor apply may read results for a non-persisting language probe before the claim, then claims the held reports before the persisting ingest, and never uses the curator claim.")]
     public async Task apply_held_claims_before_ingest()
     {
         // Arrange
@@ -48,7 +48,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
 
         // Assert
         result.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
-        _calls.Should().Equal("claimHeld", "ingest");
+        _calls.Should().Equal("ingest", "claimHeld", "ingest");
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.TryClaimForProcessing(
             It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
@@ -97,7 +97,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
         // Assert
         result.Status.Should().Be(DiscoveryCurationSubmitStatus.Conflict);
         result.UnavailableDocumentIds.Should().Equal(request.DiscoveryResultsDocumentIds[0]);
-        _calls.Should().Equal("claimHeld");
+        _calls.Should().Equal("ingest", "claimHeld");
         _mocker.GetMock<IDiscoveryUrlSubmitter>().VerifyNoOtherCalls();
     }
 

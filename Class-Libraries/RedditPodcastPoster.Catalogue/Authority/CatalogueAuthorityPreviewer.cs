@@ -31,7 +31,11 @@ public sealed class CatalogueAuthorityPreviewer(
             var hits = await tmdb.SearchMoviesAsync(query, cancellationToken).ConfigureAwait(false);
             if (hits.Count > 1)
             {
-                var many = Unresolved(query, hits.Count, Labels(hits));
+                var many = Unresolved(
+                    query,
+                    hits.Count,
+                    Labels(hits),
+                    FilmCandidates(hits));
                 if (isOriginal)
                 {
                     return many;
@@ -78,7 +82,11 @@ public sealed class CatalogueAuthorityPreviewer(
             var tmdbHits = await tmdb.SearchTvAsync(query, cancellationToken).ConfigureAwait(false);
             if (tmdbHits.Count > 1)
             {
-                var many = Unresolved(query, tmdbHits.Count, Labels(tmdbHits));
+                var many = Unresolved(
+                    query,
+                    tmdbHits.Count,
+                    Labels(tmdbHits),
+                    TvShowTmdbCandidates(tmdbHits));
                 if (isOriginal)
                 {
                     return many;
@@ -118,7 +126,11 @@ public sealed class CatalogueAuthorityPreviewer(
             var seriesHits = await SearchSeriesAsync(query, cancellationToken).ConfigureAwait(false);
             if (seriesHits.Count > 1)
             {
-                var many = Unresolved(query, seriesHits.Count, seriesHits.Take(SampleLimit).Select(Label).ToList());
+                var many = Unresolved(
+                    query,
+                    seriesHits.Count,
+                    seriesHits.Take(SampleLimit).Select(Label).ToList(),
+                    TvShowTvdbCandidates(seriesHits));
                 if (isOriginal)
                 {
                     return many;
@@ -307,7 +319,8 @@ public sealed class CatalogueAuthorityPreviewer(
     private static CatalogueAuthorityPreview Unresolved(
         string query,
         int hitCount,
-        IReadOnlyList<string> labels) =>
+        IReadOnlyList<string> labels,
+        IReadOnlyList<CatalogueAuthorityCandidate>? candidates = null) =>
         new(
             query,
             hitCount,
@@ -320,10 +333,45 @@ public sealed class CatalogueAuthorityPreviewer(
                 0 => CatalogueAuthorityResolution.NotInAuthority,
                 1 => CatalogueAuthorityResolution.DifferentTitle,
                 _ => CatalogueAuthorityResolution.SeveralProgrammes
-            });
+            },
+            Candidates: hitCount > 1 ? candidates : null);
 
     private static List<string> Labels(IReadOnlyList<TmdbSearchHit> hits) =>
         hits.Take(SampleLimit).Select(Label).ToList();
+
+    private static List<CatalogueAuthorityCandidate> FilmCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
+        hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TmdbKey(hit.Id),
+            hit.Name,
+            hit.Year,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.TmdbSource,
+            hit.Id,
+            TvdbId: null)).ToList();
+
+    private static List<CatalogueAuthorityCandidate> TvShowTmdbCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
+        hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TmdbKey(hit.Id),
+            hit.Name,
+            hit.Year,
+            CatalogueAuthorityCandidate.TvShowKind,
+            CatalogueAuthorityCandidate.TmdbSource,
+            hit.Id,
+            TvdbId: null)).ToList();
+
+    private static List<CatalogueAuthorityCandidate> TvShowTvdbCandidates(IReadOnlyList<TheTvdbSearchHit> hits) =>
+        hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TvdbKey(hit.Id),
+            hit.Name,
+            ParseYear(hit.Year),
+            CatalogueAuthorityCandidate.TvShowKind,
+            CatalogueAuthorityCandidate.TvdbSource,
+            TmdbId: null,
+            hit.Id,
+            hit.CanonicalUrl)).ToList();
+
+    private static int? ParseYear(string? year) =>
+        int.TryParse(year, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
 
     private static string Label(TmdbSearchHit hit) =>
         hit.Year is { } year

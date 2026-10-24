@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// <summary>
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
 /// Platform presence is <see cref="Services"/> only — no provider-id fields.
-/// Canonical identity is <see cref="IFilmCanonical.Imdb"/> (not a streaming service).
+/// Canonical identity is <see cref="IFilmCanonical.ImdbId"/> (not a streaming service).
 /// Release is year or calendar date — not a podcast-episode datetime.
 /// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no <see cref="IMediaProduction.Title"/>.
 /// Description / Language / SearchTerms / HashTag come from <see cref="Publisher"/>
@@ -93,12 +93,6 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     [JsonPropertyName("matches")]
     [JsonPropertyOrder(72)]
     public List<PlayableSubjectMatch> Matches { get; set; } = [];
-
-    /// <summary>IMDb title page for this film (homonym disambiguation).</summary>
-    [JsonPropertyName("imdb")]
-    [JsonPropertyOrder(140)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Uri? Imdb { get; set; }
 
     /// <summary>IMDb title id (<c>tt…</c>) for this film. Omitted when unknown.</summary>
     [JsonPropertyName("imdbId")]

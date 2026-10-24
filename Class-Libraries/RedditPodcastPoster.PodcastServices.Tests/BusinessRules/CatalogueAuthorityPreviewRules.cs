@@ -40,7 +40,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, query, TmdbTitleKind.Movie)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectFilmAsync(tmdbId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, droppedTvdbId, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, droppedTvdbId));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -81,6 +81,9 @@ public class CatalogueAuthorityPreviewRules
         preview.TmdbId.Should().BeNull();
         preview.TvdbId.Should().BeNull();
         preview.HitLabels.Should().Equal(first, second);
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c => c.Source == CatalogueAuthorityCandidate.TmdbSource);
     }
 
     [Fact(DisplayName =
@@ -101,7 +104,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, head, TmdbTitleKind.Movie)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectFilmAsync(tmdbId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, _fixture.CreateAppleId(), null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, _fixture.CreateAppleId()));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -130,7 +133,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, query, TmdbTitleKind.TvSeries, year)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -183,7 +186,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([SeriesHit(tvdbId, query)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(null, tvdbId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -211,13 +214,13 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, query, TmdbTitleKind.TvSeries)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null));
         _mocker.GetMock<ITheTvdbClient>()
             .Setup(client => client.SearchAsync(query, TheTvdbSearchType.Series, It.IsAny<CancellationToken>()))
             .ReturnsAsync([SeriesHit(tvdbId, query)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, tvdbId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, tvdbId));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -248,7 +251,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, head, TmdbTitleKind.TvSeries)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -330,7 +333,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, show, TmdbTitleKind.TvSeries)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -362,7 +365,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([Hit(tmdbId, programme, TmdbTitleKind.TvSeries)]);
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(lookup => lookup.CollectTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, tmdbId, null));
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act

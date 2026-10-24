@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
@@ -14,6 +15,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Tubi.Matching;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -36,6 +38,22 @@ public class CatalogueKindSubmitRules
     {
         _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create());
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveTvShowEpisodeAsync(
+                It.IsAny<TvShow>(),
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<IFilmRepository>()
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
@@ -525,6 +543,86 @@ public class CatalogueKindSubmitRules
         _episodes.Should().ContainSingle();
         _episodes[0].TvShowId.Should().Be(_shows[0].Id);
         _films.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an iPlayer submit scrapes a network publisher and creates a new TvShow, " +
+        "the show stores that publisher so the curator Meta field is not left blank.")]
+    public async Task iplayer_create_sets_tv_show_publisher_from_scrape()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var series = _fixture.CreateTitle();
+        var publisher = _fixture.Create<string>();
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.BbcIplayer,
+            Url: url,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            Publisher: publisher,
+            ShowName: series);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(url));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _shows.Should().ContainSingle();
+        _shows[0].Name.Should().Be(series);
+        _shows[0].PublisherName.Should().Be(publisher);
+        _shows[0].ImdbId.Should().BeNull();
+        _shows[0].TvdbId.Should().BeNull();
+        _episodes.Should().ContainSingle();
+        _episodes[0].ImdbId.Should().BeNull();
+        _episodes[0].TvdbId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a kind-classified TV submit creates a TvShowEpisode, the result carries a " +
+        "CatalogueSearchSource keyed by the playable id so the host indexes it immediately.")]
+    public async Task tv_create_returns_catalogue_search_source_for_immediate_index()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var series = _fixture.CreateTitle();
+        var source = Source(showName: series);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(source.Url!));
+
+        // Assert
+        result!.CatalogueSearchSource.Should().NotBeNull();
+        result.CatalogueSearchSource!.Kind.Should().Be(CatalogueParentKind.TvShow);
+        result.CatalogueSearchSource.Parent.Id.Should().Be(_shows[0].Id);
+        result.CatalogueSearchSource.Parent.Name.Should().Be(series);
+        result.CatalogueSearchSource.Episode.Id.Should().Be(_episodes[0].Id);
+        result.CatalogueSearchSource.Episode.Title.Should().Be(source.Title);
+        result.PlayableId.Should().Be(_episodes[0].Id);
+    }
+
+    [Fact(DisplayName =
+        "When a kind-classified news submit creates a NewsReport, the result carries a " +
+        "CatalogueSearchSource keyed by the playable id so the host indexes it immediately.")]
+    public async Task news_create_returns_catalogue_search_source_for_immediate_index()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var organisation = _fixture.CreateTitle();
+        var source = Source(showName: organisation);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        result!.CatalogueSearchSource.Should().NotBeNull();
+        result.CatalogueSearchSource!.Kind.Should().Be(CatalogueParentKind.NewsOrganisation);
+        result.CatalogueSearchSource.Parent.Id.Should().Be(_organisations[0].Id);
+        result.CatalogueSearchSource.Episode.Id.Should().Be(_reports[0].Id);
+        result.PlayableId.Should().Be(_reports[0].Id);
     }
 
     [Fact(DisplayName =

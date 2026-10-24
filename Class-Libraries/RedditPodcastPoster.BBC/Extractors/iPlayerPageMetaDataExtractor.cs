@@ -50,6 +50,8 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         }
 
 
+        // Publisher is always BBC. IMDb / TheTVDB are not present on iPlayer pages or in
+        // __IPLAYER_REDUX_STATE__, so catalogue create must not invent those identity URLs.
         return new NonPodcastServiceItemMetaData(title, description, md.Duration, md.Release, md.Image,
             md.Explicit, "BBC", md.Series);
     }

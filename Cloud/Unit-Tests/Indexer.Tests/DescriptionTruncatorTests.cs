@@ -164,45 +164,46 @@ public class DescriptionTruncatorTests
     }
 
     [Fact(DisplayName =
-        "The search description cap is 50 characters, because cap 100 filled the Free-tier 50 MB index (22 Oct 2026).")]
-    public void Description_cap_is_50_for_the_free_tier_index()
+        "The search description cap is 80 characters: enough headroom under the Free-tier 50 MB index at ~41.55 MB usage, without restoring the Oct 2026 cap-100 overrun.")]
+    public void Description_cap_is_80_for_the_free_tier_index()
     {
         // Arrange
         // Act
         var cap = Constants.DescriptionSize;
 
         // Assert
-        cap.Should().Be(50);
+        cap.Should().Be(80);
     }
 
     [Fact(DisplayName =
-        "A long description is cut to at most 50 characters at the last word boundary, with an ellipsis.")]
-    public void Truncates_long_description_to_fifty_characters_at_a_word_boundary()
+        "A long description is cut to at most 80 characters at the last word boundary, with an ellipsis.")]
+    public void Truncates_long_description_to_eighty_characters_at_a_word_boundary()
     {
         // Arrange
         const string description =
-            "Former members describe life inside the compound and the years it took to leave.";
+            "Former members describe life inside the compound and the years it took to leave safely.";
 
         // Act
         var truncated = DescriptionTruncator.TruncateForSearch(description);
 
         // Assert
-        truncated.Should().Be("Former members describe life inside the compound\u2026");
-        truncated.Length.Should().BeLessThanOrEqualTo(50);
+        truncated.Should().Be(
+            "Former members describe life inside the compound and the years it took to\u2026");
+        truncated.Length.Should().BeLessThanOrEqualTo(80);
     }
 
     [Fact(DisplayName =
-        "The Cosmos SQL cut uses the same 50 cap as the push path: keep up to 50, else a 49-character slice plus an ellipsis, preferring a space past the halfway point.")]
-    public void Cosmos_sql_uses_the_fifty_character_cap()
+        "The Cosmos SQL cut uses the same 80 cap as the push path: keep up to 80, else a 79-character slice plus an ellipsis, preferring a space past the halfway point.")]
+    public void Cosmos_sql_uses_the_eighty_character_cap()
     {
         // Arrange
         // Act
         var sql = DescriptionTruncator.CosmosSql("e.description");
 
         // Assert
-        sql.Should().Contain("LENGTH(LTRIM(RTRIM(e.description))) <= 50");
-        sql.Should().Contain("SUBSTRING(LTRIM(RTRIM(e.description)), 0, 49)");
-        sql.Should().Contain(") > 24,");
-        sql.Should().NotContain("<= 100");
+        sql.Should().Contain("LENGTH(LTRIM(RTRIM(e.description))) <= 80");
+        sql.Should().Contain("SUBSTRING(LTRIM(RTRIM(e.description)), 0, 79)");
+        sql.Should().Contain(") > 39,");
+        sql.Should().NotContain("<= 50");
     }
 }

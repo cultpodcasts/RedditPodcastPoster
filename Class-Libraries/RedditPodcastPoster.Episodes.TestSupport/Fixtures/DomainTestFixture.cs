@@ -340,6 +340,15 @@ public sealed class DomainTestFixture
   /// <summary>Random Guid for generic test identity (podcast/episode ids not asserted).</summary>
   public Guid CreateGuid() => _fixture.Create<Guid>();
 
+  /// <summary>IMDb title id for generic catalogue identity tests: <c>tt</c> + 8 digits.</summary>
+  public string CreateImdbId() => "tt" + (10_000_000 + Math.Abs(_fixture.Create<int>() % 90_000_000));
+
+  /// <summary>TMDB id for generic catalogue identity tests (positive).</summary>
+  public int CreateTmdbId() => 1 + Math.Abs(_fixture.Create<int>() % 1_000_000_000);
+
+  /// <summary>TheTVDB id for generic catalogue identity tests (positive).</summary>
+  public long CreateTvdbId() => 1 + Math.Abs(_fixture.Create<int>() % 1_000_000_000);
+
   public Uri DefaultSpotifyUrl(string spotifyEpisodeId) =>
     new($"https://open.spotify.com/episode/{spotifyEpisodeId}");
 

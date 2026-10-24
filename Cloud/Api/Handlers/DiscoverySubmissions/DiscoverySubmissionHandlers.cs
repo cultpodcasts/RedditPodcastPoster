@@ -95,6 +95,8 @@ internal static class SupervisionCallerFactory
         DiscoverySubmissionCommandStatus.Forbidden => Forbidden(ctx, c),
         DiscoverySubmissionCommandStatus.Conflict => ctx.Conflict(result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.Invalid => ctx.BadRequest(result.ToDto(submissionId), c),
+        DiscoverySubmissionCommandStatus.LanguageDecisionRequired => ctx.Ok(result.ToDto(submissionId), c),
+        DiscoverySubmissionCommandStatus.IdentityDecisionRequired => ctx.Ok(result.ToDto(submissionId), c),
         _ => ctx.InternalError(result.ToDto(submissionId), c)
     };
 }

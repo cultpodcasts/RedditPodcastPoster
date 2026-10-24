@@ -66,6 +66,25 @@ public static class NeutralCultureLanguageLookup
         return false;
     }
 
+    /// <summary>English display name for a neutral ISO code (<c>is</c> → Icelandic). False when the code is unknown.</summary>
+    public static bool TryResolveByCode(string? code, out string canonicalName)
+    {
+        canonicalName = string.Empty;
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return false;
+        }
+
+        if (!Maps.Value.ByIso.TryGetValue(code.Trim(), out var culture) ||
+            string.IsNullOrWhiteSpace(culture.EnglishName))
+        {
+            return false;
+        }
+
+        canonicalName = culture.EnglishName;
+        return true;
+    }
+
     /// <summary>
     /// Neutral cultures for admin Add validation. Includes EnglishName and NativeName rows (same code)
     /// plus alias spellings so the client can resolve the same names as the server.

@@ -57,8 +57,8 @@ public class TvShowEpisodeFieldUpdateRules
     public async Task update_sets_playable_fields()
     {
         // Arrange
-        var imdb = new Uri("https://www.imdb.com/title/tt0000002/");
-        var episode = CreateEpisode(e => { e.SearchTerms = "keep"; e.Imdb = imdb; });
+        var imdbId = _fixture.CreateImdbId();
+        var episode = CreateEpisode(e => { e.SearchTerms = "keep"; e.ImdbId = imdbId; });
         var release = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(1));
         var duration = _fixture.CreateDuration() + TimeSpan.FromSeconds(30);
 
@@ -86,7 +86,7 @@ public class TvShowEpisodeFieldUpdateRules
         _saved.HashTag.Should().Be("#Tag");
         _saved.Language.Should().Be("es");
         _saved.SearchTerms.Should().Be("keep");
-        _saved.Imdb.Should().Be(imdb);
+        _saved.ImdbId.Should().Be(imdbId);
         _search.VerifyDelete(episode.Id, Times.Never());
     }
 

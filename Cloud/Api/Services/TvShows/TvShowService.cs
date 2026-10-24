@@ -61,16 +61,20 @@ public class TvShowService(
                 return new TvShowUpdateResult(TvShowUpdateStatus.NotFound);
             }
 
-            if (!CanonicalUriPatch.TryApply(request.Change.Imdb, uri => show.Imdb = uri, out var imdbError))
+            if (!CanonicalIdChangeApplier.TryValidate(
+                    request.Change.ImdbId,
+                    request.Change.TmdbId,
+                    request.Change.TvdbId,
+                    out var idError))
             {
-                return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, imdbError);
+                return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, idError);
             }
 
-            if (!CanonicalUriPatch.TryApply(request.Change.Tvdb, uri => show.Tvdb = uri, out var tvdbError))
-            {
-                return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, tvdbError);
-            }
-
+            CanonicalIdChangeApplier.Apply(
+                show,
+                request.Change.ImdbId,
+                request.Change.TmdbId,
+                request.Change.TvdbId);
             PublisherChangeApplier.Apply(show, request.Change);
             if (await serviceIdsUniqueness.FindConflict(show.Id, request.Change) is { } conflict)
             {

@@ -116,30 +116,30 @@ public class CatalogueParentKindMapperRules
         playable.ModelType.Should().Be(ModelType.TvShowEpisode);
         playable.Services.Should().NotBeNull();
         playable.Services!.ContainsKey(ServiceKeys.YouTube).Should().BeTrue();
-        playable.Imdb.Should().BeNull();
-        playable.Tvdb.Should().BeNull();
+        playable.ImdbId.Should().BeNull();
+        playable.TvdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB URIs, " +
-        "because episode identity pages are per playable and must be set by the curator.")]
-    public void tv_show_episode_does_not_inherit_parent_canonical_uris()
+        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB ids, " +
+        "because episode identity ids are per playable and must be set by the curator.")]
+    public void tv_show_episode_does_not_inherit_parent_canonical_ids()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         var show = CatalogueParentKindMapper.ToTvShow(podcast);
-        show.Imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-        show.Tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+        show.ImdbId = _fixture.CreateImdbId();
+        show.TvdbId = _fixture.CreateTvdbId();
 
         // Act
         var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
 
         // Assert
-        show.Imdb.Should().NotBeNull();
-        show.Tvdb.Should().NotBeNull();
-        playable.Imdb.Should().BeNull();
-        playable.Tvdb.Should().BeNull();
+        show.ImdbId.Should().NotBeNull();
+        show.TvdbId.Should().NotBeNull();
+        playable.ImdbId.Should().BeNull();
+        playable.TvdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =

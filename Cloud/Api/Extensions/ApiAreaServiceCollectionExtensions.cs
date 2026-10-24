@@ -114,6 +114,8 @@ public static class ApiAreaServiceCollectionExtensions
         services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
         services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();
+        services.TryAddScoped<ICatalogueIdentityLookupService, CatalogueIdentityLookupService>();
+        services.TryAddScoped<ICatalogueIdentityLookupHandler, CatalogueIdentityLookupHandler>();
         return services;
     }
 
@@ -220,7 +222,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetSupportedLanguagesHandler, GetSupportedLanguagesHandler>()
             .AddScoped<IPostSupportedLanguagesHandler, PostSupportedLanguagesHandler>()
             .AddScoped<IDeleteSupportedLanguagesHandler, DeleteSupportedLanguagesHandler>()
-            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>();
+            .AddScoped<IGetNeutralCulturesHandler, GetNeutralCulturesHandler>()
+            .AddScoped<RedditPodcastPoster.UrlSubmission.Languages.ISupportedLanguageRegistrar, SupportedLanguageRegistrar>();
 
     public static IServiceCollection AddApiTitleCasingRules(this IServiceCollection services) =>
         services

@@ -10,6 +10,7 @@ using RedditPodcastPoster.UrlSubmission.Adaptors;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Processors;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -60,6 +61,9 @@ public static class ServiceCollectionExtensions
         }
 
         return services
+            .AddSingleton<ICatalogueLanguageDetector, CatalogueLanguageDetector>()
+            .AddScoped<ISupportedLanguageRegistrar, UnconfiguredSupportedLanguageRegistrar>()
+            .AddScoped<ICatalogueLanguageGate, CatalogueLanguageGate>()
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<ICatalogueKindSubmitter, CatalogueKindSubmitter>()

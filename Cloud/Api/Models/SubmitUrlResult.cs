@@ -13,7 +13,16 @@ public enum SubmitUrlStatus
     /// <summary>The request itself is invalid (e.g. parent and podcast fields together); 400 with a message.</summary>
     BadRequest,
     /// <summary>The <c>parentId</c> is not a row of <c>parentKind</c>; 404.</summary>
-    ParentNotFound
+    ParentNotFound,
+
+    /// <summary>Detected language is not supported yet; nothing was created. 200 with <c>languageDecision</c>.</summary>
+    LanguageDecisionRequired,
+
+    /// <summary>Authority search is ambiguous; nothing was created. 200 with <c>identityDecision</c>.</summary>
+    IdentityDecisionRequired,
+
+    /// <summary>The caller chose cancel; nothing was created.</summary>
+    Cancelled
 }
 
 public record SubmitUrlResult(

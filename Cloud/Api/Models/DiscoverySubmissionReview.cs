@@ -25,6 +25,13 @@ public sealed class DiscoverySubmissionApplyRequest
 
     /// <summary>Final accepted set; when <c>null</c> the saved review set (or else the submitter's set) is used.</summary>
     public Guid[]? AcceptedResultIds { get; init; }
+
+    /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
+    public Dictionary<Guid, string>? LanguageDecisions { get; init; }
+
+    public Dictionary<Guid, string>? IdentityDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionRetryRequest
@@ -33,6 +40,13 @@ public sealed class DiscoverySubmissionRetryRequest
 
     /// <summary>Failed items to abandon (not retried) so the submission can close.</summary>
     public Guid[]? AbandonResultIds { get; init; }
+
+    /// <summary>Discovery result id to <c>add</c> or <c>continue</c> after an unsupported-language prompt.</summary>
+    public Dictionary<Guid, string>? LanguageDecisions { get; init; }
+
+    public Dictionary<Guid, string>? IdentityDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionReleaseRequest
@@ -68,7 +82,13 @@ public enum DiscoverySubmissionCommandStatus
     Invalid,
 
     /// <summary>Apply ran and failed; submission is ApplyFailed and its reports remain PendingSupervisor.</summary>
-    ApplyFailed
+    ApplyFailed,
+
+    /// <summary>Nothing was created; the caller must answer an unsupported-language prompt. Submission is not left Applying.</summary>
+    LanguageDecisionRequired,
+
+    /// <summary>Nothing was created; the caller must pick an authority identity. Submission is not left Applying.</summary>
+    IdentityDecisionRequired
 }
 
 public sealed record DiscoverySubmissionCommandResult(

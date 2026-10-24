@@ -11,9 +11,6 @@ namespace Api.Dtos;
 /// </summary>
 public class FilmChangeRequest : PublisherFieldsChangeRequest
 {
-    [JsonPropertyName("imdb")]
-    public string? Imdb { get; set; }
-
     /// <summary>IMDb title id <c>tt</c> + 7 to 10 digits. <c>""</c> clears; anything else is a 400.</summary>
     [JsonPropertyName("imdbId")]
     public string? ImdbId { get; set; }

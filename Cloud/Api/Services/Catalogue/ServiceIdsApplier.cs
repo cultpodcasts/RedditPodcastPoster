@@ -82,6 +82,47 @@ public static class ServiceIdsApplier
             setsSomething |= measured.Length > 0;
         }
 
+        if (change.IndexAllEpisodes != null)
+        {
+            source.IndexAllEpisodes = change.IndexAllEpisodes.Value;
+            // Same mutual exclusion as PodcastChangeApplier: Index All skips the include filter.
+            if (change.IndexAllEpisodes.Value)
+            {
+                source.EpisodeIncludeTitleRegex = null;
+            }
+
+            setsSomething = true;
+        }
+
+        if (change.TitleRegex != null)
+        {
+            source.TitleRegex = NullIfBlank(change.TitleRegex);
+            setsSomething |= source.TitleRegex != null;
+        }
+
+        if (change.DescriptionRegex != null)
+        {
+            source.DescriptionRegex = NullIfBlank(change.DescriptionRegex);
+            setsSomething |= source.DescriptionRegex != null;
+        }
+
+        if (change.EpisodeMatchRegex != null)
+        {
+            source.EpisodeMatchRegex = NullIfBlank(change.EpisodeMatchRegex);
+            setsSomething |= source.EpisodeMatchRegex != null;
+        }
+
+        if (change.EpisodeIncludeTitleRegex != null)
+        {
+            source.EpisodeIncludeTitleRegex = NullIfBlank(change.EpisodeIncludeTitleRegex);
+            if (!string.IsNullOrWhiteSpace(change.EpisodeIncludeTitleRegex))
+            {
+                source.IndexAllEpisodes = false;
+            }
+
+            setsSomething |= source.EpisodeIncludeTitleRegex != null || change.EpisodeIncludeTitleRegex.Trim().Length == 0;
+        }
+
         return setsSomething ? source : indexing;
     }
 

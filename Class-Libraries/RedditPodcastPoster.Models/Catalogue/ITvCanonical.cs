@@ -1,20 +1,16 @@
 namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
-/// IMDb title and TheTVDB pages as canonical identity when several programmes or
+/// IMDb title id and TheTVDB id as canonical identity when several programmes or
 /// episodes share a display name. Watch destinations stay on <see cref="IPlayable.Services"/> —
-/// these URIs are not streaming services.
+/// these ids are not streaming services. Page URLs are derived from the ids when a link is needed.
 /// </summary>
 public interface ITvCanonical
 {
-    Uri? Imdb { get; set; }
-
-    /// <summary>IMDb title id (<c>tt…</c>). The page is <see cref="Imdb"/>.</summary>
+    /// <summary>IMDb title id (<c>tt…</c>).</summary>
     string? ImdbId { get; set; }
 
-    Uri? Tvdb { get; set; }
-
-    /// <summary>TheTVDB id for this show or episode. The page is <see cref="Tvdb"/>.</summary>
+    /// <summary>TheTVDB id for this show or episode.</summary>
     long? TvdbId { get; set; }
 
     /// <summary>
