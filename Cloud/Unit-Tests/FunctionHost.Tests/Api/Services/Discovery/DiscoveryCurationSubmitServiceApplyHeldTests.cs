@@ -52,7 +52,8 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.TryClaimForProcessing(
             It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
-            request.DiscoveryResultsDocumentIds, request.ResultIds, It.IsAny<Guid[]>()), Times.Once);
+            request.DiscoveryResultsDocumentIds, request.ResultIds, It.IsAny<Guid[]>(),
+            It.IsNotNull<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Once);
     }
 
     [Fact(DisplayName =

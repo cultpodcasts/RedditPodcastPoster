@@ -75,6 +75,71 @@ public class DiscoveryResultsSubmitOutcomeRules
     }
 
     [Fact(DisplayName =
+        "MarkAsProcessed stamps AcceptError instead of Accepted when an accepted id has no outcome entry, so reconcile never reports success without navigable ids.")]
+    public async Task mark_as_processed_missing_outcome_is_accept_error()
+    {
+        // Arrange
+        var resultId = _fixture.Create<Guid>();
+        var report = new DiscoveryResultsDocument(DateTime.UtcNow, [new DiscoveryResult { Id = resultId }])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _mocker.GetMock<IDiscoveryResultsRepository>().Setup(r => r.GetById(report.Id)).ReturnsAsync(report);
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        await sut.MarkAsProcessed([report.Id], [resultId], [], []);
+
+        // Assert
+        var stamped = report.DiscoveryResults.Single();
+        stamped.State.Should().Be(DiscoveryResultState.AcceptError);
+        stamped.AcceptedPodcastId.Should().BeNull();
+        stamped.AcceptedEpisodeId.Should().BeNull();
+        stamped.AcceptError.Should().Contain("Missing submit outcome");
+    }
+
+    [Fact(DisplayName =
+        "UpdateResultStates restamps Accepted podcast and episode ids from retry outcomes so a lost retry response can still be reconciled.")]
+    public async Task update_result_states_stamps_accepted_ids()
+    {
+        // Arrange
+        var resultId = _fixture.Create<Guid>();
+        var podcastId = _fixture.Create<Guid>();
+        var episodeId = _fixture.Create<Guid>();
+        var report = new DiscoveryResultsDocument(DateTime.UtcNow,
+        [
+            new DiscoveryResult
+            {
+                Id = resultId,
+                State = DiscoveryResultState.AcceptError,
+                AcceptError = _fixture.Create<string>()
+            }
+        ])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _mocker.GetMock<IDiscoveryResultsRepository>().Setup(r => r.GetById(report.Id)).ReturnsAsync(report);
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+        var outcomes = new[]
+        {
+            new DiscoverySubmitItemOutcome(resultId, episodeId, podcastId, "Created")
+        };
+
+        // Act
+        await sut.UpdateResultStates([report.Id], [resultId], [], outcomes);
+
+        // Assert
+        var stamped = report.DiscoveryResults.Single();
+        stamped.State.Should().Be(DiscoveryResultState.Accepted);
+        stamped.AcceptedPodcastId.Should().Be(podcastId);
+        stamped.AcceptedEpisodeId.Should().Be(episodeId);
+        stamped.AcceptError.Should().BeNull();
+        _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.Save(report), Times.Once);
+    }
+
+    [Fact(DisplayName =
         "GetSubmitOutcome returns Accepted with episode ids for stamped results, including Processed reports no longer in the live queue.")]
     public async Task get_submit_outcome_reads_stamps()
     {
@@ -111,5 +176,99 @@ public class DiscoveryResultsSubmitOutcomeRules
         items[0].State.Should().Be("Accepted");
         items[0].PodcastId.Should().Be(podcastId);
         items[0].EpisodeId.Should().Be(episodeId);
+    }
+
+    [Fact(DisplayName =
+        "GetSubmitOutcome returns Pending when the result is on a claimed report but State is still unset, so the client keeps polling after a lost Save.")]
+    public async Task get_submit_outcome_pending_when_unstamped()
+    {
+        // Arrange
+        var resultId = _fixture.Create<Guid>();
+        var episodeName = _fixture.Create<string>();
+        var showName = _fixture.Create<string>();
+        var report = new DiscoveryResultsDocument(DateTime.UtcNow,
+        [
+            new DiscoveryResult { Id = resultId, EpisodeName = episodeName, ShowName = showName }
+        ])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _mocker.GetMock<IDiscoveryResultsRepository>()
+            .Setup(r => r.GetByIds(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(new[] { report }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        var items = await sut.GetSubmitOutcome([report.Id], [resultId]);
+
+        // Assert
+        items.Should().ContainSingle();
+        items[0].State.Should().Be("Pending");
+        items[0].EpisodeName.Should().Be(episodeName);
+        items[0].ShowName.Should().Be(showName);
+        items[0].PodcastId.Should().BeNull();
+        items[0].EpisodeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "GetSubmitOutcome returns Unknown when the result id is not on any of the given documents, so the client can distinguish a bad id from an in-flight stamp.")]
+    public async Task get_submit_outcome_unknown_when_missing()
+    {
+        // Arrange
+        var knownId = _fixture.Create<Guid>();
+        var missingId = _fixture.Create<Guid>();
+        var report = new DiscoveryResultsDocument(DateTime.UtcNow, [new DiscoveryResult { Id = knownId }])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _mocker.GetMock<IDiscoveryResultsRepository>()
+            .Setup(r => r.GetByIds(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(new[] { report }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        var items = await sut.GetSubmitOutcome([report.Id], [missingId]);
+
+        // Assert
+        items.Should().ContainSingle();
+        items[0].DiscoveryItemId.Should().Be(missingId);
+        items[0].State.Should().Be("Unknown");
+    }
+
+    [Fact(DisplayName =
+        "GetSubmitOutcome returns Rejected for stamped rejected results so reconcile can show items that were not accepted.")]
+    public async Task get_submit_outcome_rejected()
+    {
+        // Arrange
+        var resultId = _fixture.Create<Guid>();
+        var report = new DiscoveryResultsDocument(DateTime.UtcNow,
+        [
+            new DiscoveryResult
+            {
+                Id = resultId,
+                State = DiscoveryResultState.Rejected,
+                EpisodeName = _fixture.Create<string>(),
+                ShowName = _fixture.Create<string>()
+            }
+        ])
+        {
+            SearchSince = _fixture.Create<string>(),
+            State = DiscoveryResultsDocumentState.Processed
+        };
+        _mocker.GetMock<IDiscoveryResultsRepository>()
+            .Setup(r => r.GetByIds(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(new[] { report }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<DiscoveryResultsService>();
+
+        // Act
+        var items = await sut.GetSubmitOutcome([report.Id], [resultId]);
+
+        // Assert
+        items.Should().ContainSingle();
+        items[0].State.Should().Be("Rejected");
+        items[0].PodcastId.Should().BeNull();
+        items[0].EpisodeId.Should().BeNull();
     }
 }

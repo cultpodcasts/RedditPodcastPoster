@@ -11,3 +11,4 @@ public class DiscoverySubmitOutcomeRequest
     [JsonPropertyName("resultIds")]
     public Guid[] ResultIds { get; set; } = [];
 }
+

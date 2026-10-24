@@ -60,12 +60,12 @@ public class DiscoveryCurationController(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "DiscoveryCuration/submit-outcome")]
         HttpRequestData req,
         FunctionContext _,
-        [FromBody] DiscoverySubmitOutcomeRequest body,
+        [FromBody] Dtos.DiscoverySubmitOutcomeRequest body,
         CancellationToken ct) =>
         HandleRequest(
             req,
             ["curate"],
-            body,
+            body.ToModel(),
             postDiscoverySubmitOutcomeHandler.Handle,
             Unauthorised,
             ct);

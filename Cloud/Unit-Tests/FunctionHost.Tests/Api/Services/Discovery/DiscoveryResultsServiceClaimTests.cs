@@ -79,7 +79,7 @@ public class DiscoveryResultsServiceClaimTests
         var sut = _mocker.CreateInstance<DiscoveryResultsService>();
 
         // Act
-        await sut.MarkAsProcessed([report.Id], [], []);
+        await sut.MarkAsProcessed([report.Id], [], [], []);
 
         // Assert
         report.State.Should().Be(DiscoveryResultsDocumentState.PendingSupervisor);

@@ -162,7 +162,7 @@ public class DiscoveryResultsService(
         TryClaim(DiscoveryResultsDocumentState.PendingSupervisor, documentIds, cancellationToken);
 
     public async Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds,
-        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null)
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes)
     {
         var byId = OutcomeIndex(outcomes);
         foreach (var documentId in documentIds.Distinct())
@@ -180,7 +180,7 @@ public class DiscoveryResultsService(
             {
                 if (succeededResultIds.Contains(result.Id))
                 {
-                    StampAccepted(result, byId.GetValueOrDefault(result.Id));
+                    StampAccepted(result, byId.GetValueOrDefault(result.Id), logger);
                     changed = true;
                 }
                 else if (erroredResultIds.Contains(result.Id))
@@ -236,19 +236,26 @@ public class DiscoveryResultsService(
         };
 
     private static Dictionary<Guid, DiscoverySubmitItemOutcome> OutcomeIndex(
-        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes) =>
-        outcomes?.GroupBy(x => x.DiscoveryItemId).ToDictionary(g => g.Key, g => g.Last())
-        ?? [];
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes) =>
+        outcomes.GroupBy(x => x.DiscoveryItemId).ToDictionary(g => g.Key, g => g.Last());
 
-    private static void StampAccepted(DiscoveryResult result, DiscoverySubmitItemOutcome? outcome)
+    private static void StampAccepted(DiscoveryResult result, DiscoverySubmitItemOutcome? outcome, ILogger log)
     {
+        if (outcome == null)
+        {
+            // Accepted without an ingest outcome would persist success with null ids — reconcile must not lie.
+            log.LogWarning(
+                "Accepted discovery result '{ResultId}' has no submit outcome; stamping AcceptError instead.",
+                result.Id);
+            StampAcceptError(result, new DiscoverySubmitItemOutcome(result.Id, null, null,
+                DiscoverySubmitItemOutcomeMessages.Error, "Missing submit outcome for accepted result."));
+            return;
+        }
+
         result.State = DiscoveryResultState.Accepted;
         result.AcceptError = null;
-        if (outcome != null)
-        {
-            result.AcceptedPodcastId = outcome.PodcastId;
-            result.AcceptedEpisodeId = outcome.EpisodeId;
-        }
+        result.AcceptedPodcastId = outcome.PodcastId;
+        result.AcceptedEpisodeId = outcome.EpisodeId;
     }
 
     private static void StampAcceptError(DiscoveryResult result, DiscoverySubmitItemOutcome? outcome)
@@ -308,7 +315,7 @@ public class DiscoveryResultsService(
     }
 
     public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds,
-        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null)
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes)
     {
         var byId = OutcomeIndex(outcomes);
         foreach (var documentId in documentIds)
@@ -339,7 +346,8 @@ public class DiscoveryResultsService(
                     }
                     else if (acceptedResultIds.Contains(documentDiscoveryResult.Id))
                     {
-                        StampAccepted(documentDiscoveryResult, byId.GetValueOrDefault(documentDiscoveryResult.Id));
+                        StampAccepted(documentDiscoveryResult, byId.GetValueOrDefault(documentDiscoveryResult.Id),
+                            logger);
                     }
                     else
                     {

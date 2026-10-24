@@ -12,7 +12,7 @@ public interface IDiscoveryResultsService
     /// from <paramref name="outcomes"/> so a lost HTTP response can still be reconciled.
     /// </summary>
     Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds,
-        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null);
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes);
 
     Task<IEnumerable<DiscoveryResult>> GetDiscoveryResult(DiscoverySubmitRequest discoverySubmitRequest);
     Task UpdateDiscoveryInfoContent();
@@ -38,7 +38,7 @@ public interface IDiscoveryResultsService
 
     /// <summary>On Processed reports, sets only the given results to Accepted / AcceptError (retry outcome).</summary>
     Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds,
-        IReadOnlyList<DiscoverySubmitItemOutcome>? outcomes = null);
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes);
 
     /// <summary>
     /// Reads stamped submit outcomes for the given document + result ids (including Processed reports).

@@ -1,14 +1,15 @@
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
-using Api.Models;
+using Api.Dtos.Extensions;
 using Api.Services.Discovery;
 
 namespace Api.Handlers.Discovery;
 
 public interface IPostDiscoverySubmitOutcomeHandler
 {
-    Task<HttpResponseData> Handle(IHandlerContext ctx, DiscoverySubmitOutcomeRequest model, CancellationToken c);
+    Task<HttpResponseData> Handle(IHandlerContext ctx, Api.Models.DiscoverySubmitOutcomeRequest model,
+        CancellationToken c);
 }
 
 public class PostDiscoverySubmitOutcomeHandler(
@@ -17,7 +18,7 @@ public class PostDiscoverySubmitOutcomeHandler(
 {
     public async Task<HttpResponseData> Handle(
         IHandlerContext ctx,
-        DiscoverySubmitOutcomeRequest model,
+        Api.Models.DiscoverySubmitOutcomeRequest model,
         CancellationToken c)
     {
         if (model.DiscoveryResultsDocumentIds.Length == 0 || model.ResultIds.Length == 0)
@@ -41,18 +42,7 @@ public class PostDiscoverySubmitOutcomeHandler(
 
         return await ctx.Ok(new DiscoverySubmitOutcomeResponse
         {
-            Results = items.Select(ToDto).ToArray()
+            Results = items.Select(x => x.ToDto()).ToArray()
         }, c);
     }
-
-    private static DiscoverySubmitOutcomeItemDto ToDto(DiscoverySubmitOutcomeItem item) => new()
-    {
-        DiscoveryItemId = item.DiscoveryItemId,
-        State = item.State,
-        PodcastId = item.PodcastId,
-        EpisodeId = item.EpisodeId,
-        Message = item.Message,
-        EpisodeName = item.EpisodeName,
-        ShowName = item.ShowName
-    };
 }
