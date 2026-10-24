@@ -192,13 +192,15 @@ After a Save (POST `DiscoveryCuration`) times out, disconnects, or returns an am
 
 Results are returned in the same order as `resultIds`.
 
-| `state` | Meaning |
+| `state` (string enum `DiscoverySubmitOutcomeState`) | Meaning |
 |---------|---------|
 | `Accepted` | Ingest succeeded; `podcastId` / `episodeId` are stamped for navigation. |
 | `AcceptError` | Ingest threw or stamped an error; `message` holds error text when present. |
 | `Rejected` | Result was not in the accepted set when the report was processed. |
 | `Pending` | Result id was found on a report in `ids`, but `State` is still unset (claim/ingest in flight or stamp not written yet). |
 | `Unknown` | Result id was **not** found on any of the given documents (wrong id or wrong `ids`). |
+
+JSON uses the enum **name** as a string (`JsonStringEnumConverter`). This is not the same type as Cosmos `DiscoveryResultState` (which has no `Pending`/`Unknown`).
 
 `Pending` vs `Unknown`: use `Pending` to keep polling the same submit; use `Unknown` to fix the client request (id not in those reports).
 

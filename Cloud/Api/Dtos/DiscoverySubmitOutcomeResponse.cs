@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Api.Models;
 
 namespace Api.Dtos;
 
@@ -13,9 +14,9 @@ public class DiscoverySubmitOutcomeItemDto
     [JsonPropertyName("discoveryItemId")]
     public Guid DiscoveryItemId { get; set; }
 
-    /// <summary>Accepted | AcceptError | Rejected | Pending | Unknown</summary>
     [JsonPropertyName("state")]
-    public string State { get; set; } = "Pending";
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DiscoverySubmitOutcomeState State { get; set; } = DiscoverySubmitOutcomeState.Pending;
 
     [JsonPropertyName("podcastId")]
     public Guid? PodcastId { get; set; }

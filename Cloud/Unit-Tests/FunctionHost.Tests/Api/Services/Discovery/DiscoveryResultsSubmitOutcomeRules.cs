@@ -173,7 +173,7 @@ public class DiscoveryResultsSubmitOutcomeRules
 
         // Assert
         items.Should().ContainSingle();
-        items[0].State.Should().Be("Accepted");
+        items[0].State.Should().Be(DiscoverySubmitOutcomeState.Accepted);
         items[0].PodcastId.Should().Be(podcastId);
         items[0].EpisodeId.Should().Be(episodeId);
     }
@@ -204,7 +204,7 @@ public class DiscoveryResultsSubmitOutcomeRules
 
         // Assert
         items.Should().ContainSingle();
-        items[0].State.Should().Be("Pending");
+        items[0].State.Should().Be(DiscoverySubmitOutcomeState.Pending);
         items[0].EpisodeName.Should().Be(episodeName);
         items[0].ShowName.Should().Be(showName);
         items[0].PodcastId.Should().BeNull();
@@ -234,7 +234,7 @@ public class DiscoveryResultsSubmitOutcomeRules
         // Assert
         items.Should().ContainSingle();
         items[0].DiscoveryItemId.Should().Be(missingId);
-        items[0].State.Should().Be("Unknown");
+        items[0].State.Should().Be(DiscoverySubmitOutcomeState.Unknown);
     }
 
     [Fact(DisplayName =
@@ -267,7 +267,7 @@ public class DiscoveryResultsSubmitOutcomeRules
 
         // Assert
         items.Should().ContainSingle();
-        items[0].State.Should().Be("Rejected");
+        items[0].State.Should().Be(DiscoverySubmitOutcomeState.Rejected);
         items[0].PodcastId.Should().BeNull();
         items[0].EpisodeId.Should().BeNull();
     }

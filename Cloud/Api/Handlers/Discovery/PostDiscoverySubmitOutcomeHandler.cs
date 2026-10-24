@@ -2,6 +2,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Dtos.Extensions;
+using Api.Models;
 using Api.Services.Discovery;
 
 namespace Api.Handlers.Discovery;
@@ -36,9 +37,10 @@ public class PostDiscoverySubmitOutcomeHandler(
             "Discovery submit-outcome: {DocumentCount} documents, {ResultCount} results ({Accepted} accepted, {Errored} errored, {Pending} pending).",
             model.DiscoveryResultsDocumentIds.Length,
             items.Count,
-            items.Count(x => x.State == "Accepted"),
-            items.Count(x => x.State == "AcceptError"),
-            items.Count(x => x.State is "Pending" or "Unknown"));
+            items.Count(x => x.State == DiscoverySubmitOutcomeState.Accepted),
+            items.Count(x => x.State == DiscoverySubmitOutcomeState.AcceptError),
+            items.Count(x => x.State is DiscoverySubmitOutcomeState.Pending
+                or DiscoverySubmitOutcomeState.Unknown));
 
         return await ctx.Ok(new DiscoverySubmitOutcomeResponse
         {

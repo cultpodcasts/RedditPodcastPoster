@@ -218,21 +218,24 @@ public class DiscoveryResultsService(
 
         return resultIds.Select(id => found.TryGetValue(id, out var item)
             ? item
-            : new DiscoverySubmitOutcomeItem(id, "Unknown")).ToArray();
+            : new DiscoverySubmitOutcomeItem(id, DiscoverySubmitOutcomeState.Unknown)).ToArray();
     }
 
     private static DiscoverySubmitOutcomeItem ToOutcomeItem(DiscoveryResult result) =>
         result.State switch
         {
-            DiscoveryResultState.Accepted => new DiscoverySubmitOutcomeItem(result.Id, "Accepted",
+            DiscoveryResultState.Accepted => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.Accepted,
                 result.AcceptedPodcastId, result.AcceptedEpisodeId, null, result.EpisodeName, result.ShowName),
-            DiscoveryResultState.AcceptError => new DiscoverySubmitOutcomeItem(result.Id, "AcceptError",
+            DiscoveryResultState.AcceptError => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.AcceptError,
                 result.AcceptedPodcastId, result.AcceptedEpisodeId, result.AcceptError, result.EpisodeName,
                 result.ShowName),
-            DiscoveryResultState.Rejected => new DiscoverySubmitOutcomeItem(result.Id, "Rejected",
+            DiscoveryResultState.Rejected => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.Rejected,
                 EpisodeName: result.EpisodeName, ShowName: result.ShowName),
-            _ => new DiscoverySubmitOutcomeItem(result.Id, "Pending", EpisodeName: result.EpisodeName,
-                ShowName: result.ShowName)
+            _ => new DiscoverySubmitOutcomeItem(result.Id, DiscoverySubmitOutcomeState.Pending,
+                EpisodeName: result.EpisodeName, ShowName: result.ShowName)
         };
 
     private static Dictionary<Guid, DiscoverySubmitItemOutcome> OutcomeIndex(
