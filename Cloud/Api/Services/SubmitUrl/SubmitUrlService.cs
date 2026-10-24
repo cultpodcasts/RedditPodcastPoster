@@ -213,6 +213,16 @@ public class SubmitUrlService(
                 submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "Podcast not found");
         }
+        catch (CatalogueLanguageRegistrationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{RunName}: Submit of '{Url}' could not add the supported language. {Message}",
+                nameof(SubmitAsync),
+                submitUrlModel.Url,
+                ex.Message);
+            return new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             logger.LogWarning(

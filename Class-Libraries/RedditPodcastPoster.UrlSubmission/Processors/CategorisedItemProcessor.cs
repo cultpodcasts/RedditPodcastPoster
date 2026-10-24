@@ -74,10 +74,10 @@ public class CategorisedItemProcessor(
         SubmitResult submitResult;
         if (categorisedItem.MatchingPodcast != null)
         {
-            submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
-            if (submitResult.EpisodeResult == SubmitResultState.Created && submitOptions.EnforceLanguageGate)
+            var admission = CatalogueLanguageAdmission.Proceed();
+            if (submitOptions.EnforceLanguageGate)
             {
-                var admission = await Admit(categorisedItem, creatingNewParent: false, submitOptions);
+                admission = await Admit(categorisedItem, creatingNewParent: false, submitOptions);
                 if (admission.Hold)
                 {
                     return LanguageHold(admission.Prompt!);
@@ -90,8 +90,10 @@ public class CategorisedItemProcessor(
             }
             else if (submitOptions.LanguageProbe)
             {
-                return Probe(CatalogueLanguageAdmission.Proceed());
+                return Probe(admission);
             }
+
+            submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
 
             if (submitOptions.PersistToDatabase)
             {

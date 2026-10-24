@@ -285,13 +285,25 @@ public sealed class CatalogueIdentityEnricher(
                 var yearMatches = candidates.Where(c => c.Year == knownYear).ToList();
                 if (yearMatches.Count == 1)
                 {
-                    var ids = await collect(yearMatches[0], cancellationToken).ConfigureAwait(false);
+                    var yearMatch = yearMatches[0];
+                    if (target == CatalogueAuthorityCandidate.FilmKind && yearMatch.TmdbId is not > 0)
+                    {
+                        logger.LogWarning(
+                            "Catalogue identity film year match lacks TMDB id; re-prompting. query={Query} year={Year} key={Key}",
+                            query,
+                            knownYear,
+                            yearMatch.Key);
+                        return CatalogueIdentityAdmission.NeedsPrompt(
+                            new CatalogueIdentityHold(target, query.Trim(), candidates));
+                    }
+
+                    var ids = await collect(yearMatch, cancellationToken).ConfigureAwait(false);
                     logger.LogInformation(
                         "Catalogue identity {Target} unique by year. query={Query} year={Year} key={Key}",
                         target,
                         query,
                         knownYear,
-                        yearMatches[0].Key);
+                        yearMatch.Key);
                     return CatalogueIdentityAdmission.Proceed(ids);
                 }
             }
@@ -404,8 +416,16 @@ public sealed class CatalogueIdentityEnricher(
 
     private Task<CatalogueAuthorityIds> CollectFilmFromCandidate(
         CatalogueAuthorityCandidate candidate,
-        CancellationToken cancellationToken) =>
-        lookup.CollectFilmAsync(candidate.TmdbId ?? 0, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        if (candidate.TmdbId is not int tmdbId || tmdbId <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Film identity candidate '{candidate.Key}' requires a positive TMDB id.");
+        }
+
+        return lookup.CollectFilmAsync(tmdbId, cancellationToken);
+    }
 
     private Task<CatalogueAuthorityIds> CollectTvShowFromCandidate(
         CatalogueAuthorityCandidate candidate,

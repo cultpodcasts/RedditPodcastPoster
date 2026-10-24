@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
+using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
@@ -470,6 +471,59 @@ public class SubmitUrlServiceTests
         result.Status.Should().Be(SubmitUrlStatus.Ok);
         _capturedOptions.Should().NotBeNull();
         _capturedOptions!.PrefetchedMeta.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Submit URL DTO ToModel round-trips identityDecision select and selectedIdentityKey into SubmitOptions " +
+        "so a curator can complete an ambiguous identity hold.")]
+    public async Task identity_decision_select_round_trips_into_submit_options()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var selectedKey = $"tmdb:{tmdbId}";
+        var dto = new global::Api.Dtos.SubmitUrlRequest
+        {
+            Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            IdentityDecision = "select",
+            SelectedIdentityKey = selectedKey
+        };
+        var request = dto.ToModel();
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _capturedOptions.Should().NotBeNull();
+        _capturedOptions!.IdentityChoice.Should().Be(
+            RedditPodcastPoster.Catalogue.Authority.CatalogueIdentityChoice.Select);
+        _capturedOptions.SelectedIdentityKey.Should().Be(selectedKey);
+    }
+
+    [Fact(DisplayName =
+        "When adding a supported language fails with CatalogueLanguageRegistrationException, " +
+        "submit returns BadRequest so the handler responds 400 instead of InternalError.")]
+    public async Task language_registration_failure_is_bad_request()
+    {
+        // Arrange
+        var message = "Could not add the supported language.";
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<SubmitOptions>()))
+            .ThrowsAsync(new RedditPodcastPoster.UrlSubmission.Languages.CatalogueLanguageRegistrationException(message));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(
+            new SubmitUrlRequest { Url = new Uri($"https://example.com/{_fixture.Create<string>()}") },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.BadRequest);
+        result.Message.Should().Be(message);
     }
 
     private static string FlipCasing(string value)

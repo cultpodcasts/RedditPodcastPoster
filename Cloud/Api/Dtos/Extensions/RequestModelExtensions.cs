@@ -165,6 +165,11 @@ public static class RequestModelExtensions
         model.SpotifyId = request.SpotifyId;
         model.AppleId = request.AppleId;
         model.NullAppleId = request.NullAppleId;
+        model.IndexAllEpisodes = request.IndexAllEpisodes;
+        model.TitleRegex = request.TitleRegex;
+        model.DescriptionRegex = request.DescriptionRegex;
+        model.EpisodeMatchRegex = request.EpisodeMatchRegex;
+        model.EpisodeIncludeTitleRegex = request.EpisodeIncludeTitleRegex;
         return model;
     }
 
@@ -244,7 +249,9 @@ public static class RequestModelExtensions
         ParentId = request.ParentId,
         ParentName = request.ParentName,
         PrefetchedMeta = request.PrefetchedMeta,
-        LanguageDecision = request.LanguageDecision
+        LanguageDecision = request.LanguageDecision,
+        IdentityDecision = request.IdentityDecision,
+        SelectedIdentityKey = request.SelectedIdentityKey
     };
 
     public static Models.SubmitUrlPrepareRequest ToModel(this SubmitUrlPrepareRequest request) => new()

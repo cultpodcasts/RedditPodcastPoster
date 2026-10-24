@@ -7,6 +7,6 @@ namespace RedditPodcastPoster.UrlSubmission.Languages;
 public sealed class UnconfiguredSupportedLanguageRegistrar : ISupportedLanguageRegistrar
 {
     public Task RegisterAsync(string englishName, CancellationToken cancellationToken = default) =>
-        throw new InvalidOperationException(
+        throw new CatalogueLanguageRegistrationException(
             "Adding a supported language is only available from the API supported-languages update.");
 }

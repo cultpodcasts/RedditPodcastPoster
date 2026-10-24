@@ -150,6 +150,62 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
+        "Edit-time identity lookup: when several film candidates include one matching the request year, " +
+        "resolve is called with year null so the response stays ambiguous and is never year-auto-picked.")]
+    public async Task several_candidates_with_matching_year_stay_ambiguous()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var year = DomainTestFixture.UtcToday.Year - 3;
+        var firstId = _fixture.CreateTmdbId();
+        var secondId = firstId + 1;
+        var candidates = new[]
+        {
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(firstId),
+                title,
+                year,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                firstId,
+                TvdbId: null),
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(secondId),
+                title,
+                year - 1,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                secondId,
+                TvdbId: null)
+        };
+        _admission = CatalogueIdentityAdmission.NeedsPrompt(
+            new CatalogueIdentityHold(CatalogueAuthorityCandidate.FilmKind, title, candidates));
+        var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
+
+        // Act
+        var result = await sut.LookupAsync(new CatalogueIdentityLookupRequest
+        {
+            Kind = "Film",
+            Title = title,
+            Year = year
+        });
+
+        // Assert
+        result.Status.Should().Be(CatalogueIdentityLookupServiceStatus.Ok);
+        result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Ambiguous);
+        result.Response.Ids.Should().BeNull();
+        result.Response.IdentityDecision!.Candidates.Should().HaveCount(2);
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.ResolveFilmAsync(
+                title,
+                null,
+                CatalogueIdentityChoice.Unset,
+                null,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
         "Edit-time identity lookup: when authority finds no confident match, the response is noMatch with a message and no ids so form fields stay alone.")]
     public async Task no_match_leaves_fields_alone()
     {

@@ -6,7 +6,8 @@ using RedditPodcastPoster.Models.TvShows;
 namespace Api.Services.Catalogue;
 
 /// <summary>
-/// Edit-time identity probe: confident → ids; ambiguous → options (never auto-picked); no match → message.
+/// Edit-time identity probe: confident → ids; ambiguous → options (never year-narrowed or otherwise
+/// auto-picked); no match → message. Create-time submit may still auto-narrow film by year.
 /// </summary>
 public class CatalogueIdentityLookupService(
     ICatalogueIdentityEnricher enricher,
@@ -36,11 +37,13 @@ public class CatalogueIdentityLookupService(
         CatalogueIdentityAdmission admission;
         try
         {
+            // Pass year: null for film so SeveralProgrammes always holds at edit-time
+            // (create-time ResolveFilmAsync may still auto-narrow by year).
             admission = kind.ToLowerInvariant() switch
             {
                 "film" => await enricher.ResolveFilmAsync(
                     title,
-                    request.Year,
+                    year: null,
                     choice,
                     request.SelectedIdentityKey,
                     cancellationToken).ConfigureAwait(false),

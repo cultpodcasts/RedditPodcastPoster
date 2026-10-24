@@ -16,6 +16,7 @@ public class SupportedLanguageRegistrar(ISupportedLanguagesUpdateService updates
             return;
         }
 
-        throw new InvalidOperationException(result.Error ?? "Could not add the supported language.");
+        throw new CatalogueLanguageRegistrationException(
+            result.Error ?? "Could not add the supported language.");
     }
 }

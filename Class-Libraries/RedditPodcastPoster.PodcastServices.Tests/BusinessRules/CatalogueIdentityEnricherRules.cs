@@ -176,6 +176,63 @@ public class CatalogueIdentityEnricherRules
     }
 
     [Fact(DisplayName =
+        "When the single year-narrowed film candidate has no positive TMDB id, create holds candidates " +
+        "instead of collecting film id 0.")]
+    public async Task year_narrowed_film_without_tmdb_id_holds_candidates()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var year = DomainTestFixture.UtcToday.Year - 1;
+        var otherId = CreateTmdbId();
+        var candidates = new[]
+        {
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TvdbKey(_fixture.CreateAppleId()),
+                title,
+                year,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TvdbSource,
+                TmdbId: null,
+                TvdbId: _fixture.CreateAppleId()),
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(otherId),
+                title,
+                year - 1,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                otherId,
+                TvdbId: null)
+        };
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 2,
+                ImdbId: null,
+                TmdbId: null,
+                TvdbId: null,
+                [title, title],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes,
+                Candidates: candidates));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            title,
+            year,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Candidates.Should().HaveCount(2);
+        _mocker.GetMock<ICatalogueAuthorityLookup>().Verify(
+            x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When no authority hit is found, create continues with null identity rather than inventing ids.")]
     public async Task no_match_leaves_identity_null()
     {

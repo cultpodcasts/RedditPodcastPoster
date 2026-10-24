@@ -49,7 +49,7 @@ public sealed class CatalogueLanguageGate(
             return CatalogueLanguageAdmission.Proceed();
         }
 
-        if (!known && options.LanguageChoice == CatalogueLanguageChoice.Add)
+            if (!known && options.LanguageChoice == CatalogueLanguageChoice.Add)
         {
             var name = detection.EnglishName;
             if (string.IsNullOrWhiteSpace(name) ||
@@ -58,7 +58,7 @@ public sealed class CatalogueLanguageGate(
             {
                 if (!NeutralCultureLanguageLookup.TryResolveByCode(code, out canonical))
                 {
-                    throw new InvalidOperationException(
+                    throw new CatalogueLanguageRegistrationException(
                         $"Detected language '{code}' is not a neutral culture and cannot be added.");
                 }
             }

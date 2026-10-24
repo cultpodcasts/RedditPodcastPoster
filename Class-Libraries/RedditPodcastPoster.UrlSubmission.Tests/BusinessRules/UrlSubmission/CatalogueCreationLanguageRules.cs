@@ -313,6 +313,31 @@ public class CataloguePodcastCreationLanguageRules
     }
 
     [Fact(DisplayName =
+        "When an existing podcast's episode text is outside the supported list and the user has not answered, " +
+        "AddEpisodeToExistingPodcast is never called and nothing is saved, because the language gate runs before create.")]
+    public async Task unsupported_language_on_existing_podcast_does_not_create_or_save()
+    {
+        // Arrange
+        var podcast = Podcast();
+        var sut = _mocker.CreateInstance<CategorisedItemProcessor>();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(
+            Item(Icelandic, podcast),
+            GateOptions(CatalogueLanguageChoice.Unset));
+
+        // Assert
+        result.LanguageHold!.Code.Should().Be("is");
+        _savedPodcasts.Should().BeEmpty();
+        _mocker.GetMock<IPodcastProcessor>().Verify(
+            p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()),
+            Times.Never);
+        _mocker.GetMock<IEpisodeRepository>().Verify(
+            r => r.Save(It.IsAny<Episode>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When the user adds the language for a new podcast, the language is registered and the create receives that code as the default.")]
     public async Task yes_adds_the_language_then_creates_the_podcast_with_that_default()
     {
@@ -397,9 +422,9 @@ public class CataloguePodcastCreationLanguageRules
             SupportedLanguageCodes: Supported,
             LanguageChoice: choice);
 
-    private CategorisedItem Item(string text) =>
+    private CategorisedItem Item(string text, Podcast? matchingPodcast = null) =>
         new(
-            null,
+            matchingPodcast,
             null,
             null,
             new CategorisedSpotifyItem(
