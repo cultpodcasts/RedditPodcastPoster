@@ -240,10 +240,11 @@ public class ServiceIdsRules
     }
 
     [Fact(DisplayName =
-        "PATCH TV show takes the same service ids alongside imdb, stores them under indexing, and GET returns them.")]
+        "PATCH TV show takes the same service ids alongside the IMDb id, stores them under indexing, and GET returns them.")]
     public async Task tv_show_service_ids()
     {
         // Arrange
+        var imdbId = _fixture.CreateImdbId();
         var show = new TvShow("Synthetic Drama") { Id = _fixture.CreateGuid() };
         _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
 
@@ -251,7 +252,7 @@ public class ServiceIdsRules
         var result = await _mocker.CreateInstance<TvShowService>().UpdateAsync(
             new TvShowChangeRequestWrapper(show.Id, new TvShowChangeRequest
             {
-                Imdb = "https://www.imdb.com/title/tt0000001/",
+                ImdbId = imdbId,
                 YouTubeChannelId = ChannelId,
                 SpotifyId = SpotifyShowId,
                 AppleId = 99
@@ -267,7 +268,7 @@ public class ServiceIdsRules
         dto.YouTubeChannelId.Should().Be(ChannelId);
         dto.SpotifyId.Should().Be(SpotifyShowId);
         dto.AppleId.Should().Be(99);
-        dto.Imdb.Should().NotBeNull();
+        dto.ImdbId.Should().Be(imdbId);
     }
 
     [Fact(DisplayName =

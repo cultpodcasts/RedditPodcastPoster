@@ -34,29 +34,29 @@ public class FilmCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "POST film stores IMDb on IFilmCanonical, because several films share a display name and IMDb is the identity page.")]
-    public async Task update_sets_imdb()
+        "POST film stores the IMDb id on IFilmCanonical, because several films share a display name and the IMDb id is the identity.")]
+    public async Task update_sets_imdb_id()
     {
         // Arrange
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
             .ReturnsAsync(film);
-        var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var imdbId = _fixture.CreateImdbId();
         var sut = _mocker.CreateInstance<FilmService>();
 
         // Act
         var result = await sut.UpdateAsync(
-            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Imdb = imdb.ToString() }),
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { ImdbId = imdbId }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
-        _saved!.Imdb.Should().Be(imdb);
+        _saved!.ImdbId.Should().Be(imdbId);
     }
 
     [Fact(DisplayName =
-        "POST film returns NotFound when the film id is missing, because identity links are stored on the film document.")]
+        "POST film returns NotFound when the film id is missing, because identity ids are stored on the film document.")]
     public async Task update_not_found_when_missing()
     {
         // Arrange
@@ -70,7 +70,7 @@ public class FilmCanonicalUpdateRules
         var result = await sut.UpdateAsync(
             new FilmChangeRequestWrapper(
                 filmId,
-                new FilmChangeRequest { Imdb = $"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/" }),
+                new FilmChangeRequest { ImdbId = _fixture.CreateImdbId() }),
             CancellationToken.None);
 
         // Assert
@@ -79,15 +79,15 @@ public class FilmCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "POST film with an empty IMDb string clears the stored URI, because the curator can remove a wrong identity link.")]
+        "POST film with an empty IMDb id clears the stored id, because the curator can remove a wrong identity.")]
     public async Task update_clears_imdb_when_empty_string()
     {
         // Arrange
-        var existing = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var existing = _fixture.CreateImdbId();
         var film = new Film(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = existing
+            ImdbId = existing
         };
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
@@ -96,24 +96,51 @@ public class FilmCanonicalUpdateRules
 
         // Act
         var result = await sut.UpdateAsync(
-            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Imdb = "" }),
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { ImdbId = "" }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
-        _saved!.Imdb.Should().BeNull();
+        _saved!.ImdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "POST film that omits IMDb leaves the stored URI, because a missing JSON field is a no-op.")]
-    public async Task update_omit_imdb_leaves_existing()
+        "POST film with TMDB id 0 clears the stored TMDB id and leaves the IMDb id, because zero is the clear sentinel for numeric ids.")]
+    public async Task update_clears_tmdb_id_when_zero()
     {
         // Arrange
-        var existing = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var imdbId = _fixture.CreateImdbId();
         var film = new Film(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = existing
+            ImdbId = imdbId,
+            TmdbId = _fixture.CreateTmdbId()
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetFilm(film.Id))
+            .ReturnsAsync(film);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { TmdbId = 0 }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.TmdbId.Should().BeNull();
+        _saved.ImdbId.Should().Be(imdbId);
+    }
+    [Fact(DisplayName =
+        "POST film that omits the IMDb id leaves the stored id, because a missing JSON field is a no-op.")]
+    public async Task update_omit_imdb_leaves_existing()
+    {
+        // Arrange
+        var existing = _fixture.CreateImdbId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            ImdbId = existing
         };
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
@@ -127,12 +154,12 @@ public class FilmCanonicalUpdateRules
 
         // Assert
         result.Status.Should().Be(FilmUpdateStatus.Accepted);
-        _saved!.Imdb.Should().Be(existing);
+        _saved!.ImdbId.Should().Be(existing);
     }
 
     [Fact(DisplayName =
-        "POST film returns BadRequest when IMDb is not an absolute http(s) URL, because identity links must be pasteable pages.")]
-    public async Task update_rejects_relative_imdb()
+        "POST film returns BadRequest when the IMDb id is not tt followed by digits, because the id is the identity and a URL is not an id.")]
+    public async Task update_rejects_malformed_imdb_id()
     {
         // Arrange
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
@@ -143,7 +170,7 @@ public class FilmCanonicalUpdateRules
 
         // Act
         var result = await sut.UpdateAsync(
-            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Imdb = "not-a-url" }),
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { ImdbId = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
@@ -152,15 +179,15 @@ public class FilmCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "GET film by id returns Found with IMDb, because curator UIs resolve a known film document.")]
-    public async Task get_by_id_returns_imdb()
+        "GET film by id returns Found with the IMDb id, because curator UIs resolve a known film document.")]
+    public async Task get_by_id_returns_imdb_id()
     {
         // Arrange
-        var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var imdbId = _fixture.CreateImdbId();
         var film = new Film(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = imdb
+            ImdbId = imdbId
         };
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(film.Id))
@@ -173,7 +200,7 @@ public class FilmCanonicalUpdateRules
         // Assert
         result.Status.Should().Be(FilmGetStatus.Found);
         result.Film.Should().NotBeNull();
-        result.Film!.Imdb.Should().Be(imdb);
+        result.Film!.ImdbId.Should().Be(imdbId);
     }
 
     [Fact(DisplayName =

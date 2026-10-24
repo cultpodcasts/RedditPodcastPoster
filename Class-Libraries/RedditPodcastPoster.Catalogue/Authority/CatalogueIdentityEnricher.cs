@@ -266,15 +266,7 @@ public sealed class CatalogueIdentityEnricher(
             var ids = new CatalogueAuthorityIds(
                 preview.ImdbId,
                 preview.TmdbId,
-                preview.TvdbId,
-                preview.ImdbId is null ? null : RedditPodcastPoster.Tmdb.Models.CatalogueCanonicalId.ImdbPage(preview.ImdbId),
-                preview.TvdbId is > 0
-                    ? RedditPodcastPoster.Tmdb.Models.CatalogueCanonicalId.TvdbPage(
-                        preview.TvdbId.Value,
-                        target == CatalogueAuthorityCandidate.FilmKind
-                            ? RedditPodcastPoster.Tmdb.Models.TmdbTitleKind.Movie
-                            : RedditPodcastPoster.Tmdb.Models.TmdbTitleKind.TvSeries)
-                    : null);
+                preview.TvdbId);
             logger.LogInformation(
                 "Catalogue identity {Target} unique. query={Query} imdbId={ImdbId} tmdbId={TmdbId} tvdbId={TvdbId}",
                 target,

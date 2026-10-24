@@ -49,15 +49,20 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
             }
 
-            if (!CanonicalUriPatch.TryApply(request.Change.Imdb, uri => episode.Imdb = uri, out var imdbError))
+            if (!CanonicalIdChangeApplier.TryValidate(
+                    request.Change.ImdbId,
+                    request.Change.TmdbId,
+                    request.Change.TvdbId,
+                    out var idError))
             {
-                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, imdbError);
+                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, idError);
             }
 
-            if (!CanonicalUriPatch.TryApply(request.Change.Tvdb, uri => episode.Tvdb = uri, out var tvdbError))
-            {
-                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, tvdbError);
-            }
+            CanonicalIdChangeApplier.Apply(
+                episode,
+                request.Change.ImdbId,
+                request.Change.TmdbId,
+                request.Change.TvdbId);
 
             // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
             // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.

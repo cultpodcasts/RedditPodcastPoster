@@ -8,9 +8,6 @@ namespace Api.Dtos;
 /// </summary>
 public class FilmDto : PublisherFieldsDto
 {
-    [JsonPropertyName("imdb")]
-    public Uri? Imdb { get; set; }
-
     [JsonPropertyName("imdbId")]
     public string? ImdbId { get; set; }
 

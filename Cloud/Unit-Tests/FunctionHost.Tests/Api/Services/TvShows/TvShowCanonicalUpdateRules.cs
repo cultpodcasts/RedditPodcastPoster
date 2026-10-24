@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
 using Api.Models;
-using Api.Services.Catalogue;
 using Api.Services.TvShows;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.TvShows;
@@ -35,44 +34,47 @@ public class TvShowCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "POST TV show stores IMDb and TheTVDB URIs on the parent, because those pages are the canonical identity not streaming services.")]
-    public async Task update_sets_imdb_and_tvdb()
+        "POST TV show stores IMDb, TheTVDB and TMDB ids on the parent, because those ids are the canonical identity not streaming services.")]
+    public async Task update_sets_imdb_tvdb_and_tmdb_ids()
     {
         // Arrange
         var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
             .ReturnsAsync(show);
-        var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-        var tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+        var imdbId = _fixture.CreateImdbId();
+        var tvdbId = _fixture.CreateTvdbId();
+        var tmdbId = _fixture.CreateTmdbId();
         var sut = _mocker.CreateInstance<TvShowService>();
 
         // Act
         var result = await sut.UpdateAsync(
             new TvShowChangeRequestWrapper(
                 show.Id,
-                new TvShowChangeRequest { Imdb = imdb.ToString(), Tvdb = tvdb.ToString() }),
+                new TvShowChangeRequest { ImdbId = imdbId, TvdbId = tvdbId, TmdbId = tmdbId }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
         _saved.Should().NotBeNull();
-        _saved!.Imdb.Should().Be(imdb);
-        _saved.Tvdb.Should().Be(tvdb);
+        _saved!.ImdbId.Should().Be(imdbId);
+        _saved.TvdbId.Should().Be(tvdbId);
+        _saved.TmdbId.Should().Be(tmdbId);
     }
 
     [Fact(DisplayName =
-        "POST TV show with an empty IMDb string clears IMDb and leaves TVDB, because omitted JSON is a no-op.")]
-    public async Task update_clears_imdb_when_empty_string()
+        "POST TV show with an empty IMDb id clears IMDb and leaves TVDB and TMDB, because omitted JSON is a no-op.")]
+    public async Task update_clears_imdb_id_when_empty_string()
     {
         // Arrange
-        var existingImdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-        var existingTvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+        var existingTvdbId = _fixture.CreateTvdbId();
+        var existingTmdbId = _fixture.CreateTmdbId();
         var show = new TvShow(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = existingImdb,
-            Tvdb = existingTvdb
+            ImdbId = _fixture.CreateImdbId(),
+            TvdbId = existingTvdbId,
+            TmdbId = existingTmdbId
         };
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
@@ -83,18 +85,51 @@ public class TvShowCanonicalUpdateRules
         var result = await sut.UpdateAsync(
             new TvShowChangeRequestWrapper(
                 show.Id,
-                new TvShowChangeRequest { Imdb = "" }),
+                new TvShowChangeRequest { ImdbId = "" }),
             CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
-        _saved!.Imdb.Should().BeNull();
-        _saved.Tvdb.Should().Be(existingTvdb);
+        _saved!.ImdbId.Should().BeNull();
+        _saved.TvdbId.Should().Be(existingTvdbId);
+        _saved.TmdbId.Should().Be(existingTmdbId);
     }
 
     [Fact(DisplayName =
-        "POST TV show returns BadRequest when IMDb is not an absolute http(s) URL, because identity links must be pasteable pages.")]
-    public async Task update_rejects_relative_imdb()
+        "POST TV show with TVDB and TMDB id 0 clears both and leaves IMDb, because zero is the clear sentinel for numeric ids.")]
+    public async Task update_clears_numeric_ids_when_zero()
+    {
+        // Arrange
+        var existingImdbId = _fixture.CreateImdbId();
+        var show = new TvShow(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            ImdbId = existingImdbId,
+            TvdbId = _fixture.CreateTvdbId(),
+            TmdbId = _fixture.CreateTmdbId()
+        };
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(show.Id))
+            .ReturnsAsync(show);
+        var sut = _mocker.CreateInstance<TvShowService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new TvShowChangeRequestWrapper(
+                show.Id,
+                new TvShowChangeRequest { TvdbId = 0, TmdbId = 0 }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        _saved!.TvdbId.Should().BeNull();
+        _saved.TmdbId.Should().BeNull();
+        _saved.ImdbId.Should().Be(existingImdbId);
+    }
+
+    [Fact(DisplayName =
+        "POST TV show returns BadRequest when the IMDb id is not tt followed by digits, because the id is the identity and a URL is not an id.")]
+    public async Task update_rejects_malformed_imdb_id()
     {
         // Arrange
         var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
@@ -107,7 +142,7 @@ public class TvShowCanonicalUpdateRules
         var result = await sut.UpdateAsync(
             new TvShowChangeRequestWrapper(
                 show.Id,
-                new TvShowChangeRequest { Imdb = "not-a-url" }),
+                new TvShowChangeRequest { ImdbId = _fixture.CreateTitle() }),
             CancellationToken.None);
 
         // Assert
@@ -116,15 +151,17 @@ public class TvShowCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
-        "GET TV show by id returns Found with IMDb, because curator UIs resolve a known parent document.")]
-    public async Task get_by_id_returns_imdb()
+        "GET TV show by id returns Found with the identity ids, because curator UIs resolve a known parent document.")]
+    public async Task get_by_id_returns_identity_ids()
     {
         // Arrange
-        var imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
+        var imdbId = _fixture.CreateImdbId();
+        var tvdbId = _fixture.CreateTvdbId();
         var show = new TvShow(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            Imdb = imdb
+            ImdbId = imdbId,
+            TvdbId = tvdbId
         };
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetTvShow(show.Id))
@@ -137,9 +174,9 @@ public class TvShowCanonicalUpdateRules
         // Assert
         result.Status.Should().Be(TvShowGetStatus.Found);
         result.TvShow.Should().NotBeNull();
-        result.TvShow!.Imdb.Should().Be(imdb);
+        result.TvShow!.ImdbId.Should().Be(imdbId);
+        result.TvShow.TvdbId.Should().Be(tvdbId);
     }
-
     [Fact(DisplayName =
         "GET TV show by percent-encoded name returns Found, because route segments are decoded without treating plus as space.")]
     public async Task get_by_name_found_after_route_normalize()
@@ -211,30 +248,6 @@ public class TvShowCanonicalUpdateRules
         // Assert
         result.Status.Should().Be(TvShowGetStatus.NotFound);
         result.TvShow.Should().BeNull();
-    }
-
-    [Fact(DisplayName =
-        "CanonicalUriPatch treats omitted JSON as no-op, blank as clear, and an http URL as set.")]
-    public void canonical_uri_patch_omit_clear_and_set()
-    {
-        // Arrange
-        Uri? target = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-
-        // Act
-        var omitOk = CanonicalUriPatch.TryApply(null, uri => target = uri, out _);
-        var afterOmit = target;
-        var clearOk = CanonicalUriPatch.TryApply("", uri => target = uri, out _);
-        var afterClear = target;
-        var setUrl = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
-        var setOk = CanonicalUriPatch.TryApply(setUrl.ToString(), uri => target = uri, out _);
-
-        // Assert
-        omitOk.Should().BeTrue();
-        afterOmit.Should().NotBeNull();
-        clearOk.Should().BeTrue();
-        afterClear.Should().BeNull();
-        setOk.Should().BeTrue();
-        target.Should().Be(setUrl);
     }
 
     private static async IAsyncEnumerable<TvShow> FilterAsync(

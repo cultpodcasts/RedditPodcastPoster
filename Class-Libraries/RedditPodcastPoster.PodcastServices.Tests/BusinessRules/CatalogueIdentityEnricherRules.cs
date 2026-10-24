@@ -159,7 +159,7 @@ public class CatalogueIdentityEnricherRules
                 Candidates: candidates));
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(x => x.CollectFilmAsync(matchingId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, matchingId, null, null, null));
+            .ReturnsAsync(new CatalogueAuthorityIds(imdbId, matchingId, null));
         var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
 
         // Act
@@ -245,8 +245,6 @@ public class CatalogueIdentityEnricherRules
             .ReturnsAsync(new CatalogueAuthorityIds(
                 imdbId,
                 tmdbId,
-                null,
-                CatalogueCanonicalId.ImdbPage(imdbId),
                 null));
         var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
         var film = new Film(title) { ImdbId = existingImdb };
@@ -283,9 +281,7 @@ public class CatalogueIdentityEnricherRules
         var incoming = new CatalogueAuthorityIds(
             ImdbId(),
             CreateDistinctTmdbId(existingTmdb),
-            existingTvdb + 1,
-            null,
-            null);
+            existingTvdb + 1);
         var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
 
         // Act

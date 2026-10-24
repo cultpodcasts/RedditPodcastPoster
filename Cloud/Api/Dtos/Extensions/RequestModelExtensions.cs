@@ -100,7 +100,6 @@ public static class RequestModelExtensions
     public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) =>
         request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
         {
-            Imdb = request.Imdb,
             ImdbId = request.ImdbId,
             TmdbId = request.TmdbId,
             Services = request.Services,
@@ -120,15 +119,17 @@ public static class RequestModelExtensions
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
         request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
         {
-            Imdb = request.Imdb,
-            Tvdb = request.Tvdb
+            ImdbId = request.ImdbId,
+            TvdbId = request.TvdbId,
+            TmdbId = request.TmdbId
         }));
 
     public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.TvShowEpisodeChangeRequest
         {
-            Imdb = request.Imdb,
-            Tvdb = request.Tvdb
+            ImdbId = request.ImdbId,
+            TvdbId = request.TvdbId,
+            TmdbId = request.TmdbId
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>

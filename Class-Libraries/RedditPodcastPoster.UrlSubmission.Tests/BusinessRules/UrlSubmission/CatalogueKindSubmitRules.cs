@@ -572,11 +572,11 @@ public class CatalogueKindSubmitRules
         _shows.Should().ContainSingle();
         _shows[0].Name.Should().Be(series);
         _shows[0].PublisherName.Should().Be(publisher);
-        _shows[0].Imdb.Should().BeNull();
-        _shows[0].Tvdb.Should().BeNull();
+        _shows[0].ImdbId.Should().BeNull();
+        _shows[0].TvdbId.Should().BeNull();
         _episodes.Should().ContainSingle();
-        _episodes[0].Imdb.Should().BeNull();
-        _episodes[0].Tvdb.Should().BeNull();
+        _episodes[0].ImdbId.Should().BeNull();
+        _episodes[0].TvdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =

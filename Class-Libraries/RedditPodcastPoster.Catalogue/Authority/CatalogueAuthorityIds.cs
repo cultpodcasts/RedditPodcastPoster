@@ -5,24 +5,21 @@ using RedditPodcastPoster.Models.TvShows;
 namespace RedditPodcastPoster.Catalogue.Authority;
 
 /// <summary>
-/// IMDb title id, TMDB id, and TheTVDB id collected for one film, show, or episode.
-/// A film has no TheTVDB id. Page URLs are the public links for the ids we hold.
+/// IMDb title id, TMDB id, and TheTVDB id for one film, show, or episode.
+/// A film has no TheTVDB id. Page URLs are not part of this contract — callers generate them from ids when needed.
 /// </summary>
 public sealed record CatalogueAuthorityIds(
     string? ImdbId,
     int? TmdbId,
-    long? TvdbId,
-    Uri? Imdb,
-    Uri? Tvdb)
+    long? TvdbId)
 {
-    public static CatalogueAuthorityIds Empty { get; } = new(null, null, null, null, null);
+    public static CatalogueAuthorityIds Empty { get; } = new(null, null, null);
 
     public void Apply(Film film)
     {
         if (ImdbId is not null)
         {
             film.ImdbId = ImdbId;
-            film.Imdb = Imdb;
         }
 
         if (TmdbId is not null)
@@ -36,7 +33,8 @@ public sealed record CatalogueAuthorityIds(
     public void Apply(TvShowEpisode episode) => ApplyTv(episode);
 
     /// <summary>
-    /// Fills blank identity fields only. Curator-set or previously stored ids are left alone.
+    /// Fills blank identity id fields only. Curator-set or previously stored ids are left alone.
+    /// Does not write page URL members.
     /// </summary>
     public bool FillMissing(Film film)
     {
@@ -44,12 +42,6 @@ public sealed record CatalogueAuthorityIds(
         if (ImdbId is not null && string.IsNullOrWhiteSpace(film.ImdbId))
         {
             film.ImdbId = ImdbId;
-            film.Imdb ??= Imdb;
-            changed = true;
-        }
-        else if (Imdb is not null && film.Imdb is null && !string.IsNullOrWhiteSpace(film.ImdbId))
-        {
-            film.Imdb = Imdb;
             changed = true;
         }
 
@@ -62,21 +54,14 @@ public sealed record CatalogueAuthorityIds(
         return changed;
     }
 
-    /// <summary>
-    /// Fills blank identity fields only. Curator-set or previously stored ids are left alone.
-    /// </summary>
-    public bool FillMissing(ITvCanonical document)
+    public bool FillMissing(ITvCanonical document) => FillMissingTv(document);
+
+    private bool FillMissingTv(ITvCanonical document)
     {
         var changed = false;
         if (ImdbId is not null && string.IsNullOrWhiteSpace(document.ImdbId))
         {
             document.ImdbId = ImdbId;
-            document.Imdb ??= Imdb;
-            changed = true;
-        }
-        else if (Imdb is not null && document.Imdb is null && !string.IsNullOrWhiteSpace(document.ImdbId))
-        {
-            document.Imdb = Imdb;
             changed = true;
         }
 
@@ -89,12 +74,6 @@ public sealed record CatalogueAuthorityIds(
         if (TvdbId is not null && document.TvdbId is null)
         {
             document.TvdbId = TvdbId;
-            document.Tvdb ??= Tvdb;
-            changed = true;
-        }
-        else if (Tvdb is not null && document.Tvdb is null && document.TvdbId is not null)
-        {
-            document.Tvdb = Tvdb;
             changed = true;
         }
 
@@ -106,7 +85,6 @@ public sealed record CatalogueAuthorityIds(
         if (ImdbId is not null)
         {
             document.ImdbId = ImdbId;
-            document.Imdb = Imdb;
         }
 
         if (TmdbId is not null)
@@ -117,7 +95,6 @@ public sealed record CatalogueAuthorityIds(
         if (TvdbId is not null)
         {
             document.TvdbId = TvdbId;
-            document.Tvdb = Tvdb;
         }
     }
 }

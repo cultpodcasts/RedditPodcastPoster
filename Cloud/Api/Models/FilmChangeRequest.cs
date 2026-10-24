@@ -4,7 +4,6 @@ namespace Api.Models;
 
 public class FilmChangeRequest : PublisherFieldsChange
 {
-    public string? Imdb { get; set; }
     public string? ImdbId { get; set; }
     public int? TmdbId { get; set; }
     public Dictionary<string, ServiceLink>? Services { get; set; }

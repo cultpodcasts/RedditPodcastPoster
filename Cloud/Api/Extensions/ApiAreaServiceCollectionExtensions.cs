@@ -114,6 +114,8 @@ public static class ApiAreaServiceCollectionExtensions
         services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
         services.TryAddScoped<ICatalogueRenameHandler, CatalogueRenameHandler>();
+        services.TryAddScoped<ICatalogueIdentityLookupService, CatalogueIdentityLookupService>();
+        services.TryAddScoped<ICatalogueIdentityLookupHandler, CatalogueIdentityLookupHandler>();
         return services;
     }
 

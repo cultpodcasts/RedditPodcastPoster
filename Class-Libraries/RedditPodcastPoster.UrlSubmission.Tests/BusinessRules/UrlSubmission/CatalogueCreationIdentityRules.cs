@@ -75,7 +75,7 @@ public class CatalogueCreationIdentityRules
         var tmdbId = CreateTmdbId();
         var imdbId = ImdbId();
         _filmAdmission = CatalogueIdentityAdmission.Proceed(
-            new CatalogueAuthorityIds(imdbId, tmdbId, null, CatalogueCanonicalId.ImdbPage(imdbId), null));
+            new CatalogueAuthorityIds(imdbId, tmdbId, null));
         var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
 
         // Act

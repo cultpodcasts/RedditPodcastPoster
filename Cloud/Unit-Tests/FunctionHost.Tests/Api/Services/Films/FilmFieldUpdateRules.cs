@@ -47,12 +47,12 @@ public class FilmFieldUpdateRules
             .UpdateAsync(new FilmChangeRequestWrapper(film.Id, change), CancellationToken.None);
 
     [Fact(DisplayName =
-        "PATCH film sets publisher and playable fields it is given and keeps omitted ones and IMDb, because a film is a publisher that is also playable.")]
+        "PATCH film sets publisher and playable fields it is given and keeps omitted ones and the IMDb id, because a film is a publisher that is also playable.")]
     public async Task update_sets_fields()
     {
         // Arrange
-        var imdb = new Uri("https://www.imdb.com/title/tt0000003/");
-        var film = CreateFilm(f => { f.Imdb = imdb; f.TwitterHandle = "@keep"; });
+        var imdbId = _fixture.CreateImdbId();
+        var film = CreateFilm(f => { f.ImdbId = imdbId; f.TwitterHandle = "@keep"; });
         var duration = _fixture.CreateDuration() + TimeSpan.FromSeconds(30);
 
         // Act
@@ -82,7 +82,7 @@ public class FilmFieldUpdateRules
         _saved.RemovedSubjects.Should().Contain("Synthetic Cult");
         _saved.Guests.Should().Equal("Synthetic Director");
         _saved.TwitterHandle.Should().Be("@keep");
-        _saved.Imdb.Should().Be(imdb);
+        _saved.ImdbId.Should().Be(imdbId);
         _saved.Release!.Precision.Should().Be(CatalogueReleasePrecision.Year);
         _search.VerifyDelete(film.Id, Times.Never());
     }
