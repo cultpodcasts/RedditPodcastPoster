@@ -26,6 +26,7 @@ The ML scorer does **not** auto-accept or auto-reject in the API. It **ranks** a
 | HTTP trigger | `AuthorizationLevel.Anonymous` (Azure Functions) |
 | **GET permission** | `curate` |
 | **POST permission** | `curate` or `curate:supervised` |
+| **POST submit-outcome permission** | `curate` |
 
 Permissions are Auth0 API permissions (JWT `permissions` / OAuth `scope`, checked via `ClientPrincipal.HasScope`). Requests without them receive **401 Unauthorized**.
 
@@ -138,6 +139,68 @@ The response is **202 with an empty body**. It does not include the podcast. The
 `curate` is required. A news organisation or TV show that already owns the channel is **409**. So is an ambiguous catalogue match. A missing YouTube or Spotify lookup is a warning and the ban continues with any ids already resolved. A missing result is **404**.
 
 Future discovery runs drop an episode when the podcast that owns it, or a catalogue parent, is removed. A removed channel-wide outlet does not drop a video that is in a live playlist-scoped show on that channel. A video that is not in the playlist stays dropped, and Save rejects it.
+
+---
+
+### POST `DiscoveryCuration/submit-outcome`
+
+**CQRS query** (POST-with-body; no GET). Reads durable per-result stamps after Save so the UI can reconcile a lost HTTP response without re-ingesting. Does **not** change Cosmos state.
+
+#### Auth
+
+Requires JWT permission **`curate`** (same as GET). `curate:supervised` alone is not enough.
+
+#### Request body
+
+Same id shape as submit:
+
+```json
+{
+  "ids": ["<discovery-report-document-guid>"],
+  "resultIds": ["<result-guid>", "..."]
+}
+```
+
+| Field | JSON name | Description |
+|-------|-----------|-------------|
+| Document IDs | `ids` | Discovery report document GUIDs from the submit that may have lost its response. |
+| Result IDs | `resultIds` | Result GUIDs to look up (accepted, rejected, or errored). |
+
+Both arrays are required and non-empty; otherwise **400** `{ "message": "ids and resultIds are required." }`.
+
+#### When to call
+
+After a Save (POST `DiscoveryCuration`) times out, disconnects, or returns an ambiguous failure — poll this endpoint with the same `ids` / `resultIds` until stamps settle (`Accepted` / `AcceptError` / `Rejected`) or you decide to retry errored items.
+
+#### Response shape
+
+```json
+{
+  "results": [
+    {
+      "discoveryItemId": "<guid>",
+      "state": "Accepted",
+      "podcastId": "<guid or null>",
+      "episodeId": "<guid or null>",
+      "message": null,
+      "episodeName": "...",
+      "showName": "..."
+    }
+  ]
+}
+```
+
+Results are returned in the same order as `resultIds`.
+
+| `state` | Meaning |
+|---------|---------|
+| `Accepted` | Ingest succeeded; `podcastId` / `episodeId` are stamped for navigation. |
+| `AcceptError` | Ingest threw or stamped an error; `message` holds error text when present. |
+| `Rejected` | Result was not in the accepted set when the report was processed. |
+| `Pending` | Result id was found on a report in `ids`, but `State` is still unset (claim/ingest in flight or stamp not written yet). |
+| `Unknown` | Result id was **not** found on any of the given documents (wrong id or wrong `ids`). |
+
+`Pending` vs `Unknown`: use `Pending` to keep polling the same submit; use `Unknown` to fix the client request (id not in those reports).
 
 ---
 

@@ -44,7 +44,8 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
         _mocker.GetMock<IEpisodeSearchIndexerService>().VerifyNoOtherCalls();
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()), Times.Once);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
-            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()), Times.Never);
+            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -112,7 +113,8 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
             .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
             .ReturnsAsync([new RedditPodcastPoster.Models.Discovery.DiscoveryResult { Id = _fixture.Create<Guid>() }]);
         _mocker.GetMock<IDiscoveryResultsService>()
-            .Setup(s => s.MarkAsProcessed(It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()))
+            .Setup(s => s.MarkAsProcessed(It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+                It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()))
             .ThrowsAsync(new InvalidOperationException());
         var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
 

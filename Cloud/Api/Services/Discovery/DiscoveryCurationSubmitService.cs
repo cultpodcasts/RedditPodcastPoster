@@ -99,7 +99,7 @@ public class DiscoveryCurationSubmitService(
             var accepted = request.ResultIds.Except(erroredResults).Except(rejectedRemoved).ToArray();
 
             await discoveryResultsService.MarkAsProcessed(request.DiscoveryResultsDocumentIds, accepted,
-                erroredResults);
+                erroredResults, submitResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
 
@@ -170,7 +170,7 @@ public class DiscoveryCurationSubmitService(
             var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults)
                 .Except(rejectedRemoved).ToArray();
             await discoveryResultsService.UpdateResultStates(request.DiscoveryResultsDocumentIds, succeeded,
-                erroredResults);
+                erroredResults, submitResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
@@ -277,11 +277,13 @@ public class DiscoveryCurationSubmitService(
         var discoveryResults = pendingResults is null ? [] : await pendingResults ?? [];
         var holds = new List<CatalogueLanguageHold>();
         var identityHolds = new List<CatalogueIdentityHold>();
+        // Language / identity probe only — skip expensive Spotify/YouTube walks so preflight does not
+        // double the wall-clock of the real ingest (and blow edge timeouts before the 200 is sent).
         var indexingContext = new IndexingContext
         {
             SkipPodcastDiscovery = false,
-            SkipExpensiveYouTubeQueries = false,
-            SkipExpensiveSpotifyQueries = false
+            SkipExpensiveYouTubeQueries = true,
+            SkipExpensiveSpotifyQueries = true
         };
         foreach (var discoveryResult in discoveryResults)
         {
