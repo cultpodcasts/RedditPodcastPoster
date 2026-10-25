@@ -28,9 +28,9 @@ namespace Api.Services.Episodes;
 /// After the episode row is deleted, the episode's short-link record is deleted (best effort), as catalogue edits do,
 /// so the Shortner falls back to search and redirects the old short link straight to the film page. Re-sending after
 /// a completed move (episode row gone, film with the episode id present) is accepted again for that film.
-/// A newly created film gets a best-effort IMDb/TMDB identity fill when the authority lookup is confident (ambiguous
-/// matches leave identity blank — the move dialog has no choice UI), the same class of behaviour as Move-to-TV
-/// createShow.
+/// A newly created film resolves IMDb/TMDB like URL-submit film create: confident match fills ids; ambiguous returns
+/// <see cref="EpisodeFilmMoveStatus.IdentityDecisionRequired"/> with candidates (nothing written) so the client can
+/// <c>select</c> / <c>continue</c> / <c>cancel</c> on a re-POST — same contract as send-podcast / Identity-tab lookup.
 /// The source podcast is never deleted or changed, even when it has no episodes left.
 /// </summary>
 public class EpisodeFilmMoveService(
@@ -101,6 +101,12 @@ public class EpisodeFilmMoveService(
                         Error: "Film name cannot contain '/'");
                 }
 
+                var choice = CatalogueIdentityChoices.Parse(command.Request.IdentityDecision);
+                if (choice == CatalogueIdentityChoice.Cancel)
+                {
+                    return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Cancelled);
+                }
+
                 var clashes = await PublisherNameAttachLookup.FindByName(filmRepository, name, cancellationToken);
                 if (clashes.Count > 0)
                 {
@@ -121,7 +127,14 @@ public class EpisodeFilmMoveService(
                 // ToFilm copies publisher fields from the podcast, including Removed. Here the (active) episode is the
                 // unit that moves, so the film is active even when it leaves a removed podcast.
                 film.Removed = null;
-                await TryFillNewFilmIdentity(film, cancellationToken);
+
+                var identityStop = await TryResolveNewFilmIdentity(
+                    film, choice, command.Request.SelectedIdentityKey, cancellationToken);
+                if (identityStop is not null)
+                {
+                    return identityStop;
+                }
+
                 await filmRepository.Save(film);
             }
 
@@ -151,48 +164,65 @@ public class EpisodeFilmMoveService(
     }
 
     /// <summary>
-    /// Same confident-match fill as URL-submit film create / TV createShow. Ambiguous authority results are skipped so
-    /// the move still completes (no identity-choice UI on Move to film); the curator can edit the film later.
+    /// Same identity gate as URL-submit film create: confident → apply; ambiguous → return candidates and write nothing;
+    /// <c>select</c>/<c>continue</c> honour the curator's answer; lookup failure → leave blank and still move.
     /// </summary>
-    private async Task TryFillNewFilmIdentity(Film film, CancellationToken cancellationToken)
+    private async Task<EpisodeFilmMoveResult?> TryResolveNewFilmIdentity(
+        Film film,
+        CatalogueIdentityChoice choice,
+        string? selectedIdentityKey,
+        CancellationToken cancellationToken)
     {
+        CatalogueIdentityAdmission admission;
         try
         {
             var year = film.Release is { } release ? release.Year : (int?)null;
-            var admission = await identityEnricher.ResolveFilmAsync(
+            admission = await identityEnricher.ResolveFilmAsync(
                 film.Name,
                 year,
-                CatalogueIdentityChoice.Unset,
-                selectedKey: null,
+                choice,
+                selectedIdentityKey,
                 cancellationToken);
-            if (admission.Hold)
-            {
-                logger.LogInformation(
-                    "{method}: Film '{name}' identity is ambiguous ({count} candidates); leaving blank.",
-                    nameof(TryFillNewFilmIdentity),
-                    film.Name,
-                    admission.Prompt?.Candidates.Count ?? 0);
-                return;
-            }
-
-            if (identityEnricher.ApplyMissing(film, admission.Ids))
-            {
-                logger.LogInformation(
-                    "{method}: Filled identity for new film '{name}' (imdb={imdbId}, tmdb={tmdbId}).",
-                    nameof(TryFillNewFilmIdentity),
-                    film.Name,
-                    film.ImdbId,
-                    film.TmdbId);
-            }
         }
         catch (Exception ex)
         {
             logger.LogWarning(
                 ex,
                 "{method}: Identity lookup failed for new film '{name}'; leaving blank.",
-                nameof(TryFillNewFilmIdentity),
+                nameof(TryResolveNewFilmIdentity),
                 film.Name);
+            return null;
         }
+
+        if (admission.Hold && admission.Prompt is { Candidates.Count: > 0 } prompt)
+        {
+            logger.LogInformation(
+                "{method}: Film '{name}' identity is ambiguous ({count} candidates); waiting for curator choice.",
+                nameof(TryResolveNewFilmIdentity),
+                film.Name,
+                prompt.Candidates.Count);
+            return new EpisodeFilmMoveResult(
+                EpisodeFilmMoveStatus.IdentityDecisionRequired,
+                IdentityHold: prompt);
+        }
+
+        if (admission.Hold)
+        {
+            // Empty hold (e.g. cancel echoed from enricher) — treat as cancelled, nothing written.
+            return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Cancelled);
+        }
+
+        if (identityEnricher.ApplyMissing(film, admission.Ids))
+        {
+            logger.LogInformation(
+                "{method}: Filled identity for new film '{name}' (imdb={imdbId}, tmdb={tmdbId}).",
+                nameof(TryResolveNewFilmIdentity),
+                film.Name,
+                film.ImdbId,
+                film.TmdbId);
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -21,6 +21,11 @@ public class PostEpisodeFilmMoveHandler(
         {
             EpisodeFilmMoveStatus.Accepted =>
                 await ctx.Accepted(result.ToDto(), cancellationToken),
+            // Same as URL-submit: ambiguous / cancel are 200 command outcomes, nothing written.
+            EpisodeFilmMoveStatus.IdentityDecisionRequired =>
+                await ctx.Ok(result.ToDto(), cancellationToken),
+            EpisodeFilmMoveStatus.Cancelled =>
+                await ctx.Ok(result.ToDto(), cancellationToken),
             EpisodeFilmMoveStatus.NotFound =>
                 await ctx.NotFound(new { podcastId = command.PodcastId, episodeId = command.EpisodeId }, cancellationToken),
             EpisodeFilmMoveStatus.Conflict =>
