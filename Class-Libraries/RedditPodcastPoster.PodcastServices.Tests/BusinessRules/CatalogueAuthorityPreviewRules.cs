@@ -84,6 +84,42 @@ public class CatalogueAuthorityPreviewRules
         preview.Candidates.Should().NotBeNull();
         preview.Candidates!.Should().HaveCount(2);
         preview.Candidates.Should().OnlyContain(c => c.Source == CatalogueAuthorityCandidate.TmdbSource);
+        preview.Candidates.Should().OnlyContain(c =>
+            c.PageUrl != null &&
+            c.PageUrl.Host == "www.themoviedb.org" &&
+            c.PageUrl.AbsolutePath.StartsWith("/movie/", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName =
+        "Several film TMDB hits expose a poster thumbnail and overview description on each ambiguous candidate.")]
+    public async Task many_film_hits_include_thumbnail_and_description()
+    {
+        // Arrange
+        var query = _fixture.CreateTitle();
+        var first = _fixture.CreateTitle();
+        var second = _fixture.CreateTitle();
+        var firstId = CreateTmdbId();
+        var secondId = CreateTmdbId();
+        var overview = _fixture.CreateTitle();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                Hit(firstId, first, TmdbTitleKind.Movie, posterPath: $"/p{firstId}.jpg", overview: overview),
+                Hit(secondId, second, TmdbTitleKind.Movie, posterPath: $"/p{secondId}.jpg", overview: overview)
+            ]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(query);
+
+        // Assert
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c =>
+            c.ThumbnailUrl != null &&
+            c.ThumbnailUrl.AbsoluteUri.Contains("/t/p/w185/", StringComparison.Ordinal) &&
+            c.Description == overview);
     }
 
     [Fact(DisplayName =
@@ -476,8 +512,14 @@ public class CatalogueAuthorityPreviewRules
         return value == 0 ? 1 : value;
     }
 
-    private static TmdbSearchHit Hit(int id, string name, TmdbTitleKind kind, int? year = null) =>
-        new(id, name, kind, year);
+    private static TmdbSearchHit Hit(
+        int id,
+        string name,
+        TmdbTitleKind kind,
+        int? year = null,
+        string? posterPath = null,
+        string? overview = null) =>
+        new(id, name, kind, year, posterPath, overview);
 
     private static TheTvdbSearchHit SeriesHit(long id, string name) =>
         new(id, name, TheTvdbSearchType.Series, null, null, null, null, null, null, null);

@@ -12,7 +12,9 @@ public sealed record CatalogueAuthorityCandidate(
     string Source,
     int? TmdbId,
     long? TvdbId,
-    Uri? PageUrl = null)
+    Uri? PageUrl = null,
+    Uri? ThumbnailUrl = null,
+    string? Description = null)
 {
     public const string FilmKind = "Film";
     public const string TvShowKind = "TvShow";

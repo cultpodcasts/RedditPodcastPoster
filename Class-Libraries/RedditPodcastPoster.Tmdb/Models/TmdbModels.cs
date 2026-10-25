@@ -64,7 +64,39 @@ public sealed partial record CatalogueCanonicalId(string Id, CatalogueCanonicalS
 }
 
 /// <summary>A TMDB search hit. Canonical ids come from the detail calls, which load external ids.</summary>
-public sealed record TmdbSearchHit(int Id, string Name, TmdbTitleKind Kind, int? Year);
+public sealed record TmdbSearchHit(
+    int Id,
+    string Name,
+    TmdbTitleKind Kind,
+    int? Year,
+    string? PosterPath = null,
+    string? Overview = null)
+{
+    /// <summary>TMDB movie page for curator inspection.</summary>
+    public static Uri MoviePage(int tmdbId) =>
+        new($"https://www.themoviedb.org/movie/{tmdbId.ToString(CultureInfo.InvariantCulture)}");
+
+    /// <summary>TMDB TV series page for curator inspection.</summary>
+    public static Uri TvPage(int tmdbId) =>
+        new($"https://www.themoviedb.org/tv/{tmdbId.ToString(CultureInfo.InvariantCulture)}");
+
+    /// <summary>w185 poster URL when <paramref name="posterPath"/> is a TMDB path (leading slash).</summary>
+    public static Uri? PosterThumbnail(string? posterPath)
+    {
+        if (string.IsNullOrWhiteSpace(posterPath))
+        {
+            return null;
+        }
+
+        var path = posterPath.Trim();
+        if (!path.StartsWith('/'))
+        {
+            path = "/" + path;
+        }
+
+        return new Uri($"https://image.tmdb.org/t/p/w185{path}");
+    }
+}
 
 /// <summary>
 /// A TMDB movie, series, or episode with both external ids when TMDB has them.

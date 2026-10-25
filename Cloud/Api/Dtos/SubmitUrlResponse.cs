@@ -86,7 +86,9 @@ public class SubmitUrlResponse
                 Source = x.Source,
                 TmdbId = x.TmdbId,
                 TvdbId = x.TvdbId,
-                PageUrl = x.PageUrl?.ToString()
+                PageUrl = x.PageUrl?.ToString(),
+                ThumbnailUrl = x.ThumbnailUrl?.ToString(),
+                Description = x.Description
             }).ToArray()
         };
 
@@ -241,6 +243,14 @@ public class SubmitUrlResponse
         [JsonPropertyName("pageUrl")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? PageUrl { get; set; }
+
+        [JsonPropertyName("thumbnailUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ThumbnailUrl { get; set; }
+
+        [JsonPropertyName("description")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Description { get; set; }
     }
 
     public class LanguageSignalBody

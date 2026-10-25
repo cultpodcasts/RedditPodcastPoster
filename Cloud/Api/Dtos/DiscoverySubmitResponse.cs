@@ -101,6 +101,14 @@ public class DiscoverySubmitResponse
         [JsonPropertyName("pageUrl")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? PageUrl { get; set; }
+
+        [JsonPropertyName("thumbnailUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ThumbnailUrl { get; set; }
+
+        [JsonPropertyName("description")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Description { get; set; }
     }
 
     public class Item
