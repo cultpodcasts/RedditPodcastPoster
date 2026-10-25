@@ -19,7 +19,9 @@ public class CatalogueIdentityController(
     : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
     /// <summary>
-    /// Edit-time Identity tab lookup. Confident → ids; ambiguous → options (never auto-picked); no match → message.
+    /// Edit-time Identity tab lookup. Confident → ids; ambiguous → options;
+    /// optional film <c>year</c> may unique-resolve when it narrows several TMDB hits to one (same as create-time);
+    /// no match → message.
     /// </summary>
     [Function("CatalogueIdentityLookup")]
     public Task<HttpResponseData> Lookup(

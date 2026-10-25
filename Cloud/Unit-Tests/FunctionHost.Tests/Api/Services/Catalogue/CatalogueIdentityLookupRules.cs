@@ -289,7 +289,7 @@ public class CatalogueIdentityLookupRules
         var episodeImdb = _fixture.CreateImdbId();
         var parentImdb = _fixture.CreateImdbId();
         var showTmdb = _fixture.CreateTmdbId();
-        var showTvdb = _fixture.CreateAppleId();
+        var showTvdb = _fixture.CreateTvdbId();
         _admission = CatalogueIdentityAdmission.Proceed(
             new CatalogueAuthorityIds(episodeImdb, null, null),
             new CatalogueAuthorityIds(parentImdb, showTmdb, showTvdb));

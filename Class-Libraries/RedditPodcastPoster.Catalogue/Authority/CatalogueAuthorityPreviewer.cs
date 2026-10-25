@@ -348,8 +348,8 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.TmdbSource,
             hit.Id,
             TvdbId: null,
-            TmdbSearchHit.MoviePage(hit.Id),
-            TmdbSearchHit.PosterThumbnail(hit.PosterPath),
+            CatalogueCanonicalId.TmdbMoviePage(hit.Id),
+            CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
             hit.Overview)).ToList();
 
     private static List<CatalogueAuthorityCandidate> TvShowTmdbCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
@@ -361,8 +361,8 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.TmdbSource,
             hit.Id,
             TvdbId: null,
-            TmdbSearchHit.TvPage(hit.Id),
-            TmdbSearchHit.PosterThumbnail(hit.PosterPath),
+            CatalogueCanonicalId.TmdbTvPage(hit.Id),
+            CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
             hit.Overview)).ToList();
 
     private static List<CatalogueAuthorityCandidate> TvShowTvdbCandidates(IReadOnlyList<TheTvdbSearchHit> hits) =>
@@ -374,14 +374,9 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.TvdbSource,
             TmdbId: null,
             hit.Id,
-            PreferImdbPage(hit.ImdbTitleId, hit.CanonicalUrl),
+            hit.ImdbUrl ?? hit.CanonicalUrl,
             ThumbnailUrl: null,
             Description: null)).ToList();
-
-    private static Uri? PreferImdbPage(string? imdbTitleId, Uri? fallback) =>
-        !string.IsNullOrWhiteSpace(imdbTitleId)
-            ? CatalogueCanonicalId.ImdbPage(imdbTitleId.Trim())
-            : fallback;
 
     private static int? ParseYear(string? year) =>
         int.TryParse(year, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
