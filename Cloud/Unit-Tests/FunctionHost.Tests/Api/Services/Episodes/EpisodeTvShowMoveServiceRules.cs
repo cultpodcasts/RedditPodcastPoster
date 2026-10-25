@@ -352,6 +352,33 @@ public class EpisodeTvShowMoveServiceRules
     }
 
     [Fact(DisplayName =
+        "createShow leaves identity blank when identity lookup throws, so Move still completes and the curator can edit the show later.")]
+    public async Task create_show_leaves_identity_blank_when_lookup_fails()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var name = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveTvShowAsync(
+                name, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.ImdbId.Should().BeNull();
+        show.TmdbId.Should().BeNull();
+        show.TvdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ApplyMissing(It.IsAny<ITvCanonical>(), It.IsAny<CatalogueAuthorityIds?>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
         "createShow with a name one show already has joins that show and does not change its publisher, so a re-send after an interrupted create never makes a second show.")]
     public async Task create_show_with_existing_name_joins_show()
     {

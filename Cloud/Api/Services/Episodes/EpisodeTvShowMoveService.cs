@@ -7,7 +7,6 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlShortening.Extensions;
@@ -133,7 +132,7 @@ public class EpisodeTvShowMoveService(
             {
                 // TV episodes have Services only (no nested ids). Materialise watch?v= from
                 // ids.youtube when services.youtube.url is missing so search/Watch keep YouTube.
-                EnsureYouTubeServiceUrl(episode);
+                EpisodeServicePresence.EnsureYouTubeWatchUrl(episode);
                 tvEpisode = CatalogueParentKindMapper.ToTvShowEpisode(episode, show!);
                 if (!string.IsNullOrWhiteSpace(request.Title))
                 {
@@ -392,27 +391,6 @@ public class EpisodeTvShowMoveService(
             logger.LogError(ex, "{method}: Short-link delete failed for moved episode '{episodeId}'.",
                 nameof(DeleteShortLink), episode.Id);
         }
-    }
-
-    /// <summary>
-    /// Podcast episodes may have <c>ids.youtube</c> without <c>services.youtube.url</c>. TV episodes
-    /// keep Services only, so materialise the watch URL before the map or YouTube is dropped.
-    /// </summary>
-    private static void EnsureYouTubeServiceUrl(Episode episode)
-    {
-        EpisodeServicePresence.NormalizeCatalog(episode);
-        var id = episode.Ids?.YouTube;
-        if (string.IsNullOrWhiteSpace(id) ||
-            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) is not null)
-        {
-            return;
-        }
-
-        EpisodeServicePresence.Upsert(
-            episode,
-            ServiceKeys.YouTube,
-            new Uri($"https://www.youtube.com/watch?v={id}"),
-            null);
     }
 
     private static EpisodeTvShowMoveResult Accepted(Guid showId, string? showName, Guid episodeId, bool createdShow) =>

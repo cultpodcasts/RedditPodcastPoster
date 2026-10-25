@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Episodes;
 
@@ -117,63 +118,26 @@ public static class EpisodeServicePresence
 
         // Catalogue playables (TV / news / film) and post-projections of them have no nested
         // ids — only services.youtube.url. Search YoutubeId must still resolve for Watch.
-        return YouTubeIdFromUrl(TryGetUrl(episode, ServiceKeys.YouTube));
+        var url = TryGetUrl(episode, ServiceKeys.YouTube);
+        return url is null ? null : YouTubeIdResolver.Extract(url);
     }
 
-    /// <summary>Best-effort video id from a YouTube watch / youtu.be / shorts / embed URL.</summary>
-    public static string? YouTubeIdFromUrl(Uri? url)
+    /// <summary>
+    /// Podcast episodes may have <c>ids.youtube</c> without <c>services.youtube.url</c>.
+    /// Catalogue playables (TV / film) keep Services only, so materialise the watch URL
+    /// before mapping or YouTube is dropped from the catalog.
+    /// </summary>
+    public static void EnsureYouTubeWatchUrl(Episode episode)
     {
-        if (url is null)
+        ArgumentNullException.ThrowIfNull(episode);
+        NormalizeCatalog(episode);
+        var id = episode.Ids?.YouTube;
+        if (string.IsNullOrWhiteSpace(id) || TryGetUrl(episode, ServiceKeys.YouTube) is not null)
         {
-            return null;
+            return;
         }
 
-        var host = url.Host;
-        if (host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith(".youtu.be", StringComparison.OrdinalIgnoreCase))
-        {
-            var id = url.AbsolutePath.Trim('/');
-            return string.IsNullOrWhiteSpace(id) ? null : id.Split('/')[0];
-        }
-
-        var query = url.Query;
-        if (query.Length > 1)
-        {
-            foreach (var part in query[1..].Split('&'))
-            {
-                var eq = part.IndexOf('=');
-                if (eq <= 0)
-                {
-                    continue;
-                }
-
-                if (part[..eq].Equals("v", StringComparison.OrdinalIgnoreCase))
-                {
-                    var id = Uri.UnescapeDataString(part[(eq + 1)..]);
-                    return string.IsNullOrWhiteSpace(id) ? null : id;
-                }
-            }
-        }
-
-        foreach (var segment in new[] { "/shorts/", "/live/", "/embed/" })
-        {
-            var at = url.AbsolutePath.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
-            if (at < 0)
-            {
-                continue;
-            }
-
-            var id = url.AbsolutePath[(at + segment.Length)..].Trim('/');
-            var slash = id.IndexOf('/');
-            if (slash >= 0)
-            {
-                id = id[..slash];
-            }
-
-            return string.IsNullOrWhiteSpace(id) ? null : id;
-        }
-
-        return null;
+        Upsert(episode, ServiceKeys.YouTube, new Uri($"https://www.youtube.com/watch?v={id}"), null);
     }
 
     public static ServiceUrls ToServiceUrls(Episode episode)
