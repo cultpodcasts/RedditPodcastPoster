@@ -347,7 +347,10 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.FilmKind,
             CatalogueAuthorityCandidate.TmdbSource,
             hit.Id,
-            TvdbId: null)).ToList();
+            TvdbId: null,
+            CatalogueCanonicalId.TmdbMoviePage(hit.Id),
+            CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
+            hit.Overview)).ToList();
 
     private static List<CatalogueAuthorityCandidate> TvShowTmdbCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
         hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
@@ -357,7 +360,10 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.TvShowKind,
             CatalogueAuthorityCandidate.TmdbSource,
             hit.Id,
-            TvdbId: null)).ToList();
+            TvdbId: null,
+            CatalogueCanonicalId.TmdbTvPage(hit.Id),
+            CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
+            hit.Overview)).ToList();
 
     private static List<CatalogueAuthorityCandidate> TvShowTvdbCandidates(IReadOnlyList<TheTvdbSearchHit> hits) =>
         hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
@@ -368,7 +374,9 @@ public sealed class CatalogueAuthorityPreviewer(
             CatalogueAuthorityCandidate.TvdbSource,
             TmdbId: null,
             hit.Id,
-            hit.CanonicalUrl)).ToList();
+            hit.ImdbUrl ?? hit.CanonicalUrl,
+            ThumbnailUrl: null,
+            Description: null)).ToList();
 
     private static int? ParseYear(string? year) =>
         int.TryParse(year, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;

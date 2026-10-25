@@ -50,7 +50,9 @@ public static class DiscoverySubmitResponseExtension
                         Source = c.Source,
                         TmdbId = c.TmdbId,
                         TvdbId = c.TvdbId,
-                        PageUrl = c.PageUrl?.ToString()
+                        PageUrl = c.PageUrl?.ToString(),
+                        ThumbnailUrl = c.ThumbnailUrl?.ToString(),
+                        Description = c.Description
                     }).ToArray()
                 }).ToArray()
                 : null

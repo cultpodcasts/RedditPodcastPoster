@@ -16,7 +16,10 @@ public class CatalogueIdentityLookupRequest
     [JsonPropertyName("title")]
     public required string Title { get; set; }
 
-    /// <summary>Optional film year from the release field; narrows ambiguous TMDB hits.</summary>
+    /// <summary>
+    /// Optional film year from the release field. Narrows ambiguous TMDB hits;
+    /// when exactly one hit matches that year, identity resolves without a curator pick (same as create-time).
+    /// </summary>
     [JsonPropertyName("year")]
     public int? Year { get; set; }
 

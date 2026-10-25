@@ -84,6 +84,78 @@ public class CatalogueAuthorityPreviewRules
         preview.Candidates.Should().NotBeNull();
         preview.Candidates!.Should().HaveCount(2);
         preview.Candidates.Should().OnlyContain(c => c.Source == CatalogueAuthorityCandidate.TmdbSource);
+        preview.Candidates.Should().OnlyContain(c =>
+            c.PageUrl != null &&
+            c.PageUrl.Host == "www.themoviedb.org" &&
+            c.PageUrl.AbsolutePath.StartsWith("/movie/", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName =
+        "Several film TMDB hits expose a poster thumbnail and overview description on each ambiguous candidate.")]
+    public async Task many_film_hits_include_thumbnail_and_description()
+    {
+        // Arrange
+        var query = _fixture.CreateTitle();
+        var first = _fixture.CreateTitle();
+        var second = _fixture.CreateTitle();
+        var firstId = CreateTmdbId();
+        var secondId = CreateTmdbId();
+        var overview = _fixture.CreateTitle();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                Hit(firstId, first, TmdbTitleKind.Movie, posterPath: $"/p{firstId}.jpg", overview: overview),
+                Hit(secondId, second, TmdbTitleKind.Movie, posterPath: $"/p{secondId}.jpg", overview: overview)
+            ]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(query);
+
+        // Assert
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c =>
+            c.ThumbnailUrl != null &&
+            c.ThumbnailUrl.AbsoluteUri.Contains("/t/p/w185/", StringComparison.Ordinal) &&
+            c.Description == overview);
+    }
+
+    [Fact(DisplayName =
+        "Several TV TMDB hits expose a /tv/ page URL, poster thumbnail, and overview description on each ambiguous candidate.")]
+    public async Task many_tv_tmdb_hits_include_page_thumbnail_and_description()
+    {
+        // Arrange
+        var query = _fixture.CreateTitle();
+        var first = _fixture.CreateTitle();
+        var second = _fixture.CreateTitle();
+        var firstId = CreateTmdbId();
+        var secondId = CreateTmdbId();
+        var overview = _fixture.CreateTitle();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchTvAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                Hit(firstId, first, TmdbTitleKind.TvSeries, posterPath: $"/p{firstId}.jpg", overview: overview),
+                Hit(secondId, second, TmdbTitleKind.TvSeries, posterPath: $"/p{secondId}.jpg", overview: overview)
+            ]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewTvShowAsync(query);
+
+        // Assert
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c =>
+            c.Source == CatalogueAuthorityCandidate.TmdbSource &&
+            c.PageUrl != null &&
+            c.PageUrl.Host == "www.themoviedb.org" &&
+            c.PageUrl.AbsolutePath.StartsWith("/tv/", StringComparison.Ordinal) &&
+            c.ThumbnailUrl != null &&
+            c.ThumbnailUrl.AbsoluteUri.Contains("/t/p/w185/", StringComparison.Ordinal) &&
+            c.Description == overview);
     }
 
     [Fact(DisplayName =
@@ -278,7 +350,7 @@ public class CatalogueAuthorityPreviewRules
             .ReturnsAsync([]);
         _mocker.GetMock<ITheTvdbClient>()
             .Setup(client => client.SearchAsync(query, TheTvdbSearchType.Series, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([SeriesHit(_fixture.CreateAppleId(), first), SeriesHit(_fixture.CreateAppleId(), second)]);
+            .ReturnsAsync([SeriesHit(_fixture.CreateTvdbId(), first), SeriesHit(_fixture.CreateTvdbId(), second)]);
         var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
 
         // Act
@@ -290,6 +362,44 @@ public class CatalogueAuthorityPreviewRules
         preview.TmdbId.Should().BeNull();
         preview.TvdbId.Should().BeNull();
         preview.HitLabels.Should().Equal(first, second);
+    }
+
+    [Fact(DisplayName =
+        "When a TVDB ambiguous series hit carries an IMDb title id, the candidate PageUrl is the IMDb page " +
+        "while source remains tvdb, because IMDb is the preferred curator inspection link.")]
+    public async Task ambiguous_tvdb_hit_with_imdb_prefers_imdb_page_url()
+    {
+        // Arrange
+        var query = _fixture.CreateTitle();
+        var first = _fixture.CreateTitle();
+        var second = _fixture.CreateTitle();
+        var firstTvdb = _fixture.CreateTvdbId();
+        var secondTvdb = _fixture.CreateTvdbId();
+        var imdbId = ImdbId();
+        var imdbUrl = CatalogueCanonicalId.ImdbPage(imdbId);
+        var tvdbCanonical = CatalogueCanonicalId.TvdbPage(firstTvdb, TmdbTitleKind.TvSeries);
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchTvAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _mocker.GetMock<ITheTvdbClient>()
+            .Setup(client => client.SearchAsync(query, TheTvdbSearchType.Series, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                SeriesHit(firstTvdb, first, imdbId, tvdbCanonical, imdbUrl),
+                SeriesHit(secondTvdb, second)
+            ]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewTvShowAsync(query);
+
+        // Assert
+        preview.Candidates.Should().NotBeNull();
+        preview.Candidates!.Should().HaveCount(2);
+        preview.Candidates.Should().OnlyContain(c => c.Source == CatalogueAuthorityCandidate.TvdbSource);
+        var withImdb = preview.Candidates.Single(c => c.TvdbId == firstTvdb);
+        withImdb.PageUrl.Should().Be(imdbUrl);
+        withImdb.PageUrl!.Host.Should().Be("www.imdb.com");
     }
 
     [Fact(DisplayName =
@@ -476,9 +586,20 @@ public class CatalogueAuthorityPreviewRules
         return value == 0 ? 1 : value;
     }
 
-    private static TmdbSearchHit Hit(int id, string name, TmdbTitleKind kind, int? year = null) =>
-        new(id, name, kind, year);
+    private static TmdbSearchHit Hit(
+        int id,
+        string name,
+        TmdbTitleKind kind,
+        int? year = null,
+        string? posterPath = null,
+        string? overview = null) =>
+        new(id, name, kind, year, posterPath, overview);
 
-    private static TheTvdbSearchHit SeriesHit(long id, string name) =>
-        new(id, name, TheTvdbSearchType.Series, null, null, null, null, null, null, null);
+    private static TheTvdbSearchHit SeriesHit(
+        long id,
+        string name,
+        string? imdbTitleId = null,
+        Uri? canonicalUrl = null,
+        Uri? imdbUrl = null) =>
+        new(id, name, TheTvdbSearchType.Series, null, null, null, null, imdbTitleId, canonicalUrl, imdbUrl);
 }

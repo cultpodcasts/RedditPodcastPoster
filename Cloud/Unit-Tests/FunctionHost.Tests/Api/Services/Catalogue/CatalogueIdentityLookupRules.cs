@@ -34,6 +34,14 @@ public class CatalogueIdentityLookupRules
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _admission);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveTvShowEpisodeAsync(
+                It.IsAny<RedditPodcastPoster.Models.TvShows.TvShow>(),
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _admission);
     }
 
     [Fact(DisplayName =
@@ -150,36 +158,16 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
-        "Edit-time identity lookup: when several film candidates include one matching the request year, " +
-        "resolve is called with year null so the response stays ambiguous and is never year-auto-picked.")]
-    public async Task several_candidates_with_matching_year_stay_ambiguous()
+        "Edit-time identity lookup: when the request includes a film year, resolve is called with that year " +
+        "so a single year match can auto-narrow (same as create-time).")]
+    public async Task film_year_is_forwarded_to_resolve()
     {
         // Arrange
         var title = _fixture.CreateTitle();
         var year = DomainTestFixture.UtcToday.Year - 3;
-        var firstId = _fixture.CreateTmdbId();
-        var secondId = firstId + 1;
-        var candidates = new[]
-        {
-            new CatalogueAuthorityCandidate(
-                CatalogueAuthorityCandidate.TmdbKey(firstId),
-                title,
-                year,
-                CatalogueAuthorityCandidate.FilmKind,
-                CatalogueAuthorityCandidate.TmdbSource,
-                firstId,
-                TvdbId: null),
-            new CatalogueAuthorityCandidate(
-                CatalogueAuthorityCandidate.TmdbKey(secondId),
-                title,
-                year - 1,
-                CatalogueAuthorityCandidate.FilmKind,
-                CatalogueAuthorityCandidate.TmdbSource,
-                secondId,
-                TvdbId: null)
-        };
-        _admission = CatalogueIdentityAdmission.NeedsPrompt(
-            new CatalogueIdentityHold(CatalogueAuthorityCandidate.FilmKind, title, candidates));
+        var imdbId = _fixture.CreateImdbId();
+        var tmdbId = _fixture.CreateTmdbId();
+        _admission = CatalogueIdentityAdmission.Proceed(new CatalogueAuthorityIds(imdbId, tmdbId, null));
         var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
 
         // Act
@@ -192,17 +180,59 @@ public class CatalogueIdentityLookupRules
 
         // Assert
         result.Status.Should().Be(CatalogueIdentityLookupServiceStatus.Ok);
-        result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Ambiguous);
-        result.Response.Ids.Should().BeNull();
-        result.Response.IdentityDecision!.Candidates.Should().HaveCount(2);
+        result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             x => x.ResolveFilmAsync(
                 title,
-                null,
+                year,
                 CatalogueIdentityChoice.Unset,
                 null,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time identity lookup: when candidates carry page, thumbnail, and description, " +
+        "the ambiguous response maps those fields for the curator picker.")]
+    public async Task ambiguous_maps_page_thumbnail_and_description()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var candidateTitle = _fixture.CreateTitle();
+        var tmdbId = _fixture.CreateTmdbId();
+        var page = new Uri($"https://www.themoviedb.org/movie/{tmdbId}");
+        var thumb = new Uri($"https://image.tmdb.org/t/p/w185/poster{tmdbId}.jpg");
+        var description = _fixture.CreateTitle();
+        var candidates = new[]
+        {
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(tmdbId),
+                candidateTitle,
+                Year: null,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                tmdbId,
+                TvdbId: null,
+                page,
+                thumb,
+                description)
+        };
+        _admission = CatalogueIdentityAdmission.NeedsPrompt(
+            new CatalogueIdentityHold(CatalogueAuthorityCandidate.FilmKind, title, candidates));
+        var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
+
+        // Act
+        var result = await sut.LookupAsync(new CatalogueIdentityLookupRequest
+        {
+            Kind = "Film",
+            Title = title
+        });
+
+        // Assert
+        var body = result.Response!.IdentityDecision!.Candidates.Single();
+        body.PageUrl.Should().Be(page.ToString());
+        body.ThumbnailUrl.Should().Be(thumb.ToString());
+        body.Description.Should().Be(description);
     }
 
     [Fact(DisplayName =
@@ -246,5 +276,53 @@ public class CatalogueIdentityLookupRules
         // Assert
         result.Status.Should().Be(CatalogueIdentityLookupServiceStatus.BadRequest);
         result.Response.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Edit-time identity lookup: when an episode resolves with parent ids from a show that already has identity, " +
+        "the matched response carries both episode ids and parentIds.")]
+    public async Task episode_matched_includes_parent_ids()
+    {
+        // Arrange
+        var episodeTitle = _fixture.CreateTitle();
+        var showName = _fixture.CreateTitle();
+        var episodeImdb = _fixture.CreateImdbId();
+        var parentImdb = _fixture.CreateImdbId();
+        var showTmdb = _fixture.CreateTmdbId();
+        var showTvdb = _fixture.CreateTvdbId();
+        _admission = CatalogueIdentityAdmission.Proceed(
+            new CatalogueAuthorityIds(episodeImdb, null, null),
+            new CatalogueAuthorityIds(parentImdb, showTmdb, showTvdb));
+        var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
+
+        // Act
+        var result = await sut.LookupAsync(new CatalogueIdentityLookupRequest
+        {
+            Kind = "TvShowEpisode",
+            Title = episodeTitle,
+            ShowName = showName,
+            ShowTmdbId = showTmdb,
+            ShowTvdbId = showTvdb,
+            ShowImdbId = parentImdb
+        });
+
+        // Assert
+        result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
+        result.Response.Ids!.ImdbId.Should().Be(episodeImdb);
+        result.Response.ParentIds!.ImdbId.Should().Be(parentImdb);
+        result.Response.ParentIds.TmdbId.Should().Be(showTmdb);
+        result.Response.ParentIds.TvdbId.Should().Be(showTvdb);
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.ResolveTvShowEpisodeAsync(
+                It.Is<RedditPodcastPoster.Models.TvShows.TvShow>(s =>
+                    s.Name == showName &&
+                    s.TmdbId == showTmdb &&
+                    s.TvdbId == showTvdb &&
+                    s.ImdbId == parentImdb),
+                episodeTitle,
+                CatalogueIdentityChoice.Unset,
+                null,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }
