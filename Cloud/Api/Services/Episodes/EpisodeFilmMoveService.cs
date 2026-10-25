@@ -1,5 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
@@ -27,6 +28,9 @@ namespace Api.Services.Episodes;
 /// After the episode row is deleted, the episode's short-link record is deleted (best effort), as catalogue edits do,
 /// so the Shortner falls back to search and redirects the old short link straight to the film page. Re-sending after
 /// a completed move (episode row gone, film with the episode id present) is accepted again for that film.
+/// A newly created film gets a best-effort IMDb/TMDB identity fill when the authority lookup is confident (ambiguous
+/// matches leave identity blank — the move dialog has no choice UI), the same class of behaviour as Move-to-TV
+/// createShow.
 /// The source podcast is never deleted or changed, even when it has no episodes left.
 /// </summary>
 public class EpisodeFilmMoveService(
@@ -35,6 +39,7 @@ public class EpisodeFilmMoveService(
     IFilmRepository filmRepository,
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
+    ICatalogueIdentityEnricher identityEnricher,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -116,6 +121,7 @@ public class EpisodeFilmMoveService(
                 // ToFilm copies publisher fields from the podcast, including Removed. Here the (active) episode is the
                 // unit that moves, so the film is active even when it leaves a removed podcast.
                 film.Removed = null;
+                await TryFillNewFilmIdentity(film, cancellationToken);
                 await filmRepository.Save(film);
             }
 
@@ -141,6 +147,51 @@ public class EpisodeFilmMoveService(
             logger.LogError(ex, "{method}: Failed to move episode '{episodeId}' of podcast '{podcastId}' to a film.",
                 nameof(MoveAsync), command.EpisodeId, command.PodcastId);
             return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Failed);
+        }
+    }
+
+    /// <summary>
+    /// Same confident-match fill as URL-submit film create / TV createShow. Ambiguous authority results are skipped so
+    /// the move still completes (no identity-choice UI on Move to film); the curator can edit the film later.
+    /// </summary>
+    private async Task TryFillNewFilmIdentity(Film film, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var year = film.Release is { } release ? release.Year : (int?)null;
+            var admission = await identityEnricher.ResolveFilmAsync(
+                film.Name,
+                year,
+                CatalogueIdentityChoice.Unset,
+                selectedKey: null,
+                cancellationToken);
+            if (admission.Hold)
+            {
+                logger.LogInformation(
+                    "{method}: Film '{name}' identity is ambiguous ({count} candidates); leaving blank.",
+                    nameof(TryFillNewFilmIdentity),
+                    film.Name,
+                    admission.Prompt?.Candidates.Count ?? 0);
+                return;
+            }
+
+            if (identityEnricher.ApplyMissing(film, admission.Ids))
+            {
+                logger.LogInformation(
+                    "{method}: Filled identity for new film '{name}' (imdb={imdbId}, tmdb={tmdbId}).",
+                    nameof(TryFillNewFilmIdentity),
+                    film.Name,
+                    film.ImdbId,
+                    film.TmdbId);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{method}: Identity lookup failed for new film '{name}'; leaving blank.",
+                nameof(TryFillNewFilmIdentity),
+                film.Name);
         }
     }
 
