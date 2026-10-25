@@ -204,4 +204,27 @@ public class EpisodeServicePresenceTests
         written.Should().NotContain("\"images\"");
         written.Should().Contain("\"services\"");
     }
+
+    [Fact(DisplayName =
+        "YouTubeEpisodeId falls back to the video id in services.youtube.url when nested ids.youtube is absent " +
+        "(catalogue playable projections after Move to TV / film).")]
+    public void youtube_episode_id_from_services_url_when_ids_absent()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Ids = null;
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            };
+        });
+
+        // Act
+        var id = EpisodeServicePresence.YouTubeEpisodeId(episode);
+
+        // Assert
+        id.Should().Be(videoId);
+    }
 }

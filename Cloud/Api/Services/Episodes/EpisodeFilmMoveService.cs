@@ -7,6 +7,8 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
 
@@ -106,6 +108,9 @@ public class EpisodeFilmMoveService(
                         "A film with this name already exists");
                 }
 
+                // Films keep Services only (no nested ids). Materialise watch?v= from ids.youtube
+                // when services.youtube.url is missing so search/Watch keep YouTube after the move.
+                EnsureYouTubeServiceUrl(episode);
                 film = CatalogueParentKindMapper.ToFilm(podcast, episode);
                 film.Name = name;
                 film.FileKey = FileKeyFactory.GetFilmFileKey(name);
@@ -138,6 +143,27 @@ public class EpisodeFilmMoveService(
                 nameof(MoveAsync), command.EpisodeId, command.PodcastId);
             return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Failed);
         }
+    }
+
+    /// <summary>
+    /// Podcast episodes may have <c>ids.youtube</c> without <c>services.youtube.url</c>. Films keep Services only,
+    /// so materialise the watch URL before the map or YouTube is dropped.
+    /// </summary>
+    private static void EnsureYouTubeServiceUrl(Episode episode)
+    {
+        EpisodeServicePresence.NormalizeCatalog(episode);
+        var id = episode.Ids?.YouTube;
+        if (string.IsNullOrWhiteSpace(id) ||
+            EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) is not null)
+        {
+            return;
+        }
+
+        EpisodeServicePresence.Upsert(
+            episode,
+            ServiceKeys.YouTube,
+            new Uri($"https://www.youtube.com/watch?v={id}"),
+            null);
     }
 
     /// <summary>

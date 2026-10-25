@@ -13,6 +13,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -98,6 +99,28 @@ public class EpisodeFilmMoveServiceRules
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
         (await _episodes.GetEpisode(podcast.Id, sibling.Id)).Should().NotBeNull();
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Moving an episode that has ids.youtube but no services.youtube.url materialises a watch URL on the film, because films keep Services only and would otherwise lose YouTube.")]
+    public async Task move_materialises_youtube_watch_url_from_ids_when_services_url_missing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
+        var youTubeId = episode.Ids!.YouTube!;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.Services.Should().ContainKey(ServiceKeys.YouTube);
+        film.Services![ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(youTubeId));
     }
 
     [Fact(DisplayName =

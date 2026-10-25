@@ -110,7 +110,70 @@ public static class EpisodeServicePresence
     public static string? YouTubeEpisodeId(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        return string.IsNullOrWhiteSpace(episode.Ids?.YouTube) ? null : episode.Ids.YouTube;
+        if (!string.IsNullOrWhiteSpace(episode.Ids?.YouTube))
+        {
+            return episode.Ids.YouTube;
+        }
+
+        // Catalogue playables (TV / news / film) and post-projections of them have no nested
+        // ids — only services.youtube.url. Search YoutubeId must still resolve for Watch.
+        return YouTubeIdFromUrl(TryGetUrl(episode, ServiceKeys.YouTube));
+    }
+
+    /// <summary>Best-effort video id from a YouTube watch / youtu.be / shorts / embed URL.</summary>
+    public static string? YouTubeIdFromUrl(Uri? url)
+    {
+        if (url is null)
+        {
+            return null;
+        }
+
+        var host = url.Host;
+        if (host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".youtu.be", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = url.AbsolutePath.Trim('/');
+            return string.IsNullOrWhiteSpace(id) ? null : id.Split('/')[0];
+        }
+
+        var query = url.Query;
+        if (query.Length > 1)
+        {
+            foreach (var part in query[1..].Split('&'))
+            {
+                var eq = part.IndexOf('=');
+                if (eq <= 0)
+                {
+                    continue;
+                }
+
+                if (part[..eq].Equals("v", StringComparison.OrdinalIgnoreCase))
+                {
+                    var id = Uri.UnescapeDataString(part[(eq + 1)..]);
+                    return string.IsNullOrWhiteSpace(id) ? null : id;
+                }
+            }
+        }
+
+        foreach (var segment in new[] { "/shorts/", "/live/", "/embed/" })
+        {
+            var at = url.AbsolutePath.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                continue;
+            }
+
+            var id = url.AbsolutePath[(at + segment.Length)..].Trim('/');
+            var slash = id.IndexOf('/');
+            if (slash >= 0)
+            {
+                id = id[..slash];
+            }
+
+            return string.IsNullOrWhiteSpace(id) ? null : id;
+        }
+
+        return null;
     }
 
     public static ServiceUrls ToServiceUrls(Episode episode)
