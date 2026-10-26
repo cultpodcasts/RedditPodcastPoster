@@ -173,18 +173,18 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
     /// <summary>
-    /// Compact YouTube video id for catalogue playables (Film / TvShowEpisode / NewsReport).
+    /// Compact YouTube video id for catalogue playables (TvShowEpisode / NewsReport; Film has its own).
     /// Synced from <c>services.youtube.url</c> on catalogue edits so Azure Search can project
-    /// <c>youtubeId</c> without storing a full watch URL. Podcast episodes use
-    /// nested <c>ids.youtube</c> instead — leave this null on <c>Episode</c>.
-    /// No Spotify/Apple id members on these kinds.
+    /// <c>youtubeId</c> without storing a full watch URL. Podcast Episode overrides this to wither
+    /// leftover Cosmos top-level <c>youTubeId</c> and uses nested <c>ids.youtube</c> instead.
+    /// No Spotify/Apple id members on catalogue kinds.
     /// </summary>
     private string? _youTubeId;
 
     [JsonPropertyName("youTubeId")]
     [JsonPropertyOrder(152)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? YouTubeId
+    public virtual string? YouTubeId
     {
         get => _youTubeId;
         set => _youTubeId = string.IsNullOrWhiteSpace(value) ? null : value;

@@ -128,6 +128,47 @@ public class FilmLinkUpdateRules
     }
 
     [Fact(DisplayName =
+        "PATCH film services with a YouTube URL syncs compact YouTubeId from the watch URL, " +
+        "and clearing the YouTube service clears YouTubeId, so film search can project youtubeId.")]
+    public async Task services_youtube_syncs_youtube_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var youTube = _fixture.DefaultYouTubeUrl(videoId);
+        var film = CreateFilm(f => f.YouTubeId = null);
+
+        // Act
+        var addResult = await Update(film, new FilmChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = youTube }
+            }
+        });
+
+        // Assert
+        addResult.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.YouTubeId.Should().Be(videoId);
+
+        // Arrange
+        _saved = null;
+
+        // Act
+        var clearResult = await Update(film, new FilmChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri("", UriKind.RelativeOrAbsolute) }
+            }
+        });
+
+        // Assert
+        clearResult.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.YouTubeId.Should().BeNull();
+        _saved.Services.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "PATCH film services rejects a relative URL, because a film link must open on its own.")]
     public async Task services_reject_relative_url()
     {

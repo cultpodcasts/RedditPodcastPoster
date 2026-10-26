@@ -121,6 +121,47 @@ public class TvShowEpisodeFieldUpdateRules
     }
 
     [Fact(DisplayName =
+        "PATCH TV episode services with a YouTube URL syncs compact YouTubeId from the watch URL, " +
+        "and clearing the YouTube service clears YouTubeId, so search can project youtubeId without nested ids.")]
+    public async Task services_youtube_syncs_youtube_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var youTube = _fixture.DefaultYouTubeUrl(videoId);
+        var episode = CreateEpisode(e => e.YouTubeId = null);
+
+        // Act
+        var addResult = await Update(episode, new TvShowEpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = youTube }
+            }
+        });
+
+        // Assert
+        addResult.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
+        _saved!.YouTubeId.Should().Be(videoId);
+
+        // Arrange
+        _saved = null;
+
+        // Act
+        var clearResult = await Update(episode, new TvShowEpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri("", UriKind.RelativeOrAbsolute) }
+            }
+        });
+
+        // Assert
+        clearResult.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
+        _saved!.YouTubeId.Should().BeNull();
+        (_saved.Services?.ContainsKey(ServiceKeys.YouTube) ?? false).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "PATCH TV episode rejects a non-absolute services URL without saving, because invalid links must not wipe good ones.")]
     public async Task services_reject_relative_url()
     {

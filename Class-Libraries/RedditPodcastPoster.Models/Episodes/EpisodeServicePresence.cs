@@ -8,8 +8,11 @@ namespace RedditPodcastPoster.Models.Episodes;
 
 /// <summary>
 /// Catalog accessors for <c>services</c> / nested <c>ids</c>.
-/// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not on <see cref="Episode"/>;
+/// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not bound on
+/// <see cref="Episode"/> (including top-level <c>youTubeId</c>, which withers via an override);
 /// they wither on full <c>Save()</c>. Application code must not write those leftover members.
+/// Catalogue playables (TvShowEpisode / NewsReport / Film) keep a compact <c>youTubeId</c>
+/// synced from <c>services.youtube.url</c> for Azure Search — distinct from episode leftovers.
 /// Cover art coalesces from <c>services.*.image</c> in
 /// <see cref="ServiceCatalog.IndexIdImageOrder"/> then remaining service keys.
 /// Streaming destinations register above Models; leftover BBC/IA DTO slots use JSON key literals.
@@ -118,14 +121,8 @@ public static class EpisodeServicePresence
             return episode.Ids.YouTube;
         }
 
-        // Catalogue playables store compact youTubeId on Playable (synced from services.youtube.url).
-        // Post-projections copy that member onto Episode via CatalogueParentKindMapper.
-        if (!string.IsNullOrWhiteSpace(episode.YouTubeId))
-        {
-            return episode.YouTubeId;
-        }
-
-        // Fallback: extract from services.youtube.url (pre-backfill / search push).
+        // Episode.YouTubeId withers leftover Cosmos top-level youTubeId — never treat it as canonical.
+        // Catalogue post-projections and pre-backfill rows: extract from services.youtube.url.
         var url = TryGetUrl(episode, ServiceKeys.YouTube);
         return url is null ? null : YouTubeIdResolver.Extract(url);
     }
@@ -133,7 +130,8 @@ public static class EpisodeServicePresence
     /// <summary>
     /// TvShowEpisode / NewsReport: set <see cref="Catalogue.Playable.YouTubeId"/> from
     /// <c>services.youtube.url</c> (or clear it). No-op for podcast <see cref="Episode"/> (uses
-    /// nested <c>ids.youtube</c>). Call after any catalogue services mutation before Save / search push.
+    /// nested <c>ids.youtube</c>; top-level <c>youTubeId</c> withers). Call after any catalogue
+    /// services mutation before Save — not from search-document projection helpers.
     /// </summary>
     public static void SyncCatalogueYouTubeId(Playable playable)
     {

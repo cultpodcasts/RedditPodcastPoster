@@ -317,8 +317,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         }
 
         var changes = carry.HasChanges
-            ? carry.Changes
-            : [new ServiceFieldChange(ServiceKeys.YouTube, "youTubeId", null, "synced")];
+            ? carry.Changes.ToList()
+            : [];
+        if (youtubeIdChanged)
+        {
+            changes.Add(new ServiceFieldChange(ServiceKeys.YouTube, "youTubeId", null, "synced"));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.SnapshotDir))
         {

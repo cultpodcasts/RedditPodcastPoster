@@ -229,9 +229,42 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
-        "YouTubeEpisodeId prefers Playable.YouTubeId over extracting from services.youtube.url " +
-        "when nested ids.youtube is absent, because catalogue playables store the compact id for search.")]
-    public void youtube_episode_id_prefers_playable_youtube_id_over_services_url()
+        "Leftover Cosmos top-level youTubeId on an Episode is ignored on deserialize and omitted on serialize, " +
+        "and YouTubeEpisodeId does not treat a set attempt as canonical — nested ids and services.youtube.url only.")]
+    public void leftover_top_level_youtube_id_withers_and_is_not_canonical()
+    {
+        // Arrange
+        var leftoverId = _fixture.CreateYouTubeId();
+        var nestedId = _fixture.CreateYouTubeId();
+        var urlId = _fixture.CreateYouTubeId();
+        var catalogUrl = _fixture.DefaultYouTubeUrl(urlId);
+        var json =
+            $$"""
+            {
+              "title": "Untitled",
+              "youTubeId": "{{leftoverId}}",
+              "ids": { "youtube": "{{nestedId}}" },
+              "services": { "youtube": { "url": "{{catalogUrl}}" } }
+            }
+            """;
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Episode>(json, SerializerOptions)!;
+        episode.YouTubeId = leftoverId;
+        var fromPresence = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var written = JsonSerializer.Serialize(episode, SerializerOptions);
+
+        // Assert
+        episode.YouTubeId.Should().BeNull();
+        fromPresence.Should().Be(nestedId);
+        written.Should().NotContain("\"youTubeId\"");
+        written.Should().Contain("\"ids\"");
+    }
+
+    [Fact(DisplayName =
+        "YouTubeEpisodeId extracts from services.youtube.url when nested ids.youtube is absent, " +
+        "and ignores Episode.YouTubeId because podcast episodes wither top-level youTubeId.")]
+    public void youtube_episode_id_ignores_withered_youtube_id_and_uses_services_url()
     {
         // Arrange
         var storedId = _fixture.CreateYouTubeId();
@@ -250,7 +283,8 @@ public class EpisodeServicePresenceTests
         var id = EpisodeServicePresence.YouTubeEpisodeId(episode);
 
         // Assert
-        id.Should().Be(storedId);
+        episode.YouTubeId.Should().BeNull();
+        id.Should().Be(urlId);
     }
 
     [Fact(DisplayName =
