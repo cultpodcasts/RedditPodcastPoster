@@ -29,7 +29,8 @@ public static class EpisodeServicePresence
     public static readonly string[] SocialPostUrlOrder = ServiceCatalog.IndexIdImageOrder;
 
     /// <summary>
-    /// Drop the retired <c>other</c> catalog key and keep nested ids aligned.
+    /// Drop the retired <c>other</c> catalog key, rename legacy unknown-host
+    /// <c>iviewabcnetau</c> → <c>abcIview</c>, and keep nested ids aligned.
     /// Does not copy leftover Cosmos JSON onto the catalog (typed <see cref="Episode"/>
     /// has no leftover members).
     /// </summary>
@@ -40,6 +41,7 @@ public static class EpisodeServicePresence
         {
             var map = new Dictionary<string, ServiceLink>(episode.Services, StringComparer.Ordinal);
             map.Remove("other");
+            MigrateLegacyAbcIviewKey(map);
             episode.Services = map.Count == 0 ? null : map;
         }
         else
@@ -48,6 +50,30 @@ public static class EpisodeServicePresence
         }
 
         SyncIds(episode);
+    }
+
+    /// <summary>
+    /// Pre-catalog Cosmos docs stored ABC iview under the unknown-host slug
+    /// <c>iviewabcnetau</c> (<see cref="ServiceCatalog.KeyFromUnknownHost"/>).
+    /// Fold into the first-class <c>abcIview</c> wire key on every normalize/save.
+    /// </summary>
+    private static void MigrateLegacyAbcIviewKey(Dictionary<string, ServiceLink> map)
+    {
+        const string legacyKey = "iviewabcnetau";
+        var catalogKey = StreamingServiceWire.ToKey(StreamingService.AbcIview);
+        if (!map.Remove(legacyKey, out var legacy) || legacy is null)
+        {
+            return;
+        }
+
+        if (!map.TryGetValue(catalogKey, out var existing) || existing is null)
+        {
+            map[catalogKey] = legacy;
+            return;
+        }
+
+        existing.Url ??= legacy.Url;
+        existing.Image ??= legacy.Image;
     }
 
     /// <summary>
