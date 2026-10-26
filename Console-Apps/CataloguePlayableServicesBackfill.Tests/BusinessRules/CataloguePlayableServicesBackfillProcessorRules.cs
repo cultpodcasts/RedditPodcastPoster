@@ -260,6 +260,51 @@ public class CataloguePlayableServicesBackfillProcessorRules
     }
 
     [Fact(DisplayName =
+        "Catalogue playable services backfill: when services already match backup but YouTubeId is missing while " +
+        "services.youtube.url is present, then dry-run counts a discrepancy so compact youTubeId can be persisted for search.")]
+    public async Task missing_youtube_id_with_matching_services_is_discrepancy()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var videoId = _fixture.CreateYouTubeId();
+        var youTubeUrl = _fixture.DefaultYouTubeUrl(videoId);
+        var services = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = youTubeUrl }
+        };
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = id,
+            Services = PlayableServicesDiscrepancyCarry.CloneServices(services),
+            YouTubeId = null
+        };
+        _backups.ById[id] = PlayableServicesDiscrepancyCarry.CloneServices(services)!;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "youtube-id.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.Identical.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        film.YouTubeId.Should().Be(videoId);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.Changes.Should().ContainSingle(c => c.Field == "youTubeId");
+        record.Applied.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "Catalogue playable services backfill: when backup has a url the film lacks, then dry-run records a discrepancy " +
         "change-log line with applied false and does not call Update.")]
     public async Task discrepancy_is_logged_on_dry_run()

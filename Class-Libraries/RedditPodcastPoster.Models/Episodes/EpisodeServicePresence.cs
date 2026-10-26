@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.YouTube;
@@ -116,10 +118,56 @@ public static class EpisodeServicePresence
             return episode.Ids.YouTube;
         }
 
-        // Catalogue playables (TV / news / film) and post-projections of them have no nested
-        // ids — only services.youtube.url. Search YoutubeId must still resolve for Watch.
+        // Catalogue playables store compact youTubeId on Playable (synced from services.youtube.url).
+        // Post-projections copy that member onto Episode via CatalogueParentKindMapper.
+        if (!string.IsNullOrWhiteSpace(episode.YouTubeId))
+        {
+            return episode.YouTubeId;
+        }
+
+        // Fallback: extract from services.youtube.url (pre-backfill / search push).
         var url = TryGetUrl(episode, ServiceKeys.YouTube);
         return url is null ? null : YouTubeIdResolver.Extract(url);
+    }
+
+    /// <summary>
+    /// TvShowEpisode / NewsReport: set <see cref="Catalogue.Playable.YouTubeId"/> from
+    /// <c>services.youtube.url</c> (or clear it). No-op for podcast <see cref="Episode"/> (uses
+    /// nested <c>ids.youtube</c>). Call after any catalogue services mutation before Save / search push.
+    /// </summary>
+    public static void SyncCatalogueYouTubeId(Playable playable)
+    {
+        ArgumentNullException.ThrowIfNull(playable);
+        if (playable is Episode)
+        {
+            return;
+        }
+
+        playable.YouTubeId = ExtractYouTubeIdFromServices(playable.Services);
+    }
+
+    /// <summary>
+    /// Film: set <see cref="Films.Film.YouTubeId"/> from <c>services.youtube.url</c> (or clear it).
+    /// Call after any film services mutation before Save / search push.
+    /// </summary>
+    public static void SyncCatalogueYouTubeId(Film film)
+    {
+        ArgumentNullException.ThrowIfNull(film);
+        film.YouTubeId = ExtractYouTubeIdFromServices(film.Services);
+    }
+
+    private static string? ExtractYouTubeIdFromServices(IReadOnlyDictionary<string, ServiceLink>? services)
+    {
+        if (services is null ||
+            !services.TryGetValue(ServiceKeys.YouTube, out var link) ||
+            link.Url is null ||
+            string.IsNullOrWhiteSpace(link.Url.ToString()))
+        {
+            return null;
+        }
+
+        var id = YouTubeIdResolver.Extract(link.Url);
+        return string.IsNullOrWhiteSpace(id) ? null : id;
     }
 
     /// <summary>

@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.Models.News;
 
 /// <summary>
 /// Playable news report under a <see cref="NewsOrganisation"/>.
-/// Platform presence is <see cref="Playable.Services"/> only — no provider-id fields.
+/// Platform presence is <see cref="Playable.Services"/> (URLs/images).
+/// Compact <see cref="Playable.YouTubeId"/> is synced from <c>services.youtube.url</c> for search;
+/// no Spotify/Apple id members.
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.NewsReport)]

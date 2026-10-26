@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Models.News;
@@ -19,6 +20,7 @@ public static class CataloguePlayableSearchDocument
     public static EpisodeSearchRecord For(TvShowEpisode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
+        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
         var show = new TvShow(episode.TvShowName ?? string.Empty) { Id = episode.TvShowId };
         var record = CatalogueParentKindMapper.ToPostProjection(episode, show)
             .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
@@ -31,6 +33,7 @@ public static class CataloguePlayableSearchDocument
     public static EpisodeSearchRecord For(NewsReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
+        EpisodeServicePresence.SyncCatalogueYouTubeId(report);
         var organisation = new NewsOrganisation(report.NewsOrganisationName ?? string.Empty)
         {
             Id = report.NewsOrganisationId
@@ -46,6 +49,7 @@ public static class CataloguePlayableSearchDocument
     public static EpisodeSearchRecord For(Film film)
     {
         ArgumentNullException.ThrowIfNull(film);
+        EpisodeServicePresence.SyncCatalogueYouTubeId(film);
         var record = CatalogueParentKindMapper.ToPostProjection(film)
             .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
         record.ContentKind = SearchContentKind.Film;

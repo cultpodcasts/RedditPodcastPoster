@@ -95,6 +95,9 @@ public static class CatalogueParentKindMapper
         film.RemovedSubjects = [.. episode.RemovedSubjects];
         film.Matches = episode.Matches.Select(CloneMatch).ToList();
         film.Services = CloneServices(episode.Services);
+        film.YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId)
+            ? EpisodeServicePresence.YouTubeEpisodeId(episode)
+            : episode.YouTubeId;
         film.Guests = CloneArray(episode.Guests);
         return film;
     }
@@ -153,6 +156,7 @@ public static class CatalogueParentKindMapper
             SearchTerms = film.SearchTerms,
             HashTag = film.HashTag,
             Services = CloneServices(film.Services),
+            YouTubeId = string.IsNullOrWhiteSpace(film.YouTubeId) ? null : film.YouTubeId,
             Guests = CloneArray(film.Guests)
         };
         episode.SetRelease(film.Release);
@@ -216,6 +220,7 @@ public static class CatalogueParentKindMapper
         target.ParentMetadataVersion = source.ParentMetadataVersion;
         target.ParentRemoved = source.ParentRemoved;
         target.Services = CloneServices(source.Services);
+        target.YouTubeId = string.IsNullOrWhiteSpace(source.YouTubeId) ? null : source.YouTubeId;
         target.Guests = CloneArray(source.Guests);
     }
 

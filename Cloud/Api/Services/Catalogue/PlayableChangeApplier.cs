@@ -2,6 +2,7 @@ using System.Globalization;
 using Api.Models;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Services.Catalogue;
 
@@ -90,6 +91,7 @@ public static class PlayableChangeApplier
         if (change.Services is not null)
         {
             playable.Services = PlayableServicesChangeApplier.Apply(playable.Services, change.Services);
+            EpisodeServicePresence.SyncCatalogueYouTubeId(playable);
         }
 
         return true;

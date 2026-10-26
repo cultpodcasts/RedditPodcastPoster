@@ -229,6 +229,109 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
+        "YouTubeEpisodeId prefers Playable.YouTubeId over extracting from services.youtube.url " +
+        "when nested ids.youtube is absent, because catalogue playables store the compact id for search.")]
+    public void youtube_episode_id_prefers_playable_youtube_id_over_services_url()
+    {
+        // Arrange
+        var storedId = _fixture.CreateYouTubeId();
+        var urlId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Ids = null;
+            e.YouTubeId = storedId;
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(urlId) }
+            };
+        });
+
+        // Act
+        var id = EpisodeServicePresence.YouTubeEpisodeId(episode);
+
+        // Assert
+        id.Should().Be(storedId);
+    }
+
+    [Fact(DisplayName =
+        "SyncCatalogueYouTubeId on a TvShowEpisode sets YouTubeId from services.youtube.url " +
+        "and clears it when the YouTube service url is removed.")]
+    public void sync_catalogue_youtube_id_sets_and_clears_on_tv_show_episode()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = new RedditPodcastPoster.Models.TvShows.TvShowEpisode(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            }
+        };
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
+
+        // Assert
+        episode.YouTubeId.Should().Be(videoId);
+
+        // Arrange
+        episode.Services = null;
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
+
+        // Assert
+        episode.YouTubeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "SyncCatalogueYouTubeId on a Film sets YouTubeId from services.youtube.url " +
+        "so film search push can project youtubeId without nested ids.")]
+    public void sync_catalogue_youtube_id_sets_on_film()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var film = new RedditPodcastPoster.Models.Films.Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            }
+        };
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(film);
+
+        // Assert
+        film.YouTubeId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "SyncCatalogueYouTubeId is a no-op for podcast Episode so nested ids.youtube remains the only id source.")]
+    public void sync_catalogue_youtube_id_noops_for_podcast_episode()
+    {
+        // Arrange
+        var nestedId = _fixture.CreateYouTubeId();
+        var urlId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Ids = new EpisodeIds { YouTube = nestedId };
+            e.YouTubeId = null;
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(urlId) }
+            };
+        });
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
+
+        // Assert
+        episode.YouTubeId.Should().BeNull();
+        episode.Ids!.YouTube.Should().Be(nestedId);
+    }
+
+    [Fact(DisplayName =
         "KeysWithIdButNoUrl lists exactly the platforms that have a nested id and no services url, so only those are materialised on Move.")]
     public void keys_with_id_but_no_url_lists_only_platforms_missing_a_url()
     {
