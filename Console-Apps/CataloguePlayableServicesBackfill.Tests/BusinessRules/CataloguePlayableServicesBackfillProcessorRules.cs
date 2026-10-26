@@ -35,6 +35,7 @@ public class CataloguePlayableServicesBackfillProcessorRules
         _mocker.Use(NullLogger<CataloguePlayableServicesBackfillProcessor>.Instance);
         _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.Parse("2026-10-26T00:00:00Z")));
         _mocker.Use<Func<IPlayableSearchDocumentSwap>>(() => _mocker.Get<IPlayableSearchDocumentSwap>());
+        _mocker.Use<Func<string, IPublicDatabaseUrlIndex>>(dir => FilePublicDatabaseUrlIndex.Load(dir));
 
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetAll())
@@ -76,9 +77,9 @@ public class CataloguePlayableServicesBackfillProcessorRules
     }
 
     [Fact(DisplayName =
-        "Catalogue playable services backfill: when a film has no episode backup, then dry-run counts missing backup " +
-        "and writes a change-log line, because the GUID join failed.")]
-    public async Task missing_backup_is_logged()
+        "Catalogue playable services backfill: when a film has no episode backup and no public urls, then dry-run " +
+        "counts missing truth and writes a change-log line, because neither truth source had the GUID.")]
+    public async Task missing_truth_is_logged()
     {
         // Arrange
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
@@ -98,13 +99,129 @@ public class CataloguePlayableServicesBackfillProcessorRules
 
         // Assert
         result.ExitCode.Should().Be(0);
-        result.MissingBackup.Should().Be(1);
+        result.MissingTruth.Should().Be(1);
         result.Discrepancies.Should().Be(0);
         var line = (await File.ReadAllLinesAsync(changeLog)).Should().ContainSingle().Subject;
         var record = JsonSerializer.Deserialize<ChangeLogRecord>(line, BackupDocumentJsonOptions.Instance);
-        record!.MissingBackup.Should().BeTrue();
+        record!.MissingTruth.Should().BeTrue();
         record.Id.Should().Be(film.Id);
         record.Applied.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when episode backup is missing but PublicDatabase has the film url, " +
+        "then dry-run records a discrepancy from the public urls, because public download is a second truth source.")]
+    public async Task public_database_fills_missing_episode_backup()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var publicUrl = _fixture.CreateYouTubeCatalogueInput().YouTubeUrl;
+        var film = new Film(_fixture.CreateTitle()) { Id = id, Services = null };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var publicDir = Path.Combine(_tempDir, "public");
+        Directory.CreateDirectory(publicDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(publicDir, "film.json"),
+            JsonSerializer.Serialize(new
+            {
+                id,
+                name = _fixture.CreateTitle(),
+                urls = new Dictionary<string, string>
+                {
+                    [ServiceKeys.YouTube] = publicUrl.AbsoluteUri
+                }
+            }));
+        var changeLog = Path.Combine(_tempDir, "public-fill.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            PublicDatabaseDir = publicDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.MissingTruth.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.MissingTruth.Should().BeFalse();
+        record.PublicDatabasePath.Should().EndWith("film.json");
+        record.Changes.Should().ContainSingle(c => c.Field == "url" && c.After == publicUrl.AbsoluteUri);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when --public-database-dir alone is set (no episode backup dir), " +
+        "then dry-run records a discrepancy from public urls, because public download is a supported sole truth source.")]
+    public async Task public_database_dir_alone_records_discrepancy()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var publicUrl = _fixture.CreateYouTubeCatalogueInput().YouTubeUrl;
+        var film = new Film(_fixture.CreateTitle()) { Id = id, Services = null };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var publicDir = Path.Combine(_tempDir, "public-alone");
+        Directory.CreateDirectory(publicDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(publicDir, "film.json"),
+            JsonSerializer.Serialize(new
+            {
+                id,
+                name = _fixture.CreateTitle(),
+                urls = new Dictionary<string, string>
+                {
+                    [ServiceKeys.YouTube] = publicUrl.AbsoluteUri
+                }
+            }));
+        var changeLog = Path.Combine(_tempDir, "public-alone.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = null,
+            PublicDatabaseDir = publicDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.MissingTruth.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.PublicDatabasePath.Should().EndWith("film.json");
+        record.Changes.Should().ContainSingle(c => c.Field == "url" && c.After == publicUrl.AbsoluteUri);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when neither --episode-backup-dir nor --public-database-dir is set, " +
+        "then the tool exits 1 without scanning, because at least one truth source is required.")]
+    public async Task missing_truth_dirs_is_bad_arguments()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            Kind = "film",
+            ChangeLog = Path.Combine(_tempDir, "no-dirs.jsonl")
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(CataloguePlayableServicesBackfillProcessor.ExitBadArguments);
+        result.Scanned.Should().Be(0);
     }
 
     [Fact(DisplayName =

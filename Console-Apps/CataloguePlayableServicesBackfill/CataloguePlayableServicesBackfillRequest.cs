@@ -4,9 +4,13 @@ namespace CataloguePlayableServicesBackfill;
 
 public class CataloguePlayableServicesBackfillRequest
 {
-    [Option("episode-backup-dir", Required = true,
-        HelpText = "Root that contains episode/{guid}.json (CosmosDbDownloader layout), or the episode folder itself.")]
-    public string EpisodeBackupDir { get; set; } = string.Empty;
+    [Option("episode-backup-dir", Required = false,
+        HelpText = "Root that contains episode/{guid}.json (CosmosDbDownloader layout), or the episode folder itself. At least one of --episode-backup-dir or --public-database-dir is required.")]
+    public string? EpisodeBackupDir { get; set; }
+
+    [Option("public-database-dir", Required = false,
+        HelpText = "PublicDatabase checkout (flat *.json). Indexes playable/episode ids and their urls map as a second truth source (urls only; no images). At least one of --episode-backup-dir or --public-database-dir is required.")]
+    public string? PublicDatabaseDir { get; set; }
 
     [Option("kind", Required = false, Default = "all",
         HelpText = "film | tvshowepisode | newsreport | all.")]

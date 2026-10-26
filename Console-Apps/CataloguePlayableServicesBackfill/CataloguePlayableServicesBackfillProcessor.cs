@@ -14,21 +14,23 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
     int ExitCode,
     int Scanned,
     int Identical,
-    int MissingBackup,
+    int MissingTruth,
     int Discrepancies,
     int Applied,
     int SearchUploaded,
     int FailedWrites);
 
 /// <summary>
-/// Cosmos-first repair: scan Film / TvShowEpisode / NewsReport, diff against episode backup JSON,
-/// carry service url/image discrepancies onto the live entity. Dry-run by default.
+/// Cosmos-first repair: scan Film / TvShowEpisode / NewsReport, diff against episode backup JSON
+/// and/or PublicDatabase urls, carry service url/image discrepancies onto the live entity.
+/// Dry-run by default.
 /// </summary>
 public class CataloguePlayableServicesBackfillProcessor(
     IFilmRepository filmRepository,
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     INewsReportRepository newsReportRepository,
     IEpisodeBackupStore backupStore,
+    Func<string, IPublicDatabaseUrlIndex> publicDatabaseUrlIndexFactory,
     Func<IPlayableSearchDocumentSwap> searchSwapFactory,
     TimeProvider timeProvider,
     ILogger<CataloguePlayableServicesBackfillProcessor> logger)
@@ -42,9 +44,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         CataloguePlayableServicesBackfillRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
+        var hasEpisodeBackup = !string.IsNullOrWhiteSpace(request.EpisodeBackupDir);
+        var hasPublicDatabase = !string.IsNullOrWhiteSpace(request.PublicDatabaseDir);
+        if (!hasEpisodeBackup && !hasPublicDatabase)
         {
-            logger.LogError("CataloguePlayableServicesBackfill requires --episode-backup-dir.");
+            logger.LogError(
+                "CataloguePlayableServicesBackfill requires --episode-backup-dir and/or --public-database-dir.");
             return Empty(ExitBadArguments);
         }
 
@@ -67,6 +72,20 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             logger.LogError("CataloguePlayableServicesBackfill --limit must be >= 0.");
             return Empty(ExitBadArguments);
+        }
+
+        IPublicDatabaseUrlIndex publicIndex = EmptyPublicDatabaseUrlIndex.Instance;
+        if (hasPublicDatabase)
+        {
+            try
+            {
+                publicIndex = publicDatabaseUrlIndexFactory(request.PublicDatabaseDir!);
+            }
+            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+            {
+                logger.LogError(ex, "CataloguePlayableServicesBackfill failed to load --public-database-dir.");
+                return Empty(ExitBadArguments);
+            }
         }
 
         HashSet<Guid>? idFilter = null;
@@ -94,7 +113,7 @@ public class CataloguePlayableServicesBackfillProcessor(
 
         var scanned = 0;
         var identical = 0;
-        var missingBackup = 0;
+        var missingTruth = 0;
         var discrepancies = 0;
         var applied = 0;
         var searchUploaded = 0;
@@ -119,6 +138,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         Film? savedFilm = null;
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.Film,
                             film.Id,
@@ -138,11 +158,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(savedFilm),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -161,6 +181,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         LogProgress(scanned, progressEvery);
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.TvShowEpisode,
                             episode.Id,
@@ -176,11 +197,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(episode),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -199,6 +220,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         LogProgress(scanned, progressEvery);
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.NewsReport,
                             report.Id,
@@ -214,11 +236,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(report),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -227,11 +249,12 @@ public class CataloguePlayableServicesBackfillProcessor(
             }
         }
 
-        return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+        return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
     }
 
     private async Task<ProcessOutcome> ProcessOne(
         CataloguePlayableServicesBackfillRequest request,
+        IPublicDatabaseUrlIndex publicIndex,
         IChangeLogWriter changeLog,
         PlayableKind kind,
         Guid id,
@@ -241,24 +264,43 @@ public class CataloguePlayableServicesBackfillProcessor(
         Func<RedditPodcastPoster.Search.Models.EpisodeSearchRecord?> buildSearchDocument,
         CancellationToken cancellationToken)
     {
-        var backupPath = backupStore.ResolvePath(request.EpisodeBackupDir, id);
-        if (backupPath is null || !backupStore.TryLoadServices(backupPath, out var backupServices))
+        Dictionary<string, ServiceLink>? episodeBackup = null;
+        string backupPath = string.Empty;
+        if (!string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
+        {
+            var resolved = backupStore.ResolvePath(request.EpisodeBackupDir, id);
+            if (resolved is not null && backupStore.TryLoadServices(resolved, out var loaded))
+            {
+                backupPath = resolved;
+                episodeBackup = loaded;
+            }
+        }
+
+        PublicUrlHit? publicHit = null;
+        if (publicIndex.TryGet(id, out var hit))
+        {
+            publicHit = hit;
+        }
+
+        if (episodeBackup is null && publicHit is null)
         {
             await changeLog.WriteAsync(new ChangeLogRecord
             {
                 Kind = PlayableKindParser.ToWire(kind),
                 Id = id,
                 ParentId = parentId,
-                BackupPath = backupPath ?? string.Empty,
+                BackupPath = backupPath,
+                PublicDatabasePath = string.Empty,
                 Changes = [],
                 Applied = false,
                 Utc = timeProvider.GetUtcNow(),
-                MissingBackup = true
+                MissingTruth = true
             }, cancellationToken);
-            return ProcessOutcome.MissingBackup;
+            return ProcessOutcome.MissingTruth;
         }
 
-        var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, backupServices);
+        var truth = TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls);
+        var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, truth);
         if (!carry.HasChanges)
         {
             return ProcessOutcome.Identical;
@@ -275,6 +317,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                 cancellationToken);
         }
 
+        var publicPath = publicHit?.FilePath ?? string.Empty;
         var applied = false;
         var searchOk = false;
         if (request.Apply)
@@ -285,10 +328,10 @@ public class CataloguePlayableServicesBackfillProcessor(
                 if (!saved)
                 {
                     logger.LogError(
-                        "Failed to save {Kind} {Id} after carrying services from {BackupPath}.",
-                        kind, id, backupPath);
-                    await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied: false,
-                        cancellationToken);
+                        "Failed to save {Kind} {Id} after carrying services from backup={BackupPath} public={PublicPath}.",
+                        kind, id, backupPath, publicPath);
+                    await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                        applied: false, cancellationToken);
                     return ProcessOutcome.FailedWrite;
                 }
 
@@ -309,13 +352,14 @@ public class CataloguePlayableServicesBackfillProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to apply services carry for {Kind} {Id}.", kind, id);
-                await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied: false,
-                    cancellationToken);
+                await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                    applied: false, cancellationToken);
                 return ProcessOutcome.FailedWrite;
             }
         }
 
-        await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied, cancellationToken);
+        await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes, applied,
+            cancellationToken);
         return applied
             ? (searchOk ? ProcessOutcome.AppliedWithSearch : ProcessOutcome.Applied)
             : ProcessOutcome.DiscrepancyDryRun;
@@ -327,6 +371,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         Guid id,
         Guid? parentId,
         string backupPath,
+        string publicDatabasePath,
         IReadOnlyList<ServiceFieldChange> changes,
         bool applied,
         CancellationToken cancellationToken) =>
@@ -336,6 +381,7 @@ public class CataloguePlayableServicesBackfillProcessor(
             Id = id,
             ParentId = parentId,
             BackupPath = backupPath,
+            PublicDatabasePath = publicDatabasePath,
             Changes = changes,
             Applied = applied,
             Utc = timeProvider.GetUtcNow()
@@ -367,7 +413,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     private static void Tally(
         ProcessOutcome outcome,
         ref int identical,
-        ref int missingBackup,
+        ref int missingTruth,
         ref int discrepancies,
         ref int applied,
         ref int searchUploaded,
@@ -378,8 +424,8 @@ public class CataloguePlayableServicesBackfillProcessor(
             case ProcessOutcome.Identical:
                 identical++;
                 break;
-            case ProcessOutcome.MissingBackup:
-                missingBackup++;
+            case ProcessOutcome.MissingTruth:
+                missingTruth++;
                 break;
             case ProcessOutcome.DiscrepancyDryRun:
                 discrepancies++;
@@ -403,18 +449,18 @@ public class CataloguePlayableServicesBackfillProcessor(
     private CataloguePlayableServicesBackfillRunResult Finish(
         int scanned,
         int identical,
-        int missingBackup,
+        int missingTruth,
         int discrepancies,
         int applied,
         int searchUploaded,
         int failedWrites)
     {
         logger.LogInformation(
-            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingBackup={MissingBackup} Discrepancies={Discrepancies} Applied={Applied} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
-            scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} Applied={Applied} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
+            scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
         var exitCode = failedWrites > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
-            exitCode, scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+            exitCode, scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
     }
 
     private static CataloguePlayableServicesBackfillRunResult Empty(int exitCode) =>
@@ -423,7 +469,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     private enum ProcessOutcome
     {
         Identical,
-        MissingBackup,
+        MissingTruth,
         DiscrepancyDryRun,
         Applied,
         AppliedWithSearch,

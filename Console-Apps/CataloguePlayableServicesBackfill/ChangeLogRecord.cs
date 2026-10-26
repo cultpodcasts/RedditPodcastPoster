@@ -17,6 +17,10 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("backupPath")]
     public required string BackupPath { get; init; }
 
+    [JsonPropertyName("publicDatabasePath")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string PublicDatabasePath { get; init; } = string.Empty;
+
     [JsonPropertyName("changes")]
     public required IReadOnlyList<ServiceFieldChange> Changes { get; init; }
 
@@ -26,9 +30,13 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("utc")]
     public required DateTimeOffset Utc { get; init; }
 
-    [JsonPropertyName("missingBackup")]
+    /// <summary>
+    /// True when neither episode backup nor PublicDatabase had this GUID (missing truth).
+    /// JSON name is <c>missingTruth</c> (replaces the earlier <c>missingBackup</c> label).
+    /// </summary>
+    [JsonPropertyName("missingTruth")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool MissingBackup { get; init; }
+    public bool MissingTruth { get; init; }
 }
 
 public interface IChangeLogWriter : IAsyncDisposable

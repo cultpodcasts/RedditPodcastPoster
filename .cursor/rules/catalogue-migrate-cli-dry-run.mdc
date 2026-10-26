@@ -13,7 +13,7 @@ GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does 
 
 - `CatalogueMigrateIdentify --apply` **always** exits 2. It has no write path.
 - `CatalogueMigrate` has a writer (PR #1049; design in [`docs/catalogue-run/gate-5.md`](../../docs/catalogue-run/gate-5.md)). `--apply` and `--rollback … --apply` write **only** when `--consent` matches the exact phrase for that kind or evidence file. Otherwise they exit 2. Do not weaken, default, or bypass that check. News apply is allowlist-only (S-008).
-- `CataloguePlayableServicesBackfill` repairs Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON. `--apply` writes **only** when `--consent` matches the exact phrase. Otherwise it exits 2.
+- `CataloguePlayableServicesBackfill` repairs Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON and/or PublicDatabase urls. `--apply` writes **only** when `--consent` matches the exact phrase. Otherwise it exits 2.
 - Do not add write paths to other migrate tools unless the user explicitly asks for that implementation.
 
 ## 2. Agent run
