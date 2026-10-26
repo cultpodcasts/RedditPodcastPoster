@@ -1,7 +1,9 @@
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Episodes;
@@ -121,27 +123,32 @@ public static class EpisodeServicePresence
             return episode.Ids.YouTube;
         }
 
-        // Episode.YouTubeId withers leftover Cosmos top-level youTubeId — never treat it as canonical.
         // Catalogue post-projections and pre-backfill rows: extract from services.youtube.url.
+        // Podcast Episode has no top-level youTubeId member — leftover Cosmos JSON is ignored.
         var url = TryGetUrl(episode, ServiceKeys.YouTube);
         return url is null ? null : YouTubeIdResolver.Extract(url);
     }
 
     /// <summary>
-    /// TvShowEpisode / NewsReport: set <see cref="Catalogue.Playable.YouTubeId"/> from
-    /// <c>services.youtube.url</c> (or clear it). No-op for podcast <see cref="Episode"/> (uses
-    /// nested <c>ids.youtube</c>; top-level <c>youTubeId</c> withers). Call after any catalogue
-    /// services mutation before Save — not from search-document projection helpers.
+    /// TvShowEpisode / NewsReport: set compact <c>youTubeId</c> from <c>services.youtube.url</c>
+    /// (or clear it). No-op for podcast <see cref="Episode"/> (nested <c>ids.youtube</c> only).
+    /// Call after any catalogue services mutation before Save — not from search-document helpers.
     /// </summary>
     public static void SyncCatalogueYouTubeId(Playable playable)
     {
         ArgumentNullException.ThrowIfNull(playable);
-        if (playable is Episode)
+        switch (playable)
         {
-            return;
+            case TvShowEpisode tv:
+                tv.YouTubeId = ExtractYouTubeIdFromServices(tv.Services);
+                return;
+            case NewsReport news:
+                news.YouTubeId = ExtractYouTubeIdFromServices(news.Services);
+                return;
+            default:
+                // Episode and any other Playable: no catalogue youTubeId member.
+                return;
         }
-
-        playable.YouTubeId = ExtractYouTubeIdFromServices(playable.Services);
     }
 
     /// <summary>

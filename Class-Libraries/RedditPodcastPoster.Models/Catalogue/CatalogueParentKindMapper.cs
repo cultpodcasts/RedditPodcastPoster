@@ -58,6 +58,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
+        playable.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
         playable.SetTvShowProperties(tvShow);
         playable.ModelType = ModelType.TvShowEpisode;
         return playable;
@@ -95,9 +96,7 @@ public static class CatalogueParentKindMapper
         film.RemovedSubjects = [.. episode.RemovedSubjects];
         film.Matches = episode.Matches.Select(CloneMatch).ToList();
         film.Services = CloneServices(episode.Services);
-        film.YouTubeId = string.IsNullOrWhiteSpace(episode.YouTubeId)
-            ? EpisodeServicePresence.YouTubeEpisodeId(episode)
-            : episode.YouTubeId;
+        film.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
         film.Guests = CloneArray(episode.Guests);
         return film;
     }
@@ -111,6 +110,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
+        playable.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
         playable.SetNewsOrganisationProperties(organisation);
         playable.ModelType = ModelType.NewsReport;
         return playable;
@@ -156,7 +156,6 @@ public static class CatalogueParentKindMapper
             SearchTerms = film.SearchTerms,
             HashTag = film.HashTag,
             Services = CloneServices(film.Services),
-            YouTubeId = string.IsNullOrWhiteSpace(film.YouTubeId) ? null : film.YouTubeId,
             Guests = CloneArray(film.Guests)
         };
         episode.SetRelease(film.Release);
@@ -220,8 +219,27 @@ public static class CatalogueParentKindMapper
         target.ParentMetadataVersion = source.ParentMetadataVersion;
         target.ParentRemoved = source.ParentRemoved;
         target.Services = CloneServices(source.Services);
-        target.YouTubeId = string.IsNullOrWhiteSpace(source.YouTubeId) ? null : source.YouTubeId;
         target.Guests = CloneArray(source.Guests);
+        CopyCatalogueYouTubeId(source, target);
+    }
+
+    private static void CopyCatalogueYouTubeId(Playable source, Playable target)
+    {
+        var id = source switch
+        {
+            TvShowEpisode tv => tv.YouTubeId,
+            NewsReport news => news.YouTubeId,
+            _ => null
+        };
+        switch (target)
+        {
+            case TvShowEpisode tv:
+                tv.YouTubeId = string.IsNullOrWhiteSpace(id) ? null : id;
+                break;
+            case NewsReport news:
+                news.YouTubeId = string.IsNullOrWhiteSpace(id) ? null : id;
+                break;
+        }
     }
 
     private static string[]? CloneArray(string[]? values) =>

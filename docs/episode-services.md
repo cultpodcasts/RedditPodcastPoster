@@ -29,7 +29,7 @@ Top-level `spotifyId` / `appleId` / `youTubeId` on **podcast episodes** are left
 
 ### Catalogue playables (Film / TvShowEpisode / NewsReport)
 
-These kinds have **no** nested `ids`. Platform presence is `services` only. They store a compact top-level **`youTubeId`** (synced from `services.youtube.url` on catalogue edits and backfill) so sibling Azure Search datasources can project `youtubeId` for Watch icons without Spotify/Apple id members. That catalogue `youTubeId` is intentional and distinct from podcast-episode leftover withering. Sibling pull SQL uses `PlayableSearchSql` (`c.youTubeId`); do not couple it to the episode-container pull query.
+These kinds have **no** nested `ids`. Platform presence is `services` only (`url` + optional `image`). Film / TvShowEpisode / NewsReport each store their own compact top-level **`youTubeId`** (synced from `services.youtube.url` on catalogue edits and backfill) so sibling Azure Search datasources can project `youtubeId` for Watch icons — not on the shared `Playable` base, and never on podcast `Episode` (leftover Cosmos `youTubeId` is ignored; nested `ids.youtube` only). Sibling pull SQL uses `PlayableSearchSql` (`c.youTubeId`); do not couple it to the episode-container pull query.
 
 Rollout order, Cosmos backfill, and tested migration types: [episode-services-migration.md](episode-services-migration.md).
 
