@@ -1,9 +1,6 @@
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Models.Films;
-using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
-using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Episodes;
@@ -130,35 +127,15 @@ public static class EpisodeServicePresence
     }
 
     /// <summary>
-    /// TvShowEpisode / NewsReport: set compact <c>youTubeId</c> from <c>services.youtube.url</c>
-    /// (or clear it). No-op for podcast <see cref="Episode"/> (nested <c>ids.youtube</c> only).
+    /// Film / TvShowEpisode / NewsReport: set <see cref="ICatalogueYouTubeItem.YouTubeId"/> from
+    /// <c>services.youtube.url</c> (or clear it). Podcast <see cref="Episode"/> does not implement
+    /// <see cref="ICatalogueYouTubeItem"/> (nested <c>ids.youtube</c> only).
     /// Call after any catalogue services mutation before Save — not from search-document helpers.
     /// </summary>
-    public static void SyncCatalogueYouTubeId(Playable playable)
+    public static void SyncCatalogueYouTubeId(ICatalogueYouTubeItem item)
     {
-        ArgumentNullException.ThrowIfNull(playable);
-        switch (playable)
-        {
-            case TvShowEpisode tv:
-                tv.YouTubeId = ExtractYouTubeIdFromServices(tv.Services);
-                return;
-            case NewsReport news:
-                news.YouTubeId = ExtractYouTubeIdFromServices(news.Services);
-                return;
-            default:
-                // Episode and any other Playable: no catalogue youTubeId member.
-                return;
-        }
-    }
-
-    /// <summary>
-    /// Film: set <see cref="Films.Film.YouTubeId"/> from <c>services.youtube.url</c> (or clear it).
-    /// Call after any film services mutation before Save / search push.
-    /// </summary>
-    public static void SyncCatalogueYouTubeId(Film film)
-    {
-        ArgumentNullException.ThrowIfNull(film);
-        film.YouTubeId = ExtractYouTubeIdFromServices(film.Services);
+        ArgumentNullException.ThrowIfNull(item);
+        item.YouTubeId = ExtractYouTubeIdFromServices(item.Services);
     }
 
     private static string? ExtractYouTubeIdFromServices(IReadOnlyDictionary<string, ServiceLink>? services)

@@ -12,7 +12,7 @@ namespace RedditPodcastPoster.Models.News;
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.NewsReport)]
-public sealed class NewsReport : Playable
+public sealed class NewsReport : Playable, ICatalogueYouTubeItem
 {
     public NewsReport()
     {

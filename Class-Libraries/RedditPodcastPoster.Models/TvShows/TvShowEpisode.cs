@@ -11,7 +11,7 @@ namespace RedditPodcastPoster.Models.TvShows;
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.TvShowEpisode)]
-public sealed class TvShowEpisode : Playable, ITvCanonical
+public sealed class TvShowEpisode : Playable, ICatalogueYouTubeItem, ITvCanonical
 {
     public TvShowEpisode()
     {

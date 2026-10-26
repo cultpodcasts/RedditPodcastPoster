@@ -16,7 +16,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// (satisfy <see cref="IPlayable"/> / <see cref="IPromotable"/>).
 /// </summary>
 [CosmosSelector(ModelType.Film)]
-public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
+public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromotable, IFilmCanonical
 {
     public Film()
     {

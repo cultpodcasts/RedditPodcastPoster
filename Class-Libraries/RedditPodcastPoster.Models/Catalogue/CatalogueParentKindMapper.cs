@@ -225,21 +225,12 @@ public static class CatalogueParentKindMapper
 
     private static void CopyCatalogueYouTubeId(Playable source, Playable target)
     {
-        var id = source switch
+        if (source is not ICatalogueYouTubeItem from || target is not ICatalogueYouTubeItem to)
         {
-            TvShowEpisode tv => tv.YouTubeId,
-            NewsReport news => news.YouTubeId,
-            _ => null
-        };
-        switch (target)
-        {
-            case TvShowEpisode tv:
-                tv.YouTubeId = string.IsNullOrWhiteSpace(id) ? null : id;
-                break;
-            case NewsReport news:
-                news.YouTubeId = string.IsNullOrWhiteSpace(id) ? null : id;
-                break;
+            return;
         }
+
+        to.YouTubeId = string.IsNullOrWhiteSpace(from.YouTubeId) ? null : from.YouTubeId;
     }
 
     private static string[]? CloneArray(string[]? values) =>

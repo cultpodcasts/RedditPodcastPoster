@@ -313,27 +313,21 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
-        "SyncCatalogueYouTubeId is a no-op for podcast Episode so nested ids.youtube remains the only id source.")]
-    public void sync_catalogue_youtube_id_noops_for_podcast_episode()
+        "Film, TvShowEpisode, and NewsReport implement ICatalogueYouTubeItem while podcast Episode does not, " +
+        "so SyncCatalogueYouTubeId cannot bind leftover top-level youTubeId onto episodes.")]
+    public void catalogue_youtube_item_is_only_film_tv_and_news()
     {
         // Arrange
-        var nestedId = _fixture.CreateYouTubeId();
-        var urlId = _fixture.CreateYouTubeId();
-        var episode = _fixture.CreateEpisode(e =>
-        {
-            e.Ids = new EpisodeIds { YouTube = nestedId };
-            e.Services = new Dictionary<string, ServiceLink>
-            {
-                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(urlId) }
-            };
-        });
+        var film = new RedditPodcastPoster.Models.Films.Film(_fixture.CreateTitle());
+        var tv = new RedditPodcastPoster.Models.TvShows.TvShowEpisode(_fixture.CreateTitle());
+        var news = new RedditPodcastPoster.Models.News.NewsReport(_fixture.CreateTitle());
+        var episode = _fixture.CreateEpisode();
 
-        // Act
-        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
-
-        // Assert
-        episode.Ids!.YouTube.Should().Be(nestedId);
-        EpisodeServicePresence.YouTubeEpisodeId(episode).Should().Be(nestedId);
+        // Act / Assert
+        film.Should().BeAssignableTo<RedditPodcastPoster.Models.Catalogue.ICatalogueYouTubeItem>();
+        tv.Should().BeAssignableTo<RedditPodcastPoster.Models.Catalogue.ICatalogueYouTubeItem>();
+        news.Should().BeAssignableTo<RedditPodcastPoster.Models.Catalogue.ICatalogueYouTubeItem>();
+        episode.Should().NotBeAssignableTo<RedditPodcastPoster.Models.Catalogue.ICatalogueYouTubeItem>();
     }
 
     [Fact(DisplayName =
