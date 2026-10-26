@@ -14,6 +14,7 @@ using Api.Services.News;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
 
@@ -104,6 +105,35 @@ public class NewsReportCanonicalUpdateRules
         _saved.Ignored.Should().BeTrue();
         _saved.HashTag.Should().Be("#Keep");
         _saved.Subjects.Should().Equal("Synthetic Cult");
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report services adds a link under the key its URL resolves to and removes a key sent with no URL or image, because playables share the film services patch.")]
+    public async Task services_add_and_remove()
+    {
+        // Arrange
+        var oldKey = "internetArchive";
+        var report = CreateReport(r => r.Services = new Dictionary<string, ServiceLink>
+        {
+            [oldKey] = new() { Url = new Uri($"https://archive.org/details/synthetic-{_fixture.CreateGuid():N}") }
+        });
+        var youTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["anything"] = new() { Url = youTube },
+                [oldKey] = new() { Url = new Uri("", UriKind.RelativeOrAbsolute) }
+            }
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
+        _saved!.Services.Should().ContainKey("youtube");
+        _saved.Services!["youtube"].Url.Should().Be(youTube);
+        _saved.Services.Should().NotContainKey(oldKey);
     }
 
     [Fact(DisplayName =

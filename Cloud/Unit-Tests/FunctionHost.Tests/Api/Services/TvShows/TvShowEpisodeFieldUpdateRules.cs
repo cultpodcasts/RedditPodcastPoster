@@ -9,6 +9,7 @@ using Api.Models;
 using Api.Services.TvShows;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
@@ -88,6 +89,60 @@ public class TvShowEpisodeFieldUpdateRules
         _saved.SearchTerms.Should().Be("keep");
         _saved.ImdbId.Should().Be(imdbId);
         _search.VerifyDelete(episode.Id, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV episode services adds a link under the key its URL resolves to and removes a key sent with no URL or image, because playables share the film services patch.")]
+    public async Task services_add_and_remove()
+    {
+        // Arrange
+        var oldKey = "internetArchive";
+        var episode = CreateEpisode(e => e.Services = new Dictionary<string, ServiceLink>
+        {
+            [oldKey] = new() { Url = new Uri($"https://archive.org/details/synthetic-{_fixture.CreateGuid():N}") }
+        });
+        var youTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");
+
+        // Act
+        var result = await Update(episode, new TvShowEpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["anything"] = new() { Url = youTube },
+                [oldKey] = new() { Url = new Uri("", UriKind.RelativeOrAbsolute) }
+            }
+        });
+
+        // Assert
+        result.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
+        _saved!.Services.Should().ContainKey("youtube");
+        _saved.Services!["youtube"].Url.Should().Be(youTube);
+        _saved.Services.Should().NotContainKey(oldKey);
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV episode rejects a non-absolute services URL without saving, because invalid links must not wipe good ones.")]
+    public async Task services_reject_relative_url()
+    {
+        // Arrange
+        var episode = CreateEpisode(e => e.Services = new Dictionary<string, ServiceLink>
+        {
+            ["youtube"] = new() { Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") }
+        });
+
+        // Act
+        var result = await Update(episode, new TvShowEpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["youtube"] = new() { Url = new Uri("/relative", UriKind.Relative) }
+            }
+        });
+
+        // Assert
+        result.Status.Should().Be(TvShowEpisodeUpdateStatus.BadRequest);
+        _saved.Should().BeNull();
+        episode.Services.Should().ContainKey("youtube");
     }
 
     [Fact(DisplayName =

@@ -19,7 +19,8 @@ public static class PlayableChangeApplier
     {
         postStatus = PostStatusChange.None;
         if (!TryParseRelease(change.Release, allowYear: false, out var release, out error) ||
-            !TryParseDuration(change.Duration, out var length, out error))
+            !TryParseDuration(change.Duration, out var length, out error) ||
+            (change.Services is not null && !PlayableServicesChangeApplier.TryValidate(change.Services, out error)))
         {
             return false;
         }
@@ -84,6 +85,11 @@ public static class PlayableChangeApplier
         if (change.Guests != null)
         {
             playable.Guests = NormaliseGuests(change.Guests);
+        }
+
+        if (change.Services is not null)
+        {
+            playable.Services = PlayableServicesChangeApplier.Apply(playable.Services, change.Services);
         }
 
         return true;

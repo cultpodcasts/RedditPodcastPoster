@@ -191,6 +191,7 @@ public static class RequestModelExtensions
         model.HashTag = request.HashTag;
         model.Language = request.Language;
         model.Guests = request.Guests;
+        model.Services = request.Services;
         return model;
     }
 

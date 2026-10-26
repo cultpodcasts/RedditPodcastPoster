@@ -10,8 +10,9 @@ namespace Api.Services.News;
 
 /// <summary>
 /// Curator GET/PATCH for a news report. Mirrors <c>TvShowEpisodeService</c> for lookup (by report id).
-/// Service links are not editable here. Post status (posted / tweeted / unBluesky) follows the episode edit API.
-/// Guests follow the episode edit API: they are not in search documents or subjects, so a guest edit is a plain save.
+/// Service links (<c>services</c>) use the same PATCH semantics as film. Post status (posted / tweeted / unBluesky)
+/// follows the episode edit API. Guests follow the episode edit API: they are not in search documents or subjects,
+/// so a guest edit is a plain save.
 /// </summary>
 public class NewsReportService(
     INewsReportRepository newsReportRepository,
