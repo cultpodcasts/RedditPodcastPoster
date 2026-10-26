@@ -65,6 +65,30 @@ public class CatalogueParentKindMapperRules
             item[ServiceKeys.YouTube].Url == episode.Services![ServiceKeys.YouTube].Url &&
             item[ServiceKeys.YouTube].Image == youTubeImage);
     }
+
+    [Fact(DisplayName =
+        "After Move, mapped TV episode, news report, and film carry the source episode's compact YouTubeId " +
+        "so sibling Azure Search datasources can project youtubeId for Watch without nested ids.")]
+    public void mappers_set_compact_youtube_id_from_source_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var expectedYouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var tv = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        var news = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        expectedYouTubeId.Should().NotBeNullOrWhiteSpace();
+        tv.YouTubeId.Should().Be(expectedYouTubeId);
+        news.YouTubeId.Should().Be(expectedYouTubeId);
+        film.YouTubeId.Should().Be(expectedYouTubeId);
+    }
     [Fact(DisplayName =
         "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
         "because the public hub is the programme, not the channel we found it on.")]

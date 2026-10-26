@@ -1,5 +1,4 @@
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.YouTube;
@@ -8,9 +7,10 @@ namespace RedditPodcastPoster.Models.Episodes;
 
 /// <summary>
 /// Catalog accessors for <c>services</c> / nested <c>ids</c>.
-/// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not bound on
-/// <see cref="Episode"/> (including top-level <c>youTubeId</c>, which withers via an override);
-/// they wither on full <c>Save()</c>. Application code must not write those leftover members.
+/// Podcast <see cref="Episode"/> has no <c>youTubeId</c> member; leftover Cosmos top-level
+/// <c>youTubeId</c> (and other retired <c>urls</c> / top-level ids / <c>images</c>) is ignored
+/// on deserialize and omitted on serialize. Nested <c>ids.youtube</c> + <c>services.youtube.url</c>
+/// only. Application code must not write those leftover members.
 /// Catalogue playables (TvShowEpisode / NewsReport / Film) keep a compact <c>youTubeId</c>
 /// synced from <c>services.youtube.url</c> for Azure Search — distinct from episode leftovers.
 /// Cover art coalesces from <c>services.*.image</c> in
@@ -121,37 +121,22 @@ public static class EpisodeServicePresence
             return episode.Ids.YouTube;
         }
 
-        // Episode.YouTubeId withers leftover Cosmos top-level youTubeId — never treat it as canonical.
         // Catalogue post-projections and pre-backfill rows: extract from services.youtube.url.
+        // Podcast Episode has no top-level youTubeId member — leftover Cosmos JSON is ignored.
         var url = TryGetUrl(episode, ServiceKeys.YouTube);
         return url is null ? null : YouTubeIdResolver.Extract(url);
     }
 
     /// <summary>
-    /// TvShowEpisode / NewsReport: set <see cref="Catalogue.Playable.YouTubeId"/> from
-    /// <c>services.youtube.url</c> (or clear it). No-op for podcast <see cref="Episode"/> (uses
-    /// nested <c>ids.youtube</c>; top-level <c>youTubeId</c> withers). Call after any catalogue
-    /// services mutation before Save — not from search-document projection helpers.
+    /// Film / TvShowEpisode / NewsReport: set <see cref="ICatalogueYouTubeItem.YouTubeId"/> from
+    /// <c>services.youtube.url</c> (or clear it). Podcast <see cref="Episode"/> does not implement
+    /// <see cref="ICatalogueYouTubeItem"/> (nested <c>ids.youtube</c> only).
+    /// Call after any catalogue services mutation before Save — not from search-document helpers.
     /// </summary>
-    public static void SyncCatalogueYouTubeId(Playable playable)
+    public static void SyncCatalogueYouTubeId(ICatalogueYouTubeItem item)
     {
-        ArgumentNullException.ThrowIfNull(playable);
-        if (playable is Episode)
-        {
-            return;
-        }
-
-        playable.YouTubeId = ExtractYouTubeIdFromServices(playable.Services);
-    }
-
-    /// <summary>
-    /// Film: set <see cref="Films.Film.YouTubeId"/> from <c>services.youtube.url</c> (or clear it).
-    /// Call after any film services mutation before Save / search push.
-    /// </summary>
-    public static void SyncCatalogueYouTubeId(Film film)
-    {
-        ArgumentNullException.ThrowIfNull(film);
-        film.YouTubeId = ExtractYouTubeIdFromServices(film.Services);
+        ArgumentNullException.ThrowIfNull(item);
+        item.YouTubeId = ExtractYouTubeIdFromServices(item.Services);
     }
 
     private static string? ExtractYouTubeIdFromServices(IReadOnlyDictionary<string, ServiceLink>? services)

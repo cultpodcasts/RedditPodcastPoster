@@ -91,7 +91,10 @@ public static class PlayableChangeApplier
         if (change.Services is not null)
         {
             playable.Services = PlayableServicesChangeApplier.Apply(playable.Services, change.Services);
-            EpisodeServicePresence.SyncCatalogueYouTubeId(playable);
+            if (playable is ICatalogueYouTubeItem catalogueYouTube)
+            {
+                EpisodeServicePresence.SyncCatalogueYouTubeId(catalogueYouTube);
+            }
         }
 
         return true;

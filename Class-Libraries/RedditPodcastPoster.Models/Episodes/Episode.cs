@@ -42,23 +42,6 @@ public class Episode : Playable
     [JsonPropertyOrder(53)]
     public EpisodeIds? Ids { get; set; }
 
-    /// <summary>
-    /// Leftover Cosmos top-level <c>youTubeId</c> withers: ignored on deserialize, omitted on
-    /// serialize. Podcast episodes use nested <c>ids.youtube</c> only. Catalogue kinds
-    /// (TvShowEpisode / NewsReport) keep <see cref="Playable.YouTubeId"/> for search.
-    /// </summary>
-    [JsonPropertyName("youTubeId")]
-    [JsonPropertyOrder(152)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public override string? YouTubeId
-    {
-        get => null;
-        set
-        {
-            // Ignore leftover Cosmos youTubeId — do not re-bind onto Episode.
-        }
-    }
-
     [JsonPropertyName("podcastName")]
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
