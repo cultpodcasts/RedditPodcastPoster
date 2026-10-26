@@ -10,9 +10,11 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
   --kind all
 ```
 
-`--episode-backup-dir` may be the CosmsoDbDownloader export root (contains `episode\`) or the `episode` folder itself.
+`--episode-backup-dir` may be the CosmosDbDownloader export root (contains `episode\`) or the `episode` folder itself.
 
 Writes `catalogue-playable-services-backfill.jsonl` (overwritten each run) with every missing-backup and discrepancy candidate. No Cosmos writes.
+
+Exit codes: `0` ok, `1` bad arguments, `2` apply refused (missing/wrong `--consent`), `3` one or more Cosmos writes failed (`FailedWrites > 0`).
 
 ## Apply (human only)
 

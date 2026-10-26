@@ -329,6 +329,23 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | `--evidence-dir` | Evidence folder (default `catalogue-migrate-evidence`) |
 | `--rollback` | Evidence JSONL to restore from. Previews unless `--apply` |
 
+### CataloguePlayableServicesBackfill
+
+**Purpose:** Cosmos-first repair of Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON (`episode/{guid}.json`). Scans live playables, diffs backup service maps, and carries discrepant **non-null** backup url/image onto the entity. Dry-run by default (JSONL change log only). `--apply` writes only with `--consent "I approve CataloguePlayableServicesBackfill production writes"` (else exit 2). Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 failed writes. Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+
+**Run:** `dotnet run --project Console-Apps/CataloguePlayableServicesBackfill --` · PATH: `CataloguePlayableServicesBackfill`
+
+| Option | Description |
+|--------|-------------|
+| `--episode-backup-dir` | CosmosDbDownloader export root (or `episode` folder) |
+| `--kind` | `film` \| `tvshowepisode` \| `newsreport` \| `all` |
+| `--ids` | Comma-separated GUIDs |
+| `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
+| `--change-log` | JSONL path |
+| `--snapshot-dir` | Optional before-`services` JSON slices |
+| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
+| `--consent` | Human approval phrase. Never default it or script it |
+
 ### CategorisePodcastEpisodes
 
 **Purpose:** Categorise / subject-tag podcast episodes.

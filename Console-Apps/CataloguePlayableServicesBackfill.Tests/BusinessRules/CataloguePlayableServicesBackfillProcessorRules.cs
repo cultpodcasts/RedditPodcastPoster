@@ -183,6 +183,49 @@ public class CataloguePlayableServicesBackfillProcessorRules
     }
 
     [Fact(DisplayName =
+        "Catalogue playable services backfill: when --apply has consent but Cosmos Update returns null, " +
+        "then the run exits 3 with FailedWrites counted, because operators must see write failures in $LASTEXITCODE.")]
+    public async Task failed_write_exits_non_zero()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var backupUrl = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl;
+        var film = new Film(_fixture.CreateTitle()) { Id = id, Services = null };
+        _backups.ById[id] = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.Spotify] = new() { Url = backupUrl }
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.Update(id, It.IsAny<Func<Film, bool>>()))
+            .ReturnsAsync((Film?)null);
+        var changeLog = Path.Combine(_tempDir, "failed-write.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            Kind = "film",
+            Apply = true,
+            Consent = CataloguePlayableServicesBackfillConsent.ApplyPhrase,
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(CataloguePlayableServicesBackfillProcessor.ExitFailed);
+        result.FailedWrites.Should().Be(1);
+        result.Applied.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.Applied.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "Catalogue playable services backfill: when --apply has the exact consent phrase and a discrepancy exists, " +
         "then Update runs and the change-log marks applied true.")]
     public async Task apply_with_consent_writes()

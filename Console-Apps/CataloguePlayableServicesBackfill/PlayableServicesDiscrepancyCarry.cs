@@ -17,7 +17,8 @@ public sealed record PlayableServicesCarryResult(
 
 /// <summary>
 /// Diffs backup-derived services against a live playable Services map and carries
-/// discrepant url/image values from backup onto the live map.
+/// discrepant non-null url/image values from backup onto the live map.
+/// Null backup fields never wipe live values.
 /// </summary>
 public static class PlayableServicesDiscrepancyCarry
 {
@@ -35,14 +36,15 @@ public static class PlayableServicesDiscrepancyCarry
             working.TryGetValue(key, out var liveLink);
             liveLink ??= new ServiceLink();
 
-            var urlChanged = !UriEquals(liveLink.Url, backupLink.Url);
-            var imageChanged = !UriEquals(liveLink.Image, backupLink.Image);
-            if (!urlChanged && !imageChanged)
+            // Only carry when backup has a concrete value that differs from live.
+            var urlShouldCarry = backupLink.Url is not null && !UriEquals(liveLink.Url, backupLink.Url);
+            var imageShouldCarry = backupLink.Image is not null && !UriEquals(liveLink.Image, backupLink.Image);
+            if (!urlShouldCarry && !imageShouldCarry)
             {
                 continue;
             }
 
-            if (urlChanged)
+            if (urlShouldCarry)
             {
                 changes.Add(new ServiceFieldChange(
                     key,
@@ -52,7 +54,7 @@ public static class PlayableServicesDiscrepancyCarry
                 liveLink.Url = backupLink.Url;
             }
 
-            if (imageChanged)
+            if (imageShouldCarry)
             {
                 changes.Add(new ServiceFieldChange(
                     key,

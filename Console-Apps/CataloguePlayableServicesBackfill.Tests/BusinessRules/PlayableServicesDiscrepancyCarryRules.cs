@@ -113,6 +113,61 @@ public class PlayableServicesDiscrepancyCarryRules
     }
 
     [Fact(DisplayName =
+        "Playable services carry: when live url and image are set and backup has the same key with null fields, " +
+        "then there are no changes and live values are kept, because a null backup must not wipe enriched live services.")]
+    public void null_backup_fields_do_not_wipe_live()
+    {
+        // Arrange
+        var liveUrl = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl;
+        var liveImage = new Uri($"https://img.example/{_fixture.CreateGuid():N}.jpg");
+        var live = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.Spotify] = new() { Url = liveUrl, Image = liveImage }
+        };
+        var backup = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.Spotify] = new() { Url = null, Image = null }
+        };
+
+        // Act
+        var result = PlayableServicesDiscrepancyCarry.Apply(live, backup);
+
+        // Assert
+        result.HasChanges.Should().BeFalse();
+        result.Changes.Should().BeEmpty();
+        result.Services![ServiceKeys.Spotify].Url.Should().Be(liveUrl);
+        result.Services[ServiceKeys.Spotify].Image.Should().Be(liveImage);
+    }
+
+    [Fact(DisplayName =
+        "Playable services carry: when backup url differs but backup image is null, then only the url is carried " +
+        "and the live image is preserved, because null backup fields must not wipe live.")]
+    public void null_backup_image_preserves_live_image_when_url_carries()
+    {
+        // Arrange
+        var liveUrl = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl;
+        var backupUrl = _fixture.CreateYouTubeCatalogueInput().YouTubeUrl;
+        var liveImage = new Uri($"https://img.example/{_fixture.CreateGuid():N}.jpg");
+        var live = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = liveUrl, Image = liveImage }
+        };
+        var backup = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = backupUrl, Image = null }
+        };
+
+        // Act
+        var result = PlayableServicesDiscrepancyCarry.Apply(live, backup);
+
+        // Assert
+        result.Changes.Should().ContainSingle(c => c.Field == "url");
+        result.Changes.Should().NotContain(c => c.Field == "image");
+        result.Services![ServiceKeys.YouTube].Url.Should().Be(backupUrl);
+        result.Services[ServiceKeys.YouTube].Image.Should().Be(liveImage);
+    }
+
+    [Fact(DisplayName =
         "Playable services carry: when live has a service key absent from backup, then that key is left alone, " +
         "because only backup keys are candidates for carry.")]
     public void live_only_key_is_preserved()

@@ -36,6 +36,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     public const int ExitOk = 0;
     public const int ExitBadArguments = 1;
     public const int ExitApplyRefused = 2;
+    public const int ExitFailed = 3;
 
     public async Task<CataloguePlayableServicesBackfillRunResult> Run(
         CataloguePlayableServicesBackfillRequest request,
@@ -411,8 +412,9 @@ public class CataloguePlayableServicesBackfillProcessor(
         logger.LogInformation(
             "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingBackup={MissingBackup} Discrepancies={Discrepancies} Applied={Applied} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
             scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+        var exitCode = failedWrites > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
-            ExitOk, scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+            exitCode, scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
     }
 
     private static CataloguePlayableServicesBackfillRunResult Empty(int exitCode) =>
