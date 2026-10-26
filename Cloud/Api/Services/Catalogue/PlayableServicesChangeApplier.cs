@@ -6,6 +6,9 @@ namespace Api.Services.Catalogue;
 /// <summary>
 /// Shared <c>services</c> PATCH for film, TV-show episode and news report: blank url+image removes the key;
 /// otherwise the key is resolved from the URL when present (same as the episode edit API).
+/// <c>ServiceLink.Language</c> (<c>lang</c>) is not part of this PATCH surface — only <c>url</c> and <c>image</c>
+/// are applied; a lang-only payload (null/blank url and image) removes the key. Intentional film parity;
+/// extend Apply/TryValidate if Links ever edits language.
 /// </summary>
 public static class PlayableServicesChangeApplier
 {

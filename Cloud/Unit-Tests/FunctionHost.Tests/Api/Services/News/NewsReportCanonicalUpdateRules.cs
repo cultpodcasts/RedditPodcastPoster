@@ -137,6 +137,31 @@ public class NewsReportCanonicalUpdateRules
     }
 
     [Fact(DisplayName =
+        "PATCH news report rejects a non-absolute services URL without saving, because invalid links must not wipe good ones.")]
+    public async Task services_reject_relative_url()
+    {
+        // Arrange
+        var report = CreateReport(r => r.Services = new Dictionary<string, ServiceLink>
+        {
+            ["youtube"] = new() { Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") }
+        });
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["youtube"] = new() { Url = new Uri("/relative", UriKind.Relative) }
+            }
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.BadRequest);
+        _saved.Should().BeNull();
+        report.Services.Should().ContainKey("youtube");
+    }
+
+    [Fact(DisplayName =
         "PATCH news report with a release that is not a yyyy-MM-dd date returns BadRequest and saves nothing, because news reports have calendar-date releases.")]
     public async Task update_rejects_a_release_with_a_time()
     {
