@@ -116,5 +116,9 @@ public enum StreamingService
 
     [JsonPropertyName("canalPlus")]
     [StreamingServiceInfo("Canal+", "canal-plus", true, "canalplus.com")]
-    CanalPlus
+    CanalPlus,
+
+    [JsonPropertyName("abcIview")]
+    [StreamingServiceInfo("ABC iview", "abc-iview", true, "iview.abc.net.au")]
+    AbcIview
 }

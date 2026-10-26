@@ -1,3 +1,4 @@
+using RedditPodcastPoster.AbcIview;
 using RedditPodcastPoster.AmazonPrime;
 using RedditPodcastPoster.AppleTvPlus;
 using RedditPodcastPoster.Ard;
@@ -61,7 +62,8 @@ public static class KnownStreamingServices
         AppleTvPlusStreamingService.Registration,
         ZdfStreamingService.Registration,
         ArdStreamingService.Registration,
-        CanalPlusStreamingService.Registration
+        CanalPlusStreamingService.Registration,
+        AbcIviewStreamingService.Registration
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys = StreamingServiceWire.ImageCoalesceKeys;

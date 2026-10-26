@@ -90,6 +90,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> CanalPlusCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.CanalPlus));
 
+    public static TheoryData<StreamingScraperCanonicalCase> AbcIviewCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.AbcIview));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -374,6 +377,16 @@ public static class StreamingScraperCanonicalCases
         Case(StreamingScraperProvider.CanalPlus, "anatomie-cinema",
             "https://www.canalplus.com/cinema/anatomie-dune-chute/h/17800000_50001", null,
             "Cinema path; ShowName must stay null; live scrape may 403 outside a licensed region"),
+
+        // ABC iview — /video/{id} episodes; /show/{slug} hubs
+        Case(StreamingScraperProvider.AbcIview, "you-cant-ask-that-video",
+            "https://iview.abc.net.au/video/LE1717H003S00",
+            "You Can't Ask That",
+            "Episode video path; AU free catch-up — UK/Azure OG usable in survey HTML legs"),
+        Case(StreamingScraperProvider.AbcIview, "you-cant-ask-that-show",
+            "https://iview.abc.net.au/show/you-cant-ask-that",
+            "You Can't Ask That",
+            "Show hub; ShowName from OG when present"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -410,7 +423,8 @@ public enum StreamingScraperProvider
     AppleTvPlus,
     Zdf,
     Ard,
-    CanalPlus
+    CanalPlus,
+    AbcIview
 }
 
 public sealed record StreamingScraperCanonicalCase(

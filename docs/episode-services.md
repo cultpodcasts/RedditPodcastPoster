@@ -37,7 +37,7 @@ Product canvas (website, curator UI, tweets/Bsky, shape impact, plan): [episode-
 
 ## Phase 3 (typed Episode)
 
-Leftover `urls` / top-level ids / `images` are **not** on `Episode`. `NormalizeCatalog` only drops a retired `other` catalog key and empty `ids`. Application code reads and writes `services` / nested `ids` only. Leftover JSON in Cosmos is ignored on deserialize and omitted on the next full `Save()` (wither).
+Leftover `urls` / top-level ids / `images` are **not** on `Episode`. `NormalizeCatalog` drops a retired `other` catalog key, renames legacy unknown-host slug `iviewabcnetau` → first-class `abcIview` (pre-catalog Cosmos docs from `KeyFromUnknownHost`), and clears empty `ids`. Application code reads and writes `services` / nested `ids` only. Leftover JSON in Cosmos is ignored on deserialize and omitted on the next full `Save()` (wither).
 
 Raw leftover JSON is still read by:
 

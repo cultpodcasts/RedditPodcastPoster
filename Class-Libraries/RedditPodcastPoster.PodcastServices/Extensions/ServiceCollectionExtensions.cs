@@ -39,6 +39,7 @@ using RedditPodcastPoster.PodcastServices.Merging;
 using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.AbcIview.Extensions;
 using RedditPodcastPoster.TvnzPlus.Extensions;
 using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Tubi.Extensions;
@@ -119,7 +120,8 @@ public static class ServiceCollectionExtensions
                 .AddAppleTvPlusServices()
                 .AddZdfServices()
                 .AddArdServices()
-                .AddCanalPlusServices();
+                .AddCanalPlusServices()
+                .AddAbcIviewServices();
         }
 
         public IServiceCollection AddRemoteClient()
