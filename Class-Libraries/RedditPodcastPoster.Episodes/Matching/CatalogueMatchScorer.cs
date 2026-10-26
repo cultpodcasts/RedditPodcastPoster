@@ -54,8 +54,11 @@ public static class CatalogueMatchScorer
 
     /// <summary>
     /// Absolute length delta that qualifies for <see cref="NearExactDurationPoints"/>
-    /// (stricter than the five-minute / proportional in-band window). Covers Apple
-    /// millisecond rounding vs whole-second YouTube/Spotify lengths.
+    /// (stricter than the five-minute / proportional in-band window; comparison is
+    /// strict <c>&lt;</c>). Covers Apple millisecond rounding vs whole-second
+    /// YouTube/Spotify lengths. The 30s value intentionally matches
+    /// <c>EpisodePlatformMatcher.CatalogueTimeDifferenceThreshold</c> (same knob
+    /// family for catalogue length proximity) — keep both aligned when changing.
     /// </summary>
     public static readonly TimeSpan NearExactDurationTolerance = TimeSpan.FromSeconds(30);
 
@@ -195,6 +198,7 @@ public static class CatalogueMatchScorer
         Episode? best = null;
         var bestScore = 0;
         var bestSharedSubjects = -1;
+        var bestDurationDelta = long.MaxValue;
         var bestReleaseDelta = long.MaxValue;
 
         foreach (var candidate in candidates)
@@ -206,6 +210,9 @@ public static class CatalogueMatchScorer
             }
 
             var sharedSubjects = CountSharedSubjects(probe.Subjects, candidate.Subjects, subjectFilters);
+            var durationDelta = probe.Length > TimeSpan.Zero && candidate.Length > TimeSpan.Zero
+                ? Math.Abs((candidate.Length - probe.Length).Ticks)
+                : long.MaxValue;
             var releaseDelta = probe.ReleaseUtc == DateTime.MinValue
                 ? long.MaxValue
                 : Math.Abs((candidate.ReleaseUtc - probe.ReleaseUtc).Ticks);
@@ -215,11 +222,16 @@ public static class CatalogueMatchScorer
                 (score == bestScore && sharedSubjects > bestSharedSubjects) ||
                 (score == bestScore &&
                  sharedSubjects == bestSharedSubjects &&
+                 durationDelta < bestDurationDelta) ||
+                (score == bestScore &&
+                 sharedSubjects == bestSharedSubjects &&
+                 durationDelta == bestDurationDelta &&
                  releaseDelta < bestReleaseDelta))
             {
                 best = candidate;
                 bestScore = score;
                 bestSharedSubjects = sharedSubjects;
+                bestDurationDelta = durationDelta;
                 bestReleaseDelta = releaseDelta;
             }
         }

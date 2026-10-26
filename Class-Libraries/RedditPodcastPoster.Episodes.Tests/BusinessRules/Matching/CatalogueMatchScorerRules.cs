@@ -104,6 +104,96 @@ public class CatalogueMatchScorerRules
     }
 
     [Fact(DisplayName =
+        "A duration delta equal to NearExactDurationTolerance with same-calendar-day release and " +
+        "disjoint titles does not award NearExactDurationPoints and stays below the match threshold, " +
+        "because near-exact uses strict less-than (not ≤).")]
+    public void duration_delta_exactly_at_near_exact_tolerance_does_not_award_near_exact_points()
+    {
+        // Arrange
+        const string probeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string catalogueTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
+        var probeLength = TimeSpan.FromMinutes(50);
+        var catalogueLength = probeLength + CatalogueMatchScorer.NearExactDurationTolerance;
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Description = string.Empty;
+            e.Length = probeLength;
+            e.ReleaseUtc = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = catalogueTitle;
+            e.Description = string.Empty;
+            e.Length = catalogueLength;
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        (catalogueLength - probeLength).Should().Be(CatalogueMatchScorer.NearExactDurationTolerance);
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints);
+        score.Should().BeLessThan(CatalogueMatchScorer.MatchThreshold);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A duration delta of one second under NearExactDurationTolerance with same-calendar-day release " +
+        "and disjoint titles awards NearExactDurationPoints and meets the match threshold.")]
+    public void duration_delta_one_second_under_near_exact_tolerance_meets_threshold()
+    {
+        // Arrange
+        const string probeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        const string catalogueTitle =
+            "A Decade Inside An Arranged Marriage And The Exit That Followed";
+        var probeLength = TimeSpan.FromMinutes(50);
+        var catalogueLength = probeLength + CatalogueMatchScorer.NearExactDurationTolerance - TimeSpan.FromSeconds(1);
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Description = string.Empty;
+            e.Length = probeLength;
+            e.ReleaseUtc = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = catalogueTitle;
+            e.Description = string.Empty;
+            e.Length = catalogueLength;
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        (catalogueLength - probeLength).Should().Be(TimeSpan.FromSeconds(29));
+        (catalogueLength - probeLength).Should().BeLessThan(CatalogueMatchScorer.NearExactDurationTolerance);
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.NearExactDurationPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "Near-exact duration plus weak in-window release alone stays below the match threshold, " +
         "because weak-window wrong-attach protection still requires title, description, or subjects.")]
     public void near_exact_duration_and_weak_window_alone_fails_threshold()
@@ -152,16 +242,17 @@ public class CatalogueMatchScorerRules
         "so editorial renames that keep a proper noun can still match.")]
     public void duration_same_day_and_one_shared_subject_meets_threshold()
     {
-        // Arrange
-        // Deterministic, lexically disjoint titles and subject: random fixtures could overlap and add title points.
-        var length = TimeSpan.FromMinutes(47);
+        // Arrange — in-band but not near-exact so SingleSharedSubjectPoints is the tipping signal
+        // (duration+same-day alone stay below threshold). Deterministic disjoint titles/subject.
+        var probeLength = TimeSpan.FromMinutes(47);
+        var catalogueLength = probeLength + TimeSpan.FromMinutes(2);
         var release = DomainTestFixture.UtcDateDaysAgo(1);
         const string sharedSubject = "Zanzibar Lighthouse";
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = "Quarterly Harvest Ledger";
             e.Description = string.Empty;
-            e.Length = length;
+            e.Length = probeLength;
             e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
@@ -170,7 +261,7 @@ public class CatalogueMatchScorerRules
         {
             e.Title = "Volcanic Origami Workshop";
             e.Description = string.Empty;
-            e.Length = length;
+            e.Length = catalogueLength;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [sharedSubject];
@@ -180,9 +271,9 @@ public class CatalogueMatchScorerRules
         var score = CatalogueMatchScorer.Score(probe, catalogue);
 
         // Assert
+        (catalogueLength - probeLength).Should().BeGreaterThan(CatalogueMatchScorer.NearExactDurationTolerance);
         score.Should().Be(
             CatalogueMatchScorer.DurationWithinBandPoints +
-            CatalogueMatchScorer.NearExactDurationPoints +
             CatalogueMatchScorer.SameCalendarDayReleasePoints +
             CatalogueMatchScorer.SingleSharedSubjectPoints);
         CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
@@ -320,6 +411,56 @@ public class CatalogueMatchScorerRules
         // Assert
         best.Should().BeSameAs(strong);
         none.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When two same-day near-exact catalogue candidates both meet the threshold with disjoint titles " +
+        "and equal midnight releases, SelectBestMatch prefers the closer duration delta so the winner " +
+        "is not iteration order.")]
+    public void select_best_match_prefers_closer_duration_when_score_and_subjects_tie()
+    {
+        // Arrange — both candidates score 60 (near-exact + same day); farther listed first
+        const string probeTitle =
+            "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
+        var probeLength = TimeSpan.FromMinutes(55);
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = probeTitle;
+            e.Description = string.Empty;
+            e.Length = probeLength;
+            e.ReleaseUtc = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var farther = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "A Decade Inside An Arranged Marriage And The Exit That Followed";
+            e.Description = string.Empty;
+            e.Length = probeLength + TimeSpan.FromSeconds(25);
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+        var closer = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Volcanic Origami Workshop And Saturn Fencing Almanac";
+            e.Description = string.Empty;
+            e.Length = probeLength + TimeSpan.FromSeconds(5);
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+
+        // Act — farther first so iteration order would wrongly win without duration tie-break
+        var bestFartherFirst = CatalogueMatchScorer.SelectBestMatch(probe, [farther, closer]);
+        var bestCloserFirst = CatalogueMatchScorer.SelectBestMatch(probe, [closer, farther]);
+
+        // Assert
+        CatalogueMatchScorer.Score(probe, farther).Should().Be(CatalogueMatchScorer.MatchThreshold);
+        CatalogueMatchScorer.Score(probe, closer).Should().Be(CatalogueMatchScorer.MatchThreshold);
+        bestFartherFirst.Should().BeSameAs(closer);
+        bestCloserFirst.Should().BeSameAs(closer);
     }
 
     [Fact(DisplayName =
