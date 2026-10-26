@@ -207,7 +207,8 @@ public class EpisodeFilmMoveService(
                 "{method}: Identity lookup failed for new film '{name}'; leaving blank.",
                 nameof(TryResolveNewFilmIdentity),
                 name);
-            return (null, CatalogueIdentityAdmission.Proceed());
+            // Null admission: move continues with blank identity and ApplyMissing is not called.
+            return (null, null);
         }
 
         if (admission.Hold && admission.Prompt is { Candidates.Count: > 0 } prompt)
