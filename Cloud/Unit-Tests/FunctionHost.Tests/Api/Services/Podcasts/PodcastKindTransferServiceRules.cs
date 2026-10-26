@@ -9,9 +9,12 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -26,6 +29,7 @@ public class PodcastKindTransferServiceRules
     private readonly InMemoryEpisodeRepository _episodes = new();
     private TvShow? _savedShow;
     private TvShowEpisode? _savedTvEpisode;
+    private readonly List<TvShowEpisode> _savedTvEpisodes = [];
     private NewsOrganisation? _savedOrganisation;
     private NewsReport? _savedReport;
     private readonly List<NewsReport> _savedReports = [];
@@ -53,7 +57,11 @@ public class PodcastKindTransferServiceRules
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
-            .Callback<TvShowEpisode>(episode => _savedTvEpisode = episode)
+            .Callback<TvShowEpisode>(episode =>
+            {
+                _savedTvEpisode = episode;
+                _savedTvEpisodes.Add(episode);
+            })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
@@ -122,6 +130,46 @@ public class PodcastKindTransferServiceRules
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "Transferring a podcast materialises every episode's Services from its ids before mapping, so each TV episode and its search document keep every platform in Services only.")]
+    public async Task transfer_materialises_services_from_ids_for_every_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var first = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var second = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(first, second);
+        var url = _fixture.Create<Uri>();
+        var image = _fixture.Create<Uri>();
+        _mocker.GetMock<IEpisodeServiceMaterialiser>()
+            .Setup(m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, IEnumerable<Episode>, CancellationToken>(
+                (_, items, _) =>
+                {
+                    foreach (var item in items)
+                    {
+                        EpisodeServicePresence.Upsert(item, ServiceKeys.Spotify, url, image);
+                    }
+                })
+            .Returns(Task.CompletedTask);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedTvEpisodes.Should().HaveCount(2);
+        _savedTvEpisodes.Should().OnlyContain(item =>
+            item.Services![ServiceKeys.Spotify].Url == url && item.Services[ServiceKeys.Spotify].Image == image);
+    }
     [Fact(DisplayName =
         "Transferring a podcast to a news organisation saves the organisation and report under the original guids.")]
     public async Task transfer_to_news_organisation_keeps_guids()

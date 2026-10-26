@@ -123,21 +123,65 @@ public static class EpisodeServicePresence
     }
 
     /// <summary>
-    /// Podcast episodes may have <c>ids.youtube</c> without <c>services.youtube.url</c>.
-    /// Catalogue playables (TV / film) keep Services only, so materialise the watch URL
-    /// before mapping or YouTube is dropped from the catalog.
+    /// Service keys (Spotify / Apple / YouTube) where the episode has a nested <c>ids.*</c> id but no
+    /// <c>services.{key}.url</c>. Catalogue playables (TV / film / news) keep Services only, so these are the
+    /// slots to materialise (client lookup first, <see cref="EnsureServiceUrlsFromIds"/> as the fallback)
+    /// before mapping, or that platform is dropped from the catalogue.
     /// </summary>
-    public static void EnsureYouTubeWatchUrl(Episode episode)
+    public static IReadOnlyList<string> KeysWithIdButNoUrl(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        var keys = new List<string>(3);
+        if (SpotifyEpisodeId(episode) is not null && TryGetUrl(episode, ServiceKeys.Spotify) is null)
+        {
+            keys.Add(ServiceKeys.Spotify);
+        }
+
+        if (AppleEpisodeId(episode) is not null && TryGetUrl(episode, ServiceKeys.Apple) is null)
+        {
+            keys.Add(ServiceKeys.Apple);
+        }
+
+        if (!string.IsNullOrWhiteSpace(episode.Ids?.YouTube) && TryGetUrl(episode, ServiceKeys.YouTube) is null)
+        {
+            keys.Add(ServiceKeys.YouTube);
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Deterministic fallback for <see cref="KeysWithIdButNoUrl"/> when no client could supply the real link:
+    /// fills <c>services.{key}.url</c> from the nested id (Spotify <c>open.spotify.com/episode/</c>, YouTube
+    /// <c>watch?v=</c>, Apple <c>podcast/id{show}?i={episode}</c> which needs <paramref name="applePodcastId"/>).
+    /// An existing <c>services.{key}.image</c> is kept; an existing url is never replaced. Returns true when any
+    /// url was added.
+    /// </summary>
+    public static bool EnsureServiceUrlsFromIds(Episode episode, long? applePodcastId = null)
     {
         ArgumentNullException.ThrowIfNull(episode);
         NormalizeCatalog(episode);
-        var id = episode.Ids?.YouTube;
-        if (string.IsNullOrWhiteSpace(id) || TryGetUrl(episode, ServiceKeys.YouTube) is not null)
+        var filled = false;
+        foreach (var key in KeysWithIdButNoUrl(episode))
         {
-            return;
+            var url = key switch
+            {
+                ServiceKeys.Spotify => new Uri($"https://open.spotify.com/episode/{SpotifyEpisodeId(episode)}"),
+                ServiceKeys.YouTube => new Uri($"https://www.youtube.com/watch?v={episode.Ids!.YouTube}"),
+                ServiceKeys.Apple when applePodcastId is > 0 =>
+                    new Uri($"https://podcasts.apple.com/podcast/id{applePodcastId}?i={AppleEpisodeId(episode)}"),
+                _ => null
+            };
+            if (url is null)
+            {
+                continue;
+            }
+
+            Upsert(episode, key, url, null);
+            filled = true;
         }
 
-        Upsert(episode, ServiceKeys.YouTube, new Uri($"https://www.youtube.com/watch?v={id}"), null);
+        return filled;
     }
 
     public static ServiceUrls ToServiceUrls(Episode episode)

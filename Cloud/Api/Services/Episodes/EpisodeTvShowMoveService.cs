@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -50,6 +51,7 @@ public class EpisodeTvShowMoveService(
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
+    IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     ILogger<EpisodeTvShowMoveService> logger) : IEpisodeTvShowMoveService
 {
     public async Task<EpisodeTvShowMoveResult> MoveAsync(
@@ -130,9 +132,9 @@ public class EpisodeTvShowMoveService(
             }
             else
             {
-                // TV episodes have Services only (no nested ids). Materialise watch?v= from
-                // ids.youtube when services.youtube.url is missing so search/Watch keep YouTube.
-                EpisodeServicePresence.EnsureYouTubeWatchUrl(episode);
+                // TV episodes have Services only (no nested ids). Materialise Spotify / Apple / YouTube url + image
+                // from ids (clients first) so search/Watch keep every platform after the move.
+                await episodeServiceMaterialiser.MaterialiseAsync(podcast, episode, cancellationToken);
                 tvEpisode = CatalogueParentKindMapper.ToTvShowEpisode(episode, show!);
                 if (!string.IsNullOrWhiteSpace(request.Title))
                 {

@@ -17,6 +17,7 @@ using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -183,16 +184,40 @@ public class EpisodeTvShowMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "Moving an episode that has ids.youtube but no services.youtube.url materialises a watch URL on the TV episode, because TV playables keep Services only and would otherwise lose YouTube.")]
-    public async Task move_materialises_youtube_watch_url_from_ids_when_services_url_missing()
+        "Moving an episode asks the materialiser to turn its Spotify, Apple and YouTube ids into Services url and image before mapping, so the TV episode keeps every platform in Services only.")]
+    public async Task move_materialises_services_from_ids_before_mapping()
     {
         // Arrange
         var show = SeedShow();
         var (podcast, episode) = SeedEpisode(item =>
         {
-            EpisodeServicePresence.Upsert(item, ServiceKeys.YouTube, null, null);
+            item.Services = null;
+            item.Ids = new EpisodeIds
+            {
+                Spotify = _fixture.CreateSpotifyId(),
+                Apple = _fixture.CreateAppleId(),
+                YouTube = _fixture.CreateYouTubeId()
+            };
         });
-        var youTubeId = episode.Ids!.YouTube!;
+        var materialised = new Dictionary<string, (Uri Url, Uri Image)>
+        {
+            [ServiceKeys.Spotify] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.Apple] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.YouTube] = (_fixture.Create<Uri>(), _fixture.Create<Uri>())
+        };
+        _mocker.GetMock<IEpisodeServiceMaterialiser>()
+            .Setup(m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, Episode, CancellationToken>((_, item, _) =>
+            {
+                foreach (var (key, (url, image)) in materialised)
+                {
+                    EpisodeServicePresence.Upsert(item, key, url, image);
+                }
+            })
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await MoveToShow(podcast.Id, episode.Id, show.Id);
@@ -200,10 +225,31 @@ public class EpisodeTvShowMoveServiceRules
         // Assert
         result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
         var tvEpisode = _savedTvEpisodes.Should().ContainSingle().Subject;
-        tvEpisode.Services.Should().ContainKey(ServiceKeys.YouTube);
-        tvEpisode.Services![ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(youTubeId));
+        foreach (var (key, (url, image)) in materialised)
+        {
+            tvEpisode.Services.Should().ContainKey(key);
+            tvEpisode.Services![key].Url.Should().Be(url);
+            tvEpisode.Services[key].Image.Should().Be(image);
+        }
     }
 
+    [Fact(DisplayName =
+        "Moving an episode whose Services already carry an image keeps that image on the TV episode, because images come over from the episode.")]
+    public async Task move_keeps_existing_service_images()
+    {
+        // Arrange
+        var show = SeedShow();
+        var image = _fixture.Create<Uri>();
+        var (podcast, episode) = SeedEpisode(item =>
+            EpisodeServicePresence.Upsert(item, ServiceKeys.YouTube, null, image));
+
+        // Act
+        await MoveToShow(podcast.Id, episode.Id, show.Id);
+
+        // Assert
+        var tvEpisode = _savedTvEpisodes.Should().ContainSingle().Subject;
+        tvEpisode.Services![ServiceKeys.YouTube].Image.Should().Be(image);
+    }
     [Fact(DisplayName =
         "A TV show name without createShow attaches to the one show with that name, case-insensitively, so the TV-show picker can send the suggested name.")]
     public async Task name_attaches_to_existing_show_case_insensitively()

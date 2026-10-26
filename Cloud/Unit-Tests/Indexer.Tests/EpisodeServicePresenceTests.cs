@@ -227,4 +227,51 @@ public class EpisodeServicePresenceTests
         // Assert
         id.Should().Be(videoId);
     }
+
+    [Fact(DisplayName =
+        "KeysWithIdButNoUrl lists exactly the platforms that have a nested id and no services url, so only those are materialised on Move.")]
+    public void keys_with_id_but_no_url_lists_only_platforms_missing_a_url()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisode(_fixture.CreatePodcast());
+        episode.Services = null;
+        episode.Ids = new EpisodeIds
+        {
+            Spotify = _fixture.CreateSpotifyId(),
+            Apple = _fixture.CreateAppleId(),
+            YouTube = _fixture.CreateYouTubeId()
+        };
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, _fixture.Create<Uri>(), null);
+
+        // Act
+        var keys = EpisodeServicePresence.KeysWithIdButNoUrl(episode);
+
+        // Assert
+        keys.Should().BeEquivalentTo([ServiceKeys.Spotify, ServiceKeys.YouTube]);
+    }
+
+    [Fact(DisplayName =
+        "EnsureServiceUrlsFromIds fills a missing url from the id and keeps an existing image and any existing url, so an image-only slot becomes playable without losing its cover art.")]
+    public void ensure_service_urls_from_ids_keeps_images_and_existing_urls()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisode(_fixture.CreatePodcast());
+        episode.Services = null;
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        episode.Ids = new EpisodeIds { Spotify = spotifyId, YouTube = youTubeId };
+        var spotifyImage = _fixture.Create<Uri>();
+        var youTubeUrl = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, spotifyImage);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, youTubeUrl, null);
+
+        // Act
+        var filled = EpisodeServicePresence.EnsureServiceUrlsFromIds(episode);
+
+        // Assert
+        filled.Should().BeTrue();
+        episode.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
+        episode.Services[ServiceKeys.Spotify].Image.Should().Be(spotifyImage);
+        episode.Services[ServiceKeys.YouTube].Url.Should().Be(youTubeUrl);
+    }
 }

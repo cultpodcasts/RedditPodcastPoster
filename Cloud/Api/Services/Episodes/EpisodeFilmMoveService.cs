@@ -7,6 +7,7 @@ using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -40,6 +41,7 @@ public class EpisodeFilmMoveService(
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
+    IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -118,9 +120,9 @@ public class EpisodeFilmMoveService(
                         "A film with this name already exists");
                 }
 
-                // Films keep Services only (no nested ids). Materialise watch?v= from ids.youtube
-                // when services.youtube.url is missing so search/Watch keep YouTube after the move.
-                EpisodeServicePresence.EnsureYouTubeWatchUrl(episode);
+                // Films keep Services only (no nested ids). Materialise Spotify / Apple / YouTube url + image
+                // from ids (clients first) so search/Watch keep every platform after the move.
+                await episodeServiceMaterialiser.MaterialiseAsync(podcast, episode, cancellationToken);
                 film = CatalogueParentKindMapper.ToFilm(podcast, episode);
                 film.Name = name;
                 film.FileKey = FileKeyFactory.GetFilmFileKey(name);

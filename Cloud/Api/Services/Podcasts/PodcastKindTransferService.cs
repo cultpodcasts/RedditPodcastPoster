@@ -9,6 +9,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 
 namespace Api.Services.Podcasts;
@@ -21,6 +22,7 @@ public class PodcastKindTransferService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IPlayableSearchDocumentSwap searchSwap,
+    IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
     public async Task<PodcastKindTransferResult> TransferAsync(
@@ -136,6 +138,10 @@ public class PodcastKindTransferService(
                 podcast.Id,
                 targetKind);
         }
+
+        // Playables keep Services only. Materialise Spotify / Apple / YouTube url + image from nested ids (clients
+        // first) before mapping, so the playables and the search documents (built from these episodes) keep every platform.
+        await episodeServiceMaterialiser.MaterialiseAsync(podcast, episodes, cancellationToken);
 
         var parent = mapParent(podcast);
         var playables = episodes

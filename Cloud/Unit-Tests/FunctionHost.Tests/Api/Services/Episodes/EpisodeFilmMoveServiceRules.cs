@@ -16,6 +16,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
@@ -125,16 +126,40 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "Moving an episode that has ids.youtube but no services.youtube.url materialises a watch URL on the film, because films keep Services only and would otherwise lose YouTube.")]
-    public async Task move_materialises_youtube_watch_url_from_ids_when_services_url_missing()
+        "Moving an episode asks the materialiser to turn its Spotify, Apple and YouTube ids into Services url and image before mapping, so the film keeps every platform in Services only.")]
+    public async Task move_materialises_services_from_ids_before_mapping()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
-        var youTubeId = episode.Ids!.YouTube!;
+        episode.Services = null;
+        episode.Ids = new EpisodeIds
+        {
+            Spotify = _fixture.CreateSpotifyId(),
+            Apple = _fixture.CreateAppleId(),
+            YouTube = _fixture.CreateYouTubeId()
+        };
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
+        var materialised = new Dictionary<string, (Uri Url, Uri Image)>
+        {
+            [ServiceKeys.Spotify] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.Apple] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.YouTube] = (_fixture.Create<Uri>(), _fixture.Create<Uri>())
+        };
+        _mocker.GetMock<IEpisodeServiceMaterialiser>()
+            .Setup(m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, Episode, CancellationToken>((_, item, _) =>
+            {
+                foreach (var (key, (url, image)) in materialised)
+                {
+                    EpisodeServicePresence.Upsert(item, key, url, image);
+                }
+            })
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await Move(podcast.Id, episode.Id);
@@ -142,10 +167,33 @@ public class EpisodeFilmMoveServiceRules
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
         var film = _savedFilms.Should().ContainSingle().Subject;
-        film.Services.Should().ContainKey(ServiceKeys.YouTube);
-        film.Services![ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(youTubeId));
+        foreach (var (key, (url, image)) in materialised)
+        {
+            film.Services.Should().ContainKey(key);
+            film.Services![key].Url.Should().Be(url);
+            film.Services[key].Image.Should().Be(image);
+        }
     }
 
+    [Fact(DisplayName =
+        "Moving an episode whose Services already carry an image keeps that image on the film, because images come over from the episode.")]
+    public async Task move_keeps_existing_service_images()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var image = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, image);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        await Move(podcast.Id, episode.Id);
+
+        // Assert
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.Services![ServiceKeys.YouTube].Image.Should().Be(image);
+    }
     [Fact(DisplayName =
         "Move to film fills IMDb/TMDB from a confident identity match (same as URL-submit film create), so the curator need not pick a candidate.")]
     public async Task move_applies_confident_film_identity()

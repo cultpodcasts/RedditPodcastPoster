@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
                 .AddScoped<IPodcastServicesEpisodeEnricher, PodcastServicesEpisodeEnricher>()
                 .AddScoped<IStreamingServiceMetaDataHandler, StreamingServiceMetaDataHandler>()
                 .AddScoped<IImageUpdater, ImageUpdater>()
+                .AddScoped<IEpisodeServiceMaterialiser, EpisodeServiceMaterialiser>()
                 .AddScoped<IIndexablePodcastIdProvider, IndexablePodcastIdProvider>()
                 .BindConfiguration<PodcastUpdateBudgetOptions>(PodcastUpdateBudgetOptions.SectionName)
                 .BindConfiguration<PodcastIndexingStageLogOptions>(PodcastIndexingStageLogOptions.SectionName)
