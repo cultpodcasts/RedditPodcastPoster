@@ -7,8 +7,14 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <summary>
 /// Multi-criteria score for YouTube-discovered Spotify/Apple catalogue enrichment.
 /// Signals add; match when total ≥ <see cref="MatchThreshold"/>.
-/// Duration + in-window release alone stays below threshold (Aug 2026 wrong-attach protection).
-/// Title, description, or subject similarity supply the remaining confidence.
+/// Duration within the proportional band plus same-calendar-day release alone stays below
+/// threshold (Aug 2026 wrong-attach protection) unless the lengths are also
+/// <see cref="NearExactDurationTolerance"/>-near — then
+/// <see cref="NearExactDurationPoints"/> lifts duration+same-day to the threshold so
+/// YouTube-authority shows with disjoint marketing titles but near-identical audio/video
+/// length still enrich (aligned in spirit with <see cref="CrossPlatformMatchScorer"/>
+/// duration+same-day = 60, without awarding same-day-alone credit to merely in-band lengths).
+/// Title, description, or subject similarity also supply the remaining confidence.
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
@@ -33,12 +39,28 @@ public static class CatalogueMatchScorer
 
     public const int DurationWithinBandPoints = 30;
     public const int SameCalendarDayReleasePoints = 25;
+    /// <summary>
+    /// Extra confidence when both lengths are within <see cref="NearExactDurationTolerance"/>.
+    /// With same-calendar-day release: 30 + 25 + 5 = <see cref="MatchThreshold"/>.
+    /// Weak in-window release alone still stays below (30 + 15 + 5 = 50).
+    /// </summary>
+    public const int NearExactDurationPoints = 5;
     public const int WeakInWindowReleasePoints = 15;
     public const int FuzzyTitlePoints = 25;
     public const int SubstringTitlePoints = 20;
     public const int FuzzyDescriptionPoints = FuzzyTitlePoints;
     public const int SingleSharedSubjectPoints = 15;
     public const int MultipleSharedSubjectPoints = 25;
+
+    /// <summary>
+    /// Absolute length delta that qualifies for <see cref="NearExactDurationPoints"/>
+    /// (stricter than the five-minute / proportional in-band window; comparison is
+    /// strict <c>&lt;</c>). Covers Apple millisecond rounding vs whole-second
+    /// YouTube/Spotify lengths. The 30s value intentionally matches
+    /// <c>EpisodePlatformMatcher.CatalogueTimeDifferenceThreshold</c> (same knob
+    /// family for catalogue length proximity) — keep both aligned when changing.
+    /// </summary>
+    public static readonly TimeSpan NearExactDurationTolerance = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Extra confidence when duration did not contribute (missing or out-of-band) but description
@@ -91,13 +113,16 @@ public static class CatalogueMatchScorer
         var probeHasDuration = probe.Length > TimeSpan.Zero;
         var catalogueHasDuration = catalogueItem.Length > TimeSpan.Zero;
         var durationInBand = false;
+        var durationNearExact = false;
 
         if (probeHasDuration && catalogueHasDuration)
         {
+            var durationDeltaTicks = Math.Abs((catalogueItem.Length - probe.Length).Ticks);
             var band = GetDurationBand(probe.Length, catalogueItem.Length);
-            if (Math.Abs((catalogueItem.Length - probe.Length).Ticks) < band.Ticks)
+            if (durationDeltaTicks < band.Ticks)
             {
                 durationInBand = true;
+                durationNearExact = durationDeltaTicks < NearExactDurationTolerance.Ticks;
             }
         }
 
@@ -121,6 +146,11 @@ public static class CatalogueMatchScorer
         }
 
         var score = durationInBand ? DurationWithinBandPoints : 0;
+        if (durationNearExact)
+        {
+            score += NearExactDurationPoints;
+        }
+
         score += releasePoints;
         score += ScoreTitle(probe.Title, catalogueItem.Title);
         score += descriptionPoints;
@@ -168,6 +198,7 @@ public static class CatalogueMatchScorer
         Episode? best = null;
         var bestScore = 0;
         var bestSharedSubjects = -1;
+        var bestDurationDelta = long.MaxValue;
         var bestReleaseDelta = long.MaxValue;
 
         foreach (var candidate in candidates)
@@ -179,6 +210,9 @@ public static class CatalogueMatchScorer
             }
 
             var sharedSubjects = CountSharedSubjects(probe.Subjects, candidate.Subjects, subjectFilters);
+            var durationDelta = probe.Length > TimeSpan.Zero && candidate.Length > TimeSpan.Zero
+                ? Math.Abs((candidate.Length - probe.Length).Ticks)
+                : long.MaxValue;
             var releaseDelta = probe.ReleaseUtc == DateTime.MinValue
                 ? long.MaxValue
                 : Math.Abs((candidate.ReleaseUtc - probe.ReleaseUtc).Ticks);
@@ -188,11 +222,16 @@ public static class CatalogueMatchScorer
                 (score == bestScore && sharedSubjects > bestSharedSubjects) ||
                 (score == bestScore &&
                  sharedSubjects == bestSharedSubjects &&
+                 durationDelta < bestDurationDelta) ||
+                (score == bestScore &&
+                 sharedSubjects == bestSharedSubjects &&
+                 durationDelta == bestDurationDelta &&
                  releaseDelta < bestReleaseDelta))
             {
                 best = candidate;
                 bestScore = score;
                 bestSharedSubjects = sharedSubjects;
+                bestDurationDelta = durationDelta;
                 bestReleaseDelta = releaseDelta;
             }
         }

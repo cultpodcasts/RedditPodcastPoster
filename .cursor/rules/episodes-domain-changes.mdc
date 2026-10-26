@@ -85,7 +85,7 @@ Implement only after explicit approval.
 | Disjoint titles on cross-platform release+duration path | Block | `HasCrossPlatformTitleConfidence` (fuzzy **or** substring) |
 | YouTube-authority index | Apple + Spotify catalogue pass | `EpisodeProvider` fetches Apple/Spotify for negative-delay merge (not only enrichment) |
 | YouTube-stored + Apple-incoming release | `AppleCatalogueReleaseMatchStrategy` | Same offset-adjusted calendar-day logic as Spotify via `AudioCatalogueReleaseMatches` |
-| YouTube-discovered enrichment catalogue lookup | Title required before duration/release snipe | `HasCatalogueTitleConfidence` gates `FindYouTubeDiscoveredCatalogueMatch` |
+| YouTube-discovered enrichment catalogue lookup | Composite via `CatalogueMatchScorer` (≥ `MatchThreshold`) | Near-exact duration (`NearExactDurationTolerance`, strict `<`) + same-calendar-day clears threshold without title; merely in-band duration + same day still does not (Aug 2026). Title / description / subjects also contribute. Gate is `CatalogueMatchScorer` → `FindYouTubeDiscoveredCatalogueMatch` — not a separate title-only helper. |
 
 **Duration:** YouTube-only ↔ audio-only pairs use 5-minute cross-platform tolerance (strict less-than). A matching title with duration far outside that band indicates a **clip or excerpt**, not the same catalogue row.
 

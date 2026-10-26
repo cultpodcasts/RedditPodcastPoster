@@ -55,20 +55,47 @@ public class CatalogueEpisodeMatcherRules
     }
 
     [Fact(DisplayName =
-        "Incident (Aug 2026): when enriching a YouTube-discovered episode, a sole same-day row with the same duration but a " +
-        "divergent title and no shared subjects is not selected.")]
-    public void Youtube_enrichment_rejects_unique_duration_without_title_confidence()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode, a sole same-day row with in-band but not " +
+        "near-exact duration, a divergent title, and no shared subjects is not selected.")]
+    public void Youtube_enrichment_rejects_in_band_not_near_exact_duration_without_title_confidence()
     {
-        // Arrange
-        var length = TimeSpan.FromMinutes(44);
-        var lookup = Lookup(YouTubeTitle, DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10)), length, Service.Spotify, enriching: true);
-        var candidate = Audio(DisjointAudioTitle, DomainTestFixture.UtcDateDaysAgo(2), length);
+        // Arrange — ~2m gap stays in the five-minute band but outside near-exact tolerance
+        var probeLength = TimeSpan.FromMinutes(44);
+        var candidateLength = probeLength + TimeSpan.FromMinutes(2);
+        var lookup = Lookup(YouTubeTitle, DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(10)), probeLength, Service.Spotify, enriching: true);
+        var candidate = Audio(DisjointAudioTitle, DomainTestFixture.UtcDateDaysAgo(2), candidateLength);
 
         // Act
         var result = _sut.Match(lookup, Probe(lookup), [candidate], null);
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode, a sole same-day row with near-exact duration is selected " +
+        "even with a divergent marketing title and no shared subjects.")]
+    public void Youtube_enrichment_accepts_near_exact_duration_same_day_disjoint_marketing_titles()
+    {
+        // Arrange
+        var length = TimeSpan.FromSeconds(4149);
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(15));
+        var lookup = Lookup(
+            "How Brands Are Brainwashing You About Consumer Habits And Influence",
+            probeRelease,
+            length,
+            Service.Spotify,
+            enriching: true);
+        var candidate = Audio(
+            "Hoodwinked: A Conversation About Marketing Influence And Persuasion Tactics",
+            DomainTestFixture.SameCalendarDateWithTime(probeRelease, TimeSpan.FromHours(9)),
+            length);
+
+        // Act
+        var result = _sut.Match(lookup, Probe(lookup), [candidate], null);
+
+        // Assert
+        result.Should().BeSameAs(candidate);
     }
 
     [Fact(DisplayName =
