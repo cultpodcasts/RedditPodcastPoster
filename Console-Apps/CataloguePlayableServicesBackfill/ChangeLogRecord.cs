@@ -17,6 +17,10 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("backupPath")]
     public required string BackupPath { get; init; }
 
+    [JsonPropertyName("publicDatabasePath")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string PublicDatabasePath { get; init; } = string.Empty;
+
     [JsonPropertyName("changes")]
     public required IReadOnlyList<ServiceFieldChange> Changes { get; init; }
 

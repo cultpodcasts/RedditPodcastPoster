@@ -21,8 +21,9 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
     int FailedWrites);
 
 /// <summary>
-/// Cosmos-first repair: scan Film / TvShowEpisode / NewsReport, diff against episode backup JSON,
-/// carry service url/image discrepancies onto the live entity. Dry-run by default.
+/// Cosmos-first repair: scan Film / TvShowEpisode / NewsReport, diff against episode backup JSON
+/// and/or PublicDatabase urls, carry service url/image discrepancies onto the live entity.
+/// Dry-run by default.
 /// </summary>
 public class CataloguePlayableServicesBackfillProcessor(
     IFilmRepository filmRepository,
@@ -42,9 +43,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         CataloguePlayableServicesBackfillRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
+        var hasEpisodeBackup = !string.IsNullOrWhiteSpace(request.EpisodeBackupDir);
+        var hasPublicDatabase = !string.IsNullOrWhiteSpace(request.PublicDatabaseDir);
+        if (!hasEpisodeBackup && !hasPublicDatabase)
         {
-            logger.LogError("CataloguePlayableServicesBackfill requires --episode-backup-dir.");
+            logger.LogError(
+                "CataloguePlayableServicesBackfill requires --episode-backup-dir and/or --public-database-dir.");
             return Empty(ExitBadArguments);
         }
 
@@ -67,6 +71,20 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             logger.LogError("CataloguePlayableServicesBackfill --limit must be >= 0.");
             return Empty(ExitBadArguments);
+        }
+
+        IPublicDatabaseUrlIndex publicIndex = EmptyPublicDatabaseUrlIndex.Instance;
+        if (hasPublicDatabase)
+        {
+            try
+            {
+                publicIndex = FilePublicDatabaseUrlIndex.Load(request.PublicDatabaseDir!);
+            }
+            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+            {
+                logger.LogError(ex, "CataloguePlayableServicesBackfill failed to load --public-database-dir.");
+                return Empty(ExitBadArguments);
+            }
         }
 
         HashSet<Guid>? idFilter = null;
@@ -119,6 +137,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         Film? savedFilm = null;
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.Film,
                             film.Id,
@@ -161,6 +180,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         LogProgress(scanned, progressEvery);
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.TvShowEpisode,
                             episode.Id,
@@ -199,6 +219,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                         LogProgress(scanned, progressEvery);
                         var outcome = await ProcessOne(
                             request,
+                            publicIndex,
                             changeLog,
                             PlayableKind.NewsReport,
                             report.Id,
@@ -232,6 +253,7 @@ public class CataloguePlayableServicesBackfillProcessor(
 
     private async Task<ProcessOutcome> ProcessOne(
         CataloguePlayableServicesBackfillRequest request,
+        IPublicDatabaseUrlIndex publicIndex,
         IChangeLogWriter changeLog,
         PlayableKind kind,
         Guid id,
@@ -241,15 +263,33 @@ public class CataloguePlayableServicesBackfillProcessor(
         Func<RedditPodcastPoster.Search.Models.EpisodeSearchRecord?> buildSearchDocument,
         CancellationToken cancellationToken)
     {
-        var backupPath = backupStore.ResolvePath(request.EpisodeBackupDir, id);
-        if (backupPath is null || !backupStore.TryLoadServices(backupPath, out var backupServices))
+        Dictionary<string, ServiceLink>? episodeBackup = null;
+        string backupPath = string.Empty;
+        if (!string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
+        {
+            var resolved = backupStore.ResolvePath(request.EpisodeBackupDir, id);
+            if (resolved is not null && backupStore.TryLoadServices(resolved, out var loaded))
+            {
+                backupPath = resolved;
+                episodeBackup = loaded;
+            }
+        }
+
+        PublicUrlHit? publicHit = null;
+        if (publicIndex.TryGet(id, out var hit))
+        {
+            publicHit = hit;
+        }
+
+        if (episodeBackup is null && publicHit is null)
         {
             await changeLog.WriteAsync(new ChangeLogRecord
             {
                 Kind = PlayableKindParser.ToWire(kind),
                 Id = id,
                 ParentId = parentId,
-                BackupPath = backupPath ?? string.Empty,
+                BackupPath = backupPath,
+                PublicDatabasePath = string.Empty,
                 Changes = [],
                 Applied = false,
                 Utc = timeProvider.GetUtcNow(),
@@ -258,7 +298,8 @@ public class CataloguePlayableServicesBackfillProcessor(
             return ProcessOutcome.MissingBackup;
         }
 
-        var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, backupServices);
+        var truth = TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls);
+        var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, truth);
         if (!carry.HasChanges)
         {
             return ProcessOutcome.Identical;
@@ -275,6 +316,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                 cancellationToken);
         }
 
+        var publicPath = publicHit?.FilePath ?? string.Empty;
         var applied = false;
         var searchOk = false;
         if (request.Apply)
@@ -285,10 +327,10 @@ public class CataloguePlayableServicesBackfillProcessor(
                 if (!saved)
                 {
                     logger.LogError(
-                        "Failed to save {Kind} {Id} after carrying services from {BackupPath}.",
-                        kind, id, backupPath);
-                    await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied: false,
-                        cancellationToken);
+                        "Failed to save {Kind} {Id} after carrying services from backup={BackupPath} public={PublicPath}.",
+                        kind, id, backupPath, publicPath);
+                    await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                        applied: false, cancellationToken);
                     return ProcessOutcome.FailedWrite;
                 }
 
@@ -309,13 +351,14 @@ public class CataloguePlayableServicesBackfillProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to apply services carry for {Kind} {Id}.", kind, id);
-                await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied: false,
-                    cancellationToken);
+                await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                    applied: false, cancellationToken);
                 return ProcessOutcome.FailedWrite;
             }
         }
 
-        await WriteChange(changeLog, kind, id, parentId, backupPath, carry.Changes, applied, cancellationToken);
+        await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes, applied,
+            cancellationToken);
         return applied
             ? (searchOk ? ProcessOutcome.AppliedWithSearch : ProcessOutcome.Applied)
             : ProcessOutcome.DiscrepancyDryRun;
@@ -327,6 +370,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         Guid id,
         Guid? parentId,
         string backupPath,
+        string publicDatabasePath,
         IReadOnlyList<ServiceFieldChange> changes,
         bool applied,
         CancellationToken cancellationToken) =>
@@ -336,6 +380,7 @@ public class CataloguePlayableServicesBackfillProcessor(
             Id = id,
             ParentId = parentId,
             BackupPath = backupPath,
+            PublicDatabasePath = publicDatabasePath,
             Changes = changes,
             Applied = applied,
             Utc = timeProvider.GetUtcNow()
