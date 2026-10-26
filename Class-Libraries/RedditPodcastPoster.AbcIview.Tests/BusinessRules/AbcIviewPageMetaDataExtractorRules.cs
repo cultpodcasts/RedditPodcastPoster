@@ -47,7 +47,30 @@ public class AbcIviewPageMetaDataExtractorRules
         meta.Title.Should().Be(title);
         meta.Publisher.Should().Be("ABC iview");
         meta.ShowName.Should().BeNull();
+        meta.MadeAsFilm.Should().BeFalse();
         _handler.LastRequestUri.Should().Be(url);
+    }
+
+    [Fact(DisplayName =
+        "ABC iview film pages set MadeAsFilm and leave ShowName unset when the primary catalogue type is Movie, " +
+        "so a flagged submit can store a Film instead of a series episode.")]
+    public async Task film_page_sets_made_as_film()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://iview.abc.net.au/video/{_fixture.CreateYouTubeId()}");
+        _handler.Response = OkHtml(
+            $"<html><head><meta property=\"og:title\" content=\"{title}\" /></head>" +
+            $"<body><div>{{\"@type\":\"Movie\",\"name\":\"{title}\"}}</div></body></html>");
+        var sut = _mocker.CreateInstance<AbcIviewPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.MadeAsFilm.Should().BeTrue();
+        meta.ShowName.Should().BeNull();
+        meta.Title.Should().Be(title);
     }
 
     [Fact(DisplayName =

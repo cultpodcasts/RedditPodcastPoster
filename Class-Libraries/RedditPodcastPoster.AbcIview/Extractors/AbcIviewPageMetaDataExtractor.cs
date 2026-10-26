@@ -81,7 +81,8 @@ internal static partial class AbcIviewCatalogMeta
             openGraph?.Image,
             openGraph?.Explicit,
             AbcIviewPageMetaDataExtractor.Publisher,
-            showName);
+            showName,
+            MadeAsFilm: IsMovie(html));
     }
 
     public static bool IsMovie(string html)

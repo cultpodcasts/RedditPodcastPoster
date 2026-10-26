@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 
@@ -17,13 +16,13 @@ public class EpisodeServicePresenceNormalizeRules
     {
         // Arrange
         var url = new Uri($"https://iview.abc.net.au/video/{_fixture.CreateYouTubeId()}");
-        var episode = new Episode
+        var episode = _fixture.CreateEpisode(e =>
         {
-            Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
+            e.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
             {
                 ["iviewabcnetau"] = new ServiceLink { Url = url }
-            }
-        };
+            };
+        });
 
         // Act
         EpisodeServicePresence.NormalizeCatalog(episode);
@@ -44,14 +43,14 @@ public class EpisodeServicePresenceNormalizeRules
         var catalogUrl = new Uri($"https://iview.abc.net.au/video/{_fixture.CreateYouTubeId()}");
         var legacyUrl = new Uri($"https://iview.abc.net.au/video/{_fixture.CreateYouTubeId()}");
         var catalogKey = StreamingServiceWire.ToKey(StreamingService.AbcIview);
-        var episode = new Episode
+        var episode = _fixture.CreateEpisode(e =>
         {
-            Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
+            e.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
             {
                 [catalogKey] = new ServiceLink { Url = catalogUrl },
                 ["iviewabcnetau"] = new ServiceLink { Url = legacyUrl }
-            }
-        };
+            };
+        });
 
         // Act
         EpisodeServicePresence.NormalizeCatalog(episode);
