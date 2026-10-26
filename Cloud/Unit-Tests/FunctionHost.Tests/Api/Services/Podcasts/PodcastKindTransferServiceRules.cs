@@ -14,7 +14,6 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -131,31 +130,25 @@ public class PodcastKindTransferServiceRules
     }
 
     [Fact(DisplayName =
-        "Transferring a podcast materialises every episode's Services from its ids before mapping, so each TV episode and its search document keep every platform in Services only.")]
-    public async Task transfer_materialises_services_from_ids_for_every_episode()
+        "Transferring a podcast fills missing Services urls from nested ids (deterministic, no platform clients) before mapping, so each TV episode keeps every platform in Services only without sequential Spotify/Apple/YouTube lookups.")]
+    public async Task transfer_fills_service_urls_from_ids_for_every_episode()
     {
         // Arrange
-        var podcast = _fixture.CreatePodcast();
+        var appleShowId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = appleShowId);
+        var firstSpotify = _fixture.CreateSpotifyId();
+        var firstYouTube = _fixture.CreateYouTubeId();
+        var firstApple = _fixture.CreateAppleId();
+        var secondSpotify = _fixture.CreateSpotifyId();
+        var secondYouTube = _fixture.CreateYouTubeId();
         var first = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        first.Services = null;
+        first.Ids = new EpisodeIds { Spotify = firstSpotify, Apple = firstApple, YouTube = firstYouTube };
         var second = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        second.Services = null;
+        second.Ids = new EpisodeIds { Spotify = secondSpotify, YouTube = secondYouTube };
         _podcasts.Seed(podcast);
         _episodes.Seed(first, second);
-        var url = _fixture.Create<Uri>();
-        var image = _fixture.Create<Uri>();
-        _mocker.GetMock<IEpisodeServiceMaterialiser>()
-            .Setup(m => m.MaterialiseAsync(
-                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
-                It.IsAny<IEnumerable<Episode>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, IEnumerable<Episode>, CancellationToken>(
-                (_, items, _) =>
-                {
-                    foreach (var item in items)
-                    {
-                        EpisodeServicePresence.Upsert(item, ServiceKeys.Spotify, url, image);
-                    }
-                })
-            .Returns(Task.CompletedTask);
         var sut = _mocker.CreateInstance<PodcastKindTransferService>();
 
         // Act
@@ -167,8 +160,14 @@ public class PodcastKindTransferServiceRules
         // Assert
         result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
         _savedTvEpisodes.Should().HaveCount(2);
-        _savedTvEpisodes.Should().OnlyContain(item =>
-            item.Services![ServiceKeys.Spotify].Url == url && item.Services[ServiceKeys.Spotify].Image == image);
+        var savedFirst = _savedTvEpisodes.Single(item => item.Id == first.Id);
+        savedFirst.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(firstSpotify));
+        savedFirst.Services[ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(firstYouTube));
+        savedFirst.Services[ServiceKeys.Apple].Url.Should()
+            .Be(new Uri($"https://podcasts.apple.com/podcast/id{appleShowId}?i={firstApple}"));
+        var savedSecond = _savedTvEpisodes.Single(item => item.Id == second.Id);
+        savedSecond.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(secondSpotify));
+        savedSecond.Services[ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(secondYouTube));
     }
     [Fact(DisplayName =
         "Transferring a podcast to a news organisation saves the organisation and report under the original guids.")]

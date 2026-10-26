@@ -173,6 +173,13 @@ public class EpisodeFilmMoveServiceRules
             film.Services![key].Url.Should().Be(url);
             film.Services[key].Image.Should().Be(image);
         }
+
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -229,6 +236,12 @@ public class EpisodeFilmMoveServiceRules
         var film = _savedFilms.Should().ContainSingle().Subject;
         film.ImdbId.Should().Be(imdb);
         film.TmdbId.Should().Be(tmdb);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -273,6 +286,12 @@ public class EpisodeFilmMoveServiceRules
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()),
             Times.Never);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =
@@ -313,6 +332,12 @@ public class EpisodeFilmMoveServiceRules
         film.ImdbId.Should().Be(imdb);
         film.TmdbId.Should().Be(tmdb);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -339,6 +364,12 @@ public class EpisodeFilmMoveServiceRules
         var film = _savedFilms.Should().ContainSingle().Subject;
         film.ImdbId.Should().BeNull();
         film.TmdbId.Should().BeNull();
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =
@@ -362,6 +393,12 @@ public class EpisodeFilmMoveServiceRules
             e => e.ResolveFilmAsync(
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
     }
 

@@ -9,11 +9,16 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 
 namespace Api.Services.Podcasts;
 
+/// <summary>
+/// Transfers a podcast parent and its episodes to TV or News. Playables keep Services only; before mapping,
+/// each episode gets deterministic <c>services.*.url</c> from nested ids via
+/// <see cref="EpisodeServicePresence.EnsureServiceUrlsFromIds"/> (no Spotify / Apple / YouTube client calls).
+/// Client materialisation remains on single-episode Move, where one episode's quota cost is acceptable.
+/// </summary>
 public class PodcastKindTransferService(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
@@ -22,7 +27,6 @@ public class PodcastKindTransferService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IPlayableSearchDocumentSwap searchSwap,
-    IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
     public async Task<PodcastKindTransferResult> TransferAsync(
@@ -139,9 +143,12 @@ public class PodcastKindTransferService(
                 targetKind);
         }
 
-        // Playables keep Services only. Materialise Spotify / Apple / YouTube url + image from nested ids (clients
-        // first) before mapping, so the playables and the search documents (built from these episodes) keep every platform.
-        await episodeServiceMaterialiser.MaterialiseAsync(podcast, episodes, cancellationToken);
+        // Playables keep Services only. Fill missing services.*.url from nested ids (deterministic, no clients) so
+        // a large podcast transfer stays Cosmos/search I/O and does not sequentially hit platform APIs.
+        foreach (var episode in episodes)
+        {
+            EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcast.AppleId);
+        }
 
         var parent = mapParent(podcast);
         var playables = episodes

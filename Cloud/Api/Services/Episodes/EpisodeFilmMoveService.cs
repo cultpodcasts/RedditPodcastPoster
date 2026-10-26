@@ -120,6 +120,16 @@ public class EpisodeFilmMoveService(
                         "A film with this name already exists");
                 }
 
+                // Identity gate first (name + release year only) so IdentityDecisionRequired never spends
+                // Spotify / Apple / YouTube quota; the curator's select / continue re-POST materialises once.
+                var year = episode.Release is { } release ? release.Year : (int?)null;
+                var (identityStop, admission) = await TryResolveNewFilmIdentity(
+                    name, year, choice, command.Request.SelectedIdentityKey, cancellationToken);
+                if (identityStop is not null)
+                {
+                    return identityStop;
+                }
+
                 // Films keep Services only (no nested ids). Materialise Spotify / Apple / YouTube url + image
                 // from ids (clients first) so search/Watch keep every platform after the move.
                 await episodeServiceMaterialiser.MaterialiseAsync(podcast, episode, cancellationToken);
@@ -130,11 +140,14 @@ public class EpisodeFilmMoveService(
                 // unit that moves, so the film is active even when it leaves a removed podcast.
                 film.Removed = null;
 
-                var identityStop = await TryResolveNewFilmIdentity(
-                    film, choice, command.Request.SelectedIdentityKey, cancellationToken);
-                if (identityStop is not null)
+                if (admission is not null && identityEnricher.ApplyMissing(film, admission.Ids))
                 {
-                    return identityStop;
+                    logger.LogInformation(
+                        "{method}: Filled identity for new film '{name}' (imdb={imdbId}, tmdb={tmdbId}).",
+                        nameof(MoveAsync),
+                        film.Name,
+                        film.ImdbId,
+                        film.TmdbId);
                 }
 
                 await filmRepository.Save(film);
@@ -166,11 +179,13 @@ public class EpisodeFilmMoveService(
     }
 
     /// <summary>
-    /// Same identity gate as URL-submit film create: confident → apply; ambiguous → return candidates and write nothing;
-    /// <c>select</c>/<c>continue</c> honour the curator's answer; lookup failure → leave blank and still move.
+    /// Same identity gate as URL-submit film create: confident → proceed with ids; ambiguous → return candidates and
+    /// write nothing; <c>select</c>/<c>continue</c> honour the curator's answer; lookup failure → leave blank and still
+    /// move. Does not need Services — only name and release year — so Materialise runs only after this gate succeeds.
     /// </summary>
-    private async Task<EpisodeFilmMoveResult?> TryResolveNewFilmIdentity(
-        Film film,
+    private async Task<(EpisodeFilmMoveResult? Stop, CatalogueIdentityAdmission? Admission)> TryResolveNewFilmIdentity(
+        string name,
+        int? year,
         CatalogueIdentityChoice choice,
         string? selectedIdentityKey,
         CancellationToken cancellationToken)
@@ -178,9 +193,8 @@ public class EpisodeFilmMoveService(
         CatalogueIdentityAdmission admission;
         try
         {
-            var year = film.Release is { } release ? release.Year : (int?)null;
             admission = await identityEnricher.ResolveFilmAsync(
-                film.Name,
+                name,
                 year,
                 choice,
                 selectedIdentityKey,
@@ -192,8 +206,8 @@ public class EpisodeFilmMoveService(
                 ex,
                 "{method}: Identity lookup failed for new film '{name}'; leaving blank.",
                 nameof(TryResolveNewFilmIdentity),
-                film.Name);
-            return null;
+                name);
+            return (null, CatalogueIdentityAdmission.Proceed());
         }
 
         if (admission.Hold && admission.Prompt is { Candidates.Count: > 0 } prompt)
@@ -201,30 +215,22 @@ public class EpisodeFilmMoveService(
             logger.LogInformation(
                 "{method}: Film '{name}' identity is ambiguous ({count} candidates); waiting for curator choice.",
                 nameof(TryResolveNewFilmIdentity),
-                film.Name,
+                name,
                 prompt.Candidates.Count);
-            return new EpisodeFilmMoveResult(
-                EpisodeFilmMoveStatus.IdentityDecisionRequired,
-                IdentityHold: prompt);
+            return (
+                new EpisodeFilmMoveResult(
+                    EpisodeFilmMoveStatus.IdentityDecisionRequired,
+                    IdentityHold: prompt),
+                null);
         }
 
         if (admission.Hold)
         {
             // Empty hold (e.g. cancel echoed from enricher) — treat as cancelled, nothing written.
-            return new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Cancelled);
+            return (new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.Cancelled), null);
         }
 
-        if (identityEnricher.ApplyMissing(film, admission.Ids))
-        {
-            logger.LogInformation(
-                "{method}: Filled identity for new film '{name}' (imdb={imdbId}, tmdb={tmdbId}).",
-                nameof(TryResolveNewFilmIdentity),
-                film.Name,
-                film.ImdbId,
-                film.TmdbId);
-        }
-
-        return null;
+        return (null, admission);
     }
 
     /// <summary>
