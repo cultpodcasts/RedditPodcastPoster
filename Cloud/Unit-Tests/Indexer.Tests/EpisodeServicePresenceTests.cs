@@ -313,6 +313,37 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
+        "SyncCatalogueYouTubeId on a NewsReport sets YouTubeId from services.youtube.url " +
+        "and clears it when the YouTube service url is removed.")]
+    public void sync_catalogue_youtube_id_sets_and_clears_on_news_report()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var report = new RedditPodcastPoster.Models.News.NewsReport(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            }
+        };
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(report);
+
+        // Assert
+        report.YouTubeId.Should().Be(videoId);
+
+        // Arrange
+        report.Services = null;
+
+        // Act
+        EpisodeServicePresence.SyncCatalogueYouTubeId(report);
+
+        // Assert
+        report.YouTubeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Film, TvShowEpisode, and NewsReport implement ICatalogueYouTubeItem while podcast Episode does not, " +
         "so SyncCatalogueYouTubeId cannot bind leftover top-level youTubeId onto episodes.")]
     public void catalogue_youtube_item_is_only_film_tv_and_news()

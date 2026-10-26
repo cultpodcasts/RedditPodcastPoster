@@ -7,9 +7,10 @@ namespace RedditPodcastPoster.Models.Episodes;
 
 /// <summary>
 /// Catalog accessors for <c>services</c> / nested <c>ids</c>.
-/// Leftover Cosmos <c>urls</c> / top-level ids / <c>images</c> are not bound on
-/// <see cref="Episode"/> (including top-level <c>youTubeId</c>, which withers via an override);
-/// they wither on full <c>Save()</c>. Application code must not write those leftover members.
+/// Podcast <see cref="Episode"/> has no <c>youTubeId</c> member; leftover Cosmos top-level
+/// <c>youTubeId</c> (and other retired <c>urls</c> / top-level ids / <c>images</c>) is ignored
+/// on deserialize and omitted on serialize. Nested <c>ids.youtube</c> + <c>services.youtube.url</c>
+/// only. Application code must not write those leftover members.
 /// Catalogue playables (TvShowEpisode / NewsReport / Film) keep a compact <c>youTubeId</c>
 /// synced from <c>services.youtube.url</c> for Azure Search — distinct from episode leftovers.
 /// Cover art coalesces from <c>services.*.image</c> in
