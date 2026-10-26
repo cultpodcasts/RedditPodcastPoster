@@ -262,6 +262,9 @@
     <Project Path="Console-Apps/EpisodeServiceBackfill/EpisodeServiceBackfill.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill.Tests/EpisodeServiceBackfill.Tests.csproj" />
 
+    <Project Path="Console-Apps/CataloguePlayableServicesBackfill/CataloguePlayableServicesBackfill.csproj" />
+    <Project Path="Console-Apps/CataloguePlayableServicesBackfill.Tests/CataloguePlayableServicesBackfill.Tests.csproj" />
+
     <Project Path="Console-Apps/SeedTitleCasingRules/SeedTitleCasingRules.csproj" />
 
     <Project Path="Console-Apps/SeedSupportedLanguages/SeedSupportedLanguages.csproj" />

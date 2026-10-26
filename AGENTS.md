@@ -8,10 +8,10 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 - Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
 - **Planned epic (not scheduled):** [`docs/catalogue-content-types-epic.md`](docs/catalogue-content-types-epic.md) — separate TvShow/TvShowEpisode, **Film** (made-as-film one-off, cinema or TV; no parent), NewsOrganisation/NewsReport containers + unified search `contentKind` (`Episode | TvShowEpisode | Film | NewsReport`). Phase 0 sign-off 2026-09-23: [ADRs](./docs/adr/README.md), [search storage impact](./docs/catalogue-content-types-search-storage-impact.md). Do not use product name Movie.
 
-## Catalogue migrate CLIs (HARD)
+## Catalogue migrate / playable-services CLIs (HARD)
 
-1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply is allowlist-only (S-008).
-2. **Agents never pass `--apply` or `--consent`** to these CLIs. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
+1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply is allowlist-only (S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
+2. **Agents never pass `--apply` or `--consent`** to `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill`. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
 
 Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
 

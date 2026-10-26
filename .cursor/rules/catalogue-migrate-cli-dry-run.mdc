@@ -1,11 +1,11 @@
 ---
-description: HARD GUARDRAIL — agents never pass --apply or --consent to CatalogueMigrate / CatalogueMigrateIdentify; dry-run only
+description: HARD GUARDRAIL — agents never pass --apply or --consent to CatalogueMigrate / CatalogueMigrateIdentify / CataloguePlayableServicesBackfill; dry-run only
 alwaysApply: true
 ---
 
-# Catalogue migrate CLIs — agents dry-run only
+# Catalogue migrate / playable-services CLIs — agents dry-run only
 
-`CatalogueMigrateIdentify` and `CatalogueMigrate` have **two layers**.
+`CatalogueMigrateIdentify`, `CatalogueMigrate`, and `CataloguePlayableServicesBackfill` have **two layers**.
 
 GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does not** count as apply consent.
 
@@ -13,6 +13,7 @@ GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does 
 
 - `CatalogueMigrateIdentify --apply` **always** exits 2. It has no write path.
 - `CatalogueMigrate` has a writer (PR #1049; design in [`docs/catalogue-run/gate-5.md`](../../docs/catalogue-run/gate-5.md)). `--apply` and `--rollback … --apply` write **only** when `--consent` matches the exact phrase for that kind or evidence file. Otherwise they exit 2. Do not weaken, default, or bypass that check. News apply is allowlist-only (S-008).
+- `CataloguePlayableServicesBackfill` repairs Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON. `--apply` writes **only** when `--consent` matches the exact phrase. Otherwise it exits 2.
 - Do not add write paths to other migrate tools unless the user explicitly asks for that implementation.
 
 ## 2. Agent run
@@ -22,14 +23,14 @@ Agents **never** invoke these CLIs with `--apply` or `--consent`, even when the 
 ## Allowed without extra consent
 
 - Code, tests (synthetic in-memory fakes), and docs on a branch
-- **Dry-run only** (omit `--apply`): identify, plan, rollback preview, log. No Cosmos writes. No search upload.
+- **Dry-run only** (omit `--apply`): identify, plan, rollback preview, backfill scan/log. No Cosmos writes. No search upload.
 
 ## Forbidden always
 
-- `dotnet run` / published exe / PATH invoke of `CatalogueMigrateIdentify` or `CatalogueMigrate` **with `--apply` or `--consent`**
+- `dotnet run` / published exe / PATH invoke of `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill` **with `--apply` or `--consent`**
 - Any other flag or env that would write Cosmos, delete podcast or episode rows, or upload Azure Search for these tools
 - Writing a consent phrase into scripts, launch settings, CI, or docs as a ready-to-run default
 
 ## Stop
 
-If a migrate CLI is running with `--apply` or any write path started by an agent, **stop immediately**.
+If a migrate or playable-services-backfill CLI is running with `--apply` or any write path started by an agent, **stop immediately**.
