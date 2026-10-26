@@ -4,6 +4,7 @@ using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
@@ -34,6 +35,11 @@ builder.Services
     .AddEpisodeSearchIndexerService()
     .AddSingleton(TimeProvider.System)
     .AddSingleton<IEpisodeBackupStore, FileEpisodeBackupStore>()
+    .AddSingleton<Func<string, IPublicDatabaseUrlIndex>>(sp =>
+    {
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(FilePublicDatabaseUrlIndex));
+        return dir => FilePublicDatabaseUrlIndex.Load(dir, logger);
+    })
     .AddScoped<CataloguePlayableServicesBackfillProcessor>()
     // Resolved only on --apply so a dry-run never builds the Search client.
     .AddScoped<Func<IPlayableSearchDocumentSwap>>(s => s.GetRequiredService<IPlayableSearchDocumentSwap>);

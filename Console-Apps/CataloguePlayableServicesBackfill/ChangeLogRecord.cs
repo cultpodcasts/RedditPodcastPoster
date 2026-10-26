@@ -30,9 +30,13 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("utc")]
     public required DateTimeOffset Utc { get; init; }
 
-    [JsonPropertyName("missingBackup")]
+    /// <summary>
+    /// True when neither episode backup nor PublicDatabase had this GUID (missing truth).
+    /// JSON name is <c>missingTruth</c> (replaces the earlier <c>missingBackup</c> label).
+    /// </summary>
+    [JsonPropertyName("missingTruth")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool MissingBackup { get; init; }
+    public bool MissingTruth { get; init; }
 }
 
 public interface IChangeLogWriter : IAsyncDisposable

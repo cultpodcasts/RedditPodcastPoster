@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
@@ -36,9 +38,15 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
 
     private FilePublicDatabaseUrlIndex(Dictionary<Guid, PublicUrlHit> byId) => _byId = byId;
 
-    public static FilePublicDatabaseUrlIndex Load(string publicDatabaseDir)
+    /// <summary>
+    /// Loads every top-level <c>*.json</c> under <paramref name="publicDatabaseDir"/>.
+    /// Unreadable or invalid JSON files are skipped with a warning (run continues).
+    /// Duplicate GUID: first file wins; a warning names both paths.
+    /// </summary>
+    public static FilePublicDatabaseUrlIndex Load(string publicDatabaseDir, ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(publicDatabaseDir);
+        logger ??= NullLogger.Instance;
         var root = Path.GetFullPath(publicDatabaseDir);
         if (!Directory.Exists(root))
         {
@@ -48,7 +56,7 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
         var byId = new Dictionary<Guid, PublicUrlHit>();
         foreach (var path in Directory.EnumerateFiles(root, "*.json", SearchOption.TopDirectoryOnly))
         {
-            IndexFile(path, byId);
+            IndexFile(path, byId, logger);
         }
 
         return new FilePublicDatabaseUrlIndex(byId);
@@ -56,15 +64,19 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
 
     public bool TryGet(Guid id, out PublicUrlHit hit) => _byId.TryGetValue(id, out hit!);
 
-    private static void IndexFile(string path, Dictionary<Guid, PublicUrlHit> byId)
+    private static void IndexFile(string path, Dictionary<Guid, PublicUrlHit> byId, ILogger logger)
     {
         string json;
         try
         {
             json = File.ReadAllText(path);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
+            logger.LogWarning(
+                ex,
+                "Skipping unreadable PublicDatabase file {Path}; its playable ids will be absent from truth.",
+                path);
             return;
         }
 
@@ -73,8 +85,12 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
         {
             document = JsonDocument.Parse(json);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            logger.LogWarning(
+                ex,
+                "Skipping invalid JSON PublicDatabase file {Path}; its playable ids will be absent from truth.",
+                path);
             return;
         }
 
@@ -90,7 +106,7 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
             {
                 foreach (var child in episodes.EnumerateArray())
                 {
-                    TryIndexChild(path, child, byId);
+                    TryIndexChild(path, child, byId, logger);
                 }
 
                 return;
@@ -100,18 +116,22 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
             {
                 foreach (var child in reports.EnumerateArray())
                 {
-                    TryIndexChild(path, child, byId);
+                    TryIndexChild(path, child, byId, logger);
                 }
 
                 return;
             }
 
             // Film (and any other singleton public file with id + urls).
-            TryIndexChild(path, root, byId);
+            TryIndexChild(path, root, byId, logger);
         }
     }
 
-    private static void TryIndexChild(string path, JsonElement element, Dictionary<Guid, PublicUrlHit> byId)
+    private static void TryIndexChild(
+        string path,
+        JsonElement element,
+        Dictionary<Guid, PublicUrlHit> byId,
+        ILogger logger)
     {
         if (!element.TryGetProperty("id", out var idElement) ||
             idElement.ValueKind != JsonValueKind.String ||
@@ -132,7 +152,14 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
         }
 
         // First hit wins; public files should not duplicate ids across parents.
-        byId.TryAdd(id, new PublicUrlHit(path, urls));
+        if (!byId.TryAdd(id, new PublicUrlHit(path, urls)))
+        {
+            logger.LogWarning(
+                "Duplicate PublicDatabase id {Id}: keeping urls from {KeptPath}, ignoring {DroppedPath}.",
+                id,
+                byId[id].FilePath,
+                path);
+        }
     }
 
     /// <summary>

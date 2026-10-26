@@ -14,7 +14,7 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
     int ExitCode,
     int Scanned,
     int Identical,
-    int MissingBackup,
+    int MissingTruth,
     int Discrepancies,
     int Applied,
     int SearchUploaded,
@@ -30,6 +30,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     INewsReportRepository newsReportRepository,
     IEpisodeBackupStore backupStore,
+    Func<string, IPublicDatabaseUrlIndex> publicDatabaseUrlIndexFactory,
     Func<IPlayableSearchDocumentSwap> searchSwapFactory,
     TimeProvider timeProvider,
     ILogger<CataloguePlayableServicesBackfillProcessor> logger)
@@ -78,7 +79,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             try
             {
-                publicIndex = FilePublicDatabaseUrlIndex.Load(request.PublicDatabaseDir!);
+                publicIndex = publicDatabaseUrlIndexFactory(request.PublicDatabaseDir!);
             }
             catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
             {
@@ -112,7 +113,7 @@ public class CataloguePlayableServicesBackfillProcessor(
 
         var scanned = 0;
         var identical = 0;
-        var missingBackup = 0;
+        var missingTruth = 0;
         var discrepancies = 0;
         var applied = 0;
         var searchUploaded = 0;
@@ -157,11 +158,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(savedFilm),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -196,11 +197,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(episode),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -235,11 +236,11 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 : CataloguePlayableSearchDocument.For(report),
                             cancellationToken);
 
-                        Tally(outcome, ref identical, ref missingBackup, ref discrepancies, ref applied,
+                        Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
                             ref searchUploaded, ref failedWrites);
                         if (request.Limit > 0 && discrepancies >= request.Limit)
                         {
-                            return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded,
+                            return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded,
                                 failedWrites);
                         }
                     }
@@ -248,7 +249,7 @@ public class CataloguePlayableServicesBackfillProcessor(
             }
         }
 
-        return Finish(scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+        return Finish(scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
     }
 
     private async Task<ProcessOutcome> ProcessOne(
@@ -293,9 +294,9 @@ public class CataloguePlayableServicesBackfillProcessor(
                 Changes = [],
                 Applied = false,
                 Utc = timeProvider.GetUtcNow(),
-                MissingBackup = true
+                MissingTruth = true
             }, cancellationToken);
-            return ProcessOutcome.MissingBackup;
+            return ProcessOutcome.MissingTruth;
         }
 
         var truth = TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls);
@@ -412,7 +413,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     private static void Tally(
         ProcessOutcome outcome,
         ref int identical,
-        ref int missingBackup,
+        ref int missingTruth,
         ref int discrepancies,
         ref int applied,
         ref int searchUploaded,
@@ -423,8 +424,8 @@ public class CataloguePlayableServicesBackfillProcessor(
             case ProcessOutcome.Identical:
                 identical++;
                 break;
-            case ProcessOutcome.MissingBackup:
-                missingBackup++;
+            case ProcessOutcome.MissingTruth:
+                missingTruth++;
                 break;
             case ProcessOutcome.DiscrepancyDryRun:
                 discrepancies++;
@@ -448,18 +449,18 @@ public class CataloguePlayableServicesBackfillProcessor(
     private CataloguePlayableServicesBackfillRunResult Finish(
         int scanned,
         int identical,
-        int missingBackup,
+        int missingTruth,
         int discrepancies,
         int applied,
         int searchUploaded,
         int failedWrites)
     {
         logger.LogInformation(
-            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingBackup={MissingBackup} Discrepancies={Discrepancies} Applied={Applied} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
-            scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} Applied={Applied} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
+            scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
         var exitCode = failedWrites > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
-            exitCode, scanned, identical, missingBackup, discrepancies, applied, searchUploaded, failedWrites);
+            exitCode, scanned, identical, missingTruth, discrepancies, applied, searchUploaded, failedWrites);
     }
 
     private static CataloguePlayableServicesBackfillRunResult Empty(int exitCode) =>
@@ -468,7 +469,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     private enum ProcessOutcome
     {
         Identical,
-        MissingBackup,
+        MissingTruth,
         DiscrepancyDryRun,
         Applied,
         AppliedWithSearch,
