@@ -3,6 +3,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -34,6 +35,36 @@ public class CatalogueParentKindMapperRules
         show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(podcast.Name));
     }
 
+    [Fact(DisplayName =
+        "Mapping an episode to a TV episode, news report or film copies every services url and image, so cover art comes over from the episode.")]
+    public void mappers_copy_service_urls_and_images()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var spotifyUrl = _fixture.Create<Uri>();
+        var spotifyImage = _fixture.Create<Uri>();
+        var youTubeImage = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, spotifyImage);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, youTubeImage);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var services = new[]
+        {
+            CatalogueParentKindMapper.ToTvShowEpisode(episode, show).Services,
+            CatalogueParentKindMapper.ToNewsReport(episode, organisation).Services,
+            CatalogueParentKindMapper.ToFilm(podcast, episode).Services
+        };
+
+        // Assert
+        services.Should().OnlyContain(item =>
+            item![ServiceKeys.Spotify].Url == spotifyUrl &&
+            item[ServiceKeys.Spotify].Image == spotifyImage &&
+            item[ServiceKeys.YouTube].Url == episode.Services![ServiceKeys.YouTube].Url &&
+            item[ServiceKeys.YouTube].Image == youTubeImage);
+    }
     [Fact(DisplayName =
         "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
         "because the public hub is the programme, not the channel we found it on.")]

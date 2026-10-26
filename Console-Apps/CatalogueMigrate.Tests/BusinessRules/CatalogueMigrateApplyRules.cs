@@ -308,6 +308,47 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when an episode has nested Spotify/YouTube/(Apple+podcast.AppleId) and Services is null, " +
+        "then apply fills deterministic services.*.url on the playable and leaves an existing url/image untouched, " +
+        "because playables keep Services only and ids without a url would be lost.")]
+    public async Task apply_fills_service_urls_from_ids_when_services_null()
+    {
+        // Arrange
+        var appleShowId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = appleShowId);
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Services = null;
+        episode.Ids = new EpisodeIds
+        {
+            Spotify = spotifyId,
+            Apple = appleEpisodeId,
+            YouTube = youTubeId
+        };
+        var keptYouTubeUrl = _fixture.Create<Uri>();
+        var keptSpotifyImage = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, keptYouTubeUrl, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, keptSpotifyImage);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.Film, podcastId: podcast.Id));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var film = _destination.Films[episode.Id];
+        film.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
+        film.Services[ServiceKeys.Spotify].Image.Should().Be(keptSpotifyImage);
+        film.Services[ServiceKeys.YouTube].Url.Should().Be(keptYouTubeUrl);
+        film.Services[ServiceKeys.Apple].Url.Should()
+            .Be(new Uri($"https://podcasts.apple.com/podcast/id{appleShowId}?i={appleEpisodeId}"));
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when a Film podcast also has removed episodes, then Film apply is blocked, " +
         "because a Film cannot hold them and deleting them would lose rows.")]
     public async Task film_apply_blocked_by_removed_episodes()

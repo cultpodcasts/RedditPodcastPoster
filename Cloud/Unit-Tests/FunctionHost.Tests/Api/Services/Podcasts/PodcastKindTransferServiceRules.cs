@@ -9,6 +9,8 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -26,6 +28,7 @@ public class PodcastKindTransferServiceRules
     private readonly InMemoryEpisodeRepository _episodes = new();
     private TvShow? _savedShow;
     private TvShowEpisode? _savedTvEpisode;
+    private readonly List<TvShowEpisode> _savedTvEpisodes = [];
     private NewsOrganisation? _savedOrganisation;
     private NewsReport? _savedReport;
     private readonly List<NewsReport> _savedReports = [];
@@ -53,7 +56,11 @@ public class PodcastKindTransferServiceRules
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
-            .Callback<TvShowEpisode>(episode => _savedTvEpisode = episode)
+            .Callback<TvShowEpisode>(episode =>
+            {
+                _savedTvEpisode = episode;
+                _savedTvEpisodes.Add(episode);
+            })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
@@ -122,6 +129,46 @@ public class PodcastKindTransferServiceRules
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "Transferring a podcast fills missing Services urls from nested ids (deterministic, no platform clients) before mapping, so each TV episode keeps every platform in Services only without sequential Spotify/Apple/YouTube lookups.")]
+    public async Task transfer_fills_service_urls_from_ids_for_every_episode()
+    {
+        // Arrange
+        var appleShowId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = appleShowId);
+        var firstSpotify = _fixture.CreateSpotifyId();
+        var firstYouTube = _fixture.CreateYouTubeId();
+        var firstApple = _fixture.CreateAppleId();
+        var secondSpotify = _fixture.CreateSpotifyId();
+        var secondYouTube = _fixture.CreateYouTubeId();
+        var first = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        first.Services = null;
+        first.Ids = new EpisodeIds { Spotify = firstSpotify, Apple = firstApple, YouTube = firstYouTube };
+        var second = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        second.Services = null;
+        second.Ids = new EpisodeIds { Spotify = secondSpotify, YouTube = secondYouTube };
+        _podcasts.Seed(podcast);
+        _episodes.Seed(first, second);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedTvEpisodes.Should().HaveCount(2);
+        var savedFirst = _savedTvEpisodes.Single(item => item.Id == first.Id);
+        savedFirst.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(firstSpotify));
+        savedFirst.Services[ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(firstYouTube));
+        savedFirst.Services[ServiceKeys.Apple].Url.Should()
+            .Be(new Uri($"https://podcasts.apple.com/podcast/id{appleShowId}?i={firstApple}"));
+        var savedSecond = _savedTvEpisodes.Single(item => item.Id == second.Id);
+        savedSecond.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(secondSpotify));
+        savedSecond.Services[ServiceKeys.YouTube].Url.Should().Be(_fixture.DefaultYouTubeUrl(secondYouTube));
+    }
     [Fact(DisplayName =
         "Transferring a podcast to a news organisation saves the organisation and report under the original guids.")]
     public async Task transfer_to_news_organisation_keeps_guids()

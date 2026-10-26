@@ -303,6 +303,12 @@ public class CatalogueMigrateApplier(
     {
         var podcast = unit.Podcast;
         var episodes = unit.MoveEpisodes.Where(episode => !alreadyHeld.Contains(episode.Id)).ToList();
+        // Playables keep Services only: an id without a services url would be lost. No client lookup in this CLI,
+        // so use the deterministic id-derived url (existing urls and images are untouched).
+        foreach (var episode in episodes)
+        {
+            EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcast.AppleId);
+        }
         switch (unit.Kind)
         {
             case SubmitClassification.NewsReport:
