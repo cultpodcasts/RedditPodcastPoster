@@ -73,7 +73,8 @@ public abstract class PlayableFieldsChangeRequest
 
     /// <summary>
     /// Per-key link patch, as film / episode: blank <c>url</c> and <c>image</c> removes the key; otherwise the
-    /// key is resolved from the URL. Absolute http(s) only.
+    /// key is resolved from the URL. Absolute http(s) only. Cloudflare Worker OpenAPI documents the same field on
+    /// news report and TV episode PATCH via <c>playableFieldsChangeShape.services</c> (Api #193 / cultpodcasts-api 2.10.4+).
     /// </summary>
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLink>? Services { get; set; }
