@@ -19,12 +19,15 @@ public static class CataloguePlayableSearchDocument
     public static EpisodeSearchRecord For(TvShowEpisode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
+        // Do not SyncCatalogueYouTubeId here — search-doc build must not mutate domain state.
+        // youtubeId on the record comes from services.youtube.url via YouTubeEpisodeId on the projection.
         var show = new TvShow(episode.TvShowName ?? string.Empty) { Id = episode.TvShowId };
         var record = CatalogueParentKindMapper.ToPostProjection(episode, show)
             .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
         record.ContentKind = SearchContentKind.TvShowEpisode;
         record.SeriesName = episode.TvShowName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = episode.PublisherSearchTerms ?? string.Empty;
+        PreferCatalogueYouTubeId(record, episode.YouTubeId);
         return record;
     }
 
@@ -40,6 +43,7 @@ public static class CataloguePlayableSearchDocument
         record.ContentKind = SearchContentKind.NewsReport;
         record.SeriesName = report.NewsOrganisationName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = report.PublisherSearchTerms ?? string.Empty;
+        PreferCatalogueYouTubeId(record, report.YouTubeId);
         return record;
     }
 
@@ -52,7 +56,20 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = null;
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
+        PreferCatalogueYouTubeId(record, film.YouTubeId);
         return record;
+    }
+
+    /// <summary>
+    /// When the catalogue entity already has a compact id, put it on the search record without
+    /// mutating the entity. Otherwise leave the projection-derived value (services URL extract).
+    /// </summary>
+    private static void PreferCatalogueYouTubeId(EpisodeSearchRecord record, string? catalogueYouTubeId)
+    {
+        if (!string.IsNullOrWhiteSpace(catalogueYouTubeId))
+        {
+            record.YoutubeId = catalogueYouTubeId;
+        }
     }
 
     /// <summary>The pull query's filter: a removed item, or one whose parent is removed, has no document.</summary>

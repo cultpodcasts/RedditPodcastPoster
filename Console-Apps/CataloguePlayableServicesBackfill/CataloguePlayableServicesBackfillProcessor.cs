@@ -2,8 +2,10 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -149,6 +151,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                                 savedFilm = await filmRepository.Update(film.Id, f =>
                                 {
                                     f.Services = services;
+                                    EpisodeServicePresence.SyncCatalogueYouTubeId(f);
                                     return true;
                                 });
                                 return savedFilm is not null;
@@ -156,6 +159,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                             () => savedFilm is null || CataloguePlayableSearchDocument.ShouldExcludeFromSearch(savedFilm)
                                 ? null
                                 : CataloguePlayableSearchDocument.For(savedFilm),
+                            () => SyncYouTubeIdIfNeeded(film),
                             cancellationToken);
 
                         Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
@@ -190,11 +194,13 @@ public class CataloguePlayableServicesBackfillProcessor(
                             services =>
                             {
                                 episode.Services = services;
+                                EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
                                 return SaveTv(episode);
                             },
                             () => CataloguePlayableSearchDocument.ShouldExcludeFromSearch(episode)
                                 ? null
                                 : CataloguePlayableSearchDocument.For(episode),
+                            () => SyncYouTubeIdIfNeeded(episode),
                             cancellationToken);
 
                         Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
@@ -229,11 +235,13 @@ public class CataloguePlayableServicesBackfillProcessor(
                             services =>
                             {
                                 report.Services = services;
+                                EpisodeServicePresence.SyncCatalogueYouTubeId(report);
                                 return SaveNews(report);
                             },
                             () => CataloguePlayableSearchDocument.ShouldExcludeFromSearch(report)
                                 ? null
                                 : CataloguePlayableSearchDocument.For(report),
+                            () => SyncYouTubeIdIfNeeded(report),
                             cancellationToken);
 
                         Tally(outcome, ref identical, ref missingTruth, ref discrepancies, ref applied,
@@ -262,6 +270,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         Dictionary<string, ServiceLink>? liveServices,
         Func<Dictionary<string, ServiceLink>?, Task<bool>> saveAsync,
         Func<RedditPodcastPoster.Search.Models.EpisodeSearchRecord?> buildSearchDocument,
+        Func<bool> syncYouTubeIdIfNeeded,
         CancellationToken cancellationToken)
     {
         Dictionary<string, ServiceLink>? episodeBackup = null;
@@ -301,9 +310,18 @@ public class CataloguePlayableServicesBackfillProcessor(
 
         var truth = TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls);
         var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, truth);
-        if (!carry.HasChanges)
+        var youtubeIdChanged = syncYouTubeIdIfNeeded();
+        if (!carry.HasChanges && !youtubeIdChanged)
         {
             return ProcessOutcome.Identical;
+        }
+
+        var changes = carry.HasChanges
+            ? carry.Changes.ToList()
+            : [];
+        if (youtubeIdChanged)
+        {
+            changes.Add(new ServiceFieldChange(ServiceKeys.YouTube, "youTubeId", null, "synced"));
         }
 
         if (!string.IsNullOrWhiteSpace(request.SnapshotDir))
@@ -324,13 +342,15 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             try
             {
-                var saved = await saveAsync(carry.Services);
+                // When only youTubeId needs persist, re-save live services so SyncCatalogueYouTubeId runs in saveAsync.
+                var servicesToSave = carry.HasChanges ? carry.Services : liveServices;
+                var saved = await saveAsync(servicesToSave);
                 if (!saved)
                 {
                     logger.LogError(
                         "Failed to save {Kind} {Id} after carrying services from backup={BackupPath} public={PublicPath}.",
                         kind, id, backupPath, publicPath);
-                    await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                    await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, changes,
                         applied: false, cancellationToken);
                     return ProcessOutcome.FailedWrite;
                 }
@@ -352,17 +372,41 @@ public class CataloguePlayableServicesBackfillProcessor(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to apply services carry for {Kind} {Id}.", kind, id);
-                await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes,
+                await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, changes,
                     applied: false, cancellationToken);
                 return ProcessOutcome.FailedWrite;
             }
         }
 
-        await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, carry.Changes, applied,
+        await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, changes, applied,
             cancellationToken);
         return applied
             ? (searchOk ? ProcessOutcome.AppliedWithSearch : ProcessOutcome.Applied)
             : ProcessOutcome.DiscrepancyDryRun;
+    }
+
+    /// <summary>
+    /// Sync compact youTubeId from services.youtube.url; returns true when the stored value changed.
+    /// </summary>
+    private static bool SyncYouTubeIdIfNeeded(Film film)
+    {
+        var before = film.YouTubeId;
+        EpisodeServicePresence.SyncCatalogueYouTubeId(film);
+        return !string.Equals(before, film.YouTubeId, StringComparison.Ordinal);
+    }
+
+    private static bool SyncYouTubeIdIfNeeded(TvShowEpisode episode)
+    {
+        var before = episode.YouTubeId;
+        EpisodeServicePresence.SyncCatalogueYouTubeId(episode);
+        return !string.Equals(before, episode.YouTubeId, StringComparison.Ordinal);
+    }
+
+    private static bool SyncYouTubeIdIfNeeded(NewsReport report)
+    {
+        var before = report.YouTubeId;
+        EpisodeServicePresence.SyncCatalogueYouTubeId(report);
+        return !string.Equals(before, report.YouTubeId, StringComparison.Ordinal);
     }
 
     private async Task WriteChange(

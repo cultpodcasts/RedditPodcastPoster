@@ -13,7 +13,7 @@ public class PlayableSearchSqlRules
 {
     [Fact(DisplayName =
         "Sibling search SQL omits series name for Film, maps the parent name for TV and news, " +
-        "and includes image, svc, and the release dual-key, with the description cap Constants.DescriptionSize, " +
+        "and includes image, svc, youtubeId from c.youTubeId, and the release dual-key, with the description cap Constants.DescriptionSize, " +
         "because every playable card uses title, seriesName, and description only.")]
     public void sibling_sql_matches_the_shared_card_and_description_cap()
     {
@@ -72,6 +72,8 @@ public class PlayableSearchSqlRules
         sql.Should().Contain($"{releaseSql} as release");
         sql.Should().Contain(" as svc");
         sql.Should().Contain(" as image");
+        sql.Should().Contain(" as youtubeId");
+        sql.Should().Contain("c.youTubeId");
         sql.Should().Contain("c.services.");
         sql.Should().Contain("?? \"\"");
         sql.Should().Contain("\u2026");

@@ -260,6 +260,101 @@ public class CataloguePlayableServicesBackfillProcessorRules
     }
 
     [Fact(DisplayName =
+        "Catalogue playable services backfill: when services already match backup but YouTubeId is missing while " +
+        "services.youtube.url is present, then dry-run counts a discrepancy so compact youTubeId can be persisted for search.")]
+    public async Task missing_youtube_id_with_matching_services_is_discrepancy()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var videoId = _fixture.CreateYouTubeId();
+        var youTubeUrl = _fixture.DefaultYouTubeUrl(videoId);
+        var services = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = youTubeUrl }
+        };
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = id,
+            Services = PlayableServicesDiscrepancyCarry.CloneServices(services),
+            YouTubeId = null
+        };
+        _backups.ById[id] = PlayableServicesDiscrepancyCarry.CloneServices(services)!;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "youtube-id.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.Identical.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        film.YouTubeId.Should().Be(videoId);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.Changes.Should().ContainSingle(c => c.Field == "youTubeId");
+        record.Applied.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when a service url is carried and YouTubeId also syncs from an " +
+        "existing services.youtube.url, then the change-log includes both so apply logs stay auditable.")]
+    public async Task services_and_youtube_id_changes_both_appear_in_change_log()
+    {
+        // Arrange — live already has YouTube URL (so SyncYouTubeIdIfNeeded fires) but lacks Spotify;
+        // backup supplies Spotify. Compact YouTubeId is missing on the film.
+        var id = _fixture.CreateGuid();
+        var videoId = _fixture.CreateYouTubeId();
+        var youTubeUrl = _fixture.DefaultYouTubeUrl(videoId);
+        var spotifyUrl = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl;
+        var liveServices = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = youTubeUrl }
+        };
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = id,
+            Services = PlayableServicesDiscrepancyCarry.CloneServices(liveServices),
+            YouTubeId = null
+        };
+        _backups.ById[id] = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = youTubeUrl },
+            [ServiceKeys.Spotify] = new() { Url = spotifyUrl }
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "services-and-youtube-id.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.Discrepancies.Should().Be(1);
+        film.YouTubeId.Should().Be(videoId);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.Changes.Should().Contain(c => c.Field == "url" && c.Key == ServiceKeys.Spotify);
+        record.Changes.Should().Contain(c => c.Field == "youTubeId");
+    }
+
+    [Fact(DisplayName =
         "Catalogue playable services backfill: when backup has a url the film lacks, then dry-run records a discrepancy " +
         "change-log line with applied false and does not call Update.")]
     public async Task discrepancy_is_logged_on_dry_run()

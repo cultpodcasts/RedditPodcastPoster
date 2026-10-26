@@ -7,7 +7,8 @@ namespace RedditPodcastPoster.Models.Films;
 
 /// <summary>
 /// Standalone made-as-film playable (no parent). ADR-0002 / epic S-001…S-002.
-/// Platform presence is <see cref="Services"/> only — no provider-id fields.
+/// Platform presence is <see cref="Services"/> (URLs/images). Compact <see cref="YouTubeId"/>
+/// is synced from <c>services.youtube.url</c> for search; no Spotify/Apple id members.
 /// Canonical identity is <see cref="IFilmCanonical.ImdbId"/> (not a streaming service).
 /// Release is year or calendar date — not a podcast-episode datetime.
 /// Display name is <see cref="Publisher.Name"/> (JSON <c>name</c>) — no <see cref="IMediaProduction.Title"/>.
@@ -111,11 +112,26 @@ public sealed class Film : Publisher, IPlayable, IPromotable, IFilmCanonical
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
     /// <summary>
+    /// Compact YouTube video id. Synced from <c>services.youtube.url</c> on catalogue edits
+    /// so Azure Search can project <c>youtubeId</c>. No Spotify/Apple id members.
+    /// </summary>
+    private string? _youTubeId;
+
+    [JsonPropertyName("youTubeId")]
+    [JsonPropertyOrder(152)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? YouTubeId
+    {
+        get => _youTubeId;
+        set => _youTubeId = string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <summary>
     /// Trailers, teasers and clips of this film, in display order. Omitted when there are none.
     /// Each one is a whole video of its own, unlike <see cref="Services"/>, which holds one link per platform.
     /// </summary>
     [JsonPropertyName("trailers")]
-    [JsonPropertyOrder(152)]
+    [JsonPropertyOrder(153)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<FilmTrailer>? Trailers { get; set; }
 

@@ -5,8 +5,9 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.TvShows;
 
 /// <summary>
-/// Playable TV episode. Platform presence is <see cref="Playable.Services"/> only —
-/// no Spotify/Apple/YouTube provider-id fields (those exist on podcast episodes for collection matching).
+/// Playable TV episode. Platform presence is <see cref="Playable.Services"/> (URLs/images).
+/// Compact <see cref="Playable.YouTubeId"/> is synced from <c>services.youtube.url</c> for search;
+/// no Spotify/Apple id members (podcast episodes use nested <c>ids</c> for collection matching).
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.TvShowEpisode)]

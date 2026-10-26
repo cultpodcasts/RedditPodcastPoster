@@ -68,6 +68,7 @@ public static class PlayableSearchSql
                 "" as internetArchive,
                 {svc} as svc,
                 {image} as image,
+                IIF(IS_DEFINED({documentAlias}.youTubeId) AND {documentAlias}.youTubeId != "", {documentAlias}.youTubeId, null) as youtubeId,
                 {documentAlias}.subjects as subjects,
                 {documentAlias}.publisherSearchTerms as publisherSearchTerms,
                 {documentAlias}.searchTerms as episodeSearchTerms,

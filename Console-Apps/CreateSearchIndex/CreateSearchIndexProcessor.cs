@@ -716,6 +716,8 @@ public partial class CreateSearchIndexProcessor(
         const string spotifyPrefix = "https://i.scdn.co/image/";
         const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
         var applePrefixLength = "https://is".Length + 1 + appleHostTail.Length;
+        // Podcast episodes container only: nested ids.youtube. Catalogue Film/TV/News use sibling
+        // datasources + PlayableSearchSql (c.youTubeId) — do not fall back to leftover e.youTubeId.
         const string youTubeIdExpr =
             @"IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, """")";
         const string youtubeImageExpr = @"e.services.youtube.image";

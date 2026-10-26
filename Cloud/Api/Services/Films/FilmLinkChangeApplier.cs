@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Api.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 
 namespace Api.Services.Films;
@@ -71,6 +72,7 @@ internal static partial class FilmLinkChangeApplier
         if (change.Services is not null)
         {
             film.Services = Catalogue.PlayableServicesChangeApplier.Apply(film.Services, change.Services);
+            EpisodeServicePresence.SyncCatalogueYouTubeId(film);
         }
 
         if (change.Trailers is not null)
