@@ -1,27 +1,10 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
 using Poster;
-using RedditPodcastPoster.Bluesky.Extensions;
-using RedditPodcastPoster.Cloudflare.Extensions;
-using RedditPodcastPoster.Catalogue.Extensions;
-using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.ContentPublisher.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.People.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.Twitter.Extensions;
-using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -39,32 +22,10 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddScoped<PostProcessor>()
-    .AddEpisodesDomain().AddEpisodeLookup()
-    .AddRepositories()
-    .AddCatalogueServices()
-    .AddSocialPostingServices()
-    .AddPodcastServices()
-    .AddPeopleServices()
-    .AddContentPublishing()
-    .AddTwitterServices()
-    .AddBlueskyServices()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider()
-    .AddTextSanitiser()
-    .AddCloudflareClients()
-    .AddShortnerServices()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddCachedSubjectProvider()
-    .AddSpotifyServices()
-    .AddHttpClient();
-
-builder.Services.AddPostingCriteria();
-builder.Services.AddDelayedYouTubePublication();
+builder.Services.AddPosterConsoleServices();
 
 using var host = builder.Build();
+
 return await Parser.Default.ParseArguments<PostRequest>(args)
     .MapResult(async submitUrlRequest => await Run(submitUrlRequest), errs => Task.FromResult(-1));
 
