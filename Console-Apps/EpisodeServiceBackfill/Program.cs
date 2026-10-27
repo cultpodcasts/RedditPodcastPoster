@@ -42,6 +42,7 @@ builder.Services
         })
         .AddSingleton<EpisodeServiceBackfillProcessor>()
     .AddSingleton<EpisodeServiceBackfillHost>()
+    .AddSingleton<IEpisodeYouTubeIdRepairStore, CosmosEpisodeYouTubeIdRepairStore>()
     .AddSingleton<EpisodeYouTubeIdRepairRunner>();
 
 using var host = builder.Build();

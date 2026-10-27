@@ -1,29 +1,45 @@
-using System.Net;
 using System.Text.Json;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Persistence.Abstractions.Factories;
 
 namespace EpisodeServiceBackfill;
 
+/// <summary>What one <c>--youtube-id-only</c> run planned, reported and wrote.</summary>
+public sealed record EpisodeYouTubeIdRepairResult(
+    int ExitCode,
+    IReadOnlyList<EpisodeYouTubeIdRepairPlan> Plans,
+    IReadOnlyList<EpisodeYouTubeIdMismatch> Mismatches,
+    IReadOnlyDictionary<YouTubeIdPatchOutcome, int> Outcomes);
+
 /// <summary>
 /// <c>--youtube-id-only</c> runner. Dry-run unless <c>--apply</c>. Each write is one Cosmos patch of
-/// <c>/ids/youtube</c> (or <c>/ids</c> when absent) guarded by a filter predicate, so nothing else in the
-/// document changes and re-running is a no-op. The patch bumps <c>_ts</c>, which is the high-water mark
+/// <c>/ids/youtube</c> (or <c>/ids</c> when absent) guarded by a per-plan filter predicate, so nothing else in
+/// the document changes and re-running is a no-op. The patch bumps <c>_ts</c>, which is the high-water mark
 /// the podcast-episode Azure Search indexer reads, so its next run re-indexes the episode with the id.
+/// The dry run also lists stored ids that disagree with the url; policy is to keep the stored id, so those
+/// are reported and never patched.
 /// </summary>
 public class EpisodeYouTubeIdRepairRunner(
-    ICosmosDbContainerFactory containerFactory,
+    IEpisodeYouTubeIdRepairStore store,
     ILogger<EpisodeYouTubeIdRepairRunner> logger)
 {
-    public async Task<int> Run(EpisodeServiceBackfillRequest request)
+    public const int InvalidArgumentsExitCode = 1;
+    public const int PatchFailuresExitCode = 2;
+
+    public async Task<int> Run(EpisodeServiceBackfillRequest request) => (await Execute(request)).ExitCode;
+
+    public async Task<EpisodeYouTubeIdRepairResult> Execute(EpisodeServiceBackfillRequest request)
     {
-        var container = containerFactory.CreateEpisodesContainer();
-        var requestedIds = ParseIds(request.Ids);
+        var outcomes = new Dictionary<YouTubeIdPatchOutcome, int>();
+        if (!TryParseIds(request.Ids, out var requestedIds, out var invalidIds))
+        {
+            Console.Error.WriteLine(
+                $"--ids must be a comma, semicolon or space separated list of episode GUIDs. Not a GUID: {string.Join(", ", invalidIds.Select(x => $"'{x}'"))}.");
+            return new EpisodeYouTubeIdRepairResult(InvalidArgumentsExitCode, [], [], outcomes);
+        }
+
         var plans = new List<EpisodeYouTubeIdRepairPlan>();
         var skipped = new Dictionary<EpisodeYouTubeIdRepair.SkipReason, int>();
-
-        await foreach (var json in Query(container, BuildQuery(requestedIds)))
+        await foreach (var json in store.QueryCandidates(requestedIds))
         {
             var plan = EpisodeYouTubeIdRepair.Plan(json, out var reason);
             if (plan is null)
@@ -58,8 +74,7 @@ public class EpisodeYouTubeIdRepairRunner(
 
         if (requestedIds.Count > 0)
         {
-            var missing = requestedIds.Except(plans.Select(x => x.EpisodeId)).ToList();
-            foreach (var id in missing)
+            foreach (var id in requestedIds.Except(plans.Select(x => x.EpisodeId)))
             {
                 Console.WriteLine($"  {id}: not a candidate (not found, id already set, or url has no video id).");
             }
@@ -67,94 +82,98 @@ public class EpisodeYouTubeIdRepairRunner(
 
         if (!request.Apply)
         {
+            var mismatches = await ReportMismatches(requestedIds);
             Console.WriteLine("Dry-run only. Re-run with --apply to patch ids.youtube.");
-            return 0;
+            return new EpisodeYouTubeIdRepairResult(0, plans, mismatches, outcomes);
         }
 
-        int patched = 0, alreadySet = 0, notFound = 0, failed = 0;
         foreach (var plan in plans)
         {
-            try
+            var outcome = await store.Patch(plan);
+            outcomes[outcome] = outcomes.GetValueOrDefault(outcome) + 1;
+            switch (outcome)
             {
-                await container.PatchItemAsync<JsonElement>(
-                    plan.EpisodeId.ToString(),
-                    new PartitionKey(plan.PodcastId.ToString()),
-                    [PatchOperation.Set(plan.PatchPath, EpisodeYouTubeIdRepair.PatchValue(plan))],
-                    new PatchItemRequestOptions
-                    {
-                        FilterPredicate = EpisodeYouTubeIdRepair.PatchFilterPredicate,
-                        EnableContentResponseOnWrite = false
-                    });
-                patched++;
-                Console.WriteLine($"  patched {plan.EpisodeId} ids.youtube={plan.YouTubeId}");
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
-            {
-                alreadySet++;
-                Console.WriteLine($"  skipped {plan.EpisodeId}: ids.youtube was set since the scan.");
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                notFound++;
-                Console.WriteLine($"  skipped {plan.EpisodeId}: not found.");
-            }
-            catch (CosmosException ex)
-            {
-                failed++;
-                logger.LogError(ex, "Patch failed for episode {EpisodeId} ({StatusCode}).", plan.EpisodeId, ex.StatusCode);
+                case YouTubeIdPatchOutcome.Patched:
+                    Console.WriteLine($"  patched {plan.EpisodeId} ids.youtube={plan.YouTubeId}");
+                    break;
+                case YouTubeIdPatchOutcome.ConditionNotMet:
+                    Console.WriteLine(
+                        $"  skipped {plan.EpisodeId}: changed since the scan (id or ids object set, or url changed).");
+                    break;
+                case YouTubeIdPatchOutcome.NotFound:
+                    Console.WriteLine($"  skipped {plan.EpisodeId}: not found.");
+                    break;
+                case YouTubeIdPatchOutcome.BadRequest:
+                    Console.WriteLine(
+                        $"  skipped {plan.EpisodeId}: rejected (ids object removed since the scan?). Nothing written; re-run to re-plan.");
+                    break;
+                default:
+                    logger.LogError("Patch failed for episode {EpisodeId}.", plan.EpisodeId);
+                    break;
             }
         }
 
         Console.WriteLine(
-            $"Applied: patched={patched} already-set={alreadySet} not-found={notFound} failed={failed}. " +
+            $"Applied: patched={Count(YouTubeIdPatchOutcome.Patched)} changed-since-scan={Count(YouTubeIdPatchOutcome.ConditionNotMet)} " +
+            $"not-found={Count(YouTubeIdPatchOutcome.NotFound)} bad-request={Count(YouTubeIdPatchOutcome.BadRequest)} " +
+            $"failed={Count(YouTubeIdPatchOutcome.Failed)}. " +
             "The podcast-episode search indexer picks these up on its next run (_ts changed).");
-        return failed > 0 ? 2 : 0;
+        var exitCode = Count(YouTubeIdPatchOutcome.Failed) + Count(YouTubeIdPatchOutcome.BadRequest) > 0
+            ? PatchFailuresExitCode
+            : 0;
+        return new EpisodeYouTubeIdRepairResult(exitCode, plans, [], outcomes);
+
+        int Count(YouTubeIdPatchOutcome outcome) => outcomes.GetValueOrDefault(outcome);
     }
 
-    internal static QueryDefinition BuildQuery(IReadOnlyList<Guid> ids)
+    private async Task<IReadOnlyList<EpisodeYouTubeIdMismatch>> ReportMismatches(IReadOnlyList<Guid> requestedIds)
     {
-        if (ids.Count == 0)
+        var mismatches = new List<EpisodeYouTubeIdMismatch>();
+        await foreach (var json in store.QueryStoredIdsWithUrl(requestedIds))
         {
-            return new QueryDefinition(EpisodeYouTubeIdRepair.CandidateQuery);
+            if (EpisodeYouTubeIdRepair.FindMismatch(json) is { } mismatch)
+            {
+                mismatches.Add(mismatch);
+            }
         }
 
-        var names = ids.Select((_, i) => $"@id{i}").ToList();
-        var query = new QueryDefinition(
-            EpisodeYouTubeIdRepair.CandidateQuery + $" AND c.id IN ({string.Join(", ", names)})");
-        for (var i = 0; i < ids.Count; i++)
+        mismatches = mismatches.OrderBy(x => x.EpisodeId).ToList();
+        Console.WriteLine(
+            $"id/url mismatches: {mismatches.Count} episode(s) whose ids.youtube is not the url's video. " +
+            "Reported only; the stored id is kept (docs/episode-services.md).");
+        foreach (var mismatch in mismatches)
         {
-            query = query.WithParameter(names[i], ids[i].ToString());
+            Console.WriteLine(
+                $"  {mismatch.EpisodeId} podcast={mismatch.PodcastId} ids.youtube={mismatch.StoredYouTubeId} " +
+                $"url-id={mismatch.UrlYouTubeId} (url {mismatch.Url})");
         }
 
-        return query;
+        return mismatches;
     }
 
-    private static List<Guid> ParseIds(string? ids) =>
-        string.IsNullOrWhiteSpace(ids)
-            ? []
-            : ids.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(Guid.Parse)
-                .Distinct()
-                .ToList();
-
-    private static async IAsyncEnumerable<string> Query(Container container, QueryDefinition query)
+    /// <summary>Parses <c>--ids</c>; false with the offending tokens when any is not a GUID.</summary>
+    public static bool TryParseIds(string? ids, out IReadOnlyList<Guid> parsed, out IReadOnlyList<string> invalid)
     {
-        using var iterator = container.GetItemQueryStreamIterator(query);
-        while (iterator.HasMoreResults)
+        var valid = new List<Guid>();
+        var bad = new List<string>();
+        if (!string.IsNullOrWhiteSpace(ids))
         {
-            using var response = await iterator.ReadNextAsync();
-            response.EnsureSuccessStatusCode();
-            using var payload = await JsonDocument.ParseAsync(response.Content);
-            if (!payload.RootElement.TryGetProperty("Documents", out var documents) ||
-                documents.ValueKind != JsonValueKind.Array)
+            foreach (var token in ids.Split([',', ';', ' '],
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                continue;
-            }
-
-            foreach (var document in documents.EnumerateArray())
-            {
-                yield return document.GetRawText();
+                if (Guid.TryParse(token, out var id))
+                {
+                    valid.Add(id);
+                }
+                else
+                {
+                    bad.Add(token);
+                }
             }
         }
+
+        parsed = valid.Distinct().ToList();
+        invalid = bad;
+        return bad.Count == 0;
     }
 }
