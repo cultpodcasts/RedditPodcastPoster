@@ -35,20 +35,41 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
   --change-log catalogue-playable-youtube-id.jsonl
 ```
 
-Apply is the same command plus `--apply` and the `--consent` phrase shown below (human only). Each write changes `_ts` and pushes the search document with `youtubeId`.
+Apply uses the same flags with its own change log (so the dry-run log is kept for comparison), plus `--apply` and `--consent` (see **Apply** below):
+
+```powershell
+dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
+  --youtube-id-only `
+  --kind all `
+  --change-log catalogue-playable-youtube-id-apply.jsonl `
+  --apply `
+  --consent "<operator-held phrase>"
+```
+
+**Url wins.** The id is always taken from `services.youtube.url`, overwriting a stored id that disagrees. If the url is missing or is not a YouTube video url (e.g. a channel url), an existing id is **kept**, never cleared, and the row is logged with `youTubeIdOutcome: "skipped-unparseable"`. Each change-log row records the real before → after id (`changes[].before` / `after` on field `youTubeId`) and `youTubeIdOutcome` (`filled` null → id, `overwritten` idA → idB, `cleared` id → null — always 0 here, `skipped-unparseable`). The finish log splits counts the same way: `YouTubeIdFilled`, `YouTubeIdOverwritten`, `YouTubeIdCleared`, `YouTubeIdSkippedUnparseable`.
 
 ## Apply (human only)
+
+`--apply` requires `--consent` with the human consent phrase, which the operator holds; it is deliberately not written in this repository. Agents must never pass `--consent`. Without the exact phrase, `--apply` exits 2 and writes nothing.
+
+**Run applies only between :15 and :55 past the hour** (the search indexers run at :03 and :08), and never while a catalogue Move is in progress.
 
 ```powershell
 dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
   --episode-backup-dir C:\path\to\CosmosDbDownloaderRoot `
   --public-database-dir C:\path\to\PublicDatabase `
   --kind all `
+  --change-log catalogue-playable-services-backfill-apply.jsonl `
   --apply `
-  --consent "I approve CataloguePlayableServicesBackfill production writes"
+  --consent "<operator-held phrase>"
 ```
 
-Agents must never pass `--consent`. Without the exact phrase, `--apply` exits 2 and writes nothing.
+How writes are made:
+
+- **NewsReport / TvShowEpisode**: the document is re-read with its ETag just before the write. If it is gone (deleted or moved since the scan) the row is skipped as `skipped: "not-found"`; if its `services` or `youTubeId` changed since the scan it is skipped as `skipped: "conflict"`. Otherwise a Cosmos **partial patch** sets only the changed paths (`/services` and/or `/youTubeId`) with `If-Match` on that ETag, so other fields edited concurrently are untouched. A patch never creates a document: 404 → `not-found`, 412 → `conflict`. Skips are logged as warnings and counted (`SkippedNotFound`, `SkippedConflict`); they do not fail the run.
+- **Film**: ETag-guarded read-modify-write through the film repository.
+- **Search**: updated search documents are pushed in batches of 100 (films have no search pull; for news/TV the `_ts` bump also lets the indexer re-pull).
+- `--snapshot-dir` writes each playable's before `{ services, youTubeId }`.
 
 ## Flags
 
@@ -61,4 +82,4 @@ Agents must never pass `--consent`. Without the exact phrase, `--apply` exits 2 
 | `--ids` | Comma-separated GUIDs |
 | `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
 | `--change-log` | JSONL path |
-| `--snapshot-dir` | Optional before-`services` JSON slices |
+| `--snapshot-dir` | Optional before `{ services, youTubeId }` JSON slices |
