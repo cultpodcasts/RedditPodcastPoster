@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FluentAssertions;
 using Moq;
+using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
@@ -78,6 +80,7 @@ public class UrlSubmissionDependencyInjectionTests
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton(Mock.Of<IFilmRepository>());
         services.AddSingleton(Mock.Of<ITvShowRepository>());
@@ -87,6 +90,8 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
         // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
         services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
+        // Catalogue identity comes from AddCatalogueServices at the composition root, not AddUrlSubmission.
+        services.AddSingleton(Mock.Of<ICatalogueIdentityEnricher>());
         services.AddUrlSubmission();
 
         // Act
@@ -97,5 +102,60 @@ public class UrlSubmissionDependencyInjectionTests
         // Assert
         submitter.Should().BeOfType<CatalogueKindSubmitter>();
         options.Enabled.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "AddCatalogueServices plus AddUrlSubmission (the Api, SubmitUrl and EnrichExisting composition) " +
+        "resolves the catalogue submitter with the real catalogue identity enricher.")]
+    public void catalogue_submitter_resolves_with_catalogue_services_registered_at_root()
+    {
+        // Arrange
+        var services = CatalogueSubmitterDependencies();
+        services.AddCatalogueServices();
+        services.AddUrlSubmission();
+
+        // Act
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        var enricher = scope.ServiceProvider.GetRequiredService<ICatalogueIdentityEnricher>();
+        var submitter = scope.ServiceProvider.GetRequiredService<ICatalogueKindSubmitter>();
+
+        // Assert
+        enricher.Should().BeOfType<CatalogueIdentityEnricher>();
+        submitter.Should().BeOfType<CatalogueKindSubmitter>();
+    }
+
+    [Fact(DisplayName =
+        "AddUrlSubmission does not resolve the catalogue submitter without AddCatalogueServices, " +
+        "because callers must register catalogue identity at the root.")]
+    public void catalogue_submitter_fails_without_catalogue_services()
+    {
+        // Arrange
+        var services = CatalogueSubmitterDependencies();
+        services.AddUrlSubmission();
+        using var provider = services.BuildServiceProvider();
+
+        // Act
+        var act = () => provider.GetRequiredService<ICatalogueKindSubmitter>();
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage($"*{nameof(ICatalogueIdentityEnricher)}*");
+    }
+
+    private static ServiceCollection CatalogueSubmitterDependencies()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton(Mock.Of<IFilmRepository>());
+        services.AddSingleton(Mock.Of<ITvShowRepository>());
+        services.AddSingleton(Mock.Of<ITvShowEpisodeRepository>());
+        services.AddSingleton(Mock.Of<INewsOrganisationRepository>());
+        services.AddSingleton(Mock.Of<INewsReportRepository>());
+        services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
+        // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
+        services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
+        return services;
     }
 }

@@ -27,6 +27,22 @@ Platform identity for matching and “do we have Spotify / Apple / YouTube?” l
 
 Top-level `spotifyId` / `appleId` / `youTubeId` on **podcast episodes** are leftover Cosmos JSON: ignored on typed deserialize, omitted on serialize (wither). Matching and app writers use nested `ids` only. Episode-pull search indexer SQL reads nested `ids` / `services` only (catalog backfill is complete) — it must **not** fall back to leftover top-level `youTubeId`. Published homepage and public episode payloads expose **`ids` + `services`**. Reconstruct a listen/watch URL from `services.{key}.url`, or from `ids` (search still uses compact `spotifyId` / `youtubeId` / `appleId` + `podcastAppleId`).
 
+### `ids.youtube` always follows `services.youtube.url`
+
+The episode-pull search SQL projects `youtubeId` from nested `ids.youtube` only, so an episode with a YouTube url but no stored id has no Watch icon. `EpisodeServicePresence.YouTubeEpisodeId` falls back to the url for reads; **do not** use it to decide whether the stored id still has to be written (it is never empty once a url exists). Use `EpisodeServicePresence.NestedYouTubeId`. Writes keep the two in step:
+
+- `EpisodeServicePresence.Upsert(episode, "youtube", url, …)` (when it writes a url) and `EpisodeRepository.Save` call `FillYouTubeIdFromUrl`: a missing `ids.youtube` is filled from the url's video id. An id that is already set is never replaced (callers that change the video, such as the curator PATCH, set both), and a url with no video id leaves it empty.
+
+**Policy when the stored id and the url disagree (podcast episodes): keep the stored id.** Fill-only everywhere: `Upsert`, `Save`, `EpisodePlatformApplier` (an incoming link for another video never replaces the id of a url already stored; the stored url's video wins), `EnrichExistingEpisodesFromPodcastServices`, `FindDuplicateEpisodes` merge, and the repair below. This differs on purpose from catalogue playables (#1136), where the url wins and top-level `youTubeId` is re-derived from `services.youtube.url` on every edit: a podcast episode's id may have come from the YouTube API for the channel, and silently replacing it from a hand-edited url could point the Watch icon at another video. Mismatches are reported (below) and fixed by hand (curator PATCH sets both) until this policy is revisited.
+
+Repair for documents already in Cosmos: `EpisodeServiceBackfill --youtube-id-only` (dry-run unless `--apply`; `--ids a,b` or `--all`; `--limit N` keeps the oldest N by `_ts` otherwise; a non-GUID in `--ids` exits 1 before any query). One patch per document with a per-document filter predicate (`EpisodeYouTubeIdRepair.PatchFilterPredicateFor`):
+
+- ids object present at scan: set `/ids/youtube`, only while `ids.youtube` is still missing;
+- no ids object at scan: set `/ids` to `{ "youtube": … }`, only while there is still no ids object (so Spotify/Apple ids written after the scan are never replaced);
+- both: only while `services.youtube.url` is still the raw url string seen at scan time (SQL-escaped), so a cleared or changed url never gets the old video's id.
+
+A 412 (condition no longer holds) or 404 (deleted) is counted and skipped; a 400 (ids object removed after the scan) writes nothing and is counted separately; 400 or any other failure exits 2. Re-running is a no-op. The dry run also lists every episode whose stored `ids.youtube` is not the url's video id (count plus id, podcast, stored id, url id, url); those are never patched. The patch bumps `_ts`, so the next scheduled run of the episode search indexer (every 30 minutes, or `CreateSearchIndex -i cultpodcasts -d cultpodcasts-ds -x cultpodcasts-indexer -r`) re-indexes the episode with its `youtubeId`.
+
 ### Catalogue playables (Film / TvShowEpisode / NewsReport)
 
 These kinds have **no** nested `ids`. Platform presence is `services` only (`url` + optional `image`). Film / TvShowEpisode / NewsReport implement **`ICatalogueYouTubeItem`** with a compact top-level **`youTubeId`** (synced from `services.youtube.url` on catalogue edits and backfill) so sibling Azure Search datasources can project `youtubeId` for Watch icons — not on the shared `Playable` / `IPlayable` surface, and never on podcast `Episode` (leftover Cosmos `youTubeId` is ignored; nested `ids.youtube` only). Sibling pull SQL uses `PlayableSearchSql` (`c.youTubeId`); do not couple it to the episode-container pull query.

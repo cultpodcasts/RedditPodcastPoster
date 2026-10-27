@@ -146,11 +146,15 @@ public sealed class LeftoverEpisodeDocument : Episode
             EpisodeServicePresence.SetSpotifyIdentity(this, SpotifyId);
         }
 
+        // Nested id only (YouTubeEpisodeId falls back to services.youtube.url and skipped this), then the
+        // url: an empty leftover youTubeId must not leave ids.youtube missing when the url has the video.
         if (!string.IsNullOrWhiteSpace(YouTubeId) &&
-            string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(this)))
+            EpisodeServicePresence.NestedYouTubeId(this) is null)
         {
             EpisodeServicePresence.SetYouTubeIdentity(this, YouTubeId);
         }
+
+        EpisodeServicePresence.FillYouTubeIdFromUrl(this);
 
         if (AppleId is > 0 && EpisodeServicePresence.AppleEpisodeId(this) is null)
         {

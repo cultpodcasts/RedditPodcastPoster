@@ -1,30 +1,10 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
 using Index;
-using iTunesSearch.Library;
-using RedditPodcastPoster.Catalogue.Extensions;
-using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EdgeApi.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Indexing.Extensions;
-using RedditPodcastPoster.People.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Clients;
-using RedditPodcastPoster.PodcastServices.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -42,31 +22,7 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddSingleton<IndexProcessor>()
-    .AddEpisodesDomain().AddEpisodeLookup()
-    .AddRepositories()
-    .AddCatalogueServices()
-    .AddSocialPostingServices()
-    .AddPodcastServices()
-    .AddEdgeApiClient(bypassCertificateValidation: false)
-    .AddAppleServices()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddSpotifyServices()
-    .AddScoped(s => new iTunesSearchManager())
-    .AddScoped<IRemoteClient, RemoteClient>()
-    .AddEliminationTerms()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider()
-    .AddTextSanitiser()
-    .AddPeopleServices()
-    .AddIndexer()
-    .AddEpisodeSearchIndexerService()
-    .AddHttpClient();
-
-builder.Services.AddPostingCriteria();
-builder.Services.AddDelayedYouTubePublication();
+builder.Services.AddIndexConsoleServices();
 
 using var host = builder.Build();
 

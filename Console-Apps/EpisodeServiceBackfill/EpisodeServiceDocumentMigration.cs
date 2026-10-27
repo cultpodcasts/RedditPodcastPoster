@@ -135,10 +135,12 @@ public static class EpisodeServiceDocumentMigration
         }
 
         if (TryGetNonEmptyString(raw, "youTubeId", out var youTubeId) &&
-            string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)))
+            EpisodeServicePresence.NestedYouTubeId(episode) is null)
         {
             EpisodeServicePresence.SetYouTubeIdentity(episode, youTubeId);
         }
+
+        EpisodeServicePresence.FillYouTubeIdFromUrl(episode);
 
         if (raw.TryGetProperty("appleId", out var appleEl) &&
             appleEl.ValueKind is JsonValueKind.Number &&

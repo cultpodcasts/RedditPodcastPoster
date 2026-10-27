@@ -49,7 +49,9 @@ public class YouTubeEpisodeEnricher(
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(request.Episode)) &&
+        // Url but no stored id: heal from the url. Nested id only, because YouTubeEpisodeId falls back to
+        // the url and would skip this branch (and then re-search YouTube) for exactly these episodes.
+        if (EpisodeServicePresence.NestedYouTubeId(request.Episode) is null &&
             EpisodeServicePresence.TryGetUrl(request.Episode, ServiceKeys.YouTube) != null)
         {
             var youTubeUrl = EpisodeServicePresence.TryGetUrl(request.Episode, ServiceKeys.YouTube);

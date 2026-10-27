@@ -405,6 +405,30 @@ public class CatalogueParentIndexingRules
     }
 
     [Fact(DisplayName =
+        "Catalogue parent indexing: when the merger enriches a stored news report that has a YouTube url but no " +
+        "compact YouTubeId, then the saved report gets YouTubeId from that url, because search reads the compact id " +
+        "and a url-only report shows no YouTube icon.")]
+    public async Task merged_news_report_syncs_compact_youtube_id()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(podcast);
+        var storedEpisode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release: DomainTestFixture.UtcDateDaysAgo(5));
+        var stored = CatalogueParentKindMapper.ToNewsReport(storedEpisode, organisation);
+        stored.YouTubeId = null;
+        _storedReports = [stored];
+        _merge = (existing, _) => new EpisodeMergeResult(existing, [], [(existing[0], existing[0])], []);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.Id.Should().Be(stored.Id);
+        saved.YouTubeId.Should().Be(storedEpisode.Ids!.YouTube);
+    }
+
+    [Fact(DisplayName =
         "Catalogue parent indexing: stored playables are passed to discovery with their YouTube id read from the " +
         "services URL, because playables store no provider ids and the merger matches on them.")]
     public async Task stored_playables_carry_provider_ids_from_services()

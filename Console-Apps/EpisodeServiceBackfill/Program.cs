@@ -41,13 +41,20 @@ builder.Services
                 s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EpisodeRepository>>());
         })
         .AddSingleton<EpisodeServiceBackfillProcessor>()
-    .AddSingleton<EpisodeServiceBackfillHost>();
+    .AddSingleton<EpisodeServiceBackfillHost>()
+    .AddSingleton<IEpisodeYouTubeIdRepairStore, CosmosEpisodeYouTubeIdRepairStore>()
+    .AddSingleton<EpisodeYouTubeIdRepairRunner>();
 
 using var host = builder.Build();
 
 return await Parser.Default.ParseArguments<EpisodeServiceBackfillRequest>(args)
     .MapResult(async request =>
     {
+        if (request.YouTubeIdOnly)
+        {
+            return await host.Services.GetRequiredService<EpisodeYouTubeIdRepairRunner>().Run(request);
+        }
+
         var runner = host.Services.GetRequiredService<EpisodeServiceBackfillHost>();
         return await runner.Run(request);
     },

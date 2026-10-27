@@ -843,6 +843,30 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "An enriching resubmit onto a stored report that has a YouTube url but no compact YouTubeId sets YouTubeId from that url when it saves, because search reads the compact id and a url-only report shows no YouTube icon.")]
+    public async Task parent_submitter_enrichment_syncs_compact_youtube_id()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var videoId = _fixture.CreateYouTubeId();
+        var stored = StoreReport(organisation, new Uri($"https://www.youtube.com/watch?v={videoId}"));
+        stored.YouTubeId = null;
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var merged = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        merged.Services![ServiceKeys.Spotify] = new ServiceLink { Url = spotifyUrl };
+        ProcessorReturns(new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: merged));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), spotifyUrl, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        _savedReports.Should().ContainSingle().Which.YouTubeId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
         "A resubmit the processor matches to a stored report with nothing new is EpisodeAlreadyExists with that report's id, and nothing is saved or indexed.")]
     public async Task parent_submitter_known_item_already_exists()
     {

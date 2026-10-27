@@ -184,11 +184,12 @@ public class EnrichPodcastEpisodesProcessor(
             }
 
             if (podcast.YouTubeChannelId != null &&
-                (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(detachedEpisode)) ||
+                (EpisodeServicePresence.NestedYouTubeId(detachedEpisode) is null ||
                  !EpisodeServicePresence.HasUrl(detachedEpisode, ServiceKeys.YouTube)))
             {
                 var existingYouTubeUrl = EpisodeServicePresence.TryGetUrl(detachedEpisode, ServiceKeys.YouTube);
-                if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(detachedEpisode)) &&
+                // Nested id: YouTubeEpisodeId falls back to the url, which hid url-without-id episodes here.
+                if (EpisodeServicePresence.NestedYouTubeId(detachedEpisode) is null &&
                     existingYouTubeUrl != null)
                 {
                     var youTubeId = YouTubeIdResolver.Extract(existingYouTubeUrl);
@@ -198,6 +199,8 @@ public class EnrichPodcastEpisodesProcessor(
                         logger.LogInformation(
                             "Enriched from youtube-url: '{UrlsYouTube}', youtube-id: '{EpisodeYouTubeId}'.",
                             existingYouTubeUrl, youTubeId);
+                        // Without this the healed id was never saved: the save below is gated on episodeUpdated.
+                        episodeUpdated = true;
                     }
                 }
                 else if (existingYouTubeUrl == null &&
@@ -210,6 +213,7 @@ public class EnrichPodcastEpisodesProcessor(
                         "Enriched from youtube-id: '{EpisodeYouTubeId}', Url: '{UrlsYouTube}'.",
                         EpisodeServicePresence.YouTubeEpisodeId(detachedEpisode),
                         youTubeUrl);
+                    episodeUpdated = true;
                 }
                 else
                 {
@@ -297,7 +301,7 @@ public class EnrichPodcastEpisodesProcessor(
     private static void ApplyYouTubeMatch(Episode episode, RedditPodcastPoster.PodcastServices.YouTube.Models.ResolvedYouTubeItem match)
     {
         EpisodeServicePresence.TryFillMissing(episode, ServiceKeys.YouTube, match.Url, match.Image);
-        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)))
+        if (EpisodeServicePresence.NestedYouTubeId(episode) is null)
         {
             EpisodeServicePresence.SetYouTubeIdentity(episode, match.EpisodeId);
         }
