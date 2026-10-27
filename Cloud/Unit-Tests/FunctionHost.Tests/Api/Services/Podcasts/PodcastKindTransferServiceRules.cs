@@ -228,6 +228,58 @@ public class PodcastKindTransferServiceRules
         indexing.IndexAllEpisodes.Should().BeTrue();
     }
 
+    [Theory(DisplayName =
+        "Move to news: transferring a podcast to a news organisation saves bypass-short-episodes and " +
+        "always-promote-as-hero on even when the podcast had them off or unset, because those are the news defaults.")]
+    [InlineData(null)]
+    [InlineData(false)]
+    public async Task transfer_to_news_organisation_saves_news_default_flags(bool? podcastFlag)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = podcastFlag;
+            p.AlwaysPromoteAsHero = podcastFlag;
+        });
+        _podcasts.Seed(podcast);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        _savedOrganisation!.Indexing!.BypassShortEpisodeChecking.Should().BeTrue();
+        _savedOrganisation.Indexing.AlwaysPromoteAsHero.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Transferring a podcast to a TV show keeps the podcast's own bypass-short and hero flags (off stays off), " +
+        "because the saved news defaults do not apply to TV shows.")]
+    public async Task transfer_to_tv_show_keeps_podcast_flags()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = false;
+            p.AlwaysPromoteAsHero = false;
+        });
+        _podcasts.Seed(podcast);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        _savedShow!.Indexing!.BypassShortEpisodeChecking.Should().BeFalse();
+        _savedShow.Indexing.AlwaysPromoteAsHero.Should().BeFalse();
+    }
+
     [Fact(DisplayName =
         "A missing target kind is rejected without writing catalogue rows, because Film is not a parent transfer.")]
     public async Task missing_target_is_invalid()

@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -13,6 +14,7 @@ using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Catalogue.Authority;
@@ -36,6 +38,7 @@ public class CatalogueKindSubmitRules
 
     public CatalogueKindSubmitRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
@@ -209,6 +212,186 @@ public class CatalogueKindSubmitRules
         _reports[0].NewsOrganisationId.Should().Be(_organisations[0].Id);
         _reports[0].NewsOrganisationName.Should().Be(organisation);
         _films.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a news URL submit creates a NewsOrganisation, it is saved with bypass-short-episodes and " +
+        "always-promote-as-hero on and no service ids, because those are the saved news defaults and a curator may " +
+        "switch them off later.")]
+    public async Task news_create_saves_the_news_default_flags()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle());
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        var indexing = _organisations.Should().ContainSingle().Subject.Indexing!;
+        indexing.BypassShortEpisodeChecking.Should().BeTrue();
+        indexing.AlwaysPromoteAsHero.Should().BeTrue();
+        indexing.IsAutoIndexed.Should().BeFalse();
+        indexing.YouTubeChannelId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a news URL is submitted to an existing NewsOrganisation whose curator switched both flags off, the " +
+        "report is added and the organisation is not saved or changed, because the news defaults apply only at " +
+        "creation.")]
+    public async Task report_into_existing_news_organisation_keeps_its_flags()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var outlet = _fixture.CreateTitle();
+        var existing = new NewsOrganisation(outlet)
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { BypassShortEpisodeChecking = false, AlwaysPromoteAsHero = false }
+        };
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns((Expression<Func<NewsOrganisation, bool>> predicate) =>
+                Yield(new[] { existing }.Where(predicate.Compile())));
+        var source = OutletSource(TubiMovieUrl(), outlet);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _reports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(existing.Id);
+        _organisations.Should().BeEmpty();
+        existing.Indexing.BypassShortEpisodeChecking.Should().BeFalse();
+        existing.Indexing.AlwaysPromoteAsHero.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "When a news URL submit creates a NewsOrganisation, the new report is appended to the hero list only when it " +
+        "was released inside the week window, because the new organisation is saved with always-promote-as-hero on and " +
+        "the classifier path must promote like the podcast submit does.")]
+    [InlineData(1, true)]
+    [InlineData(20, false)]
+    public async Task news_create_promotes_hero_when_eligible(int daysAgo, bool expectPromoted)
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle()) with { Release = DomainTestFixture.UtcDaysAgo(daysAgo) };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        _organisations.Should().ContainSingle();
+        var report = _reports.Should().ContainSingle().Subject;
+        VerifyHeroPromoted(report.Id, expectPromoted);
+    }
+
+    [Theory(DisplayName =
+        "When a news URL is submitted to an existing NewsOrganisation, the new report from this week is appended to the " +
+        "hero list only when the organisation is flagged always-promote-as-hero, because the flag must behave as it does " +
+        "for a podcast submit.")]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(null, false)]
+    public async Task report_into_existing_news_organisation_promotes_hero_only_when_flagged(
+        bool? alwaysPromote, bool expectPromoted)
+    {
+        // Arrange
+        UseEnabledFlag();
+        var outlet = _fixture.CreateTitle();
+        var existing = new NewsOrganisation(outlet)
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { AlwaysPromoteAsHero = alwaysPromote }
+        };
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns((Expression<Func<NewsOrganisation, bool>> predicate) =>
+                Yield(new[] { existing }.Where(predicate.Compile())));
+        var source = OutletSource(TubiMovieUrl(), outlet) with { Release = DomainTestFixture.UtcDaysAgo(1) };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        var report = _reports.Should().ContainSingle().Subject;
+        VerifyHeroPromoted(report.Id, expectPromoted);
+    }
+
+    [Theory(DisplayName =
+        "When a TV URL is submitted to an existing TvShow, the new episode from this week is appended to the hero list " +
+        "only when the show is flagged always-promote-as-hero, and a newly created show (no flag) is not promoted, " +
+        "because TV shows have no hero default.")]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, false)]
+    [InlineData(null, true, false)]
+    public async Task tv_submit_promotes_hero_only_when_show_flagged(
+        bool? alwaysPromote, bool createShow, bool expectPromoted)
+    {
+        // Arrange
+        UseEnabledFlag();
+        var series = _fixture.CreateTitle();
+        if (!createShow)
+        {
+            UseStoredShows(new TvShow(series)
+            {
+                Id = _fixture.CreateGuid(),
+                Indexing = new CatalogueIndexingSource { AlwaysPromoteAsHero = alwaysPromote }
+            });
+        }
+
+        var source = Source(showName: series) with { Release = DomainTestFixture.UtcDaysAgo(1) };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), TvOptions(source.Url));
+
+        // Assert
+        var episode = _episodes.Should().ContainSingle().Subject;
+        _shows.Should().HaveCount(createShow ? 1 : 0);
+        VerifyHeroPromoted(episode.Id, expectPromoted);
+    }
+
+    [Fact(DisplayName =
+        "The classifier submit measures the hero week window with the injected TimeProvider, so a report released a " +
+        "day before that clock is promoted even though it is weeks old by the wall clock.")]
+    public async Task news_create_hero_window_uses_time_provider()
+    {
+        // Arrange
+        UseEnabledFlag();
+        _mocker.Use<TimeProvider>(new FixedTimeProvider(DomainTestFixture.UtcDaysAgo(30)));
+        var source = Source(showName: _fixture.CreateTitle()) with { Release = DomainTestFixture.UtcDaysAgo(31) };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        var report = _reports.Should().ContainSingle().Subject;
+        VerifyHeroPromoted(report.Id, expectPromoted: true);
+    }
+
+    [Fact(DisplayName =
+        "A dry-run news submit creates nothing and promotes no hero, because nothing was stored.")]
+    public async Task news_dry_run_does_not_promote_hero()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle()) with { Release = DomainTestFixture.UtcDaysAgo(1) };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!) with { PersistToDatabase = false });
+
+        // Assert
+        _reports.Should().BeEmpty();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -754,6 +937,13 @@ public class CatalogueKindSubmitRules
         _reports.Should().BeEmpty();
         episode.Services![StreamingServiceWire.ToKey(StreamingService.Tubi)].Url.Should().Be(canonical);
     }
+
+    private void VerifyHeroPromoted(Guid playableId, bool expectPromoted) =>
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { playableId })),
+                It.IsAny<CancellationToken>()),
+            expectPromoted ? Times.Once() : Times.Never());
 
     private void UseEnabledFlag() =>
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));

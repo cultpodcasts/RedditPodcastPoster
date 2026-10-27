@@ -32,6 +32,7 @@ public class CatalogueCreationIdentityRules
 
     public CatalogueCreationIdentityRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
         _mocker.Use<INonPodcastServiceAdapterResolver>(NonPodcastSubmitAdapterResolverSupport.Create());
         _mocker.GetMock<ICatalogueIdentityEnricher>()

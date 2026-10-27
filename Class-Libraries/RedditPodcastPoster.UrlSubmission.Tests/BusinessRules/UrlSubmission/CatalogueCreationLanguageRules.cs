@@ -46,6 +46,7 @@ public class CatalogueCreationLanguageRules
 
     public CatalogueCreationLanguageRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         var registrar = _mocker.GetMock<ISupportedLanguageRegistrar>();
         registrar.Setup(r => r.RegisterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((name, _) => _registered.Add(name))
@@ -254,6 +255,7 @@ public class CataloguePodcastCreationLanguageRules
 
     public CataloguePodcastCreationLanguageRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         var registrar = _mocker.GetMock<ISupportedLanguageRegistrar>();
         registrar.Setup(r => r.RegisterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((name, _) => _registered.Add(name))

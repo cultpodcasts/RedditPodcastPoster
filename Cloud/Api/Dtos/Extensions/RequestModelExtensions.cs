@@ -170,6 +170,14 @@ public static class RequestModelExtensions
         model.DescriptionRegex = request.DescriptionRegex;
         model.EpisodeMatchRegex = request.EpisodeMatchRegex;
         model.EpisodeIncludeTitleRegex = request.EpisodeIncludeTitleRegex;
+        model.IgnoreAllEpisodes = request.IgnoreAllEpisodes;
+        model.BypassShortEpisodeChecking = request.BypassShortEpisodeChecking;
+        model.AlwaysPromoteAsHero = request.AlwaysPromoteAsHero;
+        model.MinimumDuration = request.MinimumDuration;
+        model.ReleaseAuthority = request.ReleaseAuthority;
+        model.UnsetReleaseAuthority = request.UnsetReleaseAuthority;
+        model.YouTubePublicationDelay = request.YouTubePublicationDelay;
+        model.SkipEnrichingFromYouTube = request.SkipEnrichingFromYouTube;
         return model;
     }
 

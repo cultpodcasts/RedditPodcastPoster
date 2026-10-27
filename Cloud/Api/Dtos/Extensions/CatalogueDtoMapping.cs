@@ -20,6 +20,15 @@ public static class CatalogueDtoMapping
         dto.DescriptionRegex = indexing?.DescriptionRegex ?? "";
         dto.EpisodeMatchRegex = indexing?.EpisodeMatchRegex ?? "";
         dto.EpisodeIncludeTitleRegex = indexing?.EpisodeIncludeTitleRegex ?? "";
+        dto.IgnoreAllEpisodes = indexing?.IgnoreAllEpisodes;
+        dto.BypassShortEpisodeChecking = indexing?.BypassShortEpisodeChecking;
+        dto.AlwaysPromoteAsHero = indexing?.AlwaysPromoteAsHero;
+        dto.MinimumDuration = indexing?.MinimumDuration?.ToString();
+        dto.ReleaseAuthority = indexing?.ReleaseAuthority;
+        dto.YouTubePublicationDelay = indexing?.YouTubePublicationOffset is { } offset
+            ? TimeSpan.FromTicks(offset).ToString("g")
+            : "";
+        dto.SkipEnrichingFromYouTube = indexing?.SkipEnrichingFromYouTube;
         return dto;
     }
 

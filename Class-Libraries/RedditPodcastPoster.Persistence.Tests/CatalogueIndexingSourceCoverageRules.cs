@@ -21,7 +21,6 @@ public class CatalogueIndexingSourceCoverageRules
     /// </summary>
     private static readonly string[] PodcastOnlyFields =
     [
-        "alwaysPromoteAsHero",
         "youTubeNotificationSubscriptionLeaseExpiry"
     ];
 

@@ -67,6 +67,32 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when News is applied to a podcast with bypass-short-episodes and always-promote-as-hero off, " +
+        "then the news organisation is saved with both on, because a podcast converted to news gets the saved news " +
+        "defaults.")]
+    public async Task news_apply_saves_news_default_flags()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = false;
+            p.AlwaysPromoteAsHero = false;
+        });
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var indexing = _destination.NewsOrganisations[podcast.Id].Indexing!;
+        indexing.BypassShortEpisodeChecking.Should().BeTrue();
+        indexing.AlwaysPromoteAsHero.Should().BeTrue();
+        indexing.IndexAllEpisodes.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when News is applied with consent for an S-008 publisher, then the organisation and every report keep " +
         "their ids, removed episodes stay removed, search swaps only active rows to NewsReport, the removed episode's search key " +
         "is deleted, and the podcast rows are deleted, because migrate moves rather than copies (S-006).")]

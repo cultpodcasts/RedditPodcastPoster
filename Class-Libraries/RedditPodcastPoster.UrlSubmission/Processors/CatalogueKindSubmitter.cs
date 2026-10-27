@@ -13,7 +13,9 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
 
@@ -26,7 +28,10 @@ public class CatalogueKindSubmitter(
     INewsReportRepository newsReports,
     INonPodcastServiceAdapterResolver adapters,
     ICatalogueLanguageGate languageGate,
-    ICatalogueIdentityEnricher identityEnricher) : ICatalogueKindSubmitter
+    ICatalogueIdentityEnricher identityEnricher,
+    IHeroEpisodePromoter heroEpisodePromoter,
+    TimeProvider timeProvider,
+    ILogger<CatalogueKindSubmitter> logger) : ICatalogueKindSubmitter
 {
     public async Task<SubmitResult?> TrySubmit(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
@@ -137,6 +142,7 @@ public class CatalogueKindSubmitter(
                 return saved.Stop;
             }
 
+            await PromoteIfEligible(saved.SearchSource, saved.Episode!.Id, submitOptions);
             return CreatedPlayable(
                 SubmitClassification.TvShowEpisode,
                 saved.Episode!.Id,
@@ -159,6 +165,7 @@ public class CatalogueKindSubmitter(
                 return saved.Stop;
             }
 
+            await PromoteIfEligible(saved.SearchSource, saved.Report!.Id, submitOptions);
             return CreatedPlayable(
                 SubmitClassification.NewsReport,
                 saved.Report!.Id,
@@ -168,6 +175,28 @@ public class CatalogueKindSubmitter(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// A TV episode or news report this submit has just stored is appended to the homepage hero list when its parent
+    /// (including a news organisation created by this submit, which is saved with always-promote-as-hero on) is
+    /// flagged, with the same rule as the podcast submit and <see cref="CatalogueParentSubmitter"/>.
+    /// </summary>
+    private Task PromoteIfEligible(CatalogueSearchSource? searchSource, Guid playableId, SubmitOptions submitOptions)
+    {
+        if (!submitOptions.PersistToDatabase || searchSource is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return CatalogueHeroAutoPromotion.PromoteIfEligible(
+            logger,
+            heroEpisodePromoter,
+            timeProvider,
+            searchSource.Parent,
+            searchSource.Episode,
+            playableId,
+            submitOptions.CreationSource);
     }
 
     private static SubmitResult AlreadyExists(string contentKind, Guid playableId) =>
@@ -317,7 +346,12 @@ public class CatalogueKindSubmitter(
 
         var creatingParent = parents.Count == 0;
         var organisation = creatingParent
-            ? new NewsOrganisation(name) { PublisherName = TrimmedOrEmpty(source.Publisher) }
+            ? new NewsOrganisation(name)
+            {
+                PublisherName = TrimmedOrEmpty(source.Publisher),
+                // A new news organisation is saved with bypass short / always promote as hero on.
+                Indexing = CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults(null)
+            }
             : parents[0];
         var admitted = await AdmitOrStop(
             CatalogueLanguageTextReader.ForParentAndChild(

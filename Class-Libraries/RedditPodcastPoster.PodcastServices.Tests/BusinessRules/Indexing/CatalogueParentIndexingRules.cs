@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
@@ -659,5 +660,189 @@ public class CatalogueParentIndexingRules
         // Assert
         _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
             .Should().NotContain("youTubeIndexingHints");
+    }
+
+    private static readonly TimeSpan ShortDuration =
+        PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromSeconds(30);
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes saved on (the news creation " +
+        "default) and a short video is found, then the report is saved and not ignored, and the pass does not write " +
+        "the flag, because the stored value drives the check.")]
+    public async Task news_organisation_saved_bypass_on_keeps_short_video()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = true;
+        organisation.Indexing.MinimumDuration = null;
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration));
+        _discovered = [discovered];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeFalse();
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("bypassShortEpisodeChecking");
+        organisation.Indexing.BypassShortEpisodeChecking.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes unset and the pass keeps short " +
+        "items, then a short video is saved ignored and the flag is not written, because there is no read-time news " +
+        "default (news organisations are saved with it on instead).")]
+    public async Task news_organisation_unset_bypass_applies_short_episode_check()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = null;
+        organisation.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("bypassShortEpisodeChecking");
+        organisation.Indexing.BypassShortEpisodeChecking.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation explicitly turns bypass-short-episodes off and the pass keeps " +
+        "short items, then a short video is saved ignored, because a curator may switch the saved news default off.")]
+    public async Task news_organisation_explicit_bypass_off_ignores_short_video()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = false;
+        organisation.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show leaves bypass-short-episodes unset and the pass keeps short items, " +
+        "then a short video is saved ignored, because TV shows have no bypass default.")]
+    public async Task tv_show_unset_bypass_applies_short_episode_check()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        show.Indexing!.BypassShortEpisodeChecking = null;
+        show.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([show.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedTvEpisodes.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a parent has ignore-all-episodes set, then a new video is saved ignored, " +
+        "because the flag must behave as it does for a podcast.")]
+    public async Task ignore_all_episodes_saves_new_playables_ignored()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.IgnoreAllEpisodes = true;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation is flagged always-promote-as-hero, then a new report from " +
+        "this week is appended to the hero list after it is saved, and one older than the week window is not, " +
+        "because the flag must behave as it does for a podcast.")]
+    public async Task always_promote_as_hero_news_organisation_promotes_new_reports()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.AlwaysPromoteAsHero = true;
+        var recent = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        var old = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(20)).WithDuration(PostableDuration));
+        _discovered = [recent, old];
+        IReadOnlyList<Guid>? promoted = null;
+        _mocker.GetMock<IHeroEpisodePromoter>()
+            .Setup(x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<Guid> ids, CancellationToken _) => promoted = ids)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Select(x => x.Id).Should().BeEquivalentTo([recent.Id, old.Id]);
+        promoted.Should().Equal(recent.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show is flagged always-promote-as-hero, then a new episode is appended to " +
+        "the hero list, because TV shows have the same flag as podcasts.")]
+    public async Task always_promote_as_hero_tv_show_promotes_new_episodes()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        show.Indexing!.AlwaysPromoteAsHero = true;
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { discovered.Id })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "Catalogue parent indexing: when a parent is not flagged always-promote-as-hero, or its new item is ignored " +
+        "(ignore-all-episodes), then nothing is appended to the hero list, because hero promotion is opt-in and " +
+        "never promotes ignored items.")]
+    [InlineData(null, null)]
+    [InlineData(false, null)]
+    [InlineData(true, true)]
+    public async Task no_hero_promotion_without_flag_or_for_ignored_items(bool? alwaysPromote, bool? ignoreAll)
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.AlwaysPromoteAsHero = alwaysPromote;
+        organisation.Indexing.IgnoreAllEpisodes = ignoreAll;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Should().ContainSingle();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

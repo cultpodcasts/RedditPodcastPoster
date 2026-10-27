@@ -370,6 +370,16 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 |--------|-------------|
 | `-a, --apply` | Apply changes; without this flag, report only |
 
+### NewsOrganisationDefaultsBackfill
+
+**Purpose:** One-off: store `indexing.bypassShortEpisodeChecking = true` and `indexing.alwaysPromoteAsHero = true` on every news organisation (the defaults new news organisations are created with). Dry-run unless `--apply`; each write is a Cosmos partial patch of those two members only, and news organisations that already have both are skipped (idempotent). Run only after the release that saves these defaults at creation is deployed. Do not run `--apply` against production without explicit approval.
+
+**Run:** `dotnet run --project Console-Apps/NewsOrganisationDefaultsBackfill --` · PATH: `NewsOrganisationDefaultsBackfill`
+
+| Option | Description |
+|--------|-------------|
+| `-a, --apply` | Patch the two flags; without this flag, report counts only |
+
 ### SeedTitleCasingRules
 
 **Purpose:** Seed a per-language `TitleCasingRules` document (default `en`) from static lower-case words + legacy LookUps KnownTerms. Dry-run unless `--apply`. Do not run `--apply` against production without explicit approval.

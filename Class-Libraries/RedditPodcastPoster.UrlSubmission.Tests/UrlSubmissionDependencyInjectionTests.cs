@@ -10,6 +10,7 @@ using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -79,6 +80,7 @@ public class UrlSubmissionDependencyInjectionTests
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton(Mock.Of<IFilmRepository>());
         services.AddSingleton(Mock.Of<ITvShowRepository>());
@@ -86,6 +88,8 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INewsOrganisationRepository>());
         services.AddSingleton(Mock.Of<INewsReportRepository>());
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
+        // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
+        services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
         // Catalogue identity comes from AddCatalogueServices at the composition root, not AddUrlSubmission.
         services.AddSingleton(Mock.Of<ICatalogueIdentityEnricher>());
         services.AddUrlSubmission();
@@ -150,6 +154,8 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INewsOrganisationRepository>());
         services.AddSingleton(Mock.Of<INewsReportRepository>());
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
+        // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
+        services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
         return services;
     }
 }

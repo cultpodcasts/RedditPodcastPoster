@@ -62,6 +62,8 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IEpisodeEnricher>(sp => sp.GetRequiredService<EpisodeEnricher>());
         }
 
+        // The catalogue submitters measure the hero week window with this clock.
+        services.TryAddSingleton(TimeProvider.System);
         return services
             .AddSingleton<ICatalogueLanguageDetector, CatalogueLanguageDetector>()
             .AddScoped<ISupportedLanguageRegistrar, UnconfiguredSupportedLanguageRegistrar>()
