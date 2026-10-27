@@ -27,6 +27,18 @@ public class TvShowEpisodeRepository(
         }
     }
 
+    public Task<ETagged<TvShowEpisode>?> GetTvShowEpisodeWithETag(Guid tvShowId, Guid episodeId) =>
+        CataloguePlayableFieldPatchOperations.ReadWithETag<TvShowEpisode>(
+            container, episodeId.ToString(), ToPartitionKey(tvShowId));
+
+    public Task<CataloguePlayablePatchOutcome> PatchFields(
+        Guid tvShowId,
+        Guid episodeId,
+        string ifMatchETag,
+        CataloguePlayableFieldPatch patch) =>
+        CataloguePlayableFieldPatchOperations.Apply(
+            container, episodeId.ToString(), ToPartitionKey(tvShowId), ifMatchETag, patch);
+
     public IAsyncEnumerable<TvShowEpisode> GetAll() => GetAllBy(_ => true);
 
     public async Task<int> Count()

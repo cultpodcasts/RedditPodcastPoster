@@ -27,6 +27,18 @@ public class NewsReportRepository(
         }
     }
 
+    public Task<ETagged<NewsReport>?> GetNewsReportWithETag(Guid newsOrganisationId, Guid reportId) =>
+        CataloguePlayableFieldPatchOperations.ReadWithETag<NewsReport>(
+            container, reportId.ToString(), ToPartitionKey(newsOrganisationId));
+
+    public Task<CataloguePlayablePatchOutcome> PatchFields(
+        Guid newsOrganisationId,
+        Guid reportId,
+        string ifMatchETag,
+        CataloguePlayableFieldPatch patch) =>
+        CataloguePlayableFieldPatchOperations.Apply(
+            container, reportId.ToString(), ToPartitionKey(newsOrganisationId), ifMatchETag, patch);
+
     public IAsyncEnumerable<NewsReport> GetAll() => GetAllBy(_ => true);
 
     public async Task<int> Count()
