@@ -10,4 +10,5 @@ public sealed record CatalogueMatchByLengthOptions(
     bool AcceptUniqueDurationWithoutTitleMatch = false,
     bool EnrichingYouTubeDiscoveredEpisode = false,
     string? DefaultSubject = null,
-    IReadOnlyList<string>? IgnoredSubjects = null);
+    IReadOnlyList<string>? IgnoredSubjects = null,
+    DateTime? YouTubePublished = null);

@@ -65,7 +65,8 @@ public sealed class CatalogueEpisodeMatcher(IEpisodePlatformMatcher platformMatc
                     AcceptUniqueDurationWithoutTitleMatch: false,
                     EnrichingYouTubeDiscoveredEpisode: lookup.EnrichingYouTubeDiscoveredEpisode,
                     DefaultSubject: lookup.DefaultSubject,
-                    IgnoredSubjects: ignoredSubjects),
+                    IgnoredSubjects: ignoredSubjects,
+                    YouTubePublished: lookup.YouTubePublished),
                 reducer);
         }
 

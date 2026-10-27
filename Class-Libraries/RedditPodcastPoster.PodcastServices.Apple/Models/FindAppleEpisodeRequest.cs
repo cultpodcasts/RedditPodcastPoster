@@ -16,4 +16,5 @@ public record FindAppleEpisodeRequest(
     string? DefaultSubject = null,
     IReadOnlyList<string>? IgnoredSubjects = null,
     string? Language = null,
-    int? ShowEpisodeCount = null);
+    int? ShowEpisodeCount = null,
+    DateTime? YouTubePublished = null);

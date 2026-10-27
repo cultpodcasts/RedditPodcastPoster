@@ -80,7 +80,8 @@ public class AppleEpisodeResolver(
         {
             Flow = indexingContext.LookupFlow,
             WindowStart = indexingContext.ReleasedSince,
-            ShowEpisodeCount = request.ShowEpisodeCount
+            ShowEpisodeCount = request.ShowEpisodeCount,
+            YouTubePublished = request.YouTubePublished
         };
 
     /// <summary>
