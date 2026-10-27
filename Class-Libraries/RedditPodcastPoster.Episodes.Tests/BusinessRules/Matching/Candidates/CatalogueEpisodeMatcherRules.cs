@@ -268,6 +268,40 @@ public class CatalogueEpisodeMatcherRules
         result.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "When enriching a 58-second YouTube-only clip published at 01:30 UTC on the audio's day with a similar title " +
+        "and one shared subject, Match does not take the full-length audio, because the raw publish day gives no " +
+        "same-day credit without near-exact length.")]
+    public void Youtube_enrichment_short_clip_early_on_audio_day_does_not_take_full_episode_audio()
+    {
+        // Arrange
+        var delay = TimeSpan.FromHours(7);
+        var youTubePublished = DomainTestFixture.UtcAtTime(-3, new TimeSpan(1, 30, 0));
+        var lookup = Lookup(
+            "Lighthouse Keepers Of The Northern Coast Remember The Storm #shorts",
+            youTubePublished - delay,
+            TimeSpan.FromSeconds(58),
+            Service.YouTube,
+            enriching: true) with
+        {
+            YouTubePublishingDelay = delay,
+            YouTubePublished = youTubePublished
+        };
+        var probe = Probe(lookup);
+        probe.Subjects = ["Maritime History"];
+        var audio = Audio(
+            "The Lighthouse Keepers Of The Northern Coast Remember: An Oral History Of The Great Storm",
+            DomainTestFixture.UtcDateDaysAgo(3),
+            new TimeSpan(1, 2, 14));
+        audio.Subjects = ["Maritime History"];
+
+        // Act
+        var result = _sut.Match(lookup, probe, [audio], null);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
     private static CatalogueLookup Lookup(string title, DateTime? released, TimeSpan? length, Service? authority, bool enriching = false) =>
         new("Podcast", title, released, length, authority, enriching);
 
