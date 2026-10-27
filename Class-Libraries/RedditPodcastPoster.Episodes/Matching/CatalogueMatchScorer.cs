@@ -32,6 +32,12 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <see cref="EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold"/> of a
 /// delay-adjusted probe are still admitted (Aug 2026: YouTube clip of same-day longer Apple episode
 /// while Released was shifted back by the publishing delay).
+/// When the caller supplies the unshifted YouTube publish (<c>youTubePublished</c>), an audio row that is
+/// already inside the one-day window of the delay-adjusted probe also earns
+/// <see cref="SameCalendarDayReleasePoints"/> when it shares a calendar day with that raw YouTube publish:
+/// a fixed publishing delay can push the expected audio release across midnight onto the previous day
+/// even though audio and video went out the same day (Oct 2026: YouTube 04:00 UTC − 7h delay → expected
+/// audio 21:00 the day before, audio at 09:00–13:00 the YouTube day).
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -108,7 +114,8 @@ public static class CatalogueMatchScorer
     public static int Score(
         Episode probe,
         Episode catalogueItem,
-        CatalogueSubjectScoreFilters? subjectFilters = null)
+        CatalogueSubjectScoreFilters? subjectFilters = null,
+        DateTime? youTubePublished = null)
     {
         var probeHasDuration = probe.Length > TimeSpan.Zero;
         var catalogueHasDuration = catalogueItem.Length > TimeSpan.Zero;
@@ -132,7 +139,7 @@ public static class CatalogueMatchScorer
         }
 
         var descriptionPoints = ScoreDescription(probe.Description, catalogueItem.Description);
-        var releasePoints = ScoreRelease(probe.ReleaseUtc, catalogueItem);
+        var releasePoints = ScoreRelease(probe.ReleaseUtc, catalogueItem, youTubePublished);
         if (releasePoints == 0 &&
             descriptionPoints > 0 &&
             IsWithinDescriptionAlignedReleaseConsideration(probe.ReleaseUtc, catalogueItem))
@@ -167,8 +174,9 @@ public static class CatalogueMatchScorer
     public static bool MeetsMatchThreshold(
         Episode probe,
         Episode catalogueItem,
-        CatalogueSubjectScoreFilters? subjectFilters = null) =>
-        Score(probe, catalogueItem, subjectFilters) >= MatchThreshold;
+        CatalogueSubjectScoreFilters? subjectFilters = null,
+        DateTime? youTubePublished = null) =>
+        Score(probe, catalogueItem, subjectFilters, youTubePublished) >= MatchThreshold;
 
     public static int CountSharedSubjects(
         IEnumerable<string>? left,
@@ -193,7 +201,8 @@ public static class CatalogueMatchScorer
     public static Episode? SelectBestMatch(
         Episode probe,
         IEnumerable<Episode> candidates,
-        CatalogueSubjectScoreFilters? subjectFilters = null)
+        CatalogueSubjectScoreFilters? subjectFilters = null,
+        DateTime? youTubePublished = null)
     {
         Episode? best = null;
         var bestScore = 0;
@@ -203,7 +212,7 @@ public static class CatalogueMatchScorer
 
         foreach (var candidate in candidates)
         {
-            var score = Score(probe, candidate, subjectFilters);
+            var score = Score(probe, candidate, subjectFilters, youTubePublished);
             if (score < MatchThreshold)
             {
                 continue;
@@ -248,7 +257,7 @@ public static class CatalogueMatchScorer
         !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(catalogueItem)) ||
         EpisodeServicePresence.AppleEpisodeId(catalogueItem) is > 0;
 
-    private static int ScoreRelease(DateTime probeRelease, Episode catalogueItem)
+    private static int ScoreRelease(DateTime probeRelease, Episode catalogueItem, DateTime? youTubePublished)
     {
         if (IsAudioCatalogueItem(catalogueItem))
         {
@@ -260,7 +269,13 @@ public static class CatalogueMatchScorer
             {
                 var probeDate = DateOnly.FromDateTime(probeRelease);
                 var catalogueDate = DateOnly.FromDateTime(catalogueItem.ReleaseUtc);
-                return probeDate == catalogueDate
+                // The raw YouTube publish only upgrades a row the delay-adjusted window already admitted,
+                // so long delays (days/weeks) never let a same-day-as-YouTube neighbour in on its own.
+                var sameDayAsYouTubePublish =
+                    youTubePublished is { } published &&
+                    published != DateTime.MinValue &&
+                    DateOnly.FromDateTime(published) == catalogueDate;
+                return probeDate == catalogueDate || sameDayAsYouTubePublish
                     ? SameCalendarDayReleasePoints
                     : WeakInWindowReleasePoints;
             }

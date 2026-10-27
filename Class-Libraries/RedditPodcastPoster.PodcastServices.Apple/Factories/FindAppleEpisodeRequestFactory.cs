@@ -30,7 +30,8 @@ public static class FindAppleEpisodeRequestFactory
             podcast.DefaultSubject,
             podcast.IgnoredSubjects,
             EpisodeLanguageResolution.ForEpisode(episode),
-            podcast.AppleEpisodeCount);
+            podcast.AppleEpisodeCount,
+            enrichingYouTubeDiscoveredEpisode ? episode.ReleaseUtc : null);
     }
 
     public static FindAppleEpisodeRequest Create(
@@ -62,7 +63,8 @@ public static class FindAppleEpisodeRequestFactory
             podcast?.DefaultSubject,
             podcast?.IgnoredSubjects,
             podcast?.Language,
-            podcast?.AppleEpisodeCount ?? (applePodcast.EpisodeCount > 0 ? applePodcast.EpisodeCount : null));
+            podcast?.AppleEpisodeCount ?? (applePodcast.EpisodeCount > 0 ? applePodcast.EpisodeCount : null),
+            criteriaFromYouTube ? criteria.Release : null);
     }
 
     public static FindAppleEpisodeRequest Create(long podcastId, long episodeId)

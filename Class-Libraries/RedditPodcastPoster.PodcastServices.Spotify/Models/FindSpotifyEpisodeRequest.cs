@@ -18,4 +18,5 @@ public record FindSpotifyEpisodeRequest(
     string? DefaultSubject = null,
     IReadOnlyList<string>? IgnoredSubjects = null,
     string? Language = null,
-    int? ShowEpisodeCount = null);
+    int? ShowEpisodeCount = null,
+    DateTime? YouTubePublished = null);
