@@ -23,8 +23,15 @@ public class CatalogueContentTypeModelRulesTests
     private readonly Fixture _fixture = new();
     private readonly DomainTestFixture _domain = new();
 
+    /// <summary>
+    /// Provider identity that only podcast <see cref="Episode"/> carries (nested <c>ids</c>, Spotify/Apple ids).
+    /// Film, TvShowEpisode and NewsReport carry a compact <c>youTubeId</c> only (docs/episode-services.md).
+    /// </summary>
     private static readonly string[] ForbiddenProviderIdProperties =
-        ["Ids", "YouTubeId", "SpotifyId", "AppleId", "YoutubeId"];
+        ["Ids", "SpotifyId", "AppleId", "PodcastAppleId", "YoutubeId"];
+
+    private static readonly string[] ForbiddenProviderIdJsonKeys =
+        ["ids", "spotifyId", "appleId", "podcastAppleId", "youtubeId"];
 
     [Fact(DisplayName =
         "ContentKind enumerates the four playable kinds: Episode, TvShowEpisode, Film, NewsReport.")]
@@ -419,9 +426,9 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "Film, TvShowEpisode, and NewsReport have no provider-id properties (YouTube/Spotify/Apple/Ids): " +
-        "platform presence is services only, unlike podcast Episode collection identity.")]
-    public void Non_podcast_playables_have_no_provider_id_fields()
+        "Film, TvShowEpisode, and NewsReport carry a compact YouTubeId (ICatalogueYouTubeItem, JSON youTubeId) " +
+        "but no other provider ids (no ids/Spotify/Apple): platform presence is otherwise services only.")]
+    public void Non_podcast_playables_carry_youtube_id_but_no_other_provider_id_fields()
     {
         // Arrange
         var playableTypes = new[] { typeof(Film), typeof(TvShowEpisode), typeof(NewsReport) };
@@ -437,6 +444,74 @@ public class CatalogueContentTypeModelRulesTests
                 .Should().Be(typeof(Dictionary<string, ServiceLink>), because: type.Name);
             type.GetProperty("Guests")!.PropertyType
                 .Should().Be(typeof(string[]), because: type.Name);
+
+            type.Should().Implement<ICatalogueYouTubeItem>(because: type.Name);
+            var youTubeId = type.GetProperty(nameof(ICatalogueYouTubeItem.YouTubeId));
+            youTubeId.Should().NotBeNull(because: type.Name);
+            youTubeId!.PropertyType.Should().Be(typeof(string), because: type.Name);
+            youTubeId.DeclaringType.Should().Be(type, because: $"{type.Name} declares youTubeId itself, not via Playable");
+            youTubeId.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>()!.Name
+                .Should().Be("youTubeId", because: type.Name);
+        }
+
+        // The compact id is not on the shared playable surface, and podcast episodes do not take it.
+        typeof(Playable).GetProperty("YouTubeId").Should().BeNull();
+        typeof(IPlayable).GetProperty("YouTubeId").Should().BeNull();
+        typeof(Episode).Should().NotImplement<ICatalogueYouTubeItem>();
+    }
+
+    [Fact(DisplayName =
+        "Film, TvShowEpisode, and NewsReport serialize youTubeId when set, omit it when blank, " +
+        "and never write ids/spotifyId/appleId.")]
+    public void Non_podcast_playables_serialize_youtube_id_only()
+    {
+        // Arrange
+        var youTubeIdValue = _domain.CreateYouTubeId();
+        ICatalogueYouTubeItem[] withId =
+        [
+            new Film(_fixture.Create<string>()) { YouTubeId = youTubeIdValue },
+            new TvShowEpisode(_fixture.Create<string>()) { YouTubeId = youTubeIdValue },
+            new NewsReport(_fixture.Create<string>()) { YouTubeId = youTubeIdValue }
+        ];
+        ICatalogueYouTubeItem[] blank =
+        [
+            new Film(_fixture.Create<string>()) { YouTubeId = "  " },
+            new TvShowEpisode(_fixture.Create<string>()) { YouTubeId = string.Empty },
+            new NewsReport(_fixture.Create<string>()) { YouTubeId = null }
+        ];
+
+        // Act
+        var withIdJson = withId
+            .Select(item => (item.GetType().Name, JsonDocument.Parse(JsonSerializer.Serialize(item, item.GetType()))))
+            .ToArray();
+        var blankJson = blank
+            .Select(item => (item.GetType().Name, JsonDocument.Parse(JsonSerializer.Serialize(item, item.GetType()))))
+            .ToArray();
+
+        // Assert
+        foreach (var (name, doc) in withIdJson)
+        {
+            using (doc)
+            {
+                doc.RootElement.GetProperty("youTubeId").GetString().Should().Be(youTubeIdValue, because: name);
+                doc.RootElement.EnumerateObject().Select(p => p.Name)
+                    .Should().NotContain(ForbiddenProviderIdJsonKeys, because: name);
+            }
+        }
+
+        foreach (var item in blank)
+        {
+            item.YouTubeId.Should().BeNull(because: item.GetType().Name);
+        }
+
+        foreach (var (name, doc) in blankJson)
+        {
+            using (doc)
+            {
+                var keys = doc.RootElement.EnumerateObject().Select(p => p.Name).ToArray();
+                keys.Should().NotContain("youTubeId", because: name);
+                keys.Should().NotContain(ForbiddenProviderIdJsonKeys, because: name);
+            }
         }
     }
 
