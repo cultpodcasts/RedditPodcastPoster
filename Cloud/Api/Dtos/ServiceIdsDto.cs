@@ -36,4 +36,34 @@ public abstract class ServiceIdsDto : PublisherFieldsDto
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
     public string EpisodeIncludeTitleRegex { get; set; } = "";
+
+    /// <summary>From <c>indexing</c>: new playables are stored ignored (podcast <c>ignoreAllEpisodes</c>).</summary>
+    [JsonPropertyName("ignoreAllEpisodes")]
+    public bool? IgnoreAllEpisodes { get; set; }
+
+    /// <summary>
+    /// From <c>indexing</c>, as the indexer applies it: unset reads as on for a news organisation
+    /// (<c>CatalogueIndexingSource.EffectiveBypassShortEpisodeChecking</c>) and as unset for a TV show.
+    /// </summary>
+    [JsonPropertyName("bypassShortEpisodeChecking")]
+    public bool? BypassShortEpisodeChecking { get; set; }
+
+    /// <summary>From <c>indexing</c>: new playables are appended to the homepage hero list.</summary>
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
+    /// <summary>From <c>indexing</c>, a <see cref="TimeSpan"/> string (e.g. <c>00:01:30</c>); null when unset.</summary>
+    [JsonPropertyName("minimumDuration")]
+    public string? MinimumDuration { get; set; }
+
+    [JsonPropertyName("releaseAuthority")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Service? ReleaseAuthority { get; set; }
+
+    /// <summary>From <c>indexing.youTubePublicationOffset</c>, as the podcast DTO: <c>TimeSpan</c> "g" format, <c>""</c> when unset.</summary>
+    [JsonPropertyName("youTubePublicationDelay")]
+    public string YouTubePublicationDelay { get; set; } = "";
+
+    [JsonPropertyName("skipEnrichingFromYouTube")]
+    public bool? SkipEnrichingFromYouTube { get; set; }
 }

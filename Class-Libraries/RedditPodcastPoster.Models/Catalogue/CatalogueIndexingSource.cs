@@ -39,6 +39,13 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     [JsonPropertyName("minimumDuration")]
     public TimeSpan? MinimumDuration { get; set; }
 
+    /// <summary>
+    /// Curator flag: a playable the indexer or a URL submit creates under this parent is promoted to the homepage
+    /// hero list (same rule as <see cref="Podcast.AlwaysPromoteAsHero"/>, via the hero auto-promote selector).
+    /// </summary>
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
     [JsonPropertyName("releaseAuthority")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
@@ -160,6 +167,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
         IgnoreAllEpisodes = podcast.IgnoreAllEpisodes;
         BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking;
         MinimumDuration = podcast.MinimumDuration;
+        AlwaysPromoteAsHero = podcast.AlwaysPromoteAsHero;
         ReleaseAuthority = podcast.ReleaseAuthority;
         PrimaryPostService = podcast.PrimaryPostService;
         SpotifyId = podcast.SpotifyId;
@@ -186,6 +194,8 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     /// <summary>
     /// A podcast that is never saved: same id as the parent, the parent's publisher fields, and these
     /// discovery settings. Episode providers, mergers and filters take a <see cref="Podcast"/>.
+    /// An unset <see cref="BypassShortEpisodeChecking"/> takes the parent kind's default
+    /// (<see cref="EffectiveBypassShortEpisodeChecking"/>: on for a news organisation).
     /// </summary>
     public Podcast ToTransientPodcast(Publisher parent)
     {
@@ -212,8 +222,9 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             Bundles = Bundles,
             IndexAllEpisodes = IndexAllEpisodes,
             IgnoreAllEpisodes = IgnoreAllEpisodes,
-            BypassShortEpisodeChecking = BypassShortEpisodeChecking,
+            BypassShortEpisodeChecking = EffectiveBypassShortEpisodeChecking(parent, this),
             MinimumDuration = MinimumDuration,
+            AlwaysPromoteAsHero = AlwaysPromoteAsHero,
             ReleaseAuthority = ReleaseAuthority,
             PrimaryPostService = PrimaryPostService,
             SpotifyId = SpotifyId ?? string.Empty,
@@ -236,6 +247,17 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             EpisodeMatchRegex = EpisodeMatchRegex ?? string.Empty,
             EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex ?? string.Empty
         };
+    }
+
+    /// <summary>
+    /// The bypass-short-episode setting a parent indexes and submits with. A curator value (true or false) wins;
+    /// unset defaults to on for a <see cref="News.NewsOrganisation"/> (news clips are often short) and stays unset
+    /// (off) for a TV show. The default is applied on read, so nothing is written to an existing parent.
+    /// </summary>
+    public static bool? EffectiveBypassShortEpisodeChecking(Publisher parent, CatalogueIndexingSource? indexing)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        return indexing?.BypassShortEpisodeChecking ?? (parent is News.NewsOrganisation ? true : null);
     }
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

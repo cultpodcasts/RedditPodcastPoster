@@ -339,4 +339,194 @@ public class ServiceIdsRules
             change.NullAppleId.Should().BeFalse();
         }
     }
+
+    [Fact(DisplayName =
+        "PATCH news organisation discovery flags (ignore-all, bypass-short, always-promote-as-hero, skip-YouTube, " +
+        "minimum duration, release authority, YouTube publication delay) on an outlet with no indexing block stores " +
+        "them under indexing with the podcast wire shape, not auto-indexed, and GET returns them, so TV / news have " +
+        "the same flags as a podcast.")]
+    public async Task sets_discovery_flags()
+    {
+        // Arrange
+        var organisation = Organisation();
+
+        // Act
+        var result = await Patch(organisation, new NewsOrganisationChangeRequest
+        {
+            IgnoreAllEpisodes = true,
+            BypassShortEpisodeChecking = false,
+            AlwaysPromoteAsHero = true,
+            SkipEnrichingFromYouTube = true,
+            MinimumDuration = "00:02:30",
+            ReleaseAuthority = RedditPodcastPoster.Models.Podcasts.Service.YouTube,
+            YouTubePublicationDelay = "-01:00:00"
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        var indexing = _savedOrganisation!.Indexing!;
+        indexing.IsAutoIndexed.Should().BeFalse();
+        indexing.IgnoreAllEpisodes.Should().BeTrue();
+        indexing.BypassShortEpisodeChecking.Should().BeFalse();
+        indexing.AlwaysPromoteAsHero.Should().BeTrue();
+        indexing.SkipEnrichingFromYouTube.Should().BeTrue();
+        indexing.MinimumDuration.Should().Be(TimeSpan.FromSeconds(150));
+        indexing.ReleaseAuthority.Should().Be(RedditPodcastPoster.Models.Podcasts.Service.YouTube);
+        indexing.YouTubePublicationOffset.Should().Be(TimeSpan.FromHours(-1).Ticks);
+        var stored = StoredIndexing(indexing);
+        stored["releaseAuthority"]!.GetValue<string>().Should().Be("YouTube");
+        stored["alwaysPromoteAsHero"]!.GetValue<bool>().Should().BeTrue();
+        var dto = _savedOrganisation.ToDto();
+        dto.IgnoreAllEpisodes.Should().BeTrue();
+        dto.BypassShortEpisodeChecking.Should().BeFalse("an explicit curator opt-out wins over the news default");
+        dto.AlwaysPromoteAsHero.Should().BeTrue();
+        dto.SkipEnrichingFromYouTube.Should().BeTrue();
+        dto.MinimumDuration.Should().Be("00:02:30");
+        dto.ReleaseAuthority.Should().Be(RedditPodcastPoster.Models.Podcasts.Service.YouTube);
+        dto.YouTubePublicationDelay.Should().Be("-1:00:00");
+    }
+
+    [Fact(DisplayName =
+        "PATCH clears discovery flags as the podcast edit API does: ignoreAllEpisodes false and \"\" durations clear " +
+        "(stored unset), unsetReleaseAuthority clears, and an unparseable delay is ignored, so a curator can undo them.")]
+    public async Task clears_discovery_flags()
+    {
+        // Arrange
+        var organisation = Organisation(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = ChannelId,
+            IgnoreAllEpisodes = true,
+            MinimumDuration = TimeSpan.FromMinutes(1),
+            ReleaseAuthority = RedditPodcastPoster.Models.Podcasts.Service.Spotify,
+            YouTubePublicationOffset = TimeSpan.FromHours(2).Ticks
+        });
+
+        // Act
+        await Patch(organisation, new NewsOrganisationChangeRequest
+        {
+            IgnoreAllEpisodes = false,
+            MinimumDuration = "",
+            UnsetReleaseAuthority = true,
+            YouTubePublicationDelay = "not-a-timespan"
+        });
+        var afterInvalid = _savedOrganisation!.Indexing!.YouTubePublicationOffset;
+        await Patch(organisation, new NewsOrganisationChangeRequest { YouTubePublicationDelay = "" });
+
+        // Assert
+        afterInvalid.Should().Be(TimeSpan.FromHours(2).Ticks);
+        var indexing = _savedOrganisation.Indexing!;
+        indexing.IgnoreAllEpisodes.Should().BeNull();
+        indexing.MinimumDuration.Should().BeNull();
+        indexing.ReleaseAuthority.Should().BeNull();
+        indexing.YouTubePublicationOffset.Should().BeNull();
+        indexing.YouTubeChannelId.Should().Be(ChannelId);
+        StoredIndexing(indexing).Select(pair => pair.Key).Should().NotContain(
+            ["ignoreAllEpisodes", "minimumDuration", "releaseAuthority", "youTubePublicationOffset"]);
+    }
+
+    [Fact(DisplayName =
+        "PATCH that only clears flags on an outlet without an indexing block creates no block, because a block is " +
+        "only written when a value is actually set.")]
+    public async Task clearing_flags_without_indexing_creates_no_block()
+    {
+        // Arrange
+        var organisation = Organisation();
+
+        // Act
+        await Patch(organisation, new NewsOrganisationChangeRequest
+        {
+            IgnoreAllEpisodes = false,
+            MinimumDuration = "",
+            UnsetReleaseAuthority = true
+        });
+
+        // Assert
+        (_savedOrganisation ?? organisation).Indexing.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "GET news organisation reports bypassShortEpisodeChecking true when unset (with or without an indexing block), " +
+        "and GET TV show reports it unset, because news organisations default the bypass on and the edit dialog must " +
+        "show the value the indexer applies.")]
+    public void get_reports_effective_bypass_short_default()
+    {
+        // Arrange
+        var bare = new NewsOrganisation("Synthetic Bare News") { Id = _fixture.CreateGuid() };
+        var withIndexing = new NewsOrganisation("Synthetic Indexed News")
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { YouTubeChannelId = ChannelId }
+        };
+        var show = new TvShow("Synthetic Drama") { Id = _fixture.CreateGuid() };
+
+        // Act
+        var bareDto = bare.ToDto();
+        var indexedDto = withIndexing.ToDto();
+        var showDto = show.ToDto();
+
+        // Assert
+        bareDto.BypassShortEpisodeChecking.Should().BeTrue();
+        indexedDto.BypassShortEpisodeChecking.Should().BeTrue();
+        withIndexing.Indexing!.BypassShortEpisodeChecking.Should().BeNull("GET never writes the default");
+        showDto.BypassShortEpisodeChecking.Should().BeNull();
+        showDto.AlwaysPromoteAsHero.Should().BeNull();
+        showDto.YouTubePublicationDelay.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV show takes the discovery flags too (always-promote-as-hero, bypass-short, ignore-all), because TV " +
+        "shows have the same flags as podcasts.")]
+    public async Task tv_show_discovery_flags()
+    {
+        // Arrange
+        var show = new TvShow("Synthetic Drama") { Id = _fixture.CreateGuid() };
+        _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+
+        // Act
+        var result = await _mocker.CreateInstance<TvShowService>().UpdateAsync(
+            new TvShowChangeRequestWrapper(show.Id, new TvShowChangeRequest
+            {
+                AlwaysPromoteAsHero = true,
+                BypassShortEpisodeChecking = true,
+                IgnoreAllEpisodes = true
+            }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        var dto = _savedShow!.ToDto();
+        dto.AlwaysPromoteAsHero.Should().BeTrue();
+        dto.BypassShortEpisodeChecking.Should().BeTrue();
+        dto.IgnoreAllEpisodes.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "The PATCH body uses the podcast edit API's wire names for the discovery flags and they reach the model.")]
+    public void discovery_flag_wire_names()
+    {
+        // Arrange
+        const string json = """
+            {"ignoreAllEpisodes":true,"bypassShortEpisodeChecking":true,"alwaysPromoteAsHero":true,
+             "skipEnrichingFromYouTube":false,"minimumDuration":"00:01:00","releaseAuthority":"Spotify",
+             "unsetReleaseAuthority":false,"youTubePublicationDelay":"02:00:00"}
+            """;
+
+        // Act
+        var news = JsonSerializer.Deserialize<global::Api.Dtos.NewsOrganisationChangeRequest>(json)!.ToModel();
+        var tv = JsonSerializer.Deserialize<global::Api.Dtos.TvShowChangeRequest>(json)!.ToModel();
+
+        // Assert
+        foreach (var change in new ServiceIdsChange[] { news, tv })
+        {
+            change.IgnoreAllEpisodes.Should().BeTrue();
+            change.BypassShortEpisodeChecking.Should().BeTrue();
+            change.AlwaysPromoteAsHero.Should().BeTrue();
+            change.SkipEnrichingFromYouTube.Should().BeFalse();
+            change.MinimumDuration.Should().Be("00:01:00");
+            change.ReleaseAuthority.Should().Be(RedditPodcastPoster.Models.Podcasts.Service.Spotify);
+            change.UnsetReleaseAuthority.Should().BeFalse();
+            change.YouTubePublicationDelay.Should().Be("02:00:00");
+            change.ChangesServiceIds.Should().BeTrue();
+        }
+    }
 }

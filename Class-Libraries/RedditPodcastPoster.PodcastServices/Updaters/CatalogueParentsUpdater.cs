@@ -5,6 +5,7 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
@@ -15,6 +16,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
@@ -32,8 +34,12 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// <see cref="Episode"/> (provider ids derived from <c>services</c> URLs, since playables do
 /// not store them). Discovery, merge, the minimum-duration rule and elimination terms are the
 /// same as <see cref="PodcastUpdater"/>. New items are saved as TvShowEpisode / NewsReport;
-/// merged and term-removed items update the stored playable. Cross-platform enrichment and
-/// hero promotion are not run for these kinds.
+/// merged and term-removed items update the stored playable. The parent's ignore-all-episodes, bypass-short
+/// (unset is on for a news organisation, see <see cref="CatalogueIndexingSource.EffectiveBypassShortEpisodeChecking"/>)
+/// and minimum-duration settings apply as for a podcast. When the parent is flagged
+/// <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/>, new playables are appended to the homepage hero list
+/// after they are saved (same <see cref="HeroAutoPromoteSelector"/> rule as <see cref="PodcastUpdater"/>).
+/// Cross-platform enrichment is not run for these kinds.
 /// <para>
 /// The parent itself is never upserted: only the Indexer-owned fields a pass changed
 /// (<c>lastIndexed</c>, <c>latestReleased</c>, changed <c>indexing</c> members) are patched via
@@ -65,6 +71,7 @@ public class CatalogueParentsUpdater(
     IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
     PodcastUpdateBudgetCutTracker budgetCutTracker,
     TimeProvider timeProvider,
+    IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CatalogueParentsUpdater> logger) : ICatalogueParentsUpdater
 {
     /// <summary>Stable log prefix for a parent cut off by its time budget (App Insights keys off it).</summary>
@@ -304,6 +311,7 @@ public class CatalogueParentsUpdater(
             context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
             cancellationToken.ThrowIfCancellationRequested();
             await tvShowEpisodeRepository.Save(outcome.ChangedPlayables);
+            await PromoteHeroes(show, outcome.HeroIds, cancellationToken);
         }
 
         if (!outcome.ParentPatch.IsEmpty)
@@ -335,6 +343,7 @@ public class CatalogueParentsUpdater(
             context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
             cancellationToken.ThrowIfCancellationRequested();
             await newsReportRepository.Save(outcome.ChangedPlayables);
+            await PromoteHeroes(organisation, outcome.HeroIds, cancellationToken);
         }
 
         if (!outcome.ParentPatch.IsEmpty)
@@ -348,6 +357,59 @@ public class CatalogueParentsUpdater(
         }
 
         LogOutcome("NewsOrganisation", organisation, outcome);
+    }
+
+    /// <summary>
+    /// Appends the saved new playables of an <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/> parent to the
+    /// edge hero list. Best effort: the promoter logs and swallows its own failures, so indexing is not failed.
+    /// </summary>
+    private async Task PromoteHeroes(Publisher parent, IReadOnlyList<Guid> heroIds, CancellationToken cancellationToken)
+    {
+        if (heroIds.Count == 0)
+        {
+            return;
+        }
+
+        HeroAutoPromoteLogger.LogAttempt(logger, EpisodeCreationSource.Indexer, parent.Id, heroIds);
+        cancellationToken.ThrowIfCancellationRequested();
+        await heroEpisodePromoter.PromoteAsync(heroIds, cancellationToken);
+    }
+
+    /// <summary>Added episodes eligible for auto-hero (flag on, not ignored / removed / term-filtered, in the week window).</summary>
+    private List<Guid> SelectHeroIds(Podcast podcast, IEnumerable<Episode> addedEpisodes, ISet<Guid> filteredIds)
+    {
+        var heroIds = new List<Guid>();
+        if (podcast.AlwaysPromoteAsHero != true)
+        {
+            return heroIds;
+        }
+
+        var utcNow = timeProvider.GetUtcNow().UtcDateTime;
+        foreach (var added in addedEpisodes)
+        {
+            var skipReason = filteredIds.Contains(added.Id)
+                ? HeroAutoPromoteSkipReason.Removed
+                : HeroAutoPromoteSelector.GetSkipReason(podcast, added, utcNow);
+            if (skipReason != HeroAutoPromoteSkipReason.None)
+            {
+                HeroAutoPromoteLogger.LogSkipped(
+                    logger,
+                    skipReason,
+                    added.Id,
+                    podcast.Id,
+                    podcast.AlwaysPromoteAsHero,
+                    release: added.ReleaseUtc,
+                    cutoff: skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
+                        ? HeroAutoPromoteSelector.GetCutoff(utcNow)
+                        : null,
+                    episodeResult: "Created");
+                continue;
+            }
+
+            heroIds.Add(added.Id);
+        }
+
+        return heroIds;
     }
 
     private void LogParentGone(string kind, Publisher parent)
@@ -380,6 +442,7 @@ public class CatalogueParentsUpdater(
         var cancellationToken = indexingContext.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;
         var latestReleasedBefore = parent.LatestReleased;
+        var bypassShortEpisodeCheckingBefore = source.BypassShortEpisodeChecking;
         var podcast = source.ToTransientPodcast(parent);
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
         var releasedSince = indexingContext.ReleasedSince!.Value;
@@ -447,6 +510,9 @@ public class CatalogueParentsUpdater(
         }
 
         source.CaptureFrom(podcast);
+        // The transient podcast carries the kind default for an unset bypass-short flag (on for a news
+        // organisation). That default is read-time only: keep the stored (curator) value so the pass never writes it.
+        source.BypassShortEpisodeChecking = bypassShortEpisodeCheckingBefore;
         if (merge.FailedEpisodes.Any() && !Equals(youTubeIndexingHintsBefore, source.YouTubeIndexingHints))
         {
             // Same rule as PodcastUpdater: a failed merge keeps the previous hints, so the next pass offers the
@@ -487,7 +553,11 @@ public class CatalogueParentsUpdater(
             addedEpisodes.Count,
             merge.MergedEpisodes.Count,
             filtered.FilteredEpisodes.Count,
-            succeeded);
+            succeeded,
+            SelectHeroIds(
+                podcast,
+                addedEpisodes,
+                filtered.FilteredEpisodes.Select(x => x.Episode.Id).ToHashSet()));
     }
 
     /// <summary>
@@ -647,6 +717,7 @@ public class CatalogueParentsUpdater(
         int Added,
         int Merged,
         int Filtered,
-        bool Succeeded)
+        bool Succeeded,
+        IReadOnlyList<Guid> HeroIds)
         where TPlayable : Playable;
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Dtos;
 
@@ -39,4 +40,32 @@ public abstract class ServiceIdsChangeRequest : PublisherFieldsChangeRequest
 
     [JsonPropertyName("episodeIncludeTitleRegex")]
     public string? EpisodeIncludeTitleRegex { get; set; }
+
+    /// <summary><c>true</c> sets; <c>false</c> clears (stored as unset), as the podcast edit API.</summary>
+    [JsonPropertyName("ignoreAllEpisodes")]
+    public bool? IgnoreAllEpisodes { get; set; }
+
+    [JsonPropertyName("bypassShortEpisodeChecking")]
+    public bool? BypassShortEpisodeChecking { get; set; }
+
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
+    /// <summary>A <see cref="TimeSpan"/> string; <c>""</c> clears. An unparseable value is logged and clears.</summary>
+    [JsonPropertyName("minimumDuration")]
+    public string? MinimumDuration { get; set; }
+
+    [JsonPropertyName("releaseAuthority")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Service? ReleaseAuthority { get; set; }
+
+    [JsonPropertyName("unsetReleaseAuthority")]
+    public bool? UnsetReleaseAuthority { get; set; }
+
+    /// <summary>A <see cref="TimeSpan"/> string (may be negative); <c>""</c> clears. An unparseable value is logged and ignored.</summary>
+    [JsonPropertyName("youTubePublicationDelay")]
+    public string? YouTubePublicationDelay { get; set; }
+
+    [JsonPropertyName("skipEnrichingFromYouTube")]
+    public bool? SkipEnrichingFromYouTube { get; set; }
 }

@@ -6,6 +6,8 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Episodes.Logging;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
@@ -29,6 +31,8 @@ public interface ICatalogueParentSubmitter
 /// categorise, cross-service matching, subjects and guests behave as for a podcast submit; the episode
 /// is then mapped with <see cref="CatalogueParentKindMapper"/> (as kind transfer and the indexer do).
 /// The result carries a <see cref="CatalogueSearchSource"/> so the host indexes it immediately.
+/// A created playable under a parent flagged <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/> is appended to
+/// the homepage hero list, with the same <see cref="HeroAutoPromoteSelector"/> rule as a podcast submit.
 /// </summary>
 public class CatalogueParentSubmitter(
     IUrlCategoriser urlCategoriser,
@@ -36,6 +40,7 @@ public class CatalogueParentSubmitter(
     INewsReportRepository newsReports,
     ITvShowEpisodeRepository tvShowEpisodes,
     ICatalogueLanguageGate languageGate,
+    IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CatalogueParentSubmitter> logger) : ICatalogueParentSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -173,6 +178,7 @@ public class CatalogueParentSubmitter(
         logger.LogInformation(
             "Submit of '{Url}' stored {ContentKind} '{PlayableId}' under {Kind} '{ParentName}' ({ParentId}); no podcast created.",
             url, parent.ContentKind, playable.Id, parent.Kind, parent.Parent.Name, parent.Parent.Id);
+        await PromoteIfEligible(transient, episode, playable.Id, submitOptions);
         return new SubmitResult(
             SubmitResultState.Created,
             SubmitResultState.None,
@@ -232,6 +238,36 @@ public class CatalogueParentSubmitter(
             ContentKind: parent.ContentKind,
             PlayableId: existing.Id,
             CatalogueSearchSource: new CatalogueSearchSource(transient, merged, parent.Kind));
+    }
+
+    /// <summary>Same rule as <c>CategorisedItemProcessor</c> for a podcast: flag on, not ignored / removed, in the week window.</summary>
+    private async Task PromoteIfEligible(Podcast transient, Episode episode, Guid playableId, SubmitOptions submitOptions)
+    {
+        if (transient.AlwaysPromoteAsHero != true)
+        {
+            return;
+        }
+
+        var utcNow = DateTime.UtcNow;
+        var skipReason = HeroAutoPromoteSelector.GetSkipReason(transient, episode, utcNow);
+        if (skipReason != HeroAutoPromoteSkipReason.None)
+        {
+            HeroAutoPromoteLogger.LogSkipped(
+                logger,
+                skipReason,
+                playableId,
+                transient.Id,
+                transient.AlwaysPromoteAsHero,
+                release: episode.ReleaseUtc,
+                cutoff: skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
+                    ? HeroAutoPromoteSelector.GetCutoff(utcNow)
+                    : null,
+                episodeResult: SubmitResultState.Created.ToString());
+            return;
+        }
+
+        HeroAutoPromoteLogger.LogAttempt(logger, submitOptions.CreationSource, transient.Id, [playableId]);
+        await heroEpisodePromoter.PromoteAsync([playableId]);
     }
 
     /// <summary>What the podcast enricher may change on a matched episode, copied back onto the stored playable.</summary>

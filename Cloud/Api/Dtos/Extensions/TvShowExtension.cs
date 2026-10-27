@@ -10,5 +10,5 @@ public static class TvShowExtension
             ImdbId = show.ImdbId,
             TvdbId = show.TvdbId,
             TmdbId = show.TmdbId
-        }.WithPublisherFields(show).WithServiceIds(show.Indexing);
+        }.WithPublisherFields(show).WithServiceIds(show, show.Indexing);
 }

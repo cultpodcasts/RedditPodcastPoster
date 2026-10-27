@@ -8,7 +8,8 @@ namespace Api.Dtos.Extensions;
 public static class CatalogueDtoMapping
 {
     /// <summary>Service ids from the parent's <c>indexing</c> block (empty when it has none).</summary>
-    public static T WithServiceIds<T>(this T dto, CatalogueIndexingSource? indexing) where T : ServiceIdsDto
+    public static T WithServiceIds<T>(this T dto, Publisher parent, CatalogueIndexingSource? indexing)
+        where T : ServiceIdsDto
     {
         dto.YouTubeChannelId = indexing?.YouTubeChannelId ?? "";
         dto.YouTubePlaylistId = indexing?.YouTubePlaylistId ?? "";
@@ -20,6 +21,15 @@ public static class CatalogueDtoMapping
         dto.DescriptionRegex = indexing?.DescriptionRegex ?? "";
         dto.EpisodeMatchRegex = indexing?.EpisodeMatchRegex ?? "";
         dto.EpisodeIncludeTitleRegex = indexing?.EpisodeIncludeTitleRegex ?? "";
+        dto.IgnoreAllEpisodes = indexing?.IgnoreAllEpisodes;
+        dto.BypassShortEpisodeChecking = CatalogueIndexingSource.EffectiveBypassShortEpisodeChecking(parent, indexing);
+        dto.AlwaysPromoteAsHero = indexing?.AlwaysPromoteAsHero;
+        dto.MinimumDuration = indexing?.MinimumDuration?.ToString();
+        dto.ReleaseAuthority = indexing?.ReleaseAuthority;
+        dto.YouTubePublicationDelay = indexing?.YouTubePublicationOffset is { } offset
+            ? TimeSpan.FromTicks(offset).ToString("g")
+            : "";
+        dto.SkipEnrichingFromYouTube = indexing?.SkipEnrichingFromYouTube;
         return dto;
     }
 

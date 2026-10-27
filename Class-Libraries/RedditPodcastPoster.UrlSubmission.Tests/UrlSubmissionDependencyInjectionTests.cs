@@ -8,6 +8,7 @@ using Moq;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -84,6 +85,8 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INewsOrganisationRepository>());
         services.AddSingleton(Mock.Of<INewsReportRepository>());
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
+        // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
+        services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
         services.AddUrlSubmission();
 
         // Act
