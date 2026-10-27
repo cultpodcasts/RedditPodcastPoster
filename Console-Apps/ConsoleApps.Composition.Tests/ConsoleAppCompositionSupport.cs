@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TitleCasing;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
@@ -15,6 +16,9 @@ namespace ConsoleApps.Composition.Tests;
 /// <summary>
 /// Builds a console app's service collection against synthetic configuration with Cosmos replaced by
 /// test doubles, so composition tests resolve the app's entry point without touching any cloud service.
+/// Coverage gap: ILookupRepository, ILanguageTitleCasingRulesRepository, ISubjectsProvider and ICachedSubjectProvider
+/// are also replaced with doubles (their real implementations read Cosmos at construction), so these tests do not
+/// cover the dependency graphs of those real implementations.
 /// </summary>
 internal static class ConsoleAppCompositionSupport
 {
@@ -26,8 +30,9 @@ internal static class ConsoleAppCompositionSupport
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton(CreateSyntheticConfiguration());
         configure(services);
-        ReplaceCosmosWithTestDoubles(services);
-        ReplaceRepositoriesReadAtConstructionWithTestDoubles(services);
+        var mocker = new AutoMocker();
+        ReplaceCosmosWithTestDoubles(services, mocker);
+        ReplaceRepositoriesReadAtConstructionWithTestDoubles(services, mocker);
         return services;
     }
 
@@ -128,14 +133,14 @@ internal static class ConsoleAppCompositionSupport
             .Build();
     }
 
-    private static void ReplaceCosmosWithTestDoubles(IServiceCollection services)
+    private static void ReplaceCosmosWithTestDoubles(IServiceCollection services, AutoMocker mocker)
     {
         RemoveService<CosmosClient>(services);
         RemoveService<ICosmosDbClientFactory>(services);
         RemoveService<ICosmosDbContainerFactory>(services);
 
-        var container = new Mock<Container>().Object;
-        var containerFactory = new Mock<ICosmosDbContainerFactory>();
+        var container = mocker.Get<Container>();
+        var containerFactory = mocker.GetMock<ICosmosDbContainerFactory>();
         containerFactory.Setup(x => x.CreatePodcastsContainer()).Returns(container);
         containerFactory.Setup(x => x.CreateEpisodesContainer()).Returns(container);
         containerFactory.Setup(x => x.CreateTvShowsContainer()).Returns(container);
@@ -156,15 +161,15 @@ internal static class ConsoleAppCompositionSupport
         services.AddSingleton(_ => new CosmosClient("https://localhost:8081", CosmosTestAuthKey));
     }
 
-    private static void ReplaceRepositoriesReadAtConstructionWithTestDoubles(IServiceCollection services)
+    private static void ReplaceRepositoriesReadAtConstructionWithTestDoubles(IServiceCollection services, AutoMocker mocker)
     {
         RemoveService<ILookupRepository>(services);
-        services.AddSingleton(new Mock<ILookupRepository>().Object);
+        services.AddSingleton(mocker.Get<ILookupRepository>());
 
         RemoveService<ILanguageTitleCasingRulesRepository>(services);
-        var titleCasingRules = new Mock<ILanguageTitleCasingRulesRepository>();
-        titleCasingRules.Setup(x => x.GetAll()).Returns(AsyncEnumerable.Empty<TitleCasingRulesDocument>());
-        services.AddSingleton(titleCasingRules.Object);
+        mocker.GetMock<ILanguageTitleCasingRulesRepository>()
+            .Setup(x => x.GetAll()).Returns(AsyncEnumerable.Empty<TitleCasingRulesDocument>());
+        services.AddSingleton(mocker.Get<ILanguageTitleCasingRulesRepository>());
 
         RemoveService<ISubjectsProvider>(services);
         RemoveService<ICachedSubjectProvider>(services);
