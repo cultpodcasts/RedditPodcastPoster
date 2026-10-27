@@ -41,6 +41,7 @@ public class CatalogueParentSubmitter(
     ITvShowEpisodeRepository tvShowEpisodes,
     ICatalogueLanguageGate languageGate,
     IHeroEpisodePromoter heroEpisodePromoter,
+    TimeProvider timeProvider,
     ILogger<CatalogueParentSubmitter> logger) : ICatalogueParentSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -241,34 +242,9 @@ public class CatalogueParentSubmitter(
     }
 
     /// <summary>Same rule as <c>CategorisedItemProcessor</c> for a podcast: flag on, not ignored / removed, in the week window.</summary>
-    private async Task PromoteIfEligible(Podcast transient, Episode episode, Guid playableId, SubmitOptions submitOptions)
-    {
-        if (transient.AlwaysPromoteAsHero != true)
-        {
-            return;
-        }
-
-        var utcNow = DateTime.UtcNow;
-        var skipReason = HeroAutoPromoteSelector.GetSkipReason(transient, episode, utcNow);
-        if (skipReason != HeroAutoPromoteSkipReason.None)
-        {
-            HeroAutoPromoteLogger.LogSkipped(
-                logger,
-                skipReason,
-                playableId,
-                transient.Id,
-                transient.AlwaysPromoteAsHero,
-                release: episode.ReleaseUtc,
-                cutoff: skipReason == HeroAutoPromoteSkipReason.OutsideWeekWindow
-                    ? HeroAutoPromoteSelector.GetCutoff(utcNow)
-                    : null,
-                episodeResult: SubmitResultState.Created.ToString());
-            return;
-        }
-
-        HeroAutoPromoteLogger.LogAttempt(logger, submitOptions.CreationSource, transient.Id, [playableId]);
-        await heroEpisodePromoter.PromoteAsync([playableId]);
-    }
+    private Task PromoteIfEligible(Podcast transient, Episode episode, Guid playableId, SubmitOptions submitOptions) =>
+        CatalogueHeroAutoPromotion.PromoteIfEligible(
+            logger, heroEpisodePromoter, timeProvider, transient, episode, playableId, submitOptions.CreationSource);
 
     /// <summary>What the podcast enricher may change on a matched episode, copied back onto the stored playable.</summary>
     private static void ApplyEnrichment(Episode merged, Playable target)

@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -36,6 +37,7 @@ public class CatalogueParentRoutingRules
 
     public CatalogueParentRoutingRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         _mocker.GetMock<IPodcastRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
             .Returns((Expression<Func<Podcast, bool>> p) => ToAsync(_podcasts.Where(p.Compile())));
@@ -970,6 +972,43 @@ public class CatalogueParentRoutingRules
         {
             e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(daysAgo);
             e.Ignored = ignored;
+            e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
+        });
+        ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        _reports.Should().ContainSingle();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { episode.Id })),
+                It.IsAny<CancellationToken>()),
+            expectPromoted ? Times.Once() : Times.Never());
+    }
+
+    [Theory(DisplayName =
+        "The parent submitter measures the hero week window with the injected TimeProvider: a report released a day " +
+        "before that clock is promoted and one released twenty days before it is not, whatever the wall clock says.")]
+    [InlineData(1, true)]
+    [InlineData(20, false)]
+    public async Task parent_submitter_hero_window_uses_time_provider(int daysBeforeClock, bool expectPromoted)
+    {
+        // Arrange
+        const int clockDaysAgo = 60;
+        _mocker.Use<TimeProvider>(new FixedTimeProvider(DomainTestFixture.UtcDaysAgo(clockDaysAgo)));
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.AlwaysPromoteAsHero = true;
+        });
+        var url = YouTubeUrl();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(clockDaysAgo + daysBeforeClock);
             e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
         });
         ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
