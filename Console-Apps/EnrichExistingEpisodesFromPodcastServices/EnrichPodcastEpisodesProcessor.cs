@@ -184,11 +184,12 @@ public class EnrichPodcastEpisodesProcessor(
             }
 
             if (podcast.YouTubeChannelId != null &&
-                (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(detachedEpisode)) ||
+                (EpisodeServicePresence.NestedYouTubeId(detachedEpisode) is null ||
                  !EpisodeServicePresence.HasUrl(detachedEpisode, ServiceKeys.YouTube)))
             {
                 var existingYouTubeUrl = EpisodeServicePresence.TryGetUrl(detachedEpisode, ServiceKeys.YouTube);
-                if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(detachedEpisode)) &&
+                // Nested id: YouTubeEpisodeId falls back to the url, which hid url-without-id episodes here.
+                if (EpisodeServicePresence.NestedYouTubeId(detachedEpisode) is null &&
                     existingYouTubeUrl != null)
                 {
                     var youTubeId = YouTubeIdResolver.Extract(existingYouTubeUrl);

@@ -5,6 +5,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Applying;
 
@@ -72,6 +73,82 @@ public class EpisodePlatformApplierRules
         // Assert
         updated.Should().BeTrue();
         target.ShouldMatchExpectation(expected);
+    }
+
+    [Fact(DisplayName =
+        "When YouTube enrichment adds the url to an episode with no YouTube link, the stored ids.youtube is set too, " +
+        "because podcast-episode search reads only the nested id and the url fallback must not hide the missing id.")]
+    public void applier_sets_stored_youtube_id_when_it_adds_the_url()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var target = EpisodeWithoutYouTube();
+        var patch = new EpisodePlatformPatch(
+            new PlatformLink(Service.YouTube, videoId, _fixture.DefaultYouTubeUrl(videoId), null),
+            Description: null,
+            Release: null);
+
+        // Act
+        var updated = _applier.ApplyFillMissing(target, patch);
+
+        // Assert
+        updated.Should().BeTrue();
+        target.Ids!.YouTube.Should().Be(videoId);
+        EpisodeServicePresence.TryGetUrl(target, ServiceKeys.YouTube).Should().Be(_fixture.DefaultYouTubeUrl(videoId));
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode already has services.youtube.url but no ids.youtube, the applier writes the id " +
+        "and reports an update, because the episode must be saved for search to pick the id up.")]
+    public void applier_fills_stored_youtube_id_when_url_is_present_without_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var target = EpisodeWithoutYouTube();
+        target.Services![ServiceKeys.YouTube] = new ServiceLink { Url = _fixture.DefaultYouTubeUrl(videoId) };
+        var patch = new EpisodePlatformPatch(
+            new PlatformLink(Service.YouTube, videoId, _fixture.DefaultYouTubeUrl(videoId), null),
+            Description: null,
+            Release: null);
+
+        // Act
+        var updated = _applier.ApplyFillMissing(target, patch);
+
+        // Assert
+        updated.Should().BeTrue();
+        target.Ids!.YouTube.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "When the YouTube link has a url but no id, the applier derives ids.youtube from the url's video id.")]
+    public void applier_derives_stored_youtube_id_from_url_when_link_has_no_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var target = EpisodeWithoutYouTube();
+        var patch = new EpisodePlatformPatch(
+            new PlatformLink(Service.YouTube, null, _fixture.DefaultYouTubeUrl(videoId), null),
+            Description: null,
+            Release: null);
+
+        // Act
+        var updated = _applier.ApplyFillMissing(target, patch);
+
+        // Assert
+        updated.Should().BeTrue();
+        target.Ids!.YouTube.Should().Be(videoId);
+    }
+
+    private Episode EpisodeWithoutYouTube()
+    {
+        var target = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(e, null);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, null, null);
+            EpisodeServicePresence.SetSpotifyIdentity(e, _fixture.CreateSpotifyId());
+        });
+        target.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
+        return target;
     }
 
     [Fact(DisplayName =

@@ -14,6 +14,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Enrichment;
@@ -173,12 +174,14 @@ public class YouTubeEpisodeEnricherCatalogueRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.BuildEpisode()
             .WithPodcast(podcast)
-            .Customize(e =>
-            {
-                EpisodeServicePresence.SetYouTubeIdentity(e, null);
-                e.Urls = new ServiceUrls { YouTube = youTubeInput.YouTubeUrl };
-            })
             .Create();
+        // Stored shape of the 2026-10 cases: services.youtube.url written without ids.youtube
+        // (set directly after the builder, because Upsert now fills the id itself).
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        episode.Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
+        {
+            [ServiceKeys.YouTube] = new() { Url = youTubeInput.YouTubeUrl }
+        };
         var enrichmentContext = new EnrichmentContext();
         var sut = CreateEnricher();
 
@@ -189,7 +192,7 @@ public class YouTubeEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        episode.YouTubeId.Should().Be(youTubeInput.YouTubeId);
+        episode.Ids!.YouTube.Should().Be(youTubeInput.YouTubeId);
         enrichmentContext.YouTubeIdUpdated.Should().BeTrue();
     }
 

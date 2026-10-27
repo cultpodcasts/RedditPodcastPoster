@@ -184,6 +184,8 @@ public class EpisodeRepository(
             throw new InvalidOperationException("Episode.Id must be set before saving.");
         }
 
+        // Save gate: any path that left services.youtube.url without ids.youtube (search reads the id only).
+        EpisodeServicePresence.FillYouTubeIdFromUrl(episode);
         var existingEpisode = await GetEpisode(episode.PodcastId, episode.Id);
         var previousCountedState = existingEpisode is not null && IsCountedForHomepage(existingEpisode);
         var nextCountedState = IsCountedForHomepage(episode);

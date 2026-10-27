@@ -407,4 +407,145 @@ public class EpisodeServicePresenceTests
         episode.Services[ServiceKeys.Spotify].Image.Should().Be(spotifyImage);
         episode.Services[ServiceKeys.YouTube].Url.Should().Be(youTubeUrl);
     }
+
+    [Fact(DisplayName =
+        "Upsert of a YouTube url fills a missing ids.youtube with the url's video id, because search reads only the nested id.")]
+    public void upsert_youtube_url_fills_missing_nested_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e => e.Ids = null);
+
+        // Act
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(videoId), null);
+
+        // Assert
+        episode.Ids!.YouTube.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "Upsert of a YouTube url keeps an ids.youtube that is already set, because only a missing id is filled.")]
+    public void upsert_youtube_url_keeps_existing_nested_id()
+    {
+        // Arrange
+        var storedId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e => EpisodeServicePresence.SetYouTubeIdentity(e, storedId));
+
+        // Act
+        EpisodeServicePresence.Upsert(
+            episode, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(_fixture.CreateYouTubeId()), null);
+
+        // Assert
+        episode.Ids!.YouTube.Should().Be(storedId);
+    }
+
+    [Fact(DisplayName =
+        "Upsert of a YouTube url with no video id (a playlist) leaves ids.youtube empty.")]
+    public void upsert_youtube_playlist_url_leaves_nested_id_empty()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode(e => e.Ids = null);
+        var playlist = new Uri("https://www.youtube.com/playlist?list=PLsynthetic0000000000");
+
+        // Act
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, playlist, null);
+
+        // Assert
+        EpisodeServicePresence.NestedYouTubeId(episode).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "NestedYouTubeId is empty for an episode with services.youtube.url but no ids.youtube, while YouTubeEpisodeId falls back to the url.")]
+    public void nested_youtube_id_has_no_url_fallback()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Ids = null;
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            };
+        });
+
+        // Act
+        var nested = EpisodeServicePresence.NestedYouTubeId(episode);
+        var withFallback = EpisodeServicePresence.YouTubeEpisodeId(episode);
+
+        // Assert
+        nested.Should().BeNull();
+        withFallback.Should().Be(videoId);
+    }
+
+    [Theory(DisplayName =
+        "FillYouTubeIdFromUrl writes ids.youtube from watch, youtu.be, shorts and live urls when it is missing.")]
+    [InlineData("https://www.youtube.com/watch?v={0}")]
+    [InlineData("https://youtu.be/{0}")]
+    [InlineData("https://www.youtube.com/shorts/{0}")]
+    [InlineData("https://www.youtube.com/live/{0}")]
+    public void fill_youtube_id_from_url_forms(string format)
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(e, null);
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri(string.Format(format, videoId)) }
+            };
+        });
+
+        // Act
+        var filled = EpisodeServicePresence.FillYouTubeIdFromUrl(episode);
+
+        // Assert
+        filled.Should().BeTrue();
+        episode.Ids!.YouTube.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "FillYouTubeIdFromUrl does nothing when ids.youtube is already set, so it is safe to call on every save.")]
+    public void fill_youtube_id_from_url_is_idempotent()
+    {
+        // Arrange
+        var storedId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(e, storedId);
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(_fixture.CreateYouTubeId()) }
+            };
+        });
+
+        // Act
+        var filled = EpisodeServicePresence.FillYouTubeIdFromUrl(episode);
+
+        // Assert
+        filled.Should().BeFalse();
+        episode.Ids!.YouTube.Should().Be(storedId);
+    }
+
+    [Fact(DisplayName =
+        "Clearing YouTube (id set to null, then the service removed) leaves no ids.youtube, because the url is not re-read before it is removed.")]
+    public void clearing_youtube_does_not_refill_the_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            EpisodeServicePresence.SetYouTubeIdentity(e, videoId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(videoId), null);
+        });
+
+        // Act
+        EpisodeServicePresence.SetYouTubeIdentity(episode, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, null);
+
+        // Assert
+        EpisodeServicePresence.NestedYouTubeId(episode).Should().BeNull();
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube).Should().BeNull();
+    }
 }

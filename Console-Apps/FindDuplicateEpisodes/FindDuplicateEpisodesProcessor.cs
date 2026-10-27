@@ -562,11 +562,19 @@ public class FindDuplicateEpisodesProcessor(
             merged = true;
         }
 
-        if (string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(target)) &&
-            !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(source)))
+        // Nested id on the target: YouTubeEpisodeId falls back to the url and would skip a url-only target.
+        // The target's own url wins; the source id is used only when the target has no YouTube video.
+        if (EpisodeServicePresence.NestedYouTubeId(target) is null)
         {
-            EpisodeServicePresence.SetYouTubeIdentity(target, EpisodeServicePresence.YouTubeEpisodeId(source));
-            merged = true;
+            if (EpisodeServicePresence.FillYouTubeIdFromUrl(target))
+            {
+                merged = true;
+            }
+            else if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(source)))
+            {
+                EpisodeServicePresence.SetYouTubeIdentity(target, EpisodeServicePresence.YouTubeEpisodeId(source));
+                merged = true;
+            }
         }
 
         return merged;
