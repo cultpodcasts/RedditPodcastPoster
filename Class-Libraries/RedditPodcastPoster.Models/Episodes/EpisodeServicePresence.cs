@@ -53,6 +53,46 @@ public static class EpisodeServicePresence
     }
 
     /// <summary>
+    /// Podcast <see cref="Episode"/>: the nested <c>ids.youtube</c> only, with no fallback to
+    /// <c>services.youtube.url</c>. Use this (not <see cref="YouTubeEpisodeId"/>) when deciding
+    /// whether the stored id still has to be written: <see cref="YouTubeEpisodeId"/> falls back to the
+    /// url, so a "missing id" check against it is never true once a url is present.
+    /// </summary>
+    public static string? NestedYouTubeId(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return string.IsNullOrWhiteSpace(episode.Ids?.YouTube) ? null : episode.Ids.YouTube;
+    }
+
+    /// <summary>
+    /// Fill a missing nested <c>ids.youtube</c> from the video id in <c>services.youtube.url</c>
+    /// (watch / youtu.be / shorts / live / embed). An id that is already set is never replaced, and a url
+    /// with no video id (for example a playlist) leaves the id empty. Returns true when the id was written.
+    /// Podcast-episode search and the public database read only the nested id, so every write path
+    /// that adds a YouTube url has to end with the id set; <see cref="Upsert(Episode, string, Uri?, Uri?)"/>
+    /// (when it writes a YouTube url) and the episode repository's Save call this. Not called from
+    /// <see cref="NormalizeCatalog"/>, which runs before a caller removes the url and would re-fill an id
+    /// the caller has just cleared.
+    /// </summary>
+    public static bool FillYouTubeIdFromUrl(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (NestedYouTubeId(episode) is not null)
+        {
+            return false;
+        }
+
+        var id = ExtractYouTubeIdFromServices(episode.Services);
+        if (id is null)
+        {
+            return false;
+        }
+
+        SetYouTubeIdentity(episode, id);
+        return true;
+    }
+
+    /// <summary>
     /// Pre-catalog Cosmos docs stored ABC iview under the unknown-host slug
     /// <c>iviewabcnetau</c> (<see cref="ServiceCatalog.KeyFromUnknownHost"/>).
     /// Fold into the first-class <c>abcIview</c> wire key on every normalize/save.
@@ -557,6 +597,12 @@ public static class EpisodeServicePresence
         if (url is not null)
         {
             link.Url = url;
+            if (key == ServiceKeys.YouTube)
+            {
+                // Writing a YouTube url fills a missing ids.youtube from it (search reads the id only).
+                // An id that is already set is kept; callers that change the video set both explicitly.
+                FillYouTubeIdFromUrl(episode);
+            }
         }
 
         if (image is not null)

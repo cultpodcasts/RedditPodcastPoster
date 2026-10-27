@@ -67,4 +67,8 @@ public class EpisodeServiceBackfillRequest
     [Option("since-ts", Required = false, Default = 0,
         HelpText = "SELECT * FROM c WHERE c._ts > this Unix-seconds value and classify NeedsBackfill. With --apply, patch those candidates (surgical services/ids). Does not overwrite episode-service-backfill-patches.jsonl.")]
     public long SinceTs { get; set; }
+
+    [Option("youtube-id-only", Required = false, Default = false,
+        HelpText = "Only fill a missing ids.youtube from the video id in services.youtube.url. One Cosmos patch of /ids/youtube per episode, guarded so an existing id is never overwritten. Dry-run unless --apply. Use --ids to target episodes, or --all for every candidate (otherwise --limit applies).")]
+    public bool YouTubeIdOnly { get; set; }
 }
