@@ -331,7 +331,7 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 ### CataloguePlayableServicesBackfill
 
-**Purpose:** Cosmos-first repair of Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON (`episode/{guid}.json`). Scans live playables, diffs backup service maps, and carries discrepant **non-null** backup url/image onto the entity. Dry-run by default (JSONL change log only). `--apply` writes only with `--consent "I approve CataloguePlayableServicesBackfill production writes"` (else exit 2). Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 failed writes. Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+**Purpose:** Cosmos-first repair of Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON (`episode/{guid}.json`). Scans live playables, diffs backup service maps, and carries discrepant **non-null** backup url/image onto the entity. Dry-run by default (JSONL change log only). `--apply` writes only with `--consent` (human-held consent phrase, not documented) (else exit 2). Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 failed writes. Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
 
 **Run:** `dotnet run --project Console-Apps/CataloguePlayableServicesBackfill --` · PATH: `CataloguePlayableServicesBackfill`
 

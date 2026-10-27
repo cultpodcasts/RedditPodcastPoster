@@ -90,6 +90,32 @@ public class CatalogueParentKindMapperRules
         film.YouTubeId.Should().Be(expectedYouTubeId);
     }
     [Fact(DisplayName =
+        "When a source episode's nested ids.youtube disagrees with its services.youtube.url, mapped TV episode, " +
+        "news report and film take the id from the url, because url wins on create exactly as on merge and backfill.")]
+    public void mappers_prefer_url_over_nested_youtube_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var urlId = _fixture.CreateYouTubeId();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(urlId), null);
+        EpisodeServicePresence.SetYouTubeIdentity(episode, _fixture.CreateYouTubeId());
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var tv = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        var news = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        episode.Ids!.YouTube.Should().NotBe(urlId);
+        tv.YouTubeId.Should().Be(urlId);
+        news.YouTubeId.Should().Be(urlId);
+        film.YouTubeId.Should().Be(urlId);
+    }
+
+    [Fact(DisplayName =
         "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
         "because the public hub is the programme, not the channel we found it on.")]
     public void tv_show_uses_canonical_programme_name()

@@ -37,6 +37,24 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("missingTruth")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool MissingTruth { get; init; }
+
+    /// <summary>
+    /// What the compact <c>youTubeId</c> sync does for this row: <c>filled</c> (null to id), <c>overwritten</c>
+    /// (idA to idB, url wins), <c>cleared</c> (never produced: a missing url keeps the id) or
+    /// <c>skipped-unparseable</c> (url missing or not a video url; the existing id is kept). Omitted when unchanged.
+    /// The real before/after ids are in <see cref="Changes"/> under field <c>youTubeId</c>.
+    /// </summary>
+    [JsonPropertyName("youTubeIdOutcome")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? YouTubeIdOutcome { get; init; }
+
+    /// <summary>
+    /// Set when apply wrote nothing for this row: <c>not-found</c> (deleted or moved mid-run; never recreated) or
+    /// <c>conflict</c> (changed after it was scanned; re-run to retry).
+    /// </summary>
+    [JsonPropertyName("skipped")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Skipped { get; init; }
 }
 
 public interface IChangeLogWriter : IAsyncDisposable

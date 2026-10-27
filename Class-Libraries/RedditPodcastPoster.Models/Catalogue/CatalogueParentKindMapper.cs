@@ -58,7 +58,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
-        playable.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        playable.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         playable.SetTvShowProperties(tvShow);
         playable.ModelType = ModelType.TvShowEpisode;
         return playable;
@@ -96,7 +96,7 @@ public static class CatalogueParentKindMapper
         film.RemovedSubjects = [.. episode.RemovedSubjects];
         film.Matches = episode.Matches.Select(CloneMatch).ToList();
         film.Services = CloneServices(episode.Services);
-        film.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        film.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         film.Guests = CloneArray(episode.Guests);
         return film;
     }
@@ -110,7 +110,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
-        playable.YouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        playable.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         playable.SetNewsOrganisationProperties(organisation);
         playable.ModelType = ModelType.NewsReport;
         return playable;

@@ -344,6 +344,96 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
+        "SyncCatalogueYouTubeIdFromUrl fills a missing YouTubeId from services.youtube.url and reports Filled " +
+        "with the real before and after ids.")]
+    public void sync_from_url_fills_missing_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var report = new RedditPodcastPoster.Models.News.NewsReport(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            }
+        };
+
+        // Act
+        var result = EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(report);
+
+        // Assert
+        result.Should().Be(new CatalogueYouTubeIdSyncResult(CatalogueYouTubeIdSyncOutcome.Filled, null, videoId));
+        report.YouTubeId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "SyncCatalogueYouTubeIdFromUrl: when the stored YouTubeId disagrees with services.youtube.url, the url wins " +
+        "and the result is Overwritten with the old id as before, because the url is what the page links to.")]
+    public void sync_from_url_url_wins_over_stored_id()
+    {
+        // Arrange
+        var staleId = _fixture.CreateYouTubeId();
+        var urlId = _fixture.CreateYouTubeId();
+        var episode = new RedditPodcastPoster.Models.TvShows.TvShowEpisode(_fixture.CreateTitle())
+        {
+            YouTubeId = staleId,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(urlId) }
+            }
+        };
+
+        // Act
+        var result = EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(episode);
+
+        // Assert
+        result.Should().Be(new CatalogueYouTubeIdSyncResult(CatalogueYouTubeIdSyncOutcome.Overwritten, staleId, urlId));
+        episode.YouTubeId.Should().Be(urlId);
+    }
+
+    [Theory(DisplayName =
+        "SyncCatalogueYouTubeIdFromUrl: when services.youtube.url is missing or is not a video url, an existing " +
+        "YouTubeId is kept and the result is SkippedUnparseable, so a sync never loses an id.")]
+    [InlineData(null)]
+    [InlineData("https://www.youtube.com/@somechannel")]
+    [InlineData("https://www.youtube.com/channel/UC1234567890abcdefghijkl")]
+    public void sync_from_url_never_clears(string? url)
+    {
+        // Arrange
+        var existingId = _fixture.CreateYouTubeId();
+        var film = new RedditPodcastPoster.Models.Films.Film(_fixture.CreateTitle())
+        {
+            YouTubeId = existingId,
+            Services = url is null
+                ? null
+                : new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = new Uri(url) } }
+        };
+
+        // Act
+        var result = EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(film);
+
+        // Assert
+        result.Should().Be(new CatalogueYouTubeIdSyncResult(
+            CatalogueYouTubeIdSyncOutcome.SkippedUnparseable, existingId, existingId));
+        film.YouTubeId.Should().Be(existingId);
+    }
+
+    [Fact(DisplayName =
+        "SyncCatalogueYouTubeIdFromUrl: with no YouTube url and no id there is nothing to do, so the result is Unchanged.")]
+    public void sync_from_url_with_nothing_is_unchanged()
+    {
+        // Arrange
+        var report = new RedditPodcastPoster.Models.News.NewsReport(_fixture.CreateTitle());
+
+        // Act
+        var result = EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(report);
+
+        // Assert
+        result.Outcome.Should().Be(CatalogueYouTubeIdSyncOutcome.Unchanged);
+        report.YouTubeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Film, TvShowEpisode, and NewsReport implement ICatalogueYouTubeItem while podcast Episode does not, " +
         "so SyncCatalogueYouTubeId cannot bind leftover top-level youTubeId onto episodes.")]
     public void catalogue_youtube_item_is_only_film_tv_and_news()
