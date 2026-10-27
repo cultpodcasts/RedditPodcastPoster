@@ -26,6 +26,8 @@ public static class ServiceCollectionExtensions
     /// Does not register episodes domain — callers must call <c>AddEpisodesDomain().AddEpisodeLookup()</c>
     /// explicitly at the composition root (required for <c>IEpisodeEnricher</c> →
     /// <c>IPlatformEnrichmentApplicator</c>).
+    /// Does not register catalogue services either — callers must call <c>AddCatalogueServices()</c>
+    /// at the composition root (required for <c>ICatalogueKindSubmitter</c> → <c>ICatalogueIdentityEnricher</c>).
     /// </summary>
     /// <param name="useRefreshMetaEnricher">
     /// When true (SubmitUrl CLI <c>-r</c>), resolve <see cref="IEpisodeEnricher"/> to
