@@ -194,8 +194,9 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     /// <summary>
     /// A podcast that is never saved: same id as the parent, the parent's publisher fields, and these
     /// discovery settings. Episode providers, mergers and filters take a <see cref="Podcast"/>.
-    /// An unset <see cref="BypassShortEpisodeChecking"/> takes the parent kind's default
-    /// (<see cref="EffectiveBypassShortEpisodeChecking"/>: on for a news organisation).
+    /// The stored flags are used as they are (no kind default on read): a news organisation is saved with
+    /// <see cref="BypassShortEpisodeChecking"/> and <see cref="AlwaysPromoteAsHero"/> on when it is created
+    /// (<see cref="ApplyNewsOrganisationCreationDefaults"/>), and a curator may switch either off later.
     /// </summary>
     public Podcast ToTransientPodcast(Publisher parent)
     {
@@ -222,7 +223,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             Bundles = Bundles,
             IndexAllEpisodes = IndexAllEpisodes,
             IgnoreAllEpisodes = IgnoreAllEpisodes,
-            BypassShortEpisodeChecking = EffectiveBypassShortEpisodeChecking(parent, this),
+            BypassShortEpisodeChecking = BypassShortEpisodeChecking,
             MinimumDuration = MinimumDuration,
             AlwaysPromoteAsHero = AlwaysPromoteAsHero,
             ReleaseAuthority = ReleaseAuthority,
@@ -250,14 +251,18 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     }
 
     /// <summary>
-    /// The bypass-short-episode setting a parent indexes and submits with. A curator value (true or false) wins;
-    /// unset defaults to on for a <see cref="News.NewsOrganisation"/> (news clips are often short) and stays unset
-    /// (off) for a TV show. The default is applied on read, so nothing is written to an existing parent.
+    /// Saved defaults for a news organisation when it is created or a podcast (or other parent) is transferred to
+    /// one: <see cref="BypassShortEpisodeChecking"/> and <see cref="AlwaysPromoteAsHero"/> are stored as true
+    /// (news clips are often short, and new reports go to the homepage hero list), even when the source had them
+    /// off or unset. A curator may switch either off afterwards and that saved false is kept. Not applied when a
+    /// playable moves into an existing news organisation, and never to a TV show.
     /// </summary>
-    public static bool? EffectiveBypassShortEpisodeChecking(Publisher parent, CatalogueIndexingSource? indexing)
+    public static CatalogueIndexingSource ApplyNewsOrganisationCreationDefaults(CatalogueIndexingSource? indexing)
     {
-        ArgumentNullException.ThrowIfNull(parent);
-        return indexing?.BypassShortEpisodeChecking ?? (parent is News.NewsOrganisation ? true : null);
+        var result = indexing ?? new CatalogueIndexingSource();
+        result.BypassShortEpisodeChecking = true;
+        result.AlwaysPromoteAsHero = true;
+        return result;
     }
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

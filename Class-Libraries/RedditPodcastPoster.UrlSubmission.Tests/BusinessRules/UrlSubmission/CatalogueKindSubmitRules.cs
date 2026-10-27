@@ -212,6 +212,60 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When a news URL submit creates a NewsOrganisation, it is saved with bypass-short-episodes and " +
+        "always-promote-as-hero on and no service ids, because those are the saved news defaults and a curator may " +
+        "switch them off later.")]
+    public async Task news_create_saves_the_news_default_flags()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle());
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        var indexing = _organisations.Should().ContainSingle().Subject.Indexing!;
+        indexing.BypassShortEpisodeChecking.Should().BeTrue();
+        indexing.AlwaysPromoteAsHero.Should().BeTrue();
+        indexing.IsAutoIndexed.Should().BeFalse();
+        indexing.YouTubeChannelId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a news URL is submitted to an existing NewsOrganisation whose curator switched both flags off, the " +
+        "report is added and the organisation is not saved or changed, because the news defaults apply only at " +
+        "creation.")]
+    public async Task report_into_existing_news_organisation_keeps_its_flags()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var outlet = _fixture.CreateTitle();
+        var existing = new NewsOrganisation(outlet)
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { BypassShortEpisodeChecking = false, AlwaysPromoteAsHero = false }
+        };
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns((Expression<Func<NewsOrganisation, bool>> predicate) =>
+                Yield(new[] { existing }.Where(predicate.Compile())));
+        var source = OutletSource(TubiMovieUrl(), outlet);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _reports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(existing.Id);
+        _organisations.Should().BeEmpty();
+        existing.Indexing.BypassShortEpisodeChecking.Should().BeFalse();
+        existing.Indexing.AlwaysPromoteAsHero.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When the same film URL is submitted again, including a different paste that canonicalizes " +
         "to the stored service link, submit returns that Film and does not insert another.")]
     public async Task second_film_url_does_not_insert_another_film()

@@ -378,7 +378,7 @@ public class ServiceIdsRules
         stored["alwaysPromoteAsHero"]!.GetValue<bool>().Should().BeTrue();
         var dto = _savedOrganisation.ToDto();
         dto.IgnoreAllEpisodes.Should().BeTrue();
-        dto.BypassShortEpisodeChecking.Should().BeFalse("an explicit curator opt-out wins over the news default");
+        dto.BypassShortEpisodeChecking.Should().BeFalse("a curator may switch the saved news default off");
         dto.AlwaysPromoteAsHero.Should().BeTrue();
         dto.SkipEnrichingFromYouTube.Should().BeTrue();
         dto.MinimumDuration.Should().Be("00:02:30");
@@ -445,10 +445,9 @@ public class ServiceIdsRules
     }
 
     [Fact(DisplayName =
-        "GET news organisation reports bypassShortEpisodeChecking true when unset (with or without an indexing block), " +
-        "and GET TV show reports it unset, because news organisations default the bypass on and the edit dialog must " +
-        "show the value the indexer applies.")]
-    public void get_reports_effective_bypass_short_default()
+        "GET news organisation / TV show reports exactly the stored bypassShortEpisodeChecking and alwaysPromoteAsHero " +
+        "(unset when not stored), because there is no read-time default: new news organisations are saved with both on.")]
+    public void get_reports_stored_flags_only()
     {
         // Arrange
         var bare = new NewsOrganisation("Synthetic Bare News") { Id = _fixture.CreateGuid() };
@@ -457,17 +456,25 @@ public class ServiceIdsRules
             Id = _fixture.CreateGuid(),
             Indexing = new CatalogueIndexingSource { YouTubeChannelId = ChannelId }
         };
+        var saved = new NewsOrganisation("Synthetic Saved News")
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { BypassShortEpisodeChecking = true, AlwaysPromoteAsHero = true }
+        };
         var show = new TvShow("Synthetic Drama") { Id = _fixture.CreateGuid() };
 
         // Act
         var bareDto = bare.ToDto();
         var indexedDto = withIndexing.ToDto();
+        var savedDto = saved.ToDto();
         var showDto = show.ToDto();
 
         // Assert
-        bareDto.BypassShortEpisodeChecking.Should().BeTrue();
-        indexedDto.BypassShortEpisodeChecking.Should().BeTrue();
-        withIndexing.Indexing!.BypassShortEpisodeChecking.Should().BeNull("GET never writes the default");
+        bareDto.BypassShortEpisodeChecking.Should().BeNull();
+        bareDto.AlwaysPromoteAsHero.Should().BeNull();
+        indexedDto.BypassShortEpisodeChecking.Should().BeNull();
+        savedDto.BypassShortEpisodeChecking.Should().BeTrue();
+        savedDto.AlwaysPromoteAsHero.Should().BeTrue();
         showDto.BypassShortEpisodeChecking.Should().BeNull();
         showDto.AlwaysPromoteAsHero.Should().BeNull();
         showDto.YouTubePublicationDelay.Should().BeEmpty();

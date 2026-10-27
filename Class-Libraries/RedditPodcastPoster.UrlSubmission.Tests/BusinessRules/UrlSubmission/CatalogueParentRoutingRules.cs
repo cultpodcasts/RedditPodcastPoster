@@ -1012,13 +1012,20 @@ public class CatalogueParentRoutingRules
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact(DisplayName =
-        "The parent submitter runs a news organisation with bypass-short-episodes unset as a transient podcast that " +
-        "bypasses the short-episode check, because news organisations default the bypass on.")]
-    public async Task parent_submitter_news_transient_bypasses_short_check_by_default()
+    [Theory(DisplayName =
+        "The parent submitter runs a news organisation as a transient podcast with exactly its stored " +
+        "bypass-short-episodes value, because the news default is saved at creation, not applied on read.")]
+    [InlineData(null)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task parent_submitter_news_transient_uses_stored_bypass(bool? stored)
     {
         // Arrange
-        var organisation = AddOrganisation(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId());
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.BypassShortEpisodeChecking = stored;
+        });
         var (sut, _, url) = ArrangeSubmitter();
 
         // Act
@@ -1027,12 +1034,12 @@ public class CatalogueParentRoutingRules
 
         // Assert
         _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
-                It.Is<Podcast>(p => p.Id == organisation.Id && p.BypassShortEpisodeChecking == true),
+                It.Is<Podcast>(p => p.Id == organisation.Id && p.BypassShortEpisodeChecking == stored),
                 It.IsAny<IReadOnlyList<Episode>>(),
                 url, It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(),
                 It.IsAny<bool>()),
             Times.Once);
-        organisation.Indexing!.BypassShortEpisodeChecking.Should().BeNull();
+        organisation.Indexing!.BypassShortEpisodeChecking.Should().Be(stored);
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

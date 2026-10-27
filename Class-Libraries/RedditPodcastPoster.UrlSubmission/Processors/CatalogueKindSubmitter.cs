@@ -317,7 +317,12 @@ public class CatalogueKindSubmitter(
 
         var creatingParent = parents.Count == 0;
         var organisation = creatingParent
-            ? new NewsOrganisation(name) { PublisherName = TrimmedOrEmpty(source.Publisher) }
+            ? new NewsOrganisation(name)
+            {
+                PublisherName = TrimmedOrEmpty(source.Publisher),
+                // A new news organisation is saved with bypass short / always promote as hero on.
+                Indexing = CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults(null)
+            }
             : parents[0];
         var admitted = await AdmitOrStop(
             CatalogueLanguageTextReader.ForParentAndChild(

@@ -42,8 +42,8 @@ public abstract class ServiceIdsDto : PublisherFieldsDto
     public bool? IgnoreAllEpisodes { get; set; }
 
     /// <summary>
-    /// From <c>indexing</c>, as the indexer applies it: unset reads as on for a news organisation
-    /// (<c>CatalogueIndexingSource.EffectiveBypassShortEpisodeChecking</c>) and as unset for a TV show.
+    /// From <c>indexing</c>: the stored value. A new news organisation is created with it on; a curator may switch
+    /// it off later. Unset is off.
     /// </summary>
     [JsonPropertyName("bypassShortEpisodeChecking")]
     public bool? BypassShortEpisodeChecking { get; set; }

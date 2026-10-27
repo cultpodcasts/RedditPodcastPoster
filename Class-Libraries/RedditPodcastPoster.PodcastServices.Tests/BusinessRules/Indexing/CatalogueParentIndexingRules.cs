@@ -642,14 +642,14 @@ public class CatalogueParentIndexingRules
         PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromSeconds(30);
 
     [Fact(DisplayName =
-        "Catalogue parent indexing: when a news organisation leaves bypass-short-episodes unset and a short video is " +
-        "found, then the report is saved and not ignored, and the pass does not write the flag, because news " +
-        "organisations bypass the short-episode check by default (read-time default, no data write).")]
-    public async Task news_organisation_bypasses_short_episode_check_by_default()
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes saved on (the news creation " +
+        "default) and a short video is found, then the report is saved and not ignored, and the pass does not write " +
+        "the flag, because the stored value drives the check.")]
+    public async Task news_organisation_saved_bypass_on_keeps_short_video()
     {
         // Arrange
         var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
-        organisation.Indexing!.BypassShortEpisodeChecking = null;
+        organisation.Indexing!.BypassShortEpisodeChecking = true;
         organisation.Indexing.MinimumDuration = null;
         var discovered = _fixture.CreateYouTubeCatalogueEpisode(b =>
             b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration));
@@ -663,12 +663,35 @@ public class CatalogueParentIndexingRules
         _savedReports.Should().ContainSingle().Which.Ignored.Should().BeFalse();
         _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
             .Should().NotContain("bypassShortEpisodeChecking");
+        organisation.Indexing.BypassShortEpisodeChecking.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes unset and the pass keeps short " +
+        "items, then a short video is saved ignored and the flag is not written, because there is no read-time news " +
+        "default (news organisations are saved with it on instead).")]
+    public async Task news_organisation_unset_bypass_applies_short_episode_check()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = null;
+        organisation.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("bypassShortEpisodeChecking");
         organisation.Indexing.BypassShortEpisodeChecking.Should().BeNull();
     }
 
     [Fact(DisplayName =
         "Catalogue parent indexing: when a news organisation explicitly turns bypass-short-episodes off and the pass keeps " +
-        "short items, then a short video is saved ignored, because a curator opt-out wins over the news default.")]
+        "short items, then a short video is saved ignored, because a curator may switch the saved news default off.")]
     public async Task news_organisation_explicit_bypass_off_ignores_short_video()
     {
         // Arrange
@@ -687,8 +710,8 @@ public class CatalogueParentIndexingRules
 
     [Fact(DisplayName =
         "Catalogue parent indexing: when a TV show leaves bypass-short-episodes unset and the pass keeps short items, " +
-        "then a short video is saved ignored, because only news organisations default the bypass on.")]
-    public async Task tv_show_does_not_bypass_short_episode_check_by_default()
+        "then a short video is saved ignored, because TV shows have no bypass default.")]
+    public async Task tv_show_unset_bypass_applies_short_episode_check()
     {
         // Arrange
         var show = SeedTvShow(AutoIndexedYouTubePodcast());

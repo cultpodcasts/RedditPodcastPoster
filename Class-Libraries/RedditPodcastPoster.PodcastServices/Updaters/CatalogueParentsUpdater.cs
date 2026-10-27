@@ -34,9 +34,9 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// <see cref="Episode"/> (provider ids derived from <c>services</c> URLs, since playables do
 /// not store them). Discovery, merge, the minimum-duration rule and elimination terms are the
 /// same as <see cref="PodcastUpdater"/>. New items are saved as TvShowEpisode / NewsReport;
-/// merged and term-removed items update the stored playable. The parent's ignore-all-episodes, bypass-short
-/// (unset is on for a news organisation, see <see cref="CatalogueIndexingSource.EffectiveBypassShortEpisodeChecking"/>)
-/// and minimum-duration settings apply as for a podcast. When the parent is flagged
+/// merged and term-removed items update the stored playable. The parent's stored ignore-all-episodes, bypass-short
+/// and minimum-duration settings apply as for a podcast (a news organisation is saved with bypass-short on when it
+/// is created, see <see cref="CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults"/>). When the parent is flagged
 /// <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/>, new playables are appended to the homepage hero list
 /// after they are saved (same <see cref="HeroAutoPromoteSelector"/> rule as <see cref="PodcastUpdater"/>).
 /// Cross-platform enrichment is not run for these kinds.
@@ -442,7 +442,6 @@ public class CatalogueParentsUpdater(
         var cancellationToken = indexingContext.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;
         var latestReleasedBefore = parent.LatestReleased;
-        var bypassShortEpisodeCheckingBefore = source.BypassShortEpisodeChecking;
         var podcast = source.ToTransientPodcast(parent);
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
         var releasedSince = indexingContext.ReleasedSince!.Value;
@@ -510,9 +509,6 @@ public class CatalogueParentsUpdater(
         }
 
         source.CaptureFrom(podcast);
-        // The transient podcast carries the kind default for an unset bypass-short flag (on for a news
-        // organisation). That default is read-time only: keep the stored (curator) value so the pass never writes it.
-        source.BypassShortEpisodeChecking = bypassShortEpisodeCheckingBefore;
         if (merge.FailedEpisodes.Any() && !Equals(youTubeIndexingHintsBefore, source.YouTubeIndexingHints))
         {
             // Same rule as PodcastUpdater: a failed merge keeps the previous hints, so the next pass offers the
