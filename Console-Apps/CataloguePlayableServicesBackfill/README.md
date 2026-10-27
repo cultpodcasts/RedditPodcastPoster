@@ -5,7 +5,9 @@ Repairs Film / TvShowEpisode / NewsReport `services` (url + image) that were str
 1. **Episode backup** (`episode/{id}.json` from CosmosDbDownloader) — services plus leftover urls/images
 2. **PublicDatabase** (flat `*.json` checkout) — nested episode/report or film root `urls` maps (urls only; no images)
 
-Episode-backup urls win on conflict; public urls fill gaps. Images come only from the episode backup. At least one of `--episode-backup-dir` or `--public-database-dir` is required.
+Episode-backup urls win on conflict; public urls fill gaps. Images come only from the episode backup. At least one of `--episode-backup-dir` or `--public-database-dir` is required, unless `--youtube-id-only` is set.
+
+Every run also syncs the compact `youTubeId` from `services.youtube.url` (search reads `c.youTubeId`, so a url-only playable shows no YouTube icon). That sync happens even when a playable has no truth row.
 
 ## Dry-run (default)
 
@@ -21,6 +23,19 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
 Writes `catalogue-playable-services-backfill.jsonl` (overwritten each run) with every missing-truth and discrepancy candidate. No Cosmos writes. JSONL uses `missingTruth: true` when neither episode backup nor PublicDatabase had the GUID (finish log / run counter: `MissingTruth`).
 
 Exit codes: `0` ok, `1` bad arguments, `2` apply refused (missing/wrong `--consent`), `3` one or more Cosmos writes failed (`FailedWrites > 0`).
+
+## YouTube id only
+
+Fill `youTubeId` from `services.youtube.url` on playables written before the compact id existed. No truth sources are read and `services` are not changed. Dry-run:
+
+```powershell
+dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
+  --youtube-id-only `
+  --kind all `
+  --change-log catalogue-playable-youtube-id.jsonl
+```
+
+Apply is the same command plus `--apply` and the `--consent` phrase shown below (human only). Each write changes `_ts` and pushes the search document with `youtubeId`.
 
 ## Apply (human only)
 
@@ -41,6 +56,7 @@ Agents must never pass `--consent`. Without the exact phrase, `--apply` exits 2 
 |------|--------|
 | `--episode-backup-dir` | Private episode JSON (url + image). Optional if `--public-database-dir` is set |
 | `--public-database-dir` | PublicDatabase checkout (urls only). Optional if `--episode-backup-dir` is set |
+| `--youtube-id-only` | Only sync `youTubeId` from `services.youtube.url`; truth dirs are ignored |
 | `--kind` | `film` \| `tvshowepisode` \| `newsreport` \| `all` |
 | `--ids` | Comma-separated GUIDs |
 | `--limit` | Stop after N discrepancy candidates (`0` = no limit) |

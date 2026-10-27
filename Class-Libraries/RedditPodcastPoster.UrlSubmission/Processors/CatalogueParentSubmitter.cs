@@ -245,6 +245,11 @@ public class CatalogueParentSubmitter(
         target.Services = merged.Services?.ToDictionary(
             pair => pair.Key,
             pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        if (target is ICatalogueYouTubeItem catalogueYouTube)
+        {
+            // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
+            EpisodeServicePresence.SyncCatalogueYouTubeId(catalogueYouTube);
+        }
         target.Subjects = [.. merged.Subjects];
         target.Guests = merged.Guests is null ? null : [.. merged.Guests];
     }

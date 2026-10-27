@@ -46,12 +46,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         CataloguePlayableServicesBackfillRequest request,
         CancellationToken cancellationToken = default)
     {
-        var hasEpisodeBackup = !string.IsNullOrWhiteSpace(request.EpisodeBackupDir);
-        var hasPublicDatabase = !string.IsNullOrWhiteSpace(request.PublicDatabaseDir);
-        if (!hasEpisodeBackup && !hasPublicDatabase)
+        var hasEpisodeBackup = !request.YouTubeIdOnly && !string.IsNullOrWhiteSpace(request.EpisodeBackupDir);
+        var hasPublicDatabase = !request.YouTubeIdOnly && !string.IsNullOrWhiteSpace(request.PublicDatabaseDir);
+        if (!request.YouTubeIdOnly && !hasEpisodeBackup && !hasPublicDatabase)
         {
             logger.LogError(
-                "CataloguePlayableServicesBackfill requires --episode-backup-dir and/or --public-database-dir.");
+                "CataloguePlayableServicesBackfill requires --episode-backup-dir and/or --public-database-dir (or --youtube-id-only).");
             return Empty(ExitBadArguments);
         }
 
@@ -275,7 +275,7 @@ public class CataloguePlayableServicesBackfillProcessor(
     {
         Dictionary<string, ServiceLink>? episodeBackup = null;
         string backupPath = string.Empty;
-        if (!string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
+        if (!request.YouTubeIdOnly && !string.IsNullOrWhiteSpace(request.EpisodeBackupDir))
         {
             var resolved = backupStore.ResolvePath(request.EpisodeBackupDir, id);
             if (resolved is not null && backupStore.TryLoadServices(resolved, out var loaded))
@@ -286,12 +286,16 @@ public class CataloguePlayableServicesBackfillProcessor(
         }
 
         PublicUrlHit? publicHit = null;
-        if (publicIndex.TryGet(id, out var hit))
+        if (!request.YouTubeIdOnly && publicIndex.TryGet(id, out var hit))
         {
             publicHit = hit;
         }
 
-        if (episodeBackup is null && publicHit is null)
+        // Compact youTubeId comes from the live services.youtube.url, so it never needs a truth source.
+        // Playables created before youTubeId existed (often with no backup / PublicDatabase row) must still sync.
+        var youtubeIdChanged = syncYouTubeIdIfNeeded();
+        var hasTruth = !request.YouTubeIdOnly && (episodeBackup is not null || publicHit is not null);
+        if (!hasTruth && !request.YouTubeIdOnly && !youtubeIdChanged)
         {
             await changeLog.WriteAsync(new ChangeLogRecord
             {
@@ -308,9 +312,10 @@ public class CataloguePlayableServicesBackfillProcessor(
             return ProcessOutcome.MissingTruth;
         }
 
-        var truth = TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls);
+        var truth = hasTruth
+            ? TruthServicesMerger.Merge(episodeBackup, publicHit?.Urls)
+            : new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
         var carry = PlayableServicesDiscrepancyCarry.Apply(liveServices, truth);
-        var youtubeIdChanged = syncYouTubeIdIfNeeded();
         if (!carry.HasChanges && !youtubeIdChanged)
         {
             return ProcessOutcome.Identical;

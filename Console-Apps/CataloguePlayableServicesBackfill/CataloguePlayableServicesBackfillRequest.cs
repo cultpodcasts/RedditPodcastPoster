@@ -12,6 +12,10 @@ public class CataloguePlayableServicesBackfillRequest
         HelpText = "PublicDatabase checkout (flat *.json). Indexes playable/episode ids and their urls map as a second truth source (urls only; no images). At least one of --episode-backup-dir or --public-database-dir is required.")]
     public string? PublicDatabaseDir { get; set; }
 
+    [Option("youtube-id-only", Required = false, Default = false,
+        HelpText = "Only sync the compact youTubeId from services.youtube.url (no truth sources needed; services are not changed). --episode-backup-dir / --public-database-dir are ignored.")]
+    public bool YouTubeIdOnly { get; set; }
+
     [Option("kind", Required = false, Default = "all",
         HelpText = "film | tvshowepisode | newsreport | all.")]
     public string Kind { get; set; } = "all";

@@ -639,6 +639,11 @@ public class CatalogueParentsUpdater(
         target.Services = merged.Services?.ToDictionary(
             pair => pair.Key,
             pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        if (target is ICatalogueYouTubeItem catalogueYouTube)
+        {
+            // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
+            EpisodeServicePresence.SyncCatalogueYouTubeId(catalogueYouTube);
+        }
     }
 
     private sealed record ParentIndexOutcome<TPlayable>(

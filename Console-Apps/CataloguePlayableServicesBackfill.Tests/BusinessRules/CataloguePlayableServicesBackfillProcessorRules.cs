@@ -9,6 +9,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -483,6 +484,146 @@ public class CataloguePlayableServicesBackfillProcessorRules
         record.Applied.Should().BeTrue();
         _mocker.GetMock<IFilmRepository>()
             .Verify(r => r.Update(id, It.IsAny<Func<Film, bool>>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when a news report has services.youtube.url but no YouTubeId and " +
+        "neither truth source has its GUID, then dry-run still counts a youTubeId discrepancy instead of missing " +
+        "truth, because the compact id comes from the live url and needs no backup.")]
+    public async Task missing_truth_still_syncs_youtube_id()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var report = new NewsReport(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            NewsOrganisationId = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            },
+            YouTubeId = null
+        };
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(report));
+        var changeLog = Path.Combine(_tempDir, "missing-truth-youtube-id.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            EpisodeBackupDir = _tempDir,
+            Kind = "newsreport",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.MissingTruth.Should().Be(0);
+        result.Discrepancies.Should().Be(1);
+        report.YouTubeId.Should().Be(videoId);
+        var record = JsonSerializer.Deserialize<ChangeLogRecord>(
+            (await File.ReadAllLinesAsync(changeLog)).Single(),
+            BackupDocumentJsonOptions.Instance)!;
+        record.MissingTruth.Should().BeFalse();
+        record.Changes.Should().ContainSingle(c => c.Field == "youTubeId");
+        _mocker.GetMock<INewsReportRepository>()
+            .Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when --youtube-id-only runs with no truth directories and consent, " +
+        "then a url-only news report is saved with its YouTubeId and its search document is pushed with youtubeId, " +
+        "because the id sync needs no backup or PublicDatabase.")]
+    public async Task youtube_id_only_applies_without_truth_dirs()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var youTubeUrl = _fixture.DefaultYouTubeUrl(videoId);
+        var report = new NewsReport(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            NewsOrganisationId = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = youTubeUrl }
+            },
+            YouTubeId = null
+        };
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(report));
+        IReadOnlyList<EpisodeSearchRecord>? uploaded = null;
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) => uploaded = docs)
+            .ReturnsAsync(true);
+        var changeLog = Path.Combine(_tempDir, "youtube-id-only.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            YouTubeIdOnly = true,
+            Kind = "newsreport",
+            Apply = true,
+            Consent = CataloguePlayableServicesBackfillConsent.ApplyPhrase,
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.Applied.Should().Be(1);
+        result.SearchUploaded.Should().Be(1);
+        report.YouTubeId.Should().Be(videoId);
+        report.Services![ServiceKeys.YouTube].Url.Should().Be(youTubeUrl);
+        uploaded.Should().ContainSingle().Which.YoutubeId.Should().Be(videoId);
+        _mocker.GetMock<INewsReportRepository>()
+            .Verify(r => r.Save(It.Is<NewsReport>(n => n.YouTubeId == videoId)), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when --youtube-id-only runs and an episode backup holds a different " +
+        "service url, then services are left alone and only an already-synced item is identical, because the mode " +
+        "never carries truth-source urls.")]
+    public async Task youtube_id_only_ignores_truth_sources()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        var videoId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = id,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            },
+            YouTubeId = videoId
+        };
+        _backups.ById[id] = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.Spotify] = new() { Url = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl }
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAll())
+            .Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "youtube-id-only-identical.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            YouTubeIdOnly = true,
+            EpisodeBackupDir = _tempDir,
+            Kind = "film",
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.Identical.Should().Be(1);
+        result.Discrepancies.Should().Be(0);
+        film.Services.Should().ContainSingle().Which.Key.Should().Be(ServiceKeys.YouTube);
+        (await File.ReadAllLinesAsync(changeLog)).Should().BeEmpty();
     }
 
     private static async IAsyncEnumerable<T> EmptyAsync<T>(
