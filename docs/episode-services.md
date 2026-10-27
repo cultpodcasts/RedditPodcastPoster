@@ -33,7 +33,15 @@ The episode-pull search SQL projects `youtubeId` from nested `ids.youtube` only,
 
 - `EpisodeServicePresence.Upsert(episode, "youtube", url, …)` (when it writes a url) and `EpisodeRepository.Save` call `FillYouTubeIdFromUrl`: a missing `ids.youtube` is filled from the url's video id. An id that is already set is never replaced (callers that change the video, such as the curator PATCH, set both), and a url with no video id leaves it empty.
 
-Repair for documents already in Cosmos: `EpisodeServiceBackfill --youtube-id-only` (dry-run unless `--apply`; `--ids a,b` or `--all`). One patch of `/ids/youtube` per document (or `/ids` when absent) with a filter predicate, so it never overwrites an id and re-running is a no-op. The patch bumps `_ts`, so the next scheduled run of the episode search indexer (every 30 minutes, or `CreateSearchIndex -i cultpodcasts -d cultpodcasts-ds -x cultpodcasts-indexer -r`) re-indexes the episode with its `youtubeId`.
+**Policy when the stored id and the url disagree (podcast episodes): keep the stored id.** Fill-only everywhere: `Upsert`, `Save`, `EpisodePlatformApplier` (an incoming link for another video never replaces the id of a url already stored; the stored url's video wins), `EnrichExistingEpisodesFromPodcastServices`, `FindDuplicateEpisodes` merge, and the repair below. This differs on purpose from catalogue playables (#1136), where the url wins and top-level `youTubeId` is re-derived from `services.youtube.url` on every edit: a podcast episode's id may have come from the YouTube API for the channel, and silently replacing it from a hand-edited url could point the Watch icon at another video. Mismatches are reported (below) and fixed by hand (curator PATCH sets both) until this policy is revisited.
+
+Repair for documents already in Cosmos: `EpisodeServiceBackfill --youtube-id-only` (dry-run unless `--apply`; `--ids a,b` or `--all`; `--limit N` keeps the oldest N by `_ts` otherwise; a non-GUID in `--ids` exits 1 before any query). One patch per document with a per-document filter predicate (`EpisodeYouTubeIdRepair.PatchFilterPredicateFor`):
+
+- ids object present at scan: set `/ids/youtube`, only while `ids.youtube` is still missing;
+- no ids object at scan: set `/ids` to `{ "youtube": … }`, only while there is still no ids object (so Spotify/Apple ids written after the scan are never replaced);
+- both: only while `services.youtube.url` is still the raw url string seen at scan time (SQL-escaped), so a cleared or changed url never gets the old video's id.
+
+A 412 (condition no longer holds) or 404 (deleted) is counted and skipped; a 400 (ids object removed after the scan) writes nothing and is counted separately; 400 or any other failure exits 2. Re-running is a no-op. The dry run also lists every episode whose stored `ids.youtube` is not the url's video id (count plus id, podcast, stored id, url id, url); those are never patched. The patch bumps `_ts`, so the next scheduled run of the episode search indexer (every 30 minutes, or `CreateSearchIndex -i cultpodcasts -d cultpodcasts-ds -x cultpodcasts-indexer -r`) re-indexes the episode with its `youtubeId`.
 
 ### Catalogue playables (Film / TvShowEpisode / NewsReport)
 

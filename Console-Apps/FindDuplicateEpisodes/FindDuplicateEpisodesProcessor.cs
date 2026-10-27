@@ -525,7 +525,7 @@ public class FindDuplicateEpisodesProcessor(
 
     // Copies any non-null URL from source into target where target has no value.
     // Returns true if any URL was merged.
-    private static bool MergeUrls(Episode target, Episode source)
+    internal static bool MergeUrls(Episode target, Episode source)
     {
         var merged = false;
         foreach (var key in new[]
@@ -563,16 +563,24 @@ public class FindDuplicateEpisodesProcessor(
         }
 
         // Nested id on the target: YouTubeEpisodeId falls back to the url and would skip a url-only target.
-        // The target's own url wins; the source id is used only when the target has no YouTube video.
+        // The target's own url wins; the source id is used only when the target has no YouTube video, and then
+        // the target also gets a url for it, so it never ends up with ids.youtube and no services.youtube.url.
         if (EpisodeServicePresence.NestedYouTubeId(target) is null)
         {
+            var sourceYouTubeId = EpisodeServicePresence.YouTubeEpisodeId(source);
             if (EpisodeServicePresence.FillYouTubeIdFromUrl(target))
             {
                 merged = true;
             }
-            else if (!string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(source)))
+            else if (!string.IsNullOrWhiteSpace(sourceYouTubeId) &&
+                     EpisodeServicePresence.TryGetUrl(target, ServiceKeys.YouTube) is null)
             {
-                EpisodeServicePresence.SetYouTubeIdentity(target, EpisodeServicePresence.YouTubeEpisodeId(source));
+                EpisodeServicePresence.Upsert(
+                    target,
+                    ServiceKeys.YouTube,
+                    new Uri($"https://www.youtube.com/watch?v={sourceYouTubeId}"),
+                    EpisodeServicePresence.TryGetImage(target, ServiceKeys.YouTube));
+                EpisodeServicePresence.SetYouTubeIdentity(target, sourceYouTubeId);
                 merged = true;
             }
         }

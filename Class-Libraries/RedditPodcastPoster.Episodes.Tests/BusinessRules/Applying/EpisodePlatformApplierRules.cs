@@ -139,6 +139,32 @@ public class EpisodePlatformApplierRules
         target.Ids!.YouTube.Should().Be(videoId);
     }
 
+    [Fact(DisplayName =
+        "When a stored episode has services.youtube.url for one video and no ids.youtube, and the incoming link is " +
+        "for a different video, the applier keeps the stored url and sets the id from it, because ids.youtube must " +
+        "match the url that is stored.")]
+    public void applier_takes_stored_url_video_id_over_incoming_link_id()
+    {
+        // Arrange
+        var storedVideoId = _fixture.CreateYouTubeId();
+        var incomingVideoId = _fixture.CreateYouTubeId();
+        var target = EpisodeWithoutYouTube();
+        target.Services![ServiceKeys.YouTube] = new ServiceLink { Url = _fixture.DefaultYouTubeUrl(storedVideoId) };
+        var patch = new EpisodePlatformPatch(
+            new PlatformLink(Service.YouTube, incomingVideoId, _fixture.DefaultYouTubeUrl(incomingVideoId), null),
+            Description: null,
+            Release: null);
+
+        // Act
+        var updated = _applier.ApplyFillMissing(target, patch);
+
+        // Assert
+        updated.Should().BeTrue();
+        target.Ids!.YouTube.Should().Be(storedVideoId);
+        EpisodeServicePresence.TryGetUrl(target, ServiceKeys.YouTube).Should()
+            .Be(_fixture.DefaultYouTubeUrl(storedVideoId));
+    }
+
     private Episode EpisodeWithoutYouTube()
     {
         var target = _fixture.CreateEpisode(e =>

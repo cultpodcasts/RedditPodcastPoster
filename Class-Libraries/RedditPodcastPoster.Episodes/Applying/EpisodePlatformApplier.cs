@@ -79,13 +79,20 @@ public sealed class EpisodePlatformApplier : IEpisodePlatformApplier
         // Nested id only: YouTubeEpisodeId falls back to services.youtube.url, so a check against it after
         // TryFillMissing has written the url always sees an id and the stored id was never set.
         var hadStoredId = EpisodeServicePresence.NestedYouTubeId(target) is not null;
+        var urlBefore = EpisodeServicePresence.TryGetUrl(target, ServiceKeys.YouTube);
         var updated = EpisodeServicePresence.TryFillMissing(
             target, ServiceKeys.YouTube, link.Url, link.Image);
         if (!hadStoredId)
         {
-            if (!string.IsNullOrWhiteSpace(link.Id))
+            if (urlBefore is not null)
             {
-                // The platform's own id wins over the one TryFillMissing derived from the url.
+                // The stored url is kept (fill-missing), so the id must be that url's video, never the
+                // incoming link's id for some other video.
+                EpisodeServicePresence.FillYouTubeIdFromUrl(target);
+            }
+            else if (!string.IsNullOrWhiteSpace(link.Id))
+            {
+                // This call wrote link.Url (or there is no url at all), so the platform's own id goes with it.
                 EpisodeServicePresence.SetYouTubeIdentity(target, link.Id);
             }
             else
