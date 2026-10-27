@@ -159,10 +159,67 @@ public static class EpisodeServicePresence
     /// <see cref="ICatalogueYouTubeItem"/> (nested <c>ids.youtube</c> only).
     /// Call after any catalogue services mutation before Save — not from search-document helpers.
     /// </summary>
+    /// <remarks>
+    /// Url wins: an existing id that disagrees with the url is replaced. This variant also clears the id when the
+    /// url is gone, so use it only where YouTube was removed on purpose (edit-save). Merge, enrichment and backfill
+    /// use <see cref="SyncCatalogueYouTubeIdFromUrl"/>, which never clears.
+    /// </remarks>
     public static void SyncCatalogueYouTubeId(ICatalogueYouTubeItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
         item.YouTubeId = ExtractYouTubeIdFromServices(item.Services);
+    }
+
+    /// <summary>
+    /// Film / TvShowEpisode / NewsReport: set <see cref="ICatalogueYouTubeItem.YouTubeId"/> from
+    /// <c>services.youtube.url</c>. Url wins over a stored id that disagrees. When the url is missing or does not
+    /// parse to a video id, an existing id is kept (never cleared) and the result is
+    /// <see cref="CatalogueYouTubeIdSyncOutcome.SkippedUnparseable"/>, so nothing is lost.
+    /// </summary>
+    public static CatalogueYouTubeIdSyncResult SyncCatalogueYouTubeIdFromUrl(ICatalogueYouTubeItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var before = string.IsNullOrWhiteSpace(item.YouTubeId) ? null : item.YouTubeId;
+        var hasUrl = item.Services is not null &&
+                     item.Services.TryGetValue(ServiceKeys.YouTube, out var link) &&
+                     link?.Url is not null &&
+                     !string.IsNullOrWhiteSpace(link.Url.ToString());
+        var fromUrl = ExtractYouTubeIdFromServices(item.Services);
+        if (fromUrl is null)
+        {
+            return hasUrl || before is not null
+                ? new CatalogueYouTubeIdSyncResult(CatalogueYouTubeIdSyncOutcome.SkippedUnparseable, before, before)
+                : new CatalogueYouTubeIdSyncResult(CatalogueYouTubeIdSyncOutcome.Unchanged, before, before);
+        }
+
+        if (string.Equals(before, fromUrl, StringComparison.Ordinal))
+        {
+            return new CatalogueYouTubeIdSyncResult(CatalogueYouTubeIdSyncOutcome.Unchanged, before, before);
+        }
+
+        item.YouTubeId = fromUrl;
+        return new CatalogueYouTubeIdSyncResult(
+            before is null ? CatalogueYouTubeIdSyncOutcome.Filled : CatalogueYouTubeIdSyncOutcome.Overwritten,
+            before,
+            fromUrl);
+    }
+
+    /// <summary>
+    /// Compact id for a new catalogue playable mapped from a podcast episode: the services url wins (same rule as
+    /// <see cref="SyncCatalogueYouTubeIdFromUrl"/>), falling back to nested <c>ids.youtube</c> when there is no
+    /// parseable url.
+    /// </summary>
+    public static string? CatalogueYouTubeIdForCreate(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        var url = TryGetUrl(episode, ServiceKeys.YouTube);
+        var fromUrl = url is null ? null : YouTubeIdResolver.Extract(url);
+        if (!string.IsNullOrWhiteSpace(fromUrl))
+        {
+            return fromUrl;
+        }
+
+        return string.IsNullOrWhiteSpace(episode.Ids?.YouTube) ? null : episode.Ids.YouTube;
     }
 
     private static string? ExtractYouTubeIdFromServices(IReadOnlyDictionary<string, ServiceLink>? services)

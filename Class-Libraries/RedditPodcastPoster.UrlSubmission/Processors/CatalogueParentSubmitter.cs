@@ -248,7 +248,8 @@ public class CatalogueParentSubmitter(
         if (target is ICatalogueYouTubeItem catalogueYouTube)
         {
             // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
-            EpisodeServicePresence.SyncCatalogueYouTubeId(catalogueYouTube);
+            // Url wins; a missing or unparseable url never clears an existing id.
+            EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(catalogueYouTube);
         }
         target.Subjects = [.. merged.Subjects];
         target.Guests = merged.Guests is null ? null : [.. merged.Guests];
