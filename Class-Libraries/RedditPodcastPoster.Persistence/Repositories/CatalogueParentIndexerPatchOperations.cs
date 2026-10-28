@@ -17,6 +17,10 @@ namespace RedditPodcastPoster.Persistence.Repositories;
 /// Cosmos fails a Remove on a missing path, so each removal is its own single-operation patch guarded by
 /// <see cref="FilterPredicateFor"/> (<c>IS_DEFINED</c>); a failed precondition there means it is already absent.
 /// </para>
+/// <para>
+/// Order matters because the chunks are separate writes: removals go first and <c>/lastIndexed</c> (the pass's
+/// success marker) is the very last operation, so a patch that fails part-way never records a completed pass.
+/// </para>
 /// </summary>
 public static class CatalogueParentIndexerPatchOperations
 {
@@ -30,11 +34,6 @@ public static class CatalogueParentIndexerPatchOperations
         ArgumentNullException.ThrowIfNull(patch);
         var operations = new List<PatchOperation>();
         var removals = new List<PatchOperation>();
-        if (patch.LastIndexed is { } lastIndexed)
-        {
-            operations.Add(PatchOperation.Set("/lastIndexed", lastIndexed));
-        }
-
         if (patch.LatestReleased is { } latestReleased)
         {
             operations.Add(PatchOperation.Set("/latestReleased", latestReleased));
@@ -58,9 +57,14 @@ public static class CatalogueParentIndexerPatchOperations
             }
         }
 
-        return operations.Chunk(MaxOperationsPerPatch)
-            .Select(chunk => (IReadOnlyList<PatchOperation>) chunk)
-            .Concat(removals.Select(removal => (IReadOnlyList<PatchOperation>) [removal]))
+        if (patch.LastIndexed is { } lastIndexed)
+        {
+            // Last, so it is only written once every other change of this pass has been applied.
+            operations.Add(PatchOperation.Set("/lastIndexed", lastIndexed));
+        }
+
+        return removals.Select(removal => (IReadOnlyList<PatchOperation>) [removal])
+            .Concat(operations.Chunk(MaxOperationsPerPatch).Select(chunk => (IReadOnlyList<PatchOperation>) chunk))
             .ToList();
     }
 

@@ -191,7 +191,32 @@ public class CatalogueParentIndexerPatchOperationsRules
         CatalogueParentIndexerPatchOperations.FilterPredicateFor(removals[1])
             .Should().Be("FROM c WHERE IS_DEFINED(c.indexing[\"youTubePlaylistId\"])");
         var sets = chunks.Single(c => c.All(x => x.OperationType == PatchOperationType.Set));
-        sets.Select(x => x.Path).Should().Equal("/lastIndexed", "/indexing/appleEpisodeCount");
+        sets.Select(x => x.Path).Should().Equal("/indexing/appleEpisodeCount", "/lastIndexed");
         CatalogueParentIndexerPatchOperations.FilterPredicateFor(sets).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Indexer patch: removals are sent before the sets and /lastIndexed is the very last operation, because the " +
+        "chunks are separate writes and a patch that fails part-way must not record the pass as completed.")]
+    public void last_indexed_is_written_after_every_other_change()
+    {
+        // Arrange
+        var indexing = CreateIndexing();
+        indexing.YouTubePlaylistId = null;
+        indexing.SpotifyEpisodeCount = null;
+        var names = JsonSerializer.SerializeToNode(indexing)!.AsObject().Select(x => x.Key).ToList();
+        var patch = new CatalogueParentIndexerPatch(
+            DomainTestFixture.UtcDaysAgo(0), DomainTestFixture.UtcDaysAgo(1), indexing, names);
+
+        // Act
+        var chunks = CatalogueParentIndexerPatchOperations.Build(patch, new JsonSerializerOptions());
+
+        // Assert
+        chunks.SelectMany(x => x).Select(x => x.Path).Should().ContainSingle(x => x == "/lastIndexed");
+        chunks[^1][^1].Path.Should().Be("/lastIndexed");
+        var firstSet = chunks.ToList().FindIndex(c => c.Any(x => x.OperationType == PatchOperationType.Set));
+        chunks.Take(firstSet).Should().NotBeEmpty()
+            .And.OnlyContain(c => c.All(x => x.OperationType == PatchOperationType.Remove));
+        chunks.Skip(firstSet).SelectMany(x => x).Should().OnlyContain(x => x.OperationType == PatchOperationType.Set);
     }
 }
