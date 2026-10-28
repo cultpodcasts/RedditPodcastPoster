@@ -165,10 +165,8 @@ public class EpisodeRepository(
 
     public Task<Episode?> GetMostRecentByPodcastId(Guid podcastId)
     {
-        // Cosmos 2206: ORDER BY is only a document path. Dual-key
-        // (IS_DEFINED(releaseSort) ? releaseSort : release) cannot be ordered server-side.
-        // The podcast partition is scanned; ReleaseUtc is set on deserialize from either JSON key.
-        // Fold while streaming so the full partition is not held in memory.
+        // The podcast partition is scanned and the latest ReleaseUtc is picked in process
+        // (see EpisodeMostRecent). Fold while streaming so the full partition is not held in memory.
         return EpisodeMostRecent.OfAsync(GetByPodcastId(podcastId));
     }
 

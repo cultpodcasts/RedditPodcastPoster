@@ -98,7 +98,7 @@ CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl --apply --co
 
 ## G. Drop the Episode dual-key / bridges (GATE 5 step 5)
 
-Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy:
+Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy: (tracked in [#1151](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1151); re-run the read-only audit in [deployment.md](../deployment.md#episode-json-cutover-phase-1-dual-key-queries) first)
 
 ```powershell
 .\scripts\deploy-indexer.ps1; .\scripts\deploy-discover.ps1; .\scripts\deploy-api.ps1

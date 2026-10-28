@@ -114,11 +114,16 @@ Shipping Phase 1 code without those keys on every Function app is the same class
 
 Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Deserialize bridges are not query-safe** — Cosmos SQL/LINQ evaluates stored JSON, not client setters. See epic § [Episode JSON cutover](./catalogue-content-types-epic.md#episode-json-cutover-phase-1).
 
-**Before Function code that filters on the new names ships:**
+**History:** Phase 1 shipped **dual-key** predicates and deserialize bridges so legacy docs kept matching; GATE 1 then ran the corpus wire rewrite (`films-refactor/EpisodeWireRewrite`). GATE 5 step 5 **dropped the bridges and dual-key** — code now reads and queries the new names only (`Playable.CosmosParentNotRemovedSql` = `parentRemoved` only; `EpisodeCosmosFilters` / `PlayableCosmosFilters` filter on `releaseSort` only; search SQL projects `releaseSort as release` and `publisherSearchTerms` only).
 
-1. Prefer **dual-key** predicates (`Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, `EpisodeCosmosFilters`) so legacy docs keep matching.
-2. Optional corpus rewrite / `releaseSort` backfill is a separate tool (dry-run default; `--apply` only with explicit approval) — not required if dual-key is in place, but required before dropping dual-key or bridges.
-3. Order relative to container provision: containers + `cosmosdb__*` settings first (above), then dual-key-safe Function code, then optional backfill.
+**Before deploying code without the bridges:**
+
+1. Confirm the Episodes container has **no** legacy wire names and every Episode has `releaseSort` — read-only audit (Cosmos Data Explorer, expect `0`):
+   `SELECT COUNT(1) FROM c WHERE c.type='Episode' AND (IS_DEFINED(c.podcastSearchTerms) OR IS_DEFINED(c.podcastLanguage) OR IS_DEFINED(c.podcastMetadataVersion) OR IS_DEFINED(c.podcastRemoved) OR NOT IS_DEFINED(c.releaseSort))`
+   or the `EpisodeWireRewrite` dry run (`dotnet run --project films-refactor/EpisodeWireRewrite -- --all`, no `--apply`). If non-zero, re-run the rewrite (with explicit approval) before deploying.
+2. Deploy Functions `indexer` → `discover` → `api`, then republish consoles that use these libraries (e.g. CreateSearchIndex, FindDuplicateEpisodes) before their next run.
+3. Deployed Azure Search datasources keep their older dual-key SQL until CreateSearchIndex is re-run; that SQL stays correct against a rewritten corpus, so a re-run is optional.
+4. No app settings were added for the bridges, so none need removing.
 
 ## Thin wrapper architecture
 

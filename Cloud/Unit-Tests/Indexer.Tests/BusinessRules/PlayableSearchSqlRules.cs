@@ -1,5 +1,4 @@
 using FluentAssertions;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Search.Formatting;
@@ -13,7 +12,7 @@ public class PlayableSearchSqlRules
 {
     [Fact(DisplayName =
         "Sibling search SQL omits series name for Film, maps the parent name for TV and news, " +
-        "and includes image, svc, youtubeId from c.youTubeId, and the release dual-key, with the description cap Constants.DescriptionSize, " +
+        "and includes image, svc, youtubeId from c.youTubeId, and release from releaseSort only, with the description cap Constants.DescriptionSize, " +
         "because every playable card uses title, seriesName, and description only.")]
     public void sibling_sql_matches_the_shared_card_and_description_cap()
     {
@@ -21,7 +20,7 @@ public class PlayableSearchSqlRules
         var keys = StreamingServiceCatalog.SearchEncodedKeys;
         var images = StreamingServiceCatalog.ImageCoalesceOrder;
         var descriptionSql = DescriptionTruncator.CosmosSql("c.description");
-        var releaseSql = SearchIndexCosmosSql.ReleaseSortOrRelease("c");
+        var releaseSql = SearchIndexCosmosSql.ReleaseSort("c");
 
         // Act
         var film = PlayableSearchSql.SiblingQuery(
@@ -61,7 +60,8 @@ public class PlayableSearchSqlRules
         episodeColumns.Should().Contain($"{DescriptionTruncator.CosmosSql("e.description")} as description");
         episodeColumns.Should().NotContain("episodeTitle");
         episodeColumns.Should().NotContain("seriesDescription");
-        SearchIndexCosmosSql.ReleaseSortOrRelease("e").Should().Be(Playable.CosmosReleaseSortOrReleaseSql);
+        releaseSql.Should().Be("c.releaseSort");
+        SearchIndexCosmosSql.ReleaseSort("e").Should().Be("e.releaseSort");
     }
 
     private static void AssertCardColumns(string sql, string descriptionSql, string releaseSql)
@@ -70,6 +70,7 @@ public class PlayableSearchSqlRules
         sql.Should().NotContain("episodeDescription");
         sql.Should().Contain(Constants.DescriptionSize.ToString());
         sql.Should().Contain($"{releaseSql} as release");
+        sql.Should().NotContain("IS_DEFINED(c.releaseSort)");
         sql.Should().Contain(" as svc");
         sql.Should().Contain(" as image");
         sql.Should().Contain(" as youtubeId");

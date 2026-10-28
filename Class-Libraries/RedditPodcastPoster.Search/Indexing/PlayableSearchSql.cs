@@ -52,7 +52,7 @@ public static class PlayableSearchSql
         var seriesNameSelect = projection.IncludeSeries
             ? $"{projection.SeriesNameExpression} as seriesName,"
             : string.Empty;
-        var release = SearchIndexCosmosSql.ReleaseSortOrRelease(documentAlias);
+        var release = SearchIndexCosmosSql.ReleaseSort(documentAlias);
         var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
         var svc = SearchIndexCosmosSql.SvcProjection(svcKeys, documentAlias);
         var query = $"""
