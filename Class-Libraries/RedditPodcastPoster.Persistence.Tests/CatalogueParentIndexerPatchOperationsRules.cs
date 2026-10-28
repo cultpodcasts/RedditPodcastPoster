@@ -25,6 +25,8 @@ public class CatalogueParentIndexerPatchOperationsRules
     {
         // Arrange
         var indexing = CreateIndexing();
+        indexing.YouTubePlaylistQueryIsExpensive = true;
+        indexing.SpotifyEpisodeCount = 3;
         var patch = new CatalogueParentIndexerPatch(
             DomainTestFixture.UtcDaysAgo(0),
             DomainTestFixture.UtcDaysAgo(1),
@@ -116,5 +118,80 @@ public class CatalogueParentIndexerPatchOperationsRules
         filter.Should().Contain("IS_NULL(c.latestReleased)");
         filter.Should().EndWith($"c.latestReleased < '{wire}'");
         wire.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2}T");
+    }
+
+    [Fact(DisplayName =
+        "Indexer patch: an indexing member the pass cleared to null is removed, not set to an explicit JSON null, " +
+        "because a full save omits null members and a patched document must have the same shape (#1085).")]
+    public void cleared_members_are_removed_not_set_to_null()
+    {
+        // Arrange
+        var indexing = CreateIndexing();
+        indexing.YouTubePlaylistId = null;
+        indexing.SpotifyEpisodeCount = null;
+        indexing.AppleEpisodeCount = 7;
+        var patch = new CatalogueParentIndexerPatch(
+            null, null, indexing, ["youTubePlaylistId", "spotifyEpisodeCount", "appleEpisodeCount"]);
+
+        // Act
+        var operations = CatalogueParentIndexerPatchOperations
+            .Build(patch, new JsonSerializerOptionsProvider().GetJsonSerializerOptions())
+            .SelectMany(x => x).ToList();
+
+        // Assert
+        operations.Where(x => x.OperationType == PatchOperationType.Remove).Select(x => x.Path)
+            .Should().BeEquivalentTo("/indexing/spotifyEpisodeCount", "/indexing/youTubePlaylistId");
+        operations.Where(x => x.OperationType == PatchOperationType.Set).Select(x => x.Path)
+            .Should().Equal("/indexing/appleEpisodeCount");
+        operations.OfType<PatchOperation<JsonNode?>>().Should().OnlyContain(x => x.Value != null);
+    }
+
+    [Fact(DisplayName =
+        "Indexer patch: a cleared member is removed whether the container serialiser omits nulls or writes them, " +
+        "because both shapes would otherwise store an explicit null (#1085).")]
+    public void cleared_members_are_removed_with_null_writing_options()
+    {
+        // Arrange
+        var indexing = CreateIndexing();
+        indexing.YouTubePlaylistQueryIsExpensive = null;
+        var patch = new CatalogueParentIndexerPatch(null, null, indexing, ["youTubePlaylistQueryIsExpensive"]);
+
+        // Act
+        var operations = CatalogueParentIndexerPatchOperations.Build(patch, new JsonSerializerOptions())
+            .SelectMany(x => x).ToList();
+
+        // Assert
+        operations.Should().ContainSingle()
+            .Which.Should().Match<PatchOperation>(x =>
+                x.OperationType == PatchOperationType.Remove && x.Path == "/indexing/youTubePlaylistQueryIsExpensive");
+    }
+
+    [Fact(DisplayName =
+        "Indexer patch: each removal is sent on its own, guarded by an IS_DEFINED filter, because Cosmos fails a " +
+        "Remove on a missing path and must not fail the sets or other removals with it; sets stay unfiltered (#1085).")]
+    public void removals_are_isolated_and_guarded_by_is_defined()
+    {
+        // Arrange
+        var indexing = CreateIndexing();
+        indexing.YouTubePlaylistId = null;
+        indexing.SpotifyEpisodeCount = null;
+        indexing.AppleEpisodeCount = 7;
+        var patch = new CatalogueParentIndexerPatch(
+            DomainTestFixture.UtcDaysAgo(0), null, indexing,
+            ["youTubePlaylistId", "spotifyEpisodeCount", "appleEpisodeCount"]);
+
+        // Act
+        var chunks = CatalogueParentIndexerPatchOperations.Build(patch, new JsonSerializerOptions());
+
+        // Assert
+        var removals = chunks.Where(c => c.Any(x => x.OperationType == PatchOperationType.Remove)).ToList();
+        removals.Should().HaveCount(2).And.OnlyContain(c => c.Count == 1);
+        CatalogueParentIndexerPatchOperations.FilterPredicateFor(removals[0])
+            .Should().Be("FROM c WHERE IS_DEFINED(c.indexing[\"spotifyEpisodeCount\"])");
+        CatalogueParentIndexerPatchOperations.FilterPredicateFor(removals[1])
+            .Should().Be("FROM c WHERE IS_DEFINED(c.indexing[\"youTubePlaylistId\"])");
+        var sets = chunks.Single(c => c.All(x => x.OperationType == PatchOperationType.Set));
+        sets.Select(x => x.Path).Should().Equal("/lastIndexed", "/indexing/appleEpisodeCount");
+        CatalogueParentIndexerPatchOperations.FilterPredicateFor(sets).Should().BeNull();
     }
 }
