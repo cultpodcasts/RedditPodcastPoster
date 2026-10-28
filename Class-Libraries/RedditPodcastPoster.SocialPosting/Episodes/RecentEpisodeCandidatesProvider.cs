@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -121,10 +122,7 @@ public class RecentEpisodeCandidatesProvider(
     private async Task<IReadOnlyCollection<PodcastEpisode>> LoadRecentPodcastEpisodes(DateTime releasedSince)
     {
         var recentPodcasts = await podcastRepository
-            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
-                           x.LatestReleased.IsDefined() &&
-                           x.LatestReleased != null &&
-                           x.LatestReleased >= releasedSince)
+            .GetAllBy(PublisherCosmosFilters.ReleasedOnOrAfter<Podcast>(releasedSince))
             .ToArrayAsync();
 
         if (recentPodcasts.Length == 0)

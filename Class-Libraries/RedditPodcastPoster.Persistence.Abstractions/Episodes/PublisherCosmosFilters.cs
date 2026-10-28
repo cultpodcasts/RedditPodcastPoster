@@ -5,13 +5,15 @@ using RedditPodcastPoster.Models.Catalogue;
 namespace RedditPodcastPoster.Persistence.Abstractions.Episodes;
 
 /// <summary>
-/// Cosmos LINQ predicates for catalogue publishers (TvShow, NewsOrganisation).
+/// Cosmos LINQ predicates for publishers (Podcast, TvShow, NewsOrganisation).
 /// </summary>
 public static class PublisherCosmosFilters
 {
     /// <summary>
     /// Not removed, and <c>latestReleased</c> is on or after <paramref name="since"/>.
-    /// Same recently-active window the podcast candidate list uses.
+    /// Same recently-active window the podcast candidate list uses. "Not removed" includes a stored
+    /// <c>"removed": null</c>, as in C# (<see cref="Publisher.IsRemoved"/>), because Cosmos drops null under
+    /// <c>removed = false</c> alone (#1102).
     /// </summary>
     public static Expression<Func<TPublisher, bool>> ReleasedOnOrAfter<TPublisher>(DateTime since)
         where TPublisher : Publisher =>
