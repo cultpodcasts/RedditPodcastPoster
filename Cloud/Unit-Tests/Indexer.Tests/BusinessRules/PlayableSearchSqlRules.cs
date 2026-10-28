@@ -64,6 +64,27 @@ public class PlayableSearchSqlRules
         SearchIndexCosmosSql.ReleaseSort("e").Should().Be("e.releaseSort");
     }
 
+    [Fact(DisplayName =
+        "Sibling search SQL keeps a TV episode or news report whose parentRemoved is absent, null or false, " +
+        "because explicit null means the parent is not removed, the same rule as Playable.CosmosParentNotRemovedSql " +
+        "and the LINQ ParentNotRemoved filter.")]
+    public void sibling_sql_treats_null_parentRemoved_as_not_removed()
+    {
+        // Arrange
+        var projection = new PlayableSearchSql.SiblingProjection(
+            SearchContentKind.TvShowEpisode, "c.title", "c.tvShowName", IncludeSeries: true);
+
+        // Act
+        var sql = PlayableSearchSql.SiblingQuery(
+            projection,
+            StreamingServiceCatalog.SearchEncodedKeys,
+            StreamingServiceCatalog.ImageCoalesceOrder);
+
+        // Assert
+        sql.Should().Contain(
+            "(NOT IS_DEFINED(c.parentRemoved) OR IS_NULL(c.parentRemoved) OR c.parentRemoved = false)");
+    }
+
     private static void AssertCardColumns(string sql, string descriptionSql, string releaseSql)
     {
         sql.Should().Contain($"{descriptionSql} as description");

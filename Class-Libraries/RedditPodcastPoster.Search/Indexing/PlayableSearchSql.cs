@@ -75,7 +75,7 @@ public static class PlayableSearchSql
                 {documentAlias}.lang as lang,
                 {documentAlias}._ts
             FROM c
-            WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)
+            WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR IS_NULL({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)
                 AND (NOT IS_DEFINED({documentAlias}.removed) OR {documentAlias}.removed = false))
               AND {documentAlias}._ts >= @HighWaterMark
             ORDER BY {documentAlias}._ts

@@ -184,10 +184,12 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         "((NOT IS_DEFINED(e.bluesky) OR e.bluesky != true) AND (NOT IS_DEFINED(e.blueskyPost) OR IS_NULL(e.blueskyPost)))";
 
     /// <summary>
-    /// Cosmos SQL: parent publisher is not removed (<c>parentRemoved</c> absent or false). Alias <c>e</c>.
+    /// Cosmos SQL: parent publisher is not removed (<c>parentRemoved</c> absent, null or false). Alias <c>e</c>.
+    /// Explicit null counts as not removed, the same as the LINQ <c>EpisodeCosmosFilters.ParentNotRemoved</c>
+    /// (in Cosmos SQL <c>null = false</c> is not true, so null needs its own arm).
     /// </summary>
     public const string CosmosParentNotRemovedSql =
-        "(NOT IS_DEFINED(e.parentRemoved) OR e.parentRemoved=false)";
+        "(NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)";
 
     /// <summary>
     /// Applies a curator subject update (episodes, TV episodes, news reports) and maintains <see cref="Playable.RemovedSubjects"/>.

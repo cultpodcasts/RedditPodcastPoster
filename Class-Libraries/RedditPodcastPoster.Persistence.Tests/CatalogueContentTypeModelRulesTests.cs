@@ -285,15 +285,16 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "Playable.CosmosParentNotRemovedSql filters on parentRemoved only and no longer mentions podcastRemoved, " +
-        "because Function and console queries read the new wire name after the GATE 5 bridge drop.")]
+        "Playable.CosmosParentNotRemovedSql filters on parentRemoved only, treats absent, null and false as not removed, " +
+        "and no longer mentions podcastRemoved, because Function and console queries read the new wire name after the " +
+        "GATE 5 bridge drop and must agree with the LINQ EpisodeCosmosFilters.ParentNotRemoved (null is not removed).")]
     public void Playable_cosmos_parent_not_removed_sql_uses_parentRemoved_only()
     {
         // Arrange / Act
         var parentFragment = Playable.CosmosParentNotRemovedSql;
 
         // Assert
-        parentFragment.Should().Be("(NOT IS_DEFINED(e.parentRemoved) OR e.parentRemoved=false)");
+        parentFragment.Should().Be("(NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)");
         parentFragment.Should().NotContain("podcastRemoved");
         typeof(Playable).GetField("CosmosReleaseSortOrReleaseSql").Should().BeNull();
     }
