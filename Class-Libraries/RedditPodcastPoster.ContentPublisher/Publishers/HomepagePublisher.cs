@@ -65,7 +65,7 @@ public class HomepagePublisher(
 
         var recentPodcastsTask = podcastRepository
             .GetAllBy(
-                x => (!x.Removed.IsDefined() || x.Removed == false) &&
+                x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                      x.LatestReleased.IsDefined() &&
                      x.LatestReleased != null &&
                      x.LatestReleased >= recentCutoff,

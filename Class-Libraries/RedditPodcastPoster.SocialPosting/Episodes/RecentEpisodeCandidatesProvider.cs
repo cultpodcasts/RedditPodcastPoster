@@ -121,7 +121,7 @@ public class RecentEpisodeCandidatesProvider(
     private async Task<IReadOnlyCollection<PodcastEpisode>> LoadRecentPodcastEpisodes(DateTime releasedSince)
     {
         var recentPodcasts = await podcastRepository
-            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == false) &&
+            .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            x.LatestReleased.IsDefined() &&
                            x.LatestReleased != null &&
                            x.LatestReleased >= releasedSince)
