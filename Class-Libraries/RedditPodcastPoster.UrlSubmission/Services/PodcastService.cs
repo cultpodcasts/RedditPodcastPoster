@@ -36,10 +36,9 @@ public class PodcastService(
     public async Task<EpisodeUrlOwner> GetEpisodeUrlOwner(Uri url, IndexingContext indexingContext)
     {
         var ids = await GetOwnerIds(url, indexingContext);
-        var podcast = string.IsNullOrWhiteSpace(ids.YouTubeChannelId)
-            ? await MatchPodcast(ids)
-            : await MatchYouTubeChannelPodcast(ids, url, indexingContext);
-        return new EpisodeUrlOwner(podcast, ids);
+        return string.IsNullOrWhiteSpace(ids.YouTubeChannelId)
+            ? new EpisodeUrlOwner(await MatchPodcast(ids), ids)
+            : await MatchYouTubeChannelOwner(ids, url, indexingContext);
     }
 
     public Task<bool?> IsVideoInPodcastPlaylist(Podcast podcast, Uri url, IndexingContext indexingContext) =>
@@ -47,7 +46,9 @@ public class PodcastService(
 
     /// <summary>
     /// True when <paramref name="playlistId"/> is blank (null and empty are the same: channel-wide), the URL's
-    /// <c>list=</c> is the playlist, or YouTube lists the video in it. False when not in it; null when unknown.
+    /// <c>list=</c> is the playlist, or YouTube lists the video in it. False when not in it, when the stored id is
+    /// malformed (no API call), or when YouTube says the playlist does not exist; null only when it could not be
+    /// checked (quota, outage).
     /// </summary>
     private async Task<bool?> IsVideoInPlaylist(string? playlistId, Uri url, IndexingContext indexingContext)
     {
@@ -61,6 +62,14 @@ public class PodcastService(
             return true;
         }
 
+        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
+        {
+            logger.LogWarning(
+                "Stored youtube-playlist-id '{PlaylistId}' is malformed; treating '{Url}' as not in it. Fix the stored id.",
+                playlistId, url);
+            return false;
+        }
+
         var videoId = YouTubeIdResolver.Extract(url);
         if (string.IsNullOrWhiteSpace(videoId) || indexingContext.SkipYouTubeUrlResolving)
         {
@@ -71,33 +80,47 @@ public class PodcastService(
     }
 
     /// <summary>
-    /// Picks the podcast that owns a YouTube video from the podcasts on its channel:
+    /// The single decision point for which podcast, news organisation or TV show owns a YouTube video, from the
+    /// podcasts on its channel (the router does not re-check it):
     /// <list type="number">
-    /// <item>Removed podcasts never compete with live ones; a channel with only removed podcasts still returns
-    /// one, so the submit is refused as removed rather than re-creating the podcast.</item>
-    /// <item>A podcast whose playlist contains the video wins (null and empty playlist ids are both channel-wide).
-    /// </item>
-    /// <item>Otherwise a news organisation or TV show that claims the channel (channel-wide, or its playlist
-    /// contains the video) beats a channel-wide podcast: returns null so the router picks the parent.</item>
-    /// <item>Otherwise the channel-wide podcast (indexAll / title-regex / channel-title tie-breaks).</item>
-    /// <item>Otherwise the only playlist podcast on the channel keeps the URL (legacy), and several playlist
-    /// podcasts none of which contain the video are ambiguous.</item>
+    /// <item>No podcast on the channel: undecided, the router looks for an owning parent (existing behaviour).</item>
+    /// <item>Removed podcasts never compete with live ones; a channel with only removed podcasts returns one, so the
+    /// submit is refused as removed rather than re-creating the podcast.</item>
+    /// <item>One live podcast and no parent on the channel: it owns the video, with no membership call (whatever
+    /// YouTube said, the outcome would be the same).</item>
+    /// <item>A podcast whose playlist contains the video wins (null and empty playlist ids are both channel-wide;
+    /// malformed or deleted playlists count as not containing it).</item>
+    /// <item>Otherwise a news organisation or TV show that claims the channel (channel-wide, or its playlist contains
+    /// the video) wins over a channel-wide podcast.</item>
+    /// <item>A playlist-scoped parent whose playlist does not contain the video never takes it.</item>
+    /// <item>Otherwise the channel-wide podcast (indexAll / title-regex / channel-title tie-breaks); else the only
+    /// playlist podcast keeps it (legacy, even when a playlist-scoped parent shares the channel); else several
+    /// playlist podcasts that all miss are ambiguous.</item>
+    /// <item>Membership that could not be checked (quota, outage) fails closed.</item>
     /// </list>
     /// </summary>
-    private async Task<Podcast?> MatchYouTubeChannelPodcast(
+    private async Task<EpisodeUrlOwner> MatchYouTubeChannelOwner(
         EpisodeUrlOwnerIds ids, Uri url, IndexingContext indexingContext)
     {
         var channelId = ids.YouTubeChannelId!;
         var all = await podcastRepository.GetAllBy(podcast => podcast.YouTubeChannelId == channelId).ToArrayAsync();
         if (all.Length == 0)
         {
-            return null;
+            return new EpisodeUrlOwner(null, ids);
         }
+
+        EpisodeUrlOwner Podcast(Podcast podcast) => new(podcast, ids, null, true);
 
         var live = all.Where(x => !x.IsRemoved()).ToArray();
         if (live.Length == 0)
         {
-            return all.OrderBy(x => x.Id).First();
+            return Podcast(all.OrderBy(x => x.Id).First());
+        }
+
+        var parent = await catalogueParentLookup.FindByOwner(ids);
+        if (live.Length == 1 && parent == null)
+        {
+            return Podcast(live[0]);
         }
 
         var playlistPodcasts = live.Where(x => !string.IsNullOrWhiteSpace(x.YouTubePlaylistId)).ToArray();
@@ -120,35 +143,28 @@ public class PodcastService(
 
         if (containing.Count == 1)
         {
-            return containing[0];
+            return Podcast(containing[0]);
         }
 
         if (containing.Count > 1)
         {
-            return BreakChannelTie(containing, ids, channelId);
+            return Podcast(BreakChannelTie(containing, ids, channelId));
         }
 
         if (unknown.Count > 0)
         {
-            var message =
+            throw FailClosed(
                 $"Could not check whether '{url}' is in the playlist of podcast(s) " +
-                $"{string.Join(", ", unknown.Select(x => $"'{x.Id}'"))} on youtube-channel-id '{channelId}'.";
-            var exception = new InvalidOperationException(message);
-            logger.LogError(exception, message);
-            throw exception;
+                $"{string.Join(", ", unknown.Select(x => $"'{x.Id}'"))} on youtube-channel-id '{channelId}'. Retry, or submit with a podcast name.");
         }
 
-        var parent = await catalogueParentLookup.FindByOwner(ids);
         var parentClaims = parent == null
             ? false
             : await IsVideoInPlaylist(parent.Indexing?.YouTubePlaylistId, url, indexingContext);
         if (parentClaims == null)
         {
-            var message =
-                $"Could not check whether '{url}' is in the playlist of {parent!.Kind} '{parent.Parent.Id}' on youtube-channel-id '{channelId}'.";
-            var exception = new InvalidOperationException(message);
-            logger.LogError(exception, message);
-            throw exception;
+            throw FailClosed(
+                $"Could not check whether '{url}' is in the playlist of {parent!.Kind} '{parent.Parent.Id}' on youtube-channel-id '{channelId}'. Retry, or submit with a podcast, news organisation or TV show name.");
         }
 
         if (parentClaims == true)
@@ -160,27 +176,31 @@ public class PodcastService(
                     parent!.Kind, parent.Parent.Id, channelId, url, string.Join(", ", channelWide.Select(x => x.Id)));
             }
 
-            return null;
+            return new EpisodeUrlOwner(null, ids, parent, true);
         }
 
         if (channelWide.Length > 0)
         {
-            return BreakChannelTie(channelWide, ids, channelId);
+            return Podcast(BreakChannelTie(channelWide, ids, channelId));
         }
 
         if (playlistPodcasts.Length == 1)
         {
             logger.LogInformation(
-                "'{Url}' is not in the playlist of podcast '{PodcastId}', the only podcast on youtube-channel-id '{ChannelId}'; keeping it as the owner.",
+                "'{Url}' is not in the playlist of podcast '{PodcastId}', the only live podcast on youtube-channel-id '{ChannelId}'; keeping it as the owner.",
                 url, playlistPodcasts[0].Id, channelId);
-            return playlistPodcasts[0];
+            return Podcast(playlistPodcasts[0]);
         }
 
-        var ambiguous =
-            $"'{url}' is not in the playlist of any of the {playlistPodcasts.Length} podcasts on youtube-channel-id '{channelId}'. Submit it with a podcast name.";
-        var ambiguousException = new InvalidOperationException(ambiguous);
-        logger.LogError(ambiguousException, ambiguous);
-        throw ambiguousException;
+        throw FailClosed(
+            $"'{url}' is not in the playlist of any of the {playlistPodcasts.Length} podcasts on youtube-channel-id '{channelId}'. Submit it with a podcast name.");
+    }
+
+    private InvalidOperationException FailClosed(string message)
+    {
+        var exception = new InvalidOperationException(message);
+        logger.LogError(exception, message);
+        return exception;
     }
 
     private Podcast BreakChannelTie(IReadOnlyList<Podcast> candidates, EpisodeUrlOwnerIds ids, string channelId)
