@@ -76,6 +76,39 @@ public class YouTubeResolveIdentityHealRules
     }
 
     [Fact(DisplayName =
+        "When the loaded row's title has diverged from the stored row, Resolve saves the stored title with the " +
+        "YouTube id filled, because Save upserts the whole document and the loaded instance is not that document.")]
+    public async Task heal_saves_a_fresh_read_not_the_loaded_instance()
+    {
+        // Arrange
+        var podcast = PodcastWithChannel();
+        var videoId = _fixture.CreateYouTubeId();
+        var storedTitle = _fixture.CreateTitle();
+        var loadedTitle = _fixture.CreateTitle();
+        storedTitle.Should().NotBe(loadedTitle);
+        var sibling = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = storedTitle;
+            EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(videoId), null); // pragma: allowlist secret
+            EpisodeServicePresence.SetYouTubeIdentity(e, null); // pragma: allowlist secret
+        });
+        _episodes.Seed(sibling); // pragma: allowlist secret
+        sibling.Title = loadedTitle;
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(Criteria(), podcast, [sibling], new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
+        sibling.Title.Should().Be(loadedTitle);
+        EpisodeServicePresence.NestedYouTubeId(sibling).Should().Be(videoId); // pragma: allowlist secret
+        var saved = await _episodes.GetEpisode(podcast.Id, sibling.Id); // pragma: allowlist secret
+        saved!.Title.Should().Be(storedTitle);
+        EpisodeServicePresence.NestedYouTubeId(saved).Should().Be(videoId); // pragma: allowlist secret
+    }
+
+    [Fact(DisplayName =
         "When a sibling YouTube url has no video id, Resolve still fails the podcast and does not save, " +
         "because the row cannot be reconciled from the url.")]
     public async Task sibling_url_without_video_id_still_fails_the_podcast()

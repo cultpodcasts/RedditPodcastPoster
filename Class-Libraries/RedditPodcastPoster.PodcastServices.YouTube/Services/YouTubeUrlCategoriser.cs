@@ -433,8 +433,10 @@ public class YouTubeUrlCategoriser(
 
     /// <summary>
     /// A live episode whose YouTube url contains a video id but whose nested id is empty is healed
-    /// (<see cref="EpisodeServicePresence.FillYouTubeIdFromUrl"/>) and saved. Search reads only the nested id, // pragma: allowlist secret
-    /// so an in-memory fill that is not saved leaves the Watch icon missing on the next read.
+    /// (<see cref="EpisodeServicePresence.FillYouTubeIdFromUrl"/>) on the instance in the list, then // pragma: allowlist secret
+    /// re-read and saved from that fresh copy. Search reads only the nested id, so an in-memory fill // pragma: allowlist secret
+    /// that is not saved leaves the Watch icon missing. The list was loaded before the other platform
+    /// calls, and Save upserts the whole document, so the loaded instance is not what gets written.
     /// Rows this cannot reconcile stay for <see cref="HasInconsistentYouTubeIdAndUrl"/>.
     /// </summary>
     private async Task HealYouTubeIdsExtractableFromUrls(Podcast podcast, IList<EpisodeModel> episodes) // pragma: allowlist secret
@@ -451,11 +453,17 @@ public class YouTubeUrlCategoriser(
                 continue;
             }
 
+            var current = await episodeRepository.GetEpisode(episode.PodcastId, episode.Id);
+            if (current is null || !EpisodeServicePresence.FillYouTubeIdFromUrl(current)) // pragma: allowlist secret
+            {
+                continue;
+            }
+
             logger.LogInformation(
                 "Healed episode '{EpisodeId}' on podcast '{PodcastId}': filled missing ids.youtube from the video id in the YouTube url.",
                 episode.Id,
                 podcast.Id);
-            await episodeRepository.Save(episode);
+            await episodeRepository.Save(current);
         }
     }
 
