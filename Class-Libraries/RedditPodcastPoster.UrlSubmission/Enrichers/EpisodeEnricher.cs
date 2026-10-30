@@ -99,7 +99,17 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedYouTubeItem != null)
         {
-            if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
+            if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId) &&
+                !string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
+            {
+                // A submitted video's channel need not own the podcast's playlist; filling the channel id here could
+                // pair the playlist with a channel that does not own it, and the indexer would then drop every playlist
+                // video. The curator sets the channel through the edit, which checks the playlist's owner.
+                logger.LogWarning(
+                    "Not enriching podcast '{matchingPodcastId}' with youtube channel-id '{resolvedYouTubeItemShowId}': it has youtube-playlist-id '{playlistId}' and no channel-id; set the channel through the podcast edit, which checks the playlist owner.",
+                    matchingPodcast.Id, categorisedItem.ResolvedYouTubeItem.ShowId, matchingPodcast.YouTubePlaylistId);
+            }
+            else if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublicationOffset = Constants.DefaultMatchingPodcastYouTubePublishingDelay.Ticks;

@@ -72,6 +72,7 @@ public static class ServiceCollectionExtensions
                 (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedTolerantYouTubeChannelVideoSnippetsService>())
             .AddScoped<ITolerantYouTubePlaylistService, TolerantYouTubePlaylistService>()
             .AddScoped<ICachedTolerantYouTubePlaylistService, CachedTolerantYouTubePlaylistService>()
+            .AddScoped<IYouTubePlaylistOwnershipValidator, YouTubePlaylistOwnershipValidator>()
             .AddScoped<IPodcastPassApiCacheSource>(sp =>
                 (IPodcastPassApiCacheSource)sp.GetRequiredService<ICachedTolerantYouTubePlaylistService>())
             .AddScoped<PlaylistItemFinder>()

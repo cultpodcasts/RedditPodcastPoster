@@ -113,8 +113,20 @@ public class YouTubeUrlCategoriser(
             {
                 var playlist = await youTubePlaylistService.GetPlaylistInfo(
                     new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"), indexingContext);
-                snippetChannelTitle = playlist.Title;
-                snippetDescription = playlist.Description;
+                if (string.Equals(playlist.ChannelId, item.Snippet.ChannelId, StringComparison.Ordinal))
+                {
+                    snippetChannelTitle = playlist.Title;
+                    snippetDescription = playlist.Description;
+                }
+                else
+                {
+                    // The URL's playlist is not the video channel's own (e.g. another channel's compilation). A new
+                    // podcast must not store it: the indexer keeps only the channel's own videos from a playlist.
+                    logger.LogWarning(
+                        "Ignoring playlist-id '{PlaylistId}' from url '{Url}': it belongs to channel '{PlaylistChannelId}', not the video's channel '{VideoChannelId}'.",
+                        playlistId, url, playlist.ChannelId, item.Snippet.ChannelId);
+                    playlistId = null;
+                }
             }
 
             if (channel != null)
@@ -140,7 +152,19 @@ public class YouTubeUrlCategoriser(
 
                 if (string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
                 {
-                    pair.Podcast.YouTubeChannelId = item.Snippet.ChannelId;
+                    if (string.IsNullOrWhiteSpace(pair.Podcast.YouTubePlaylistId))
+                    {
+                        pair.Podcast.YouTubeChannelId = item.Snippet.ChannelId;
+                    }
+                    else
+                    {
+                        // The video's channel need not own the podcast's playlist; the curator sets the channel through
+                        // the edit, which checks the playlist owner.
+                        logger.LogWarning(
+                            "Not setting youtube channel-id '{VideoChannelId}' on podcast '{PodcastId}': it has youtube-playlist-id '{PlaylistId}' and no channel-id.",
+                            item.Snippet.ChannelId, pair.Podcast.Id, pair.Podcast.YouTubePlaylistId);
+                    }
+
                     return new ResolvedYouTubeItem(pair);
                 }
             }

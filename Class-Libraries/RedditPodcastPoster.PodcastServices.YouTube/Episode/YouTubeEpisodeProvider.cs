@@ -284,18 +284,28 @@ public class YouTubeEpisodeProvider(
             try
             {
                 var reducedResults = new List<EpisodeModel>();
-                foreach (var playlistItemVideo in results
-                             .Where(x => x.Snippet != null)
-                             .Where(x => x.Snippet.Title != "Deleted video")
-                             .Select(x =>
-                                 new PlaylistItemVideo(
-                                     x,
-                                     videoDetails.SingleOrDefault(videoDetail =>
-                                         videoDetail.Id == x.Snippet.ResourceId.VideoId)!
-                                 ))
-                             .Where(x => x.VideoDetails?.Snippet != null)
-                             .Where(x => youTubeChannelId == null ||
-                                         x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId))
+                var candidates = results
+                    .Where(x => x.Snippet != null)
+                    .Where(x => x.Snippet.Title != "Deleted video")
+                    .Select(x =>
+                        new PlaylistItemVideo(
+                            x,
+                            videoDetails.SingleOrDefault(videoDetail =>
+                                videoDetail.Id == x.Snippet.ResourceId.VideoId)!
+                        ))
+                    .Where(x => x.VideoDetails?.Snippet != null)
+                    .ToList();
+                var otherChannel = youTubeChannelId == null
+                    ? []
+                    : candidates
+                        .Where(x => x.VideoDetails.Snippet.ChannelId != youTubeChannelId.ChannelId)
+                        .ToList();
+                if (otherChannel.Count > 0)
+                {
+                    LogOtherChannelVideosDropped(podcast, youTubeChannelId!, candidates.Count, otherChannel);
+                }
+
+                foreach (var playlistItemVideo in candidates.Except(otherChannel))
                 {
                     if (SkipMembersOnly(playlistItemVideo.VideoDetails))
                     {
@@ -320,6 +330,36 @@ public class YouTubeEpisodeProvider(
         }
 
         return new GetPlaylistEpisodesResponse(null);
+    }
+
+    /// <summary>
+    /// A playlist video uploaded by a channel other than the parent's <c>youTubeChannelId</c> is not indexed. That is
+    /// normally a sign the parent's playlist belongs to a different channel (e.g. Fame Under Fire: BBC World Service
+    /// channel id with a BBC News Entertainment playlist, where every video was dropped). Log it so it is never silent.
+    /// </summary>
+    private void LogOtherChannelVideosDropped(
+        Podcast podcast,
+        YouTubeChannelId youTubeChannelId,
+        int candidateCount,
+        IReadOnlyCollection<PlaylistItemVideo> dropped)
+    {
+        const int maxListed = 20;
+        var droppedChannels = dropped
+            .GroupBy(x => x.VideoDetails.Snippet.ChannelId)
+            .Select(g => $"{g.Key}={g.Count()}")
+            .ToArray();
+        logger.LogWarning(
+            "YouTubePlaylistOtherChannelVideosDropped podcast-id='{PodcastId}' podcast-name='{PodcastName}' playlist-id='{PlaylistId}' youtube-channel-id='{YouTubeChannelId}' dropped-count='{DroppedCount}' candidate-count='{CandidateCount}' all-dropped='{AllDropped}' video-channels='{VideoChannels}' video-ids='{VideoIds}'. Playlist videos uploaded by another channel are not indexed; check the playlist belongs to the YouTube channel.",
+            podcast.Id,
+            podcast.Name,
+            podcast.YouTubePlaylistId,
+            youTubeChannelId.ChannelId,
+            dropped.Count,
+            candidateCount,
+            dropped.Count == candidateCount,
+            string.Join(",", droppedChannels),
+            string.Join(",", dropped.Take(maxListed).Select(x => x.VideoDetails.Id)) +
+            (dropped.Count > maxListed ? $",...(+{dropped.Count - maxListed})" : string.Empty));
     }
 
     private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)

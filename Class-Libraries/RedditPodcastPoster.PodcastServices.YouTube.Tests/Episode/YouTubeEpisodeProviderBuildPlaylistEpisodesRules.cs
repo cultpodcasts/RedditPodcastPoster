@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Google.Apis.YouTube.v3.Data;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -104,4 +105,64 @@ public class YouTubeEpisodeProviderBuildPlaylistEpisodesRules
         response.TotalResults.Should().Be(400);
         response.WalkOutcome.Should().Be(YouTubePlaylistWalkOutcome.Incomplete);
     }
+
+    [Fact(DisplayName =
+        "Dropping playlist videos uploaded by another channel logs a warning naming the parent, the playlist, the " +
+        "count and the video ids, so a playlist owned by a different channel is never dropped silently.")]
+    public async Task other_channel_videos_dropped_log_warning()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var otherChannelId = _fixture.CreateYouTubeChannelId();
+        var first = _fixture.CreateYouTubeId();
+        var second = _fixture.CreateYouTubeId();
+        _videos.Add(Video(first, otherChannelId));
+        _videos.Add(Video(second, otherChannelId));
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        var sut = _mocker.CreateInstance<YouTubeEpisodeProvider>();
+
+        // Act
+        var response = await sut.BuildPlaylistEpisodes(podcast, new YouTubeChannelId(channelId),
+            _indexingContext, [Item(first), Item(second)]);
+
+        // Assert
+        response.Results.Should().BeEmpty();
+        VerifyWarning(state =>
+            state.Contains("YouTubePlaylistOtherChannelVideosDropped") &&
+            state.Contains(podcast.Id.ToString()) &&
+            state.Contains(podcast.YouTubePlaylistId) &&
+            state.Contains($"youtube-channel-id='{channelId}'") &&
+            state.Contains("dropped-count='2'") &&
+            state.Contains("all-dropped='True'") &&
+            state.Contains($"{otherChannelId}=2") &&
+            state.Contains(first) && state.Contains(second), Times.Once());
+    }
+
+    [Fact(DisplayName = "A playlist whose videos all come from the parent's channel logs no dropped-videos warning.")]
+    public async Task same_channel_videos_log_no_dropped_warning()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var videoId = _fixture.CreateYouTubeId();
+        _videos.Add(Video(videoId, channelId));
+        var sut = _mocker.CreateInstance<YouTubeEpisodeProvider>();
+
+        // Act
+        await sut.BuildPlaylistEpisodes(_fixture.CreatePodcast(), new YouTubeChannelId(channelId),
+            _indexingContext, [Item(videoId)]);
+
+        // Assert
+        VerifyWarning(state => state.Contains("YouTubePlaylistOtherChannelVideosDropped"), Times.Never());
+    }
+
+    private void VerifyWarning(Func<string, bool> matches, Times times) =>
+        _mocker.GetMock<ILogger<YouTubeEpisodeProvider>>().Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => matches(state!.ToString()!)),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            times);
 }

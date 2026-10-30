@@ -10,6 +10,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlShortening.Services;
+using Api.Services.YouTube;
 
 namespace Api.Services.Podcasts;
 
@@ -21,6 +22,7 @@ public class PodcastUpdateService(
     IShortnerService shortnerService,
     PodcastChangeApplier podcastChangeApplier,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
+    IYouTubePlaylistOwnershipGuard youTubePlaylistOwnershipGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
     public async Task<PodcastUpdateResult> UpdateAsync(
@@ -56,6 +58,23 @@ public class PodcastUpdateService(
 
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
+
+            // The podcast edit never stores youTubeChannelId (see PodcastChangeApplier), so only a playlist change is checked.
+            if (await youTubePlaylistOwnershipGuard.Check(
+                    podcast.YouTubeChannelId,
+                    podcast.YouTubePlaylistId,
+                    requestedChannelId: null,
+                    podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                    c) is { } refused)
+            {
+                logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                    podcastChangeRequestWrapper.PodcastId, refused.Code, refused.Message);
+                return new PodcastUpdateResult(
+                    refused.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: refused.Message,
+                    Code: refused.Code);
+            }
 
             var previousPodcastLanguage = podcast.Language;
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);

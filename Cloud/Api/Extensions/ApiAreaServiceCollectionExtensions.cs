@@ -1,3 +1,4 @@
+using Api.Services.YouTube;
 using Api.Services.Catalogue;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,6 +83,7 @@ public static class ApiAreaServiceCollectionExtensions
         services
             .AddScoped<PodcastEpisodeProjectionHelper>()
             .AddScoped<PodcastChangeApplier>()
+            .AddScoped<IYouTubePlaylistOwnershipGuard, YouTubePlaylistOwnershipGuard>()
             .AddScoped<IPodcastGetService, PodcastGetService>()
             .AddScoped<IPodcastUpdateService, PodcastUpdateService>()
             .AddScoped<IPodcastKindTransferService, PodcastKindTransferService>()
@@ -111,6 +113,7 @@ public static class ApiAreaServiceCollectionExtensions
     {
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
         services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
+        services.TryAddScoped<IYouTubePlaylistOwnershipGuard, YouTubePlaylistOwnershipGuard>();
         services.TryAddScoped<PlayableSearchRename>();
         services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();

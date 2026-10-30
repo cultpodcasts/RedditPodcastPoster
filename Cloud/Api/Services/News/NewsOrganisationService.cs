@@ -1,3 +1,4 @@
+using Api.Services.YouTube;
 using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
@@ -18,6 +19,7 @@ public class NewsOrganisationService(
     INewsReportRepository newsReportRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
+    IYouTubePlaylistOwnershipGuard youTubePlaylistOwnershipGuard,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -65,6 +67,21 @@ public class NewsOrganisationService(
             if (organisation is null)
             {
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
+            }
+
+            if (await youTubePlaylistOwnershipGuard.Check(
+                    organisation.Indexing?.YouTubeChannelId,
+                    organisation.Indexing?.YouTubePlaylistId,
+                    request.Change.YouTubeChannelId,
+                    request.Change.YouTubePlaylistId,
+                    cancellationToken) is { } refused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, refused.Code, refused.Message);
+                return new NewsOrganisationUpdateResult(
+                    refused.IsRetryable ? NewsOrganisationUpdateStatus.ServiceUnavailable : NewsOrganisationUpdateStatus.BadRequest,
+                    refused.Message,
+                    Code: refused.Code);
             }
 
             PublisherChangeApplier.Apply(organisation, request.Change);
