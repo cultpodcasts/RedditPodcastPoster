@@ -24,6 +24,11 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
         ModelType = ModelType.Film;
     }
 
+    /// <summary>
+    /// Sets <see cref="Name"/> and a provisional, never-empty file key built from this constructor's own new
+    /// <c>Id</c>. Setting <c>Id</c> in an object initializer afterwards does not update the key, and the key is not
+    /// checked for uniqueness: code that saves a new item must set <c>FileKey</c> from <c>IFileKeyAllocator</c>.
+    /// </summary>
     public Film(string name) : this()
     {
         Name = name;

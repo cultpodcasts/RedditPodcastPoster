@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
@@ -12,6 +11,9 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules;
 
 public class PodcastFactoryFileKeyRules
 {
+    // Fixed synthetic names: the expected keys below are written out, so no rule depends on a random title.
+    private const string LatinName = "Synthetic Cult Watch";
+    private const string LatinKey = "synthetic_cult_watch";
     private const string KoreanName = "오늘의 뉴스";
     private const string EmojiOnlyName = "🎙️📻 ✨";
 
@@ -26,20 +28,62 @@ public class PodcastFactoryFileKeyRules
     }
 
     [Fact(DisplayName =
-        "Creating two podcasts with the same name issues two file keys, because the factory remembers the key it just handed out for the rest of the process.")]
-    public async Task second_create_with_the_same_name_gets_a_different_file_key()
+        "A Latin name gives the same key it always did.")]
+    public async Task latin_name_gets_its_slug()
     {
         // Arrange
-        var name = _fixture.CreateTitle();
         var sut = _mocker.CreateInstance<PodcastFactory>();
 
         // Act
-        var first = await sut.Create(name);
-        var second = await sut.Create(name);
+        var podcast = await sut.Create(LatinName);
 
         // Assert
-        first.FileKey.Should().Be(FileKeyFactory.GetFileKey(name));
-        second.FileKey.Should().Be(FileKeyFactory.GetFileKey(name) + "_2");
+        podcast.FileKey.Should().Be(LatinKey);
+    }
+
+    [Fact(DisplayName =
+        "A one-letter Latin name still gives a one-letter key, as before: only empty, underscore and _N slugs are placeholders.")]
+    public async Task one_letter_latin_name_keeps_one_letter_key()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PodcastFactory>();
+
+        // Act
+        var podcast = await sut.Create("X");
+
+        // Assert
+        podcast.FileKey.Should().Be("x");
+    }
+
+    [Fact(DisplayName =
+        "A create that is never saved reserves nothing: the next create of the same name gets the same key, not _2.")]
+    public async Task unsaved_create_does_not_reserve_its_key()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PodcastFactory>();
+        var abandoned = await sut.Create(LatinName);
+
+        // Act
+        var next = await sut.Create(LatinName);
+
+        // Assert
+        abandoned.FileKey.Should().Be(LatinKey);
+        next.FileKey.Should().Be(LatinKey);
+    }
+
+    [Fact(DisplayName =
+        "Once the first podcast is saved, a second create of the same name gets the _2 suffix.")]
+    public async Task saved_create_makes_next_create_suffixed()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PodcastFactory>();
+        await _podcasts.Save(await sut.Create(LatinName));
+
+        // Act
+        var second = await sut.Create(LatinName);
+
+        // Assert
+        second.FileKey.Should().Be(LatinKey + "_2");
     }
 
     [Fact(DisplayName =
@@ -47,15 +91,14 @@ public class PodcastFactoryFileKeyRules
     public async Task create_with_stored_key_gets_suffix()
     {
         // Arrange
-        var name = _fixture.CreateTitle();
-        _podcasts.Seed(_fixture.CreatePodcast(p => p.FileKey = FileKeyFactory.GetFileKey(name).ToUpperInvariant()));
+        _podcasts.Seed(_fixture.CreatePodcast(p => p.FileKey = LatinKey.ToUpperInvariant()));
         var sut = _mocker.CreateInstance<PodcastFactory>();
 
         // Act
-        var podcast = await sut.Create(name);
+        var podcast = await sut.Create(LatinName);
 
         // Assert
-        podcast.FileKey.Should().Be(FileKeyFactory.GetFileKey(name) + "_2");
+        podcast.FileKey.Should().Be(LatinKey + "_2");
     }
 
     [Theory(DisplayName =
@@ -88,39 +131,5 @@ public class PodcastFactoryFileKeyRules
 
         // Assert
         second.FileKey.Should().NotBe(first.FileKey);
-    }
-
-    [Fact(DisplayName =
-        "When a concurrent create issues the same key while this create awaited the store, this create allocates again, so two in-flight creates never share a key.")]
-    public async Task key_issued_during_allocation_is_not_reused()
-    {
-        // Arrange
-        var name = _fixture.CreateTitle();
-        var raced = FileKeyFactory.GetFileKey(name);
-        var other = _mocker.CreateInstance<PodcastFactory>();
-        var racingMocker = new AutoMocker();
-        var allocator = racingMocker.GetMock<IFileKeyAllocator>();
-        var calls = 0;
-        allocator
-            .Setup(x => x.Allocate(FileKeyKind.Podcast, name, It.IsAny<Guid>(), null, It.IsAny<Func<string, bool>?>()))
-            .Returns(async (FileKeyKind _, string _, Guid _, string? _, Func<string, bool>? alsoTaken) =>
-            {
-                if (calls++ == 0)
-                {
-                    // The concurrent create finishes first and is issued the same key.
-                    (await other.Create(name)).FileKey.Should().Be(raced);
-                    return raced;
-                }
-
-                return FileKeyFactory.MakeUnique(raced, alsoTaken!);
-            });
-        var sut = racingMocker.CreateInstance<PodcastFactory>();
-
-        // Act
-        var podcast = await sut.Create(name);
-
-        // Assert
-        podcast.FileKey.Should().Be(raced + "_2");
-        calls.Should().Be(2);
     }
 }

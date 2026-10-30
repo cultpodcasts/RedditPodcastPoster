@@ -6,9 +6,11 @@ namespace RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 
 /// <inheritdoc cref="IFileKeyAllocator"/>
 /// <remarks>
-/// Taken keys are read per allocation from the kind's own container (keys of different kinds never clash because
-/// TV, news and film keys carry reserved prefixes and podcast slugs cannot contain a hyphen). Two concurrent creates
-/// with the same name can still race; the public-database publisher's duplicate check remains the backstop.
+/// Taken keys are read per allocation from the kind's own container only. Keys this allocator generates for different
+/// kinds cannot clash (TV, news and film keys carry reserved prefixes and a generated podcast slug cannot contain a
+/// hyphen), but a key set by other means (hand-edited, or older data) can; nothing is claimed between allocation and
+/// save, so two concurrent creates with the same name can also get the same key. The public-database publisher's
+/// <c>PublicFileKeyGuard</c> is the backstop for both (cross-process claim: issue #1165).
 /// </remarks>
 public sealed class FileKeyAllocator(
     IPodcastRepository podcastRepository,
@@ -20,24 +22,22 @@ public sealed class FileKeyAllocator(
         FileKeyKind kind,
         string name,
         Guid id,
-        string? fallbackSlug = null,
-        Func<string, bool>? alsoTaken = null)
+        string? fallbackSlug = null)
     {
-        var prefix = Prefix(kind);
-        var candidate = prefix + FileKeyFactory.GetFileKey(name ?? string.Empty, id, fallbackSlug);
-        return await MakeUnique(kind, candidate, id, alsoTaken);
+        var candidate = FileKeyFactory.GetFileKey(kind, name ?? string.Empty, id, fallbackSlug);
+        return await MakeUnique(kind, candidate, id);
     }
 
     public async Task<string> AllocateForRename(FileKeyKind kind, string name, Guid id, string? currentKey)
     {
-        var prefix = Prefix(kind);
+        var prefix = FileKeyFactory.PrefixFor(kind);
         var slug = FileKeyFactory.GetFileKey(name ?? string.Empty);
         if (!FileKeyFactory.IsUsableSlug(slug) && FileKeyFactory.IsUsableFileKey(currentKey, prefix))
         {
             return currentKey!;
         }
 
-        var candidate = prefix + FileKeyFactory.GetFileKey(name ?? string.Empty, id);
+        var candidate = FileKeyFactory.GetFileKey(kind, name ?? string.Empty, id);
         if (currentKey is not null && string.Equals(candidate, currentKey, StringComparison.OrdinalIgnoreCase))
         {
             return currentKey;
@@ -47,37 +47,33 @@ public sealed class FileKeyAllocator(
     }
 
     public async Task<string> RepairIfUnusable(FileKeyKind kind, string name, Guid id, string? currentKey) =>
-        FileKeyFactory.IsUsableFileKey(currentKey, Prefix(kind))
+        FileKeyFactory.IsUsableFileKey(currentKey, FileKeyFactory.PrefixFor(kind))
             ? currentKey!
             : await Allocate(kind, name, id);
 
-    private async Task<string> MakeUnique(
-        FileKeyKind kind,
-        string candidate,
-        Guid id,
-        Func<string, bool>? alsoTaken = null)
+    private async Task<string> MakeUnique(FileKeyKind kind, string candidate, Guid id)
     {
-        var taken = await TakenKeysStartingWith(kind, candidate.ToLowerInvariant(), id);
-        return FileKeyFactory.MakeUnique(candidate, key => taken.Contains(key) || (alsoTaken?.Invoke(key) ?? false));
+        var taken = await TakenKeysStartingWith(kind, candidate, id);
+        return FileKeyFactory.MakeUnique(candidate, taken.Contains);
     }
 
-    private Task<HashSet<string>> TakenKeysStartingWith(FileKeyKind kind, string lowerPrefix, Guid id) =>
+    private Task<HashSet<string>> TakenKeysStartingWith(FileKeyKind kind, string candidate, Guid id) =>
         kind switch
         {
-            FileKeyKind.Podcast => Read(podcastRepository, lowerPrefix, id),
-            FileKeyKind.TvShow => Read(tvShowRepository, lowerPrefix, id),
-            FileKeyKind.NewsOrganisation => Read(newsOrganisationRepository, lowerPrefix, id),
-            FileKeyKind.Film => Read(filmRepository, lowerPrefix, id),
+            FileKeyKind.Podcast => Read(podcastRepository, candidate, id),
+            FileKeyKind.TvShow => Read(tvShowRepository, candidate, id),
+            FileKeyKind.NewsOrganisation => Read(newsOrganisationRepository, candidate, id),
+            FileKeyKind.Film => Read(filmRepository, candidate, id),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
     private static async Task<HashSet<string>> Read<TEntity>(
         IFilterableRepository<TEntity> repository,
-        string lowerPrefix,
+        string candidate,
         Guid id) where TEntity : CosmosSelector
     {
         Expression<Func<TEntity, bool>> selector = x =>
-            x.FileKey != null && x.FileKey.ToLower().StartsWith(lowerPrefix) && x.Id != id;
+            x.FileKey != null && x.FileKey.StartsWith(candidate, StringComparison.OrdinalIgnoreCase) && x.Id != id;
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await foreach (var key in repository.GetAllBy(selector, x => x.FileKey))
         {
@@ -86,13 +82,4 @@ public sealed class FileKeyAllocator(
 
         return keys;
     }
-
-    private static string Prefix(FileKeyKind kind) => kind switch
-    {
-        FileKeyKind.Podcast => string.Empty,
-        FileKeyKind.TvShow => FileKeyFactory.TvShowPrefix,
-        FileKeyKind.NewsOrganisation => FileKeyFactory.NewsOrganisationPrefix,
-        FileKeyKind.Film => FileKeyFactory.FilmPrefix,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
-    };
 }

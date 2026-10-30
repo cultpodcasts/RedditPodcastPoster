@@ -22,10 +22,21 @@ public static class FileKeyFactory
     /// <summary>Hex digits of the id used by <see cref="GetIdSlug"/>.</summary>
     public const int IdSlugLength = 12;
 
-    /// <summary>A slug needs at least this many ASCII letters or digits to be used as a file key.</summary>
-    public const int MinimumSlugAlphaNumerics = 2;
-
     private static readonly Regex AlphaNumerics = new("[^a-zA-Z0-9 ]", RegexOptions.Compiled);
+    private static readonly Regex TrailingNumberSuffixes = new(@"(_\d+)+$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// The file-key prefix of <paramref name="kind"/>: empty for podcasts, otherwise <see cref="TvShowPrefix"/>,
+    /// <see cref="NewsOrganisationPrefix"/> or <see cref="FilmPrefix"/>. The one kind-to-prefix map.
+    /// </summary>
+    public static string PrefixFor(FileKeyKind kind) => kind switch
+    {
+        FileKeyKind.Podcast => string.Empty,
+        FileKeyKind.TvShow => TvShowPrefix,
+        FileKeyKind.NewsOrganisation => NewsOrganisationPrefix,
+        FileKeyKind.Film => FilmPrefix,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
+    };
 
     /// <summary>
     /// Unprefixed slug (podcast series and shared slug body). Only ASCII letters, digits and spaces survive,
@@ -41,20 +52,26 @@ public static class FileKeyFactory
     }
 
     /// <summary>
-    /// True when <paramref name="slug"/> (unprefixed) can be a file key: it has at least
-    /// <see cref="MinimumSlugAlphaNumerics"/> ASCII letters or digits. Empty, underscore-only and one-character
-    /// slugs (<c>""</c>, <c>"_"</c>, <c>"_2"</c>) are placeholders, not keys.
+    /// True when <paramref name="slug"/> (unprefixed) is a placeholder rather than a key: empty or whitespace, or
+    /// with no ASCII letter or digit once any trailing <c>_N</c> suffixes are removed. So <c>""</c>, <c>"_"</c>,
+    /// <c>"__2"</c>, <c>"_10"</c> are placeholders; <c>"x"</c>, <c>"24"</c> and <c>"foo_2"</c> are not.
     /// </summary>
-    public static bool IsUsableSlug(string? slug) =>
-        !string.IsNullOrWhiteSpace(slug) && slug.Count(char.IsAsciiLetterOrDigit) >= MinimumSlugAlphaNumerics;
+    public static bool IsPlaceholderSlug(string? slug) =>
+        string.IsNullOrWhiteSpace(slug) ||
+        !TrailingNumberSuffixes.Replace(slug, string.Empty).Any(char.IsAsciiLetterOrDigit);
+
+    /// <summary>True when <paramref name="slug"/> (unprefixed) can be a file key: not a placeholder
+    /// (<see cref="IsPlaceholderSlug"/>). One Latin letter or digit is enough.</summary>
+    public static bool IsUsableSlug(string? slug) => !IsPlaceholderSlug(slug);
 
     /// <summary>
     /// True when <paramref name="fileKey"/> is usable once <paramref name="prefix"/> is removed: it carries the
-    /// prefix and the rest is a usable slug (<see cref="IsUsableSlug"/>).
+    /// prefix (ignoring case) and the rest is a usable slug (<see cref="IsUsableSlug"/>). A bare prefix
+    /// (<c>"news-"</c>) or a prefix plus a placeholder (<c>"news-_12"</c>) is not usable.
     /// </summary>
     public static bool IsUsableFileKey(string? fileKey, string prefix = "") =>
         fileKey is not null &&
-        fileKey.StartsWith(prefix, StringComparison.Ordinal) &&
+        fileKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
         IsUsableSlug(fileKey[prefix.Length..]);
 
     /// <summary>Stable slug built from the id, for a name that gives no usable slug.</summary>
@@ -85,17 +102,22 @@ public static class FileKeyFactory
     public static string GetNewsOrganisationFileKey(string name) =>
         NewsOrganisationPrefix + GetFileKey(name);
 
+    /// <summary><see cref="PrefixFor"/> of <paramref name="kind"/> plus
+    /// <see cref="GetFileKey(string, Guid, string?)"/>.</summary>
+    public static string GetFileKey(FileKeyKind kind, string name, Guid id, string? fallbackSlug = null) =>
+        PrefixFor(kind) + GetFileKey(name, id, fallbackSlug);
+
     /// <inheritdoc cref="GetFileKey(string, Guid, string?)"/>
     public static string GetFilmFileKey(string title, Guid id, string? fallbackSlug = null) =>
-        FilmPrefix + GetFileKey(title, id, fallbackSlug);
+        GetFileKey(FileKeyKind.Film, title, id, fallbackSlug);
 
     /// <inheritdoc cref="GetFileKey(string, Guid, string?)"/>
     public static string GetTvShowFileKey(string name, Guid id, string? fallbackSlug = null) =>
-        TvShowPrefix + GetFileKey(name, id, fallbackSlug);
+        GetFileKey(FileKeyKind.TvShow, name, id, fallbackSlug);
 
     /// <inheritdoc cref="GetFileKey(string, Guid, string?)"/>
     public static string GetNewsOrganisationFileKey(string name, Guid id, string? fallbackSlug = null) =>
-        NewsOrganisationPrefix + GetFileKey(name, id, fallbackSlug);
+        GetFileKey(FileKeyKind.NewsOrganisation, name, id, fallbackSlug);
 
     /// <summary>
     /// <paramref name="fileKey"/> when <paramref name="isTaken"/> says it is free, otherwise the first free

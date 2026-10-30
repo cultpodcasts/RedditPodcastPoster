@@ -616,14 +616,16 @@ public class PodcastKindTransferServiceRules
         result.Status.Should().Be(PodcastKindTransferStatus.NotFound);
     }
 
-    [Fact(DisplayName =
-        "Transferring a Korean-named podcast to a news organisation keeps the podcast's own usable key behind the news- prefix, so a curator-set key survives the move.")]
-    public async Task transfer_non_latin_podcast_keeps_its_key()
+    [Theory(DisplayName =
+        "Transferring a Korean-named podcast to a news organisation keeps the podcast's own usable key (including a one-letter key such as x) behind the news- prefix, so a curator-set key survives the move.")]
+    [InlineData("synthetic_kr")]
+    [InlineData("x")]
+    public async Task transfer_non_latin_podcast_keeps_its_key(string podcastKey)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         podcast.Name = "오늘의 뉴스";
-        podcast.FileKey = "synthetic_kr";
+        podcast.FileKey = podcastKey;
         _podcasts.Seed(podcast);
         _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
         var sut = _mocker.CreateInstance<PodcastKindTransferService>();
@@ -636,17 +638,20 @@ public class PodcastKindTransferServiceRules
 
         // Assert
         result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
-        _savedOrganisation!.FileKey.Should().Be(FileKeyFactory.NewsOrganisationPrefix + "synthetic_kr");
+        _savedOrganisation!.FileKey.Should().Be(FileKeyFactory.NewsOrganisationPrefix + podcastKey);
     }
 
-    [Fact(DisplayName =
-        "Transferring a Korean-named podcast whose key is empty to a news organisation stores news-id_… from the guid, never news- or news-_.")]
-    public async Task transfer_non_latin_podcast_with_empty_key_gets_id_key()
+    [Theory(DisplayName =
+        "Transferring a Korean-named podcast whose key is empty or a placeholder (_, _10) to a news organisation stores news-id_… from the guid, never news-, news-_ or news-_10.")]
+    [InlineData("")]
+    [InlineData("_")]
+    [InlineData("_10")]
+    public async Task transfer_non_latin_podcast_with_empty_key_gets_id_key(string placeholderKey)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         podcast.Name = "오늘의 뉴스";
-        podcast.FileKey = string.Empty;
+        podcast.FileKey = placeholderKey;
         _podcasts.Seed(podcast);
         _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
         var sut = _mocker.CreateInstance<PodcastKindTransferService>();

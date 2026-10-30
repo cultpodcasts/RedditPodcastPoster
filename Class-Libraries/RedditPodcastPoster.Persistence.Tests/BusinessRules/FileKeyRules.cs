@@ -94,15 +94,21 @@ public class FileKeyRules
     }
 
     [Theory(DisplayName =
-        "Empty, underscore-only and one-character slugs are placeholders, not usable keys; two or more Latin letters or digits are usable.")]
+        "Empty, underscore-only and _N slugs (any number, after any trailing _N suffixes are removed) are placeholders; one or more Latin letters or digits is a usable key, as before.")]
     [InlineData("", false)]
     [InlineData("_", false)]
     [InlineData("__2", false)]
     [InlineData("_2", false)]
-    [InlineData("x", false)]
+    [InlineData("_10", false)]
+    [InlineData("_23", false)]
+    [InlineData("_2_3", false)]
+    [InlineData("x", true)]
+    [InlineData("7", true)]
+    [InlineData("x_2", true)]
     [InlineData("tv", true)]
     [InlineData("24", true)]
     [InlineData("a_b", true)]
+    [InlineData("foo_10", true)]
     public void placeholder_slugs_are_not_usable(string slug, bool usable)
     {
         // Arrange
@@ -232,20 +238,94 @@ public class FileKeyRules
         allocated.Should().Be(film.FileKey);
     }
 
-    [Fact(DisplayName =
-        "Keys marked as taken but not stored yet (handed out earlier in the same process) are skipped too.")]
-    public async Task also_taken_keys_are_skipped()
+    [Theory(DisplayName =
+        "A bare kind prefix, or a prefix followed only by underscores or _N (for example news-_12), is a placeholder key, not a usable one.")]
+    [InlineData(FileKeyFactory.NewsOrganisationPrefix)]
+    [InlineData(FileKeyFactory.NewsOrganisationPrefix + "_")]
+    [InlineData(FileKeyFactory.NewsOrganisationPrefix + "_12")]
+    [InlineData(FileKeyFactory.NewsOrganisationPrefix + "__2")]
+    public void prefix_with_placeholder_is_not_usable(string fileKey)
     {
         // Arrange
-        var name = _fixture.CreateTitle();
-        var key = FileKeyFactory.GetFileKey(name);
+        var prefix = FileKeyFactory.NewsOrganisationPrefix;
 
         // Act
-        var allocated = await Allocator.Allocate(
-            FileKeyKind.Podcast, name, _fixture.CreateGuid(), alsoTaken: k => k == key);
+        var usable = FileKeyFactory.IsUsableFileKey(fileKey, prefix);
 
         // Assert
-        allocated.Should().Be(key + "_2");
+        usable.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A stored key of the form _10 is repaired on a rename that keeps keys; news-_12 likewise for a news organisation.")]
+    public async Task numbered_placeholder_keys_are_repaired()
+    {
+        // Arrange
+        const string name = "Synthetic Signal";
+        var id = _fixture.CreateGuid();
+
+        // Act
+        var podcastKey = await Allocator.RepairIfUnusable(FileKeyKind.Podcast, name, id, "_10");
+        var newsKey = await Allocator.RepairIfUnusable(
+            FileKeyKind.NewsOrganisation, name, id, FileKeyFactory.NewsOrganisationPrefix + "_12");
+
+        // Assert
+        podcastKey.Should().Be("synthetic_signal");
+        newsKey.Should().Be(FileKeyFactory.NewsOrganisationPrefix + "synthetic_signal");
+    }
+
+    [Fact(DisplayName =
+        "A valid one-character key is never re-keyed: a rename that keeps keys keeps it, and a rename to a non-Latin name keeps it too.")]
+    public async Task one_character_key_survives_renames()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.FileKey = "x");
+        _podcasts.Add(podcast);
+
+        // Act
+        var repaired = await Allocator.RepairIfUnusable(FileKeyKind.Podcast, KoreanName, podcast.Id, podcast.FileKey);
+        var renamed = await Allocator.AllocateForRename(FileKeyKind.Podcast, KoreanName, podcast.Id, podcast.FileKey);
+        var tvRepaired = await Allocator.RepairIfUnusable(
+            FileKeyKind.TvShow, KoreanName, podcast.Id, FileKeyFactory.TvShowPrefix + "x");
+
+        // Assert
+        repaired.Should().Be("x");
+        renamed.Should().Be("x");
+        tvRepaired.Should().Be(FileKeyFactory.TvShowPrefix + "x");
+    }
+
+    [Fact(DisplayName =
+        "A podcast with a valid one-character key that moves kind under a non-Latin name keeps that key as its slug.")]
+    public async Task one_character_key_is_used_as_transfer_fallback()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+
+        // Act
+        var key = await Allocator.Allocate(FileKeyKind.NewsOrganisation, KoreanName, id, fallbackSlug: "x");
+
+        // Assert
+        key.Should().Be(FileKeyFactory.NewsOrganisationPrefix + "x");
+    }
+
+    [Fact(DisplayName =
+        "Every kind maps to its own prefix in one place: podcasts none, TV shows tvshow-, news organisations news-, films film-.")]
+    public void prefix_for_each_kind()
+    {
+        // Arrange
+        var kinds = Enum.GetValues<FileKeyKind>();
+
+        // Act
+        var prefixes = kinds.ToDictionary(k => k, FileKeyFactory.PrefixFor);
+
+        // Assert
+        prefixes.Should().BeEquivalentTo(new Dictionary<FileKeyKind, string>
+        {
+            [FileKeyKind.Podcast] = string.Empty,
+            [FileKeyKind.TvShow] = FileKeyFactory.TvShowPrefix,
+            [FileKeyKind.NewsOrganisation] = FileKeyFactory.NewsOrganisationPrefix,
+            [FileKeyKind.Film] = FileKeyFactory.FilmPrefix
+        });
     }
 
     [Fact(DisplayName =

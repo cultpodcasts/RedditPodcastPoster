@@ -584,10 +584,11 @@ public class CatalogueRenameRules
     }
 
     [Theory(DisplayName =
-        "Renaming a TV show whose stored fileKey is unusable (empty, prefix-only or underscore-only) repairs it to a usable unique key, so the next publish is not refused.")]
+        "Renaming a TV show whose stored fileKey is unusable (empty, prefix-only, underscore-only or prefix plus _N) repairs it to a usable unique key, so the next publish is not refused.")]
     [InlineData("")]
     [InlineData("tvshow-")]
     [InlineData("tvshow-_")]
+    [InlineData("tvshow-_12")]
     public async Task tv_show_rename_repairs_unusable_key(string brokenKey)
     {
         // Arrange
@@ -602,5 +603,25 @@ public class CatalogueRenameRules
         // Assert
         result.Status.Should().Be(CatalogueRenameStatus.Ok);
         show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + FileKeyFactory.GetIdSlug(show.Id));
+    }
+
+    [Theory(DisplayName =
+        "Renaming a TV show whose stored fileKey has a one-letter slug (tvshow-x) keeps that key, to a Latin or a Korean name: a valid key is never re-keyed by a rename.")]
+    [InlineData("Synthetic Renamed Show")]
+    [InlineData("주간 이야기")]
+    public async Task tv_show_rename_keeps_one_letter_key(string newName)
+    {
+        // Arrange
+        var show = new TvShow(OldName) { Id = _fixture.CreateGuid() };
+        show.FileKey = FileKeyFactory.TvShowPrefix + "x";
+        _shows.Add(show);
+
+        // Act
+        var result = await Service.RenameTvShow(
+            new CatalogueRenameCommand(show.Id.ToString(), newName), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + "x");
     }
 }

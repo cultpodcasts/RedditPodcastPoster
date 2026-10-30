@@ -4,6 +4,7 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
