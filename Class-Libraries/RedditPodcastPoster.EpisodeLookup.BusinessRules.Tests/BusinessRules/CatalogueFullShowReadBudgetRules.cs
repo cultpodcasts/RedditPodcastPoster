@@ -36,8 +36,10 @@ public class CatalogueFullShowReadBudgetRules
         IReadOnlyList<Item> newestFirst,
         ManualClock clock,
         TimeSpan perPage,
-        IReadOnlyList<Item>? searchHits = null) : ICatalogueCandidateSource<Item>
+        IReadOnlyList<Item>? searchHits = null,
+        TimeSpan? length = null) : ICatalogueCandidateSource<Item>
     {
+        private readonly TimeSpan _length = length ?? TimeSpan.FromMinutes(52);
         public int PageCalls { get; private set; }
         public int SearchCalls { get; private set; }
         public string Platform => CataloguePlatforms.Apple;
@@ -63,7 +65,7 @@ public class CatalogueFullShowReadBudgetRules
 
         public Episode ToCatalogueEpisode(Item item) => new()
         {
-            Title = item.Title, Length = TimeSpan.FromMinutes(52), ReleaseUtc = item.Release
+            Title = item.Title, Length = _length, ReleaseUtc = item.Release
         };
     }
 
@@ -159,7 +161,9 @@ public class CatalogueFullShowReadBudgetRules
         var clock = new ManualClock(Now);
         var show = Show(38, targetIndex: 30);
         var hit = new PagedSource(show, clock, TimeSpan.FromMilliseconds(100));
-        var miss = new PagedSource(Show(38), clock, TimeSpan.FromMilliseconds(100));
+        // Same release day and disjoint titles. Near-exact length would still match (#1133);
+        // a much shorter catalogue row must stay a completed miss.
+        var miss = new PagedSource(Show(38), clock, TimeSpan.FromMilliseconds(100), length: TimeSpan.FromMinutes(12));
         var classifier = new PerCandidateCostClassifier(clock, TimeSpan.FromMilliseconds(10));
         var sut = Sut(clock, classifier);
 
@@ -170,6 +174,7 @@ public class CatalogueFullShowReadBudgetRules
         // Assert
         matched.Match.Should().Be(show[30]);
         matched.Stage.Should().Be("full-show-read");
+        missed.Match.Should().BeNull();
         missed.Stage.Should().Be(CatalogueLookupExecutor.StageMiss);
         miss.PageCalls.Should().Be(4);
         miss.SearchCalls.Should().Be(0);

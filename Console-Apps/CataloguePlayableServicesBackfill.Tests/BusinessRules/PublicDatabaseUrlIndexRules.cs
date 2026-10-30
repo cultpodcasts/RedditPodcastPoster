@@ -201,23 +201,16 @@ public class PublicDatabaseUrlIndexRules : IDisposable
     }
 
     [Fact(DisplayName =
-        "Public database url index: when two public files share the same id, then the first file wins and a " +
-        "warning names both paths, because duplicate exports must be visible to operators.")]
+        "Public database url index: when two public files share the same id, then the lexicographically first path " +
+        "wins and a warning names both paths, because duplicate exports must be visible and the kept file must not " +
+        "depend on directory order.")]
     public void duplicate_id_keeps_first_and_warns()
     {
         // Arrange
         var id = _fixture.CreateGuid();
         var firstUrl = _fixture.CreateYouTubeCatalogueInput().YouTubeUrl;
         var secondUrl = _fixture.CreateSpotifyCatalogueInput().SpotifyUrl;
-        WriteJson("a-first.json", new
-        {
-            id,
-            name = _fixture.CreateTitle(),
-            urls = new Dictionary<string, string>
-            {
-                [ServiceKeys.YouTube] = firstUrl.AbsoluteUri
-            }
-        });
+        // a-first.json is written after z-second.json so creation order cannot be what keeps it.
         WriteJson("z-second.json", new
         {
             id,
@@ -225,6 +218,15 @@ public class PublicDatabaseUrlIndexRules : IDisposable
             urls = new Dictionary<string, string>
             {
                 [ServiceKeys.Spotify] = secondUrl.AbsoluteUri
+            }
+        });
+        WriteJson("a-first.json", new
+        {
+            id,
+            name = _fixture.CreateTitle(),
+            urls = new Dictionary<string, string>
+            {
+                [ServiceKeys.YouTube] = firstUrl.AbsoluteUri
             }
         });
         var logger = new ListLogger();
