@@ -8,11 +8,13 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 
@@ -50,6 +52,7 @@ public class PodcastKindTransferService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IPlayableSearchDocumentSwap searchSwap,
+    IFileKeyAllocator fileKeyAllocator,
     IParentKindTransferLockStore lockStore,
     TimeProvider timeProvider,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
@@ -254,6 +257,7 @@ public class PodcastKindTransferService(
 
     private sealed record TransferTarget<TParent, TPlayable>(
         CatalogueParentKind Kind,
+        FileKeyKind FileKeyKind,
         string SearchContentKind,
         Func<Podcast, TParent> MapParent,
         Func<Episode, TParent, TPlayable> MapPlayable,
@@ -261,12 +265,13 @@ public class PodcastKindTransferService(
         Func<TPlayable, Task> SavePlayable,
         Func<Guid, Guid, Task> DeletePlayable,
         Func<Guid, Task> DeleteParent)
-        where TParent : class
+        where TParent : Publisher
         where TPlayable : Playable;
 
     private TransferTarget<TvShow, TvShowEpisode> TvShowTarget() =>
         new(
             CatalogueParentKind.TvShow,
+            FileKeyKind.TvShow,
             SearchContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToTvShow,
             CatalogueParentKindMapper.ToTvShowEpisode,
@@ -278,6 +283,7 @@ public class PodcastKindTransferService(
     private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget() =>
         new(
             CatalogueParentKind.NewsOrganisation,
+            FileKeyKind.NewsOrganisation,
             SearchContentKind.NewsReport,
             CatalogueParentKindMapper.ToNewsOrganisation,
             CatalogueParentKindMapper.ToNewsReport,
@@ -314,12 +320,18 @@ public class PodcastKindTransferService(
         bool resuming,
         TransferTarget<TParent, TPlayable> target,
         TransferLease lease)
-        where TParent : class
+        where TParent : Publisher
         where TPlayable : Playable
     {
         var total = Stopwatch.StartNew();
         var stats = new TransferStats();
         var parent = target.MapParent(podcast);
+        // Allocated here, under the transfer marker, so the key is chosen by the one attempt that writes the parent.
+        // Never empty and unique among the target kind: a name with no usable Latin slug keeps the podcast's own
+        // usable key (with the kind prefix), else gets an id key. The allocator ignores this parent's own id, so a
+        // resumed transfer gets the same key back.
+        await lease.Heartbeat();
+        parent.FileKey = await fileKeyAllocator.Allocate(target.FileKeyKind, parent.Name, parent.Id, podcast.FileKey);
         await CatalogueBulkWrite.RetryThrottled(() => target.SaveParent(parent), stats.Throttled);
 
         var batch = episodes;
@@ -382,7 +394,7 @@ public class PodcastKindTransferService(
         TransferLease lease,
         TransferStats stats,
         bool compensateParent)
-        where TParent : class
+        where TParent : Publisher
         where TPlayable : Playable
     {
         // Playables keep Services only. Fill missing services.*.url from nested ids (deterministic, no clients) so
@@ -491,7 +503,7 @@ public class PodcastKindTransferService(
         bool compensateParent,
         IReadOnlyList<Guid> writtenPlayableIds,
         TransferTarget<TParent, TPlayable> target)
-        where TParent : class
+        where TParent : Publisher
         where TPlayable : Playable
     {
         await Parallel.ForEachAsync(

@@ -14,10 +14,15 @@ public sealed class NewsOrganisation : Publisher, IHasYouTubeIndexingSettings
         ModelType = ModelType.NewsOrganisation;
     }
 
+    /// <summary>
+    /// Sets <see cref="Name"/> and a provisional, never-empty file key built from this constructor's own new
+    /// <c>Id</c>. Setting <c>Id</c> in an object initializer afterwards does not update the key, and the key is not
+    /// checked for uniqueness: code that saves a new item must set <c>FileKey</c> from <c>IFileKeyAllocator</c>.
+    /// </summary>
     public NewsOrganisation(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetNewsOrganisationFileKey(name);
+        FileKey = FileKeyFactory.GetNewsOrganisationFileKey(name, Id);
     }
 
     /// <summary>

@@ -12,10 +12,12 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
@@ -55,6 +57,8 @@ public class EpisodeTvShowMoveServiceRules
         shows
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns((Expression<Func<TvShow, bool>> selector) => _shows.Where(selector.Compile()).ToAsyncEnumerable());
+        TakenFileKeys<ITvShowRepository, TvShow>(() => _shows);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         shows
             .Setup(r => r.Save(It.IsAny<TvShow>()))
             .Callback<TvShow>(show =>
@@ -960,4 +964,53 @@ public class EpisodeTvShowMoveServiceRules
         byOldName.Status.Should().Be(EpisodeTvShowMoveStatus.Conflict);
         _savedTvEpisodes.Should().ContainSingle();
     }
+
+    [Fact(DisplayName =
+        "createShow with a Korean-only name stores a key built from the new show id (tvshow-id_…), never an empty or underscore key, because the public database refuses those.")]
+    public async Task create_show_with_non_latin_name_gets_id_key()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        const string name = "오늘의 뉴스";
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + FileKeyFactory.GetIdSlug(show.Id));
+    }
+
+    [Fact(DisplayName =
+        "createShow whose name slug is already held by another show's key (e.g. a renamed show that kept its key) gets a numbered key instead of a duplicate.")]
+    public async Task create_show_with_taken_key_gets_suffix()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var name = _fixture.CreateTitle();
+        var holder = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        holder.FileKey = new TvShow(name).FileKey;
+        _shows.Add(holder);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.FileKey.Should().Be(holder.FileKey + "_2");
+    }
+
+    private void TakenFileKeys<TRepository, TEntity>(Func<IEnumerable<TEntity>> store)
+        where TRepository : class, IFilterableRepository<TEntity>
+        where TEntity : class =>
+        _mocker.GetMock<TRepository>()
+            .Setup(r => r.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                store().Where(selector.Compile()).Select(projection.Compile()).ToAsyncEnumerable());
 }

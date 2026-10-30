@@ -6,6 +6,7 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Configuration;
@@ -99,6 +100,7 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsReportRepository>>();
                     return new NewsReportRepository(containerFactory.CreateNewsReportsContainer(), logger);
                 })
+                .AddSingleton<IFileKeyAllocator, FileKeyAllocator>()
                 .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

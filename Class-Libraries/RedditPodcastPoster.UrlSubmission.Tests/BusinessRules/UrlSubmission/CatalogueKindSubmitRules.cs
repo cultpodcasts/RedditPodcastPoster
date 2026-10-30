@@ -6,12 +6,14 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
@@ -95,7 +97,74 @@ public class CatalogueKindSubmitRules
             .Setup(x => x.Save(It.IsAny<NewsReport>()))
             .Callback<NewsReport>(_reports.Add)
             .Returns(Task.CompletedTask);
+        TakenFileKeys<IFilmRepository, Film>(_films);
+        TakenFileKeys<ITvShowRepository, TvShow>(_shows);
+        TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(_organisations);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
+
+    [Fact(DisplayName =
+        "A news submit whose outlet name is Korean-only creates the news organisation with a key built from its id (news-id_…), never news- or news-_.")]
+    public async Task non_latin_news_organisation_gets_id_key()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: "오늘의 뉴스");
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        var organisation = _organisations.Should().ContainSingle().Subject;
+        organisation.FileKey.Should().Be(
+            FileKeyFactory.NewsOrganisationPrefix + FileKeyFactory.GetIdSlug(organisation.Id));
+    }
+
+    [Fact(DisplayName =
+        "A series submit whose show name is Korean-only creates the TV show with a key built from its id (tvshow-id_…).")]
+    public async Task non_latin_tv_show_gets_id_key()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(Source(showName: "주간 이야기")), TvOptions());
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        var show = _shows.Should().ContainSingle().Subject;
+        show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + FileKeyFactory.GetIdSlug(show.Id));
+    }
+
+    [Fact(DisplayName =
+        "A film submit whose title is emoji-only creates the film with a key built from its id (film-id_…).")]
+    public async Task emoji_only_film_gets_id_key()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source() with { Title = "🎙️📻 ✨" };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), FilmOptions());
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        var film = _films.Should().ContainSingle().Subject;
+        film.FileKey.Should().Be(FileKeyFactory.FilmPrefix + FileKeyFactory.GetIdSlug(film.Id));
+    }
+
+    private void TakenFileKeys<TRepository, TEntity>(List<TEntity> store)
+        where TRepository : class, IFilterableRepository<TEntity> =>
+        _mocker.GetMock<TRepository>()
+            .Setup(x => x.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                Yield(store.Where(selector.Compile()).Select(projection.Compile())));
 
     [Fact(DisplayName =
         "When the submit content-type flag is off, a made-as-film signal does not write a Film " +

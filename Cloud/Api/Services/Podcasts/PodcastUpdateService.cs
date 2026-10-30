@@ -7,6 +7,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -22,6 +23,7 @@ public class PodcastUpdateService(
     IShortnerService shortnerService,
     PodcastChangeApplier podcastChangeApplier,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
+    IFileKeyAllocator fileKeyAllocator,
     IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
@@ -192,7 +194,10 @@ public class PodcastUpdateService(
         }
 
         podcast.Name = podcastName.Trim();
-        podcast.FileKey = FileKeyFactory.GetFileKey(podcast.Name);
+        // An edit with a name change re-keys the podcast, as it always has, but the key is never empty and never
+        // another podcast's: a name with no usable Latin slug keeps a usable current key (else gets an id key).
+        podcast.FileKey = await fileKeyAllocator.AllocateForRename(
+            FileKeyKind.Podcast, podcast.Name, podcast.Id, podcast.FileKey);
     }
 
     private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c, DomainPodcast podcast)

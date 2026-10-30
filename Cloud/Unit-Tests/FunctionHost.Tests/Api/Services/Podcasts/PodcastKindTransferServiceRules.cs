@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
@@ -11,11 +12,13 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -40,6 +43,7 @@ public class PodcastKindTransferServiceRules
     private bool _searchUploadSucceeds = true;
     private bool _searchDeleteSucceeds = true;
     private readonly List<Guid> _deletedTvShowIds = [];
+    private readonly List<NewsOrganisation> _existingOrganisations = [];
     private readonly List<(Guid ParentId, Guid PlayableId)> _deletedTvEpisodeIds = [];
     private readonly InMemoryParentKindTransferLockStore _locks = new();
     private DateTime _now;
@@ -127,6 +131,9 @@ public class PodcastKindTransferServiceRules
             .Callback<IReadOnlyList<Guid>, CancellationToken>((ids, _) => _deletedSearchIds = ids)
             .ReturnsAsync(() => _searchDeleteSucceeds);
         _mocker.GetMock<ILogger<PodcastKindTransferService>>();
+        TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(() => _existingOrganisations);
+        TakenFileKeys<ITvShowRepository, TvShow>(() => []);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 
     [Fact(DisplayName =
@@ -1344,5 +1351,199 @@ public class PodcastKindTransferServiceRules
         result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
         _locks.RenewAttempts.Should().BeInRange(1, 6);
         VerifyLogged(LogLevel.Warning, "Failed to renew", () => Times.Exactly(_locks.RenewAttempts));
+    }
+
+    [Theory(DisplayName =
+        "Transferring a Korean-named podcast to a news organisation keeps the podcast's own usable key (including a one-letter key such as x) behind the news- prefix, so a curator-set key survives the move.")]
+    [InlineData("synthetic_kr")]
+    [InlineData("x")]
+    public async Task transfer_non_latin_podcast_keeps_its_key(string podcastKey)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.Name = "오늘의 뉴스";
+        podcast.FileKey = podcastKey;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().Be(FileKeyFactory.NewsOrganisationPrefix + podcastKey);
+    }
+
+    [Theory(DisplayName =
+        "Transferring a Korean-named podcast whose key is empty or a placeholder (_, _10) to a news organisation stores news-id_… from the guid, never news-, news-_ or news-_10.")]
+    [InlineData("")]
+    [InlineData("_")]
+    [InlineData("_10")]
+    public async Task transfer_non_latin_podcast_with_empty_key_gets_id_key(string placeholderKey)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.Name = "오늘의 뉴스";
+        podcast.FileKey = placeholderKey;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().Be(
+            FileKeyFactory.NewsOrganisationPrefix + FileKeyFactory.GetIdSlug(podcast.Id));
+    }
+
+    [Fact(DisplayName =
+        "Transferring a podcast to a news organisation whose key another organisation already holds (any case) gives a numbered key instead of a duplicate.")]
+    public async Task transfer_with_taken_key_gets_suffix()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var expected = new NewsOrganisation(podcast.Name) { Id = podcast.Id }.FileKey;
+        var holder = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        holder.FileKey = expected.ToUpperInvariant();
+        _existingOrganisations.Add(holder);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().StartWith(FileKeyFactory.NewsOrganisationPrefix).And.EndWith("_2");
+    }
+
+    private void TakenFileKeys<TRepository, TEntity>(Func<IEnumerable<TEntity>> store)
+        where TRepository : class, IFilterableRepository<TEntity>
+        where TEntity : class =>
+        _mocker.GetMock<TRepository>()
+            .Setup(r => r.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                store().Where(selector.Compile()).Select(projection.Compile()).ToAsyncEnumerable());
+
+    [Theory(DisplayName =
+        "The destination parent's file key is allocated only while this request holds the transfer marker, and " +
+        "before the parent is saved, so the attempt that writes the parent is the one that chose its key.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task file_key_is_allocated_under_the_transfer_marker(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var allocatedKey = "synthetic-key-" + _fixture.CreateGuid().ToString("N")[..8];
+        var heldAtAllocation = new List<bool>();
+        var parentSavedBeforeAllocation = false;
+        // A separate mocker: the class mocker already holds the real allocator for the other rules.
+        var allocator = new AutoMocker().GetMock<IFileKeyAllocator>();
+        allocator
+            .Setup(a => a.Allocate(It.IsAny<FileKeyKind>(), It.IsAny<string>(), podcast.Id, It.IsAny<string?>()))
+            .Callback(() =>
+            {
+                heldAtAllocation.Add(_locks.IsHeld(podcast.Id));
+                parentSavedBeforeAllocation = _savedShow is not null || _savedOrganisation is not null;
+            })
+            .ReturnsAsync(allocatedKey);
+        _mocker.Use(allocator.Object);
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        heldAtAllocation.Should().Equal(true);
+        parentSavedBeforeAllocation.Should().BeFalse();
+        var expectedKind = kind == CatalogueParentKind.TvShow ? FileKeyKind.TvShow : FileKeyKind.NewsOrganisation;
+        allocator.Verify(a => a.Allocate(expectedKind, podcast.Name, podcast.Id, podcast.FileKey), Times.Once);
+        var savedKey = kind == CatalogueParentKind.TvShow ? _savedShow!.FileKey : _savedOrganisation!.FileKey;
+        savedKey.Should().Be(allocatedKey);
+        _locks.IsHeld(podcast.Id).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A transfer refused because another request holds a fresh marker never allocates a file key, so a refused " +
+        "request cannot race the running transfer for the parent's key.")]
+    public async Task refused_transfer_does_not_allocate_a_file_key()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter / 2);
+        // A separate mocker: the class mocker already holds the real allocator for the other rules.
+        var allocator = new AutoMocker().GetMock<IFileKeyAllocator>();
+        _mocker.Use(allocator.Object);
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.NewsOrganisation);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.AlreadyRunning);
+        allocator.Verify(
+            a => a.Allocate(It.IsAny<FileKeyKind>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<string?>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "A transfer that resumes after a stale marker allocates the existing destination parent's key again " +
+        "(the allocator ignores the parent's own id), so a resume never renumbers the key to _2.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task resumed_transfer_keeps_the_same_file_key(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        Publisher existing = kind == CatalogueParentKind.TvShow
+            ? new TvShow(podcast.Name) { Id = podcast.Id }
+            : new NewsOrganisation(podcast.Name) { Id = podcast.Id };
+        var existingKey = existing.FileKey;
+        if (existing is NewsOrganisation organisation)
+        {
+            _existingOrganisations.Add(organisation);
+            _mocker.GetMock<INewsOrganisationRepository>()
+                .Setup(r => r.GetNewsOrganisation(podcast.Id))
+                .ReturnsAsync(organisation);
+        }
+        else
+        {
+            var show = (TvShow)existing;
+            TakenFileKeys<ITvShowRepository, TvShow>(() => [show]);
+            _mocker.GetMock<ITvShowRepository>()
+                .Setup(r => r.GetTvShow(podcast.Id))
+                .ReturnsAsync(show);
+        }
+
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
+        _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter - TimeSpan.FromMinutes(1), kind);
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        var savedKey = kind == CatalogueParentKind.TvShow ? _savedShow!.FileKey : _savedOrganisation!.FileKey;
+        savedKey.Should().Be(existingKey);
     }
 }
