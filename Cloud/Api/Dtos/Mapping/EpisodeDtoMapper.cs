@@ -79,7 +79,7 @@ public class EpisodeDtoMapper(
             Matches = episode.Matches.ToDtos() ?? [],
             SearchTerms = episode.SearchTerms,
             HashTag = episode.HashTag,
-            YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
+            YouTubePodcast = podcast.HasYouTubeSource(),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
             ApplePodcast = podcast.AppleId != null,
             ReleaseAuthority = podcast.ReleaseAuthority.ToDto(),

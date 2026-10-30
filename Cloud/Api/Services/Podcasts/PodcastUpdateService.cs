@@ -11,6 +11,7 @@ using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlShortening.Services;
+using Api.Services.YouTube;
 
 namespace Api.Services.Podcasts;
 
@@ -23,6 +24,7 @@ public class PodcastUpdateService(
     PodcastChangeApplier podcastChangeApplier,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
     IFileKeyAllocator fileKeyAllocator,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
     public async Task<PodcastUpdateResult> UpdateAsync(
@@ -58,6 +60,20 @@ public class PodcastUpdateService(
 
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
+
+            if (await youTubePlaylistGuard.Check(
+                    podcast.YouTubePlaylistId,
+                    podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                    c) is { } refused)
+            {
+                logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                    podcastChangeRequestWrapper.PodcastId, refused.Code, refused.Message);
+                return new PodcastUpdateResult(
+                    refused.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: refused.Message,
+                    Code: refused.Code);
+            }
 
             var previousPodcastLanguage = podcast.Language;
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);

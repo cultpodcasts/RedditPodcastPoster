@@ -16,7 +16,7 @@ public static class PodcastEpisodeExtensions
                     podcastEpisode.Podcast.AppleId != null &&
                     EpisodeServicePresence.AppleEpisodeId(episode) != null &&
                     EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Apple) == null,
-                    !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
+                    podcastEpisode.Podcast.HasYouTubeSource() &&
                     !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) &&
                     EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube) == null);
     }

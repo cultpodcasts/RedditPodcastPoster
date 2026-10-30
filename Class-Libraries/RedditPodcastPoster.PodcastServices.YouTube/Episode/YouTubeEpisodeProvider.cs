@@ -202,7 +202,7 @@ public class YouTubeEpisodeProvider(
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(Podcast podcast, YouTubePlaylistId youTubePlaylistId,
-        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false,
+        IndexingContext indexingContext, bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null, IEnumerable<string>? knownIds = null)
     {
         var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
@@ -226,8 +226,7 @@ public class YouTubeEpisodeProvider(
                     : playlistQueryResponse.WalkOutcome);
         }
 
-        var built = await BuildPlaylistEpisodes(podcast, youTubeChannelId, indexingContext,
-            playlistQueryResponse.Result, knownIds);
+        var built = await BuildPlaylistEpisodes(podcast, indexingContext, playlistQueryResponse.Result, knownIds);
         return built with
         {
             IsExpensiveQuery = isExpensiveQuery,
@@ -241,7 +240,6 @@ public class YouTubeEpisodeProvider(
 
     public async Task<GetPlaylistEpisodesResponse> BuildPlaylistEpisodes(
         Podcast podcast,
-        YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext,
         IList<PlaylistItem> playlistItems,
         IEnumerable<string>? knownIds = null)
@@ -284,18 +282,21 @@ public class YouTubeEpisodeProvider(
             try
             {
                 var reducedResults = new List<EpisodeModel>();
-                foreach (var playlistItemVideo in results
-                             .Where(x => x.Snippet != null)
-                             .Where(x => x.Snippet.Title != "Deleted video")
-                             .Select(x =>
-                                 new PlaylistItemVideo(
-                                     x,
-                                     videoDetails.SingleOrDefault(videoDetail =>
-                                         videoDetail.Id == x.Snippet.ResourceId.VideoId)!
-                                 ))
-                             .Where(x => x.VideoDetails?.Snippet != null)
-                             .Where(x => youTubeChannelId == null ||
-                                         x.VideoDetails.Snippet.ChannelId == youTubeChannelId.ChannelId))
+                // The playlist alone decides which videos belong to the parent: every video in it is indexed, whichever
+                // channel uploaded it. The parent's youTubeChannelId is not used here (a playlist and a channel id are
+                // mutually exclusive for indexing). Fame Under Fire, Oct 2026: a BBC News Entertainment playlist on a
+                // parent whose channel id was BBC World Service had every video dropped by the old channel filter.
+                var candidates = results
+                    .Where(x => x.Snippet != null)
+                    .Where(x => x.Snippet.Title != "Deleted video")
+                    .Select(x =>
+                        new PlaylistItemVideo(
+                            x,
+                            videoDetails.SingleOrDefault(videoDetail =>
+                                videoDetail.Id == x.Snippet.ResourceId.VideoId)!
+                        ))
+                    .Where(x => x.VideoDetails?.Snippet != null);
+                foreach (var playlistItemVideo in candidates)
                 {
                     if (SkipMembersOnly(playlistItemVideo.VideoDetails))
                     {
@@ -314,8 +315,8 @@ public class YouTubeEpisodeProvider(
                                       !indexingContext.CancellationToken.IsCancellationRequested)
             {
                 logger.LogError(e,
-                    "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}'.",
-                    youTubeChannelId?.ChannelId);
+                    "Error getting playlist videos. podcast-id: '{podcastId}', youtube-playlist-id: '{youTubePlaylistId}'.",
+                    podcast.Id, podcast.YouTubePlaylistId);
             }
         }
 

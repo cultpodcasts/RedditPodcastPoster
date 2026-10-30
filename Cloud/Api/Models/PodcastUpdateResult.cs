@@ -5,7 +5,9 @@ public enum PodcastUpdateStatus
     Accepted,
     NotFound,
     Failed,
-    BadRequest
+    BadRequest,
+    /// <summary>A check against YouTube could not be made; nothing was saved and the request can be retried (503).</summary>
+    ServiceUnavailable
 }
 
 public record PodcastUpdateResult(
@@ -13,4 +15,5 @@ public record PodcastUpdateResult(
     Guid? PodcastId = null,
     bool FailureIndexingEpisodes = false,
     bool FailureDeletingFromIndex = false,
-    string? Error = null);
+    string? Error = null,
+    string? Code = null);
