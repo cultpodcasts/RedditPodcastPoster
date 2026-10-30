@@ -45,7 +45,6 @@ public class YouTubeEpisodeProviderPlaylistFetchFailureRules
         var response = await Sut.GetPlaylistEpisodes(
             podcast,
             new YouTubePlaylistId(playlistId),
-            new YouTubeChannelId(_fixture.CreateYouTubeChannelId()),
             indexingContext);
 
         // Assert

@@ -34,13 +34,14 @@ public class YouTubeEpisodeRetrievalHandler(
     {
         var handled = false;
         IList<EpisodeModel> newEpisodes = new List<EpisodeModel>();
-        if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        if (!podcast.HasYouTubeSource())
         {
-            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0, null);
+            LogDiscoveryPath(podcast, "skipped-no-youtube-source", indexingContext, 0, null);
             return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
         }
 
-        if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+        // A playlist is the parent's only YouTube source when set: the channel id is not used (and need not be set).
+        if (podcast.UsesYouTubePlaylist())
         {
             var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
             var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
@@ -86,7 +87,6 @@ public class YouTubeEpisodeRetrievalHandler(
             var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
                 podcast,
                 playlistId,
-                new YouTubeChannelId(podcast.YouTubeChannelId),
                 indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
                 knownPlaylistIds);
             if (getPlaylistEpisodesResult.Results != null)
@@ -149,8 +149,7 @@ public class YouTubeEpisodeRetrievalHandler(
         var built = check.Members.Count == 0
             ? new GetPlaylistEpisodesResponse([])
             : await youTubeEpisodeProvider.BuildPlaylistEpisodes(
-                podcast, new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, check.Members,
-                knownPlaylistIds);
+                podcast, indexingContext, check.Members, knownPlaylistIds);
         if (built.Results == null)
         {
             const string buildFailed = "build-failed";

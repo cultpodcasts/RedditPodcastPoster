@@ -73,7 +73,6 @@ public class YouTubeEpisodeProviderScheduledUploadRules
         var response = await Sut.GetPlaylistEpisodes(
             podcast,
             new YouTubePlaylistId(playlistId),
-            new YouTubeChannelId(channelId),
             indexingContext,
             playlistOrder: PlaylistOrder.Arbitrary);
 
@@ -123,7 +122,6 @@ public class YouTubeEpisodeProviderScheduledUploadRules
         var response = await Sut.GetPlaylistEpisodes(
             podcast,
             new YouTubePlaylistId(playlistId),
-            new YouTubeChannelId(channelId),
             indexingContext,
             playlistOrder: PlaylistOrder.Arbitrary);
 

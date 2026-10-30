@@ -416,10 +416,9 @@ public class YouTubePlaylistService(
             throw;
         }
 
-        if (playlistResponse == null || !playlistResponse.Items.Any())
+        if (playlistResponse?.Items == null || !playlistResponse.Items.Any())
         {
-            throw new InvalidOperationException(
-                $"Error obtaining playlist-snippet for playlist-id '{playlistId.PlaylistId}'. No result.");
+            throw new YouTubePlaylistNotFoundException(playlistId.PlaylistId);
         }
 
         if (playlistResponse.Items.Count > 1)
@@ -429,7 +428,7 @@ public class YouTubePlaylistService(
         }
 
         var snippet = playlistResponse.Items.First().Snippet;
-        return new GetPlaylistInfoResponse(snippet.Title, snippet.Description);
+        return new GetPlaylistInfoResponse(snippet.Title, snippet.Description, snippet.ChannelId, snippet.ChannelTitle);
     }
 
 }
