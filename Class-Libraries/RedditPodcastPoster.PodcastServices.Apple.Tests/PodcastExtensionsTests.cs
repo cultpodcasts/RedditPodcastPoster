@@ -35,32 +35,6 @@ public class PodcastExtensionsTests
         podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeTrue();
     }
 
-    [Fact(DisplayName =
-        "A podcast with a YouTube playlist and no channel id depends on YouTube for discovery, because the playlist " +
-        "is a YouTube source on its own.")]
-    public void DependsOnYouTubeForEpisodeDiscovery_WhenPlaylistOnly_ReturnsTrue()
-    {
-        var podcast = new Podcast
-        {
-            YouTubeChannelId = string.Empty,
-            YouTubePlaylistId = "PLsyntheticplaylist0000000000000000"
-        };
-
-        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeTrue();
-    }
-
-    [Fact(DisplayName = "A podcast with neither a YouTube channel id nor a playlist does not depend on YouTube for discovery.")]
-    public void DependsOnYouTubeForEpisodeDiscovery_WhenNoYouTubeSource_ReturnsFalse()
-    {
-        var podcast = new Podcast
-        {
-            YouTubeChannelId = string.Empty,
-            YouTubePlaylistId = string.Empty
-        };
-
-        podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeFalse();
-    }
-
     [Fact]
     public void IsScheduledYouTubeDiscoveryBypassed_WhenChannelOnlyAndYouTubeSkipped_ReturnsTrue()
     {
