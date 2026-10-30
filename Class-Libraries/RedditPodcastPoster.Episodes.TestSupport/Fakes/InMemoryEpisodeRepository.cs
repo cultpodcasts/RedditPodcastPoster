@@ -132,6 +132,26 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>Episode ids passed to each <see cref="DeleteForParentTransfer"/> call, in call order.</summary>
+    public List<IReadOnlyList<Guid>> ParentTransferDeletes { get; } = [];
+
+    public Task<int> DeleteForParentTransfer(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    {
+        ParentTransferDeletes.Add(episodes.Select(episode => episode.Id).ToList());
+        var deleted = 0;
+        foreach (var episode in episodes)
+        {
+            BeforeDelete?.Invoke(podcastId, episode.Id);
+            if (_episodes.TryGetValue(episode.Id, out var stored) && stored.PodcastId == podcastId)
+            {
+                _episodes.Remove(episode.Id);
+                deleted++;
+            }
+        }
+
+        return Task.FromResult(deleted);
+    }
+
     public Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
         var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();

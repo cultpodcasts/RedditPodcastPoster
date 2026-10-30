@@ -221,6 +221,52 @@ public class EpisodeRepository(
         }
     }
 
+    /// <summary>Concurrent point deletes per transfer; well inside the Cosmos SDK's connection pool.</summary>
+    public const int ParentTransferDeleteParallelism = 16;
+
+    public async Task<int> DeleteForParentTransfer(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    {
+        var deleted = 0;
+        var countedDeleted = 0;
+        try
+        {
+            await Parallel.ForEachAsync(
+                episodes,
+                new ParallelOptions { MaxDegreeOfParallelism = ParentTransferDeleteParallelism },
+                async (episode, _) =>
+                {
+                    if (episode.PodcastId != podcastId)
+                    {
+                        throw new InvalidOperationException(
+                            $"Episode '{episode.Id}' belongs to podcast '{episode.PodcastId}', not '{podcastId}'.");
+                    }
+
+                    try
+                    {
+                        await container.DeleteItemAsync<Episode>(episode.Id.ToString(), ToPartitionKey(podcastId));
+                    }
+                    catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        // Already gone (a resumed transfer): nothing to count.
+                        return;
+                    }
+
+                    Interlocked.Increment(ref deleted);
+                    if (IsCountedForHomepage(episode))
+                    {
+                        Interlocked.Increment(ref countedDeleted);
+                    }
+                });
+        }
+        finally
+        {
+            // One counter patch for the whole transfer, including the deletes that landed before a failure.
+            await lookupRepository.IncrementHomePageActiveEpisodeCount(-countedDeleted);
+        }
+
+        return deleted;
+    }
+
     public async Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests)
     {
         if (podcastId == Guid.Empty)

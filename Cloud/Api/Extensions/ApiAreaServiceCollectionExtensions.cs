@@ -93,7 +93,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IIndexPodcastHandler, IndexPodcastHandler>()
             .AddScoped<IRenamePodcastHandler, RenamePodcastHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
-            .AddScoped<ICataloguePlayableResolver, CataloguePlayableResolver>();
+            .AddScoped<ICataloguePlayableResolver, CataloguePlayableResolver>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services

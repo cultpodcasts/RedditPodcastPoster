@@ -8,7 +8,10 @@ public enum PodcastKindTransferStatus
     NotFound,
     Conflict,
     InvalidTarget,
-    Failed
+    Failed,
+
+    /// <summary>Another transfer of the same podcast holds the single-flight marker.</summary>
+    AlreadyRunning
 }
 
 public record PodcastKindTransferResult(

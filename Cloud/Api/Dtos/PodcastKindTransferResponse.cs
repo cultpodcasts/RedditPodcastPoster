@@ -16,4 +16,9 @@ public sealed class PodcastKindTransferResponse
 
     [JsonPropertyName("failureIndexingPlayables")]
     public bool FailureIndexingPlayables { get; init; }
+
+    /// <summary>Set on a 409 when another transfer of this podcast is still running.</summary>
+    [JsonPropertyName("transferInProgress")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool TransferInProgress { get; init; }
 }

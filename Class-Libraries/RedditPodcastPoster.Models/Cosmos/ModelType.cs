@@ -80,5 +80,8 @@ public enum ModelType
     YouTubeThumbnailRecheckCursor = 25,
 
     [JsonPropertyName(nameof(FilmSearchPushWatermark))]
-    FilmSearchPushWatermark = 26
+    FilmSearchPushWatermark = 26,
+
+    [JsonPropertyName(nameof(ParentKindTransferLock))]
+    ParentKindTransferLock = 27
 }

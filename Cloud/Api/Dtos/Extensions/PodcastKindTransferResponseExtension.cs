@@ -10,6 +10,7 @@ public static class PodcastKindTransferResponseExtension
             ParentId = result.ParentId,
             TargetKind = result.TargetKind,
             PlayableCount = result.PlayableCount,
-            FailureIndexingPlayables = result.FailureIndexingPlayables
+            FailureIndexingPlayables = result.FailureIndexingPlayables,
+            TransferInProgress = result.Status == PodcastKindTransferStatus.AlreadyRunning
         };
 }

@@ -19,15 +19,27 @@ public class PlayableSearchDocumentSwap(
     SearchClient searchClient,
     ILogger<PlayableSearchDocumentSwap> logger) : IPlayableSearchDocumentSwap
 {
+    /// <summary>
+    /// Azure AI Search accepts at most 1000 documents per indexing request, and a whole podcast transfer can exceed
+    /// that, so documents go in batches of this size. A failed batch does not stop the rest.
+    /// </summary>
+    public const int MaxDocumentsPerBatch = 500;
+
     public async Task<bool> UploadAsync(
         IReadOnlyList<EpisodeSearchRecord> documents,
         CancellationToken cancellationToken)
     {
-        if (documents.Count == 0)
+        var allSucceeded = true;
+        foreach (var batch in documents.Chunk(MaxDocumentsPerBatch))
         {
-            return true;
+            allSucceeded &= await UploadBatch(batch, cancellationToken);
         }
 
+        return allSucceeded;
+    }
+
+    private async Task<bool> UploadBatch(EpisodeSearchRecord[] documents, CancellationToken cancellationToken)
+    {
         try
         {
             var result = await searchClient.MergeOrUploadDocumentsAsync(
@@ -47,18 +59,25 @@ public class PlayableSearchDocumentSwap(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to swap search documents after catalogue kind migrate.");
+            logger.LogError(ex, "Failed to swap {Count} search documents after catalogue kind migrate.",
+                documents.Length);
             return false;
         }
     }
 
     public async Task<bool> DeleteAsync(IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
     {
-        if (ids.Count == 0)
+        var allSucceeded = true;
+        foreach (var batch in ids.Chunk(MaxDocumentsPerBatch))
         {
-            return true;
+            allSucceeded &= await DeleteBatch(batch, cancellationToken);
         }
 
+        return allSucceeded;
+    }
+
+    private async Task<bool> DeleteBatch(Guid[] ids, CancellationToken cancellationToken)
+    {
         try
         {
             var result = await searchClient.DeleteDocumentsAsync(
@@ -79,7 +98,7 @@ public class PlayableSearchDocumentSwap(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to delete {Count} search documents.", ids.Count);
+            logger.LogError(ex, "Failed to delete {Count} search documents.", ids.Length);
             return false;
         }
     }

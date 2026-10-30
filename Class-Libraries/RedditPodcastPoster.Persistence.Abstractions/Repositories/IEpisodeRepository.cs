@@ -22,6 +22,16 @@ public interface IEpisodeRepository : IRepository<Episode>, IFilterableRepositor
     Task Delete(Guid podcastId, Guid episodeId);
 
     /// <summary>
+    /// Bulk delete for a podcast kind transfer, which deletes the podcast itself afterwards. Deletes run with
+    /// bounded parallelism; a missing episode is skipped (so a resumed transfer is safe). Unlike
+    /// <see cref="Delete"/>, it does not read each episode first and does not recompute the podcast's latest
+    /// release (the podcast is about to go), and it adjusts the home page episode count once, by the number of
+    /// deleted episodes that were counted (from the <paramref name="episodes"/> snapshot).
+    /// </summary>
+    /// <returns>The number of episodes actually deleted.</returns>
+    Task<int> DeleteForParentTransfer(Guid podcastId, IReadOnlyCollection<Episode> episodes);
+
+    /// <summary>
     /// Surgical Cosmos patch of <c>/guests</c> only. Does not touch handle fields or other properties.
     /// </summary>
     Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests);

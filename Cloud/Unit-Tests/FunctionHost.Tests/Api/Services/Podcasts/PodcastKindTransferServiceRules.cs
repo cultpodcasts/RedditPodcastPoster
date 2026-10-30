@@ -38,9 +38,16 @@ public class PodcastKindTransferServiceRules
     private bool _searchDeleteSucceeds = true;
     private readonly List<Guid> _deletedTvShowIds = [];
     private readonly List<(Guid ParentId, Guid PlayableId)> _deletedTvEpisodeIds = [];
+    private readonly InMemoryParentKindTransferLockStore _locks = new();
+    private readonly DateTime _now;
 
     public PodcastKindTransferServiceRules()
     {
+        _now = _fixture.Create<DateTime>().ToUniversalTime();
+        _mocker.Use<IParentKindTransferLockStore>(_locks);
+        _mocker.GetMock<TimeProvider>()
+            .Setup(t => t.GetUtcNow())
+            .Returns(() => new DateTimeOffset(_now, TimeSpan.Zero));
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.GetMock<ITvShowRepository>()
@@ -58,13 +65,22 @@ public class PodcastKindTransferServiceRules
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
             .Callback<TvShowEpisode>(episode =>
             {
-                _savedTvEpisode = episode;
-                _savedTvEpisodes.Add(episode);
+                lock (_savedTvEpisodes)
+                {
+                    _savedTvEpisode = episode;
+                    _savedTvEpisodes.Add(episode);
+                }
             })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
-            .Callback<Guid, Guid>((parentId, playableId) => _deletedTvEpisodeIds.Add((parentId, playableId)))
+            .Callback<Guid, Guid>((parentId, playableId) =>
+            {
+                lock (_deletedTvEpisodeIds)
+                {
+                    _deletedTvEpisodeIds.Add((parentId, playableId));
+                }
+            })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<INewsOrganisationRepository>()
             .Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
@@ -80,8 +96,11 @@ public class PodcastKindTransferServiceRules
             .Setup(r => r.Save(It.IsAny<NewsReport>()))
             .Callback<NewsReport>(report =>
             {
-                _savedReport = report;
-                _savedReports.Add(report);
+                lock (_savedReports)
+                {
+                    _savedReport = report;
+                    _savedReports.Add(report);
+                }
             })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<INewsReportRepository>()
@@ -391,8 +410,7 @@ public class PodcastKindTransferServiceRules
             .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
             .Returns<TvShowEpisode>(playable =>
             {
-                playableSaves++;
-                if (playableSaves > 1)
+                if (Interlocked.Increment(ref playableSaves) > 1)
                 {
                     return Task.FromException(new InvalidOperationException(_fixture.Create<string>()));
                 }
@@ -607,5 +625,335 @@ public class PodcastKindTransferServiceRules
 
         // Assert
         result.Status.Should().Be(PodcastKindTransferStatus.NotFound);
+    }
+
+    private Task<PodcastKindTransferResult> Transfer(
+        Guid podcastId,
+        CatalogueParentKind kind,
+        CancellationToken cancellationToken = default) =>
+        _mocker.CreateInstance<PodcastKindTransferService>().TransferAsync(
+            podcastId,
+            new PodcastKindTransferRequest { TargetKind = kind },
+            cancellationToken);
+
+    private void ArrangeExistingDestParent(CatalogueParentKind kind, Podcast podcast)
+    {
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _mocker.GetMock<ITvShowRepository>()
+                .Setup(r => r.GetTvShow(podcast.Id))
+                .ReturnsAsync(new TvShow(podcast.Name) { Id = podcast.Id });
+        }
+        else
+        {
+            _mocker.GetMock<INewsOrganisationRepository>()
+                .Setup(r => r.GetNewsOrganisation(podcast.Id))
+                .ReturnsAsync(new NewsOrganisation(podcast.Name) { Id = podcast.Id });
+        }
+    }
+
+    private void ArrangeDestParentReadsBackWhatWasSaved()
+    {
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(It.IsAny<Guid>()))
+            .ReturnsAsync(() => _savedShow);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
+            .ReturnsAsync(() => _savedOrganisation);
+    }
+
+    private IReadOnlyList<Guid> SavedPlayableIds(CatalogueParentKind kind)
+    {
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            lock (_savedTvEpisodes)
+            {
+                return _savedTvEpisodes.Select(item => item.Id).ToList();
+            }
+        }
+
+        lock (_savedReports)
+        {
+            return _savedReports.Select(item => item.Id).ToList();
+        }
+    }
+
+    [Theory(DisplayName =
+        "While a transfer of a podcast is running, a second transfer request for the same podcast returns " +
+        "AlreadyRunning and writes nothing, and the first still completes, because two concurrent transfers of one " +
+        "podcast raced each other in production.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task concurrent_request_is_already_running(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var parentSaveEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseParentSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var parentSaves = 0;
+        async Task GatedParentSave()
+        {
+            Interlocked.Increment(ref parentSaves);
+            parentSaveEntered.TrySetResult();
+            await releaseParentSave.Task;
+        }
+
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.Save(It.IsAny<TvShow>()))
+            .Returns(GatedParentSave);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
+            .Returns(GatedParentSave);
+
+        // Act
+        var first = Transfer(podcast.Id, kind);
+        await parentSaveEntered.Task;
+        var second = await Transfer(podcast.Id, kind);
+        releaseParentSave.SetResult();
+        var firstResult = await first;
+
+        // Assert
+        second.Status.Should().Be(PodcastKindTransferStatus.AlreadyRunning);
+        second.ParentId.Should().Be(podcast.Id);
+        second.TargetKind.Should().Be(kind);
+        parentSaves.Should().Be(1);
+        firstResult.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        _locks.IsHeld(podcast.Id).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A fresh transfer marker left by another request makes the transfer return AlreadyRunning without reading " +
+        "or writing catalogue rows, and the refused request leaves that marker in place.")]
+    public async Task fresh_marker_is_already_running_and_writes_nothing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter / 2);
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.NewsOrganisation);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.AlreadyRunning);
+        _savedOrganisation.Should().BeNull();
+        _savedReports.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+        _locks.IsHeld(podcast.Id).Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "A stale transfer marker (a transfer that died part way) is taken over and the transfer resumes: the " +
+        "existing destination parent is reused, the remaining source episodes move, and the podcast is deleted, " +
+        "because the earlier attempt had already moved and deleted some episodes.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task stale_marker_resumes_partial_transfer(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var remainingFirst = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var remainingSecond = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(remainingFirst, remainingSecond);
+        ArrangeExistingDestParent(kind, podcast);
+        _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter - TimeSpan.FromMinutes(1));
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        result.PlayableCount.Should().Be(2);
+        SavedPlayableIds(kind).Should().BeEquivalentTo([remainingFirst.Id, remainingSecond.Id]);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, remainingFirst.Id)).Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, remainingSecond.Id)).Should().BeNull();
+        _locks.IsHeld(podcast.Id).Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "When deleting the source episodes fails part way, the podcast row stays and the marker is released, so " +
+        "a retry resumes and completes the transfer with every source row gone, because the podcast is deleted last.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task retry_after_partial_source_delete_completes(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var first = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var second = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var third = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(first, second, third);
+        ArrangeDestParentReadsBackWhatWasSaved();
+        _episodes.BeforeDelete = (_, episodeId) =>
+        {
+            if (episodeId == second.Id)
+            {
+                throw new InvalidOperationException(_fixture.Create<string>());
+            }
+        };
+
+        // Act
+        var failed = await Transfer(podcast.Id, kind);
+        var podcastAfterFailure = await _podcasts.GetPodcast(podcast.Id);
+        var markerAfterFailure = _locks.IsHeld(podcast.Id);
+        _episodes.BeforeDelete = null;
+        var retried = await Transfer(podcast.Id, kind);
+
+        // Assert
+        failed.Status.Should().Be(PodcastKindTransferStatus.Failed);
+        podcastAfterFailure.Should().NotBeNull();
+        markerAfterFailure.Should().BeFalse();
+        retried.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        retried.ParentId.Should().Be(podcast.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        foreach (var episode in new[] { first, second, third })
+        {
+            (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        }
+
+        SavedPlayableIds(kind).Distinct().Should().BeEquivalentTo([first.Id, second.Id, third.Id]);
+    }
+
+    [Fact(DisplayName =
+        "When a resumed transfer fails writing playables, the destination parent an earlier attempt wrote is not " +
+        "deleted, because its already-moved playables would be orphaned.")]
+    public async Task resumed_dest_write_failure_keeps_existing_parent()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        ArrangeExistingDestParent(CatalogueParentKind.TvShow, podcast);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Failed);
+        _deletedTvShowIds.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        _locks.IsHeld(podcast.Id).Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "Source episodes are deleted in one bulk call (no per-episode read, latest-release recompute or counter " +
+        "patch) while the podcast row still exists, and the podcast row is deleted after them.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task source_rows_deleted_in_bulk_then_podcast_last(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episodes = Enumerable.Range(0, 3)
+            .Select(_ => _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast))
+            .ToArray();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episodes);
+        var podcastPresentAtEachEpisodeDelete = new List<bool>();
+        _episodes.BeforeDelete = (podcastId, _) =>
+            podcastPresentAtEachEpisodeDelete.Add(_podcasts.GetPodcast(podcastId).GetAwaiter().GetResult() is not null);
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _episodes.ParentTransferDeletes.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(episodes.Select(episode => episode.Id));
+        podcastPresentAtEachEpisodeDelete.Should().HaveCount(3).And.OnlyContain(present => present);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Once the transfer starts writing, a cancelled caller token does not stop it: the transfer completes, the " +
+        "search swap runs with a token that cannot be cancelled, and the source rows are deleted, because a dropped " +
+        "browser connection must not leave a half-moved podcast.")]
+    public async Task write_phase_ignores_caller_cancellation()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        using var caller = new CancellationTokenSource();
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.Save(It.IsAny<TvShow>()))
+            .Callback<TvShow>(show =>
+            {
+                _savedShow = show;
+                caller.Cancel();
+            })
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow, caller.Token);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedTvEpisode!.Id.Should().Be(episode.Id);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(s => s.UploadAsync(
+            It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(),
+            It.Is<CancellationToken>(token => !token.CanBeCanceled)), Times.Once);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Destination playables are written with bounded parallelism (more than one, at most " +
+        "PlayableWriteParallelism at once), so a large transfer takes a fraction of the sequential write time.")]
+    public async Task playable_writes_are_parallel_and_bounded()
+    {
+        // Arrange
+        const int episodeCount = 64;
+        var writeLatency = TimeSpan.FromMilliseconds(20);
+        var podcast = _fixture.CreatePodcast();
+        var episodes = Enumerable.Range(0, episodeCount)
+            .Select(_ => _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast))
+            .ToArray();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episodes);
+        var inFlight = 0;
+        var maxInFlight = 0;
+        var written = 0;
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.Save(It.IsAny<NewsReport>()))
+            .Returns(async () =>
+            {
+                var now = Interlocked.Increment(ref inFlight);
+                int seen;
+                do
+                {
+                    seen = maxInFlight;
+                } while (now > seen && Interlocked.CompareExchange(ref maxInFlight, now, seen) != seen);
+
+                await Task.Delay(writeLatency);
+                Interlocked.Decrement(ref inFlight);
+                Interlocked.Increment(ref written);
+            });
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.NewsOrganisation);
+        stopwatch.Stop();
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        written.Should().Be(episodeCount);
+        maxInFlight.Should().BeGreaterThan(1).And.BeLessThanOrEqualTo(PodcastKindTransferService.PlayableWriteParallelism);
+        stopwatch.Elapsed.Should().BeLessThan(writeLatency * episodeCount / 2);
     }
 }

@@ -110,6 +110,10 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .AddSingleton<IYouTubeThumbnailRecheckCursorStore, YouTubeThumbnailRecheckCursorStore>()
+                .AddSingleton<IParentKindTransferLockStore>(s =>
+                    new ParentKindTransferLockStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferLockStore>>()))
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
