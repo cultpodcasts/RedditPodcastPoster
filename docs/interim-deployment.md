@@ -15,7 +15,7 @@ Use this guide when [`.github/workflows/deploy.yml`](../.github/workflows/deploy
 | Telemetry / sampling settings | `jobHostLogging`, `logging`, `memoryProbe` in `functions.bicep` | [`apply-telemetry-app-settings.ps1`](../scripts/apply-telemetry-app-settings.ps1) | **Exception:** patches app settings when bicep is not deploying |
 | `api-deploy` / `discover-deploy` / `indexer-deploy` | Flex blob package | [`deploy-api.ps1`](../scripts/deploy-api.ps1), [`deploy-discover.ps1`](../scripts/deploy-discover.ps1), [`deploy-indexer.ps1`](../scripts/deploy-indexer.ps1) | Code-only; no app settings |
 | Console tools (not in CI) | — | [`publish-console-apps.ps1`](../scripts/publish-console-apps.ps1) | Local Windows executables |
-| Discovery ML model upload (not in CI) | `discovery-models` container | [`upload-discovery-model.ps1`](../scripts/upload-discovery-model.ps1) | After training; requires container |
+| Discovery ML model upload (not in CI) | `discovery-models` container | [`upload-discovery-model.ps1`](../scripts/upload-discovery-model.ps1) | After Discover is on a build that understands the bundle <!-- pragma: allowlist secret --> |
 
 Shared internals: [`deploy-function-local.ps1`](../scripts/deploy-function-local.ps1), [`Resolve-DeploySettings.ps1`](../scripts/Resolve-DeploySettings.ps1), [`AzureWebAppDeploy.ps1`](../scripts/AzureWebAppDeploy.ps1).
 
@@ -30,7 +30,7 @@ az login
 # 2. Code deploy (pick one or all)
 .\scripts\deploy-discover.ps1
 
-# 3. Discovery scorer model (after training, if using ML auto-hide)
+# 3. Discovery scorer model (after Discover is on a compatible build, if using ML auto-hide) <!-- pragma: allowlist secret -->
 .\scripts\upload-discovery-model.ps1 -ModelDirectory "C:\path\to\analysis\model"
 .\scripts\apply-discover-scorer-settings.ps1
 
@@ -110,10 +110,11 @@ Build artifacts (gitignored): `scripts/.deploy-local/`, `artifacts/tools/`, `art
 
 1. `provision-storage-containers.ps1` — ensures `discovery-models` exists  
 2. Train model locally (`DiscoveryTrainingTrain`) and read `training-metrics.txt`  
-3. `upload-discovery-model.ps1` — copies the live bundle to `archive/<live ModelVersion>/`, then uploads to `current/` (`-SkipArchive` skips the copy)  
-4. Ensure `discover__scorer__*` app settings exist on `discover-infra` (bicep deploy or [`apply-discover-scorer-settings.ps1`](../scripts/apply-discover-scorer-settings.ps1))  
-5. `deploy-discover.ps1` — deploy code that reads model from blob  
-6. Confirm logs on next run: model sync (logs `ModelVersion`) + auto-hide messages  
+3. **Feature-version bump:** `deploy-discover.ps1`, then wait until running instances are on that build, then `upload-discovery-model.ps1`. Uploading a version-2 bundle before that binary is live makes cold workers score it with version-1 features and the settings threshold (wrong probabilities and hide behaviour).   <!-- pragma: allowlist secret -->
+4. **First-time enablement** on code that already matches the bundle: `upload-discovery-model.ps1`, then ensure `discover__scorer__*` exists on `discover-infra` (bicep deploy or [`apply-discover-scorer-settings.ps1`](../scripts/apply-discover-scorer-settings.ps1)). Do not use this order for a feature-version bump.   <!-- pragma: allowlist secret -->
+5. Confirm logs on next run: model sync (logs `ModelVersion`) + auto-hide messages  
+
+`upload-discovery-model.ps1` copies the live bundle to `archive/<live ModelVersion>/`, waits until each server-side copy succeeds, then uploads `current/` (`-SkipArchive` skips the copy; `-WhatIf` does not upload). `show-accept-rates.csv` is required for a feature-version-2 bundle. A failed live-manifest check or a failed upload stops the script before it can leave a half-written `current/`. <!-- pragma: allowlist secret -->
 
 Discover syncs the bundle once per process, so a new model takes effect on the next cold start. To roll back, copy `archive/<ModelVersion>/*` back over `current/` and restart `discover-infra`.  
 

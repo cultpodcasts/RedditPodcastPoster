@@ -577,7 +577,7 @@ FilmSearchPusher --full      # push all films and remove orphaned film documents
 | `--include-hidden-rejects` | Also train on rejected results the scorer auto-hid (excluded by default: no curator saw them) |
 | `--skip-download` | Skip ONNX download if files exist |
 
-Rows are split by discovery time: train 70%, calibration 10%, test 20%. Show accept rates are computed point-in-time from earlier runs only and smoothed toward the training accept rate. The LightGBM score is Platt-calibrated, so `acceptProbability` estimates the real accept rate. Output: model zip, manifest (feature version 2, `ModelVersion` like `2.20261023T2130Z`, chosen threshold), `show-accept-rates.csv` and `training-metrics.txt` (precision and recall by threshold, plus shows with no history). Export a fresh CSV first: it needs the `episodeDescription` and `autoHidden` columns.
+Rows are split by discovery run (a whole run stays in one slice): train 70%, calibration 10%, test 20%. Show accept rates are computed point-in-time from earlier runs only and smoothed toward the training accept rate. The LightGBM score is Platt-calibrated, so `acceptProbability` estimates the real accept rate. Output: model zip, manifest (feature version 2, `ModelVersion` like `2.20261023T2130Z`, chosen threshold), `show-accept-rates.csv` and `training-metrics.txt` (precision and recall by threshold, plus shows with no history). Export a fresh CSV first: it needs the `episodeDescription` and `autoHidden` columns. <!-- pragma: allowlist secret -->
 
 ---
 

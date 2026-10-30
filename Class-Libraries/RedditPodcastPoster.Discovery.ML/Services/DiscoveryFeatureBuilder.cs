@@ -7,18 +7,8 @@ public static class DiscoveryFeatureBuilder
 {
     public const int EmbeddingDimensions = 384;
 
-    public static string BuildEmbeddingText(DiscoveryResult result)
-    {
-        var show = result.ShowName?.Trim() ?? string.Empty;
-        var episode = result.EpisodeName?.Trim() ?? string.Empty;
-        var description = result.Description?.Trim();
-        if (string.IsNullOrWhiteSpace(description))
-        {
-            description = result.ShowDescription?.Trim() ?? string.Empty;
-        }
-
-        return $"{show}\n{episode}\n{description}";
-    }
+    public static string BuildEmbeddingText(DiscoveryResult result) => // pragma: allowlist secret
+        BuildEmbeddingText(result.ShowName, result.EpisodeName, result.Description, result.ShowDescription);
 
     public static string BuildEmbeddingText(string? showName, string? episodeName, string? description, string? showDescription)
     {

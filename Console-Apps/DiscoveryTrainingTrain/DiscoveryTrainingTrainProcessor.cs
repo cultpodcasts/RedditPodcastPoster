@@ -34,18 +34,17 @@ public class DiscoveryTrainingTrainProcessor
         var labeled = TrainingCsvReader.ReadLabeledRows(csvPath)
             .OrderBy(x => x.DiscoveryBegan)
             .ToList();
-        var rows = request.IncludeHiddenRejects
-            ? labeled
-            : labeled.Where(TrainingCsvReader.IsCuratorLabel).ToList();
-        if (request.MaxRows is > 0)
-        {
-            rows = rows.Take(request.MaxRows.Value).ToList();
-        }
+        var selected = TrainingCsvReader.SelectForTraining(labeled, request.IncludeHiddenRejects, request.MaxRows);
+        var rows = selected.Rows;
+        var truncation = request.MaxRows is > 0
+            ? $"; truncated {selected.Truncated:N0} rows to --max-rows {request.MaxRows.Value}"
+            : string.Empty;
 
         var withDescription = rows.Count(x => !string.IsNullOrWhiteSpace(x.Description));
         Console.WriteLine(
-            $"Loaded {labeled.Count:N0} labeled rows; skipped {labeled.Count - rows.Count:N0} auto-hidden rejects never shown to a curator" +
-            (request.IncludeHiddenRejects ? " (none: --include-hidden-rejects)" : string.Empty) + ".");
+            $"Loaded {labeled.Count:N0} labeled rows; skipped {selected.AutoHiddenSkips:N0} auto-hidden rejects never shown to a curator" +
+            (request.IncludeHiddenRejects ? " (none: --include-hidden-rejects)" : string.Empty) +
+            truncation + ".");
         if (withDescription == 0)
         {
             Console.WriteLine(

@@ -21,9 +21,11 @@ public sealed record DiscoveryAcceptTrainOptions
 }
 
 /// <summary>
-/// Trains the discovery accept model. Rows are split by time (train 70%, calibration 10%, test 20%) so
-/// evaluation always predicts later runs from earlier ones. The LightGBM score is Platt-calibrated on the
-/// calibration slice, which is not reweighted, so <c>acceptProbability</c> estimates the real accept rate.
+/// Trains the discovery accept model. Whole discovery runs (the same <c>DiscoveryBegan</c>) go to train, // pragma: allowlist secret
+/// calibration, or test — about 70% / 10% / 20% of rows — so evaluation always predicts later runs from
+/// earlier ones. A run that crosses a cut stays in the earlier slice. The LightGBM score is Platt-calibrated
+/// on the calibration slice, which is not reweighted, so <c>acceptProbability</c> estimates the real accept rate.
+/// The caller's examples are not modified.
 /// </summary>
 public sealed class DiscoveryAcceptModelTrainer
 {
@@ -48,13 +50,24 @@ public sealed class DiscoveryAcceptModelTrainer
         }
 
         Directory.CreateDirectory(outputDirectory);
-        var ordered = examples.OrderBy(x => x.DiscoveryBegan).ToList();
-        var trainEnd = (int)(ordered.Count * TrainShare);
-        var calibrationEnd = (int)(ordered.Count * (TrainShare + CalibrationShare));
-        var trainRows = ordered.Take(trainEnd).ToList();
-        var calibrationRows = ordered.Skip(trainEnd).Take(calibrationEnd - trainEnd).ToList();
-        var testRows = ordered.Skip(calibrationEnd).ToList();
+        var split = SplitByDiscoveryRun(examples.Select(CopyForTraining).ToList()); // pragma: allowlist secret
+        var trainRows = split.Train.ToList();
+        var calibrationRows = split.Calibration.ToList();
+        var testRows = split.Test.ToList();
+        if (trainRows.Count == 0 || calibrationRows.Count == 0 || testRows.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Splitting by discovery run left a slice empty (train {trainRows.Count:N0}, calibration {calibrationRows.Count:N0}, test {testRows.Count:N0}). " + // pragma: allowlist secret
+                "Train, calibration, and test each need at least one whole discovery run."); // pragma: allowlist secret
+        }
 
+        if (options.FixedThreshold == null && !calibrationRows.Any(x => x.Label))
+        {
+            throw new InvalidOperationException(
+                "The calibration slice has no accepted rows, so it cannot choose a hide threshold. Pass --threshold to set one.");
+        }
+
+        var ordered = trainRows.Concat(calibrationRows).Concat(testRows).ToList();
         var prior = (float)trainRows.Count(x => x.Label) / trainRows.Count;
         var smoothing = new ShowAcceptSmoothing(prior, options.ShowRatePriorWeight, ShowAcceptSmoothing.DefaultSeenCountCap);
         var showFeatures = ShowAcceptHistory.PointInTime(
@@ -158,6 +171,60 @@ public sealed class DiscoveryAcceptModelTrainer
         return new DiscoveryAcceptTrainResult(modelPath, manifestPath, metricsPath, showRatesPath, metrics, manifest);
     }
 
+    /// <summary>
+    /// Puts each discovery run entirely into train, calibration, or test. Runs are ordered by // pragma: allowlist secret
+    /// <see cref="DiscoveryTrainingExample.DiscoveryBegan"/>. While train is still short of // pragma: allowlist secret
+    /// <see cref="TrainShare"/> of the rows, the next run joins train; then the same for calibration
+    /// (<see cref="CalibrationShare"/>); the rest is test. A run that crosses a cut stays in the earlier
+    /// slice, so calibration and test never contain rows from a run the model trained on.
+    /// </summary>
+    public static DiscoveryRunSplit SplitByDiscoveryRun(IReadOnlyList<DiscoveryTrainingExample> examples) // pragma: allowlist secret
+    {
+        var ordered = examples.OrderBy(x => x.DiscoveryBegan).ToList(); // pragma: allowlist secret
+        var trainTarget = (int)(ordered.Count * TrainShare);
+        var calibrationTarget = (int)(ordered.Count * CalibrationShare);
+        var train = new List<DiscoveryTrainingExample>(); // pragma: allowlist secret
+        var calibration = new List<DiscoveryTrainingExample>(); // pragma: allowlist secret
+        var test = new List<DiscoveryTrainingExample>(); // pragma: allowlist secret
+
+        foreach (var run in ordered.GroupBy(x => x.DiscoveryBegan)) // pragma: allowlist secret
+        {
+            var rows = run.ToList();
+            if (train.Count < trainTarget)
+            {
+                train.AddRange(rows);
+            }
+            else if (calibration.Count < calibrationTarget)
+            {
+                calibration.AddRange(rows);
+            }
+            else
+            {
+                test.AddRange(rows);
+            }
+        }
+
+        return new DiscoveryRunSplit(train, calibration, test); // pragma: allowlist secret
+    }
+
+    private static DiscoveryTrainingExample CopyForTraining(DiscoveryTrainingExample source) => // pragma: allowlist secret
+        new()
+        {
+            DiscoveryBegan = source.DiscoveryBegan, // pragma: allowlist secret
+            ShowName = source.ShowName,
+            Label = source.Label,
+            Embedding = source.Embedding.ToArray(),
+            HasMatchingPodcast = source.HasMatchingPodcast,
+            SubjectCount = source.SubjectCount,
+            SourceListenNotes = source.SourceListenNotes, // pragma: allowlist secret
+            SourceSpotify = source.SourceSpotify,
+            SourceYouTube = source.SourceYouTube,
+            SourceTaddy = source.SourceTaddy,
+            ShowAcceptRate = source.ShowAcceptRate,
+            ShowSeenCount = source.ShowSeenCount,
+            ExampleWeight = 1f
+        };
+
     private static List<ScoredLabel> Scored(MLContext mlContext, IDataView predictions) =>
         mlContext.Data.CreateEnumerable<ThresholdEvaluationRow>(predictions, reuseRowObject: false)
             .Select(x => new ScoredLabel(x.Probability, x.Label))
@@ -175,7 +242,7 @@ public sealed class DiscoveryAcceptModelTrainer
             .AppendLine("Discovery accept/reject model training metrics")
             .AppendLine($"Model version: {manifest.ModelVersion} (feature version {manifest.FeatureVersion})")
             .AppendLine($"Labels from {manifest.LabelsFrom:yyyy-MM-dd} to {manifest.LabelsTo:yyyy-MM-dd}")
-            .AppendLine($"Rows: train {manifest.TrainingRows:N0}, calibration {manifest.CalibrationRows:N0}, test {manifest.TestRows:N0} (split by discovery time)")
+            .AppendLine($"Rows: train {manifest.TrainingRows:N0}, calibration {manifest.CalibrationRows:N0}, test {manifest.TestRows:N0} (split by discovery run)") // pragma: allowlist secret
             .AppendLine($"Train accept rate (show-rate prior): {manifest.ShowRatePrior:P2}")
             .AppendLine($"Test accepted: {testAccepted:N0} of {testScored.Count:N0} ({Ratio(testAccepted, testScored.Count):P2})")
             .AppendLine($"AUC: {metrics.AreaUnderRocCurve:F4}")
@@ -214,6 +281,11 @@ public sealed class DiscoveryAcceptModelTrainer
         public float Probability { get; set; }
     }
 }
+
+public readonly record struct DiscoveryRunSplit( // pragma: allowlist secret
+    IReadOnlyList<DiscoveryTrainingExample> Train, // pragma: allowlist secret
+    IReadOnlyList<DiscoveryTrainingExample> Calibration, // pragma: allowlist secret
+    IReadOnlyList<DiscoveryTrainingExample> Test); // pragma: allowlist secret
 
 public sealed record DiscoveryAcceptTrainResult(
     string ModelPath,

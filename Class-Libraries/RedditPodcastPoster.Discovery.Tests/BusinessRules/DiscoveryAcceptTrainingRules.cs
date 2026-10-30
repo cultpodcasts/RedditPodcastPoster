@@ -4,6 +4,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Discovery.ML.Configuration;
 using RedditPodcastPoster.Discovery.ML.Models;
 using RedditPodcastPoster.Discovery.ML.Services;
+using RedditPodcastPoster.Models.Discovery; // pragma: allowlist secret
 
 namespace RedditPodcastPoster.Discovery.Tests.BusinessRules;
 
@@ -190,6 +191,134 @@ public class DiscoveryAcceptTrainingRules
     }
 
     [Fact(DisplayName =
+        "A discovery run stays in one of train, calibration, or test, because a run sliced across those sets would score rows the model already trained on.")] // pragma: allowlist secret
+    public void discovery_run_is_not_split_across_train_calibration_and_test() // pragma: allowlist secret
+    {
+        // Arrange
+        var firstRun = DateTime.UtcNow.AddDays(-4);
+        var examples = new List<DiscoveryTrainingExample>(); // pragma: allowlist secret
+        AddRun(examples, firstRun, 60);
+        AddRun(examples, firstRun.AddDays(1), 20);
+        AddRun(examples, firstRun.AddDays(2), 10);
+        AddRun(examples, firstRun.AddDays(3), 10);
+        var straddlingRun = firstRun.AddDays(1);
+
+        // Act
+        var split = DiscoveryAcceptModelTrainer.SplitByDiscoveryRun(examples); // pragma: allowlist secret
+
+        // Assert
+        var trainRuns = split.Train.Select(x => x.DiscoveryBegan).Distinct().ToHashSet(); // pragma: allowlist secret
+        var calibrationRuns = split.Calibration.Select(x => x.DiscoveryBegan).Distinct().ToHashSet(); // pragma: allowlist secret
+        var testRuns = split.Test.Select(x => x.DiscoveryBegan).Distinct().ToHashSet(); // pragma: allowlist secret
+        trainRuns.Intersect(calibrationRuns).Should().BeEmpty();
+        trainRuns.Intersect(testRuns).Should().BeEmpty();
+        calibrationRuns.Intersect(testRuns).Should().BeEmpty();
+        split.Train.Concat(split.Calibration).Concat(split.Test).Should().HaveCount(examples.Count);
+        split.Train.Count(x => x.DiscoveryBegan == straddlingRun).Should().Be(20); // pragma: allowlist secret
+        split.Calibration.Concat(split.Test).Should().NotContain(x => x.DiscoveryBegan == straddlingRun); // pragma: allowlist secret
+        split.Train.Max(x => x.DiscoveryBegan).Should().BeBefore(split.Calibration.Min(x => x.DiscoveryBegan)); // pragma: allowlist secret
+        split.Calibration.Max(x => x.DiscoveryBegan).Should().BeBefore(split.Test.Min(x => x.DiscoveryBegan)); // pragma: allowlist secret
+    }
+
+    [Fact(DisplayName =
+        "A calibration slice with no accepted rows cannot choose a hide threshold, because a threshold of zero would hide nothing.")]
+    public void threshold_throws_when_the_slice_has_no_accepts()
+    {
+        // Arrange
+        var probability = Math.Abs(_fixture.Create<int>() % 100) / 100f;
+        var scored = new List<ScoredLabel> { new(probability, false), new(probability, false) };
+        var targetRecall = Math.Clamp(Math.Abs(_fixture.Create<float>()), 0.01f, 1f);
+
+        // Act
+        var choose = () => DiscoveryThresholds.ForTargetRecall(scored, targetRecall); // pragma: allowlist secret
+
+        // Assert
+        choose.Should().Throw<InvalidOperationException>().WithMessage("*no accepted rows*");
+    }
+
+    [Fact(DisplayName =
+        "A slice with no scored rows cannot choose a hide threshold, because there is no recall to measure.")]
+    public void threshold_throws_when_the_slice_has_no_scored_rows()
+    {
+        // Arrange
+        var targetRecall = Math.Clamp(Math.Abs(_fixture.Create<float>()), 0.01f, 1f);
+        IReadOnlyCollection<ScoredLabel> scored = [];
+
+        // Act
+        var choose = () => DiscoveryThresholds.ForTargetRecall(scored, targetRecall); // pragma: allowlist secret
+
+        // Assert
+        choose.Should().Throw<InvalidOperationException>().WithMessage("*no scored rows*");
+    }
+
+    [Fact(DisplayName =
+        "An empty episode description falls back to the show description, and the result overload matches the training overload, because train and score must embed the same words.")]
+    public void empty_episode_description_falls_back_to_show_description()
+    {
+        // Arrange
+        var show = _fixture.Create<string>();
+        var episode = _fixture.Create<string>();
+        var showDescription = _fixture.Create<string>();
+        var result = new DiscoveryResult // pragma: allowlist secret
+        {
+            ShowName = show,
+            EpisodeName = episode,
+            Description = " ",
+            ShowDescription = showDescription
+        };
+
+        // Act
+        var fromResult = DiscoveryFeatureBuilder.BuildEmbeddingText(result); // pragma: allowlist secret
+        var fromParts = DiscoveryFeatureBuilder.BuildEmbeddingText(show, episode, " ", showDescription); // pragma: allowlist secret
+
+        // Assert
+        fromResult.Should().Be(fromParts);
+        fromResult.Should().Be($"{show.Trim()}\n{episode.Trim()}\n{showDescription.Trim()}");
+    }
+
+    [Fact(DisplayName =
+        "Auto-hidden rejects and a max-row cap are counted apart, because one skipped total would hide whether rows were filtered or truncated.")]
+    public void auto_hidden_skips_and_max_rows_are_separate()
+    {
+        // Arrange
+        var began = DateTime.UtcNow.AddDays(-1);
+        var rows = new List<TrainingCsvRow>
+        {
+            new() { Accepted = true, DiscoveryBegan = began }, // pragma: allowlist secret
+            new() { Accepted = false, DiscoveryBegan = began, AutoHidden = true }, // pragma: allowlist secret
+            new() { Accepted = false, DiscoveryBegan = began }, // pragma: allowlist secret
+            new() { Accepted = true, DiscoveryBegan = began, AutoHidden = true } // pragma: allowlist secret
+        };
+        var maxRows = 2;
+
+        // Act
+        var selected = TrainingCsvReader.SelectForTraining(rows, includeHiddenRejects: false, maxRows);
+
+        // Assert
+        selected.AutoHiddenSkips.Should().Be(1);
+        selected.Truncated.Should().Be(1);
+        selected.Rows.Should().HaveCount(maxRows);
+        selected.Rows.Should().OnlyContain(row => row.Accepted || !row.AutoHidden);
+    }
+
+    [Fact(DisplayName =
+        "A feature-version-2 manifest requires the show accept-rate file, and a version-1 manifest does not, because a missing table makes every show look unseen.")]
+    public void version_two_manifest_requires_show_accept_rates()
+    {
+        // Arrange
+        var versionTwo = CreateManifest(featureVersion: 2);
+        var versionOne = CreateManifest(featureVersion: 1);
+
+        // Act
+        var versionTwoRequiresRates = versionTwo.RequiresShowAcceptRates;
+        var versionOneRequiresRates = versionOne.RequiresShowAcceptRates;
+
+        // Assert
+        versionTwoRequiresRates.Should().BeTrue();
+        versionOneRequiresRates.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "The model version is the feature version then the UTC training minute, because each trained bundle needs a unique archive folder.")]
     public void model_version_is_feature_version_and_training_minute()
     {
@@ -204,6 +333,14 @@ public class DiscoveryAcceptTrainingRules
         version.Should().StartWith($"{DiscoveryAcceptManifest.CurrentFeatureVersion}.");
         DateTime.ParseExact(version[(version.IndexOf('.') + 1)..], "yyyyMMdd'T'HHmm'Z'", CultureInfo.InvariantCulture)
             .Should().Be(new DateTime(trainedAt.Year, trainedAt.Month, trainedAt.Day, trainedAt.Hour, trainedAt.Minute, 0));
+    }
+
+    private static void AddRun(List<DiscoveryTrainingExample> examples, DateTime began, int count) // pragma: allowlist secret
+    {
+        for (var index = 0; index < count; index++)
+        {
+            examples.Add(new DiscoveryTrainingExample { DiscoveryBegan = began }); // pragma: allowlist secret
+        }
     }
 
     private string ExportCsv(params (string State, bool AutoHidden)[] rows) =>

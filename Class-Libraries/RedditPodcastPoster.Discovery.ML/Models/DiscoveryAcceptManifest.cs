@@ -48,6 +48,12 @@ public sealed class DiscoveryAcceptManifest
 
     public int ShowSeenCountCap { get; set; } = ShowAcceptSmoothing.DefaultSeenCountCap;
 
+    /// <summary>
+    /// Feature version 2+ needs <c>show-accept-rates.csv</c>. Without that table every show looks unseen
+    /// and only the prior applies.
+    /// </summary>
+    public bool RequiresShowAcceptRates => FeatureVersion >= 2;
+
     public ShowAcceptSmoothing ShowSmoothing() =>
         FeatureVersion >= 2
             ? new ShowAcceptSmoothing(ShowRatePrior, ShowRatePriorWeight, ShowSeenCountCap)

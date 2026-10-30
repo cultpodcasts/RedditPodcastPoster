@@ -118,7 +118,7 @@ Items with no score (`acceptProbability: null`) sort last (treated as `-1` inter
 | `enrichedUrlFromSpotify` | boolean | |
 | `matchingPodcasts` | array? | `{ id, name, visible, visibleEpisodes, kind? }` for known catalogue matches. `visible` is false when that podcast (or parent) is removed; the curation card shows the removed icon. `kind` is `NewsOrganisation` or `TvShow` when the channel / show belongs to a catalogue parent (then `visibleEpisodes` counts its not-removed reports / episodes); omitted for podcasts. A migrated podcast keeps its id, so `matchingPodcastIds` on stored results resolves to the parent |
 | **`acceptProbability`** | number? | **0.0–1.0** ML estimate that a curator would accept this episode. `null` if not scored (legacy reports). |
-| **`autoHidden`** | boolean | **`true`** when `acceptProbability < 0.05` (production threshold). Hidden from default GET. |
+| **`autoHidden`** | boolean | **`true`** when `acceptProbability` is below the hide threshold. Feature-version-2 models use the manifest threshold (chosen at training for a target recall, default 97% of accepts kept visible). Version-1 models, or `discover__scorer__UseManifestThreshold=false`, use `discover__scorer__AutoHideThreshold` (default 0.05). Hidden from default GET. <!-- pragma: allowlist secret --> |
 
 **Not exposed on GET:** per-result `state` (all items in an unprocessed report are effectively pending curation).
 

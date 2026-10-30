@@ -59,7 +59,36 @@ public static class TrainingCsvReader
     /// curator decision. Training on it teaches the model its own past mistakes.
     /// </summary>
     public static bool IsCuratorLabel(TrainingCsvRow row) => row.Accepted || !row.AutoHidden;
+
+    /// <summary>
+    /// Curator labels only, unless <paramref name="includeHiddenRejects"/> is set, then an optional row cap.
+    /// Auto-hidden skips and max-row truncation are counted separately.
+    /// </summary>
+    public static TrainingRowWindow SelectForTraining(
+        IReadOnlyList<TrainingCsvRow> labeled,
+        bool includeHiddenRejects,
+        int? maxRows)
+    {
+        IReadOnlyList<TrainingCsvRow> curatorRows = includeHiddenRejects
+            ? labeled
+            : labeled.Where(IsCuratorLabel).ToList();
+        var autoHiddenSkips = labeled.Count - curatorRows.Count;
+        if (maxRows is not > 0 || curatorRows.Count <= maxRows.Value)
+        {
+            return new TrainingRowWindow(curatorRows, autoHiddenSkips, 0);
+        }
+
+        return new TrainingRowWindow(
+            curatorRows.Take(maxRows.Value).ToList(),
+            autoHiddenSkips,
+            curatorRows.Count - maxRows.Value);
+    }
 }
+
+public readonly record struct TrainingRowWindow(
+    IReadOnlyList<TrainingCsvRow> Rows,
+    int AutoHiddenSkips,
+    int Truncated);
 
 public sealed class TrainingCsvRow
 {

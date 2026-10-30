@@ -82,6 +82,48 @@ public class DiscoveryAcceptModelRoundTripRules : IDisposable
     }
 
     [Fact(DisplayName =
+        "Training leaves the caller's examples unchanged, because show rates and example weights are training state rather than part of the labelled input.")]
+    public async Task training_does_not_change_the_callers_examples()
+    {
+        // Arrange
+        var examples = CreateSeparableExamples(MinimumTrainerExamples);
+        var before = examples
+            .Select(example => (example.ShowAcceptRate, example.ShowSeenCount, example.ExampleWeight, example.Embedding[0]))
+            .ToList();
+        var trainer = new DiscoveryAcceptModelTrainer(); // pragma: allowlist secret
+
+        // Act
+        await trainer.TrainAsync(examples, _outputDirectory);
+
+        // Assert
+        examples
+            .Select(example => (example.ShowAcceptRate, example.ShowSeenCount, example.ExampleWeight, example.Embedding[0]))
+            .Should()
+            .Equal(before);
+    }
+
+    [Fact(DisplayName =
+        "Training refuses a split that leaves a slice with no discovery run, because the hide threshold and the test metrics must come from later runs than the ones the model trains on.")] // pragma: allowlist secret
+    public async Task training_throws_when_every_row_shares_one_discovery_run() // pragma: allowlist secret
+    {
+        // Arrange
+        var examples = CreateSeparableExamples(MinimumTrainerExamples);
+        var began = examples[0].DiscoveryBegan; // pragma: allowlist secret
+        foreach (var example in examples)
+        {
+            example.DiscoveryBegan = began; // pragma: allowlist secret
+        }
+
+        var trainer = new DiscoveryAcceptModelTrainer(); // pragma: allowlist secret
+
+        // Act
+        var train = () => trainer.TrainAsync(examples, _outputDirectory);
+
+        // Assert
+        await train.Should().ThrowAsync<InvalidOperationException>().WithMessage("*slice empty*");
+    }
+
+    [Fact(DisplayName =
         "Training writes show accept counts over every labelled row, because Discover scores new results with each show's full history.")]
     public async Task trainer_writes_show_accept_counts_for_every_show()
     {

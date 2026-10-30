@@ -24,10 +24,17 @@ public static class DiscoveryThresholds
             throw new ArgumentOutOfRangeException(nameof(targetRecall), targetRecall, "Target recall must be in (0, 1].");
         }
 
+        if (scored.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Cannot choose a hide threshold because the slice has no scored rows.");
+        }
+
         var positives = scored.Where(x => x.Accepted).Select(x => x.Probability).OrderBy(x => x).ToArray();
         if (positives.Length == 0)
         {
-            return 0f;
+            throw new InvalidOperationException(
+                "Cannot choose a hide threshold because the slice has no accepted rows. Pass an explicit threshold to override.");
         }
 
         var allowedMisses = (int)Math.Floor((1d - targetRecall) * positives.Length + 1e-9);

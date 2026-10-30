@@ -109,6 +109,16 @@ public sealed class DiscoveryResultScorer : IDiscoveryResultScorer, IDisposable
             }
         }
 
+        if (manifest?.RequiresShowAcceptRates == true && !File.Exists(showRatesPath))
+        {
+            _logger.LogError(
+                "Discovery scorer feature version {FeatureVersion} requires '{ShowAcceptRatesFile}' but it is missing under '{Directory}'.", // pragma: allowlist secret
+                manifest.FeatureVersion,
+                _settings.ShowAcceptRatesFileName,
+                directory);
+            return null;
+        }
+
         var threshold = AutoHideThreshold(manifest, _settings);
         var showCounts = ShowAcceptRateLookup.Load(showRatesPath);
         var embedder = new MiniLmOnnxEmbedder(onnxPath, tokenizerPath, _settings.EmbeddingMaxLength);
