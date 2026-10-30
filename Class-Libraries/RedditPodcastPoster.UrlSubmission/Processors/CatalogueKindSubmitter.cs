@@ -1,10 +1,12 @@
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -30,6 +32,7 @@ public class CatalogueKindSubmitter(
     ICatalogueLanguageGate languageGate,
     ICatalogueIdentityEnricher identityEnricher,
     IHeroEpisodePromoter heroEpisodePromoter,
+    IFileKeyAllocator fileKeyAllocator,
     TimeProvider timeProvider,
     ILogger<CatalogueKindSubmitter> logger) : ICatalogueKindSubmitter
 {
@@ -120,6 +123,7 @@ public class CatalogueKindSubmitter(
             }
 
             identityEnricher.ApplyMissing(film, filmIdentity.Admission.Ids);
+            film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, film.Name, film.Id);
             await films.Save(film);
             return CreatedPlayable(
                 SubmitClassification.Film,
@@ -296,6 +300,7 @@ public class CatalogueKindSubmitter(
             }
 
             identityEnricher.ApplyMissing(show, identity.Admission.ParentIds ?? identity.Admission.Ids);
+            show.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.TvShow, show.Name, show.Id);
             await tvShows.Save(show);
         }
         else if (identityEnricher.ApplyMissing(show, identity.Admission.ParentIds))
@@ -388,6 +393,8 @@ public class CatalogueKindSubmitter(
                 organisation.Language = admitted.Admission.LanguageCode;
             }
 
+            organisation.FileKey = await fileKeyAllocator.Allocate(
+                FileKeyKind.NewsOrganisation, organisation.Name, organisation.Id);
             await newsOrganisations.Save(organisation);
         }
 

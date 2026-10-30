@@ -53,7 +53,7 @@ public class CataloguePlayableSocialPosts(
         foreach (var tvShow in tvShows)
         {
             var episodes = await tvShowEpisodeRepository
-                .GetByTvShowId(tvShow.Id, x => (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since)
+                .GetByTvShowId(tvShow.Id, x => x.ReleaseSort >= since)
                 .ToArrayAsync();
             items.AddRange(episodes.Select(e => CatalogueParentKindMapper.ToPostProjection(e, tvShow)));
         }
@@ -66,7 +66,7 @@ public class CataloguePlayableSocialPosts(
         foreach (var organisation in organisations)
         {
             var reports = await newsReportRepository
-                .GetByNewsOrganisationId(organisation.Id, x => (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since)
+                .GetByNewsOrganisationId(organisation.Id, x => x.ReleaseSort >= since)
                 .ToArrayAsync();
             items.AddRange(reports.Select(r => CatalogueParentKindMapper.ToPostProjection(r, organisation)));
         }

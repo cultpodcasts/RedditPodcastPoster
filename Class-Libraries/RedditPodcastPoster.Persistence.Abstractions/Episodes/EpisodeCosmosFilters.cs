@@ -6,26 +6,21 @@ using RedditPodcastPoster.Models.Episodes;
 namespace RedditPodcastPoster.Persistence.Abstractions.Episodes;
 
 /// <summary>
-/// Cosmos LINQ predicates for Episode JSON cutover dual-keys. Prefer these over filtering on
-/// <see cref="Playable.ReleaseSort"/> or <see cref="Playable.ParentRemoved"/> alone — deserialize
-/// bridges do not run server-side. SQL mirrors live on <see cref="Playable"/>.
+/// Cosmos LINQ predicates shared by Episode queries. SQL mirrors live on <see cref="Playable"/>.
 /// </summary>
 public static class EpisodeCosmosFilters
 {
     /// <summary>
-    /// Effective release instant &gt;= <paramref name="since"/> using
-    /// <c>(IS_DEFINED(releaseSort) ? releaseSort : release)</c>.
+    /// Release instant (<c>releaseSort</c>) &gt;= <paramref name="since"/>.
     /// </summary>
     public static Expression<Func<Episode, bool>> ReleasedOnOrAfter(DateTime since) =>
-        e => (e.ReleaseSort.IsDefined() ? e.ReleaseSort : e.ReleaseCosmosFallback) >= since;
+        e => e.ReleaseSort >= since;
 
     /// <summary>
-    /// Parent publisher is not removed: dual-key <c>parentRemoved</c> and legacy <c>podcastRemoved</c>.
+    /// Parent publisher is not removed: <c>parentRemoved</c> absent, null or false.
     /// </summary>
     public static Expression<Func<Episode, bool>> ParentNotRemoved { get; } =
-        e => (!e.ParentRemoved.IsDefined() || e.ParentRemoved == false || e.ParentRemoved == null) &&
-             (!e.LegacyPodcastRemoved.IsDefined() || e.LegacyPodcastRemoved == false ||
-              e.LegacyPodcastRemoved == null);
+        e => !e.ParentRemoved.IsDefined() || e.ParentRemoved == false || e.ParentRemoved == null;
 
     /// <summary>Combines two Episode predicates with AND (parameter-replacing).</summary>
     public static Expression<Func<Episode, bool>> And(

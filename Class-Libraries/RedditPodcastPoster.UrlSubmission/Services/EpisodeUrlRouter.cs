@@ -70,6 +70,12 @@ public class EpisodeUrlRouter(
             return new EpisodeUrlRoute(owner, podcast, null);
         }
 
+        if (owner.ChannelRouteDecided)
+        {
+            // PodcastService already applied playlist membership and the parent rule for this channel.
+            return new EpisodeUrlRoute(owner, podcast, owner.Parent);
+        }
+
         if (podcast != null)
         {
             var (kept, parent) =
@@ -127,6 +133,11 @@ public class EpisodeUrlRouter(
         if (owner == null)
         {
             return null;
+        }
+
+        if (owner.ChannelRouteDecided)
+        {
+            return owner.Parent;
         }
 
         var parent = await catalogueParentLookup.FindByOwner(owner.Ids);

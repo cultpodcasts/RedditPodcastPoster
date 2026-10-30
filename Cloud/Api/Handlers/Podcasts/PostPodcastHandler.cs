@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -28,7 +29,10 @@ public class PostPodcastHandler(
             PodcastUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = result.PodcastId }, c),
             PodcastUpdateStatus.BadRequest =>
-                await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid podcast update"), c),
+                await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid podcast update", result.Code), c),
+            PodcastUpdateStatus.ServiceUnavailable =>
+                await ctx.Json(HttpStatusCode.ServiceUnavailable,
+                    ApiErrorResponse.Failure(result.Error ?? "Unable to update podcast; try again", result.Code, true), c),
             PodcastUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update podcast"), c),
             _ => await LogAndFail(ctx, c)

@@ -13,9 +13,11 @@ using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -81,6 +83,7 @@ public class CatalogueRenameRules
         Filterable<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         Filterable<ITvShowRepository, TvShow>(_shows);
         Filterable<IFilmRepository, Film>(_films);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
 
         var organisations = _mocker.GetMock<INewsOrganisationRepository>();
         organisations.Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
@@ -120,10 +123,19 @@ public class CatalogueRenameRules
     }
 
     private void Filterable<TRepository, TEntity>(List<TEntity> store)
-        where TRepository : class, IFilterableRepository<TEntity> =>
-        _mocker.GetMock<TRepository>()
+        where TRepository : class, IFilterableRepository<TEntity>
+    {
+        var repository = _mocker.GetMock<TRepository>();
+        repository
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TEntity, bool>>>()))
             .Returns((Expression<Func<TEntity, bool>> selector) => store.Where(selector.Compile()).ToAsyncEnumerable());
+        repository
+            .Setup(r => r.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                store.Where(selector.Compile()).Select(projection.Compile()).ToAsyncEnumerable());
+    }
 
     private CatalogueRenameService Service => _mocker.CreateInstance<CatalogueRenameService>();
 
@@ -551,5 +563,65 @@ public class CatalogueRenameRules
         // Assert
         result.Status.Should().Be(CatalogueRenameStatus.Ok);
         _merges.Select(m => m.Keys.Length).Should().Equal(PlayableSearchRename.MergeBatchSize, 5);
+    }
+
+    [Fact(DisplayName =
+        "Renaming a news organisation to a Korean-only name keeps its existing usable fileKey, because renames never re-key a valid key.")]
+    public async Task news_organisation_rename_to_non_latin_keeps_key()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var fileKey = organisation.FileKey;
+
+        // Act
+        var result = await Service.RenameNewsOrganisation(
+            new CatalogueRenameCommand(organisation.Id.ToString(), "오늘의 뉴스"), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        organisation.Name.Should().Be("오늘의 뉴스");
+        organisation.FileKey.Should().Be(fileKey);
+    }
+
+    [Theory(DisplayName =
+        "Renaming a TV show whose stored fileKey is unusable (empty, prefix-only, underscore-only or prefix plus _N) repairs it to a usable unique key, so the next publish is not refused.")]
+    [InlineData("")]
+    [InlineData("tvshow-")]
+    [InlineData("tvshow-_")]
+    [InlineData("tvshow-_12")]
+    public async Task tv_show_rename_repairs_unusable_key(string brokenKey)
+    {
+        // Arrange
+        var show = new TvShow(OldName) { Id = _fixture.CreateGuid() };
+        show.FileKey = brokenKey;
+        _shows.Add(show);
+
+        // Act
+        var result = await Service.RenameTvShow(
+            new CatalogueRenameCommand(show.Id.ToString(), "주간 이야기"), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + FileKeyFactory.GetIdSlug(show.Id));
+    }
+
+    [Theory(DisplayName =
+        "Renaming a TV show whose stored fileKey has a one-letter slug (tvshow-x) keeps that key, to a Latin or a Korean name: a valid key is never re-keyed by a rename.")]
+    [InlineData("Synthetic Renamed Show")]
+    [InlineData("주간 이야기")]
+    public async Task tv_show_rename_keeps_one_letter_key(string newName)
+    {
+        // Arrange
+        var show = new TvShow(OldName) { Id = _fixture.CreateGuid() };
+        show.FileKey = FileKeyFactory.TvShowPrefix + "x";
+        _shows.Add(show);
+
+        // Act
+        var result = await Service.RenameTvShow(
+            new CatalogueRenameCommand(show.Id.ToString(), newName), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        show.FileKey.Should().Be(FileKeyFactory.TvShowPrefix + "x");
     }
 }

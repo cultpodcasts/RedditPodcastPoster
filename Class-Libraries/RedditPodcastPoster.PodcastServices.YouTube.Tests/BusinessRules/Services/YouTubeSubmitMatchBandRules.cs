@@ -4,6 +4,8 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.ChannelSnippets;
@@ -18,8 +20,9 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Servic
 
 /// <summary>
 /// Matching a known YouTube channel from a Spotify or Apple submit searches a short publish band
-/// when Search.List is allowed. A forbidden channel or PreferUploadsPlaylist reads the stored
-/// playlist, or the uploads playlist, and keeps only items inside that same band.
+/// when Search.List is allowed. A forbidden channel or PreferUploadsPlaylist reads the uploads playlist and keeps only
+/// items inside that same band. A podcast with a playlist is matched from its playlist only (inside the band), because
+/// the playlist is its only YouTube source.
 /// </summary>
 public class YouTubeSubmitMatchBandRules
 {
@@ -38,8 +41,8 @@ public class YouTubeSubmitMatchBandRules
     }
 
     [Fact(DisplayName =
-        "When the podcast has a YouTube channel, Resolve searches that channel between the submit-match band edges " +
-        "shifted by the publishing delay, and does not walk the playlist, because the audio date is a clue for the video date.")]
+        "When the podcast has a YouTube channel and no playlist, Resolve searches that channel between the submit-match band edges " +
+        "shifted by the publishing delay, and does not walk a playlist, because the audio date is a clue for the video date.")]
     public async Task Known_channel_searches_the_band_around_audio_plus_delay()
     {
         // Arrange
@@ -49,7 +52,7 @@ public class YouTubeSubmitMatchBandRules
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.YouTubeChannelId = channelId;
-            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePlaylistId = string.Empty;
             p.YouTubePublicationOffset = delay.Ticks;
         });
         DateTimeOffset? publishedAfter = null;
@@ -122,8 +125,8 @@ public class YouTubeSubmitMatchBandRules
     }
 
     [Fact(DisplayName =
-        "When the podcast has no YouTube channel, Resolve does not search YouTube " +
-        "because a Spotify or Apple URL cannot be matched to a video without a channel.")]
+        "When the podcast has no YouTube channel or playlist, Resolve does not search YouTube " +
+        "because a Spotify or Apple URL cannot be matched to a video without a YouTube source.")]
     public async Task Missing_channel_does_not_search_youtube()
     {
         // Arrange
@@ -149,11 +152,12 @@ public class YouTubeSubmitMatchBandRules
     }
 
     [Theory(DisplayName =
-        "When Search.List must not be used, Resolve returns the in-band playlist hit and does not call channel search, " +
-        "because a forbidden channel or PreferUploadsPlaylist is read from the playlist inside the submit-match band.")]
+        "When the podcast has a playlist, Resolve returns the in-band playlist hit and does not call channel search, " +
+        "whatever the channel's Search.List policy, because the playlist is the podcast's only YouTube source.")]
     [InlineData("youTubeChannelSearchForbidden")]
     [InlineData("PreferUploadsPlaylist")]
-    public async Task Playlist_fallback_returns_in_band_hit_without_channel_search(string reason)
+    [InlineData(null)]
+    public async Task Playlist_podcast_returns_in_band_playlist_hit_without_channel_search(string? reason)
     {
         // Arrange
         var channelId = _fixture.CreateYouTubeChannelId();
@@ -288,10 +292,19 @@ public class YouTubeSubmitMatchBandRules
         var podcast = _fixture.CreatePodcast(p =>
         {
             p.YouTubeChannelId = channelId;
-            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePlaylistId = string.Empty;
             p.YouTubePublicationOffset = 0;
             p.YouTubeChannelSearchForbidden = null;
         });
+        _mocker.GetMock<ITolerantYouTubeChannelService>()
+            .Setup(x => x.GetChannel(
+                It.IsAny<YouTubeChannelId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(CreateChannel(_fixture.CreateYouTubePlaylistId()));
         _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
             .Setup(x => x.GetUploadsPlaylistReason(podcast))
             .Returns((string?)null);
@@ -375,6 +388,99 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<bool>(),
                 It.IsAny<bool>()),
             Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A playlist podcast with no channel id is matched from its playlist, including a video another channel " +
+        "uploaded, with the podcast's playlist order, because the playlist alone is its YouTube source.")]
+    public async Task Playlist_without_channel_is_matched_from_the_playlist()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var uploaderChannelId = _fixture.CreateYouTubeChannelId();
+        var release = DomainTestFixture.UtcDateDaysAgo(5);
+        var title = _fixture.CreateTitle();
+        var videoId = _fixture.CreateYouTubeId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = playlistId;
+            p.YouTubePlaylistOrder = PlaylistOrder.Arbitrary;
+            p.YouTubePublicationOffset = 0;
+        });
+        YouTubePlaylistId? capturedPlaylist = null;
+        PlaylistOrder? capturedOrder = null;
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((id, _, _, _, order) =>
+            {
+                capturedPlaylist = id;
+                capturedOrder = order;
+            })
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
+            [
+                CreatePlaylistItem(videoId, uploaderChannelId, title, new DateTimeOffset(release))
+            ]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [], new IndexingContext());
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.EpisodeId.Should().Be(videoId);
+        capturedPlaylist!.PlaylistId.Should().Be(playlistId);
+        capturedPlaylist.Source.Should().Be(YouTubePlaylistIdSource.PodcastEntity);
+        capturedOrder.Should().Be(PlaylistOrder.Arbitrary);
+        _mocker.GetMock<IYouTubeChannelReleaseBandSearch>().Verify(
+            x => x.Search(
+                It.IsAny<string>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<IndexingContext>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A playlist video already stored on the podcast is not matched again, because the playlist item id is not the " +
+        "video id and the stored ids are compared with the video id.")]
+    public async Task Stored_playlist_video_is_not_matched_again()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcDateDaysAgo(5);
+        var title = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            p.YouTubePublicationOffset = 0;
+        });
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var videoId = EpisodeServicePresence.YouTubeEpisodeId(stored)!;
+        var item = CreatePlaylistItem(videoId, _fixture.CreateYouTubeChannelId(), title, new DateTimeOffset(release));
+        item.Id = "playlist-item-" + videoId;
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(x => x.GetPlaylistVideoSnippets(
+                It.IsAny<YouTubePlaylistId>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<PlaylistOrder?>()))
+            .ReturnsAsync(new GetPlaylistVideoSnippetsResponse([item]));
+        StubVideoDetails();
+        var sut = _mocker.CreateInstance<YouTubeUrlCategoriser>();
+
+        // Act
+        var result = await sut.Resolve(CreateCriteria(release, title), podcast, [stored], new IndexingContext());
+
+        // Assert
+        result.Should().BeNull();
     }
 
     private PodcastServiceSearchCriteria CreateCriteria(DateTime release, string? episodeTitle = null) =>

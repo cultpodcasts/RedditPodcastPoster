@@ -1,3 +1,4 @@
+using Api.Services.YouTube;
 using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
@@ -12,6 +13,7 @@ public class TvShowService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -75,6 +77,19 @@ public class TvShowService(
                 request.Change.ImdbId,
                 request.Change.TmdbId,
                 request.Change.TvdbId);
+            if (await youTubePlaylistGuard.Check(
+                    show.Indexing?.YouTubePlaylistId,
+                    request.Change.YouTubePlaylistId,
+                    cancellationToken) is { } refused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    show.Id, refused.Code, refused.Message);
+                return new TvShowUpdateResult(
+                    refused.IsRetryable ? TvShowUpdateStatus.ServiceUnavailable : TvShowUpdateStatus.BadRequest,
+                    refused.Message,
+                    Code: refused.Code);
+            }
+
             PublisherChangeApplier.Apply(show, request.Change);
             if (await serviceIdsUniqueness.FindConflict(show.Id, request.Change) is { } conflict)
             {

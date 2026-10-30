@@ -30,8 +30,22 @@ public partial class CreateSearchIndexProcessor(
     IOptions<CosmosDbSettings> cosmosDbSettings,
     ILogger<CreateSearchIndexProcessor> logger)
 {
-    private const string ActiveEpisodesFilter =
-        $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+    /// <summary>
+    /// Excludes an episode whose podcast is removed, stored as the retired <c>podcastRemoved</c> key.
+    /// The GATE 1 wire rewrite moved that flag to <c>parentRemoved</c> and the corpus audit found no
+    /// <c>podcastRemoved</c> keys left, but <c>EpisodeWireRewrite</c>'s rollback writes <c>podcastRemoved: true</c>
+    /// back. The search pull SQL must never index a removed podcast's episodes in either wire state, so it keeps
+    /// this guard even though <see cref="Playable.CosmosParentNotRemovedSql"/> reads <c>parentRemoved</c> only.
+    /// </summary>
+    internal const string LegacyPodcastNotRemovedSql =
+        "(NOT IS_DEFINED(e.podcastRemoved) OR IS_NULL(e.podcastRemoved) OR e.podcastRemoved=false)";
+
+    /// <summary>
+    /// Episodes the search pull indexer may index: the podcast is not removed (<c>parentRemoved</c>, plus the
+    /// <see cref="LegacyPodcastNotRemovedSql"/> guard) and the episode itself is not removed.
+    /// </summary>
+    internal const string ActiveEpisodesFilter =
+        $"({Playable.CosmosParentNotRemovedSql} AND {LegacyPodcastNotRemovedSql}) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);
@@ -688,6 +702,26 @@ public partial class CreateSearchIndexProcessor(
         var connectionString =
             $"AccountEndpoint={_cosmosDbSettings.Endpoint};Database={_cosmosDbSettings.DatabaseId};AccountKey={_cosmosDbSettings.AuthKeyOrResourceToken}";
 
+        var query = EpisodeDataSourceQuery();
+        var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.EpisodesContainer)
+        {
+            Query = query
+        };
+        var searchIndexDataSourceConnection = new SearchIndexerDataSourceConnection(request.DataSourceName,
+            SearchIndexerDataSourceType.CosmosDb, connectionString, searchIndexDataContainer)
+        {
+            DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
+        };
+
+        return await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(searchIndexDataSourceConnection);
+    }
+
+    /// <summary>
+    /// Cosmos SQL for the episode data source (<c>--datasource</c>). Its WHERE clause is
+    /// <see cref="ActiveEpisodesFilter"/>, so episodes of removed podcasts are never indexed.
+    /// </summary>
+    internal static string EpisodeDataSourceQuery()
+    {
         // IMAGE PROJECTION — this SQL is the pull-path mirror of the push-path C# helper
         // SearchEpisodeImage (RedditPodcastPoster.EntitySearchIndexer), the single documented source
         // of truth. Cosmos SQL cannot call C#, so the two are kept in sync. The rules:
@@ -773,7 +807,7 @@ public partial class CreateSearchIndexProcessor(
                             e.services.internetArchive.url as internetArchive,
                             {svcProjection} as svc,
                             e.subjects as subjects,
-                            (e.publisherSearchTerms ?? e.podcastSearchTerms) as publisherSearchTerms,
+                            e.publisherSearchTerms as publisherSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             IIF({isYouTubeToken}, {youTubeToken},
                                 IIF({isSpotifyToken}, {spotifyToken},
@@ -786,17 +820,7 @@ public partial class CreateSearchIndexProcessor(
                               and e._ts >= @HighWaterMark
                             ORDER BY e._ts";
         query = Whitespace.Replace(query, " ").Trim();
-        var searchIndexDataContainer = new SearchIndexerDataContainer(_cosmosDbSettings.EpisodesContainer)
-        {
-            Query = query
-        };
-        var searchIndexDataSourceConnection = new SearchIndexerDataSourceConnection(request.DataSourceName,
-            SearchIndexerDataSourceType.CosmosDb, connectionString, searchIndexDataContainer)
-        {
-            DataChangeDetectionPolicy = new HighWaterMarkChangeDetectionPolicy("_ts")
-        };
-
-        return await searchIndexerClient.CreateOrUpdateDataSourceConnectionAsync(searchIndexDataSourceConnection);
+        return query;
     }
 
     private async Task<Azure.Response<SearchIndex>> CreateIndex(CreateSearchIndexRequest request)

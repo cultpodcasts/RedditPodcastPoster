@@ -50,7 +50,7 @@ public class PodcastServicesEpisodeEnricher(
             }
 
             if (podcast.SkipEnrichingFromYouTube is null or false &&
-                !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                podcast.HasYouTubeSource() &&
                 (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube) == null ||
                  string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode))))
             {
@@ -65,7 +65,7 @@ public class PodcastServicesEpisodeEnricher(
         }
 
         if (podcast.SkipEnrichingFromYouTube == null &&
-            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+            podcast.HasYouTubeSource())
         {
             if (podcast.YouTubePublishingDelay() > TimeSpan.Zero)
             {

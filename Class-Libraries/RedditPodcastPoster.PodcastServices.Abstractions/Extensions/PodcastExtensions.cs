@@ -12,7 +12,8 @@ public static class PodcastExtensions
             podcast.ReleaseAuthority,
             podcast.YouTubeChannelId,
             podcast.SpotifyId,
-            podcast.AppleId);
+            podcast.AppleId,
+            podcast.YouTubePlaylistId);
     }
 
   public static bool IsScheduledYouTubeDiscoveryBypassed(this Podcast podcast, IndexingContext indexingContext)
@@ -20,13 +21,17 @@ public static class PodcastExtensions
         return indexingContext.SkipYouTubeUrlResolving && podcast.DependsOnYouTubeForEpisodeDiscovery();
     }
 
+    /// <param name="youTubePlaylistId">
+    /// A playlist is a YouTube source on its own: a parent with a playlist and no channel id indexes from the playlist.
+    /// </param>
     public static bool DependsOnYouTubeForEpisodeDiscovery(
         Service? releaseAuthority,
         string? youTubeChannelId,
         string? spotifyId,
-        long? appleId)
+        long? appleId,
+        string? youTubePlaylistId = null)
     {
-        if (string.IsNullOrWhiteSpace(youTubeChannelId))
+        if (string.IsNullOrWhiteSpace(youTubeChannelId) && string.IsNullOrWhiteSpace(youTubePlaylistId))
         {
             return false;
         }
@@ -106,7 +111,7 @@ public static class PodcastExtensions
     {
         return string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                !podcast.AppleId.HasValue &&
-               !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+               podcast.HasYouTubeSource() &&
                podcast.YouTubePublishingDelay() > TimeSpan.Zero;
     }
 }

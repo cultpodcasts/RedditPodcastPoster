@@ -20,7 +20,7 @@ public static class PodcastEpisodesExtension
                 ctr++;
             }
 
-            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId))
+            if (podcastEpisode.Podcast.HasYouTubeSource())
             {
                 ctr++;
             }

@@ -67,7 +67,6 @@ public class YouTubeEpisodeProviderKnownIdRules
         await sut.GetPlaylistEpisodes(
             _fixture.CreatePodcast(),
             new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId()),
-            new YouTubeChannelId(_channelId),
             _indexingContext,
             knownIds: [knownId]);
 
@@ -89,7 +88,6 @@ public class YouTubeEpisodeProviderKnownIdRules
         var response = await sut.GetPlaylistEpisodes(
             _fixture.CreatePodcast(),
             new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId()),
-            new YouTubeChannelId(_channelId),
             _indexingContext,
             knownIds: [knownId]);
 
