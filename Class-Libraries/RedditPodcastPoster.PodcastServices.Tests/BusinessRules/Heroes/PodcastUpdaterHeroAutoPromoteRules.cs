@@ -26,6 +26,7 @@ public class PodcastUpdaterHeroAutoPromoteRules
 
         var recent = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DomainTestFixture.UtcDateDaysAgo(1))
+            .WithDuration(TimeSpan.FromMinutes(45))
             .WithDescription(_fixture.Create<string>()));
         var old = _fixture.CreateSpotifyCatalogueEpisode(b => b
             .WithRelease(DomainTestFixture.UtcDateDaysAgo(30))
