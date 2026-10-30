@@ -57,7 +57,8 @@ public class NetflixPageMetaDataExtractorRules
     {
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
-        var seriesName = _fixture.CreateTitle();
+        // Distinct candidates only: an identical og:video:series is dropped as the episode title.
+        var seriesName = CreateTitleNotContainedIn(episodeTitle);
         var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
         _handler.Response = OkHtml(
             $"<html><head>" +
@@ -153,8 +154,10 @@ public class NetflixPageMetaDataExtractorRules
     {
         // Arrange
         var filmName = _fixture.CreateTitle();
-        var otherSeries = _fixture.CreateTitle();
         var marketingTitle = $"Watch {filmName} | Netflix Official Site";
+        // The rule under test keys on the series name NOT appearing in the marketing title;
+        // random titles share a small vocabulary, so regenerate until there is no overlap.
+        var otherSeries = CreateTitleNotContainedIn(marketingTitle);
         var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
         _handler.Response = OkHtml(
             $"<html><head><meta property=\"og:title\" content=\"{marketingTitle}\" /></head>" +
@@ -313,6 +316,25 @@ public class NetflixPageMetaDataExtractorRules
 
         // Assert
         adapter.ResolveService(new Uri("https://example.com/")).Should().Be(StreamingService.Netflix);
+    }
+
+    /// <summary>
+    /// Random title that does not occur (case-insensitively) within <paramref name="text"/>,
+    /// because <see cref="DomainTestFixture.CreateTitle()"/> draws from a small word list and
+    /// can otherwise produce a substring of another random title.
+    /// </summary>
+    private string CreateTitleNotContainedIn(string text)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var candidate = _fixture.CreateTitle();
+            if (!text.Contains(candidate, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException($"Could not generate a title not contained in '{text}'.");
     }
 
     private static HttpResponseMessage OkHtml(string html) =>
