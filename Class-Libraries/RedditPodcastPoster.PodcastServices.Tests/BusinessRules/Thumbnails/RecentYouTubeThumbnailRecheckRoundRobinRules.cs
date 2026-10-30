@@ -158,6 +158,8 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
     [Fact(DisplayName = "With nothing eligible, the run probes nothing and does not write the cursor.")]
     public async Task empty_set_writes_nothing()
     {
+        // Arrange
+
         // Act
         var result = await Run([]);
 
@@ -274,10 +276,15 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
     [Fact(DisplayName = "A cursor with a release time but no episode id resumes at the first episode with that release time.")]
     public void cursor_with_null_episode_id_positions_by_release()
     {
+        // Arrange
         var episodes = LiveEpisodes(3);
         var cursor = new YouTubeThumbnailRecheckCursor { LastProbedReleaseUtc = episodes[1].ReleaseUtc };
 
-        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor).Should().Be(1);
+        // Act
+        var start = RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor); // pragma: allowlist secret
+
+        // Assert
+        start.Should().Be(1);
     }
 
     [Fact(DisplayName =
