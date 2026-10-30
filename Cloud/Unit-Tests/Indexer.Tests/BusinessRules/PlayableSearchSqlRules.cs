@@ -124,8 +124,11 @@ public class PlayableSearchSqlRules
         "so a show URL, a share link's ?si= suffix or a missing service never becomes a wrong spotifyId.")]
     public void spotify_id_expression_is_scoped_to_episode_urls()
     {
+        // Arrange
+        const string alias = "c";
+
         // Act
-        var sql = PlayableSearchSql.SpotifyEpisodeIdFromUrl("c");
+        var sql = PlayableSearchSql.SpotifyEpisodeIdFromUrl(alias);
 
         // Assert
         PlayableSearchSql.SpotifyEpisodeUrlPrefix.Should().Be("https://open.spotify.com/episode/");
@@ -137,27 +140,42 @@ public class PlayableSearchSqlRules
     }
 
     [Fact(DisplayName =
-        "Apple ids come from the episode URL: appleId is the ?i= value and podcastAppleId is the /id segment, " +
-        "matching the Episodes data source so the Apple icon gets the same pair on every content kind.")]
+        "Apple ids come from the episode URL: appleId is the ?i= value and podcastAppleId is the shared /id " +
+        "expression the Episodes data source also uses, so the Apple icon gets the same pair on every content kind.")]
     public void apple_id_expressions_mirror_the_episode_datasource()
     {
+        // Arrange
+        const string alias = "c";
+
         // Act
-        var appleId = PlayableSearchSql.AppleEpisodeIdFromUrl("c");
-        var podcastAppleId = PlayableSearchSql.ApplePodcastIdFromUrl("c");
+        var appleId = PlayableSearchSql.AppleEpisodeIdFromUrl(alias);
+        var podcastAppleId = PlayableSearchSql.ApplePodcastIdFromUrl(alias);
 
         // Assert
         appleId.Should().Contain("CONTAINS(c.services.apple.url, \"?i=\")");
         appleId.Should().Contain("(INDEX_OF(c.services.apple.url, \"?i=\") + 3)");
         appleId.Should().Contain("INDEX_OF(c.services.apple.url, \"&\",");
         appleId.TrimEnd().Should().EndWith("null)");
-        Normalise(podcastAppleId).Should().Be(Normalise(
-            """
-            IIF(IS_DEFINED(c.services.apple.url) AND CONTAINS(c.services.apple.url, "/id") AND CONTAINS(c.services.apple.url, "?i="),
-                SUBSTRING(c.services.apple.url,
-                    INDEX_OF(c.services.apple.url, "/id") + 3,
-                    INDEX_OF(c.services.apple.url, "?i=") - INDEX_OF(c.services.apple.url, "/id") - 3),
-                null)
-            """));
+        podcastAppleId.Should().Be(PlayableSearchSql.ApplePodcastIdFromUrlExpression("c.services.apple.url"));
+    }
+
+    [Fact(DisplayName =
+        "podcastAppleId is cut from the last /id segment before ?i= (the part before ?i= reversed, up to the first " +
+        "di/), so an Apple slug that itself starts with \"id\" (identity-crisis, idaho-...) cannot be taken for the " +
+        "show id, which the old first-/id expression got wrong on every content kind.")]
+    public void podcast_apple_id_is_anchored_on_the_last_id_segment()
+    {
+        // Arrange
+        const string urlExpression = "e.services.apple.url";
+
+        // Act
+        var sql = Normalise(PlayableSearchSql.ApplePodcastIdFromUrlExpression(urlExpression));
+
+        // Assert
+        sql.Should().Contain("REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\")))");
+        sql.Should().Contain("INDEX_OF(REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\"))), \"di/\") > 0");
+        sql.Should().NotContain("INDEX_OF(e.services.apple.url, \"/id\")");
+        sql.Should().EndWith("null)");
     }
 
     private static string Normalise(string sql) =>
