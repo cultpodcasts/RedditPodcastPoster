@@ -86,6 +86,12 @@ public class CatalogueParentsUpdater(
     /// <summary>Stable log prefix when an abandoned parent update finally finishes in the background.</summary>
     public const string AbandonedCompletedMessagePrefix = "IndexerCatalogueParentAbandonedCompleted";
 
+    /// <summary>
+    /// Stable log prefix when an on-demand index answers while its abandoned update is still running after the drain
+    /// (the update may then fail once the request scope is disposed).
+    /// </summary>
+    public const string AbandonedOutlivesRequestMessagePrefix = "IndexerCatalogueParentAbandonedOutlivesRequest";
+
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
     private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
@@ -136,7 +142,7 @@ public class CatalogueParentsUpdater(
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
                         success &= await IndexWithinBudget("TvShow", tvShow,
-                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass) is not null;
                     }
 
                     continue;
@@ -147,7 +153,7 @@ public class CatalogueParentsUpdater(
                     !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
                     success &= await IndexWithinBudget("NewsOrganisation", organisation,
-                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass) is not null;
                 }
             }
             catch (Exception ex)
@@ -164,20 +170,78 @@ public class CatalogueParentsUpdater(
         return success;
     }
 
-    /// <summary>
-    /// Runs one parent's index under its time budget. Returns false when the budget cut it off; other failures
-    /// propagate to the caller's per-parent catch.
-    /// </summary>
-    private async Task<bool> IndexWithinBudget(
+    public async Task<CatalogueParentIndexResult> IndexParent(Publisher parent, IndexingContext indexingContext)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        if (!indexingContext.ReleasedSince.HasValue)
+        {
+            throw new InvalidOperationException("Cannot index catalogue parents without a released-since.");
+        }
+
+        try
+        {
+            return parent switch
+            {
+                TvShow tvShow => await IndexOnDemand("TvShow", tvShow,
+                    context => IndexTvShow(tvShow, context), indexingContext),
+                NewsOrganisation organisation => await IndexOnDemand("NewsOrganisation", organisation,
+                    context => IndexNewsOrganisation(organisation, context), indexingContext),
+                _ => throw new ArgumentException(
+                    $"Only a TV show or a news organisation can be indexed, not '{parent.GetType().Name}'.",
+                    nameof(parent))
+            };
+        }
+        finally
+        {
+            // After IndexOnDemand, which waits (bounded) for an abandoned update to settle first.
+            passApiCache.Clear();
+        }
+    }
+
+    private async Task<CatalogueParentIndexResult> IndexOnDemand(
         string kind,
         Publisher parent,
-        Func<IndexingContext, Task> index,
-        IndexingContext indexingContext,
-        bool expensivePass)
+        Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
+        IndexingContext indexingContext)
     {
+        if (!IsIndexable(parent))
+        {
+            logger.LogWarning(
+                "On-demand index: catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' is removed or not auto-indexed.",
+                kind, parent.Id, parent.Name);
+            return new CatalogueParentIndexResult(CatalogueParentIndexStatus.NotIndexable);
+        }
+
+        if (await SourcePodcastStillExists(kind, parent))
+        {
+            return new CatalogueParentIndexResult(CatalogueParentIndexStatus.SourcePodcastStillExists);
+        }
+
+        var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
+        var changed = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass,
+            new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain));
+        return changed is null
+            ? new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut)
+            : new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, changed);
+    }
+
+    /// <summary>
+    /// Runs one parent's index under its time budget. Returns the saved playables, or null when the budget cut it off;
+    /// other failures propagate to the caller's per-parent catch. The hourly pass uses <see cref="HourlyPlan"/>; an
+    /// on-demand index passes its own, always-bounded plan.
+    /// </summary>
+    private async Task<IReadOnlyList<Playable>?> IndexWithinBudget(
+        string kind,
+        Publisher parent,
+        Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
+        IndexingContext indexingContext,
+        bool expensivePass,
+        BudgetPlan? plan = null)
+    {
+        plan ??= HourlyPlan(expensivePass);
+        var budget = plan.Budget;
         var stageLog = new PodcastIndexingStageLog(parent.Id, parent.Name, logger, timeProvider, _stageLogOptions);
-        var budget = _budget.BudgetFor(expensivePass);
-        Task? updateTask = null;
+        Task<IReadOnlyList<Playable>>? updateTask = null;
         using var budgetCts = budget.HasValue
             ? new CancellationTokenSource(budget.Value, timeProvider)
             : new CancellationTokenSource();
@@ -190,18 +254,13 @@ public class CatalogueParentsUpdater(
                 StageReporter = stageLog
             };
             updateTask = index(parentContext);
-            if (budget.HasValue)
-            {
-                await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider);
-            }
-            else
-            {
-                await updateTask;
-            }
+            var changed = budget.HasValue
+                ? await updateTask.WaitAsync(budget.Value + plan.AbandonGrace, timeProvider)
+                : await updateTask;
 
             stageLog.Stage("complete");
             budgetCutTracker.RecordCompleted(parent.Id);
-            return true;
+            return changed;
         }
         catch (Exception ex) when (budgetCts.IsCancellationRequested &&
                                    ex is OperationCanceledException or TimeoutException)
@@ -218,11 +277,41 @@ public class CatalogueParentsUpdater(
             if (abandoned && updateTask != null)
             {
                 ObserveAbandonedUpdate(updateTask, kind, parent, stageLog);
+                await DrainAbandonedUpdate(updateTask, plan.AbandonDrain, kind, parent);
             }
 
-            return false;
+            return null;
         }
     }
+
+    /// <summary>
+    /// An on-demand index runs inside the HTTP request's DI scope, which is disposed once the response is sent. Give an
+    /// abandoned update a short, bounded time to stop (every Cosmos write re-checks the cancelled token) so it finishes
+    /// while its scoped repositories, HTTP clients and the pass API cache are still alive. If it is still running after
+    /// that, it may fail after the scope ends; that is logged, and the timed-out answer does not claim what was saved.
+    /// </summary>
+    private async Task DrainAbandonedUpdate(Task updateTask, TimeSpan drain, string kind, Publisher parent)
+    {
+        if (drain <= TimeSpan.Zero || updateTask.IsCompleted)
+        {
+            return;
+        }
+
+        await Task.WhenAny(updateTask, Task.Delay(drain, timeProvider));
+        if (!updateTask.IsCompleted)
+        {
+            logger.LogWarning(
+                AbandonedOutlivesRequestMessagePrefix +
+                " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' drain-seconds='{DrainSeconds}'. The abandoned update is still running after the on-demand drain and may fail once the request scope is disposed.",
+                kind, parent.Id, parent.Name, (int) drain.TotalSeconds);
+        }
+    }
+
+    private BudgetPlan HourlyPlan(bool expensivePass) =>
+        new(_budget.BudgetFor(expensivePass), _budget.AbandonGrace, TimeSpan.Zero);
+
+    /// <summary>A parent's time budget (null: none), the grace before abandoning, and the drain after abandoning.</summary>
+    private sealed record BudgetPlan(TimeSpan? Budget, TimeSpan AbandonGrace, TimeSpan AbandonDrain);
 
     /// <summary>
     /// An abandoned update keeps running in the background. Observe it so a late outcome is logged instead of becoming an
@@ -295,7 +384,7 @@ public class CatalogueParentsUpdater(
         _ => null
     };
 
-    private async Task IndexTvShow(TvShow show, IndexingContext context)
+    private async Task<IReadOnlyList<Playable>> IndexTvShow(TvShow show, IndexingContext context)
     {
         var outcome = await IndexParent(
             show,
@@ -325,9 +414,10 @@ public class CatalogueParentsUpdater(
         }
 
         LogOutcome("TvShow", show, outcome);
+        return outcome.ChangedPlayables;
     }
 
-    private async Task IndexNewsOrganisation(NewsOrganisation organisation, IndexingContext context)
+    private async Task<IReadOnlyList<Playable>> IndexNewsOrganisation(NewsOrganisation organisation, IndexingContext context)
     {
         var outcome = await IndexParent(
             organisation,
@@ -357,6 +447,7 @@ public class CatalogueParentsUpdater(
         }
 
         LogOutcome("NewsOrganisation", organisation, outcome);
+        return outcome.ChangedPlayables;
     }
 
     /// <summary>

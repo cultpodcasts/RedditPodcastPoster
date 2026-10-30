@@ -17,6 +17,7 @@ public class NewsOrganisationController(
     IGetNewsOrganisationHandler getNewsOrganisationHandler,
     IPostNewsOrganisationHandler postNewsOrganisationHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
+    ICatalogueIndexHandler catalogueIndexHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<NewsOrganisationController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -81,4 +82,25 @@ public class NewsOrganisationController(
         [FromBody] Dtos.CatalogueRenameRequest rename,
         CancellationToken ct) =>
         Rename(req, newsOrganisationIdentifier, rename, ct);
+
+    /// <summary>
+    /// Index now, like <c>PodcastIndex</c>: curate only. The identifier is the guid or the (unique) name. Runs the hourly
+    /// indexer's pass for this one parent and pushes what it saved to search.
+    /// </summary>
+    [Function("NewsOrganisationIndex")]
+    public Task<HttpResponseData> Index(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsorganisation/index/{newsOrganisationIdentifier}")]
+        HttpRequestData req,
+        string newsOrganisationIdentifier,
+        CancellationToken ct) =>
+        HandleRequest(req, ["curate"], newsOrganisationIdentifier, catalogueIndexHandler.HandleNewsOrganisation, Unauthorised, ct);
+
+    /// <summary>Index when the name contains <c>/</c> (App Service %2F decode; see NewsOrganisationGetSlash).</summary>
+    [Function("NewsOrganisationIndexSlash")]
+    public Task<HttpResponseData> IndexSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsorganisation/index/{*newsOrganisationIdentifier}")]
+        HttpRequestData req,
+        string newsOrganisationIdentifier,
+        CancellationToken ct) =>
+        Index(req, newsOrganisationIdentifier, ct);
 }
