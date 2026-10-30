@@ -17,6 +17,24 @@ public class PodcastUpdateBudgetOptions
 
     public const int DefaultExpensivePassBudgetMultiplier = 3;
 
+    /// <summary>
+    /// Longest budget a curator's on-demand index (one HTTP request) may have. With
+    /// <see cref="MaxOnDemandAbandonGraceSeconds"/> and <see cref="MaxOnDemandAbandonDrainSeconds"/> the worst case is
+    /// 150 + 15 + 30 = 195 seconds, under the Azure App Service front end's ~230 second request timeout, so the
+    /// curator gets the timed-out answer instead of a gateway error while the work carries on.
+    /// </summary>
+    public const int MaxOnDemandBudgetSeconds = 150;
+
+    public const int DefaultOnDemandBudgetSeconds = MaxOnDemandBudgetSeconds;
+
+    /// <summary>Upper bound on the grace period an on-demand index waits for its update to observe cancellation.</summary>
+    public const int MaxOnDemandAbandonGraceSeconds = 15;
+
+    /// <summary>Upper bound on how long an on-demand index waits for an abandoned update to settle before it answers.</summary>
+    public const int MaxOnDemandAbandonDrainSeconds = 30;
+
+    public const int DefaultOnDemandAbandonDrainSeconds = MaxOnDemandAbandonDrainSeconds;
+
     /// <summary>Seconds one podcast's update may run before it is cancelled. Zero or less disables the budget.</summary>
     public int PerPodcastBudgetSeconds { get; set; } = DefaultPerPodcastBudgetSeconds;
 
@@ -47,4 +65,32 @@ public class PodcastUpdateBudgetOptions
     }
 
     public TimeSpan AbandonGrace => TimeSpan.FromSeconds(Math.Max(0, AbandonGraceSeconds));
+
+    /// <summary>
+    /// Seconds a curator's on-demand index of one TV show or news organisation may run before it is cancelled. It is
+    /// independent of <see cref="PerPodcastBudgetSeconds"/> and <see cref="ExpensivePassBudgetMultiplier"/> (the curator
+    /// context always allows expensive queries), so an HTTP request always has a cap. Clamped to at most
+    /// <see cref="MaxOnDemandBudgetSeconds"/>; zero or less means the default.
+    /// </summary>
+    public int OnDemandBudgetSeconds { get; set; } = DefaultOnDemandBudgetSeconds;
+
+    /// <summary>
+    /// Seconds an on-demand index waits, after abandoning an update that ignored its cancelled token, for that update to
+    /// settle before answering. The request's DI scope (repositories, HTTP clients, the pass API cache) is disposed once
+    /// the response is sent, so the update should stop while they are still alive. Clamped to
+    /// 0..<see cref="MaxOnDemandAbandonDrainSeconds"/>.
+    /// </summary>
+    public int OnDemandAbandonDrainSeconds { get; set; } = DefaultOnDemandAbandonDrainSeconds;
+
+    /// <summary>The on-demand budget: <see cref="OnDemandBudgetSeconds"/>, defaulted and clamped (never unbounded).</summary>
+    public TimeSpan OnDemandBudget => TimeSpan.FromSeconds(
+        OnDemandBudgetSeconds <= 0 ? DefaultOnDemandBudgetSeconds : Math.Min(OnDemandBudgetSeconds, MaxOnDemandBudgetSeconds));
+
+    /// <summary>The on-demand grace: <see cref="AbandonGrace"/>, capped at <see cref="MaxOnDemandAbandonGraceSeconds"/>.</summary>
+    public TimeSpan OnDemandAbandonGrace =>
+        TimeSpan.FromSeconds(Math.Clamp(AbandonGraceSeconds, 0, MaxOnDemandAbandonGraceSeconds));
+
+    /// <summary>The on-demand drain: <see cref="OnDemandAbandonDrainSeconds"/>, clamped.</summary>
+    public TimeSpan OnDemandAbandonDrain =>
+        TimeSpan.FromSeconds(Math.Clamp(OnDemandAbandonDrainSeconds, 0, MaxOnDemandAbandonDrainSeconds));
 }

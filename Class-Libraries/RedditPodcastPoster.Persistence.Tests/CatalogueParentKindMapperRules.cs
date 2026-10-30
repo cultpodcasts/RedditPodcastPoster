@@ -3,6 +3,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -32,6 +33,86 @@ public class CatalogueParentKindMapperRules
         show.ModelType.Should().Be(ModelType.TvShow);
         show.TwitterHandle.Should().Be(podcast.TwitterHandle);
         show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(podcast.Name));
+    }
+
+    [Fact(DisplayName =
+        "Mapping an episode to a TV episode, news report or film copies every services url and image, so cover art comes over from the episode.")]
+    public void mappers_copy_service_urls_and_images()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var spotifyUrl = _fixture.Create<Uri>();
+        var spotifyImage = _fixture.Create<Uri>();
+        var youTubeImage = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, spotifyImage);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, youTubeImage);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var services = new[]
+        {
+            CatalogueParentKindMapper.ToTvShowEpisode(episode, show).Services,
+            CatalogueParentKindMapper.ToNewsReport(episode, organisation).Services,
+            CatalogueParentKindMapper.ToFilm(podcast, episode).Services
+        };
+
+        // Assert
+        services.Should().OnlyContain(item =>
+            item![ServiceKeys.Spotify].Url == spotifyUrl &&
+            item[ServiceKeys.Spotify].Image == spotifyImage &&
+            item[ServiceKeys.YouTube].Url == episode.Services![ServiceKeys.YouTube].Url &&
+            item[ServiceKeys.YouTube].Image == youTubeImage);
+    }
+
+    [Fact(DisplayName =
+        "After Move, mapped TV episode, news report, and film carry the source episode's compact YouTubeId " +
+        "so sibling Azure Search datasources can project youtubeId for Watch without nested ids.")]
+    public void mappers_set_compact_youtube_id_from_source_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var expectedYouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var tv = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        var news = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        expectedYouTubeId.Should().NotBeNullOrWhiteSpace();
+        tv.YouTubeId.Should().Be(expectedYouTubeId);
+        news.YouTubeId.Should().Be(expectedYouTubeId);
+        film.YouTubeId.Should().Be(expectedYouTubeId);
+    }
+    [Fact(DisplayName =
+        "When a source episode's nested ids.youtube disagrees with its services.youtube.url, mapped TV episode, " +
+        "news report and film take the id from the url, because url wins on create exactly as on merge and backfill.")]
+    public void mappers_prefer_url_over_nested_youtube_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var urlId = _fixture.CreateYouTubeId();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(urlId), null);
+        EpisodeServicePresence.SetYouTubeIdentity(episode, _fixture.CreateYouTubeId());
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+
+        // Act
+        var tv = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        var news = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        var film = CatalogueParentKindMapper.ToFilm(podcast, episode);
+
+        // Assert
+        episode.Ids!.YouTube.Should().NotBe(urlId);
+        tv.YouTubeId.Should().Be(urlId);
+        news.YouTubeId.Should().Be(urlId);
+        film.YouTubeId.Should().Be(urlId);
     }
 
     [Fact(DisplayName =
@@ -116,30 +197,30 @@ public class CatalogueParentKindMapperRules
         playable.ModelType.Should().Be(ModelType.TvShowEpisode);
         playable.Services.Should().NotBeNull();
         playable.Services!.ContainsKey(ServiceKeys.YouTube).Should().BeTrue();
-        playable.Imdb.Should().BeNull();
-        playable.Tvdb.Should().BeNull();
+        playable.ImdbId.Should().BeNull();
+        playable.TvdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB URIs, " +
-        "because episode identity pages are per playable and must be set by the curator.")]
-    public void tv_show_episode_does_not_inherit_parent_canonical_uris()
+        "Mapping an episode to a TV-show episode does not copy the parent's IMDb or TheTVDB ids, " +
+        "because episode identity ids are per playable and must be set by the curator.")]
+    public void tv_show_episode_does_not_inherit_parent_canonical_ids()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         var show = CatalogueParentKindMapper.ToTvShow(podcast);
-        show.Imdb = new Uri($"https://www.imdb.com/title/tt{_fixture.CreateAppleId()}/");
-        show.Tvdb = new Uri($"https://www.thetvdb.com/series/{_fixture.CreateYouTubeId()}");
+        show.ImdbId = _fixture.CreateImdbId();
+        show.TvdbId = _fixture.CreateTvdbId();
 
         // Act
         var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
 
         // Assert
-        show.Imdb.Should().NotBeNull();
-        show.Tvdb.Should().NotBeNull();
-        playable.Imdb.Should().BeNull();
-        playable.Tvdb.Should().BeNull();
+        show.ImdbId.Should().NotBeNull();
+        show.TvdbId.Should().NotBeNull();
+        playable.ImdbId.Should().BeNull();
+        playable.TvdbId.Should().BeNull();
     }
 
     [Fact(DisplayName =

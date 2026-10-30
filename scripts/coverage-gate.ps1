@@ -156,15 +156,19 @@ try {
             Write-Host "Running coverage: $project"
             $testArgs = @(
                 'test', $project,
-                '--configuration', 'Release',
+                '--configuration', 'Release'
+            )
+            if ($NoBuild) {
+                # Must precede `--`; anything after that is a test-host argument, so the
+                # gate was rebuilding and sometimes losing a dependency dll mid-copy.
+                $testArgs += '--no-build'
+            }
+            $testArgs += @(
                 '--collect:XPlat Code Coverage',
                 '--results-directory', $ResultsDirectory,
                 '--',
                 'DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura'
             )
-            if ($NoBuild) {
-                $testArgs += '--no-build'
-            }
 
             dotnet @testArgs | Write-Host
             if ($LASTEXITCODE -ne 0) {

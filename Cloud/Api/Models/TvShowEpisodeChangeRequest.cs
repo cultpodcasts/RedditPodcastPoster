@@ -2,7 +2,9 @@ namespace Api.Models;
 
 public class TvShowEpisodeChangeRequest : PlayableFieldsChange
 {
-    public string? Imdb { get; set; }
+    public string? ImdbId { get; set; }
 
-    public string? Tvdb { get; set; }
+    public long? TvdbId { get; set; }
+
+    public int? TmdbId { get; set; }
 }

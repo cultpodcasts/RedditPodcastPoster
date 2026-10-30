@@ -109,6 +109,7 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
             ReleaseAuthority = podcast.ReleaseAuthority,
             IndexAllEpisodes = podcast.IndexAllEpisodes,
             BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking,
+            AlwaysPromoteAsHero = podcast.AlwaysPromoteAsHero,
             EpisodeIncludeTitleRegex = podcast.EpisodeIncludeTitleRegex,
             EpisodeMatchRegex = podcast.EpisodeMatchRegex,
             TitleRegex = podcast.TitleRegex,

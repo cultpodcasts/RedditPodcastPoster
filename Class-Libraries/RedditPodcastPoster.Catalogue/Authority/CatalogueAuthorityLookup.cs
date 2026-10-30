@@ -17,9 +17,7 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
         return new CatalogueAuthorityIds(
             imdbId,
             movie?.Id ?? tmdbId,
-            TvdbId: null,
-            imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
-            Tvdb: null);
+            TvdbId: null);
     }
 
     public async Task<CatalogueAuthorityIds> CollectTvShowAsync(
@@ -56,9 +54,7 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
         return new CatalogueAuthorityIds(
             imdbId,
             series?.Id ?? seriesTmdbId,
-            storedTvdbId,
-            imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
-            TvdbPage(storedTvdbId, tvdbSeries?.CanonicalUrl, TmdbTitleKind.TvSeries));
+            storedTvdbId);
     }
 
     public async Task<CatalogueAuthorityIds> CollectTvShowEpisodeAsync(
@@ -101,9 +97,7 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
         return new CatalogueAuthorityIds(
             imdbId,
             StoredEpisodeTmdbId(tmdbEpisode?.Id, tvdbEpisode?.TmdbEpisodeId),
-            storedTvdbId,
-            imdbId is null ? null : CatalogueCanonicalId.ImdbPage(imdbId),
-            TvdbPage(storedTvdbId, tvdbEpisode?.CanonicalUrl, TmdbTitleKind.TvEpisode));
+            storedTvdbId);
     }
 
     /// <summary>
@@ -149,16 +143,6 @@ public sealed class CatalogueAuthorityLookup(ITmdbClient tmdb, ITheTvdbClient th
     }
 
     private static int? PositiveTmdbId(int? id) => id is > 0 ? id : null;
-
-    private static Uri? TvdbPage(long? tvdbId, Uri? canonicalUrl, TmdbTitleKind kind)
-    {
-        if (canonicalUrl is not null)
-        {
-            return canonicalUrl;
-        }
-
-        return tvdbId is > 0 ? CatalogueCanonicalId.TvdbPage(tvdbId.Value, kind) : null;
-    }
 
     private static string? PreferImdb(string? first, string? second) =>
         ValidImdb(first) ?? ValidImdb(second);

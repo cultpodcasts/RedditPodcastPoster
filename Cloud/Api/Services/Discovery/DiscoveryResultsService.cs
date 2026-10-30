@@ -161,8 +161,10 @@ public class DiscoveryResultsService(
         CancellationToken cancellationToken = default) =>
         TryClaim(DiscoveryResultsDocumentState.PendingSupervisor, documentIds, cancellationToken);
 
-    public async Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds)
+    public async Task UpdateResultStates(Guid[] documentIds, Guid[] succeededResultIds, Guid[] erroredResultIds,
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes)
     {
+        var byId = OutcomeIndex(outcomes);
         foreach (var documentId in documentIds.Distinct())
         {
             var document = await discoveryResultsRepository.GetById(documentId);
@@ -178,12 +180,12 @@ public class DiscoveryResultsService(
             {
                 if (succeededResultIds.Contains(result.Id))
                 {
-                    result.State = DiscoveryResultState.Accepted;
+                    StampAccepted(result, byId.GetValueOrDefault(result.Id), logger);
                     changed = true;
                 }
                 else if (erroredResultIds.Contains(result.Id))
                 {
-                    result.State = DiscoveryResultState.AcceptError;
+                    StampAcceptError(result, byId.GetValueOrDefault(result.Id));
                     changed = true;
                 }
             }
@@ -193,6 +195,86 @@ public class DiscoveryResultsService(
                 await discoveryResultsRepository.Save(document);
             }
         }
+    }
+
+    public async Task<IReadOnlyList<DiscoverySubmitOutcomeItem>> GetSubmitOutcome(Guid[] documentIds,
+        Guid[] resultIds, CancellationToken cancellationToken = default)
+    {
+        var wanted = resultIds.Distinct().ToHashSet();
+        var documents = await discoveryResultsRepository.GetByIds(documentIds.Distinct()).ToListAsync(cancellationToken);
+        var found = new Dictionary<Guid, DiscoverySubmitOutcomeItem>();
+        foreach (var document in documents)
+        {
+            foreach (var result in document.DiscoveryResults)
+            {
+                if (!wanted.Contains(result.Id))
+                {
+                    continue;
+                }
+
+                found[result.Id] = ToOutcomeItem(result);
+            }
+        }
+
+        return resultIds.Select(id => found.TryGetValue(id, out var item)
+            ? item
+            : new DiscoverySubmitOutcomeItem(id, DiscoverySubmitOutcomeState.Unknown)).ToArray();
+    }
+
+    private static DiscoverySubmitOutcomeItem ToOutcomeItem(DiscoveryResult result) =>
+        result.State switch
+        {
+            DiscoveryResultState.Accepted => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.Accepted,
+                result.AcceptedPodcastId, result.AcceptedEpisodeId, null, result.EpisodeName, result.ShowName),
+            DiscoveryResultState.AcceptError => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.AcceptError,
+                result.AcceptedPodcastId, result.AcceptedEpisodeId, result.AcceptError, result.EpisodeName,
+                result.ShowName),
+            DiscoveryResultState.Rejected => new DiscoverySubmitOutcomeItem(result.Id,
+                DiscoverySubmitOutcomeState.Rejected,
+                EpisodeName: result.EpisodeName, ShowName: result.ShowName),
+            _ => new DiscoverySubmitOutcomeItem(result.Id, DiscoverySubmitOutcomeState.Pending,
+                EpisodeName: result.EpisodeName, ShowName: result.ShowName)
+        };
+
+    private static Dictionary<Guid, DiscoverySubmitItemOutcome> OutcomeIndex(
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes) =>
+        outcomes.GroupBy(x => x.DiscoveryItemId).ToDictionary(g => g.Key, g => g.Last());
+
+    private static void StampAccepted(DiscoveryResult result, DiscoverySubmitItemOutcome? outcome, ILogger log)
+    {
+        if (outcome == null)
+        {
+            // Accepted without an ingest outcome would persist success with null ids — reconcile must not lie.
+            log.LogWarning(
+                "Accepted discovery result '{ResultId}' has no submit outcome; stamping AcceptError instead.",
+                result.Id);
+            StampAcceptError(result, new DiscoverySubmitItemOutcome(result.Id, null, null,
+                DiscoverySubmitItemOutcomeMessages.Error, "Missing submit outcome for accepted result."));
+            return;
+        }
+
+        result.State = DiscoveryResultState.Accepted;
+        result.AcceptError = null;
+        result.AcceptedPodcastId = outcome.PodcastId;
+        result.AcceptedEpisodeId = outcome.EpisodeId;
+    }
+
+    private static void StampAcceptError(DiscoveryResult result, DiscoverySubmitItemOutcome? outcome)
+    {
+        result.State = DiscoveryResultState.AcceptError;
+        result.AcceptedPodcastId = outcome?.PodcastId;
+        result.AcceptedEpisodeId = outcome?.EpisodeId;
+        result.AcceptError = outcome?.Error ?? outcome?.Message;
+    }
+
+    private static void StampRejected(DiscoveryResult result)
+    {
+        result.State = DiscoveryResultState.Rejected;
+        result.AcceptedPodcastId = null;
+        result.AcceptedEpisodeId = null;
+        result.AcceptError = null;
     }
 
     public async Task ReleaseHeldClaim(Guid[] documentIds)
@@ -235,8 +317,10 @@ public class DiscoveryResultsService(
         return [];
     }
 
-    public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds)
+    public async Task MarkAsProcessed(Guid[] documentIds, Guid[] acceptedResultIds, Guid[] erroredResultIds,
+        IReadOnlyList<DiscoverySubmitItemOutcome> outcomes)
     {
+        var byId = OutcomeIndex(outcomes);
         foreach (var documentId in documentIds)
         {
             var document = await discoveryResultsRepository.GetById(documentId);
@@ -261,15 +345,16 @@ public class DiscoveryResultsService(
                 {
                     if (erroredResultIds.Contains(documentDiscoveryResult.Id))
                     {
-                        documentDiscoveryResult.State = DiscoveryResultState.AcceptError;
+                        StampAcceptError(documentDiscoveryResult, byId.GetValueOrDefault(documentDiscoveryResult.Id));
                     }
                     else if (acceptedResultIds.Contains(documentDiscoveryResult.Id))
                     {
-                        documentDiscoveryResult.State = DiscoveryResultState.Accepted;
+                        StampAccepted(documentDiscoveryResult, byId.GetValueOrDefault(documentDiscoveryResult.Id),
+                            logger);
                     }
                     else
                     {
-                        documentDiscoveryResult.State = DiscoveryResultState.Rejected;
+                        StampRejected(documentDiscoveryResult);
                     }
                 }
 

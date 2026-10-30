@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Services;
+
 namespace Api.Models;
 
 /// <summary>Curator playable-field edit (news report, TV-show episode). Null = unchanged.</summary>
@@ -18,4 +20,10 @@ public abstract class PlayableFieldsChange
     public string? HashTag { get; set; }
     public string? Language { get; set; }
     public string[]? Guests { get; set; }
+
+    /// <summary>
+    /// Per-key link patch (same as film / episode): blank url+image removes the key; otherwise the key is
+    /// resolved from the URL when present.
+    /// </summary>
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 }

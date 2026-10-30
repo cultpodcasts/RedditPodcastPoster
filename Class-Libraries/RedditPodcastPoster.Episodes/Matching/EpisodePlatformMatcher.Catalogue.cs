@@ -213,7 +213,7 @@ public sealed partial class EpisodePlatformMatcher
         var subjectFilters = new CatalogueSubjectScoreFilters(
             options.DefaultSubject,
             options.IgnoredSubjects);
-        return CatalogueMatchScorer.SelectBestMatch(probe, sampleList, subjectFilters);
+        return CatalogueMatchScorer.SelectBestMatch(probe, sampleList, subjectFilters, options.YouTubePublished);
     }
 
     private static long GetCatalogueDurationThresholdTicks(CatalogueMatchByLengthOptions options) =>

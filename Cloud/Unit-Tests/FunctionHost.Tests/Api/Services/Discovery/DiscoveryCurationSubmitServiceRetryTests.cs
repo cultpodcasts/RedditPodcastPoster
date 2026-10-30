@@ -57,13 +57,15 @@ public class DiscoveryCurationSubmitServiceRetryTests
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.UpdateResultStates(
             It.Is<Guid[]>(x => x.SequenceEqual(new[] { report.Id })),
             It.Is<Guid[]>(x => x.SequenceEqual(new[] { ok.Id })),
-            It.Is<Guid[]>(x => x.SequenceEqual(new[] { bad.Id }))), Times.Once);
+            It.Is<Guid[]>(x => x.SequenceEqual(new[] { bad.Id })),
+            It.IsNotNull<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Once);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.TryClaimForProcessing(
             It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.TryClaimHeldForProcessing(
             It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
-            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()), Times.Never);
+            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Never);
     }
 
     [Fact(DisplayName =

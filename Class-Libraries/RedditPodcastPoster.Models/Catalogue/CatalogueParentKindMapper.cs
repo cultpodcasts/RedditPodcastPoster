@@ -13,7 +13,8 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// or a one-off episode onto a Film (no parent). Parent id is the podcast id;
 /// each playable keeps its episode id. Film is never a parent.
 /// TV and News parents keep the podcast's discovery settings (<see cref="CatalogueIndexingSource"/>)
-/// so the hourly indexer can keep finding new playables.
+/// so the hourly indexer can keep finding new playables. A news organisation is saved with bypass-short-episode
+/// checking and always-promote-as-hero on (<see cref="CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults"/>).
 /// </summary>
 public static class CatalogueParentKindMapper
 {
@@ -45,7 +46,9 @@ public static class CatalogueParentKindMapper
         organisation.Name = organisationName;
         organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(organisationName);
         organisation.ModelType = ModelType.NewsOrganisation;
-        organisation.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
+        // A transfer to news saves the news defaults (bypass short, always promote as hero) on, whatever the podcast had.
+        organisation.Indexing = CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults(
+            CatalogueIndexingSource.FromPodcast(podcast));
         return organisation;
     }
 
@@ -58,6 +61,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
+        playable.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         playable.SetTvShowProperties(tvShow);
         playable.ModelType = ModelType.TvShowEpisode;
         return playable;
@@ -95,6 +99,7 @@ public static class CatalogueParentKindMapper
         film.RemovedSubjects = [.. episode.RemovedSubjects];
         film.Matches = episode.Matches.Select(CloneMatch).ToList();
         film.Services = CloneServices(episode.Services);
+        film.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         film.Guests = CloneArray(episode.Guests);
         return film;
     }
@@ -108,6 +113,7 @@ public static class CatalogueParentKindMapper
             Id = episode.Id
         };
         CopyPlayable(episode, playable);
+        playable.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
         playable.SetNewsOrganisationProperties(organisation);
         playable.ModelType = ModelType.NewsReport;
         return playable;
@@ -217,6 +223,17 @@ public static class CatalogueParentKindMapper
         target.ParentRemoved = source.ParentRemoved;
         target.Services = CloneServices(source.Services);
         target.Guests = CloneArray(source.Guests);
+        CopyCatalogueYouTubeId(source, target);
+    }
+
+    private static void CopyCatalogueYouTubeId(Playable source, Playable target)
+    {
+        if (source is not ICatalogueYouTubeItem from || target is not ICatalogueYouTubeItem to)
+        {
+            return;
+        }
+
+        to.YouTubeId = string.IsNullOrWhiteSpace(from.YouTubeId) ? null : from.YouTubeId;
     }
 
     private static string[]? CloneArray(string[]? values) =>

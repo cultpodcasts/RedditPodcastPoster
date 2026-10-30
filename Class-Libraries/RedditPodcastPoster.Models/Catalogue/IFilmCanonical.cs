@@ -1,16 +1,15 @@
 namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
-/// IMDb title page as the canonical film identity when several productions share a name.
+/// IMDb title id (and TMDB id) as the canonical film identity when several productions share a name.
 /// Watch destinations stay on <see cref="IPlayable.Services"/> — IMDb is not a streaming service.
+/// Page URLs are derived from <see cref="ImdbId"/> when a link is needed.
 /// </summary>
 public interface IFilmCanonical
 {
-    Uri? Imdb { get; set; }
-
-    /// <summary>IMDb title id (<c>tt…</c>) for this film. The page is <see cref="Imdb"/>.</summary>
+    /// <summary>IMDb title id (<c>tt…</c>) for this film.</summary>
     string? ImdbId { get; set; }
 
-    /// <summary>TMDB id for this film. Not a page URL. Films do not store a TheTVDB id.</summary>
+    /// <summary>TMDB id for this film. Films do not store a TheTVDB id.</summary>
     int? TmdbId { get; set; }
 }

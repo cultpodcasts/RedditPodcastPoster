@@ -100,7 +100,6 @@ public static class RequestModelExtensions
     public static Models.FilmChangeRequest ToModel(this FilmChangeRequest request) =>
         request.CopyPublisherFieldsTo(new Models.FilmChangeRequest
         {
-            Imdb = request.Imdb,
             ImdbId = request.ImdbId,
             TmdbId = request.TmdbId,
             Services = request.Services,
@@ -120,15 +119,17 @@ public static class RequestModelExtensions
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
         request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.TvShowChangeRequest
         {
-            Imdb = request.Imdb,
-            Tvdb = request.Tvdb
+            ImdbId = request.ImdbId,
+            TvdbId = request.TvdbId,
+            TmdbId = request.TmdbId
         }));
 
     public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.TvShowEpisodeChangeRequest
         {
-            Imdb = request.Imdb,
-            Tvdb = request.Tvdb
+            ImdbId = request.ImdbId,
+            TvdbId = request.TvdbId,
+            TmdbId = request.TmdbId
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
@@ -164,6 +165,19 @@ public static class RequestModelExtensions
         model.SpotifyId = request.SpotifyId;
         model.AppleId = request.AppleId;
         model.NullAppleId = request.NullAppleId;
+        model.IndexAllEpisodes = request.IndexAllEpisodes;
+        model.TitleRegex = request.TitleRegex;
+        model.DescriptionRegex = request.DescriptionRegex;
+        model.EpisodeMatchRegex = request.EpisodeMatchRegex;
+        model.EpisodeIncludeTitleRegex = request.EpisodeIncludeTitleRegex;
+        model.IgnoreAllEpisodes = request.IgnoreAllEpisodes;
+        model.BypassShortEpisodeChecking = request.BypassShortEpisodeChecking;
+        model.AlwaysPromoteAsHero = request.AlwaysPromoteAsHero;
+        model.MinimumDuration = request.MinimumDuration;
+        model.ReleaseAuthority = request.ReleaseAuthority;
+        model.UnsetReleaseAuthority = request.UnsetReleaseAuthority;
+        model.YouTubePublicationDelay = request.YouTubePublicationDelay;
+        model.SkipEnrichingFromYouTube = request.SkipEnrichingFromYouTube;
         return model;
     }
 
@@ -185,10 +199,20 @@ public static class RequestModelExtensions
         model.HashTag = request.HashTag;
         model.Language = request.Language;
         model.Guests = request.Guests;
+        model.Services = request.Services;
         return model;
     }
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
+    {
+        DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
+        ResultIds = request.ResultIds,
+        LanguageDecisions = request.LanguageDecisions,
+        IdentityDecisions = request.IdentityDecisions,
+        SelectedIdentityKeys = request.SelectedIdentityKeys
+    };
+
+    public static Models.DiscoverySubmitOutcomeRequest ToModel(this DiscoverySubmitOutcomeRequest request) => new()
     {
         DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
         ResultIds = request.ResultIds
@@ -239,7 +263,10 @@ public static class RequestModelExtensions
         ParentKind = request.ParentKind,
         ParentId = request.ParentId,
         ParentName = request.ParentName,
-        PrefetchedMeta = request.PrefetchedMeta
+        PrefetchedMeta = request.PrefetchedMeta,
+        LanguageDecision = request.LanguageDecision,
+        IdentityDecision = request.IdentityDecision,
+        SelectedIdentityKey = request.SelectedIdentityKey
     };
 
     public static Models.SubmitUrlPrepareRequest ToModel(this SubmitUrlPrepareRequest request) => new()

@@ -67,6 +67,32 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when News is applied to a podcast with bypass-short-episodes and always-promote-as-hero off, " +
+        "then the news organisation is saved with both on, because a podcast converted to news gets the saved news " +
+        "defaults.")]
+    public async Task news_apply_saves_news_default_flags()
+    {
+        // Arrange
+        _clock.Now = OutsideIndexerWindow();
+        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = false;
+            p.AlwaysPromoteAsHero = false;
+        });
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var indexing = _destination.NewsOrganisations[podcast.Id].Indexing!;
+        indexing.BypassShortEpisodeChecking.Should().BeTrue();
+        indexing.AlwaysPromoteAsHero.Should().BeTrue();
+        indexing.IndexAllEpisodes.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: when News is applied with consent for an S-008 publisher, then the organisation and every report keep " +
         "their ids, removed episodes stay removed, search swaps only active rows to NewsReport, the removed episode's search key " +
         "is deleted, and the podcast rows are deleted, because migrate moves rather than copies (S-006).")]
@@ -305,6 +331,47 @@ public class CatalogueMigrateApplyRules
         _destination.Films.Keys.Should().Equal(episode.Id);
         _destination.Search[episode.Id.ToString()].ContentKind.Should().Be(SearchContentKind.Film);
         (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an episode has nested Spotify/YouTube/(Apple+podcast.AppleId) and Services is null, " +
+        "then apply fills deterministic services.*.url on the playable and leaves an existing url/image untouched, " +
+        "because playables keep Services only and ids without a url would be lost.")]
+    public async Task apply_fills_service_urls_from_ids_when_services_null()
+    {
+        // Arrange
+        var appleShowId = _fixture.CreateAppleId();
+        var podcast = _fixture.CreatePodcast(p => p.AppleId = appleShowId);
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Services = null;
+        episode.Ids = new EpisodeIds
+        {
+            Spotify = spotifyId,
+            Apple = appleEpisodeId,
+            YouTube = youTubeId
+        };
+        var keptYouTubeUrl = _fixture.Create<Uri>();
+        var keptSpotifyImage = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, keptYouTubeUrl, null);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, keptSpotifyImage);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.Film, podcastId: podcast.Id));
+
+        // Assert
+        result.AppliedCount.Should().Be(1);
+        var film = _destination.Films[episode.Id];
+        film.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
+        film.Services[ServiceKeys.Spotify].Image.Should().Be(keptSpotifyImage);
+        film.Services[ServiceKeys.YouTube].Url.Should().Be(keptYouTubeUrl);
+        film.Services[ServiceKeys.Apple].Url.Should()
+            .Be(new Uri($"https://podcasts.apple.com/podcast/id{appleShowId}?i={appleEpisodeId}"));
     }
 
     [Fact(DisplayName =

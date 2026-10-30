@@ -27,4 +27,19 @@ public class SubmitUrlRequest
     /// caller — do not forward SPA-supplied meta on public submit bodies.
     /// </summary>
     public NonPodcastServiceItemMetaData? PrefetchedMeta { get; set; }
+
+    /// <summary>
+    /// Answer to an unsupported-language prompt: <c>add</c>, <c>continue</c>, or <c>cancel</c>.
+    /// Absent on the first submit, which detects before anything is created.
+    /// </summary>
+    public string? LanguageDecision { get; set; }
+
+    /// <summary>
+    /// Answer to an ambiguous-identity prompt: <c>select</c>, <c>continue</c>, or <c>cancel</c>.
+    /// Absent on the first submit; required with <see cref="SelectedIdentityKey"/> when choosing a candidate.
+    /// </summary>
+    public string? IdentityDecision { get; set; }
+
+    /// <summary>Candidate <c>key</c> when <see cref="IdentityDecision"/> is <c>select</c> (e.g. <c>tmdb:123</c>).</summary>
+    public string? SelectedIdentityKey { get; set; }
 }

@@ -10,6 +10,7 @@ using RedditPodcastPoster.UrlSubmission.Adaptors;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Factories;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Processors;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -25,6 +26,8 @@ public static class ServiceCollectionExtensions
     /// Does not register episodes domain — callers must call <c>AddEpisodesDomain().AddEpisodeLookup()</c>
     /// explicitly at the composition root (required for <c>IEpisodeEnricher</c> →
     /// <c>IPlatformEnrichmentApplicator</c>).
+    /// Does not register catalogue services either — callers must call <c>AddCatalogueServices()</c>
+    /// at the composition root (required for <c>ICatalogueKindSubmitter</c> → <c>ICatalogueIdentityEnricher</c>).
     /// </summary>
     /// <param name="useRefreshMetaEnricher">
     /// When true (SubmitUrl CLI <c>-r</c>), resolve <see cref="IEpisodeEnricher"/> to
@@ -59,7 +62,12 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IEpisodeEnricher>(sp => sp.GetRequiredService<EpisodeEnricher>());
         }
 
+        // The catalogue submitters measure the hero week window with this clock.
+        services.TryAddSingleton(TimeProvider.System);
         return services
+            .AddSingleton<ICatalogueLanguageDetector, CatalogueLanguageDetector>()
+            .AddScoped<ISupportedLanguageRegistrar, UnconfiguredSupportedLanguageRegistrar>()
+            .AddScoped<ICatalogueLanguageGate, CatalogueLanguageGate>()
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
             .AddScoped<ICatalogueKindSubmitter, CatalogueKindSubmitter>()

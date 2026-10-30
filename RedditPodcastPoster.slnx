@@ -4,6 +4,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AI/RedditPodcastPoster.AI.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.AbcIview/RedditPodcastPoster.AbcIview.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.AmazonPrime/RedditPodcastPoster.AmazonPrime.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.AppleTvPlus/RedditPodcastPoster.AppleTvPlus.csproj" />
@@ -140,6 +142,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.AppleTvPlus.Tests/RedditPodcastPoster.AppleTvPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Ard.Tests/RedditPodcastPoster.Ard.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Arte.Tests/RedditPodcastPoster.Arte.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.AbcIview.Tests/RedditPodcastPoster.AbcIview.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.CanalPlus.Tests/RedditPodcastPoster.CanalPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Peacock.Tests/RedditPodcastPoster.Peacock.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Tubi.Tests/RedditPodcastPoster.Tubi.Tests.csproj" />
@@ -232,6 +235,7 @@
     <Project Path="Console-Apps/CatalogueMigrate/CatalogueMigrate.csproj" />
 
     <Project Path="Console-Apps/CatalogueMigrate.Tests/CatalogueMigrate.Tests.csproj" />
+    <Project Path="Console-Apps/ConsoleApps.Composition.Tests/ConsoleApps.Composition.Tests.csproj" />
 
     <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
 
@@ -259,20 +263,27 @@
     <Project Path="Console-Apps/DiscoveryTrainingTrain/DiscoveryTrainingTrain.csproj" />
 
     <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
+    <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill/NewsOrganisationDefaultsBackfill.csproj" />
+    <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill.Tests/NewsOrganisationDefaultsBackfill.Tests.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill/EpisodeServiceBackfill.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill.Tests/EpisodeServiceBackfill.Tests.csproj" />
+
+    <Project Path="Console-Apps/CataloguePlayableServicesBackfill/CataloguePlayableServicesBackfill.csproj" />
+    <Project Path="Console-Apps/CataloguePlayableServicesBackfill.Tests/CataloguePlayableServicesBackfill.Tests.csproj" />
 
     <Project Path="Console-Apps/SeedTitleCasingRules/SeedTitleCasingRules.csproj" />
 
     <Project Path="Console-Apps/SeedSupportedLanguages/SeedSupportedLanguages.csproj" />
 
     <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices/EnrichExistingEpisodesFromPodcastServices.csproj" />
+    <Project Path="Console-Apps/EnrichExistingEpisodesFromPodcastServices.Tests/EnrichExistingEpisodesFromPodcastServices.Tests.csproj" />
 
     <Project Path="Console-Apps/EnrichPodcastWithImages/EnrichPodcastWithImages.csproj" />
 
     <Project Path="Console-Apps/EnrichYouTubeOnlyPodcasts/EnrichYouTubeOnlyPodcasts.csproj" />
 
     <Project Path="Console-Apps/FindDuplicateEpisodes/FindDuplicateEpisodes.csproj" />
+    <Project Path="Console-Apps/FindDuplicateEpisodes.Tests/FindDuplicateEpisodes.Tests.csproj" />
 
     <Project Path="Console-Apps/Index/Index.csproj" />
 

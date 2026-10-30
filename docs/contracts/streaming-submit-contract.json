@@ -27,7 +27,8 @@
 		"appleTvPlus",
 		"zdf",
 		"ard",
-		"canalPlus"
+		"canalPlus",
+		"abcIview"
 	],
 	"membershipKinds": [
 		"podcast-service",
@@ -88,7 +89,8 @@
 		"appleTvPlus": "https://tv.apple.com/us/show/example-slug/umc.cmc.exampleid000000000000",
 		"zdf": "https://www.zdf.de/serien/example-slug",
 		"ard": "https://www.ardmediathek.de/video/Y3JpZDovL2V4YW1wbGUvaWQ",
-		"canalPlus": "https://www.canalplus.com/series/example-slug/h/12345_67890"
+		"canalPlus": "https://www.canalplus.com/series/example-slug/h/12345_67890",
+		"abcIview": "https://iview.abc.net.au/video/EXAMPLEVIDEO01"
 	},
 	"streamingMembershipShapeCaseIds": [
 		"membership-bbcSounds-known",
@@ -165,7 +167,10 @@
 		"membership-ard-ambiguous",
 		"membership-canalPlus-known",
 		"membership-canalPlus-unknown",
-		"membership-canalPlus-ambiguous"
+		"membership-canalPlus-ambiguous",
+		"membership-abcIview-known",
+		"membership-abcIview-unknown",
+		"membership-abcIview-ambiguous"
 	],
 	"streamingOrchestrationCaseIds": [
 		"stream-bbcSounds-unknown-prepare-submit",
@@ -192,7 +197,8 @@
 		"stream-appleTvPlus-unknown-prepare-submit",
 		"stream-zdf-unknown-prepare-submit",
 		"stream-ard-unknown-prepare-submit",
-		"stream-canalPlus-unknown-prepare-submit"
+		"stream-canalPlus-unknown-prepare-submit",
+		"stream-abcIview-unknown-prepare-submit"
 	],
 	"rules": {
 		"podcastServicesOutOfScope": true,

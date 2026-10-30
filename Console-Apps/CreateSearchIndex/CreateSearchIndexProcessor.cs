@@ -716,6 +716,8 @@ public partial class CreateSearchIndexProcessor(
         const string spotifyPrefix = "https://i.scdn.co/image/";
         const string appleHostTail = "-ssl.mzstatic.com/image/thumb/";
         var applePrefixLength = "https://is".Length + 1 + appleHostTail.Length;
+        // Podcast episodes container only: nested ids.youtube. Catalogue Film/TV/News use sibling
+        // datasources + PlayableSearchSql (c.youTubeId) — do not fall back to leftover e.youTubeId.
         const string youTubeIdExpr =
             @"IIF(IS_DEFINED(e.ids.youtube) AND e.ids.youtube != """", e.ids.youtube, """")";
         const string youtubeImageExpr = @"e.services.youtube.image";
@@ -765,11 +767,7 @@ public partial class CreateSearchIndexProcessor(
                             IIF(ENDSWITH(e.duration, "".0000000""), SUBSTRING(e.duration, 0, LENGTH(e.duration) - 8), e.duration) as duration,
                             IIF(IS_DEFINED(e.ids.spotify) AND e.ids.spotify != """", e.ids.spotify, null) as spotifyId,
                             IIF(IS_DEFINED(e.ids.apple), ToString(e.ids.apple), null) as appleId,
-                            IIF(IS_DEFINED({appleUrlExpr}) AND CONTAINS({appleUrlExpr}, ""/id"") AND CONTAINS({appleUrlExpr}, ""?i=""),
-                                SUBSTRING({appleUrlExpr},
-                                    INDEX_OF({appleUrlExpr}, ""/id"") + 3,
-                                    INDEX_OF({appleUrlExpr}, ""?i="") - INDEX_OF({appleUrlExpr}, ""/id"") - 3),
-                                null) as podcastAppleId,
+                            {PlayableSearchSql.ApplePodcastIdFromUrlExpression(appleUrlExpr)} as podcastAppleId,
                             IIF({youTubeIdExpr} != """", {youTubeIdExpr}, null) as youtubeId,
                             (e.services.bbcIplayer.url ?? e.services.bbcSounds.url) as bbc,
                             e.services.internetArchive.url as internetArchive,

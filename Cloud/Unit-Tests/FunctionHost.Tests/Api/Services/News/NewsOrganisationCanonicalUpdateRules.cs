@@ -240,4 +240,25 @@ public class NewsOrganisationCanonicalUpdateRules
         result.Status.Should().Be(NewsOrganisationGetStatus.Conflict);
         result.AmbiguousIds.Should().BeEquivalentTo([first.Id, second.Id]);
     }
+
+    [Fact(DisplayName =
+        "GET news organisation by a name that contains '/': returns Found when the catch-all route delivers the full identifier, because App Service decodes %2F into path segments (azure-functions-host#9290) and Edit News Outlet must still load.")]
+    public async Task get_by_slash_containing_name_returns_found()
+    {
+        // Arrange
+        const string name = "Synthetic Desk 24/7";
+        var organisation = new NewsOrganisation(name) { Id = _fixture.CreateGuid() };
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns(() => new[] { organisation }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<NewsOrganisationService>();
+
+        // Act
+        var result = await sut.GetAsync(name, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationGetStatus.Found);
+        result.NewsOrganisation!.Id.Should().Be(organisation.Id);
+        result.NewsOrganisation.Name.Should().Be(name);
+    }
 }

@@ -65,10 +65,7 @@ public class HomepagePublisher(
 
         var recentPodcastsTask = podcastRepository
             .GetAllBy(
-                x => (!x.Removed.IsDefined() || x.Removed == false) &&
-                     x.LatestReleased.IsDefined() &&
-                     x.LatestReleased != null &&
-                     x.LatestReleased >= recentCutoff,
+                PublisherCosmosFilters.ReleasedOnOrAfter<Podcast>(recentCutoff),
                 x => new PodcastEntry
                 {
                     Id = x.Id,

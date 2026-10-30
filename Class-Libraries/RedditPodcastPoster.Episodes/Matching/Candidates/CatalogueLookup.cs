@@ -32,6 +32,13 @@ public sealed record CatalogueLookup(
     public int? ShowEpisodeCount { get; init; }
 
     /// <summary>
+    /// Unshifted YouTube publish of the probe when it comes from YouTube (<see cref="Released"/> may have been
+    /// moved by the publishing delay). The catalogue scorer uses it so audio published the same calendar day as
+    /// the video still counts as same-day when the delay pushes the expected audio release across midnight.
+    /// </summary>
+    public DateTime? YouTubePublished { get; init; }
+
+    /// <summary>
     /// Duration-aware matching applies when the probe has a length and comes from YouTube
     /// (YouTube release authority or YouTube-discovered enrichment), because YouTube and audio releases
     /// lag each other and titles are often edited. Otherwise audio-to-audio lookups match by release date.

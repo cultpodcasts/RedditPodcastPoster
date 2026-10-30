@@ -20,6 +20,11 @@ internal sealed class TmdbListedTitleDto
 
     [JsonPropertyName("first_air_date")]
     public string? FirstAirDate { get; set; }
+
+    [JsonPropertyName("poster_path")]
+    public string? PosterPath { get; set; }
+
+    public string? Overview { get; set; }
 }
 
 internal sealed class TmdbDetailsDto

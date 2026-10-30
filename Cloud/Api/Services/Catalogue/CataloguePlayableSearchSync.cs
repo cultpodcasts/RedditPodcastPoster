@@ -88,6 +88,69 @@ public class CataloguePlayableSearchSync(
             shortLinkTarget,
             cancellationToken);
 
+    /// <summary>
+    /// The search step after a curator's on-demand index of a TV show or news organisation. The saved items are pushed
+    /// in one batch (merge-or-upload under each id); an item removed by elimination terms, or under a removed parent,
+    /// is deleted from search instead, the same filter as the pull indexer. Short links are not touched, as the hourly
+    /// indexer does not touch them. Items are already saved, so a search failure is logged and reported, not thrown.
+    /// </summary>
+    /// <returns><c>NoDocuments</c> when nothing changed; otherwise Executed, or Failure when any push or delete failed.</returns>
+    public async Task<EntitySearchIndexerResponse> AfterIndex(
+        string parentName,
+        IReadOnlyList<Playable> changed,
+        CancellationToken cancellationToken)
+    {
+        if (changed.Count == 0)
+        {
+            return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
+        }
+
+        try
+        {
+            var excluded = changed.Where(CataloguePlayableSearchDocument.ShouldExcludeFromSearch)
+                .Select(x => x.Id)
+                .ToList();
+            var documents = changed.Where(x => !CataloguePlayableSearchDocument.ShouldExcludeFromSearch(x))
+                .Select(ToSearchDocument)
+                .ToList();
+            var succeeded = true;
+            if (excluded.Count > 0)
+            {
+                succeeded &= await searchIndexCleanup.DeleteSearchEntries(parentName, excluded, cancellationToken);
+            }
+
+            if (documents.Count > 0)
+            {
+                var pushed = await searchUpload.UploadAsync(documents, cancellationToken);
+                if (!pushed)
+                {
+                    logger.LogError("Failed to push {count} search documents of '{parentName}' after an on-demand index.",
+                        documents.Count, parentName);
+                }
+
+                succeeded &= pushed;
+            }
+
+            return new EntitySearchIndexerResponse
+                { IndexerState = succeeded ? IndexerState.Executed : IndexerState.Failure };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "On-demand index of '{parentName}' saved {count} items but the search step failed. The pull indexer will pick them up.",
+                parentName, changed.Count);
+            return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
+        }
+    }
+
+    private static EpisodeSearchRecord ToSearchDocument(Playable playable) => playable switch
+    {
+        TvShowEpisode episode => CataloguePlayableSearchDocument.For(episode),
+        NewsReport report => CataloguePlayableSearchDocument.For(report),
+        _ => throw new ArgumentOutOfRangeException(nameof(playable), playable.GetType().Name,
+            "Only TV episodes and news reports are indexed on demand.")
+    };
+
     /// <returns>The indexer state when a document was pushed; null when the step deleted (or failed before pushing).</returns>
     private async Task<EntitySearchIndexerResponse?> AfterSave(
         Guid id,

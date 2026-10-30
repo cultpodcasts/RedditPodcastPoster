@@ -6,11 +6,13 @@ namespace RedditPodcastPoster.Models.News;
 
 /// <summary>
 /// Playable news report under a <see cref="NewsOrganisation"/>.
-/// Platform presence is <see cref="Playable.Services"/> only — no provider-id fields.
+/// Platform presence is <see cref="Playable.Services"/> (URLs/images).
+/// Compact <see cref="YouTubeId"/> is synced from <c>services.youtube.url</c> for search;
+/// no Spotify/Apple id members.
 /// Release is a calendar date (no time-of-day).
 /// </summary>
 [CosmosSelector(ModelType.NewsReport)]
-public sealed class NewsReport : Playable
+public sealed class NewsReport : Playable, ICatalogueYouTubeItem
 {
     public NewsReport()
     {
@@ -30,6 +32,21 @@ public sealed class NewsReport : Playable
     [JsonPropertyName("newsOrganisationName")]
     [JsonPropertyOrder(90)]
     public string? NewsOrganisationName { get; set; }
+
+    private string? _youTubeId;
+
+    /// <summary>
+    /// Compact YouTube video id. Synced from <c>services.youtube.url</c> on catalogue edits
+    /// so Azure Search can project <c>youtubeId</c>. No Spotify/Apple id members.
+    /// </summary>
+    [JsonPropertyName("youTubeId")]
+    [JsonPropertyOrder(152)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? YouTubeId
+    {
+        get => _youTubeId;
+        set => _youTubeId = string.IsNullOrWhiteSpace(value) ? null : value;
+    }
 
     /// <summary>
     /// Denormalise parent NewsOrganisation fields onto this playable (mirrors

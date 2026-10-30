@@ -3,11 +3,14 @@ using Api.Services.SubmitUrl;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Languages;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Submitters;
@@ -22,6 +25,7 @@ public class DiscoveryCurationSubmitService(
     IPlayableSearchDocumentSwap playableSearch,
     IPodcastRepository podcastRepository,
     IPodcastService podcastService,
+    ILookupRepository lookupRepository,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
     public Task<DiscoveryCurationSubmitResult> SubmitAsync(
@@ -39,12 +43,37 @@ public class DiscoveryCurationSubmitService(
         bool held,
         CancellationToken cancellationToken)
     {
+        var hadResultIds = request.ResultIds.Length > 0;
+        request = WithoutCancelled(request);
+        if (hadResultIds && request.ResultIds.Length == 0)
+        {
+            return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
+                new DiscoverySubmitOutcome("Success", false, [], new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
+        }
+
+        var supported = await SupportedLanguageCodes();
+        DiscoveryCurationSubmitResult? preflight;
+        try
+        {
+            preflight = await PreflightLanguages(request, supported);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Language probe failed before discovery reports were claimed.");
+            return Failed([]);
+        }
+
+        if (preflight != null)
+        {
+            return preflight;
+        }
+
         var claimed = false;
         var submitResults = new List<DiscoverySubmitItemOutcome>();
         try
         {
 
-            // Claim every report before any ingestion so a concurrent hold (or another curator) cannot
+            // Claim every report before any persisting ingestion so a concurrent hold (or another curator) cannot
             // also act on it. All-or-nothing; nothing is submitted when any claim fails.
             // Held reports (supervisor apply) are claimed PendingSupervisor -> Processed; others Unprocessed -> Processed.
             var unclaimed = held
@@ -66,11 +95,11 @@ public class DiscoveryCurationSubmitService(
 
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var rejectedRemoved = new List<Guid>();
-            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved);
+            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved, request, supported);
             var accepted = request.ResultIds.Except(erroredResults).Except(rejectedRemoved).ToArray();
 
             await discoveryResultsService.MarkAsProcessed(request.DiscoveryResultsDocumentIds, accepted,
-                erroredResults);
+                erroredResults, submitResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
 
@@ -117,15 +146,31 @@ public class DiscoveryCurationSubmitService(
                     UnavailableDocumentIds: notProcessed);
             }
 
+            var hadResultIds = request.ResultIds.Length > 0;
+            request = WithoutCancelled(request);
+            if (hadResultIds && request.ResultIds.Length == 0)
+            {
+                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
+                    new DiscoverySubmitOutcome("Success", false, [],
+                        new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
+            }
+
+            var supported = await SupportedLanguageCodes();
+            var preflight = await PreflightLanguages(request, supported);
+            if (preflight != null)
+            {
+                return preflight;
+            }
+
             // Ingest has started: the client can no longer cancel it or the bookkeeping that follows.
             var terminal = CancellationToken.None;
             var discoveryResults = await discoveryResultsService.GetDiscoveryResult(request);
             var rejectedRemoved = new List<Guid>();
-            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved);
+            var erroredResults = await IngestResults(discoveryResults, submitResults, rejectedRemoved, request, supported);
             var succeeded = submitResults.Select(x => x.DiscoveryItemId).Except(erroredResults)
                 .Except(rejectedRemoved).ToArray();
             await discoveryResultsService.UpdateResultStates(request.DiscoveryResultsDocumentIds, succeeded,
-                erroredResults);
+                erroredResults, submitResults);
 
             var indexed = await searchIndexerService.IndexEpisodes(PodcastEpisodeIds(submitResults), terminal);
             return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
@@ -151,7 +196,8 @@ public class DiscoveryCurationSubmitService(
 
     /// <summary>Submits each result; per-item exceptions become <c>Error</c> outcomes carrying the reason.</summary>
     private async Task<Guid[]> IngestResults(IEnumerable<DiscoveryResult> discoveryResults,
-        List<DiscoverySubmitItemOutcome> submitResults, List<Guid> rejectedRemoved)
+        List<DiscoverySubmitItemOutcome> submitResults, List<Guid> rejectedRemoved,
+        DiscoverySubmitRequest request, IReadOnlyCollection<string> supportedLanguageCodes)
     {
         var indexingContext = new IndexingContext
         {
@@ -159,7 +205,6 @@ public class DiscoveryCurationSubmitService(
             SkipExpensiveYouTubeQueries = false,
             SkipExpensiveSpotifyQueries = false
         };
-        var submitOptions = new SubmitOptions(null, true, CreationSource: EpisodeCreationSource.Discovery);
         var erroredResults = new List<Guid>();
         foreach (var discoveryResult in discoveryResults)
         {
@@ -177,7 +222,24 @@ public class DiscoveryCurationSubmitService(
                 discoveryResult.Id, indexingContext);
             try
             {
+                var submitOptions = CreateOptions(request, discoveryResult.Id, supportedLanguageCodes, probe: false);
                 var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
+                if (result.LanguageHold is { Code: { Length: > 0 } })
+                {
+                    erroredResults.Add(discoveryResult.Id);
+                    submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id, null, null,
+                        "LanguageDecisionRequired"));
+                    continue;
+                }
+
+                if (result.IdentityHold is { Candidates.Count: > 0 })
+                {
+                    erroredResults.Add(discoveryResult.Id);
+                    submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id, null, null,
+                        "IdentityDecisionRequired"));
+                    continue;
+                }
+
                 submitResults.Add(new DiscoverySubmitItemOutcome(discoveryResult.Id,
                     result.Episode?.Id ?? result.PlayableId,
                     result.Episode?.PodcastId ?? result.ParentId,
@@ -201,6 +263,167 @@ public class DiscoveryCurationSubmitService(
         }
 
         return erroredResults.ToArray();
+    }
+
+    /// <summary>
+    /// Reads each item and detects language without persisting. Any unsupported language holds the whole submit
+    /// before reports are claimed.
+    /// </summary>
+    private async Task<DiscoveryCurationSubmitResult?> PreflightLanguages(
+        DiscoverySubmitRequest request,
+        IReadOnlyCollection<string> supportedLanguageCodes)
+    {
+        var pendingResults = discoveryResultsService.GetDiscoveryResult(request);
+        var discoveryResults = pendingResults is null ? [] : await pendingResults ?? [];
+        var holds = new List<CatalogueLanguageHold>();
+        var identityHolds = new List<CatalogueIdentityHold>();
+        // Language / identity probe only — skip expensive Spotify/YouTube walks so preflight does not
+        // double the wall-clock of the real ingest (and blow edge timeouts before the 200 is sent).
+        var indexingContext = new IndexingContext
+        {
+            SkipPodcastDiscovery = false,
+            SkipExpensiveYouTubeQueries = true,
+            SkipExpensiveSpotifyQueries = true
+        };
+        foreach (var discoveryResult in discoveryResults)
+        {
+            if (await IsStoredAgainstRemovedPodcast(discoveryResult))
+            {
+                continue;
+            }
+
+            try
+            {
+                var probed = await discoveryUrlSubmitter.Submit(
+                    discoveryResult,
+                    indexingContext,
+                    CreateOptions(request, discoveryResult.Id, supportedLanguageCodes, probe: true));
+                if (probed?.LanguageHold is { Code: { Length: > 0 } } hold)
+                {
+                    holds.Add(hold with { DiscoveryItemId = discoveryResult.Id });
+                }
+                else if (probed?.IdentityHold is { Candidates.Count: > 0 } identityHold)
+                {
+                    identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Language probe failed for discovery-result '{DiscoveryResultId}'; the create call records the error.",
+                    discoveryResult.Id);
+            }
+        }
+
+        if (holds.Count > 0)
+        {
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.LanguageDecisionRequired,
+                new DiscoverySubmitOutcome(
+                    "LanguageDecisionRequired",
+                    false,
+                    [],
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
+                    holds));
+        }
+
+        if (identityHolds.Count > 0)
+        {
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.IdentityDecisionRequired,
+                new DiscoverySubmitOutcome(
+                    "IdentityDecisionRequired",
+                    false,
+                    [],
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
+                    IdentityDecisionsRequired: identityHolds));
+        }
+
+        return null;
+    }
+
+    private static DiscoverySubmitRequest WithoutCancelled(DiscoverySubmitRequest request)
+    {
+        var cancelled = new HashSet<Guid>();
+        if (request.LanguageDecisions is { Count: > 0 })
+        {
+            foreach (var pair in request.LanguageDecisions
+                         .Where(x => CatalogueLanguageChoices.Parse(x.Value) == CatalogueLanguageChoice.Cancel))
+            {
+                cancelled.Add(pair.Key);
+            }
+        }
+
+        if (request.IdentityDecisions is { Count: > 0 })
+        {
+            foreach (var pair in request.IdentityDecisions
+                         .Where(x => CatalogueIdentityChoices.Parse(x.Value) == CatalogueIdentityChoice.Cancel))
+            {
+                cancelled.Add(pair.Key);
+            }
+        }
+
+        if (cancelled.Count == 0)
+        {
+            return request;
+        }
+
+        return new DiscoverySubmitRequest
+        {
+            DiscoveryResultsDocumentIds = request.DiscoveryResultsDocumentIds,
+            ResultIds = request.ResultIds.Where(id => !cancelled.Contains(id)).ToArray(),
+            LanguageDecisions = request.LanguageDecisions,
+            IdentityDecisions = request.IdentityDecisions,
+            SelectedIdentityKeys = request.SelectedIdentityKeys
+        };
+    }
+
+    private static SubmitOptions CreateOptions(
+        DiscoverySubmitRequest request,
+        Guid resultId,
+        IReadOnlyCollection<string> supportedLanguageCodes,
+        bool probe)
+    {
+        var choice = CatalogueLanguageChoice.Unset;
+        if (request.LanguageDecisions != null &&
+            request.LanguageDecisions.TryGetValue(resultId, out var raw))
+        {
+            choice = CatalogueLanguageChoices.Parse(raw);
+        }
+
+        var identityChoice = CatalogueIdentityChoice.Unset;
+        string? selectedKey = null;
+        if (request.IdentityDecisions != null &&
+            request.IdentityDecisions.TryGetValue(resultId, out var identityRaw))
+        {
+            identityChoice = CatalogueIdentityChoices.Parse(identityRaw);
+        }
+
+        if (request.SelectedIdentityKeys != null &&
+            request.SelectedIdentityKeys.TryGetValue(resultId, out var key))
+        {
+            selectedKey = key;
+        }
+
+        return new SubmitOptions(
+            null,
+            true,
+            PersistToDatabase: !probe,
+            CreationSource: EpisodeCreationSource.Discovery,
+            EnforceLanguageGate: true,
+            SupportedLanguageCodes: supportedLanguageCodes,
+            LanguageChoice: choice,
+            LanguageProbe: probe,
+            IdentityChoice: identityChoice,
+            SelectedIdentityKey: selectedKey);
+    }
+
+    private async Task<IReadOnlyCollection<string>> SupportedLanguageCodes()
+    {
+        var pending = lookupRepository.GetSupportedLanguagesConfig();
+        var config = pending == null ? null : await pending;
+        config ??= SupportedLanguagesConfig.CreateDefault();
+        return config.Languages.Select(x => x.Code).ToArray();
     }
 
     /// <summary>

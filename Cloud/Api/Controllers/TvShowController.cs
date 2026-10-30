@@ -17,6 +17,7 @@ public class TvShowController(
     IGetTvShowHandler getTvShowHandler,
     IPostTvShowHandler postTvShowHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
+    ICatalogueIndexHandler catalogueIndexHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TvShowController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -30,6 +31,15 @@ public class TvShowController(
         string tvShowIdentifier,
         CancellationToken ct) =>
         HandleRequest(req, ["curate"], tvShowIdentifier, getTvShowHandler.Handle, Unauthorised, ct);
+
+    // Rare fallback: App Service decodes %2F to '/' (Azure/azure-functions-host#9290; same as PodcastGetSlash).
+    [Function("TvShowGetSlash")]
+    public Task<HttpResponseData> GetSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "tvshow/{*tvShowIdentifier}")]
+        HttpRequestData req,
+        string tvShowIdentifier,
+        CancellationToken ct) =>
+        Get(req, tvShowIdentifier, ct);
 
     [Function("TvShowPatch")]
     public Task<HttpResponseData> Patch(
@@ -61,4 +71,35 @@ public class TvShowController(
             catalogueRenameHandler.HandleTvShow,
             Unauthorised,
             ct);
+
+    /// <summary>Rename when the old name contains <c>/</c> (App Service %2F decode; see TvShowGetSlash).</summary>
+    [Function("TvShowRenameSlash")]
+    public Task<HttpResponseData> RenameSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshow/name/{*tvShowIdentifier}")]
+        HttpRequestData req,
+        string tvShowIdentifier,
+        [FromBody] Dtos.CatalogueRenameRequest rename,
+        CancellationToken ct) =>
+        Rename(req, tvShowIdentifier, rename, ct);
+
+    /// <summary>
+    /// Index now, like <c>PodcastIndex</c>: curate only. The identifier is the guid or the (unique) name. Runs the hourly
+    /// indexer's pass for this one parent and pushes what it saved to search.
+    /// </summary>
+    [Function("TvShowIndex")]
+    public Task<HttpResponseData> Index(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshow/index/{tvShowIdentifier}")]
+        HttpRequestData req,
+        string tvShowIdentifier,
+        CancellationToken ct) =>
+        HandleRequest(req, ["curate"], tvShowIdentifier, catalogueIndexHandler.HandleTvShow, Unauthorised, ct);
+
+    /// <summary>Index when the name contains <c>/</c> (App Service %2F decode; see TvShowGetSlash).</summary>
+    [Function("TvShowIndexSlash")]
+    public Task<HttpResponseData> IndexSlash(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshow/index/{*tvShowIdentifier}")]
+        HttpRequestData req,
+        string tvShowIdentifier,
+        CancellationToken ct) =>
+        Index(req, tvShowIdentifier, ct);
 }

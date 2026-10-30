@@ -201,7 +201,8 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.AppleTvPlus
                          or StreamingScraperProvider.Zdf
                          or StreamingScraperProvider.Ard
-                         or StreamingScraperProvider.CanalPlus))
+                         or StreamingScraperProvider.CanalPlus
+                         or StreamingScraperProvider.AbcIview))
         {
             data.Add(canonical);
         }

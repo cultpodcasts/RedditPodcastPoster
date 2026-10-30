@@ -118,19 +118,19 @@ public class TvShowFieldUpdateRules
     }
 
     [Fact(DisplayName =
-        "PATCH TV show with English as the language stores null and keeps IMDb, because English is the default and canonical ids are edited separately.")]
+        "PATCH TV show with English as the language stores null and keeps the IMDb id, because English is the default and canonical ids are edited separately.")]
     public async Task update_english_language_is_null_and_canonical_kept()
     {
         // Arrange
-        var imdb = new Uri("https://www.imdb.com/title/tt0000001/");
-        var show = CreateShow(s => { s.Language = "de"; s.Imdb = imdb; });
+        var imdbId = _fixture.CreateImdbId();
+        var show = CreateShow(s => { s.Language = "de"; s.ImdbId = imdbId; });
 
         // Act
         await Update(show, new TvShowChangeRequest { Language = "en-GB" });
 
         // Assert
         _saved!.Language.Should().BeNull();
-        _saved.Imdb.Should().Be(imdb);
+        _saved.ImdbId.Should().Be(imdbId);
     }
 
     [Fact(DisplayName =
@@ -138,7 +138,8 @@ public class TvShowFieldUpdateRules
     public void dto_has_publisher_fields()
     {
         // Arrange
-        var show = CreateShow(s => { s.SearchTerms = "synthetic"; s.HashTag = "#Tag"; s.Removed = true; s.Tvdb = new Uri("https://www.thetvdb.com/series/1"); });
+        var tvdbId = _fixture.CreateTvdbId();
+        var show = CreateShow(s => { s.SearchTerms = "synthetic"; s.HashTag = "#Tag"; s.Removed = true; s.TvdbId = tvdbId; });
 
         // Act
         var dto = show.ToDto();
@@ -150,6 +151,6 @@ public class TvShowFieldUpdateRules
         dto.HashTag.Should().Be("#Tag");
         dto.TwitterHandle.Should().Be("@keep");
         dto.Removed.Should().BeTrue();
-        dto.Tvdb.Should().Be(show.Tvdb);
+        dto.TvdbId.Should().Be(tvdbId);
     }
 }

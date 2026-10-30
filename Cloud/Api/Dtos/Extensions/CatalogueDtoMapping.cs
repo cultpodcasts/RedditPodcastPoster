@@ -15,6 +15,20 @@ public static class CatalogueDtoMapping
         dto.YouTubePlaylistIdHistory = indexing?.YouTubePlaylistIdHistory?.ToArray();
         dto.SpotifyId = indexing?.SpotifyId ?? "";
         dto.AppleId = indexing?.AppleId;
+        dto.IndexAllEpisodes = indexing?.IndexAllEpisodes ?? false;
+        dto.TitleRegex = indexing?.TitleRegex ?? "";
+        dto.DescriptionRegex = indexing?.DescriptionRegex ?? "";
+        dto.EpisodeMatchRegex = indexing?.EpisodeMatchRegex ?? "";
+        dto.EpisodeIncludeTitleRegex = indexing?.EpisodeIncludeTitleRegex ?? "";
+        dto.IgnoreAllEpisodes = indexing?.IgnoreAllEpisodes;
+        dto.BypassShortEpisodeChecking = indexing?.BypassShortEpisodeChecking;
+        dto.AlwaysPromoteAsHero = indexing?.AlwaysPromoteAsHero;
+        dto.MinimumDuration = indexing?.MinimumDuration?.ToString();
+        dto.ReleaseAuthority = indexing?.ReleaseAuthority;
+        dto.YouTubePublicationDelay = indexing?.YouTubePublicationOffset is { } offset
+            ? TimeSpan.FromTicks(offset).ToString("g")
+            : "";
+        dto.SkipEnrichingFromYouTube = indexing?.SkipEnrichingFromYouTube;
         return dto;
     }
 

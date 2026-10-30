@@ -54,10 +54,8 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().Be(tmdbId);
         ids.TvdbId.Should().BeNull();
-        ids.Tvdb.Should().BeNull();
         film.ImdbId.Should().Be(imdbId);
         film.TmdbId.Should().Be(tmdbId);
-        film.Imdb.Should().Be(new Uri($"https://www.imdb.com/title/{imdbId}/"));
         _mocker.GetMock<ITheTvdbClient>().VerifyNoOtherCalls();
     }
 
@@ -105,7 +103,6 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().Be(tmdbId);
         ids.TvdbId.Should().Be(tvdbId);
-        ids.Tvdb.Should().Be(new Uri($"https://www.thetvdb.com/series/{slug}"));
         _mocker.GetMock<ITheTvdbClient>().Verify(
             client => client.GetSeriesAsync(tvdbId, It.IsAny<CancellationToken>()),
             Times.Once);
@@ -139,7 +136,6 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().BeNull();
         ids.TvdbId.Should().Be(tvdbId);
-        ids.Imdb.Should().Be(new Uri($"https://www.imdb.com/title/{imdbId}/"));
         _mocker.GetMock<ITmdbClient>().Verify(
             client => client.GetTvSeriesAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -193,7 +189,6 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().Be(episodeTmdbId);
         ids.TvdbId.Should().Be(tvdbEpisodeId);
-        ids.Tvdb.Should().Be(new Uri($"https://www.thetvdb.com/dereferrer/episode/{tvdbEpisodeId}"));
     }
 
     [Fact(DisplayName =
@@ -285,8 +280,6 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().Be(tmdbSeriesId);
         ids.TvdbId.Should().Be(tvdbId);
-        ids.Imdb.Should().Be(new Uri($"https://www.imdb.com/title/{imdbId}/"));
-        ids.Tvdb.Should().Be(canonical);
         show.ImdbId.Should().Be(imdbId);
         show.TmdbId.Should().Be(tmdbSeriesId);
         show.TvdbId.Should().Be(tvdbId);
@@ -364,7 +357,6 @@ public class CatalogueAuthorityLookupRules
         ids.ImdbId.Should().Be(imdbId);
         ids.TmdbId.Should().Be(episodeTmdbId);
         ids.TvdbId.Should().Be(tvdbEpisodeId);
-        ids.Tvdb.Should().Be(canonical);
         episode.ImdbId.Should().Be(imdbId);
         episode.TmdbId.Should().Be(episodeTmdbId);
         episode.TvdbId.Should().Be(tvdbEpisodeId);

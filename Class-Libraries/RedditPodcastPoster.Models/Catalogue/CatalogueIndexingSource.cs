@@ -39,6 +39,13 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     [JsonPropertyName("minimumDuration")]
     public TimeSpan? MinimumDuration { get; set; }
 
+    /// <summary>
+    /// Curator flag: a playable the indexer or a URL submit creates under this parent is promoted to the homepage
+    /// hero list (same rule as <see cref="Podcast.AlwaysPromoteAsHero"/>, via the hero auto-promote selector).
+    /// </summary>
+    [JsonPropertyName("alwaysPromoteAsHero")]
+    public bool? AlwaysPromoteAsHero { get; set; }
+
     [JsonPropertyName("releaseAuthority")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public Service? ReleaseAuthority { get; set; }
@@ -160,6 +167,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
         IgnoreAllEpisodes = podcast.IgnoreAllEpisodes;
         BypassShortEpisodeChecking = podcast.BypassShortEpisodeChecking;
         MinimumDuration = podcast.MinimumDuration;
+        AlwaysPromoteAsHero = podcast.AlwaysPromoteAsHero;
         ReleaseAuthority = podcast.ReleaseAuthority;
         PrimaryPostService = podcast.PrimaryPostService;
         SpotifyId = podcast.SpotifyId;
@@ -186,6 +194,9 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     /// <summary>
     /// A podcast that is never saved: same id as the parent, the parent's publisher fields, and these
     /// discovery settings. Episode providers, mergers and filters take a <see cref="Podcast"/>.
+    /// The stored flags are used as they are (no kind default on read): a news organisation is saved with
+    /// <see cref="BypassShortEpisodeChecking"/> and <see cref="AlwaysPromoteAsHero"/> on when it is created
+    /// (<see cref="ApplyNewsOrganisationCreationDefaults"/>), and a curator may switch either off later.
     /// </summary>
     public Podcast ToTransientPodcast(Publisher parent)
     {
@@ -214,6 +225,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             IgnoreAllEpisodes = IgnoreAllEpisodes,
             BypassShortEpisodeChecking = BypassShortEpisodeChecking,
             MinimumDuration = MinimumDuration,
+            AlwaysPromoteAsHero = AlwaysPromoteAsHero,
             ReleaseAuthority = ReleaseAuthority,
             PrimaryPostService = PrimaryPostService,
             SpotifyId = SpotifyId ?? string.Empty,
@@ -236,6 +248,21 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             EpisodeMatchRegex = EpisodeMatchRegex ?? string.Empty,
             EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex ?? string.Empty
         };
+    }
+
+    /// <summary>
+    /// Saved defaults for a news organisation when it is created or a podcast (or other parent) is transferred to
+    /// one: <see cref="BypassShortEpisodeChecking"/> and <see cref="AlwaysPromoteAsHero"/> are stored as true
+    /// (news clips are often short, and new reports go to the homepage hero list), even when the source had them
+    /// off or unset. A curator may switch either off afterwards and that saved false is kept. Not applied when a
+    /// playable moves into an existing news organisation, and never to a TV show.
+    /// </summary>
+    public static CatalogueIndexingSource ApplyNewsOrganisationCreationDefaults(CatalogueIndexingSource? indexing)
+    {
+        var result = indexing ?? new CatalogueIndexingSource();
+        result.BypassShortEpisodeChecking = true;
+        result.AlwaysPromoteAsHero = true;
+        return result;
     }
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

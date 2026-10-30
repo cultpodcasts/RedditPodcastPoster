@@ -20,23 +20,11 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
         FileKey = FileKeyFactory.GetTvShowFileKey(name);
     }
 
-    /// <summary>IMDb title page for this programme (homonym disambiguation).</summary>
-    [JsonPropertyName("imdb")]
-    [JsonPropertyOrder(140)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Uri? Imdb { get; set; }
-
     /// <summary>IMDb title id (<c>tt…</c>) for this programme. Omitted when unknown.</summary>
     [JsonPropertyName("imdbId")]
     [JsonPropertyOrder(143)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ImdbId { get; set; }
-
-    /// <summary>TheTVDB series page for this programme (homonym disambiguation).</summary>
-    [JsonPropertyName("tvdb")]
-    [JsonPropertyOrder(141)]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Uri? Tvdb { get; set; }
 
     /// <summary>TheTVDB series id. Omitted when unknown.</summary>
     [JsonPropertyName("tvdbId")]

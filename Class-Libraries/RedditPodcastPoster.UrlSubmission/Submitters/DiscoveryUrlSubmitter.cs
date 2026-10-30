@@ -72,6 +72,12 @@ public class DiscoveryUrlSubmitter(
 
         var submitResult = await discoveryResultProcessor.CreateSubmitResult(discoveryResult, indexingContext,
             submitOptions, spotifyPodcast, applePodcast, youTubePodcast);
+        if (submitOptions.LanguageProbe ||
+            submitResult.LanguageHold != null ||
+            submitResult.IdentityHold != null)
+        {
+            return ProbeResult(submitResult);
+        }
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
         return new DiscoverySubmitResult(state, submitResult.Episode);
@@ -103,6 +109,11 @@ public class DiscoveryUrlSubmitter(
             discoveryResult.Id, parent.Kind, parent.Parent.Name, parent.Parent.Id);
 
         var result = await catalogueParentSubmitter.Submit(parent, parentRoutes[0].Url, indexingContext, submitOptions);
+        if (submitOptions.LanguageProbe || result.LanguageHold != null || result.IdentityHold != null)
+        {
+            return ProbeResult(result);
+        }
+
         var episodeResult = result.EpisodeResult;
         var playableId = result.PlayableId;
         var searchSource = result.CatalogueSearchSource;
@@ -153,6 +164,18 @@ public class DiscoveryUrlSubmitter(
     /// <summary>The item's state across its URLs: Created, then Enriched, then EpisodeAlreadyExists, then anything else.</summary>
     private static SubmitResultState Strongest(SubmitResultState current, SubmitResultState next) =>
         Rank(next) > Rank(current) ? next : current;
+
+    private static DiscoverySubmitResult ProbeResult(SubmitResult submitResult) =>
+        new(
+            submitResult.LanguageHold != null
+                ? DiscoverySubmitResultState.LanguageDecisionRequired
+                : submitResult.IdentityHold != null
+                    ? DiscoverySubmitResultState.IdentityDecisionRequired
+                    : DiscoverySubmitResultState.LanguageProbeClear,
+            ContentKind: submitResult.ContentKind,
+            PlayableId: submitResult.PlayableId,
+            LanguageHold: submitResult.LanguageHold,
+            IdentityHold: submitResult.IdentityHold);
 
     private static int Rank(SubmitResultState state) => state switch
     {

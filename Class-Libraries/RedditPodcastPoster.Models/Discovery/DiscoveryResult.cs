@@ -121,4 +121,28 @@ public class DiscoveryResult
     [JsonPropertyName("autoHidden")]
     [JsonPropertyOrder(190)]
     public bool AutoHidden { get; set; }
+
+    /// <summary>
+    /// Podcast (or catalogue parent) id stamped when this result was accepted during curation submit.
+    /// Null until <c>MarkAsProcessed</c> / retry restamp.
+    /// </summary>
+    [JsonPropertyName("acceptedPodcastId")]
+    [JsonPropertyOrder(200)]
+    public Guid? AcceptedPodcastId { get; set; }
+
+    /// <summary>
+    /// Episode (or catalogue playable) id stamped when this result was accepted during curation submit.
+    /// Null until <c>MarkAsProcessed</c> / retry restamp.
+    /// </summary>
+    [JsonPropertyName("acceptedEpisodeId")]
+    [JsonPropertyOrder(210)]
+    public Guid? AcceptedEpisodeId { get; set; }
+
+    /// <summary>
+    /// Error detail when <see cref="State"/> is <see cref="DiscoveryResultState.AcceptError"/>.
+    /// Cleared on a successful restamp.
+    /// </summary>
+    [JsonPropertyName("acceptError")]
+    [JsonPropertyOrder(220)]
+    public string? AcceptError { get; set; }
 }

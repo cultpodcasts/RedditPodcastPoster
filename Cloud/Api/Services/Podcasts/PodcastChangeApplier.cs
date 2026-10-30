@@ -18,6 +18,12 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
         if (podcastChangeRequest.IndexAllEpisodes != null)
         {
             podcast.IndexAllEpisodes = podcastChangeRequest.IndexAllEpisodes.Value;
+            // Index-all and include-title regex are mutually exclusive: with IndexAllEpisodes
+            // true the include filter is skipped, so clear a leftover pattern when opting in.
+            if (podcastChangeRequest.IndexAllEpisodes.Value)
+            {
+                podcast.EpisodeIncludeTitleRegex = string.Empty;
+            }
         }
 
         if (podcastChangeRequest.BypassShortEpisodeChecking != null)
@@ -158,7 +164,13 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
         if (podcastChangeRequest.EpisodeIncludeTitleRegex != null)
         {
             podcast.EpisodeIncludeTitleRegex = podcastChangeRequest.EpisodeIncludeTitleRegex;
-            podcast.IndexAllEpisodes = false;
+            // Non-empty include-title regex is an alternate auto-index path and must not
+            // leave IndexAllEpisodes true (filter only runs when IndexAllEpisodes is false).
+            // Clearing to whitespace/empty must not force the flag off.
+            if (!string.IsNullOrWhiteSpace(podcastChangeRequest.EpisodeIncludeTitleRegex))
+            {
+                podcast.IndexAllEpisodes = false;
+            }
         }
 
         if (podcastChangeRequest.DefaultSubject != null)

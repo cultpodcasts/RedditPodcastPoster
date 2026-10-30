@@ -1,5 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -17,9 +19,10 @@ namespace Api.Services.Episodes;
 /// <summary>
 /// Moves one podcast episode into a TV show ("Move to TV show"), as a <see cref="TvShowEpisode"/> with the same id.
 /// The target is an existing show (by id, or by name) or, with <c>createShow</c>, a new show by name. A new show gets
-/// a fresh id (never the podcast id), the given publisher and <b>no</b> <c>indexing</c>, so it claims no YouTube
-/// channel and never becomes a channel catch-all. The order mirrors <see cref="EpisodeTrailerAttachService"/>, so
-/// every failure stops before the episode row is lost:
+/// a fresh id (never the podcast id), the given publisher, <b>no</b> <c>indexing</c> (so it claims no YouTube
+/// channel), and a best-effort IMDb/TMDB/TVDB identity fill when the authority lookup is confident (ambiguous
+/// matches leave identity blank — the move dialog has no choice UI). The order mirrors
+/// <see cref="EpisodeTrailerAttachService"/>, so every failure stops before the episode row is lost:
 /// <list type="number">
 /// <item>Save the TV episode (<see cref="CatalogueParentKindMapper.ToTvShowEpisode"/>: services, subjects, posted /
 /// tweeted / Bluesky state).</item>
@@ -47,6 +50,8 @@ public class EpisodeTvShowMoveService(
     IFilmRepository filmRepository,
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
+    ICatalogueIdentityEnricher identityEnricher,
+    IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     ILogger<EpisodeTvShowMoveService> logger) : IEpisodeTvShowMoveService
 {
     public async Task<EpisodeTvShowMoveResult> MoveAsync(
@@ -127,6 +132,9 @@ public class EpisodeTvShowMoveService(
             }
             else
             {
+                // TV episodes have Services only (no nested ids). Materialise Spotify / Apple / YouTube url + image
+                // from ids (clients first) so search/Watch keep every platform after the move.
+                await episodeServiceMaterialiser.MaterialiseAsync(podcast, episode, cancellationToken);
                 tvEpisode = CatalogueParentKindMapper.ToTvShowEpisode(episode, show!);
                 if (!string.IsNullOrWhiteSpace(request.Title))
                 {
@@ -285,7 +293,52 @@ public class EpisodeTvShowMoveService(
             PublisherName = request.Publisher?.Trim() ?? string.Empty,
             Indexing = null
         };
+        await TryFillNewShowIdentity(show, cancellationToken);
         return (show, true, null);
+    }
+
+    /// <summary>
+    /// Same confident-match fill as URL submit create. Ambiguous authority results are skipped so the
+    /// move still completes (no identity-choice UI on Move to TV); the curator can edit the show later.
+    /// </summary>
+    private async Task TryFillNewShowIdentity(TvShow show, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var admission = await identityEnricher.ResolveTvShowAsync(
+                show.Name,
+                CatalogueIdentityChoice.Unset,
+                selectedKey: null,
+                cancellationToken);
+            if (admission.Hold)
+            {
+                logger.LogInformation(
+                    "{method}: TV show '{name}' identity is ambiguous ({count} candidates); leaving blank.",
+                    nameof(TryFillNewShowIdentity),
+                    show.Name,
+                    admission.Prompt?.Candidates.Count ?? 0);
+                return;
+            }
+
+            if (identityEnricher.ApplyMissing(show, admission.Ids))
+            {
+                logger.LogInformation(
+                    "{method}: Filled identity for new TV show '{name}' (imdb={imdbId}, tmdb={tmdbId}, tvdb={tvdbId}).",
+                    nameof(TryFillNewShowIdentity),
+                    show.Name,
+                    show.ImdbId,
+                    show.TmdbId,
+                    show.TvdbId);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "{method}: Identity lookup failed for new TV show '{name}'; leaving blank.",
+                nameof(TryFillNewShowIdentity),
+                show.Name);
+        }
     }
 
     /// <summary>

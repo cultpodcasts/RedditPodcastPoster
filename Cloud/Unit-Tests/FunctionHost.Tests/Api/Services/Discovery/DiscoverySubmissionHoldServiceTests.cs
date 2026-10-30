@@ -81,7 +81,8 @@ public class DiscoverySubmissionHoldServiceTests
         _mocker.GetMock<RedditPodcastPoster.UrlSubmission.Submitters.IDiscoveryUrlSubmitter>().VerifyNoOtherCalls();
         _mocker.GetMock<RedditPodcastPoster.EntitySearchIndexer.Services.IEpisodeSearchIndexerService>().VerifyNoOtherCalls();
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
-            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()), Times.Never);
+            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsRepository>().Verify(r => r.TryTransitionState(It.IsAny<Guid>(),
             It.IsAny<DiscoveryResultsDocumentState>(), DiscoveryResultsDocumentState.Processed,
             It.IsAny<CancellationToken>()), Times.Never);

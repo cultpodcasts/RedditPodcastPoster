@@ -36,6 +36,9 @@ public class NewsOrganisationRepository(
     public Task<bool> PatchIndexerState(Guid newsOrganisationId, CatalogueParentIndexerPatch patch) =>
         CatalogueParentIndexerPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, patch);
 
+    public Task<NewsOrganisationDefaultsPatchResult> PatchCreationDefaults(Guid newsOrganisationId, bool indexingStored) =>
+        NewsOrganisationDefaultsPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, indexingStored);
+
     public async Task Delete(Guid newsOrganisationId)
     {
         try

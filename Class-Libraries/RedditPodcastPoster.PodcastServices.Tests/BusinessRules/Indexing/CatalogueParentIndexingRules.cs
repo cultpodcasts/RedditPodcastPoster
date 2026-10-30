@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
@@ -404,6 +405,30 @@ public class CatalogueParentIndexingRules
     }
 
     [Fact(DisplayName =
+        "Catalogue parent indexing: when the merger enriches a stored news report that has a YouTube url but no " +
+        "compact YouTubeId, then the saved report gets YouTubeId from that url, because search reads the compact id " +
+        "and a url-only report shows no YouTube icon.")]
+    public async Task merged_news_report_syncs_compact_youtube_id()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(podcast);
+        var storedEpisode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release: DomainTestFixture.UtcDateDaysAgo(5));
+        var stored = CatalogueParentKindMapper.ToNewsReport(storedEpisode, organisation);
+        stored.YouTubeId = null;
+        _storedReports = [stored];
+        _merge = (existing, _) => new EpisodeMergeResult(existing, [], [(existing[0], existing[0])], []);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.Id.Should().Be(stored.Id);
+        saved.YouTubeId.Should().Be(storedEpisode.Ids!.YouTube);
+    }
+
+    [Fact(DisplayName =
         "Catalogue parent indexing: stored playables are passed to discovery with their YouTube id read from the " +
         "services URL, because playables store no provider ids and the merger matches on them.")]
     public async Task stored_playables_carry_provider_ids_from_services()
@@ -635,5 +660,373 @@ public class CatalogueParentIndexingRules
         // Assert
         _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
             .Should().NotContain("youTubeIndexingHints");
+    }
+
+    private static readonly TimeSpan ShortDuration =
+        PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration - TimeSpan.FromSeconds(30);
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes saved on (the news creation " +
+        "default) and a short video is found, then the report is saved and not ignored, and the pass does not write " +
+        "the flag, because the stored value drives the check.")]
+    public async Task news_organisation_saved_bypass_on_keeps_short_video()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = true;
+        organisation.Indexing.MinimumDuration = null;
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration));
+        _discovered = [discovered];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeFalse();
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("bypassShortEpisodeChecking");
+        organisation.Indexing.BypassShortEpisodeChecking.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation has bypass-short-episodes unset and the pass keeps short " +
+        "items, then a short video is saved ignored and the flag is not written, because there is no read-time news " +
+        "default (news organisations are saved with it on instead).")]
+    public async Task news_organisation_unset_bypass_applies_short_episode_check()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = null;
+        organisation.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+        _organisationPatches.SelectMany(x => x.Patch.ChangedIndexingProperties)
+            .Should().NotContain("bypassShortEpisodeChecking");
+        organisation.Indexing.BypassShortEpisodeChecking.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation explicitly turns bypass-short-episodes off and the pass keeps " +
+        "short items, then a short video is saved ignored, because a curator may switch the saved news default off.")]
+    public async Task news_organisation_explicit_bypass_off_ignores_short_video()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.BypassShortEpisodeChecking = false;
+        organisation.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show leaves bypass-short-episodes unset and the pass keeps short items, " +
+        "then a short video is saved ignored, because TV shows have no bypass default.")]
+    public async Task tv_show_unset_bypass_applies_short_episode_check()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        show.Indexing!.BypassShortEpisodeChecking = null;
+        show.Indexing.MinimumDuration = null;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(ShortDuration))];
+
+        // Act
+        await Sut.UpdateParents([show.Id], Context() with { SkipShortEpisodes = false });
+
+        // Assert
+        _savedTvEpisodes.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a parent has ignore-all-episodes set, then a new video is saved ignored, " +
+        "because the flag must behave as it does for a podcast.")]
+    public async Task ignore_all_episodes_saves_new_playables_ignored()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.IgnoreAllEpisodes = true;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Should().ContainSingle().Which.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation is flagged always-promote-as-hero, then a new report from " +
+        "this week is appended to the hero list after it is saved, and one older than the week window is not, " +
+        "because the flag must behave as it does for a podcast.")]
+    public async Task always_promote_as_hero_news_organisation_promotes_new_reports()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.AlwaysPromoteAsHero = true;
+        var recent = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        var old = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(20)).WithDuration(PostableDuration));
+        _discovered = [recent, old];
+        IReadOnlyList<Guid>? promoted = null;
+        _mocker.GetMock<IHeroEpisodePromoter>()
+            .Setup(x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<Guid> ids, CancellationToken _) => promoted = ids)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Select(x => x.Id).Should().BeEquivalentTo([recent.Id, old.Id]);
+        promoted.Should().Equal(recent.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show is flagged always-promote-as-hero, then a new episode is appended to " +
+        "the hero list, because TV shows have the same flag as podcasts.")]
+    public async Task always_promote_as_hero_tv_show_promotes_new_episodes()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        show.Indexing!.AlwaysPromoteAsHero = true;
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { discovered.Id })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "Catalogue parent indexing: when a parent is not flagged always-promote-as-hero, or its new item is ignored " +
+        "(ignore-all-episodes), then nothing is appended to the hero list, because hero promotion is opt-in and " +
+        "never promotes ignored items.")]
+    [InlineData(null, null)]
+    [InlineData(false, null)]
+    [InlineData(true, true)]
+    public async Task no_hero_promotion_without_flag_or_for_ignored_items(bool? alwaysPromote, bool? ignoreAll)
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        organisation.Indexing!.AlwaysPromoteAsHero = alwaysPromote;
+        organisation.Indexing.IgnoreAllEpisodes = ignoreAll;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        _savedReports.Should().ContainSingle();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when a curator indexes an auto-indexed TV show with a new video, then the video is " +
+        "saved under the show, the show's indexer state is patched, and the saved episode is returned as changed, " +
+        "because the API pushes exactly the changed items to search.")]
+    public async Task index_parent_tv_show_returns_saved_episodes()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        var result = await Sut.IndexParent(show, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.Changed.Should().ContainSingle().Which.Id.Should().Be(discovered.Id);
+        _savedTvEpisodes.Should().ContainSingle().Which.TvShowId.Should().Be(show.Id);
+        _showPatches.Should().ContainSingle().Which.Id.Should().Be(show.Id);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when a curator indexes an auto-indexed news organisation with a new video, then it " +
+        "is saved as a NewsReport and returned as changed, because news hubs index the same way as TV hubs.")]
+    public async Task index_parent_news_organisation_returns_saved_reports()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.Changed.Should().ContainSingle().Which.Should().BeOfType<NewsReport>()
+            .Which.NewsOrganisationId.Should().Be(organisation.Id);
+        _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(organisation.Id);
+        _savedTvEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when nothing new is found, then the result is Indexed with no changed items, " +
+        "because an index that finds nothing has still succeeded.")]
+    public async Task index_parent_with_nothing_new_is_indexed_with_no_changes()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        _discovered = [];
+
+        // Act
+        var result = await Sut.IndexParent(show, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.Changed.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the parent is neither a TV show nor a news organisation, then it throws and " +
+        "discovery never runs, because only those two kinds have a hub page to index from.")]
+    public async Task index_parent_of_another_kind_throws()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+
+        // Act
+        var act = () => Sut.IndexParent(podcast, Context());
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        _existingPassedToProvider.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: the resolved parent is indexed without reading it again, so a news organisation " +
+        "that shares its id with a TV show indexes the news organisation, because the route's kind is the kind indexed.")]
+    public async Task index_parent_indexes_the_given_kind_without_a_second_lookup()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
+        _savedTvEpisodes.Should().BeEmpty();
+        _mocker.GetMock<ITvShowRepository>().Verify(x => x.GetTvShow(It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(x => x.GetNewsOrganisation(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the parent is removed, then the result is NotIndexable and nothing is saved, " +
+        "because the API answers 400 like a podcast that is not indexable.")]
+    public async Task index_parent_removed_is_not_indexable()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        show.Removed = true;
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var result = await Sut.IndexParent(show, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
+        _existingPassedToProvider.Should().BeNull();
+        _savedTvEpisodes.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the podcast the organisation was migrated from still exists and is indexed, " +
+        "then the result is SourcePodcastStillExists and nothing is saved, because indexing both would save each " +
+        "video twice.")]
+    public async Task index_parent_half_moved_is_refused()
+    {
+        // Arrange
+        var source = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(source);
+        _podcasts.Add(source);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.SourcePodcastStillExists);
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when elimination terms remove a stored report, then it is returned as changed and " +
+        "marked removed, because the API must delete it from search straight away.")]
+    public async Task index_parent_returns_term_removed_items()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(podcast);
+        var storedEpisode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release: DomainTestFixture.UtcDateDaysAgo(5));
+        _storedReports = [CatalogueParentKindMapper.ToNewsReport(storedEpisode, organisation)];
+        _filter = episodes => new FilterResult(
+            episodes.Where(x => x.Id == storedEpisode.Id).Select(x => new FilteredEpisode(x, ["term"])).ToList());
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        var changed = result.Changed.Should().ContainSingle().Subject;
+        changed.Id.Should().Be(storedEpisode.Id);
+        changed.Removed.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Hourly parent indexing is unchanged by on-demand index: an unknown id and a removed parent are still " +
+        "skipped silently, the pass still reports success, and only the indexable parent is saved and patched.")]
+    public async Task hourly_pass_behaviour_is_unchanged()
+    {
+        // Arrange
+        var removed = SeedTvShow(AutoIndexedYouTubePodcast());
+        removed.Removed = true;
+        var indexable = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var unknownId = _fixture.CreateGuid();
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        var success = await Sut.UpdateParents([unknownId, removed.Id, indexable.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedTvEpisodes.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+        _savedReports.Should().ContainSingle().Which.Id.Should().Be(discovered.Id);
+        _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(indexable.Id);
     }
 }

@@ -1,26 +1,10 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using AddAudioPodcast;
 using CommandLine;
-using iTunesSearch.Library;
-using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Clients;
-using RedditPodcastPoster.PodcastServices.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.Text.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -38,30 +22,9 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddScoped<AddAudioPodcastProcessor>()
-    .AddEpisodesDomain().AddEpisodeLookup()
-    .AddRepositories()
-    .AddCatalogueServices()
-    .AddPodcastServices()
-    .AddAppleServices()
-    .AddSpotifyServices()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddEliminationTerms()
-    .AddScoped(s => new iTunesSearchManager())
-    .AddScoped<IRemoteClient, RemoteClient>()
-    .AddSubjectServices()
-    .AddCachedSubjectProvider()
-    .AddTextSanitiser()
-    .AddEpisodeSearchIndexerService()
-    .AddHttpClient();
-
-builder.Services.AddPostingCriteria();
-builder.Services.AddDelayedYouTubePublication();
+builder.Services.AddAddAudioPodcastConsoleServices();
 
 using var host = builder.Build();
-
 
 return await Parser.Default.ParseArguments<AddAudioPodcastRequest>(args)
     .MapResult(async addAudioPodcastRequest => await Run(addAudioPodcastRequest),

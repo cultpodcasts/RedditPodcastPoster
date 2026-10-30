@@ -42,13 +42,14 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
         result.UnavailableDocumentIds.Should().Equal(documentId);
         _mocker.GetMock<IDiscoveryUrlSubmitter>().VerifyNoOtherCalls();
         _mocker.GetMock<IEpisodeSearchIndexerService>().VerifyNoOtherCalls();
-        _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()), Times.Never);
+        _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()), Times.Once);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
-            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()), Times.Never);
+            It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "A curator's submit claims every report before fetching or submitting any result, because claiming first is what stops a concurrent hold ingesting the same report.")]
+        "A curator's submit reads results for the language check before claiming, and the persisting submit still runs only after the claim, because an unsupported language must not mark the report processed.")]
     public async Task claims_before_submitting()
     {
         // Arrange
@@ -68,7 +69,7 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
             CancellationToken.None);
 
         // Assert
-        order.Should().StartWith(["claim", "fetch"]);
+        order.Should().StartWith(["fetch", "claim", "fetch"]);
     }
 
     [Fact(DisplayName =
@@ -77,9 +78,19 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
     {
         // Arrange
         var documentIds = new[] { _fixture.Create<Guid>() };
+        var fetches = 0;
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
-            .ThrowsAsync(new InvalidOperationException());
+            .Returns(() =>
+            {
+                fetches++;
+                if (fetches > 1)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return Task.FromResult<IEnumerable<RedditPodcastPoster.Models.Discovery.DiscoveryResult>>([]);
+            });
         var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
 
         // Act
@@ -102,7 +113,8 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
             .Setup(s => s.GetDiscoveryResult(It.IsAny<DiscoverySubmitRequest>()))
             .ReturnsAsync([new RedditPodcastPoster.Models.Discovery.DiscoveryResult { Id = _fixture.Create<Guid>() }]);
         _mocker.GetMock<IDiscoveryResultsService>()
-            .Setup(s => s.MarkAsProcessed(It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>()))
+            .Setup(s => s.MarkAsProcessed(It.IsAny<Guid[]>(), It.IsAny<Guid[]>(), It.IsAny<Guid[]>(),
+                It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()))
             .ThrowsAsync(new InvalidOperationException());
         var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
 
@@ -115,7 +127,7 @@ public class DiscoveryCurationSubmitServiceHeldReportTests
         _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(s => s.Submit(
             It.IsAny<RedditPodcastPoster.Models.Discovery.DiscoveryResult>(),
             It.IsAny<RedditPodcastPoster.PodcastServices.Abstractions.Models.IndexingContext>(),
-            It.IsAny<RedditPodcastPoster.UrlSubmission.Models.SubmitOptions>()), Times.Once);
+            It.Is<RedditPodcastPoster.UrlSubmission.Models.SubmitOptions>(o => !o.LanguageProbe)), Times.Once);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.ReleaseClaim(It.IsAny<Guid[]>()), Times.Never);
     }
 }

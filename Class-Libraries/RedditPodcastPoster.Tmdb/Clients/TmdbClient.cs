@@ -125,7 +125,13 @@ public sealed class TmdbClient(
     private static TmdbSearchHit MapHit(TmdbListedTitleDto item, TmdbTitleKind kind)
     {
         var date = kind == TmdbTitleKind.Movie ? item.ReleaseDate : item.FirstAirDate;
-        return new TmdbSearchHit(item.Id, item.Title ?? item.Name ?? "", kind, YearOf(date));
+        return new TmdbSearchHit(
+            item.Id,
+            item.Title ?? item.Name ?? "",
+            kind,
+            YearOf(date),
+            item.PosterPath,
+            string.IsNullOrWhiteSpace(item.Overview) ? null : item.Overview.Trim());
     }
 
     private static TmdbTitle Map(TmdbDetailsDto details, TmdbTitleKind kind)

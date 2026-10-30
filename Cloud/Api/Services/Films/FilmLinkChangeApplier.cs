@@ -1,8 +1,7 @@
 using System.Text.RegularExpressions;
 using Api.Models;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
-using RedditPodcastPoster.Models.Services;
-using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Services.Films;
 
@@ -30,24 +29,10 @@ internal static partial class FilmLinkChangeApplier
             return false;
         }
 
-        if (change.Services is not null)
+        if (change.Services is not null &&
+            !Catalogue.PlayableServicesChangeApplier.TryValidate(change.Services, out error))
         {
-            foreach (var pair in change.Services)
-            {
-                var url = Blank(pair.Value?.Url);
-                var image = Blank(pair.Value?.Image);
-                if (url is not null && !IsAbsoluteHttp(url))
-                {
-                    error = $"services.{pair.Key}.url must be an absolute http(s) URL";
-                    return false;
-                }
-
-                if (image is not null && !IsAbsoluteHttp(image))
-                {
-                    error = $"services.{pair.Key}.image must be an absolute http(s) URL";
-                    return false;
-                }
-            }
+            return false;
         }
 
         if (change.Trailers is not null)
@@ -86,55 +71,13 @@ internal static partial class FilmLinkChangeApplier
 
         if (change.Services is not null)
         {
-            ApplyServices(film, change.Services);
+            film.Services = Catalogue.PlayableServicesChangeApplier.Apply(film.Services, change.Services);
+            EpisodeServicePresence.SyncCatalogueYouTubeId(film);
         }
 
         if (change.Trailers is not null)
         {
             ApplyTrailers(film, change.Trailers);
-        }
-    }
-
-    /// <summary>Same semantics as the episode edit API's <c>services</c> patch.</summary>
-    private static void ApplyServices(Film film, Dictionary<string, ServiceLink> services)
-    {
-        foreach (var pair in services)
-        {
-            if (string.IsNullOrWhiteSpace(pair.Key))
-            {
-                continue;
-            }
-
-            var url = Blank(pair.Value?.Url);
-            var image = Blank(pair.Value?.Image);
-            if (url is null && image is null)
-            {
-                film.Services?.Remove(pair.Key);
-                continue;
-            }
-
-            var key = url is null ? pair.Key : StreamingServiceCatalog.TryResolveKey(url) ?? pair.Key;
-            film.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
-            if (!film.Services.TryGetValue(key, out var link))
-            {
-                link = new ServiceLink();
-                film.Services[key] = link;
-            }
-
-            if (url is not null)
-            {
-                link.Url = url;
-            }
-
-            if (image is not null)
-            {
-                link.Image = image;
-            }
-        }
-
-        if (film.Services is { Count: 0 })
-        {
-            film.Services = null;
         }
     }
 
@@ -155,9 +98,4 @@ internal static partial class FilmLinkChangeApplier
 
         film.Trailers = kept.Count == 0 ? null : kept;
     }
-
-    private static Uri? Blank(Uri? uri) => uri is null || uri.ToString().Length == 0 ? null : uri;
-
-    private static bool IsAbsoluteHttp(Uri uri) =>
-        uri.IsAbsoluteUri && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
 }

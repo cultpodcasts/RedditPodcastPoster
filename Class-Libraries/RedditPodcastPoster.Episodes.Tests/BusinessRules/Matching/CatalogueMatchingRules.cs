@@ -682,22 +682,24 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "Incident (Aug 2026): when enriching a YouTube-discovered episode, duration plus same-calendar-day release " +
-        "with disjoint titles and empty subjects scores below the multi-criteria threshold and must not match.")]
-    public void youtube_discovered_duration_and_day_with_disjoint_titles_and_empty_subjects_returns_null()
+        "Incident (Aug 2026): when enriching a YouTube-discovered episode, in-band but not near-exact duration " +
+        "plus same-calendar-day release with disjoint titles and empty subjects scores below the multi-criteria " +
+        "threshold and must not match.")]
+    public void youtube_discovered_duration_in_band_not_near_exact_and_day_with_disjoint_titles_returns_null()
     {
-        // Arrange - duration+day alone is below MatchThreshold; explicit disjoint titles avoid fuzzy flukes
+        // Arrange - ~2m gap is in-band but not near-exact; disjoint titles avoid fuzzy flukes
         const string storedTitle =
             "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
         const string spotifyTitle =
             "A Decade Inside An Arranged Marriage And The Exit That Followed";
-        var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var probeLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var spotifyLength = probeLength + TimeSpan.FromMinutes(2);
         var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(19, 0, 0));
         var spotifyRelease = DomainTestFixture.SameCalendarDateWithTime(probeRelease, new TimeSpan(12, 0, 0));
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = storedTitle;
-            e.Length = sharedLength;
+            e.Length = probeLength;
             e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [];
@@ -705,7 +707,7 @@ public class CatalogueMatchingRules
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = spotifyTitle;
-            e.Length = sharedLength;
+            e.Length = spotifyLength;
             e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [];
@@ -725,20 +727,110 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "Incident (Aug 2026): a date-only Spotify catalogue row from the same calendar day with unique " +
-        "duration but disjoint titles and empty subjects must not match a YouTube-discovered probe - " +
-        "duration+day alone stays below the multi-criteria threshold even when midnight Spotify sits " +
-        "more than twelve hours from publish.")]
-    public void youtube_discovered_spotify_date_only_same_day_duration_without_extra_signals_returns_null()
+        "When enriching a YouTube-discovered episode, near-exact duration plus same-calendar-day release " +
+        "matches a catalogue row even with disjoint marketing titles and empty subjects, because " +
+        "same-length same-day audio must attach for YouTube-authority shows.")]
+    public void youtube_discovered_near_exact_duration_same_day_disjoint_marketing_titles_matches()
     {
-        // Arrange - Spotify carries no time-of-day, so its midnight release is 21 hours from the video
+        // Arrange — marketing-title divergence with near-identical length
+        const string youTubeTitle =
+            "How Brands Are Brainwashing You About Consumer Habits And Influence";
+        const string spotifyTitle =
+            "Hoodwinked: A Conversation About Marketing Influence And Persuasion Tactics";
+        var youTubeLength = TimeSpan.FromSeconds(4149);
+        var spotifyLength = youTubeLength;
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(15, 0, 30));
+        var spotifyRelease = DomainTestFixture.SameCalendarDateWithTime(probeRelease, new TimeSpan(9, 0, 0));
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = youTubeLength;
+            e.ReleaseUtc = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = spotifyTitle;
+            e.Length = spotifyLength;
+            e.ReleaseUtc = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [catalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeSameAs(catalogueItem);
+    }
+
+    [Fact(DisplayName =
+        "Incident (Aug 2026): a date-only Spotify catalogue row from the same calendar day with in-band but " +
+        "not near-exact duration and disjoint titles must not match a YouTube-discovered probe — merely " +
+        "in-band duration+day stays below threshold even when midnight Spotify sits more than twelve hours " +
+        "from publish.")]
+    public void youtube_discovered_spotify_date_only_same_day_in_band_not_near_exact_without_extra_signals_returns_null()
+    {
+        // Arrange - Spotify midnight is 21h from video; ~2m length gap is in-band but not near-exact
         const string youTubeTitle =
             "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
         const string spotifyTitle =
             "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var youTubePublish = DomainTestFixture.UtcAtTime(-3, new TimeSpan(21, 0, 0));
         var spotifyRelease = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubePublish, 0);
-        var sharedLength = _fixture.CreateDuration();
+        var youTubeLength = TimeSpan.FromMinutes(44);
+        var spotifyLength = youTubeLength + TimeSpan.FromMinutes(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = youTubeTitle;
+            e.Length = youTubeLength;
+            e.ReleaseUtc = youTubePublish;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var spotifyCatalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = spotifyTitle;
+            e.Length = spotifyLength;
+            e.ReleaseUtc = spotifyRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [spotifyCatalogueItem],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A date-only Spotify catalogue row from the same calendar day with near-exact duration matches a " +
+        "YouTube-discovered probe even with disjoint marketing titles, including when midnight Spotify " +
+        "sits more than twelve hours from publish.")]
+    public void youtube_discovered_spotify_date_only_same_day_near_exact_duration_disjoint_titles_matches()
+    {
+        // Arrange - Spotify carries no time-of-day; midnight is 21 hours from the video
+        const string youTubeTitle =
+            "How Brands Are Brainwashing You About Consumer Habits And Influence";
+        const string spotifyTitle =
+            "Hoodwinked: A Conversation About Marketing Influence And Persuasion Tactics";
+        var youTubePublish = DomainTestFixture.UtcAtTime(-3, new TimeSpan(21, 0, 0));
+        var spotifyRelease = DomainTestFixture.SpotifyCatalogueReleaseDaysAfterYouTube(youTubePublish, 0);
+        var sharedLength = TimeSpan.FromSeconds(4149);
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = youTubeTitle;
@@ -766,7 +858,7 @@ public class CatalogueMatchingRules
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
 
         // Assert
-        result.Should().BeNull();
+        result.Should().BeSameAs(spotifyCatalogueItem);
     }
 
     [Fact(DisplayName =
@@ -821,19 +913,20 @@ public class CatalogueMatchingRules
         "to the multi-criteria threshold and selects the catalogue row.")]
     public void youtube_discovered_duration_day_and_shared_subject_matches()
     {
-        // Arrange - duration+day alone is below threshold; one shared subject supplies the rest
+        // Arrange - in-band not-near-exact duration+day needs a shared subject to clear threshold
         const string youTubeTitle =
             "Guest Answers Live Questions About A Political Figure And An Identity Foundation";
         const string spotifyTitle =
             "A Decade Inside An Arranged Marriage And The Exit That Followed";
         var sharedSubject = _fixture.CreateTitle(3);
-        var sharedLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var youTubeLength = TimeSpan.FromMinutes(58) + TimeSpan.FromSeconds(34);
+        var spotifyLength = youTubeLength + TimeSpan.FromMinutes(2);
         var probeRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(19, 0, 0));
         var spotifyRelease = DomainTestFixture.SameCalendarDateWithTime(probeRelease, new TimeSpan(12, 0, 0));
         var probe = _fixture.CreateEpisode(e =>
         {
             e.Title = youTubeTitle;
-            e.Length = sharedLength;
+            e.Length = youTubeLength;
             e.ReleaseUtc = probeRelease;
             e.YouTubeId = _fixture.CreateYouTubeId();
             e.Subjects = [sharedSubject];
@@ -841,7 +934,7 @@ public class CatalogueMatchingRules
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
             e.Title = spotifyTitle;
-            e.Length = sharedLength;
+            e.Length = spotifyLength;
             e.ReleaseUtc = spotifyRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
             e.Subjects = [sharedSubject];

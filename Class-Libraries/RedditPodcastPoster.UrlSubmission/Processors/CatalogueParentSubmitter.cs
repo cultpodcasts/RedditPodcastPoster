@@ -6,8 +6,11 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Episodes.Logging;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
@@ -28,12 +31,17 @@ public interface ICatalogueParentSubmitter
 /// categorise, cross-service matching, subjects and guests behave as for a podcast submit; the episode
 /// is then mapped with <see cref="CatalogueParentKindMapper"/> (as kind transfer and the indexer do).
 /// The result carries a <see cref="CatalogueSearchSource"/> so the host indexes it immediately.
+/// A created playable under a parent flagged <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/> is appended to
+/// the homepage hero list, with the same <see cref="HeroAutoPromoteSelector"/> rule as a podcast submit.
 /// </summary>
 public class CatalogueParentSubmitter(
     IUrlCategoriser urlCategoriser,
     IPodcastProcessor podcastProcessor,
     INewsReportRepository newsReports,
     ITvShowEpisodeRepository tvShowEpisodes,
+    ICatalogueLanguageGate languageGate,
+    IHeroEpisodePromoter heroEpisodePromoter,
+    TimeProvider timeProvider,
     ILogger<CatalogueParentSubmitter> logger) : ICatalogueParentSubmitter
 {
     public async Task<SubmitResult> Submit(
@@ -57,6 +65,55 @@ public class CatalogueParentSubmitter(
             submitOptions.MatchOtherServices,
             submitOptions.PrefetchedMeta,
             submitOptions.RefreshMeta);
+
+        if (submitOptions.LanguageChoice == CatalogueLanguageChoice.Cancel)
+        {
+            return new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: parent.ContentKind,
+                LanguageHold: new CatalogueLanguageHold(string.Empty, string.Empty, []));
+        }
+
+        if (submitOptions.EnforceLanguageGate || submitOptions.LanguageProbe)
+        {
+            var parentNoun = parent.Kind == CatalogueParentKind.NewsOrganisation ? "News organisation" : "TV show";
+            var childNoun = parent.Kind == CatalogueParentKind.NewsOrganisation ? "Report" : "Episode";
+            // Admit from categorised authority texts before create/enrich (same order as CategorisedItemProcessor).
+            var podcastShaped = CatalogueLanguageTextReader.FromCategorisedItem(
+                categorisedItem,
+                nameOverride: parent.Parent.Name,
+                existingParent: parent.Parent);
+            string? Field(string key) =>
+                podcastShaped.Fields.FirstOrDefault(f => f.Key == key)?.Text;
+            var admission = await languageGate.Evaluate(
+                CatalogueLanguageTextReader.ForParentAndChild(
+                    Field("parentTitle"),
+                    Field("parentDescription"),
+                    Field("episodeTitle"),
+                    Field("episodeDescription"),
+                    parentNoun,
+                    childNoun),
+                creatingNewParent: false,
+                submitOptions);
+            if (admission.Hold)
+            {
+                return new SubmitResult(
+                    SubmitResultState.None,
+                    SubmitResultState.None,
+                    ContentKind: parent.ContentKind,
+                    LanguageHold: admission.Prompt);
+            }
+
+            if (submitOptions.LanguageProbe)
+            {
+                return new SubmitResult(
+                    SubmitResultState.None,
+                    SubmitResultState.None,
+                    ContentKind: parent.ContentKind,
+                    DefaultLanguageFromDetection: admission.SetsDefaultLanguage);
+            }
+        }
 
         var processed = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
         if (processed.Episode is { } matched && stored.FirstOrDefault(x => x.Id == matched.Id) is { } existing)
@@ -122,6 +179,7 @@ public class CatalogueParentSubmitter(
         logger.LogInformation(
             "Submit of '{Url}' stored {ContentKind} '{PlayableId}' under {Kind} '{ParentName}' ({ParentId}); no podcast created.",
             url, parent.ContentKind, playable.Id, parent.Kind, parent.Parent.Name, parent.Parent.Id);
+        await PromoteIfEligible(transient, episode, playable.Id, submitOptions);
         return new SubmitResult(
             SubmitResultState.Created,
             SubmitResultState.None,
@@ -183,6 +241,11 @@ public class CatalogueParentSubmitter(
             CatalogueSearchSource: new CatalogueSearchSource(transient, merged, parent.Kind));
     }
 
+    /// <summary>Same rule as <c>CategorisedItemProcessor</c> for a podcast: flag on, not ignored / removed, in the week window.</summary>
+    private Task PromoteIfEligible(Podcast transient, Episode episode, Guid playableId, SubmitOptions submitOptions) =>
+        CatalogueHeroAutoPromotion.PromoteIfEligible(
+            logger, heroEpisodePromoter, timeProvider, transient, episode, playableId, submitOptions.CreationSource);
+
     /// <summary>What the podcast enricher may change on a matched episode, copied back onto the stored playable.</summary>
     private static void ApplyEnrichment(Episode merged, Playable target)
     {
@@ -194,6 +257,12 @@ public class CatalogueParentSubmitter(
         target.Services = merged.Services?.ToDictionary(
             pair => pair.Key,
             pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        if (target is ICatalogueYouTubeItem catalogueYouTube)
+        {
+            // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
+            // Url wins; a missing or unparseable url never clears an existing id.
+            EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(catalogueYouTube);
+        }
         target.Subjects = [.. merged.Subjects];
         target.Guests = merged.Guests is null ? null : [.. merged.Guests];
     }

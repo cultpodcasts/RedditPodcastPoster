@@ -2,12 +2,14 @@ using System.Linq.Expressions;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
@@ -35,6 +37,7 @@ public class CatalogueParentRoutingRules
 
     public CatalogueParentRoutingRules()
     {
+        _mocker.Use<TimeProvider>(TimeProvider.System);
         _mocker.GetMock<IPodcastRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
             .Returns((Expression<Func<Podcast, bool>> p) => ToAsync(_podcasts.Where(p.Compile())));
@@ -840,6 +843,30 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "An enriching resubmit onto a stored report that has a YouTube url but no compact YouTubeId sets YouTubeId from that url when it saves, because search reads the compact id and a url-only report shows no YouTube icon.")]
+    public async Task parent_submitter_enrichment_syncs_compact_youtube_id()
+    {
+        // Arrange
+        var organisation = AddOrganisation();
+        var videoId = _fixture.CreateYouTubeId();
+        var stored = StoreReport(organisation, new Uri($"https://www.youtube.com/watch?v={videoId}"));
+        stored.YouTubeId = null;
+        var spotifyUrl = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
+        var merged = CatalogueParentKnownEpisodes.ToEpisode(stored, new Podcast { Id = organisation.Id });
+        merged.Services![ServiceKeys.Spotify] = new ServiceLink { Url = spotifyUrl };
+        ProcessorReturns(new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: merged));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(CatalogueParentMatch.For(organisation), spotifyUrl, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        _savedReports.Should().ContainSingle().Which.YouTubeId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
         "A resubmit the processor matches to a stored report with nothing new is EpisodeAlreadyExists with that report's id, and nothing is saved or indexed.")]
     public async Task parent_submitter_known_item_already_exists()
     {
@@ -945,6 +972,137 @@ public class CatalogueParentRoutingRules
         await create.Should().ThrowAsync<InvalidOperationException>();
         await byUnknownName.Should().ThrowAsync<InvalidOperationException>();
         VerifyNoPodcastPipeline();
+    }
+
+    [Theory(DisplayName =
+        "The parent submitter appends a created report from this week to the hero list only when the parent is flagged " +
+        "always-promote-as-hero and the report is not ignored, because the flag must behave as it does for a podcast submit.")]
+    [InlineData(true, false, 1, true)]
+    [InlineData(true, false, 20, false)]
+    [InlineData(true, true, 1, false)]
+    [InlineData(null, false, 1, false)]
+    [InlineData(false, false, 1, false)]
+    public async Task parent_submitter_promotes_hero_when_flagged(
+        bool? alwaysPromote, bool ignored, int daysAgo, bool expectPromoted)
+    {
+        // Arrange
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.AlwaysPromoteAsHero = alwaysPromote;
+        });
+        var url = YouTubeUrl();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(daysAgo);
+            e.Ignored = ignored;
+            e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
+        });
+        ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        _reports.Should().ContainSingle();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { episode.Id })),
+                It.IsAny<CancellationToken>()),
+            expectPromoted ? Times.Once() : Times.Never());
+    }
+
+    [Theory(DisplayName =
+        "The parent submitter measures the hero week window with the injected TimeProvider: a report released a day " +
+        "before that clock is promoted and one released twenty days before it is not, whatever the wall clock says.")]
+    [InlineData(1, true)]
+    [InlineData(20, false)]
+    public async Task parent_submitter_hero_window_uses_time_provider(int daysBeforeClock, bool expectPromoted)
+    {
+        // Arrange
+        const int clockDaysAgo = 60;
+        _mocker.Use<TimeProvider>(new FixedTimeProvider(DomainTestFixture.UtcDaysAgo(clockDaysAgo)));
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.AlwaysPromoteAsHero = true;
+        });
+        var url = YouTubeUrl();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(clockDaysAgo + daysBeforeClock);
+            e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
+        });
+        ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        _reports.Should().ContainSingle();
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(
+                It.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { episode.Id })),
+                It.IsAny<CancellationToken>()),
+            expectPromoted ? Times.Once() : Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "The parent submitter does not promote a hero on a dry run, because nothing was stored.")]
+    public async Task parent_submitter_dry_run_does_not_promote_hero()
+    {
+        // Arrange
+        var organisation = AddOrganisation(i => i.AlwaysPromoteAsHero = true);
+        var url = YouTubeUrl();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
+            e.Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } };
+        });
+        ProcessorReturns(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        var sut = _mocker.CreateInstance<CatalogueParentSubmitter>();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true, PersistToDatabase: false));
+
+        // Assert
+        _mocker.GetMock<IHeroEpisodePromoter>().Verify(
+            x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "The parent submitter runs a news organisation as a transient podcast with exactly its stored " +
+        "bypass-short-episodes value, because the news default is saved at creation, not applied on read.")]
+    [InlineData(null)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task parent_submitter_news_transient_uses_stored_bypass(bool? stored)
+    {
+        // Arrange
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.BypassShortEpisodeChecking = stored;
+        });
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        await sut.Submit(CatalogueParentMatch.For(organisation), url, new IndexingContext(),
+            new SubmitOptions(null, true));
+
+        // Assert
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.Is<Podcast>(p => p.Id == organisation.Id && p.BypassShortEpisodeChecking == stored),
+                It.IsAny<IReadOnlyList<Episode>>(),
+                url, It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+        organisation.Indexing!.BypassShortEpisodeChecking.Should().Be(stored);
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

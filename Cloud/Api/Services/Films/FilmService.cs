@@ -74,12 +74,6 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, fieldError);
             }
 
-            var imdb = CanonicalUriPatch.Read(request.Change.Imdb);
-            if (imdb.Kind == CanonicalUriPatchKind.Invalid)
-            {
-                return new FilmUpdateResult(FilmUpdateStatus.BadRequest, imdb.Error);
-            }
-
             // Same decision as PostStatusApplier, without writing the film this request first read.
             // The replace below applies the request onto the film that wins the ETag race.
             var postStatus = new PostStatusChange(
@@ -244,8 +238,7 @@ public class FilmService(
                 }
             }
 
-            if (!TryApply(latest.Film, change, out _, out var applyError) ||
-                !CanonicalUriPatch.TryApply(change.Imdb, uri => latest.Film.Imdb = uri, out applyError))
+            if (!TryApply(latest.Film, change, out _, out var applyError))
             {
                 return new FilmPersist(new FilmUpdateResult(FilmUpdateStatus.BadRequest, applyError), null);
             }

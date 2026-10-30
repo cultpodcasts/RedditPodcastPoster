@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -13,7 +14,9 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
@@ -61,12 +64,34 @@ public class EpisodeFilmMoveServiceRules
             .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
             .Callback<PodcastEpisode>(target => _deletedShortLinks.Add(target.Episode.Id))
             .ReturnsAsync(() => _shortLinkDelete());
+        // Default: no identity match (move must not depend on authority). Tests that assert fill override this.
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()))
+            .Returns(false);
         _mocker.GetMock<ILogger<EpisodeFilmMoveService>>();
     }
 
-    private Task<EpisodeFilmMoveResult> Move(Guid podcastId, Guid episodeId, string? title = null) =>
+    private Task<EpisodeFilmMoveResult> Move(
+        Guid podcastId,
+        Guid episodeId,
+        string? title = null,
+        string? identityDecision = null,
+        string? selectedIdentityKey = null) =>
         _mocker.CreateInstance<EpisodeFilmMoveService>().MoveAsync(
-            new EpisodeFilmMoveCommand(podcastId, episodeId, new EpisodeFilmMoveRequest { Title = title }),
+            new EpisodeFilmMoveCommand(podcastId, episodeId, new EpisodeFilmMoveRequest
+            {
+                Title = title,
+                IdentityDecision = identityDecision,
+                SelectedIdentityKey = selectedIdentityKey
+            }),
             CancellationToken.None);
 
     [Fact(DisplayName =
@@ -98,6 +123,312 @@ public class EpisodeFilmMoveServiceRules
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
         (await _episodes.GetEpisode(podcast.Id, sibling.Id)).Should().NotBeNull();
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Moving an episode asks the materialiser to turn its Spotify, Apple and YouTube ids into Services url and image before mapping, so the film keeps every platform in Services only.")]
+    public async Task move_materialises_services_from_ids_before_mapping()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Services = null;
+        episode.Ids = new EpisodeIds
+        {
+            Spotify = _fixture.CreateSpotifyId(),
+            Apple = _fixture.CreateAppleId(),
+            YouTube = _fixture.CreateYouTubeId()
+        };
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var materialised = new Dictionary<string, (Uri Url, Uri Image)>
+        {
+            [ServiceKeys.Spotify] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.Apple] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.YouTube] = (_fixture.Create<Uri>(), _fixture.Create<Uri>())
+        };
+        _mocker.GetMock<IEpisodeServiceMaterialiser>()
+            .Setup(m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, Episode, CancellationToken>((_, item, _) =>
+            {
+                foreach (var (key, (url, image)) in materialised)
+                {
+                    EpisodeServicePresence.Upsert(item, key, url, image);
+                }
+            })
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        foreach (var (key, (url, image)) in materialised)
+        {
+            film.Services.Should().ContainKey(key);
+            film.Services![key].Url.Should().Be(url);
+            film.Services[key].Image.Should().Be(image);
+        }
+
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Moving an episode whose Services already carry an image keeps that image on the film, because images come over from the episode.")]
+    public async Task move_keeps_existing_service_images()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var image = _fixture.Create<Uri>();
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.YouTube, null, image);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        await Move(podcast.Id, episode.Id);
+
+        // Assert
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.Services![ServiceKeys.YouTube].Image.Should().Be(image);
+    }
+    [Fact(DisplayName =
+        "Move to film fills IMDb/TMDB from a confident identity match (same as URL-submit film create), so the curator need not pick a candidate.")]
+    public async Task move_applies_confident_film_identity()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var title = _fixture.CreateTitle();
+        episode.Title = title;
+        var imdb = "tt" + _fixture.Create<int>().ToString("D7");
+        var tmdb = _fixture.Create<int>();
+        var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
+            .Callback<Film, CatalogueAuthorityIds?>((doc, _) =>
+            {
+                doc.ImdbId = imdb;
+                doc.TmdbId = tmdb;
+            })
+            .Returns(true);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.ImdbId.Should().Be(imdb);
+        film.TmdbId.Should().Be(tmdb);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Move to film returns identityDecision candidates and writes nothing when the authority match is ambiguous, so the client can select / continue / cancel (same as URL-submit).")]
+    public async Task move_returns_identity_candidates_when_ambiguous()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var title = _fixture.CreateTitle();
+        episode.Title = title;
+        var candidateKey = CatalogueAuthorityCandidate.TmdbKey(1);
+        var hold = new CatalogueIdentityHold(
+            CatalogueAuthorityCandidate.FilmKind,
+            title,
+            [
+                new CatalogueAuthorityCandidate(
+                    candidateKey,
+                    title,
+                    Year: null,
+                    CatalogueAuthorityCandidate.FilmKind,
+                    CatalogueAuthorityCandidate.TmdbSource,
+                    1,
+                    TvdbId: null)
+            ]);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(hold));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.IdentityDecisionRequired);
+        result.IdentityHold.Should().BeSameAs(hold);
+        result.IdentityHold!.Candidates.Should().ContainSingle().Which.Key.Should().Be(candidateKey);
+        _savedFilms.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()),
+            Times.Never);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Move to film applies the selected IMDb/TMDB candidate on re-POST after an ambiguous prompt, then completes the move.")]
+    public async Task move_applies_selected_film_identity_on_repost()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var title = _fixture.CreateTitle();
+        episode.Title = title;
+        var selectedKey = CatalogueAuthorityCandidate.TmdbKey(_fixture.Create<int>());
+        var imdb = "tt" + _fixture.Create<int>().ToString("D7");
+        var tmdb = _fixture.Create<int>();
+        var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
+            .Callback<Film, CatalogueAuthorityIds?>((doc, _) =>
+            {
+                doc.ImdbId = imdb;
+                doc.TmdbId = tmdb;
+            })
+            .Returns(true);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            identityDecision: "select", selectedIdentityKey: selectedKey);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.ImdbId.Should().Be(imdb);
+        film.TmdbId.Should().Be(tmdb);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Move to film with identityDecision continue creates the film with blank identity, so the curator can skip authority ids.")]
+    public async Task move_continues_without_identity_when_continue()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var title = _fixture.CreateTitle();
+        episode.Title = title;
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Continue, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id, identityDecision: "continue");
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.ImdbId.Should().BeNull();
+        film.TmdbId.Should().BeNull();
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Move to film with identityDecision cancel writes nothing, so abandoning the identity prompt abandons the move.")]
+    public async Task move_cancels_without_creating_film()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id, identityDecision: "cancel");
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Cancelled);
+        _savedFilms.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ResolveFilmAsync(
+                It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
+            m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Move to film leaves identity blank when identity lookup throws, so Move still completes and the curator can edit the film later.")]
+    public async Task move_leaves_film_identity_blank_when_lookup_fails()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var title = _fixture.CreateTitle();
+        episode.Title = title;
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.ImdbId.Should().BeNull();
+        film.TmdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

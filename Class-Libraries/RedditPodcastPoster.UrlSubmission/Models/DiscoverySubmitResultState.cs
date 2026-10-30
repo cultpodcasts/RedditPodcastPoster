@@ -10,5 +10,8 @@ public enum DiscoverySubmitResultState
     EnrichedPodcastAndCreatedEpisode,
     EpisodeAlreadyExists,
     EnrichedPodcast,
-    EnrichedEpisode
+    EnrichedEpisode,
+    LanguageDecisionRequired,
+    LanguageProbeClear,
+    IdentityDecisionRequired
 }

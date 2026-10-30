@@ -5,6 +5,7 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -13,8 +14,10 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -90,6 +93,17 @@ public class EpisodeTvShowMoveServiceRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetFilm(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _films.SingleOrDefault(film => film.Id == id));
+        // Default: no identity match (move must not depend on authority). Tests that assert fill override this.
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveTvShowAsync(
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ApplyMissing(It.IsAny<ITvCanonical>(), It.IsAny<CatalogueAuthorityIds?>()))
+            .Returns(false);
         _mocker.GetMock<IPlayableSearchDocumentSwap>()
             .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .Callback<IReadOnlyList<EpisodeSearchRecord>, CancellationToken>((documents, _) =>
@@ -170,6 +184,73 @@ public class EpisodeTvShowMoveServiceRules
     }
 
     [Fact(DisplayName =
+        "Moving an episode asks the materialiser to turn its Spotify, Apple and YouTube ids into Services url and image before mapping, so the TV episode keeps every platform in Services only.")]
+    public async Task move_materialises_services_from_ids_before_mapping()
+    {
+        // Arrange
+        var show = SeedShow();
+        var (podcast, episode) = SeedEpisode(item =>
+        {
+            item.Services = null;
+            item.Ids = new EpisodeIds
+            {
+                Spotify = _fixture.CreateSpotifyId(),
+                Apple = _fixture.CreateAppleId(),
+                YouTube = _fixture.CreateYouTubeId()
+            };
+        });
+        var materialised = new Dictionary<string, (Uri Url, Uri Image)>
+        {
+            [ServiceKeys.Spotify] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.Apple] = (_fixture.Create<Uri>(), _fixture.Create<Uri>()),
+            [ServiceKeys.YouTube] = (_fixture.Create<Uri>(), _fixture.Create<Uri>())
+        };
+        _mocker.GetMock<IEpisodeServiceMaterialiser>()
+            .Setup(m => m.MaterialiseAsync(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<Episode>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<RedditPodcastPoster.Models.Podcasts.Podcast, Episode, CancellationToken>((_, item, _) =>
+            {
+                foreach (var (key, (url, image)) in materialised)
+                {
+                    EpisodeServicePresence.Upsert(item, key, url, image);
+                }
+            })
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await MoveToShow(podcast.Id, episode.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var tvEpisode = _savedTvEpisodes.Should().ContainSingle().Subject;
+        foreach (var (key, (url, image)) in materialised)
+        {
+            tvEpisode.Services.Should().ContainKey(key);
+            tvEpisode.Services![key].Url.Should().Be(url);
+            tvEpisode.Services[key].Image.Should().Be(image);
+        }
+    }
+
+    [Fact(DisplayName =
+        "Moving an episode whose Services already carry an image keeps that image on the TV episode, because images come over from the episode.")]
+    public async Task move_keeps_existing_service_images()
+    {
+        // Arrange
+        var show = SeedShow();
+        var image = _fixture.Create<Uri>();
+        var (podcast, episode) = SeedEpisode(item =>
+            EpisodeServicePresence.Upsert(item, ServiceKeys.YouTube, null, image));
+
+        // Act
+        await MoveToShow(podcast.Id, episode.Id, show.Id);
+
+        // Assert
+        var tvEpisode = _savedTvEpisodes.Should().ContainSingle().Subject;
+        tvEpisode.Services![ServiceKeys.YouTube].Image.Should().Be(image);
+    }
+    [Fact(DisplayName =
         "A TV show name without createShow attaches to the one show with that name, case-insensitively, so the TV-show picker can send the suggested name.")]
     public async Task name_attaches_to_existing_show_case_insensitively()
     {
@@ -234,6 +315,113 @@ public class EpisodeTvShowMoveServiceRules
         result.TvShowId.Should().Be(show.Id);
         _savedTvEpisodes.Should().ContainSingle().Which.TvShowId.Should().Be(show.Id);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ResolveTvShowAsync(name, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "createShow fills IMDb/TMDB/TVDB from a confident identity match (same as URL-submit create), so the curator need not edit the show just for ids.")]
+    public async Task create_show_applies_confident_identity()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var name = _fixture.CreateTitle();
+        var imdb = "tt" + _fixture.Create<int>().ToString("D7");
+        var tmdb = _fixture.Create<int>();
+        var tvdb = _fixture.Create<int>();
+        var ids = new CatalogueAuthorityIds(imdb, tmdb, tvdb);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveTvShowAsync(
+                name, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ApplyMissing(It.IsAny<ITvCanonical>(), ids))
+            .Callback<ITvCanonical, CatalogueAuthorityIds?>((doc, _) =>
+            {
+                doc.ImdbId = imdb;
+                doc.TmdbId = tmdb;
+                doc.TvdbId = tvdb;
+            })
+            .Returns(true);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.ImdbId.Should().Be(imdb);
+        show.TmdbId.Should().Be(tmdb);
+        show.TvdbId.Should().Be(tvdb);
+    }
+
+    [Fact(DisplayName =
+        "createShow leaves identity blank when the authority match is ambiguous, so Move still completes without a choice UI.")]
+    public async Task create_show_skips_ambiguous_identity()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var name = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveTvShowAsync(
+                name, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(
+                new CatalogueIdentityHold(
+                    CatalogueAuthorityCandidate.TvShowKind,
+                    name,
+                    [
+                        new CatalogueAuthorityCandidate(
+                            CatalogueAuthorityCandidate.TmdbKey(1),
+                            name,
+                            Year: null,
+                            CatalogueAuthorityCandidate.TvShowKind,
+                            CatalogueAuthorityCandidate.TmdbSource,
+                            1,
+                            TvdbId: null)
+                    ])));
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.ImdbId.Should().BeNull();
+        show.TmdbId.Should().BeNull();
+        show.TvdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ApplyMissing(It.IsAny<ITvCanonical>(), It.IsAny<CatalogueAuthorityIds?>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "createShow leaves identity blank when identity lookup throws, so Move still completes and the curator can edit the show later.")]
+    public async Task create_show_leaves_identity_blank_when_lookup_fails()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var name = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveTvShowAsync(
+                name, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id,
+            new EpisodeTvShowMoveRequest { TvShowName = name, CreateShow = true });
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        var show = _savedShows.Should().ContainSingle().Subject;
+        show.ImdbId.Should().BeNull();
+        show.TmdbId.Should().BeNull();
+        show.TvdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            e => e.ApplyMissing(It.IsAny<ITvCanonical>(), It.IsAny<CatalogueAuthorityIds?>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

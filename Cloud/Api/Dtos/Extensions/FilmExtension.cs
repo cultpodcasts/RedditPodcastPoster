@@ -8,7 +8,6 @@ public static class FilmExtension
     public static FilmDto ToDto(this Film film) =>
         new FilmDto
         {
-            Imdb = film.Imdb,
             ImdbId = film.ImdbId,
             TmdbId = film.TmdbId,
             Release = CatalogueDtoMapping.FormatRelease(film.Release),

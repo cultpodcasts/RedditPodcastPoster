@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Factories;
+using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Factories;
@@ -170,6 +171,87 @@ public class FindSpotifyEpisodeRequestFactoryRules
         request.EpisodeTitle.Should().BeEmpty();
         request.Released.Should().BeNull();
         request.HasExpensiveSpotifyEpisodesQuery.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When creating a request for a YouTube-discovered episode on a YouTube-authority podcast with a publishing delay, " +
+        "YouTubePublished carries the unshifted YouTube publish and the catalogue lookup keeps it, so the matcher can " +
+        "credit audio released the same day as the video when the delay crosses midnight.")]
+    public void Create_from_youtube_discovered_episode_carries_unshifted_youtube_publish_to_lookup()
+    {
+        // Arrange
+        var delay = TimeSpan.FromHours(7);
+        var youTubePublish = DomainTestFixture.UtcAtTime(-2, new TimeSpan(4, 0, 9));
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.ReleaseAuthority = Service.YouTube;
+            p.YouTubePublicationOffset = delay.Ticks;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.ReleaseUtc = youTubePublish;
+            e.YouTubeId = youTubeId;
+            e.Urls.YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        });
+
+        // Act
+        var request = FindSpotifyEpisodeRequestFactory.Create(podcast, episode);
+        var lookup = SpotifyEpisodeResolver.ToLookup(request, new IndexingContext());
+
+        // Assert
+        request.Released.Should().Be(youTubePublish - delay);
+        request.YouTubePublished.Should().Be(youTubePublish);
+        lookup.Released.Should().Be(youTubePublish - delay);
+        lookup.YouTubePublished.Should().Be(youTubePublish);
+    }
+
+    [Fact(DisplayName =
+        "When creating a request for an episode with no YouTube identity, YouTubePublished is null, because only " +
+        "YouTube-sourced probes have a video publish to compare audio days against.")]
+    public void Create_from_audio_only_episode_leaves_youtube_publish_null()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.YouTubePublicationOffset = TimeSpan.FromHours(7).Ticks;
+        });
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.YouTubeId = string.Empty;
+            e.Urls.YouTube = null;
+        });
+
+        // Act
+        var request = FindSpotifyEpisodeRequestFactory.Create(podcast, episode);
+
+        // Assert
+        request.EnrichingYouTubeDiscoveredEpisode.Should().BeFalse();
+        request.YouTubePublished.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When building a request from YouTube-sourced criteria, YouTubePublished is the unshifted criteria release; " +
+        "criteria without a source authority leave it null.")]
+    public void Criteria_from_youtube_carry_unshifted_publish_and_others_do_not()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.YouTubePublicationOffset = TimeSpan.FromHours(7).Ticks;
+        });
+        var criteria = CreateCriteria(showName: podcast.Name);
+
+        // Act
+        var fromYouTube = FindSpotifyEpisodeRequestFactory.Create(podcast, criteria with { SourceAuthority = Service.YouTube });
+        var unspecified = FindSpotifyEpisodeRequestFactory.Create(podcast, criteria);
+
+        // Assert
+        fromYouTube.YouTubePublished.Should().Be(criteria.Release);
+        unspecified.YouTubePublished.Should().BeNull();
     }
 
     private PodcastServiceSearchCriteria CreateCriteria(string? showName = null) =>

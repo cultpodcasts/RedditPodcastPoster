@@ -67,7 +67,8 @@ public class DiscoveryRemovedPodcastSaveRules
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
             It.Is<Guid[]>(ids => ids.SequenceEqual(new[] { documentId })),
             It.Is<Guid[]>(ids => ids.Length == 0),
-            It.Is<Guid[]>(ids => ids.Length == 0)), Times.Once);
+            It.Is<Guid[]>(ids => ids.Length == 0),
+            It.IsAny<IReadOnlyList<DiscoverySubmitItemOutcome>>()), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -100,7 +101,8 @@ public class DiscoveryRemovedPodcastSaveRules
         // Assert
         outcome.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
         _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(
-            s => s.Submit(result, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()), Times.Once);
+            s => s.Submit(result, It.IsAny<IndexingContext>(), It.Is<SubmitOptions>(o => !o.LanguageProbe)),
+            Times.Once);
     }
 
     [Fact(DisplayName =

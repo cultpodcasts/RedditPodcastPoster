@@ -95,7 +95,8 @@ public class SpotifyEpisodeResolver(
         {
             Flow = indexingContext.LookupFlow,
             WindowStart = indexingContext.ReleasedSince,
-            ShowEpisodeCount = request.ShowEpisodeCount
+            ShowEpisodeCount = request.ShowEpisodeCount,
+            YouTubePublished = request.YouTubePublished
         };
 
     private Task<FullEpisode?> GetFullEpisode(
