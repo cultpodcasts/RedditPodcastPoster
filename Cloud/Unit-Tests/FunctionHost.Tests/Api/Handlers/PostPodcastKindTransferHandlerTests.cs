@@ -65,6 +65,26 @@ public class PostPodcastKindTransferHandlerTests
     }
 
     [Fact(DisplayName =
+        "A transfer that kept the podcast because episodes kept arriving is a 409 whose body says retryRequired " +
+        "(and not transferInProgress), so the site asks the curator to run the transfer again.")]
+    public async Task incomplete_is_conflict_with_retry_required_flag()
+    {
+        // Arrange
+        _result = new PodcastKindTransferResult(
+            PodcastKindTransferStatus.Incomplete, _command.PodcastId, CatalogueParentKind.NewsOrganisation, 5);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.Conflict(
+            It.Is<PodcastKindTransferResponse>(r => r.RetryRequired && !r.TransferInProgress &&
+                                                    r.ParentId == _command.PodcastId),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
         "When the caller disconnects and writing the 202 reply is cancelled after a successful transfer, the " +
         "handler logs it as information (not an error) and returns the 202 status, because the transfer is stored.")]
     public async Task cancelled_reply_after_success_is_information()

@@ -6,6 +6,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -221,50 +222,44 @@ public class EpisodeRepository(
         }
     }
 
-    /// <summary>Concurrent point deletes per transfer; well inside the Cosmos SDK's connection pool.</summary>
-    public const int ParentTransferDeleteParallelism = 16;
-
-    public async Task<int> DeleteForParentTransfer(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    public async Task<EpisodeBulkDeleteResult> DeleteMany(Guid podcastId, IReadOnlyCollection<Episode> episodes)
     {
+        // Check the whole batch first, so a refused call deletes nothing.
+        if (episodes.FirstOrDefault(episode => episode.PodcastId != podcastId) is { } stranger)
+        {
+            throw new InvalidOperationException(
+                $"Episode '{stranger.Id}' belongs to podcast '{stranger.PodcastId}', not '{podcastId}'.");
+        }
+
         var deleted = 0;
-        var countedDeleted = 0;
-        try
-        {
-            await Parallel.ForEachAsync(
-                episodes,
-                new ParallelOptions { MaxDegreeOfParallelism = ParentTransferDeleteParallelism },
-                async (episode, _) =>
+        var missing = 0;
+        var throttleRetries = 0;
+        var requestCharge = 0d;
+        var chargeGate = new object();
+        var partitionKey = ToPartitionKey(podcastId);
+        await Parallel.ForEachAsync(
+            episodes,
+            new ParallelOptions { MaxDegreeOfParallelism = CatalogueBulkWrite.Parallelism },
+            async (episode, _) =>
+            {
+                try
                 {
-                    if (episode.PodcastId != podcastId)
-                    {
-                        throw new InvalidOperationException(
-                            $"Episode '{episode.Id}' belongs to podcast '{episode.PodcastId}', not '{podcastId}'.");
-                    }
-
-                    try
-                    {
-                        await container.DeleteItemAsync<Episode>(episode.Id.ToString(), ToPartitionKey(podcastId));
-                    }
-                    catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        // Already gone (a resumed transfer): nothing to count.
-                        return;
-                    }
-
+                    var response = await CatalogueBulkWrite.RetryThrottled(
+                        () => container.DeleteItemAsync<Episode>(episode.Id.ToString(), partitionKey),
+                        () => Interlocked.Increment(ref throttleRetries));
                     Interlocked.Increment(ref deleted);
-                    if (IsCountedForHomepage(episode))
+                    lock (chargeGate)
                     {
-                        Interlocked.Increment(ref countedDeleted);
+                        requestCharge += response?.RequestCharge ?? 0;
                     }
-                });
-        }
-        finally
-        {
-            // One counter patch for the whole transfer, including the deletes that landed before a failure.
-            await lookupRepository.IncrementHomePageActiveEpisodeCount(-countedDeleted);
-        }
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Interlocked.Increment(ref missing);
+                }
+            });
 
-        return deleted;
+        return new EpisodeBulkDeleteResult(deleted, missing, requestCharge, throttleRetries);
     }
 
     public async Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests)

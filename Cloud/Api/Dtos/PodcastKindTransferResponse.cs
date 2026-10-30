@@ -21,4 +21,12 @@ public sealed class PodcastKindTransferResponse
     [JsonPropertyName("transferInProgress")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool TransferInProgress { get; init; }
+
+    /// <summary>
+    /// Set on a 409 when episodes kept arriving during the transfer: the destination exists and the podcast row was
+    /// kept so nothing is orphaned. Re-run the same transfer to finish it.
+    /// </summary>
+    [JsonPropertyName("retryRequired")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RetryRequired { get; init; }
 }

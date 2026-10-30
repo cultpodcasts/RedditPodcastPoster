@@ -51,7 +51,7 @@ public class PostPodcastKindTransferHandler(
                 await ctx.NotFound(new { id = result.ParentId }, cancellationToken),
             PodcastKindTransferStatus.Conflict =>
                 await ctx.Conflict(result.ToDto(), cancellationToken),
-            PodcastKindTransferStatus.AlreadyRunning =>
+            PodcastKindTransferStatus.AlreadyRunning or PodcastKindTransferStatus.Incomplete =>
                 await ctx.Conflict(result.ToDto(), cancellationToken),
             PodcastKindTransferStatus.InvalidTarget =>
                 await ctx.BadRequest(
@@ -75,7 +75,8 @@ public class PostPodcastKindTransferHandler(
         {
             PodcastKindTransferStatus.Accepted => HttpStatusCode.Accepted,
             PodcastKindTransferStatus.NotFound => HttpStatusCode.NotFound,
-            PodcastKindTransferStatus.Conflict or PodcastKindTransferStatus.AlreadyRunning => HttpStatusCode.Conflict,
+            PodcastKindTransferStatus.Conflict or PodcastKindTransferStatus.AlreadyRunning
+                or PodcastKindTransferStatus.Incomplete => HttpStatusCode.Conflict,
             PodcastKindTransferStatus.InvalidTarget => HttpStatusCode.BadRequest,
             _ => HttpStatusCode.InternalServerError
         });

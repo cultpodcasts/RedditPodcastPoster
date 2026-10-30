@@ -11,6 +11,7 @@ public static class PodcastKindTransferResponseExtension
             TargetKind = result.TargetKind,
             PlayableCount = result.PlayableCount,
             FailureIndexingPlayables = result.FailureIndexingPlayables,
-            TransferInProgress = result.Status == PodcastKindTransferStatus.AlreadyRunning
+            TransferInProgress = result.Status == PodcastKindTransferStatus.AlreadyRunning,
+            RetryRequired = result.Status == PodcastKindTransferStatus.Incomplete
         };
 }

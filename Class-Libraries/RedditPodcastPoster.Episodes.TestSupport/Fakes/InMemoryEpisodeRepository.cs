@@ -132,24 +132,38 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         return Task.CompletedTask;
     }
 
-    /// <summary>Episode ids passed to each <see cref="DeleteForParentTransfer"/> call, in call order.</summary>
-    public List<IReadOnlyList<Guid>> ParentTransferDeletes { get; } = [];
+    /// <summary>Episode ids passed to each <see cref="DeleteMany"/> call, in call order.</summary>
+    public List<IReadOnlyList<Guid>> BulkDeletes { get; } = [];
 
-    public Task<int> DeleteForParentTransfer(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    /// <summary>Runs after each <see cref="DeleteMany"/> call, so a test can add an episode mid-transfer.</summary>
+    public Action<Guid>? AfterDeleteMany { get; set; }
+
+    public Task<EpisodeBulkDeleteResult> DeleteMany(Guid podcastId, IReadOnlyCollection<Episode> episodes)
     {
-        ParentTransferDeletes.Add(episodes.Select(episode => episode.Id).ToList());
+        if (episodes.FirstOrDefault(episode => episode.PodcastId != podcastId) is { } stranger)
+        {
+            throw new InvalidOperationException(
+                $"Episode '{stranger.Id}' belongs to podcast '{stranger.PodcastId}', not '{podcastId}'.");
+        }
+
+        BulkDeletes.Add(episodes.Select(episode => episode.Id).ToList());
         var deleted = 0;
+        var missing = 0;
         foreach (var episode in episodes)
         {
             BeforeDelete?.Invoke(podcastId, episode.Id);
-            if (_episodes.TryGetValue(episode.Id, out var stored) && stored.PodcastId == podcastId)
+            if (_episodes.Remove(episode.Id))
             {
-                _episodes.Remove(episode.Id);
                 deleted++;
+            }
+            else
+            {
+                missing++;
             }
         }
 
-        return Task.FromResult(deleted);
+        AfterDeleteMany?.Invoke(podcastId);
+        return Task.FromResult(new EpisodeBulkDeleteResult(deleted, missing, 0, 0));
     }
 
     public Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)

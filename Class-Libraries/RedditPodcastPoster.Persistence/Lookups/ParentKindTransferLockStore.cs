@@ -8,8 +8,9 @@ namespace RedditPodcastPoster.Persistence.Lookups;
 
 /// <summary>
 /// LookUps marker per podcast (id = podcast id, partition = id). Create fails with 409 when another transfer holds
-/// it; a stale marker is replaced with If-Match on the etag that was read, so only one taker wins. Release deletes
-/// with If-Match on this attempt's etag, so a taken-over marker is left to its new holder.
+/// it. The holder renews a heartbeat with If-Match on its etag. A marker whose last heartbeat is older than the stale
+/// window is replaced with If-Match on the etag that was read, so only one taker wins. Release deletes with If-Match
+/// on this attempt's etag, so a taken-over marker is left to its new holder.
 /// </summary>
 public sealed class ParentKindTransferLockStore(
     Container lookUpsContainer,
@@ -38,7 +39,7 @@ public sealed class ParentKindTransferLockStore(
                 var created = await lookUpsContainer.CreateItemAsync(marker, partitionKey);
                 return new ParentKindTransferLockAcquisition(
                     ParentKindTransferLockOutcome.Acquired,
-                    new ParentKindTransferLockHandle(podcastId, marker.AttemptId, created.ETag));
+                    HandleFor(marker, created.ETag));
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
@@ -57,7 +58,7 @@ public sealed class ParentKindTransferLockStore(
             }
 
             var current = existing.Resource;
-            if (nowUtc - current.StartedUtc < staleAfter)
+            if (nowUtc - current.LastAliveUtc < staleAfter)
             {
                 return ParentKindTransferLockAcquisition.AlreadyRunning(current.StartedUtc);
             }
@@ -70,14 +71,18 @@ public sealed class ParentKindTransferLockStore(
                     partitionKey,
                     new ItemRequestOptions { IfMatchEtag = existing.ETag });
                 logger.LogWarning(
-                    "{method}: Took over a stale kind transfer marker for podcast '{podcastId}' started {startedUtc:O}; resuming.",
+                    "{method}: Took over a stale kind transfer marker for podcast '{podcastId}' (to {previousTargetKind}, started {startedUtc:O}, last heartbeat {lastAliveUtc:O}); now transferring to {targetKind}.",
                     nameof(TryAcquire),
                     podcastId,
-                    current.StartedUtc);
+                    current.TargetKind,
+                    current.StartedUtc,
+                    current.LastAliveUtc,
+                    targetKind);
                 return new ParentKindTransferLockAcquisition(
                     ParentKindTransferLockOutcome.ResumedStale,
-                    new ParentKindTransferLockHandle(podcastId, marker.AttemptId, replaced.ETag),
-                    current.StartedUtc);
+                    HandleFor(marker, replaced.ETag),
+                    current.StartedUtc,
+                    current.TargetKind);
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
             {
@@ -92,6 +97,39 @@ public sealed class ParentKindTransferLockStore(
 
         return ParentKindTransferLockAcquisition.AlreadyRunning(nowUtc);
     }
+
+    public async Task<ParentKindTransferLockHandle?> Renew(ParentKindTransferLockHandle handle, DateTime nowUtc)
+    {
+        var marker = new ParentKindTransferLock
+        {
+            Id = handle.PodcastId,
+            TargetKind = handle.TargetKind,
+            StartedUtc = handle.StartedUtc,
+            AttemptId = handle.AttemptId,
+            HeartbeatUtc = nowUtc
+        };
+        try
+        {
+            var renewed = await lookUpsContainer.ReplaceItemAsync(
+                marker,
+                handle.PodcastId.ToString(),
+                new PartitionKey(handle.PodcastId.ToString()),
+                new ItemRequestOptions { IfMatchEtag = handle.ETag });
+            return handle with { ETag = renewed.ETag };
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.PreconditionFailed)
+        {
+            logger.LogWarning(
+                "{method}: Lost the kind transfer marker for podcast '{podcastId}' ({status}).",
+                nameof(Renew),
+                handle.PodcastId,
+                ex.StatusCode);
+            return null;
+        }
+    }
+
+    private static ParentKindTransferLockHandle HandleFor(ParentKindTransferLock marker, string? etag) =>
+        new(marker.Id, marker.AttemptId, etag, marker.TargetKind, marker.StartedUtc);
 
     public async Task Release(ParentKindTransferLockHandle handle)
     {
