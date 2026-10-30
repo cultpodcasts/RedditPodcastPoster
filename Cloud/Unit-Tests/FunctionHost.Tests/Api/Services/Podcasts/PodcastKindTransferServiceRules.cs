@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -9,10 +10,12 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -37,6 +40,7 @@ public class PodcastKindTransferServiceRules
     private bool _searchUploadSucceeds = true;
     private bool _searchDeleteSucceeds = true;
     private readonly List<Guid> _deletedTvShowIds = [];
+    private readonly List<NewsOrganisation> _existingOrganisations = [];
     private readonly List<(Guid ParentId, Guid PlayableId)> _deletedTvEpisodeIds = [];
 
     public PodcastKindTransferServiceRules()
@@ -97,6 +101,9 @@ public class PodcastKindTransferServiceRules
             .Callback<IReadOnlyList<Guid>, CancellationToken>((ids, _) => _deletedSearchIds = ids)
             .ReturnsAsync(() => _searchDeleteSucceeds);
         _mocker.GetMock<ILogger<PodcastKindTransferService>>();
+        TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(() => _existingOrganisations);
+        TakenFileKeys<ITvShowRepository, TvShow>(() => []);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 
     [Fact(DisplayName =
@@ -608,4 +615,86 @@ public class PodcastKindTransferServiceRules
         // Assert
         result.Status.Should().Be(PodcastKindTransferStatus.NotFound);
     }
+
+    [Fact(DisplayName =
+        "Transferring a Korean-named podcast to a news organisation keeps the podcast's own usable key behind the news- prefix, so a curator-set key survives the move.")]
+    public async Task transfer_non_latin_podcast_keeps_its_key()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.Name = "오늘의 뉴스";
+        podcast.FileKey = "synthetic_kr";
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().Be(FileKeyFactory.NewsOrganisationPrefix + "synthetic_kr");
+    }
+
+    [Fact(DisplayName =
+        "Transferring a Korean-named podcast whose key is empty to a news organisation stores news-id_… from the guid, never news- or news-_.")]
+    public async Task transfer_non_latin_podcast_with_empty_key_gets_id_key()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        podcast.Name = "오늘의 뉴스";
+        podcast.FileKey = string.Empty;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().Be(
+            FileKeyFactory.NewsOrganisationPrefix + FileKeyFactory.GetIdSlug(podcast.Id));
+    }
+
+    [Fact(DisplayName =
+        "Transferring a podcast to a news organisation whose key another organisation already holds (any case) gives a numbered key instead of a duplicate.")]
+    public async Task transfer_with_taken_key_gets_suffix()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var expected = new NewsOrganisation(podcast.Name) { Id = podcast.Id }.FileKey;
+        var holder = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        holder.FileKey = expected.ToUpperInvariant();
+        _existingOrganisations.Add(holder);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedOrganisation!.FileKey.Should().StartWith(FileKeyFactory.NewsOrganisationPrefix).And.EndWith("_2");
+    }
+
+    private void TakenFileKeys<TRepository, TEntity>(Func<IEnumerable<TEntity>> store)
+        where TRepository : class, IFilterableRepository<TEntity>
+        where TEntity : class =>
+        _mocker.GetMock<TRepository>()
+            .Setup(r => r.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                store().Where(selector.Compile()).Select(projection.Compile()).ToAsyncEnumerable());
 }

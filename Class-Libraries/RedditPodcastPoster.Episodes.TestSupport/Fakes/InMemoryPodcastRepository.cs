@@ -96,6 +96,7 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
         {
             Id = podcast.Id,
             Name = podcast.Name,
+            FileKey = podcast.FileKey,
             SpotifyId = podcast.SpotifyId,
             AppleId = podcast.AppleId,
             YouTubeChannelId = podcast.YouTubeChannelId,

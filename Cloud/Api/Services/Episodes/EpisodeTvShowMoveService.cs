@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlShortening.Extensions;
@@ -52,6 +53,7 @@ public class EpisodeTvShowMoveService(
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
+    IFileKeyAllocator fileKeyAllocator,
     ILogger<EpisodeTvShowMoveService> logger) : IEpisodeTvShowMoveService
 {
     public async Task<EpisodeTvShowMoveResult> MoveAsync(
@@ -286,10 +288,11 @@ public class EpisodeTvShowMoveService(
             return (null, false, NotFound("No TV show has this name"));
         }
 
+        var showId = Guid.NewGuid();
         var show = new TvShow(name)
         {
-            Id = Guid.NewGuid(),
-            FileKey = FileKeyFactory.GetTvShowFileKey(name),
+            Id = showId,
+            FileKey = await fileKeyAllocator.Allocate(FileKeyKind.TvShow, name, showId),
             PublisherName = request.Publisher?.Trim() ?? string.Empty,
             Indexing = null
         };

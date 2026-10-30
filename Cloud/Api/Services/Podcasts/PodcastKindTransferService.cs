@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 
@@ -27,6 +28,7 @@ public class PodcastKindTransferService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IPlayableSearchDocumentSwap searchSwap,
+    IFileKeyAllocator fileKeyAllocator,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
     public async Task<PodcastKindTransferResult> TransferAsync(
@@ -91,6 +93,7 @@ public class PodcastKindTransferService(
             episodes,
             siblingParentExists,
             CatalogueParentKind.TvShow,
+            FileKeyKind.TvShow,
             SearchContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToTvShow,
             CatalogueParentKindMapper.ToTvShowEpisode,
@@ -110,6 +113,7 @@ public class PodcastKindTransferService(
             episodes,
             siblingParentExists,
             CatalogueParentKind.NewsOrganisation,
+            FileKeyKind.NewsOrganisation,
             SearchContentKind.NewsReport,
             CatalogueParentKindMapper.ToNewsOrganisation,
             CatalogueParentKindMapper.ToNewsReport,
@@ -124,6 +128,7 @@ public class PodcastKindTransferService(
         IReadOnlyList<Episode> episodes,
         bool siblingParentExists,
         CatalogueParentKind targetKind,
+        FileKeyKind fileKeyKind,
         string searchContentKind,
         Func<Podcast, TParent> mapParent,
         Func<Episode, TParent, TPlayable> mapPlayable,
@@ -132,7 +137,7 @@ public class PodcastKindTransferService(
         Func<Guid, Guid, Task> deletePlayable,
         Func<Guid, Task> deleteParent,
         CancellationToken cancellationToken)
-        where TParent : class
+        where TParent : Publisher
         where TPlayable : Playable
     {
         if (siblingParentExists)
@@ -151,6 +156,9 @@ public class PodcastKindTransferService(
         }
 
         var parent = mapParent(podcast);
+        // Never empty and unique among the target kind: a name with no usable Latin slug keeps the podcast's own
+        // usable key (with the kind prefix), else gets an id key.
+        parent.FileKey = await fileKeyAllocator.Allocate(fileKeyKind, parent.Name, parent.Id, podcast.FileKey);
         var playables = episodes
             .Select(episode => mapPlayable(episode, parent))
             .ToList();

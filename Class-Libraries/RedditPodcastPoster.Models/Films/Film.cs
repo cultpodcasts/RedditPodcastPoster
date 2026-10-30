@@ -27,7 +27,7 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     public Film(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetFilmFileKey(name);
+        FileKey = FileKeyFactory.GetFilmFileKey(name, Id);
     }
 
     private CatalogueRelease? _release;

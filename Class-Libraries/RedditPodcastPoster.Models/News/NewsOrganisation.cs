@@ -17,7 +17,7 @@ public sealed class NewsOrganisation : Publisher, IHasYouTubeIndexingSettings
     public NewsOrganisation(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetNewsOrganisationFileKey(name);
+        FileKey = FileKeyFactory.GetNewsOrganisationFileKey(name, Id);
     }
 
     /// <summary>

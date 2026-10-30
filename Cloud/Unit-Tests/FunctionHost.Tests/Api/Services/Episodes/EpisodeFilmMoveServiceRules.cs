@@ -12,9 +12,11 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
@@ -47,6 +49,8 @@ public class EpisodeFilmMoveServiceRules
         films
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .Returns((Expression<Func<Film, bool>> selector) => _films.Where(selector.Compile()).ToAsyncEnumerable());
+        TakenFileKeys<IFilmRepository, Film>(() => _films);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         films
             .Setup(r => r.Save(It.IsAny<Film>()))
             .Callback<Film>(film =>
@@ -730,4 +734,55 @@ public class EpisodeFilmMoveServiceRules
         _savedFilms.Should().ContainSingle();
         _uploadedSearchDocuments.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "Moving an episode with an emoji-only title to a film stores a key built from the film id (film-id_…), never an empty or underscore key.")]
+    public async Task move_with_non_latin_title_gets_id_key()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Title = "🎙️📻 ✨";
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        var film = _savedFilms.Should().ContainSingle().Subject;
+        film.FileKey.Should().Be(FileKeyFactory.FilmPrefix + FileKeyFactory.GetIdSlug(episode.Id));
+    }
+
+    [Fact(DisplayName =
+        "Moving an episode whose title slug is already another film's key gives the new film a numbered key instead of a duplicate.")]
+    public async Task move_with_taken_key_gets_suffix()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var holder = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        holder.FileKey = FileKeyFactory.GetFilmFileKey(episode.Title.Trim());
+        _films.Add(holder);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        _savedFilms.Should().ContainSingle().Which.FileKey.Should().Be(holder.FileKey + "_2");
+    }
+
+    private void TakenFileKeys<TRepository, TEntity>(Func<IEnumerable<TEntity>> store)
+        where TRepository : class, IFilterableRepository<TEntity>
+        where TEntity : class =>
+        _mocker.GetMock<TRepository>()
+            .Setup(r => r.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, string>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, string>> projection) =>
+                store().Where(selector.Compile()).Select(projection.Compile()).ToAsyncEnumerable());
 }

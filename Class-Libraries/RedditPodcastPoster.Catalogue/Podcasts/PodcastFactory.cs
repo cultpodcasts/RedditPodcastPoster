@@ -1,13 +1,18 @@
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using RedditPodcastPoster.Models.Cosmos;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 
 namespace RedditPodcastPoster.Catalogue.Podcasts;
 
+/// <summary>
+/// Creates a podcast whose file key comes from <see cref="IFileKeyAllocator"/>: never empty (a name with no usable
+/// Latin slug gets a key built from the new id, <see cref="FileKeyFactory.GetIdSlug"/>) and unique, ignoring case,
+/// among stored podcasts and the keys this process has already handed out for podcasts it may not have saved yet.
+/// </summary>
 public class PodcastFactory(
-    IPodcastRepository podcastRepository) : IPodcastFactory
+    IFileKeyAllocator fileKeyAllocator) : IPodcastFactory
 {
-    private static List<string>? _fileKeys;
+    private static readonly HashSet<string> IssuedFileKeys = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<Podcast> Create(string podcastName)
     {
@@ -16,21 +21,22 @@ public class PodcastFactory(
             throw new ArgumentNullException(nameof(podcastName));
         }
 
-        _fileKeys ??= await podcastRepository.GetAll().Select(x => x.FileKey).ToListAsync();
-
         podcastName = podcastName.Trim();
-        var fileKey = FileKeyFactory.GetFileKey(podcastName);
-        if (_fileKeys.Contains(fileKey))
+        var id = Guid.NewGuid();
+        var fileKey = await fileKeyAllocator.Allocate(FileKeyKind.Podcast, podcastName, id, alsoTaken: IsIssued);
+        lock (IssuedFileKeys)
         {
-            var rootFileKey = fileKey;
-            var ctr = 2;
-            do
-            {
-                fileKey = $"{rootFileKey}_{ctr++}";
-            } while (_fileKeys.Contains(fileKey));
+            IssuedFileKeys.Add(fileKey);
         }
 
-        _fileKeys.Add(fileKey);
-        return new Podcast { Id = Guid.NewGuid(), Name = podcastName, FileKey = fileKey };
+        return new Podcast { Id = id, Name = podcastName, FileKey = fileKey };
+    }
+
+    private static bool IsIssued(string fileKey)
+    {
+        lock (IssuedFileKeys)
+        {
+            return IssuedFileKeys.Contains(fileKey);
+        }
     }
 }

@@ -17,7 +17,7 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     public TvShow(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetTvShowFileKey(name);
+        FileKey = FileKeyFactory.GetTvShowFileKey(name, Id);
     }
 
     /// <summary>IMDb title id (<c>tt…</c>) for this programme. Omitted when unknown.</summary>
