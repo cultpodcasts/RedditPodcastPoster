@@ -23,13 +23,23 @@ public class PodcastFactory(
 
         podcastName = podcastName.Trim();
         var id = Guid.NewGuid();
-        var fileKey = await fileKeyAllocator.Allocate(FileKeyKind.Podcast, podcastName, id, alsoTaken: IsIssued);
+        while (true)
+        {
+            var fileKey = await fileKeyAllocator.Allocate(FileKeyKind.Podcast, podcastName, id, alsoTaken: IsIssued);
+            // Claim atomically: a concurrent create may have issued the same key while this one awaited the store.
+            if (TryClaim(fileKey))
+            {
+                return new Podcast { Id = id, Name = podcastName, FileKey = fileKey };
+            }
+        }
+    }
+
+    private static bool TryClaim(string fileKey)
+    {
         lock (IssuedFileKeys)
         {
-            IssuedFileKeys.Add(fileKey);
+            return IssuedFileKeys.Add(fileKey);
         }
-
-        return new Podcast { Id = id, Name = podcastName, FileKey = fileKey };
     }
 
     private static bool IsIssued(string fileKey)

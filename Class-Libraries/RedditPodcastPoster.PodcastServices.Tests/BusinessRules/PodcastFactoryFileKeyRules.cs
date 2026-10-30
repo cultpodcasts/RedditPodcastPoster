@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
@@ -87,5 +88,39 @@ public class PodcastFactoryFileKeyRules
 
         // Assert
         second.FileKey.Should().NotBe(first.FileKey);
+    }
+
+    [Fact(DisplayName =
+        "When a concurrent create issues the same key while this create awaited the store, this create allocates again, so two in-flight creates never share a key.")]
+    public async Task key_issued_during_allocation_is_not_reused()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var raced = FileKeyFactory.GetFileKey(name);
+        var other = _mocker.CreateInstance<PodcastFactory>();
+        var racingMocker = new AutoMocker();
+        var allocator = racingMocker.GetMock<IFileKeyAllocator>();
+        var calls = 0;
+        allocator
+            .Setup(x => x.Allocate(FileKeyKind.Podcast, name, It.IsAny<Guid>(), null, It.IsAny<Func<string, bool>?>()))
+            .Returns(async (FileKeyKind _, string _, Guid _, string? _, Func<string, bool>? alsoTaken) =>
+            {
+                if (calls++ == 0)
+                {
+                    // The concurrent create finishes first and is issued the same key.
+                    (await other.Create(name)).FileKey.Should().Be(raced);
+                    return raced;
+                }
+
+                return FileKeyFactory.MakeUnique(raced, alsoTaken!);
+            });
+        var sut = racingMocker.CreateInstance<PodcastFactory>();
+
+        // Act
+        var podcast = await sut.Create(name);
+
+        // Assert
+        podcast.FileKey.Should().Be(raced + "_2");
+        calls.Should().Be(2);
     }
 }
