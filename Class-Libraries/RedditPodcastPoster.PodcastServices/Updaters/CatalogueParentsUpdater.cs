@@ -20,7 +20,9 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
+using RedditPodcastPoster.PodcastServices.Spotify.Enrichers;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.Text.EliminationTerms;
@@ -39,7 +41,26 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// is created, see <see cref="CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults"/>). When the parent is flagged
 /// <see cref="CatalogueIndexingSource.AlwaysPromoteAsHero"/>, new playables are appended to the homepage hero list
 /// after they are saved (same <see cref="HeroAutoPromoteSelector"/> rule as <see cref="PodcastUpdater"/>).
-/// Cross-platform enrichment is not run for these kinds.
+/// <para>
+/// Spotify / Apple catch-up: after discovery, playables in the window that lack a Spotify link (parent has a Spotify
+/// show id) or an Apple link (parent has an Apple podcast id) are offered to the same
+/// <see cref="ISpotifyEpisodeEnricher"/> / <see cref="IAppleEpisodeEnricher"/> that <see cref="PodcastUpdater"/> runs
+/// through <c>IPodcastServicesEpisodeEnricher</c>, on every pass. Discovery alone cannot fill them: Spotify discovery
+/// only runs on even hours (<c>IndexingStrategy.IndexSpotify</c>) and the hourly selector puts parent batches 3-4 on
+/// odd hours, and Apple discovery is skipped whenever Spotify handled the pass. The enrichers work on a copy of each
+/// item and only its service links and ids are copied back, so title, description, release and length stay as stored
+/// or as merged this pass. <see cref="EnrichmentRequest.Episodes"/> is the window plus the parent's stored items that
+/// already hold a Spotify or Apple link (read once per pass, only when there is a candidate), so the enrichers' rule that
+/// an id already owned by another item is never assigned again also covers links held outside the window. The
+/// catch-up is bounded so it cannot eat the per-parent budget that discovery and the save need: at most
+/// <see cref="AudioCatchUpMaxCandidatesPerPass"/> items per pass (newest first, then longest first so a full episode
+/// claims its link before a shorter item), only items released in the last <see cref="AudioCatchUpRecency"/>, no item
+/// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
+/// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
+/// pass. A Spotify rate limit hit during the catch-up does not mark the pass as bypassed (the bypass check uses the skip
+/// flags as discovery left them), so <c>lastIndexed</c> still moves when discovery completed.
+/// YouTube enrichment is not run for these kinds (YouTube discovery already covers them and quota is scarce).
+/// </para>
 /// <para>
 /// The parent itself is never upserted: only the Indexer-owned fields a pass changed
 /// (<c>lastIndexed</c>, <c>latestReleased</c>, changed <c>indexing</c> members) are patched via
@@ -72,6 +93,8 @@ public class CatalogueParentsUpdater(
     PodcastUpdateBudgetCutTracker budgetCutTracker,
     TimeProvider timeProvider,
     IHeroEpisodePromoter heroEpisodePromoter,
+    ISpotifyEpisodeEnricher spotifyEpisodeEnricher,
+    IAppleEpisodeEnricher appleEpisodeEnricher,
     ILogger<CatalogueParentsUpdater> logger) : ICatalogueParentsUpdater
 {
     /// <summary>Stable log prefix for a parent cut off by its time budget (App Insights keys off it).</summary>
@@ -392,6 +415,9 @@ public class CatalogueParentsUpdater(
             (since, cancellationToken) => tvShowEpisodeRepository
                 .GetByTvShowId(show.Id, PlayableCosmosFilters.ReleasedOnOrAfter<TvShowEpisode>(since))
                 .ToListAsync(cancellationToken).AsTask(),
+            (since, cancellationToken) => tvShowEpisodeRepository
+                .GetByTvShowId(show.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<TvShowEpisode>(since))
+                .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             context);
         var cancellationToken = context.CancellationToken;
@@ -424,6 +450,10 @@ public class CatalogueParentsUpdater(
             organisation.Indexing!,
             (since, cancellationToken) => newsReportRepository
                 .GetByNewsOrganisationId(organisation.Id, PlayableCosmosFilters.ReleasedOnOrAfter<NewsReport>(since))
+                .ToListAsync(cancellationToken).AsTask(),
+            (since, cancellationToken) => newsReportRepository
+                .GetByNewsOrganisationId(
+                    organisation.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<NewsReport>(since))
                 .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation),
             context);
@@ -514,18 +544,21 @@ public class CatalogueParentsUpdater(
         where TPlayable : Playable
     {
         logger.LogInformation(
-            "Catalogue parent indexed kind='{Kind}' id='{ParentId}' name='{ParentName}' added='{Added}' merged='{Merged}' removed-by-terms='{Filtered}' succeeded='{Succeeded}'.",
-            kind, parent.Id, parent.Name, outcome.Added, outcome.Merged, outcome.Filtered, outcome.Succeeded);
+            "Catalogue parent indexed kind='{Kind}' id='{ParentId}' name='{ParentName}' added='{Added}' merged='{Merged}' enriched='{Enriched}' removed-by-terms='{Filtered}' succeeded='{Succeeded}'.",
+            kind, parent.Id, parent.Name, outcome.Added, outcome.Merged, outcome.Enriched, outcome.Filtered,
+            outcome.Succeeded);
     }
 
     private async Task<ParentIndexOutcome<TPlayable>> IndexParent<TPlayable>(
         Publisher parent,
         CatalogueIndexingSource source,
         Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadPlayables,
+        Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadAudioLinkHolders,
         Func<Episode, TPlayable> createPlayable,
         IndexingContext indexingContext)
         where TPlayable : Playable
     {
+        var passStarted = timeProvider.GetTimestamp();
         // CatalogueIndexingSource reads a legacy blank id/regex as null, so blank-to-null alone never counts as a
         // change the pass writes back (it would overwrite a curator edit saved mid-pass).
         var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
@@ -552,6 +585,7 @@ public class CatalogueParentsUpdater(
 
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
+        var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         indexingContext.ReportStage("discover-episodes", $"stored-in-window={stored.Count}");
         var newEpisodes = await episodeProvider.GetEpisodes(podcast, existing, indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
@@ -570,8 +604,22 @@ public class CatalogueParentsUpdater(
             }
         }
 
-        indexingContext.ReportStage("filter", $"added={addedEpisodes.Count}");
+        // The bypass check reads the skip flags as discovery left them: a Spotify rate limit hit by the optional
+        // catch-up below must not stop lastIndexed moving for a pass whose discovery completed.
+        var discoverySkipSpotify = indexingContext.SkipSpotifyUrlResolving;
+        var discoverySkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var inScope = existing.Concat(addedEpisodes).ToList();
+        indexingContext.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
+        var enrichedIds = await EnrichMissingAudioServices(
+            parent,
+            podcast,
+            inScope,
+            (since, ct) => LoadAudioLinkHolders(loadAudioLinkHolders, since, podcast, ct),
+            CatchUpDeadline(passStarted, expensivePass),
+            indexingContext);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        indexingContext.ReportStage("filter", $"added={addedEpisodes.Count} enriched={enrichedIds.Count}");
         var eliminationTerms = (await eliminationTermsProviderInstance.GetAsync()).GetEliminationTerms();
         var filtered = podcastFilter.Filter(podcast, inScope, eliminationTerms.Terms);
 
@@ -581,6 +629,16 @@ public class CatalogueParentsUpdater(
             if (storedById.TryGetValue(merged.Id, out var target))
             {
                 ApplyMerged(merged, target);
+                changed[target.Id] = target;
+            }
+        }
+
+        var existingById = existing.ToDictionary(x => x.Id);
+        foreach (var enrichedId in enrichedIds)
+        {
+            if (storedById.TryGetValue(enrichedId, out var target) && existingById.TryGetValue(enrichedId, out var enriched))
+            {
+                ApplyEnrichedServices(enriched, target);
                 changed[target.Id] = target;
             }
         }
@@ -610,8 +668,8 @@ public class CatalogueParentsUpdater(
             source.YouTubeIndexingHints = youTubeIndexingHintsBefore;
         }
 
-        var bypassed = initialSkipSpotify != indexingContext.SkipSpotifyUrlResolving ||
-                       initialSkipYouTube != indexingContext.SkipYouTubeUrlResolving ||
+        var bypassed = initialSkipSpotify != discoverySkipSpotify ||
+                       initialSkipYouTube != discoverySkipYouTube ||
                        podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
         var succeeded = !bypassed && !merge.FailedEpisodes.Any();
         if (succeeded)
@@ -639,6 +697,7 @@ public class CatalogueParentsUpdater(
             parentPatch,
             addedEpisodes.Count,
             merge.MergedEpisodes.Count,
+            enrichedIds.Count,
             filtered.FilteredEpisodes.Count,
             succeeded,
             SelectHeroIds(
@@ -646,6 +705,228 @@ public class CatalogueParentsUpdater(
                 addedEpisodes,
                 filtered.FilteredEpisodes.Select(x => x.Episode.Id).ToHashSet()));
     }
+
+    /// <summary>Most catch-up candidates looked up in one parent pass (newest first).</summary>
+    public const int AudioCatchUpMaxCandidatesPerPass = 5;
+
+    /// <summary>Share of the parent's pass budget after which the catch-up stops looking up further candidates.</summary>
+    public const double AudioCatchUpBudgetShare = 0.5;
+
+    /// <summary>Stable log prefix for the per-parent Spotify / Apple catch-up summary line.</summary>
+    public const string AudioCatchUpMessagePrefix = "IndexerCatalogueAudioCatchUp";
+
+    /// <summary>Only items released this recently are looked up (older ones had their chances on earlier passes).</summary>
+    public static readonly TimeSpan AudioCatchUpRecency = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// Items with a known length below this are not looked up: a short clip of a report is not the podcast episode, and
+    /// skipping it keeps it from claiming the full episode's link. An unknown (zero) length is still looked up.
+    /// </summary>
+    public static readonly TimeSpan AudioCatchUpMinimumLength = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How far before the oldest candidate the link holders are read. The enrichers only match a Spotify / Apple
+    /// episode released within days of the item, so a holder released earlier than this cannot hold a link a candidate
+    /// could be given, and reading the parent's whole history every pass would cost RUs for nothing.
+    /// </summary>
+    public static readonly TimeSpan AudioCatchUpHolderLookback = TimeSpan.FromDays(30);
+
+    private long? CatchUpDeadline(long passStarted, bool expensivePass)
+    {
+        if (_budget.BudgetFor(expensivePass) is not { } budget)
+        {
+            return null;
+        }
+
+        var share = budget * AudioCatchUpBudgetShare;
+        return passStarted + (long)(share.TotalSeconds * timeProvider.TimestampFrequency);
+    }
+
+    private static async Task<List<Episode>> LoadAudioLinkHolders<TPlayable>(
+        Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadAudioLinkHolders,
+        DateTime since,
+        Podcast podcast,
+        CancellationToken cancellationToken)
+        where TPlayable : Playable
+    {
+        var holders = await loadAudioLinkHolders(since, cancellationToken);
+        return holders.Select(x => ToEpisode(x, podcast)).ToList();
+    }
+
+    /// <summary>
+    /// Offers recent in-window playables that lack a Spotify or Apple link to the podcast enrichers, within the limits
+    /// in the class doc. Removed items are skipped, and a service is only looked up when the parent has that show /
+    /// podcast id, so a parent without one costs no API call. Each enricher works on a copy of the item; only the
+    /// copy's services and ids are copied back. Returns the ids of the items that gained a Spotify or Apple link.
+    /// A lookup that throws (other than the pass being cancelled) is logged and the catch-up stops; the pass goes on.
+    /// </summary>
+    private async Task<HashSet<Guid>> EnrichMissingAudioServices(
+        Publisher parent,
+        Podcast podcast,
+        IReadOnlyList<Episode> inWindow,
+        Func<DateTime, CancellationToken, Task<List<Episode>>> loadHolders,
+        long? softDeadline,
+        IndexingContext indexingContext)
+    {
+        var enriched = new HashSet<Guid>();
+        var lookUpSpotify = !string.IsNullOrWhiteSpace(podcast.SpotifyId);
+        var lookUpApple = podcast.AppleId is > 0;
+        if (!lookUpSpotify && !lookUpApple)
+        {
+            return enriched;
+        }
+
+        var cancellationToken = indexingContext.CancellationToken;
+        var recentSince = timeProvider.GetUtcNow().UtcDateTime - AudioCatchUpRecency;
+        var missing = inWindow
+            .Where(x => !x.Removed &&
+                        ((lookUpSpotify && MissingSpotify(x)) || (lookUpApple && MissingApple(x))))
+            .ToList();
+        var recent = missing.Where(x => x.ReleaseUtc >= recentSince).ToList();
+        var skippedOld = missing.Count - recent.Count;
+        var longEnough = recent
+            .Where(x => x.Length <= TimeSpan.Zero || x.Length >= AudioCatchUpMinimumLength)
+            .ToList();
+        var skippedShort = recent.Count - longEnough.Count;
+        // Newest first picks which items this pass looks up; longest first within them lets a full episode claim its
+        // link before a shorter item of the same story is offered.
+        var candidates = longEnough
+            .OrderByDescending(x => x.ReleaseUtc)
+            .Take(AudioCatchUpMaxCandidatesPerPass)
+            .OrderByDescending(x => x.Length)
+            .ThenBy(x => x.ReleaseUtc)
+            .ToList();
+        var skippedByCap = longEnough.Count - candidates.Count;
+        var holderCount = 0;
+        var lookedUp = 0;
+        var skippedByBudget = 0;
+        string? failure = null;
+        if (candidates.Count > 0)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var holdersSince = candidates.Min(x => x.ReleaseUtc) - AudioCatchUpHolderLookback;
+                var inWindowIds = inWindow.Select(x => x.Id).ToHashSet();
+                var holders = (await loadHolders(holdersSince, cancellationToken))
+                    .Where(x => !inWindowIds.Contains(x.Id))
+                    .ToList();
+                holderCount = holders.Count;
+                // In-window instances come first and win: they carry this pass's merges and earlier catch-up links.
+                IReadOnlyList<Episode> requestEpisodes = [.. inWindow, .. holders];
+                foreach (var episode in candidates)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (softDeadline is { } deadline && timeProvider.GetTimestamp() >= deadline)
+                    {
+                        skippedByBudget = candidates.Count - lookedUp;
+                        break;
+                    }
+
+                    lookedUp++;
+                    if (await EnrichCandidate(podcast, requestEpisodes, episode, lookUpSpotify, lookUpApple, indexingContext))
+                    {
+                        enriched.Add(episode.Id);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                failure = ex.GetType().Name;
+                logger.LogWarning(ex,
+                    "{Prefix} failed parent-id='{ParentId}' name='{ParentName}'; the pass continues without it.",
+                    AudioCatchUpMessagePrefix, parent.Id, parent.Name);
+            }
+        }
+
+        logger.LogInformation(
+            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
+            AudioCatchUpMessagePrefix, parent.Id, parent.Name, missing.Count, candidates.Count, lookedUp, enriched.Count,
+            holderCount, skippedOld, skippedShort, skippedByCap, skippedByBudget, failure);
+        return enriched;
+    }
+
+    /// <summary>
+    /// Runs the Spotify then Apple enricher on a copy of <paramref name="episode"/> and copies back only the services
+    /// and ids, so a release or description refinement by the enrichers never reaches the item (or a merge applied to
+    /// it later in the pass). Spotify is not called once the pass has hit a Spotify rate limit.
+    /// </summary>
+    private async Task<bool> EnrichCandidate(
+        Podcast podcast,
+        IReadOnlyList<Episode> requestEpisodes,
+        Episode episode,
+        bool lookUpSpotify,
+        bool lookUpApple,
+        IndexingContext indexingContext)
+    {
+        var probe = CopyForEnrichment(episode);
+        var enrichmentContext = new EnrichmentContext();
+        var request = new EnrichmentRequest(podcast, requestEpisodes, probe);
+        if (lookUpSpotify && MissingSpotify(probe) && !indexingContext.SkipSpotifyUrlResolving)
+        {
+            await spotifyEpisodeEnricher.Enrich(request, indexingContext, enrichmentContext);
+        }
+
+        if (lookUpApple && MissingApple(probe))
+        {
+            indexingContext.CancellationToken.ThrowIfCancellationRequested();
+            await appleEpisodeEnricher.Enrich(request, indexingContext, enrichmentContext);
+        }
+
+        // Only a new service link is written back; a release-only refinement is not worth a playable write.
+        if (!enrichmentContext.SpotifyUrlUpdated && !enrichmentContext.AppleUrlUpdated)
+        {
+            return false;
+        }
+
+        episode.Services = CopyServices(probe.Services);
+        episode.Ids = probe.Ids is null ? null : CopyIds(probe.Ids);
+        return true;
+    }
+
+    /// <summary>The fields the enrichers read, on a separate instance so their writes stay off the in-pass item.</summary>
+    internal static Episode CopyForEnrichment(Episode episode)
+    {
+        var copy = new Episode
+        {
+            Id = episode.Id,
+            PodcastId = episode.PodcastId,
+            PodcastName = episode.PodcastName,
+            Title = episode.Title,
+            Description = episode.Description,
+            Length = episode.Length,
+            Explicit = episode.Explicit,
+            Removed = episode.Removed,
+            Ignored = episode.Ignored,
+            Posted = episode.Posted,
+            Tweeted = episode.Tweeted,
+            Language = episode.Language,
+            Subjects = [.. episode.Subjects],
+            RemovedSubjects = [.. episode.RemovedSubjects],
+            SearchTerms = episode.SearchTerms,
+            HashTag = episode.HashTag,
+            Services = CopyServices(episode.Services),
+            Ids = episode.Ids is null ? null : CopyIds(episode.Ids)
+        };
+        copy.SetRelease(episode.Release);
+        return copy;
+    }
+
+    private static Dictionary<string, ServiceLink>? CopyServices(Dictionary<string, ServiceLink>? services) =>
+        services?.ToDictionary(
+            pair => pair.Key,
+            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+
+    private static EpisodeIds CopyIds(EpisodeIds ids) =>
+        new() { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube };
+
+    private static bool MissingSpotify(Episode episode) =>
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
+        string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode));
+
+    private static bool MissingApple(Episode episode) =>
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple) == null ||
+        EpisodeServicePresence.AppleEpisodeId(episode) is null or 0;
 
     /// <summary>
     /// A parent indexing a whole YouTube channel can share it with podcasts scoped to one playlist of that
@@ -804,11 +1085,27 @@ public class CatalogueParentsUpdater(
         }
     }
 
+    /// <summary>
+    /// Copies only the service links an enricher added (curator title, description, release and length stay as
+    /// stored), keeping <c>youTubeId</c> in step as <see cref="ApplyMerged"/> does.
+    /// </summary>
+    private static void ApplyEnrichedServices(Episode enriched, Playable target)
+    {
+        target.Services = enriched.Services?.ToDictionary(
+            pair => pair.Key,
+            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        if (target is ICatalogueYouTubeItem catalogueYouTube)
+        {
+            EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(catalogueYouTube);
+        }
+    }
+
     private sealed record ParentIndexOutcome<TPlayable>(
         IReadOnlyList<TPlayable> ChangedPlayables,
         CatalogueParentIndexerPatch ParentPatch,
         int Added,
         int Merged,
+        int Enriched,
         int Filtered,
         bool Succeeded,
         IReadOnlyList<Guid> HeroIds)
