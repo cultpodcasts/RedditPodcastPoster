@@ -92,7 +92,7 @@ public class PostProcessor(
                 if (!string.IsNullOrWhiteSpace(request.PodcastName))
                 {
                     var podcasts = await repository.GetAllBy(x =>
-                        (!x.Removed.IsDefined() || x.Removed == false) &&
+                        (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                         x.Name.Contains(request.PodcastName, StringComparison.InvariantCultureIgnoreCase)
                     ).ToArrayAsync();
                     if (podcasts.Any())
