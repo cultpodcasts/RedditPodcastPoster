@@ -378,4 +378,65 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         _savedReports.Should().BeEmpty();
         candidate.Services.Should().NotContainKey(ServiceKeys.Apple);
     }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up guard, real Spotify matcher: when a 42-minute report older than the 7-day " +
+        "catch-up window and a 6-minute same-title clip inside it are both missing Spotify, and the show has only " +
+        "the 42-minute episode, then the clip is not saved with that link, because a shorter item must not take a " +
+        "link while a strictly longer same-title item still lacks it, even outside the recency window.")]
+    public async Task real_spotify_clip_does_not_take_link_when_full_report_is_outside_recency_window()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var clipRelease = DomainTestFixture.UtcDateDaysAgo(1).AddHours(9);
+        var fullRelease = DomainTestFixture.UtcDateDaysAgo(CatalogueParentsUpdater.AudioCatchUpRecency.Days + 3);
+        var full = Report(podcast, organisation, fullRelease, FullLength);
+        var clip = Report(podcast, organisation, clipRelease, ClipLength);
+        _storedReports = [full, clip];
+        var spotifyId = _fixture.CreateSpotifyId();
+        _spotifyShow = [SpotifyEpisode(spotifyId, clipRelease, FullLength)];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        _savedReports.Should().BeEmpty();
+        clip.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        full.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up guard, real Spotify matcher: when a 42-minute report is only the 6th newest " +
+        "item missing Spotify, so the per-pass cap drops it, and a 6-minute same-title clip is inside the newest " +
+        "five, and the show has only the 42-minute episode, then the clip is not saved with that link, because a " +
+        "shorter item must not take a link while a strictly longer same-title item still lacks it, even outside the cap.")]
+    public async Task real_spotify_clip_does_not_take_link_when_full_report_is_outside_the_cap()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var anchor = DomainTestFixture.UtcDateDaysAgo(1);
+        var clipRelease = anchor.AddHours(-6);
+        var clip = Report(podcast, organisation, clipRelease, ClipLength);
+        var full = Report(podcast, organisation, anchor.AddHours(-30), FullLength);
+        _storedReports =
+        [
+            Report(podcast, organisation, anchor, ClipLength, _fixture.CreateLongTitle()),
+            clip,
+            Report(podcast, organisation, anchor.AddHours(-12), ClipLength, _fixture.CreateLongTitle()),
+            Report(podcast, organisation, anchor.AddHours(-18), ClipLength, _fixture.CreateLongTitle()),
+            Report(podcast, organisation, anchor.AddHours(-24), ClipLength, _fixture.CreateLongTitle()),
+            full
+        ];
+        var spotifyId = _fixture.CreateSpotifyId();
+        _spotifyShow = [SpotifyEpisode(spotifyId, clipRelease, FullLength)];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        _savedReports.Should().NotContain(report =>
+            report.Services != null && report.Services.ContainsKey(ServiceKeys.Spotify));
+        clip.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        full.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
 }

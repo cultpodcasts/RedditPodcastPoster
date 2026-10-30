@@ -5,6 +5,7 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -54,7 +55,10 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// an id already owned by another item is never assigned again also covers links held outside the window. The
 /// catch-up is bounded so it cannot eat the per-parent budget that discovery and the save need: at most
 /// <see cref="AudioCatchUpMaxCandidatesPerPass"/> items per pass (newest first, then longest first so a full episode
-/// claims its link before a shorter item), only items released in the last <see cref="AudioCatchUpRecency"/>, no item
+/// claims its link before a shorter item of the same title when both are looked up). A shorter item is kept out of a
+/// service while a strictly longer same-title item in the window still lacks that service and is not in this pass's
+/// capped set, including when that longer item is outside the recency window or the newest few. Only items released
+/// in the last <see cref="AudioCatchUpRecency"/> are looked up, no item
 /// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
 /// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
 /// pass. A Spotify rate limit hit during the catch-up does not mark the pass as bypassed (the bypass check uses the skip
@@ -610,6 +614,10 @@ public class CatalogueParentsUpdater(
         var discoverySkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var inScope = existing.Concat(addedEpisodes).ToList();
         indexingContext.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
+        // The provider already used this clone with the flow the batch passed in. Catch-up is the Index flow
+        // (newest pages, no title search), the same entry point as PodcastUpdater, on the clone IndexWithinBudget
+        // made so this pass's provider lookup is unchanged.
+        EpisodeLookupUseCases.ForIndex(indexingContext);
         var enrichedIds = await EnrichMissingAudioServices(
             parent,
             podcast,
@@ -788,15 +796,30 @@ public class CatalogueParentsUpdater(
             .Where(x => x.Length <= TimeSpan.Zero || x.Length >= AudioCatchUpMinimumLength)
             .ToList();
         var skippedShort = recent.Count - longEnough.Count;
-        // Newest first picks which items this pass looks up; longest first within them lets a full episode claim its
-        // link before a shorter item of the same story is offered.
-        var candidates = longEnough
+        // Newest first picks which items this pass looks up. A shorter item stays out of a service while a strictly
+        // longer same-title item in the window still lacks that service and is not in this capped set (it may sit
+        // outside the recency window or the newest few). When both are in the set, longest first lets the full item
+        // claim the link before the shorter one is offered.
+        var capped = longEnough
             .OrderByDescending(x => x.ReleaseUtc)
             .Take(AudioCatchUpMaxCandidatesPerPass)
+            .ToList();
+        var skippedByCap = longEnough.Count - capped.Count;
+        var cappedIds = capped.Select(x => x.Id).ToHashSet();
+        bool OfferSpotify(Episode episode) =>
+            lookUpSpotify &&
+            MissingSpotify(episode) &&
+            !DeferredBehindLongerSameTitle(episode, missing, cappedIds, MissingSpotify);
+        bool OfferApple(Episode episode) =>
+            lookUpApple &&
+            MissingApple(episode) &&
+            !DeferredBehindLongerSameTitle(episode, missing, cappedIds, MissingApple);
+        var candidates = capped
+            .Where(episode => OfferSpotify(episode) || OfferApple(episode))
             .OrderByDescending(x => x.Length)
             .ThenBy(x => x.ReleaseUtc)
             .ToList();
-        var skippedByCap = longEnough.Count - candidates.Count;
+        var skippedShorter = capped.Count - candidates.Count;
         var holderCount = 0;
         var lookedUp = 0;
         var skippedByBudget = 0;
@@ -824,7 +847,13 @@ public class CatalogueParentsUpdater(
                     }
 
                     lookedUp++;
-                    if (await EnrichCandidate(podcast, requestEpisodes, episode, lookUpSpotify, lookUpApple, indexingContext))
+                    if (await EnrichCandidate(
+                            podcast,
+                            requestEpisodes, // pragma: allowlist secret
+                            episode,
+                            OfferSpotify(episode),
+                            OfferApple(episode),
+                            indexingContext))
                     {
                         enriched.Add(episode.Id);
                     }
@@ -840,9 +869,9 @@ public class CatalogueParentsUpdater(
         }
 
         logger.LogInformation(
-            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
+            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-shorter='{SkippedShorter}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
             AudioCatchUpMessagePrefix, parent.Id, parent.Name, missing.Count, candidates.Count, lookedUp, enriched.Count,
-            holderCount, skippedOld, skippedShort, skippedByCap, skippedByBudget, failure);
+            holderCount, skippedOld, skippedShort, skippedShorter, skippedByCap, skippedByBudget, failure);
         return enriched;
     }
 
@@ -919,6 +948,47 @@ public class CatalogueParentsUpdater(
 
     private static EpisodeIds CopyIds(EpisodeIds ids) =>
         new() { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube };
+
+    /// <summary>
+    /// True when <paramref name="episode"/> lacks <paramref name="lacksService"/> and a strictly longer same-title
+    /// item in the window also lacks it and is not in this pass's capped set. The shorter item must not be offered
+    /// that service: the matcher returns the first same-title row before it scores duration, so the shorter item
+    /// would take the link the longer item still needs.
+    /// </summary>
+    private static bool DeferredBehindLongerSameTitle(
+        Episode episode,
+        IReadOnlyList<Episode> inWindowMissing,
+        HashSet<Guid> cappedIds,
+        Func<Episode, bool> lacksService)
+    {
+        if (!lacksService(episode))
+        {
+            return false;
+        }
+
+        foreach (var longer in inWindowMissing)
+        {
+            if (longer.Id == episode.Id ||
+                longer.Length <= episode.Length ||
+                cappedIds.Contains(longer.Id) ||
+                !lacksService(longer) ||
+                !SameTitle(longer, episode))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Same comparison the catalogue matcher uses for an exact title (decoded, trimmed, ordinal).</summary>
+    private static bool SameTitle(Episode left, Episode right) =>
+        string.Equals(NormalisedTitle(left.Title), NormalisedTitle(right.Title), StringComparison.Ordinal);
+
+    private static string NormalisedTitle(string? title) =>
+        System.Net.WebUtility.HtmlDecode(title ?? string.Empty).Trim();
 
     private static bool MissingSpotify(Episode episode) =>
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
