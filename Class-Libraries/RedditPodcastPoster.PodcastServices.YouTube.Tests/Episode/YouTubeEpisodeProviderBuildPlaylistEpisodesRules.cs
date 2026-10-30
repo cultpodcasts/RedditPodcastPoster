@@ -139,6 +139,34 @@ public class YouTubeEpisodeProviderBuildPlaylistEpisodesRules
             state.Contains(first) && state.Contains(second), Times.Once());
     }
 
+    [Fact(DisplayName =
+        "A playlist that mixes in some other-channel videos (collab or guest uploads) logs the dropped videos at Information, not Warning, so the warning stays a signal for a playlist another channel owns.")]
+    public async Task some_other_channel_videos_dropped_log_information()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var otherChannelId = _fixture.CreateYouTubeChannelId();
+        var own = _fixture.CreateYouTubeId();
+        var guest = _fixture.CreateYouTubeId();
+        _videos.Add(Video(own, channelId));
+        _videos.Add(Video(guest, otherChannelId));
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        var sut = _mocker.CreateInstance<YouTubeEpisodeProvider>();
+
+        // Act
+        await sut.BuildPlaylistEpisodes(podcast, new YouTubeChannelId(channelId), _indexingContext,
+            [Item(own), Item(guest)]);
+
+        // Assert
+        VerifyLog(LogLevel.Information, state =>
+            state.Contains("YouTubePlaylistOtherChannelVideosDropped") &&
+            state.Contains("dropped-count='1'") &&
+            state.Contains("all-dropped='False'") &&
+            state.Contains(guest), Times.Once());
+        VerifyWarning(state => state.Contains("YouTubePlaylistOtherChannelVideosDropped"), Times.Never());
+    }
+
     [Fact(DisplayName = "A playlist whose videos all come from the parent's channel logs no dropped-videos warning.")]
     public async Task same_channel_videos_log_no_dropped_warning()
     {
@@ -157,9 +185,12 @@ public class YouTubeEpisodeProviderBuildPlaylistEpisodesRules
     }
 
     private void VerifyWarning(Func<string, bool> matches, Times times) =>
+        VerifyLog(LogLevel.Warning, matches, times);
+
+    private void VerifyLog(LogLevel level, Func<string, bool> matches, Times times) =>
         _mocker.GetMock<ILogger<YouTubeEpisodeProvider>>().Verify(
             x => x.Log(
-                LogLevel.Warning,
+                level,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) => matches(state!.ToString()!)),
                 It.IsAny<Exception>(),

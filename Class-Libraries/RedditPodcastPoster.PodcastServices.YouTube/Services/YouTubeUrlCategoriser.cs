@@ -111,9 +111,28 @@ public class YouTubeUrlCategoriser(
             var playlistId = YouTubePlaylistIdResolver.Extract(url);
             if (!string.IsNullOrWhiteSpace(playlistId))
             {
-                var playlist = await youTubePlaylistService.GetPlaylistInfo(
-                    new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"), indexingContext);
-                if (string.Equals(playlist.ChannelId, item.Snippet.ChannelId, StringComparison.Ordinal))
+                GetPlaylistInfoResponse? playlist = null;
+                try
+                {
+                    playlist = await youTubePlaylistService.GetPlaylistInfo(
+                        new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"),
+                        indexingContext);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException ||
+                                           !indexingContext.CancellationToken.IsCancellationRequested)
+                {
+                    // Private, deleted, or a WL/LL/RD mix, or the lookup failed: the video itself is fine, so submit it
+                    // without the playlist rather than failing the whole submit.
+                    logger.LogWarning(ex,
+                        "Ignoring playlist-id '{PlaylistId}' from url '{Url}': its owner could not be resolved.",
+                        playlistId, url);
+                }
+
+                if (playlist == null)
+                {
+                    playlistId = null;
+                }
+                else if (string.Equals(playlist.ChannelId, item.Snippet.ChannelId, StringComparison.Ordinal))
                 {
                     snippetChannelTitle = playlist.Title;
                     snippetDescription = playlist.Description;
@@ -158,10 +177,10 @@ public class YouTubeUrlCategoriser(
                     }
                     else
                     {
-                        // The video's channel need not own the podcast's playlist; the curator sets the channel through
-                        // the edit, which checks the playlist owner.
+                        // The video's channel need not own the podcast's playlist. No API path sets a podcast's
+                        // channel id (#1179), so this needs a manual fix.
                         logger.LogWarning(
-                            "Not setting youtube channel-id '{VideoChannelId}' on podcast '{PodcastId}': it has youtube-playlist-id '{PlaylistId}' and no channel-id.",
+                            "Not setting youtube channel-id '{VideoChannelId}' on podcast '{PodcastId}': it has youtube-playlist-id '{PlaylistId}' and no channel-id, and the video's channel may not own that playlist. Needs a manual fix (no API path sets a podcast channel-id; see #1179).",
                             item.Snippet.ChannelId, pair.Podcast.Id, pair.Podcast.YouTubePlaylistId);
                     }
 

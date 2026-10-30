@@ -1,3 +1,5 @@
+using System.Net;
+using Google;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
@@ -24,6 +26,14 @@ public class YouTubePlaylistOwnershipValidator(
             return new YouTubePlaylistOwnership(YouTubePlaylistOwnershipStatus.NotApplicable, channelId, playlistId);
         }
 
+        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
+        {
+            logger.LogWarning(
+                "YouTubePlaylistOwnership playlist-id='{PlaylistId}' channel-id='{ChannelId}' status='{Status}'.",
+                playlistId, channelId, YouTubePlaylistOwnershipStatus.InvalidPlaylistId);
+            return new YouTubePlaylistOwnership(YouTubePlaylistOwnershipStatus.InvalidPlaylistId, channelId, playlistId);
+        }
+
         GetPlaylistInfoResponse info;
         try
         {
@@ -31,8 +41,14 @@ public class YouTubePlaylistOwnershipValidator(
                 new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "ownership-validator"),
                 new IndexingContext { CancellationToken = cancellationToken });
         }
-        catch (YouTubePlaylistNotFoundException)
+        catch (Exception ex) when (ex is YouTubePlaylistNotFoundException ||
+                                   ex is GoogleApiException
+                                   {
+                                       HttpStatusCode: HttpStatusCode.NotFound or HttpStatusCode.BadRequest
+                                   })
         {
+            // Empty response, 404 playlistNotFound, or 400 for an id YouTube rejects: the curator must fix the id;
+            // retrying will not help.
             logger.LogWarning(
                 "YouTubePlaylistOwnership playlist-id='{PlaylistId}' channel-id='{ChannelId}' status='{Status}'.",
                 playlistId, channelId, YouTubePlaylistOwnershipStatus.PlaylistNotFound);

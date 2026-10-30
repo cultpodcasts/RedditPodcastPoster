@@ -105,6 +105,43 @@ public class DiscoveryChannelBanRules
     }
 
     [Fact(DisplayName =
+        "Banning a channel does not fill the YouTube channel id of a matched podcast that has a playlist but no channel id, because the channel need not own the playlist; the podcast is still removed and linked.")]
+    public async Task ban_does_not_fill_channel_on_podcast_with_playlist()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var spotifyId = _fixture.CreateSpotifyId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = playlistId;
+            p.SpotifyId = spotifyId;
+        });
+        _podcasts.Add(podcast);
+        var result = new DiscoveryResult
+        {
+            Id = _fixture.CreateGuid(),
+            ShowName = _fixture.CreateTitle(),
+            YouTubeChannelId = channelId,
+            SpotifyId = spotifyId
+        };
+        _documents.Add(Document([result]));
+        var sut = _mocker.CreateInstance<DiscoveryChannelBanService>();
+
+        // Act
+        var outcome = await sut.BanAsync(result.Id, CancellationToken.None);
+
+        // Assert
+        outcome.Status.Should().Be(DiscoveryChannelBanStatus.Accepted);
+        podcast.YouTubeChannelId.Should().BeEmpty();
+        podcast.YouTubePlaylistId.Should().Be(playlistId);
+        _savedPodcasts.Should().BeEmpty();
+        _updates.Should().ContainSingle().Which.PodcastId.Should().Be(podcast.Id);
+        result.MatchingPodcastIds.Should().Equal(podcast.Id);
+    }
+
+    [Fact(DisplayName =
         "Banning a discovery result whose channel is already a podcast sets that podcast removed and does not create another, because the catalogue row is what later discovery runs filter on.")]
     public async Task existing_podcast_is_marked_removed()
     {

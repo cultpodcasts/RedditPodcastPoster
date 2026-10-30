@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
@@ -81,6 +82,30 @@ public class YouTubeUrlCategoriserPlaylistOwnershipRules
     {
         // Arrange
         var (url, channelId, _) = Arrange(_ => _fixture.CreateYouTubeChannelId());
+
+        // Act
+        var result = await _mocker.CreateInstance<YouTubeUrlCategoriser>()
+            .Resolve(null, new List<EpisodeModel>(), url, new IndexingContext());
+
+        // Assert
+        result!.PlaylistId.Should().BeNull();
+        result.ShowId.Should().Be(channelId);
+        result.ShowName.Should().Be("Synthetic Channel");
+    }
+
+    [Theory(DisplayName =
+        "A URL playlist that cannot be resolved (private, deleted, a WL/LL/RD mix, or a failed lookup) is dropped and the video still resolves, rather than failing the whole submit.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task unresolvable_playlist_dropped(bool notFound)
+    {
+        // Arrange
+        var (url, channelId, playlistId) = Arrange(channelId => channelId);
+        _mocker.GetMock<ITolerantYouTubePlaylistService>()
+            .Setup(s => s.GetPlaylistInfo(It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>()))
+            .ThrowsAsync(notFound
+                ? new YouTubePlaylistNotFoundException(playlistId)
+                : new InvalidOperationException("Unable to obtain playlist-info"));
 
         // Act
         var result = await _mocker.CreateInstance<YouTubeUrlCategoriser>()

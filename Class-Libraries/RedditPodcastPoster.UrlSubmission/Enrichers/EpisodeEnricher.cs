@@ -104,9 +104,10 @@ public class EpisodeEnricher(
             {
                 // A submitted video's channel need not own the podcast's playlist; filling the channel id here could
                 // pair the playlist with a channel that does not own it, and the indexer would then drop every playlist
-                // video. The curator sets the channel through the edit, which checks the playlist's owner.
+                // video. No API path sets a podcast's channel id (PodcastChangeApplier ignores it; #1179), so this
+                // needs a manual fix.
                 logger.LogWarning(
-                    "Not enriching podcast '{matchingPodcastId}' with youtube channel-id '{resolvedYouTubeItemShowId}': it has youtube-playlist-id '{playlistId}' and no channel-id; set the channel through the podcast edit, which checks the playlist owner.",
+                    "Not enriching podcast '{matchingPodcastId}' with youtube channel-id '{resolvedYouTubeItemShowId}': it has youtube-playlist-id '{playlistId}' and no channel-id, and the video's channel may not own that playlist. Needs a manual fix: set the channel id that owns the playlist (no API path sets a podcast channel-id; see #1179).",
                     matchingPodcast.Id, categorisedItem.ResolvedYouTubeItem.ShowId, matchingPodcast.YouTubePlaylistId);
             }
             else if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))

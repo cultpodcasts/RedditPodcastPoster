@@ -1,4 +1,6 @@
+using System.Net;
 using FluentAssertions;
+using Google;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -99,6 +101,80 @@ public class YouTubePlaylistOwnershipValidatorRules
         result.IsAllowed.Should().BeFalse();
         result.IsRetryable.Should().BeTrue();
         result.Code.Should().Be("youTubePlaylistOwnerLookupFailed");
+    }
+
+    [Theory(DisplayName =
+        "A YouTube 404 (playlistNotFound) or 400 for the id is a non-retryable youTubePlaylistNotFound, because retrying cannot fix a bad or deleted id.")]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task youtube_not_found_or_bad_request_is_not_found(HttpStatusCode statusCode)
+    {
+        // Arrange
+        _playlists.Setup(p => p.GetPlaylistInfo(It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new GoogleApiException("youtube", "playlistNotFound") { HttpStatusCode = statusCode });
+
+        // Act
+        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), _fixture.CreateYouTubePlaylistId());
+
+        // Assert
+        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.PlaylistNotFound);
+        result.IsRetryable.Should().BeFalse();
+        result.Code.Should().Be(YouTubePlaylistOwnership.NotFoundCode);
+    }
+
+    [Theory(DisplayName =
+        "A YouTube 5xx or a non-quota 403 stays a retryable lookup failure, because the id may be fine.")]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task youtube_server_error_is_lookup_failure(HttpStatusCode statusCode)
+    {
+        // Arrange
+        _playlists.Setup(p => p.GetPlaylistInfo(It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>()))
+            .ThrowsAsync(new GoogleApiException("youtube", "backendError") { HttpStatusCode = statusCode });
+
+        // Act
+        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), _fixture.CreateYouTubePlaylistId());
+
+        // Assert
+        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.LookupFailed);
+        result.IsRetryable.Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "A value that is not a playlist id (stray '@', spaces, too short, a pasted URL) is refused as youTubePlaylistIdInvalid without calling YouTube.")]
+    [InlineData("@PLS3XGZxi7cBXo0K8Ts08kgyNwYll5n89O")]
+    [InlineData("PL abc def ghi jkl")]
+    [InlineData("PLshort")]
+    [InlineData("https://www.youtube.com/playlist?list=PLS3XGZxi7cBXo0K8Ts08kgyNwYll5n89O")]
+    public async Task malformed_id_is_refused_without_a_call(string playlistId)
+    {
+        // Arrange
+        var validator = Validator();
+
+        // Act
+        var result = await validator.Validate(_fixture.CreateYouTubeChannelId(), playlistId);
+
+        // Assert
+        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.InvalidPlaylistId);
+        result.IsAllowed.Should().BeFalse();
+        result.IsRetryable.Should().BeFalse();
+        result.Code.Should().Be("youTubePlaylistIdInvalid");
+        _playlists.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName = "A pasted playlist URL is refused with a message suggesting the id inside it.")]
+    public async Task pasted_url_message_suggests_the_id()
+    {
+        // Arrange
+        var id = _fixture.CreateYouTubePlaylistId();
+
+        // Act
+        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(),
+            $"https://www.youtube.com/playlist?list={id}&si=abc");
+
+        // Assert
+        result.Message.Should().Contain($"Did you mean '{id}'?");
     }
 
     [Fact(DisplayName = "A response without an owner channel cannot prove ownership, so it is refused as retryable.")]

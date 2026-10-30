@@ -252,8 +252,19 @@ public class DiscoveryChannelBanService(
         var changed = false;
         if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) && identity.YouTubeChannelId != null)
         {
-            podcast.YouTubeChannelId = identity.YouTubeChannelId;
-            changed = true;
+            if (string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+            {
+                podcast.YouTubeChannelId = identity.YouTubeChannelId;
+                changed = true;
+            }
+            else
+            {
+                // The banned card's channel need not own the podcast's playlist, and a channel/playlist pair the
+                // channel does not own must not be saved. The ban still links the cards to this podcast by id.
+                logger.LogWarning(
+                    "Not filling youtube channel-id '{ChannelId}' on podcast '{PodcastId}' during a discovery ban: it has youtube-playlist-id '{PlaylistId}' and no channel-id. Needs a manual fix (no API path sets a podcast channel-id; see #1179).",
+                    identity.YouTubeChannelId, podcast.Id, podcast.YouTubePlaylistId);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(podcast.SpotifyId) && identity.SpotifyShowId != null)

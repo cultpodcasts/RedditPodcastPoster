@@ -336,6 +336,8 @@ public class YouTubeEpisodeProvider(
     /// A playlist video uploaded by a channel other than the parent's <c>youTubeChannelId</c> is not indexed. That is
     /// normally a sign the parent's playlist belongs to a different channel (e.g. Fame Under Fire: BBC World Service
     /// channel id with a BBC News Entertainment playlist, where every video was dropped). Log it so it is never silent.
+    /// Warning when every candidate was dropped (the playlist is almost certainly another channel's); Information when
+    /// only some were (a channel's own playlist that mixes in collab/guest uploads), so the per-pass signal stays clean.
     /// </summary>
     private void LogOtherChannelVideosDropped(
         Podcast podcast,
@@ -348,7 +350,9 @@ public class YouTubeEpisodeProvider(
             .GroupBy(x => x.VideoDetails.Snippet.ChannelId)
             .Select(g => $"{g.Key}={g.Count()}")
             .ToArray();
-        logger.LogWarning(
+        var allDropped = dropped.Count == candidateCount;
+        logger.Log(
+            allDropped ? LogLevel.Warning : LogLevel.Information,
             "YouTubePlaylistOtherChannelVideosDropped podcast-id='{PodcastId}' podcast-name='{PodcastName}' playlist-id='{PlaylistId}' youtube-channel-id='{YouTubeChannelId}' dropped-count='{DroppedCount}' candidate-count='{CandidateCount}' all-dropped='{AllDropped}' video-channels='{VideoChannels}' video-ids='{VideoIds}'. Playlist videos uploaded by another channel are not indexed; check the playlist belongs to the YouTube channel.",
             podcast.Id,
             podcast.Name,
@@ -356,7 +360,7 @@ public class YouTubeEpisodeProvider(
             youTubeChannelId.ChannelId,
             dropped.Count,
             candidateCount,
-            dropped.Count == candidateCount,
+            allDropped,
             string.Join(",", droppedChannels),
             string.Join(",", dropped.Take(maxListed).Select(x => x.VideoDetails.Id)) +
             (dropped.Count > maxListed ? $",...(+{dropped.Count - maxListed})" : string.Empty));
