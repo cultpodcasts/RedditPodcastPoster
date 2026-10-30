@@ -828,7 +828,9 @@ public class CatalogueParentsUpdater(
                 cancellationToken.ThrowIfCancellationRequested();
                 // Hourly passes cut the provider read at about two days, which is newer than the matcher's
                 // acceptance. One release-filtered read brings in older gaps; they are not lookup candidates.
-                var acceptanceSince = timeProvider.GetUtcNow().UtcDateTime
+                // The matcher measures its 14 days from the probe's release, so the read reaches 14 days before
+                // the oldest item that could be offered (not 14 days before now).
+                var acceptanceSince = capped.Min(x => x.ReleaseUtc)
                     - EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
                 if (repositoryReleasedSince > acceptanceSince)
                 {

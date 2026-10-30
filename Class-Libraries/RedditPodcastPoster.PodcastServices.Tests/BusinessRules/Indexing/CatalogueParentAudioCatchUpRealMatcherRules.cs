@@ -9,6 +9,7 @@ using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -51,8 +52,6 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
     private readonly Dictionary<Guid, NewsOrganisation> _organisations = [];
     private readonly List<NewsReport> _savedReports = [];
     private List<NewsReport> _storedReports = [];
-    private List<NewsReport> _holderReports = [];
-    private List<NewsReport>? _matcherWindowReports;
     private int _reportReads;
     private List<SimpleEpisode> _spotifyShow = [];
     private List<AppleEpisode> _appleShow = [];
@@ -73,20 +72,18 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<RedditPodcastPoster.Models.TvShows.TvShow, bool>>>()))
             .Returns(() => AsyncEnumerable.Empty<RedditPodcastPoster.Models.TvShows.TvShow>());
 
-        // Read 0 is the release window. When that window is newer than the matcher's 14-day acceptance, the next
-        // read is that span (set _matcherWindowReports). Any later read is link holders.
+        // One stored list; every read applies the Cosmos predicate it is given (release window, the matcher's
+        // 14-day acceptance span, link holders), so a rule pins the window the pass asks for, not just the read count.
         var reports = _mocker.GetMock<INewsReportRepository>();
         reports.Setup(x => x.GetByNewsOrganisationId(It.IsAny<Guid>(), It.IsAny<Expression<Func<NewsReport, bool>>>()))
-            .Returns((Guid id, Expression<Func<NewsReport, bool>> _) =>
+            .Returns((Guid id, Expression<Func<NewsReport, bool>> filter) =>
             {
-                var read = _reportReads++;
-                var batch = read switch
-                {
-                    0 => _storedReports,
-                    1 when _matcherWindowReports is not null => _matcherWindowReports,
-                    _ => _holderReports
-                };
-                return batch.Where(x => x.NewsOrganisationId == id).ToAsyncEnumerable();
+                _reportReads++;
+                var predicate = InMemory(filter);
+                return _storedReports
+                    .Where(x => x.NewsOrganisationId == id && predicate(x))
+                    .ToList()
+                    .ToAsyncEnumerable();
             });
         reports.Setup(x => x.Save(It.IsAny<IEnumerable<NewsReport>>()))
             .Callback((IEnumerable<NewsReport> items) => _savedReports.AddRange(items))
@@ -114,6 +111,37 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
 
         _mocker.Use<ISpotifyEpisodeEnricher>(CreateSpotifyEnricher());
         _mocker.Use<IAppleEpisodeEnricher>(CreateAppleEnricher());
+    }
+
+    /// <summary>
+    /// Compiles a read's Cosmos predicate for the in-memory list. Cosmos treats a missing service key as undefined,
+    /// so the holder filter's <c>Services[key].Url != null</c> is false for that key; in memory the dictionary indexer
+    /// throws, so a member read through it is guarded with <c>ContainsKey</c>.
+    /// </summary>
+    private static Func<NewsReport, bool> InMemory(Expression<Func<NewsReport, bool>> filter)
+    {
+        var cosmosFree = CosmosLinqInMemoryRewriter.ForInMemory(filter);
+        return Expression.Lambda<Func<NewsReport, bool>>(
+                new MissingKeyIsUndefined().Visit(cosmosFree.Body)!, cosmosFree.Parameters)
+            .Compile();
+    }
+
+    private sealed class MissingKeyIsUndefined : ExpressionVisitor
+    {
+        protected override Expression VisitMember(MemberExpression node)
+        {
+            if (node.Expression is MethodCallExpression { Method.Name: "get_Item", Object: { } dictionary } indexer &&
+                dictionary.Type.IsGenericType &&
+                dictionary.Type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                var visited = (MemberExpression)base.VisitMember(node);
+                var containsKey = Expression.Call(
+                    Visit(dictionary), dictionary.Type.GetMethod("ContainsKey")!, Visit(indexer.Arguments[0]));
+                return Expression.Condition(containsKey, visited, Expression.Default(node.Type));
+            }
+
+            return base.VisitMember(node);
+        }
     }
 
     private CatalogueParentsUpdater Sut => _mocker.CreateInstance<CatalogueParentsUpdater>();
@@ -310,8 +338,7 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         var spotifyId = _fixture.CreateSpotifyId();
         var holder = SpotifyHolder(podcast, organisation, day.AddHours(6), spotifyId);
         var candidate = Report(podcast, organisation, day.AddHours(12), FullLength);
-        _storedReports = [candidate];
-        _holderReports = [holder];
+        _storedReports = [candidate, holder];
         _spotifyShow = [SpotifyEpisode(spotifyId, day, FullLength)];
 
         // Act
@@ -376,8 +403,7 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         var appleEpisodeId = _fixture.CreateAppleId();
         var holder = AppleHolder(podcast, organisation, day.AddHours(6), appleEpisodeId);
         var candidate = Report(podcast, organisation, day.AddHours(12), FullLength);
-        _storedReports = [candidate];
-        _holderReports = [holder];
+        _storedReports = [candidate, holder];
         _appleShow = [AppleEpisode(podcast, appleEpisodeId, day.AddHours(6), FullLength)];
 
         // Act
@@ -464,8 +490,7 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         var fullRelease = DomainTestFixture.UtcDateDaysAgo(8);
         var clip = Report(podcast, organisation, clipRelease, ClipLength);
         var full = Report(podcast, organisation, fullRelease, FullLength);
-        _storedReports = [clip];
-        _matcherWindowReports = [full];
+        _storedReports = [clip, full];
         var spotifyId = _fixture.CreateSpotifyId();
         _spotifyShow = [SpotifyEpisode(spotifyId, fullRelease, FullLength)];
 
@@ -476,6 +501,62 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         _reportReads.Should().Be(2);
         _savedReports.Should().BeEmpty();
         clip.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        full.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up guard, real Spotify matcher: when the pass loads about the last 2 days, a " +
+        "6-minute clip was released 2 days ago, and a 42-minute same-title report released 15 days ago (more than 14 " +
+        "days before now but less than 14 days before the clip) still lacks Spotify, then the clip is not saved with " +
+        "the show's only 42-minute episode, because the matcher measures its 14 days from the clip's release, so the " +
+        "older-gap read must reach 14 days before the clip, not 14 days before now.")]
+    public async Task real_spotify_clip_does_not_take_link_when_full_report_is_14_days_before_the_clip()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var clipRelease = DomainTestFixture.UtcDateDaysAgo(2).AddHours(9);
+        var fullRelease = DomainTestFixture.UtcDateDaysAgo(15).AddHours(12);
+        var clip = Report(podcast, organisation, clipRelease, ClipLength);
+        var full = Report(podcast, organisation, fullRelease, FullLength);
+        _storedReports = [clip, full];
+        var spotifyId = _fixture.CreateSpotifyId();
+        _spotifyShow = [SpotifyEpisode(spotifyId, fullRelease, FullLength)];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(2)));
+
+        // Assert
+        _reportReads.Should().Be(2);
+        _savedReports.Should().BeEmpty();
+        clip.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        full.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up, real Spotify matcher: when the pass loads about the last 2 days, a 6-minute " +
+        "clip released 2 days ago lacks Spotify and matches the show's same-day 6-minute episode, and a 42-minute " +
+        "same-title report released 17 days ago (more than 14 days before the clip) also lacks Spotify, then the clip " +
+        "is saved with its own link, because a report outside the matcher's 14-day acceptance is not loaded and must " +
+        "not hold the clip back (control for the 14-days-before-the-clip boundary).")]
+    public async Task real_spotify_clip_is_linked_when_full_report_is_outside_14_days_before_the_clip()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var clipRelease = DomainTestFixture.UtcDateDaysAgo(2).AddHours(9);
+        var fullRelease = DomainTestFixture.UtcDateDaysAgo(17);
+        var clip = Report(podcast, organisation, clipRelease, ClipLength);
+        var full = Report(podcast, organisation, fullRelease, FullLength);
+        _storedReports = [clip, full];
+        var spotifyId = _fixture.CreateSpotifyId();
+        _spotifyShow = [SpotifyEpisode(spotifyId, clipRelease, ClipLength)];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(2)));
+
+        // Assert
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.Id.Should().Be(clip.Id);
+        saved.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
         full.Services.Should().NotContainKey(ServiceKeys.Spotify);
     }
 }
