@@ -29,7 +29,7 @@ public class CatalogueParentIndexRules
     private readonly List<TvShow> _shows = [];
     private readonly List<NewsOrganisation> _organisations = [];
     private readonly List<EpisodeSearchRecord> _uploaded = [];
-    private readonly List<(Guid Id, IndexingContext Context)> _indexed = [];
+    private readonly List<(Publisher Parent, IndexingContext Context)> _indexed = [];
     private CatalogueParentIndexResult _indexResult = new(CatalogueParentIndexStatus.Indexed);
 
     public CatalogueParentIndexRules()
@@ -51,8 +51,8 @@ public class CatalogueParentIndexRules
                 _organisations.Where(predicate.Compile()).ToAsyncEnumerable());
 
         _mocker.GetMock<ICatalogueParentsUpdater>()
-            .Setup(x => x.IndexParent(It.IsAny<Guid>(), It.IsAny<IndexingContext>()))
-            .Callback((Guid id, IndexingContext context) => _indexed.Add((id, context)))
+            .Setup(x => x.IndexParent(It.IsAny<Publisher>(), It.IsAny<IndexingContext>()))
+            .Callback((Publisher parent, IndexingContext context) => _indexed.Add((parent, context)))
             .ReturnsAsync(() => _indexResult);
 
         _mocker.GetMock<IPlayableSearchDocumentSwap>()
@@ -88,7 +88,7 @@ public class CatalogueParentIndexRules
     }
 
     [Fact(DisplayName =
-        "A curator indexes a news organisation by its name (any case): the organisation is indexed by id, the saved " +
+        "A curator indexes a news organisation by its name (any case): the organisation it resolved is indexed, the saved " +
         "reports are pushed to search, and the result lists their ids, because the hub page links by name.")]
     public async Task index_by_name_indexes_and_pushes_to_search()
     {
@@ -104,7 +104,7 @@ public class CatalogueParentIndexRules
         result.Status.Should().Be(CatalogueIndexStatus.Ok);
         result.IndexedIds.Should().Equal(report.Id);
         result.SearchIndexer!.IndexerState.Should().Be(IndexerState.Executed);
-        _indexed.Should().ContainSingle().Which.Id.Should().Be(organisation.Id);
+        _indexed.Should().ContainSingle().Which.Parent.Should().BeSameAs(organisation);
         _uploaded.Should().ContainSingle().Which.Id.Should().Be(report.Id.ToString());
     }
 
@@ -202,12 +202,11 @@ public class CatalogueParentIndexRules
     }
 
     [Theory(DisplayName =
-        "A refused or cut-off index maps to its status and nothing is pushed to search: NotIndexable, " +
-        "SourcePodcastStillExists, BudgetExceeded, and NotFound when the parent vanished between lookup and index.")]
+        "A refused or timed-out index maps to its status and nothing is pushed to search: NotIndexable, " +
+        "SourcePodcastStillExists, and TimedOut (what was saved is not known at the cut).")]
     [InlineData(CatalogueParentIndexStatus.NotIndexable, CatalogueIndexStatus.NotIndexable)]
     [InlineData(CatalogueParentIndexStatus.SourcePodcastStillExists, CatalogueIndexStatus.SourcePodcastStillExists)]
-    [InlineData(CatalogueParentIndexStatus.BudgetExceeded, CatalogueIndexStatus.BudgetExceeded)]
-    [InlineData(CatalogueParentIndexStatus.NotFound, CatalogueIndexStatus.NotFound)]
+    [InlineData(CatalogueParentIndexStatus.TimedOut, CatalogueIndexStatus.TimedOut)]
     public async Task refused_index_maps_status(CatalogueParentIndexStatus indexStatus, CatalogueIndexStatus expected)
     {
         // Arrange
@@ -223,13 +222,30 @@ public class CatalogueParentIndexRules
     }
 
     [Fact(DisplayName =
+        "When a TV show and a news organisation share an id (a moved parent that kept its id), then the news " +
+        "organisation route indexes the news organisation it resolved, because the route's kind is the kind indexed.")]
+    public async Task news_route_indexes_the_organisation_even_when_a_tv_show_shares_its_id()
+    {
+        // Arrange
+        var organisation = SeedOrganisation();
+        _shows.Add(new TvShow(_fixture.CreateTitle()) { Id = organisation.Id });
+
+        // Act
+        var result = await Sut.IndexNewsOrganisation(organisation.Id.ToString(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueIndexStatus.Ok);
+        _indexed.Should().ContainSingle().Which.Parent.Should().BeSameAs(organisation);
+    }
+
+    [Fact(DisplayName =
         "An exception while indexing is Failed, not thrown, because the API answers 500 with an error body.")]
     public async Task exception_is_failed()
     {
         // Arrange
         var show = SeedTvShow();
         _mocker.GetMock<ICatalogueParentsUpdater>()
-            .Setup(x => x.IndexParent(It.IsAny<Guid>(), It.IsAny<IndexingContext>()))
+            .Setup(x => x.IndexParent(It.IsAny<Publisher>(), It.IsAny<IndexingContext>()))
             .ThrowsAsync(new InvalidOperationException(_fixture.CreateTitle()));
 
         // Act

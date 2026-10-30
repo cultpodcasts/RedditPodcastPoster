@@ -1,3 +1,4 @@
+using System.Net;
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Api.Models;
@@ -9,8 +10,9 @@ namespace Api.Handlers.Catalogue;
 
 /// <summary>
 /// Maps a TV show / news organisation index to HTTP the way <c>IndexPodcastHandler</c> does: 200 with the indexed item
-/// ids and search state, 404 not found, 400 not indexable (body says why), 409 ambiguous name (body is the ids), 500
-/// when the index failed or ran out of time.
+/// ids and search state, 404 not found, 400 not indexable (body says why), 409 ambiguous name (body is the ids), 504
+/// <c>{ reason: "TimedOut" }</c> when the on-demand time budget cut it off (not a fault, so not a 500), and 500 when
+/// the index failed.
 /// </summary>
 public class CatalogueIndexHandler(
     ICatalogueParentIndexService indexService,
@@ -46,9 +48,12 @@ public class CatalogueIndexHandler(
             case CatalogueIndexStatus.SourcePodcastStillExists:
                 return await ctx.BadRequest(
                     new CatalogueIndexRejection { Reason = CatalogueIndexRejection.SourcePodcastStillExists }, c);
-            case CatalogueIndexStatus.BudgetExceeded:
-                return await ctx.InternalError(
-                    ApiErrorResponse.Failure($"Indexing the {kind} ran out of time; anything found before the cut was saved"), c);
+            case CatalogueIndexStatus.TimedOut:
+                return await ctx.Json(HttpStatusCode.GatewayTimeout, new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.TimedOut,
+                    Message = CatalogueIndexRejection.TimedOutMessage
+                }, c);
             case CatalogueIndexStatus.Failed:
                 return await ctx.InternalError(ApiErrorResponse.Failure($"Unable to index {kind}"), c);
             default:

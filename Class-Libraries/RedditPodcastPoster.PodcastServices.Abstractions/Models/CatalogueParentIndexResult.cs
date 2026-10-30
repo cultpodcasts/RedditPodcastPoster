@@ -8,17 +8,18 @@ public enum CatalogueParentIndexStatus
     /// <summary>The parent was indexed; <see cref="CatalogueParentIndexResult.ChangedPlayables"/> holds what was saved.</summary>
     Indexed,
 
-    /// <summary>No TV show or news organisation has this id.</summary>
-    NotFound,
-
     /// <summary>The parent is removed, or its <c>indexing</c> settings do not auto-index (no index-all, no title regex).</summary>
     NotIndexable,
 
     /// <summary>The podcast it was migrated from (same id) still exists and is indexed instead (unfinished CatalogueMigrate).</summary>
     SourcePodcastStillExists,
 
-    /// <summary>The per-parent time budget cut the index off. Anything saved before the cut stays saved.</summary>
-    BudgetExceeded
+    /// <summary>
+    /// The on-demand time budget cut the index off. What, if anything, was saved is not known: new items are saved in one
+    /// batch near the end, and an update that ignored cancellation may still finish. Anything that was saved reaches
+    /// search on the next pull-indexer run.
+    /// </summary>
+    TimedOut
 }
 
 /// <param name="Status">What happened.</param>

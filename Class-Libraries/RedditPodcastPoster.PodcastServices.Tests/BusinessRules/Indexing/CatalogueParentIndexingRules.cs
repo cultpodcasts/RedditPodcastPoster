@@ -858,7 +858,7 @@ public class CatalogueParentIndexingRules
         _discovered = [discovered];
 
         // Act
-        var result = await Sut.IndexParent(show.Id, Context());
+        var result = await Sut.IndexParent(show, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
@@ -878,7 +878,7 @@ public class CatalogueParentIndexingRules
         _discovered = [discovered];
 
         // Act
-        var result = await Sut.IndexParent(organisation.Id, Context());
+        var result = await Sut.IndexParent(organisation, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
@@ -898,7 +898,7 @@ public class CatalogueParentIndexingRules
         _discovered = [];
 
         // Act
-        var result = await Sut.IndexParent(show.Id, Context());
+        var result = await Sut.IndexParent(show, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
@@ -906,20 +906,40 @@ public class CatalogueParentIndexingRules
     }
 
     [Fact(DisplayName =
-        "On-demand parent index: when the id is neither a TV show nor a news organisation, then the result is " +
-        "NotFound and discovery never runs, because the API answers 404.")]
-    public async Task index_parent_unknown_id_is_not_found()
+        "On-demand parent index: when the parent is neither a TV show nor a news organisation, then it throws and " +
+        "discovery never runs, because only those two kinds have a hub page to index from.")]
+    public async Task index_parent_of_another_kind_throws()
     {
         // Arrange
-        var unknownId = _fixture.CreateGuid();
+        var podcast = AutoIndexedYouTubePodcast();
 
         // Act
-        var result = await Sut.IndexParent(unknownId, Context());
+        var act = () => Sut.IndexParent(podcast, Context());
 
         // Assert
-        result.Status.Should().Be(CatalogueParentIndexStatus.NotFound);
-        result.Changed.Should().BeEmpty();
+        await act.Should().ThrowAsync<ArgumentException>();
         _existingPassedToProvider.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: the resolved parent is indexed without reading it again, so a news organisation " +
+        "that shares its id with a TV show indexes the news organisation, because the route's kind is the kind indexed.")]
+    public async Task index_parent_indexes_the_given_kind_without_a_second_lookup()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration));
+        _discovered = [discovered];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
+        _savedTvEpisodes.Should().BeEmpty();
+        _mocker.GetMock<ITvShowRepository>().Verify(x => x.GetTvShow(It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(x => x.GetNewsOrganisation(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -933,7 +953,7 @@ public class CatalogueParentIndexingRules
         _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
 
         // Act
-        var result = await Sut.IndexParent(show.Id, Context());
+        var result = await Sut.IndexParent(show, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
@@ -955,7 +975,7 @@ public class CatalogueParentIndexingRules
         _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
 
         // Act
-        var result = await Sut.IndexParent(organisation.Id, Context());
+        var result = await Sut.IndexParent(organisation, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.SourcePodcastStillExists);
@@ -977,7 +997,7 @@ public class CatalogueParentIndexingRules
             episodes.Where(x => x.Id == storedEpisode.Id).Select(x => new FilteredEpisode(x, ["term"])).ToList());
 
         // Act
-        var result = await Sut.IndexParent(organisation.Id, Context());
+        var result = await Sut.IndexParent(organisation, Context());
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);

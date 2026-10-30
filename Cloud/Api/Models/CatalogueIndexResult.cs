@@ -12,8 +12,8 @@ public enum CatalogueIndexStatus
     NotIndexable,
     /// <summary>The podcast it was migrated from still exists and is indexed instead.</summary>
     SourcePodcastStillExists,
-    /// <summary>The per-parent time budget cut the index off.</summary>
-    BudgetExceeded,
+    /// <summary>The on-demand time budget cut the index off (504; what was saved is not known).</summary>
+    TimedOut,
     Failed
 }
 

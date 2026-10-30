@@ -20,7 +20,8 @@ namespace Api.Services.Catalogue;
 /// query on, no YouTube indexing hints.</item>
 /// <item>Push the saved items to search straight away (<see cref="CataloguePlayableSearchSync.AfterIndex"/>).</item>
 /// </list>
-/// Like the podcast index it can run at any time, including during the hourly pass.
+/// Like the podcast index it can run at any time, including during the hourly pass. The index runs on its own bounded
+/// on-demand budget token, not the request's <see cref="CancellationToken"/>: a client disconnect does not stop it.
 /// </summary>
 public class CatalogueParentIndexService(
     ITvShowRepository tvShowRepository,
@@ -71,23 +72,23 @@ public class CatalogueParentIndexService(
             }
 
             logger.LogInformation("Index {kind} '{name}' ({id}).", kind, entity.Name, entity.Id);
-            // The parent runs under the indexer's per-parent time budget (its own token), as in the hourly pass.
+            // The entity just resolved is indexed (no second lookup, so the route's kind is the kind indexed). It runs
+            // under the bounded on-demand budget (its own token).
             var result = await catalogueParentsUpdater.IndexParent(
-                entity.Id, CuratorIndexingContext.Create(indexerOptions.Value));
+                entity, CuratorIndexingContext.Create(indexerOptions.Value));
             switch (result.Status)
             {
                 case CatalogueParentIndexStatus.Indexed:
                     var search = await searchSync.AfterIndex(entity.Name, result.Changed, cancellationToken);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Ok,
                         result.Changed.Select(x => x.Id).ToArray(), search);
-                case CatalogueParentIndexStatus.NotFound:
-                    return new CatalogueIndexResult(CatalogueIndexStatus.NotFound);
                 case CatalogueParentIndexStatus.NotIndexable:
                     return new CatalogueIndexResult(CatalogueIndexStatus.NotIndexable);
                 case CatalogueParentIndexStatus.SourcePodcastStillExists:
                     return new CatalogueIndexResult(CatalogueIndexStatus.SourcePodcastStillExists);
-                case CatalogueParentIndexStatus.BudgetExceeded:
-                    return new CatalogueIndexResult(CatalogueIndexStatus.BudgetExceeded);
+                case CatalogueParentIndexStatus.TimedOut:
+                    // Nothing is pushed to search: the saved items (if any) are not known at the cut.
+                    return new CatalogueIndexResult(CatalogueIndexStatus.TimedOut);
                 default:
                     logger.LogError("Index {kind}: unexpected status '{status}'.", kind, result.Status);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Failed);

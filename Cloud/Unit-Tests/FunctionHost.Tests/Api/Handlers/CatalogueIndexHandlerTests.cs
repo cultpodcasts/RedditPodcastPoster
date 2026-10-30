@@ -1,3 +1,4 @@
+using System.Net;
 using Api.Dtos;
 using Api.Handlers;
 using Api.Handlers.Catalogue;
@@ -107,18 +108,39 @@ public class CatalogueIndexHandlerTests
             Times.Once);
     }
 
-    [Theory(DisplayName = "A failed or timed-out index is a 500 with an error body.")]
-    [InlineData(CatalogueIndexStatus.Failed)]
-    [InlineData(CatalogueIndexStatus.BudgetExceeded)]
-    public async Task failure_is_500(CatalogueIndexStatus status)
+    [Fact(DisplayName = "A failed index is a 500 with an error body.")]
+    public async Task failure_is_500()
     {
         // Arrange
-        _result = new CatalogueIndexResult(status);
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.Failed);
 
         // Act
         await Handle("tv");
 
         // Assert
         _ctx.Verify(x => x.InternalError(It.IsAny<ApiErrorResponse>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "A timed-out index is a 504 { reason: TimedOut } with a message that makes no claim about what was saved, " +
+        "not a 500, because running out of time is not a fault and the hub page says to try again later.")]
+    [InlineData("tv")]
+    [InlineData("news")]
+    public async Task timed_out_is_504_with_reason(string kind)
+    {
+        // Arrange
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.TimedOut);
+
+        // Act
+        await Handle(kind);
+
+        // Assert
+        _ctx.Verify(x => x.Json(HttpStatusCode.GatewayTimeout,
+            It.Is<CatalogueIndexRejection>(r =>
+                r.Reason == CatalogueIndexRejection.TimedOut &&
+                r.Message == CatalogueIndexRejection.TimedOutMessage),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.InternalError(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+        CatalogueIndexRejection.TimedOutMessage.Should().NotContain("was saved");
     }
 }
