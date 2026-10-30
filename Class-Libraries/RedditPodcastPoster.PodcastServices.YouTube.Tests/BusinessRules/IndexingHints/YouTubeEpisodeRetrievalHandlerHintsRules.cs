@@ -52,12 +52,11 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
         _mocker.Use<IOptions<YouTubeIndexingHintsOptions>>(Options.Create(_options));
         _mocker.Use<TimeProvider>(new FixedTimeProvider(_now));
         _mocker.GetMock<IYouTubeEpisodeProvider>()
-            .Setup(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(), It.IsAny<YouTubePlaylistId>(),
-                It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(),
+            .Setup(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(), It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(), It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(() => _walk);
         _mocker.GetMock<IYouTubeEpisodeProvider>()
-            .Setup(x => x.BuildPlaylistEpisodes(It.IsAny<Podcast>(), It.IsAny<YouTubeChannelId>(),
+            .Setup(x => x.BuildPlaylistEpisodes(It.IsAny<Podcast>(),
                 It.IsAny<IndexingContext>(), It.IsAny<IList<PlaylistItem>>(), It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(() => _built);
         _mocker.GetMock<IYouTubeUploadsHeadCheck>()
@@ -72,7 +71,7 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
 
     private void VerifyFullWalk(Times times) =>
         _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(),
-            It.IsAny<YouTubePlaylistId>(), It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(),
+            It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>(),
             It.IsAny<bool>(), It.IsAny<PlaylistOrder?>(), It.IsAny<IEnumerable<string>?>()), times);
 
     [Fact(DisplayName =

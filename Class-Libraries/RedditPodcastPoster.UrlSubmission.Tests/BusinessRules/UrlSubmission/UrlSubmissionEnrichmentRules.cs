@@ -203,7 +203,7 @@ public class UrlSubmissionEnrichmentRules
 
     [Fact(DisplayName =
         "A submitted video does not fill the YouTube channel id of a podcast that has a playlist but no channel id, " +
-        "because the video's channel need not own the playlist and a mismatched pair makes the indexer drop every playlist video.")]
+        "because the playlist is the podcast's only YouTube source and a channel id would route channel discovery and URLs to that channel.")]
     public void youtube_channel_not_filled_when_podcast_has_playlist()
     {
         // Arrange

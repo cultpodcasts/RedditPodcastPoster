@@ -22,7 +22,7 @@ public class PodcastUpdateService(
     IShortnerService shortnerService,
     PodcastChangeApplier podcastChangeApplier,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
-    IYouTubePlaylistOwnershipGuard youTubePlaylistOwnershipGuard,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
     public async Task<PodcastUpdateResult> UpdateAsync(
@@ -59,11 +59,8 @@ public class PodcastUpdateService(
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
 
-            // The podcast edit never stores youTubeChannelId (see PodcastChangeApplier), so only a playlist change is checked.
-            if (await youTubePlaylistOwnershipGuard.Check(
-                    podcast.YouTubeChannelId,
+            if (await youTubePlaylistGuard.Check(
                     podcast.YouTubePlaylistId,
-                    requestedChannelId: null,
                     podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
                     c) is { } refused)
             {

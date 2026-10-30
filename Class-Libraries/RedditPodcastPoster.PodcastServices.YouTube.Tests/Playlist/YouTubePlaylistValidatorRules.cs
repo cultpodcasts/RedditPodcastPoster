@@ -12,59 +12,41 @@ using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Playlist;
 
 /// <summary>
-/// A playlist owned by another channel is useless to the indexer (it keeps only the parent channel's videos), so a
-/// parent must not be saved with one. A lookup that cannot be made must refuse the save, not let it through.
+/// A parent with a playlist indexes only from it, so a malformed, deleted or private playlist id must not be saved. Any
+/// owner channel is accepted. A lookup that cannot be made must refuse the save, not let it through.
 /// </summary>
-public class YouTubePlaylistOwnershipValidatorRules
+public class YouTubePlaylistValidatorRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly Mock<ITolerantYouTubePlaylistService> _playlists = new();
 
-    private YouTubePlaylistOwnershipValidator Validator() =>
-        new(_playlists.Object, NullLogger<YouTubePlaylistOwnershipValidator>.Instance);
+    private YouTubePlaylistValidator Validator() =>
+        new(_playlists.Object, NullLogger<YouTubePlaylistValidator>.Instance);
 
     private void PlaylistOwnedBy(string playlistId, string? ownerChannelId, string? ownerTitle = "Synthetic Owner") =>
         _playlists.Setup(p => p.GetPlaylistInfo(
                 It.Is<YouTubePlaylistId>(id => id.PlaylistId == playlistId), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new GetPlaylistInfoResponse("Synthetic Playlist", "", ownerChannelId, ownerTitle));
 
-    [Fact(DisplayName = "A playlist owned by the parent's channel is allowed.")]
-    public async Task owned_playlist_matches()
+    [Fact(DisplayName = "An existing playlist is valid, and its owner channel is reported for information.")]
+    public async Task existing_playlist_is_valid()
     {
         // Arrange
-        var channelId = _fixture.CreateYouTubeChannelId();
-        var playlistId = _fixture.CreateYouTubePlaylistId();
-        PlaylistOwnedBy(playlistId, channelId);
-
-        // Act
-        var result = await Validator().Validate($" {channelId} ", $" {playlistId} ");
-
-        // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.Matches);
-        result.IsAllowed.Should().BeTrue();
-        result.Code.Should().BeNull();
-    }
-
-    [Fact(DisplayName =
-        "A playlist owned by another channel is refused with code youTubePlaylistChannelMismatch, naming the owner, and is not retryable.")]
-    public async Task other_channel_playlist_mismatches()
-    {
-        // Arrange
-        var channelId = _fixture.CreateYouTubeChannelId();
         var ownerId = _fixture.CreateYouTubeChannelId();
         var playlistId = _fixture.CreateYouTubePlaylistId();
-        PlaylistOwnedBy(playlistId, ownerId, "Synthetic Other Channel");
+        PlaylistOwnedBy(playlistId, ownerId, "Synthetic Owner");
 
         // Act
-        var result = await Validator().Validate(channelId, playlistId);
+        var result = await Validator().Validate($" {playlistId} ");
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.Mismatch);
-        result.IsAllowed.Should().BeFalse();
-        result.IsRetryable.Should().BeFalse();
-        result.Code.Should().Be("youTubePlaylistChannelMismatch");
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.Valid);
+        result.IsAllowed.Should().BeTrue();
+        result.Code.Should().BeNull();
+        result.Message.Should().BeNull();
+        result.PlaylistId.Should().Be(playlistId);
         result.OwnerChannelId.Should().Be(ownerId);
-        result.Message.Should().Contain(ownerId).And.Contain("Synthetic Other Channel").And.Contain(channelId);
+        result.OwnerChannelTitle.Should().Be("Synthetic Owner");
     }
 
     [Fact(DisplayName = "A playlist YouTube does not return (deleted or private) is refused with code youTubePlaylistNotFound.")]
@@ -76,10 +58,10 @@ public class YouTubePlaylistOwnershipValidatorRules
             .ThrowsAsync(new YouTubePlaylistNotFoundException(playlistId));
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), playlistId);
+        var result = await Validator().Validate(playlistId);
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.PlaylistNotFound);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.PlaylistNotFound);
         result.IsAllowed.Should().BeFalse();
         result.IsRetryable.Should().BeFalse();
         result.Code.Should().Be("youTubePlaylistNotFound");
@@ -94,13 +76,13 @@ public class YouTubePlaylistOwnershipValidatorRules
             .ThrowsAsync(new InvalidOperationException("Unable to obtain playlist-info"));
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), _fixture.CreateYouTubePlaylistId());
+        var result = await Validator().Validate(_fixture.CreateYouTubePlaylistId());
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.LookupFailed);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.LookupFailed);
         result.IsAllowed.Should().BeFalse();
         result.IsRetryable.Should().BeTrue();
-        result.Code.Should().Be("youTubePlaylistOwnerLookupFailed");
+        result.Code.Should().Be("youTubePlaylistLookupFailed");
     }
 
     [Theory(DisplayName =
@@ -114,12 +96,12 @@ public class YouTubePlaylistOwnershipValidatorRules
             .ThrowsAsync(new GoogleApiException("youtube", "playlistNotFound") { HttpStatusCode = statusCode });
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), _fixture.CreateYouTubePlaylistId());
+        var result = await Validator().Validate(_fixture.CreateYouTubePlaylistId());
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.PlaylistNotFound);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.PlaylistNotFound);
         result.IsRetryable.Should().BeFalse();
-        result.Code.Should().Be(YouTubePlaylistOwnership.NotFoundCode);
+        result.Code.Should().Be(YouTubePlaylistValidation.NotFoundCode);
     }
 
     [Theory(DisplayName =
@@ -134,10 +116,10 @@ public class YouTubePlaylistOwnershipValidatorRules
             .ThrowsAsync(new GoogleApiException("youtube", "backendError") { HttpStatusCode = statusCode });
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), _fixture.CreateYouTubePlaylistId());
+        var result = await Validator().Validate(_fixture.CreateYouTubePlaylistId());
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.LookupFailed);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.LookupFailed);
         result.IsRetryable.Should().BeTrue();
     }
 
@@ -153,10 +135,10 @@ public class YouTubePlaylistOwnershipValidatorRules
         var validator = Validator();
 
         // Act
-        var result = await validator.Validate(_fixture.CreateYouTubeChannelId(), playlistId);
+        var result = await validator.Validate(playlistId);
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.InvalidPlaylistId);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.InvalidPlaylistId);
         result.IsAllowed.Should().BeFalse();
         result.IsRetryable.Should().BeFalse();
         result.Code.Should().Be("youTubePlaylistIdInvalid");
@@ -170,42 +152,42 @@ public class YouTubePlaylistOwnershipValidatorRules
         var id = _fixture.CreateYouTubePlaylistId();
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(),
+        var result = await Validator().Validate(
             $"https://www.youtube.com/playlist?list={id}&si=abc");
 
         // Assert
         result.Message.Should().Contain($"Did you mean '{id}'?");
     }
 
-    [Fact(DisplayName = "A response without an owner channel cannot prove ownership, so it is refused as retryable.")]
-    public async Task response_without_owner_is_lookup_failure()
+    [Fact(DisplayName = "A response without an owner channel is still valid, because ownership is not checked.")]
+    public async Task response_without_owner_is_valid()
     {
         // Arrange
         var playlistId = _fixture.CreateYouTubePlaylistId();
-        PlaylistOwnedBy(playlistId, null);
+        PlaylistOwnedBy(playlistId, null, null);
 
         // Act
-        var result = await Validator().Validate(_fixture.CreateYouTubeChannelId(), playlistId);
+        var result = await Validator().Validate(playlistId);
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.LookupFailed);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.Valid);
+        result.IsAllowed.Should().BeTrue();
     }
 
-    [Theory(DisplayName = "With no playlist, or no channel to compare it with, there is nothing to check and YouTube is not called.")]
-    [InlineData(null, "PLsynthetic")]
-    [InlineData(" ", "PLsynthetic")]
-    [InlineData("UCsynthetic", null)]
-    [InlineData("UCsynthetic", "")]
-    public async Task blank_side_is_not_applicable(string? channelId, string? playlistId)
+    [Theory(DisplayName = "With no playlist there is nothing to check and YouTube is not called.")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task blank_playlist_is_not_applicable(string? playlistId)
     {
         // Arrange
         var validator = Validator();
 
         // Act
-        var result = await validator.Validate(channelId, playlistId);
+        var result = await validator.Validate(playlistId);
 
         // Assert
-        result.Status.Should().Be(YouTubePlaylistOwnershipStatus.NotApplicable);
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.NotApplicable);
         result.IsAllowed.Should().BeTrue();
         _playlists.VerifyNoOtherCalls();
     }

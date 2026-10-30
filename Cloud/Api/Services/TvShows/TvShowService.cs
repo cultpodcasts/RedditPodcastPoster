@@ -13,7 +13,7 @@ public class TvShowService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
-    IYouTubePlaylistOwnershipGuard youTubePlaylistOwnershipGuard,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -77,10 +77,8 @@ public class TvShowService(
                 request.Change.ImdbId,
                 request.Change.TmdbId,
                 request.Change.TvdbId);
-            if (await youTubePlaylistOwnershipGuard.Check(
-                    show.Indexing?.YouTubeChannelId,
+            if (await youTubePlaylistGuard.Check(
                     show.Indexing?.YouTubePlaylistId,
-                    request.Change.YouTubeChannelId,
                     request.Change.YouTubePlaylistId,
                     cancellationToken) is { } refused)
             {

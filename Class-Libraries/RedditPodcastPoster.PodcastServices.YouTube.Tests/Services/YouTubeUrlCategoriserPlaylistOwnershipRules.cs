@@ -3,6 +3,8 @@ using Google.Apis.YouTube.v3.Data;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -16,8 +18,10 @@ using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Services;
 
 /// <summary>
-/// A submitted URL's list= playlist becomes a new podcast's youTubePlaylistId only when the video's channel owns it;
-/// otherwise the new podcast would pair its channel with a playlist the indexer cannot use.
+/// A submitted URL's list= playlist becomes a new podcast's youTubePlaylistId only when the video's channel owns it.
+/// A playlist is a podcast's only YouTube source and every video in it is indexed, so an incidental list= (another
+/// channel's compilation or a mix) must not become one. A curator can still set any playlist in the edit dialog.
+/// A stored podcast with a playlist resolves from its stored episode and is not given a channel id.
 /// </summary>
 public class YouTubeUrlCategoriserPlaylistOwnershipRules
 {
@@ -77,7 +81,7 @@ public class YouTubeUrlCategoriserPlaylistOwnershipRules
     }
 
     [Fact(DisplayName =
-        "A URL playlist owned by another channel is dropped (with the channel's own name and description), so the new podcast is not saved with a mismatched pair.")]
+        "A URL playlist owned by another channel is dropped (with the channel's own name and description), so an incidental list= does not become the new podcast's whole YouTube source.")]
     public async Task other_channel_playlist_dropped()
     {
         // Arrange
@@ -115,5 +119,38 @@ public class YouTubeUrlCategoriserPlaylistOwnershipRules
         result!.PlaylistId.Should().BeNull();
         result.ShowId.Should().Be(channelId);
         result.ShowName.Should().Be("Synthetic Channel");
+    }
+
+    [Fact(DisplayName =
+        "A URL already stored on a playlist podcast with no channel id resolves from the stored episode and does not " +
+        "fill a channel id, because the playlist is the podcast's only YouTube source.")]
+    public async Task stored_playlist_podcast_resolves_without_channel()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = playlistId;
+        });
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.YouTube)!;
+        _mocker.GetMock<ITolerantYouTubeVideoService>()
+            .Setup(s => s.GetVideoContentDetails(It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()))
+            .ReturnsAsync(new List<Google.Apis.YouTube.v3.Data.Video>());
+
+        // Act
+        var result = await _mocker.CreateInstance<YouTubeUrlCategoriser>()
+            .Resolve(podcast, new List<EpisodeModel> { stored }, url, new IndexingContext());
+
+        // Assert
+        result!.EpisodeId.Should().Be(EpisodeServicePresence.YouTubeEpisodeId(stored));
+        result.PlaylistId.Should().Be(playlistId);
+        podcast.YouTubeChannelId.Should().BeEmpty();
+        _mocker.GetMock<ITolerantYouTubeChannelService>().Verify(
+            s => s.GetChannel(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(),
+                It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<bool>()),
+            Times.Never);
     }
 }

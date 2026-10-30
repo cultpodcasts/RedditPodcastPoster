@@ -19,10 +19,10 @@ namespace FunctionHost.Tests.Api.Handlers;
 /// The news-organisation and TV-show edit dialogs (website#575) read <c>message</c> and <c>code</c> from a refused
 /// edit, and <c>retryable</c> from a 503, so the body shape is pinned here.
 /// </summary>
-public class PostPublisherHandlerPlaylistOwnershipTests
+public class PostPublisherHandlerPlaylistValidationTests
 {
-    private const string MismatchCode = "youTubePlaylistChannelMismatch";
-    private const string LookupFailedCode = "youTubePlaylistOwnerLookupFailed";
+    private const string NotFoundCode = "youTubePlaylistNotFound";
+    private const string LookupFailedCode = "youTubePlaylistLookupFailed";
 
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
@@ -50,11 +50,11 @@ public class PostPublisherHandlerPlaylistOwnershipTests
             .Setup(s => s.UpdateAsync(It.IsAny<TvShowChangeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
 
-    [Fact(DisplayName = "POST news organisation: an ownership refusal is a 400 with message and code.")]
-    public async Task news_ownership_bad_request_has_message_and_code()
+    [Fact(DisplayName = "POST news organisation: a playlist refusal is a 400 with message and code.")]
+    public async Task news_playlist_bad_request_has_message_and_code()
     {
         // Arrange
-        NewsReturns(new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.BadRequest, "mismatch", Code: MismatchCode));
+        NewsReturns(new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.BadRequest, "not found", Code: NotFoundCode));
         var sut = _mocker.CreateInstance<PostNewsOrganisationHandler>();
 
         // Act
@@ -65,11 +65,11 @@ public class PostPublisherHandlerPlaylistOwnershipTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await Body(response);
-        body.GetProperty("message").GetString().Should().Be("mismatch");
-        body.GetProperty("code").GetString().Should().Be(MismatchCode);
+        body.GetProperty("message").GetString().Should().Be("not found");
+        body.GetProperty("code").GetString().Should().Be(NotFoundCode);
     }
 
-    [Fact(DisplayName = "POST news organisation: a failed owner lookup is a 503 with message, code and retryable=true.")]
+    [Fact(DisplayName = "POST news organisation: a failed playlist lookup is a 503 with message, code and retryable=true.")]
     public async Task news_lookup_failure_is_retryable_503()
     {
         // Arrange
@@ -90,11 +90,11 @@ public class PostPublisherHandlerPlaylistOwnershipTests
         body.GetProperty("retryable").GetBoolean().Should().BeTrue();
     }
 
-    [Fact(DisplayName = "POST TV show: an ownership refusal is a 400 with message and code.")]
-    public async Task tv_ownership_bad_request_has_message_and_code()
+    [Fact(DisplayName = "POST TV show: a playlist refusal is a 400 with message and code.")]
+    public async Task tv_playlist_bad_request_has_message_and_code()
     {
         // Arrange
-        TvReturns(new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, "mismatch", Code: MismatchCode));
+        TvReturns(new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, "not found", Code: NotFoundCode));
         var sut = _mocker.CreateInstance<PostTvShowHandler>();
 
         // Act
@@ -105,11 +105,11 @@ public class PostPublisherHandlerPlaylistOwnershipTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await Body(response);
-        body.GetProperty("message").GetString().Should().Be("mismatch");
-        body.GetProperty("code").GetString().Should().Be(MismatchCode);
+        body.GetProperty("message").GetString().Should().Be("not found");
+        body.GetProperty("code").GetString().Should().Be(NotFoundCode);
     }
 
-    [Fact(DisplayName = "POST TV show: a failed owner lookup is a 503 with message, code and retryable=true.")]
+    [Fact(DisplayName = "POST TV show: a failed playlist lookup is a 503 with message, code and retryable=true.")]
     public async Task tv_lookup_failure_is_retryable_503()
     {
         // Arrange

@@ -202,7 +202,7 @@ public class YouTubeEpisodeProvider(
     }
 
     public async Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(Podcast podcast, YouTubePlaylistId youTubePlaylistId,
-        YouTubeChannelId? youTubeChannelId, IndexingContext indexingContext, bool expensivePlaylist = false,
+        IndexingContext indexingContext, bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null, IEnumerable<string>? knownIds = null)
     {
         var playlistQueryResponse = await youTubePlaylistService.GetPlaylistVideoSnippets(
@@ -226,8 +226,7 @@ public class YouTubeEpisodeProvider(
                     : playlistQueryResponse.WalkOutcome);
         }
 
-        var built = await BuildPlaylistEpisodes(podcast, youTubeChannelId, indexingContext,
-            playlistQueryResponse.Result, knownIds);
+        var built = await BuildPlaylistEpisodes(podcast, indexingContext, playlistQueryResponse.Result, knownIds);
         return built with
         {
             IsExpensiveQuery = isExpensiveQuery,
@@ -241,7 +240,6 @@ public class YouTubeEpisodeProvider(
 
     public async Task<GetPlaylistEpisodesResponse> BuildPlaylistEpisodes(
         Podcast podcast,
-        YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext,
         IList<PlaylistItem> playlistItems,
         IEnumerable<string>? knownIds = null)
@@ -284,6 +282,10 @@ public class YouTubeEpisodeProvider(
             try
             {
                 var reducedResults = new List<EpisodeModel>();
+                // The playlist alone decides which videos belong to the parent: every video in it is indexed, whichever
+                // channel uploaded it. The parent's youTubeChannelId is not used here (a playlist and a channel id are
+                // mutually exclusive for indexing). Fame Under Fire, Oct 2026: a BBC News Entertainment playlist on a
+                // parent whose channel id was BBC World Service had every video dropped by the old channel filter.
                 var candidates = results
                     .Where(x => x.Snippet != null)
                     .Where(x => x.Snippet.Title != "Deleted video")
@@ -293,19 +295,8 @@ public class YouTubeEpisodeProvider(
                             videoDetails.SingleOrDefault(videoDetail =>
                                 videoDetail.Id == x.Snippet.ResourceId.VideoId)!
                         ))
-                    .Where(x => x.VideoDetails?.Snippet != null)
-                    .ToList();
-                var otherChannel = youTubeChannelId == null
-                    ? []
-                    : candidates
-                        .Where(x => x.VideoDetails.Snippet.ChannelId != youTubeChannelId.ChannelId)
-                        .ToList();
-                if (otherChannel.Count > 0)
-                {
-                    LogOtherChannelVideosDropped(podcast, youTubeChannelId!, candidates.Count, otherChannel);
-                }
-
-                foreach (var playlistItemVideo in candidates.Except(otherChannel))
+                    .Where(x => x.VideoDetails?.Snippet != null);
+                foreach (var playlistItemVideo in candidates)
                 {
                     if (SkipMembersOnly(playlistItemVideo.VideoDetails))
                     {
@@ -324,46 +315,12 @@ public class YouTubeEpisodeProvider(
                                       !indexingContext.CancellationToken.IsCancellationRequested)
             {
                 logger.LogError(e,
-                    "Error getting playlist videos. youtube-channel-id: '{youtubeChannelId}'.",
-                    youTubeChannelId?.ChannelId);
+                    "Error getting playlist videos. podcast-id: '{podcastId}', youtube-playlist-id: '{youTubePlaylistId}'.",
+                    podcast.Id, podcast.YouTubePlaylistId);
             }
         }
 
         return new GetPlaylistEpisodesResponse(null);
-    }
-
-    /// <summary>
-    /// A playlist video uploaded by a channel other than the parent's <c>youTubeChannelId</c> is not indexed. That is
-    /// normally a sign the parent's playlist belongs to a different channel (e.g. Fame Under Fire: BBC World Service
-    /// channel id with a BBC News Entertainment playlist, where every video was dropped). Log it so it is never silent.
-    /// Warning when every candidate was dropped (the playlist is almost certainly another channel's); Information when
-    /// only some were (a channel's own playlist that mixes in collab/guest uploads), so the per-pass signal stays clean.
-    /// </summary>
-    private void LogOtherChannelVideosDropped(
-        Podcast podcast,
-        YouTubeChannelId youTubeChannelId,
-        int candidateCount,
-        IReadOnlyCollection<PlaylistItemVideo> dropped)
-    {
-        const int maxListed = 20;
-        var droppedChannels = dropped
-            .GroupBy(x => x.VideoDetails.Snippet.ChannelId)
-            .Select(g => $"{g.Key}={g.Count()}")
-            .ToArray();
-        var allDropped = dropped.Count == candidateCount;
-        logger.Log(
-            allDropped ? LogLevel.Warning : LogLevel.Information,
-            "YouTubePlaylistOtherChannelVideosDropped podcast-id='{PodcastId}' podcast-name='{PodcastName}' playlist-id='{PlaylistId}' youtube-channel-id='{YouTubeChannelId}' dropped-count='{DroppedCount}' candidate-count='{CandidateCount}' all-dropped='{AllDropped}' video-channels='{VideoChannels}' video-ids='{VideoIds}'. Playlist videos uploaded by another channel are not indexed; check the playlist belongs to the YouTube channel.",
-            podcast.Id,
-            podcast.Name,
-            podcast.YouTubePlaylistId,
-            youTubeChannelId.ChannelId,
-            dropped.Count,
-            candidateCount,
-            allDropped,
-            string.Join(",", droppedChannels),
-            string.Join(",", dropped.Take(maxListed).Select(x => x.VideoDetails.Id)) +
-            (dropped.Count > maxListed ? $",...(+{dropped.Count - maxListed})" : string.Empty));
     }
 
     private bool SkipMembersOnly(Google.Apis.YouTube.v3.Data.Video video)

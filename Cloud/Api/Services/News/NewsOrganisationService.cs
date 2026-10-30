@@ -19,7 +19,7 @@ public class NewsOrganisationService(
     INewsReportRepository newsReportRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
-    IYouTubePlaylistOwnershipGuard youTubePlaylistOwnershipGuard,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -69,10 +69,8 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
-            if (await youTubePlaylistOwnershipGuard.Check(
-                    organisation.Indexing?.YouTubeChannelId,
+            if (await youTubePlaylistGuard.Check(
                     organisation.Indexing?.YouTubePlaylistId,
-                    request.Change.YouTubeChannelId,
                     request.Change.YouTubePlaylistId,
                     cancellationToken) is { } refused)
             {

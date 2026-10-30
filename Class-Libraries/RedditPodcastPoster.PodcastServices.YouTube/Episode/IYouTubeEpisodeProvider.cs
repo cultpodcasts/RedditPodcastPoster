@@ -29,21 +29,20 @@ public interface IYouTubeEpisodeProvider
     Task<GetPlaylistEpisodesResponse> GetPlaylistEpisodes(
         Podcast podcast,
         YouTubePlaylistId youTubePlaylistId,
-        YouTubeChannelId? youTubeChannelId,
-        IndexingContext indexingContext, 
+        IndexingContext indexingContext,
         bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null,
         IEnumerable<string>? knownIds = null);
 
     /// <summary>
     /// The playlist path's build step on items already fetched: date window, known-id skip, videos.list, then the
-    /// deleted / other-channel / members-only filters and <c>BuildEpisodeAsync</c>. The full walk and the YouTube
+    /// deleted / members-only filters and <c>BuildEpisodeAsync</c>. Every video in the playlist is kept whichever
+    /// channel uploaded it: when a parent has a playlist, the playlist alone is its YouTube source. The full walk and the YouTube
     /// indexing hints uploads check both use it, so both filter identically. Results is null when videos.list or a
     /// build failed.
     /// </summary>
     Task<GetPlaylistEpisodesResponse> BuildPlaylistEpisodes(
         Podcast podcast,
-        YouTubeChannelId? youTubeChannelId,
         IndexingContext indexingContext,
         IList<PlaylistItem> playlistItems,
         IEnumerable<string>? knownIds = null);

@@ -99,16 +99,14 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedYouTubeItem != null)
         {
-            if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId) &&
-                !string.IsNullOrWhiteSpace(matchingPodcast.YouTubePlaylistId))
+            if (matchingPodcast.UsesYouTubePlaylist() && string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
-                // A submitted video's channel need not own the podcast's playlist; filling the channel id here could
-                // pair the playlist with a channel that does not own it, and the indexer would then drop every playlist
-                // video. No API path sets a podcast's channel id (PodcastChangeApplier ignores it; #1179), so this
-                // needs a manual fix.
-                logger.LogWarning(
-                    "Not enriching podcast '{matchingPodcastId}' with youtube channel-id '{resolvedYouTubeItemShowId}': it has youtube-playlist-id '{playlistId}' and no channel-id, and the video's channel may not own that playlist. Needs a manual fix: set the channel id that owns the playlist (no API path sets a podcast channel-id; see #1179).",
-                    matchingPodcast.Id, categorisedItem.ResolvedYouTubeItem.ShowId, matchingPodcast.YouTubePlaylistId);
+                // The playlist is the podcast's only YouTube source, so it needs no channel id. Filling one from the
+                // submitted video would make channel-based discovery and URL routing claim that channel's other
+                // uploads for this podcast, although only the playlist's videos are its episodes.
+                logger.LogInformation(
+                    "Not setting youtube channel-id '{resolvedYouTubeItemShowId}' on podcast '{matchingPodcastId}': it uses youtube-playlist-id '{playlistId}' as its YouTube source.",
+                    categorisedItem.ResolvedYouTubeItem.ShowId, matchingPodcast.Id, matchingPodcast.YouTubePlaylistId);
             }
             else if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {

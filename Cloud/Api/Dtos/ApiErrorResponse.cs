@@ -7,7 +7,7 @@ public class ApiErrorResponse
     [JsonPropertyName("error")]
     public string? Error { get; private set; }
 
-    /// <summary>Stable machine-readable error code (e.g. youTubePlaylistChannelMismatch); omitted when not set.</summary>
+    /// <summary>Stable machine-readable error code (e.g. youTubePlaylistNotFound); omitted when not set.</summary>
     [JsonPropertyName("code")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Code { get; private set; }
