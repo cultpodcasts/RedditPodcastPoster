@@ -3,6 +3,7 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Providers;
@@ -80,5 +81,26 @@ public class EpisodeCosmosFilterTranslationRules
         // Assert
         sql.Should().Contain("[\"releaseSort\"] >=");
         sql.Should().NotContain("[\"release\"]");
+    }
+
+    [Fact(DisplayName =
+        "When news reports are filtered by PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter, then the Cosmos SQL compares releaseSort only and never reads the legacy release fallback, because the Spotify / Apple catch-up must not reintroduce the dual-key release read dropped in GATE 5.")]
+    public void holds_spotify_or_apple_link_released_on_or_after_translates_to_release_sort_only()
+    {
+        // Arrange
+        var since = DomainTestFixture.UtcDaysAgo(_fixture.Create<int>() % 30 + 1);
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "newsReports");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<NewsReport>()
+            .Where(PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<NewsReport>(since))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("[\"releaseSort\"] >=");
+        sql.Should().NotContain("[\"release\"]");
+        sql.Should().NotContain("IS_DEFINED");
     }
 }
