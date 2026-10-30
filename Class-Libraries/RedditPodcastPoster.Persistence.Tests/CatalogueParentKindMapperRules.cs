@@ -261,7 +261,7 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
-        "Mapping a stored episode whose Language is null keeps Language null on the TV and news playables and SetRelease keeps ReleaseSort and ReleaseCosmosFallback in sync, because null is English and must not inherit publisher language.")]
+        "Mapping a stored episode whose Language is null keeps Language null on the TV and news playables and SetRelease keeps Release and ReleaseSort in sync, because null is English and must not inherit publisher language.")]
     public void playable_language_null_stays_null_and_set_release_syncs_sort()
     {
         // Arrange
@@ -282,9 +282,8 @@ public class CatalogueParentKindMapperRules
         newsPlayable.Language.Should().BeNull();
         tvPlayable.Release.Should().Be(episode.Release);
         tvPlayable.ReleaseSort.Should().Be(episode.ReleaseSort);
-        tvPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
         newsPlayable.ReleaseSort.Should().Be(episode.ReleaseSort);
-        newsPlayable.ReleaseCosmosFallback.Should().Be(episode.ReleaseCosmosFallback);
+        newsPlayable.Release.Should().Be(episode.Release);
     }
 
     [Fact(DisplayName =

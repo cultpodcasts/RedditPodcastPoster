@@ -98,7 +98,7 @@ public class HomepageCataloguePlayables(
     {
         var reports = await newsReportRepository
             .GetAllBy(x =>
-                (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since &&
+                x.ReleaseSort >= since &&
                 !x.Removed && !x.Ignored &&
                 (!x.ParentRemoved.IsDefined() || x.ParentRemoved == null || x.ParentRemoved == false))
             .ToListAsync(ct);
@@ -132,7 +132,7 @@ public class HomepageCataloguePlayables(
     {
         var episodes = await tvShowEpisodeRepository
             .GetAllBy(x =>
-                (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since &&
+                x.ReleaseSort >= since &&
                 !x.Removed && !x.Ignored &&
                 (!x.ParentRemoved.IsDefined() || x.ParentRemoved == null || x.ParentRemoved == false))
             .ToListAsync(ct);

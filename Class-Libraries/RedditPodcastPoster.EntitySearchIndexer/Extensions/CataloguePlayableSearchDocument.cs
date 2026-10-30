@@ -1,6 +1,8 @@
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Search.Formatting;
+using RedditPodcastPoster.Search.Indexing;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Search.Models;
@@ -12,7 +14,10 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 /// (<c>PlayableSearchSources</c>): <c>title</c> is the playable title (a film's name), <c>seriesName</c> is the
 /// denormalised parent name (none for a film), <c>publisherSearchTerms</c> is the denormalised parent terms
 /// (none for a film) and <c>episodeSearchTerms</c> is the item's own terms. Used by the curator edit to push the
-/// document straight away instead of waiting for the pull indexer's next <c>_ts</c> run.
+/// document straight away instead of waiting for the pull indexer's next <c>_ts</c> run. <c>spotifyId</c>,
+/// <c>appleId</c> and <c>podcastAppleId</c> come from the <c>services</c> URLs through
+/// <see cref="PlayableServiceSearchIds"/>, the same rules the pull SQL uses: the push is a merge-upload, so a null
+/// here would blank the ids the pull wrote.
 /// </summary>
 public static class CataloguePlayableSearchDocument
 {
@@ -28,6 +33,7 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = episode.TvShowName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = episode.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, episode.YouTubeId);
+        ApplyServiceIds(record, episode.Services);
         return record;
     }
 
@@ -44,6 +50,7 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = report.NewsOrganisationName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = report.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, report.YouTubeId);
+        ApplyServiceIds(record, report.Services);
         return record;
     }
 
@@ -57,6 +64,7 @@ public static class CataloguePlayableSearchDocument
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
         PreferCatalogueYouTubeId(record, film.YouTubeId);
+        ApplyServiceIds(record, film.Services);
         return record;
     }
 
@@ -70,6 +78,13 @@ public static class CataloguePlayableSearchDocument
         {
             record.YoutubeId = catalogueYouTubeId;
         }
+    }
+
+    private static void ApplyServiceIds(
+        EpisodeSearchRecord record,
+        IReadOnlyDictionary<string, ServiceLink>? services)
+    {
+        (record.SpotifyId, record.AppleId, record.PodcastAppleId) = PlayableServiceSearchIds.From(services);
     }
 
     /// <summary>The pull query's filter: a removed item, or one whose parent is removed, has no document.</summary>

@@ -132,6 +132,40 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>Episode ids passed to each <see cref="DeleteMany"/> call, in call order.</summary>
+    public List<IReadOnlyList<Guid>> BulkDeletes { get; } = [];
+
+    /// <summary>Runs after each <see cref="DeleteMany"/> call, so a test can add an episode mid-transfer.</summary>
+    public Action<Guid>? AfterDeleteMany { get; set; }
+
+    public Task<EpisodeBulkDeleteResult> DeleteMany(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    {
+        if (episodes.FirstOrDefault(episode => episode.PodcastId != podcastId) is { } stranger)
+        {
+            throw new InvalidOperationException(
+                $"Episode '{stranger.Id}' belongs to podcast '{stranger.PodcastId}', not '{podcastId}'.");
+        }
+
+        BulkDeletes.Add(episodes.Select(episode => episode.Id).ToList());
+        var deleted = 0;
+        var missing = 0;
+        foreach (var episode in episodes)
+        {
+            BeforeDelete?.Invoke(podcastId, episode.Id);
+            if (_episodes.Remove(episode.Id))
+            {
+                deleted++;
+            }
+            else
+            {
+                missing++;
+            }
+        }
+
+        AfterDeleteMany?.Invoke(podcastId);
+        return Task.FromResult(new EpisodeBulkDeleteResult(deleted, missing, 0, 0));
+    }
+
     public Task<Episode?> GetBy(Expression<Func<Episode, bool>> selector)
     {
         var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();

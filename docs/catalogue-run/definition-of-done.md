@@ -98,11 +98,15 @@ CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl --apply --co
 
 ## G. Drop the Episode dual-key / bridges (GATE 5 step 5)
 
-Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy:
+Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy: (tracked in [#1151](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1151); re-run the read-only audit in [deployment.md](../deployment.md#episode-json-cutover-phase-1-dual-key-queries) first)
+
+Redeploy happens on merge: the GitHub Actions **Provision and Deploy** workflow (`.github/workflows/deploy.yml`, on push to `main`) auto-deploys the `indexer`, `discover` and `api` Function apps. The local scripts are a fallback only, if Actions is unavailable:
 
 ```powershell
 .\scripts\deploy-indexer.ps1; .\scripts\deploy-discover.ps1; .\scripts\deploy-api.ps1
 ```
+
+30 Oct 2026 (for #1152): read-only production audit at 14:41 GMT returned `0` everywhere (Episodes container with and without the `type` filter; TV-show-episode and news-report containers). Step F checks 1–5 passed; PublicDatabase preview clean 15:54–16:00 GMT.
 
 ## H. Close
 
