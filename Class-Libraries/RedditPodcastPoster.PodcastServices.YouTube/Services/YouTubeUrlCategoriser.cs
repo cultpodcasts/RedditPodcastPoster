@@ -5,6 +5,7 @@ using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Episodes.Matching;
@@ -31,6 +32,7 @@ public class YouTubeUrlCategoriser(
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
+    IEpisodeRepository episodeRepository,
     ILogger<YouTubeUrlCategoriser> logger)
     : IYouTubeUrlCategoriser
 {
@@ -166,6 +168,7 @@ public class YouTubeUrlCategoriser(
         if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
         {
             string channelDescription = "", channelContentOwner = "";
+            await HealYouTubeIdsExtractableFromUrls(matchingPodcast, episodes); // pragma: allowlist secret
             var mismatchedEpisodes = episodes.Where(HasInconsistentYouTubeIdAndUrl).ToArray();
             if (mismatchedEpisodes.Any())
             {
@@ -426,6 +429,34 @@ public class YouTubeUrlCategoriser(
                             ?? item.Snippet?.PublishedAtDateTimeOffset;
             return published >= publishedAfter && published < publishedBefore;
         }).ToList();
+    }
+
+    /// <summary>
+    /// A live episode whose YouTube url contains a video id but whose nested id is empty is healed
+    /// (<see cref="EpisodeServicePresence.FillYouTubeIdFromUrl"/>) and saved. Search reads only the nested id, // pragma: allowlist secret
+    /// so an in-memory fill that is not saved leaves the Watch icon missing on the next read.
+    /// Rows this cannot reconcile stay for <see cref="HasInconsistentYouTubeIdAndUrl"/>.
+    /// </summary>
+    private async Task HealYouTubeIdsExtractableFromUrls(Podcast podcast, IList<EpisodeModel> episodes) // pragma: allowlist secret
+    {
+        foreach (var episode in episodes) // pragma: allowlist secret
+        {
+            if (!HasInconsistentYouTubeIdAndUrl(episode))
+            {
+                continue;
+            }
+
+            if (!EpisodeServicePresence.FillYouTubeIdFromUrl(episode)) // pragma: allowlist secret
+            {
+                continue;
+            }
+
+            logger.LogInformation(
+                "Healed episode '{EpisodeId}' on podcast '{PodcastId}': filled missing ids.youtube from the video id in the YouTube url.",
+                episode.Id,
+                podcast.Id);
+            await episodeRepository.Save(episode);
+        }
     }
 
     /// <summary>

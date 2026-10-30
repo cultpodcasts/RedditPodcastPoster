@@ -132,7 +132,7 @@ jobs:
       if: needs.build.outputs.infrastructure_changed == 'true'
     
     - name: Azure Login
-      uses: Azure/login@v3            
+      uses: Azure/login@v3.1.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
@@ -141,7 +141,7 @@ jobs:
 
     - name: Functions Budget (Deploy Bicep)
       id: bicepfunctionsbudgetdeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -155,7 +155,7 @@ jobs:
 
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -168,7 +168,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}"}'
     - name: Cosmos DB diagnostics (Deploy Bicep)
       id: bicepcosmosdiagnosticsdeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -181,7 +181,7 @@ jobs:
         parameters: '{"cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}", "logAnalyticsWorkspaceName":"loganalytics-${{ env.suffix }}", "enableDiagnostics":true}'
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -194,7 +194,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}"}'
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -207,7 +207,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}"}'
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
-      uses: azure/bicep-deploy@v2
+      uses: azure/bicep-deploy@v2.5.0
       if: needs.build.outputs.infrastructure_changed == 'true'
       with:
         type: deployment
@@ -222,7 +222,7 @@ jobs:
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
-      uses: Azure/cli@v3
+      uses: Azure/cli@v3.0.0
       with:
         azcliversion: latest
         inlineScript: |
@@ -247,7 +247,7 @@ jobs:
         run: ls -R -a .
 
       - name: Login to Azure
-        uses: azure/login@v3
+        uses: Azure/login@v3.1.0
         with:
           client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
           tenant-id: ${{ secrets.AZURE_Tenant_ID }}
@@ -278,7 +278,7 @@ jobs:
         run: ls -R -a .
 
       - name: Login to Azure
-        uses: azure/login@v3
+        uses: Azure/login@v3.1.0
         with:
           client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
           tenant-id: ${{ secrets.AZURE_Tenant_ID }}
@@ -309,7 +309,7 @@ jobs:
         run: ls -R -a .
 
       - name: Login to Azure
-        uses: azure/login@v3
+        uses: Azure/login@v3.1.0
         with:
           client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
           tenant-id: ${{ secrets.AZURE_Tenant_ID }}
