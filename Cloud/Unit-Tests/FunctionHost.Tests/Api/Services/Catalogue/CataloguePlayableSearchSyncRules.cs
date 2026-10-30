@@ -5,6 +5,7 @@ using Moq.AutoMock;
 using Api.Services.Catalogue;
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
@@ -171,5 +172,75 @@ public class CataloguePlayableSearchSyncRules
         document.Title.Should().Be(film.Name);
         document.SeriesName.Should().BeNull();
         document.PublisherSearchTerms.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: after an on-demand index, the saved TV episodes and news reports are pushed to search in one batch and no short link is touched, because the hourly indexer does not touch short links either.")]
+    public async Task after_index_pushes_changed_items_in_one_batch()
+    {
+        // Arrange
+        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        episode.SetTvShowProperties(show);
+        var report = CreateReport();
+
+        // Act
+        var response = await Sut.AfterIndex(show.Name, [episode, report], CancellationToken.None);
+
+        // Assert
+        response.IndexerState.Should().Be(IndexerState.Executed);
+        _uploaded.Select(d => d.Id).Should().BeEquivalentTo([episode.Id.ToString(), report.Id.ToString()]);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(
+            s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _search.DeleteBatches.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: after an on-demand index, an item the elimination terms removed is deleted from search and not pushed, because removed items must leave search straight away.")]
+    public async Task after_index_deletes_removed_items()
+    {
+        // Arrange
+        var removed = CreateReport(r => r.Removed = true);
+        var kept = CreateReport();
+
+        // Act
+        var response = await Sut.AfterIndex(_fixture.CreateTitle(), [removed, kept], CancellationToken.None);
+
+        // Assert
+        response.IndexerState.Should().Be(IndexerState.Executed);
+        _search.DeletedKeys.Should().Equal(removed.Id.ToString());
+        _uploaded.Should().ContainSingle().Which.Id.Should().Be(kept.Id.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: after an on-demand index that saved nothing, search is not called and the state is NoDocuments, because there is nothing to push.")]
+    public async Task after_index_with_no_changes_does_nothing()
+    {
+        // Arrange
+        var parentName = _fixture.CreateTitle();
+
+        // Act
+        var response = await Sut.AfterIndex(parentName, [], CancellationToken.None);
+
+        // Assert
+        response.EpisodeIndexRequestState.Should().Be(EpisodeIndexRequestState.NoDocuments);
+        _uploaded.Should().BeEmpty();
+        _search.DeleteBatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: after an on-demand index, a failed push is reported as Failure and not thrown, because the items are already saved and the pull indexer will pick them up.")]
+    public async Task after_index_reports_push_failure()
+    {
+        // Arrange
+        _uploadSucceeds = false;
+        var report = CreateReport();
+
+        // Act
+        var response = await Sut.AfterIndex(_fixture.CreateTitle(), [report], CancellationToken.None);
+
+        // Assert
+        response.IndexerState.Should().Be(IndexerState.Failure);
     }
 }

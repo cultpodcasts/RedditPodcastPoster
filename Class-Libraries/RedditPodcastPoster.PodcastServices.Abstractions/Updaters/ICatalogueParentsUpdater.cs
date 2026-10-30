@@ -14,4 +14,11 @@ public interface ICatalogueParentsUpdater
 
     /// <summary>Index these parent ids (TV or News). Unknown or non-indexable ids are skipped. False when any parent failed.</summary>
     Task<bool> UpdateParents(Guid[] parentIds, IndexingContext indexingContext);
+
+    /// <summary>
+    /// Index one TV show or news organisation now (curator "Index" on the hub page). Same discovery, merge, filters,
+    /// time budget and indexer-state patch as <see cref="UpdateParents"/>; unlike it, an unknown or non-indexable id is
+    /// reported in the result instead of skipped, and the saved playables are returned so the caller can update search.
+    /// </summary>
+    Task<CatalogueParentIndexResult> IndexParent(Guid parentId, IndexingContext indexingContext);
 }

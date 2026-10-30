@@ -136,7 +136,7 @@ public class CatalogueParentsUpdater(
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
                         success &= await IndexWithinBudget("TvShow", tvShow,
-                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass) is not null;
                     }
 
                     continue;
@@ -147,7 +147,7 @@ public class CatalogueParentsUpdater(
                     !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
                     success &= await IndexWithinBudget("NewsOrganisation", organisation,
-                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass) is not null;
                 }
             }
             catch (Exception ex)
@@ -164,20 +164,79 @@ public class CatalogueParentsUpdater(
         return success;
     }
 
-    /// <summary>
-    /// Runs one parent's index under its time budget. Returns false when the budget cut it off; other failures
-    /// propagate to the caller's per-parent catch.
-    /// </summary>
-    private async Task<bool> IndexWithinBudget(
+    public async Task<CatalogueParentIndexResult> IndexParent(Guid parentId, IndexingContext indexingContext)
+    {
+        if (!indexingContext.ReleasedSince.HasValue)
+        {
+            throw new InvalidOperationException("Cannot index catalogue parents without a released-since.");
+        }
+
+        var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
+        try
+        {
+            var tvShow = await tvShowRepository.GetTvShow(parentId);
+            if (tvShow is not null)
+            {
+                return await IndexOnDemand("TvShow", tvShow,
+                    context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+            }
+
+            var organisation = await newsOrganisationRepository.GetNewsOrganisation(parentId);
+            if (organisation is not null)
+            {
+                return await IndexOnDemand("NewsOrganisation", organisation,
+                    context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+            }
+
+            logger.LogWarning("On-demand index: no TV show or news organisation with id '{ParentId}'.", parentId);
+            return new CatalogueParentIndexResult(CatalogueParentIndexStatus.NotFound);
+        }
+        finally
+        {
+            passApiCache.Clear();
+        }
+    }
+
+    private async Task<CatalogueParentIndexResult> IndexOnDemand(
         string kind,
         Publisher parent,
-        Func<IndexingContext, Task> index,
+        Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
+        IndexingContext indexingContext,
+        bool expensivePass)
+    {
+        if (!IsIndexable(parent))
+        {
+            logger.LogWarning(
+                "On-demand index: catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' is removed or not auto-indexed.",
+                kind, parent.Id, parent.Name);
+            return new CatalogueParentIndexResult(CatalogueParentIndexStatus.NotIndexable);
+        }
+
+        if (await SourcePodcastStillExists(kind, parent))
+        {
+            return new CatalogueParentIndexResult(CatalogueParentIndexStatus.SourcePodcastStillExists);
+        }
+
+        var changed = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass);
+        return changed is null
+            ? new CatalogueParentIndexResult(CatalogueParentIndexStatus.BudgetExceeded)
+            : new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, changed);
+    }
+
+    /// <summary>
+    /// Runs one parent's index under its time budget. Returns the saved playables, or null when the budget cut it off;
+    /// other failures propagate to the caller's per-parent catch.
+    /// </summary>
+    private async Task<IReadOnlyList<Playable>?> IndexWithinBudget(
+        string kind,
+        Publisher parent,
+        Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
         IndexingContext indexingContext,
         bool expensivePass)
     {
         var stageLog = new PodcastIndexingStageLog(parent.Id, parent.Name, logger, timeProvider, _stageLogOptions);
         var budget = _budget.BudgetFor(expensivePass);
-        Task? updateTask = null;
+        Task<IReadOnlyList<Playable>>? updateTask = null;
         using var budgetCts = budget.HasValue
             ? new CancellationTokenSource(budget.Value, timeProvider)
             : new CancellationTokenSource();
@@ -190,18 +249,13 @@ public class CatalogueParentsUpdater(
                 StageReporter = stageLog
             };
             updateTask = index(parentContext);
-            if (budget.HasValue)
-            {
-                await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider);
-            }
-            else
-            {
-                await updateTask;
-            }
+            var changed = budget.HasValue
+                ? await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider)
+                : await updateTask;
 
             stageLog.Stage("complete");
             budgetCutTracker.RecordCompleted(parent.Id);
-            return true;
+            return changed;
         }
         catch (Exception ex) when (budgetCts.IsCancellationRequested &&
                                    ex is OperationCanceledException or TimeoutException)
@@ -220,7 +274,7 @@ public class CatalogueParentsUpdater(
                 ObserveAbandonedUpdate(updateTask, kind, parent, stageLog);
             }
 
-            return false;
+            return null;
         }
     }
 
@@ -295,7 +349,7 @@ public class CatalogueParentsUpdater(
         _ => null
     };
 
-    private async Task IndexTvShow(TvShow show, IndexingContext context)
+    private async Task<IReadOnlyList<Playable>> IndexTvShow(TvShow show, IndexingContext context)
     {
         var outcome = await IndexParent(
             show,
@@ -325,9 +379,10 @@ public class CatalogueParentsUpdater(
         }
 
         LogOutcome("TvShow", show, outcome);
+        return outcome.ChangedPlayables;
     }
 
-    private async Task IndexNewsOrganisation(NewsOrganisation organisation, IndexingContext context)
+    private async Task<IReadOnlyList<Playable>> IndexNewsOrganisation(NewsOrganisation organisation, IndexingContext context)
     {
         var outcome = await IndexParent(
             organisation,
@@ -357,6 +412,7 @@ public class CatalogueParentsUpdater(
         }
 
         LogOutcome("NewsOrganisation", organisation, outcome);
+        return outcome.ChangedPlayables;
     }
 
     /// <summary>
